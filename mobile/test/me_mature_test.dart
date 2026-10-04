@@ -571,8 +571,8 @@ class _MeStreamRepository extends PersonalRepository {
   _MeStreamRepository({
     required Stream<StoredProjection?> projection,
     required Stream<OwnerSourceState> source,
-  }) : _projection = projection,
-       _source = source,
+  }) : this._projection = projection,
+       this._source = source,
        super(_NeverUsedStore());
 
   final Stream<StoredProjection?> _projection;
