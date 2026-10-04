@@ -691,7 +691,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       subtitle: activity.summary.isEmpty
                           ? null
                           : activity.summary,
-                      status: MakoloStatus(label: activity.state),
+                      status: activity.state == null
+                          ? null
+                          : MakoloStatus(label: activity.state!),
                       metadata: [
                         if (activity.owner != null)
                           MakoloMetadataItem(
@@ -835,7 +837,9 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                     MakoloDetailHeader(
                       eyebrow: 'Occurrence',
                       title: occurrence.activityTitle,
-                      status: MakoloStatus(label: occurrence.state),
+                      status: occurrence.state == null
+                          ? null
+                          : MakoloStatus(label: occurrence.state!),
                       metadata: [
                         if (occurrence.timing != null)
                           MakoloMetadataItem(
