@@ -111,7 +111,10 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
             );
             final available = presentation.available;
             final unavailableWithoutContent =
-                !available && source.invalidated && !_refreshing;
+                !available &&
+                (source.invalidated ||
+                    source.reachability == ReachabilityState.unreachable) &&
+                !_refreshing;
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
