@@ -7,6 +7,7 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
+import '../../presentation/humanization.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
@@ -191,9 +192,11 @@ class _JourneyContent extends StatelessWidget {
           eyebrow: presentation.kindLabel,
           title: presentation.title,
           subtitle: presentation.summary,
-          status: presentation.journeyState.isEmpty
-              ? null
-              : MakoloStatus(label: presentation.journeyState),
+          status:
+              MakoloHumanization.presentationLabel(presentation.journeyState)
+                  case final state?
+              ? MakoloStatus(label: state)
+              : null,
         ),
         if (presentation.nextActionLabel != null) ...[
           Padding(
@@ -209,9 +212,6 @@ class _JourneyContent extends StatelessWidget {
         ],
         MakoloSection(
           title: 'Préparation',
-          description: presentation.readinessState.isEmpty
-              ? null
-              : 'État fourni par le serveur : ${presentation.readinessState}',
           child: _ReadinessGroups(presentation: presentation),
         ),
         if (presentation.resourcesLink != null) ...[
@@ -375,7 +375,7 @@ class _FormCard extends StatelessWidget {
         ),
     ];
     return MakoloCard(
-      semanticLabel: 'Formulaire. Statut ${form.state}',
+      semanticLabel: 'Formulaire',
       onTap: form.canComplete && form.detailLink.isNotEmpty
           ? () => onOpen(form)
           : null,
@@ -384,7 +384,9 @@ class _FormCard extends StatelessWidget {
         subtitle: form.canComplete
             ? 'Une réponse est attendue.'
             : 'Consultation uniquement pour le moment.',
-        status: MakoloStatus(label: form.state),
+        status: MakoloHumanization.presentationLabel(form.state) case final state?
+            ? MakoloStatus(label: state)
+            : null,
         metadata: metadata,
         action: form.canComplete && form.detailLink.isNotEmpty
             ? const Icon(Icons.chevron_right_rounded)
@@ -406,9 +408,10 @@ class _ReferenceCard extends StatelessWidget {
       onTap: onTap,
       child: MakoloStatusMetadataAction(
         title: reference.label,
-        status: reference.state == null
-            ? null
-            : MakoloStatus(label: reference.state!),
+        status: MakoloHumanization.presentationLabel(reference.state)
+            case final state?
+            ? MakoloStatus(label: state)
+            : null,
         action: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
       ),
     );
