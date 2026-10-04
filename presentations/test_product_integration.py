@@ -11,7 +11,10 @@ from journeys.models import WorkflowKind
 from .catalog import ensure_builtin_catalog
 from .enums import PresentationPurpose
 from .library_services import activate_template_version, duplicate_template
+from .models import PresentationTemplate, PresentationTemplateVersion
 from .product_usage import access_presentation_purpose
+from .services import configure_activity_presentation
+from .enums import Provenance, VersionStatus, Visibility
 
 
 User = get_user_model()
@@ -83,6 +86,58 @@ class MPSProductIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Formal PR3 Copy")
         self.assertContains(response, f'value="{version.pk}"')
+
+    def test_activation_keeps_personal_template_private(self):
+        template, version = duplicate_template(
+            actor=self.owner,
+            source_version=self.templates["formal"],
+            slug="private-pr3-copy",
+            name="Private PR3 Copy",
+        )
+        activate_template_version(actor=self.owner, version=version)
+        template.refresh_from_db()
+        version.refresh_from_db()
+        self.assertEqual(template.visibility, Visibility.PRIVATE)
+        self.assertEqual(version.status, VersionStatus.PUBLISHED)
+
+    def test_forged_incompatible_template_selection_is_rejected(self):
+        manifest = dict(self.templates["formal"].manifest)
+        manifest["purposes"] = [PresentationPurpose.PUBLIC_PAGE]
+        template = PresentationTemplate.objects.create(
+            slug="pr3-public-only",
+            name="PR3 Public Only",
+            provenance=Provenance.USER,
+            visibility=Visibility.PRIVATE,
+            owner_profile=self.owner,
+            created_by=self.owner,
+        )
+        version = PresentationTemplateVersion.objects.create(
+            template=template,
+            version_number=1,
+            status=VersionStatus.PUBLISHED,
+            schema_version=1,
+            manifest=manifest,
+            created_by=self.owner,
+        )
+        with self.assertRaisesMessage(Exception, "compatible"):
+            configure_activity_presentation(
+                actor=self.owner,
+                activity=self.activity,
+                purpose=PresentationPurpose.INVITATION,
+                template_version=version,
+                theme_version=self.themes["makolo-violet"],
+            )
+
+    def test_private_public_page_studio_does_not_offer_dead_public_link(self):
+        self.activity.visibility = ActivityVisibility.PRIVATE
+        self.activity.save(update_fields=["visibility", "updated_at"])
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("presentations:studio", kwargs={"activity_id": self.activity.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Ouvrir la page présentée")
+        self.assertContains(response, "ne devient publique")
 
     def test_public_invitation_and_program_outputs_are_real_surfaces(self):
         for purpose in (PresentationPurpose.INVITATION, PresentationPurpose.PROGRAM):

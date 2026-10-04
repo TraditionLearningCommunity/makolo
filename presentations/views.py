@@ -79,10 +79,16 @@ def _source_label(resource, *, actor, activity):
 
 def _studio_usage(activity, purpose):
     if purpose == PresentationPurpose.PUBLIC_PAGE:
+        if activity.visibility == ActivityVisibility.PUBLIC:
+            return {
+                "url": reverse("presentations:public-activity", kwargs={"activity_id": activity.pk}),
+                "label": "Ouvrir la page présentée",
+                "note": "Cette page est partageable publiquement.",
+            }
         return {
-            "url": reverse("presentations:public-activity", kwargs={"activity_id": activity.pk}),
-            "label": "Ouvrir la page présentée",
-            "note": "Cette page est partageable lorsque l’Activity est publique.",
+            "url": "",
+            "label": "",
+            "note": "Prévisualisez ici. La page présentée ne devient publique que lorsque l’Activity elle-même est publique.",
         }
     if purpose in ACTIVITY_OUTPUT_PURPOSES:
         return {
