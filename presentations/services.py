@@ -71,3 +71,16 @@ def publish_activity_presentation(*, actor, presentation):
     presentation.published_at = timezone.now()
     presentation.save(update_fields=["state", "published_at", "updated_at"])
     return presentation
+
+
+@transaction.atomic
+def clear_activity_presentation(*, actor, activity, purpose, occurrence=None):
+    ensure_activity_presentation_authority(actor, activity)
+    if occurrence is not None and occurrence.activity_id != activity.pk:
+        raise ValidationError({"occurrence": "L’Occurrence doit appartenir à l’Activity."})
+    deleted, _ = (
+        ActivityPresentation.objects.select_for_update()
+        .filter(activity=activity, occurrence=occurrence, purpose=purpose)
+        .delete()
+    )
+    return bool(deleted)
