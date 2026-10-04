@@ -13,11 +13,12 @@ from activities.models import Activity, ActivityVisibility
 from authorization.constants import PermissionCode
 from authorization.services import can
 from core.product_language import vocabulary_for
-from core.participant_selectors import participant_accesses_visible_to_buyer
+from core.participant_selectors import participant_accesses_visible_to_buyer, participant_journeys
+from journeys.models import WorkflowKind
 
 from .asset_services import create_presentation_asset
 from .catalog import catalog_entries, ensure_builtin_catalog
-from .contexts import build_access_context, build_activity_context
+from .contexts import build_access_context, build_activity_context, build_journey_context
 from .editorial import PURPOSE_FIELDS
 from .enums import PresentationPurpose, Provenance, VersionStatus
 from .models import PresentationTemplateVersion, PresentationThemeVersion
@@ -25,7 +26,7 @@ from .product_usage import ACTIVITY_OUTPUT_PURPOSES, access_presentation_purpose
 from .rendering import render_presentation
 from .resolver import ResolvedPresentation, resolve_presentation
 from .selectors import available_template_versions, available_theme_versions
-from .services import configure_activity_presentation, publish_activity_presentation
+from .services import clear_activity_presentation, configure_activity_presentation, publish_activity_presentation
 
 PREVIEW_MODES = {"phone": "web", "desktop": "web", "print": "print"}
 SAFE_PINNED_VERSION_STATUSES = {VersionStatus.PUBLISHED, VersionStatus.RETIRED}
@@ -185,6 +186,13 @@ class ActivityPresentationStudioView(ActivityPresentationAuthorityMixin, Templat
                 "template_options": template_options,
                 "theme_options": theme_options,
                 "current": current,
+                "effective_source": (
+                    "Configuration de cette Activity"
+                    if current
+                    else "Default de l’Espace"
+                    if resolve_presentation(activity=self.activity, purpose=purpose).fallback_reason == "space-default"
+                    else "Makolo Essential"
+                ),
                 "editorial_fields": editorial_fields,
                 "usage": _studio_usage(self.activity, purpose),
                 "library_url": reverse("presentations:library"),
@@ -202,6 +210,16 @@ class ActivityPresentationStudioView(ActivityPresentationAuthorityMixin, Templat
         purpose = request.POST.get("purpose") or PresentationPurpose.PUBLIC_PAGE
         if purpose not in PresentationPurpose.values:
             raise ValidationError("Usage de Présentation invalide.")
+        if request.POST.get("action") == "use_default":
+            clear_activity_presentation(
+                actor=request.user,
+                activity=self.activity,
+                purpose=purpose,
+            )
+            messages.success(request, "Cette Activity utilise de nouveau le default disponible.")
+            return redirect(
+                f"{reverse('presentations:studio', kwargs={'activity_id': self.activity.pk})}?purpose={purpose}"
+            )
 
         template_version_id = request.POST.get("template_version")
         theme_version_id = request.POST.get("theme_version")
@@ -330,6 +348,55 @@ class PublicActivityPresentationView(View):
         context = build_activity_context(activity=activity, occurrence=_occurrence(activity), editorial=resolved.binding.editorial_data if resolved.binding else {})
         html = render_presentation(manifest=resolved.manifest, theme_tokens=resolved.theme_tokens, context=context, surface="web")
         return HttpResponse(_document(html, mode="desktop", title=activity.title), content_type="text/html; charset=utf-8")
+
+
+class ParticipantJourneyPresentationView(LoginRequiredMixin, View):
+    login_url = "core:login"
+
+    def get(self, request, journey_id):
+        journey = get_object_or_404(
+            participant_journeys(request.user).select_related(
+                "activity",
+                "activity__space",
+                "activity__owner_profile",
+                "occurrence",
+                "beneficiary",
+                "external_beneficiary",
+            ),
+            pk=journey_id,
+        )
+        if journey.workflow != WorkflowKind.INVITATION:
+            raise Http404
+        resolved = resolve_presentation(
+            activity=journey.activity,
+            occurrence=journey.occurrence,
+            purpose=PresentationPurpose.INVITATION,
+        )
+        context = build_journey_context(
+            journey=journey,
+            editorial=resolved.binding.editorial_data if resolved.binding else {},
+            primary_url=reverse(
+                "core:participant-journey-detail",
+                kwargs={"pk": journey.pk},
+            ),
+            primary_label="Répondre dans Makolo",
+        )
+        html = render_presentation(
+            manifest=resolved.manifest,
+            theme_tokens=resolved.theme_tokens,
+            context=context,
+            surface="web",
+        )
+        response = HttpResponse(
+            _document(
+                html,
+                mode="desktop",
+                title=f"Invitation · {journey.activity.title}",
+            ),
+            content_type="text/html; charset=utf-8",
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class ParticipantAccessPresentationView(LoginRequiredMixin, View):
