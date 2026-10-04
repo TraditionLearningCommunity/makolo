@@ -9,6 +9,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
+import '../../sync/freshness.dart';
 import 'day_of_repository.dart';
 import 'day_of_selector.dart';
 
