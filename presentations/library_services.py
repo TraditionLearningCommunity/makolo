@@ -66,9 +66,12 @@ def activate_template_version(*, actor, version):
     else:
         raise PermissionDenied("Seul un modèle personnel ou Espace peut être activé directement.")
 
+    if template.visibility == Visibility.PUBLIC:
+        raise ValidationError("Un modèle public suit le workflow de modération Communauté.")
     if version.status != VersionStatus.DRAFT:
         raise ValidationError("Seul un brouillon peut être rendu utilisable directement.")
     validate_manifest(version.manifest)
+    validate_publication_accessibility(version.manifest)
     version.status = VersionStatus.PUBLISHED
     version.published_at = timezone.now()
     version.save(update_fields=["status", "published_at"])
