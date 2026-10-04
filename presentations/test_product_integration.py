@@ -1,9 +1,11 @@
+from datetime import timedelta
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from activities.models import ActivityVisibility
 from activities.services import create_activity, create_occurrence
@@ -223,7 +225,11 @@ class MPSProductIntegrationTests(TestCase):
         )
 
     def test_participant_invitation_is_private_and_uses_activity_presentation(self):
-        occurrence = create_occurrence(activity=self.activity)
+        occurrence = create_occurrence(
+            activity=self.activity,
+            timezone="Africa/Lubumbashi",
+            start_at=timezone.now() + timedelta(days=1),
+        )
         binding = configure_activity_presentation(
             actor=self.owner,
             activity=self.activity,
