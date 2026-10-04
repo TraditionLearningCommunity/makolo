@@ -308,10 +308,15 @@ class _ReadinessGroups extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = presentation.nextActionLabel?.trim();
+    final actorInterventions = [
+      for (final item in presentation.actorInterventions)
+        if (primary == null || item.summary.trim() != primary) item,
+    ];
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
       (
         'Demande votre attention',
-        presentation.actorInterventions,
+        actorInterventions,
         Icons.bolt_rounded,
       ),
       ('Bloque la suite', presentation.blockers, Icons.block_rounded),
