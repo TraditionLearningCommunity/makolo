@@ -441,13 +441,8 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('me-depth-scroll')), findsOneWidget);
-    expect(
-      find.text(
-        'Cette ressource est disponible ici. '
-        'Son usage dépendra de ce que vous entreprendrez.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Privé'), findsOneWidget);
+    expect(find.textContaining('Son usage dépendra'), findsNothing);
     expect(find.textContaining('Requirement'), findsNothing);
     expect(find.textContaining('AccessCredential'), findsNothing);
 
@@ -486,7 +481,7 @@ void main() {
     expect(find.text('Gilbert Bemwiz'), findsOneWidget);
     expect(find.text('Mes ressources'), findsOneWidget);
     expect(
-      find.textContaining('Ce qui est déjà disponible reste visible'),
+      find.text('Mise à jour momentanément indisponible.'),
       findsOneWidget,
     );
   });

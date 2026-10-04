@@ -198,6 +198,41 @@ class MakoloNotice extends StatelessWidget {
   }
 }
 
+class NetworkStateCue extends StatelessWidget {
+  const NetworkStateCue({super.key, required this.status});
+
+  final SyncStatus status;
+
+  bool get _visible =>
+      status.state == SyncVisualState.offline ||
+      status.state == SyncVisualState.failed ||
+      status.state == SyncVisualState.stale;
+
+  String get _label => switch (status.state) {
+    SyncVisualState.offline => 'Hors connexion',
+    SyncVisualState.failed => 'Mise à jour momentanément indisponible',
+    SyncVisualState.stale => 'Vérification recommandée',
+    _ => '',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return const SizedBox.shrink();
+    return Semantics(
+      label: _label,
+      child: Tooltip(
+        message: _label,
+        child: Container(
+          key: const Key('network-state-cue'),
+          height: 3,
+          width: double.infinity,
+          color: context.makoloSurfaces.warning,
+        ),
+      ),
+    );
+  }
+}
+
 class NetworkStateIndicator extends StatelessWidget {
   const NetworkStateIndicator({super.key, required this.status});
 
@@ -224,7 +259,7 @@ class NetworkStateIndicator extends StatelessWidget {
     SyncVisualState.offline ||
     SyncVisualState.conflict ||
     SyncVisualState.stale => MakoloNoticeKind.warning,
-    SyncVisualState.failed => MakoloNoticeKind.error,
+    SyncVisualState.failed => MakoloNoticeKind.warning,
   };
 
   @override

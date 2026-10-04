@@ -192,7 +192,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return AuthEntryFrame(
       title: 'Connectez-vous à Makolo',
-      subtitle: 'Makolo marche avec vous.',
+      subtitle: 'Makolo marche pour vous.',
       child: AutofillGroup(
         child: Form(
           key: _formKey,

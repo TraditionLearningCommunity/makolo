@@ -8,6 +8,7 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
+import '../../presentation/humanization.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
@@ -113,7 +114,12 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: !available && source.invalidated && !_refreshing
+              failure:
+                  !available &&
+                      (source.invalidated ||
+                          source.reachability ==
+                              ReachabilityState.unreachable) &&
+                      !_refreshing
                   ? MakoloFailureCue.blocking
                   : source.lastErrorCode != null && available
                   ? MakoloFailureCue.recoverable
@@ -165,9 +171,14 @@ class _RequirementContent extends StatelessWidget {
           eyebrow: presentation.required ? 'Obligatoire' : 'Condition',
           title: presentation.label,
           subtitle: presentation.description,
-          status: presentation.state == null
+          status:
+              MakoloHumanization.presentationLabel(presentation.state) == null
               ? null
-              : MakoloStatus(label: presentation.state!),
+              : MakoloStatus(
+                  label: MakoloHumanization.presentationLabel(
+                    presentation.state,
+                  )!,
+                ),
         ),
         if (presentation.consequence != null) ...[
           MakoloSection(
@@ -178,8 +189,7 @@ class _RequirementContent extends StatelessWidget {
         ],
         MakoloSection(
           title: 'Comment avancer',
-          description:
-              'Ces possibilités sont fournies par le domaine propriétaire.',
+          description: 'Voici les moyens actuellement disponibles.',
           child: presentation.ways.isEmpty
               ? const MakoloCard(
                   child: Text(
@@ -196,10 +206,16 @@ class _RequirementContent extends StatelessWidget {
                       MakoloCard(
                         child: MakoloStatusMetadataAction(
                           title: presentation.ways[index].label,
-                          status: presentation.ways[index].state == null
+                          status:
+                              MakoloHumanization.presentationLabel(
+                                    presentation.ways[index].state,
+                                  ) ==
+                                  null
                               ? null
                               : MakoloStatus(
-                                  label: presentation.ways[index].state!,
+                                  label: MakoloHumanization.presentationLabel(
+                                    presentation.ways[index].state,
+                                  )!,
                                 ),
                         ),
                       ),

@@ -275,8 +275,8 @@ void main() {
 
     expect(find.text('Contenu local conservé'), findsOneWidget);
     expect(find.text('Mise à jour…'), findsOneWidget);
-    expect(find.textContaining('Données plus anciennes'), findsOneWidget);
-    expect(find.textContaining('source distante'), findsOneWidget);
+    expect(find.textContaining('Données plus anciennes'), findsNothing);
+    expect(find.textContaining('source distante'), findsNothing);
     expect(find.byType(MakoloSkeleton), findsNothing);
   });
 
@@ -300,6 +300,7 @@ void main() {
 
     await pump(MakoloCommitCue.pending);
     expect(find.text('En attente de synchronisation'), findsOneWidget);
+    expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
     expect(find.text('Confirmé'), findsNothing);
 
     await pump(MakoloCommitCue.confirmed);

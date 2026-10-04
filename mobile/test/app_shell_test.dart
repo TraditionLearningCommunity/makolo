@@ -127,12 +127,13 @@ void main() {
   ) async {
     await _pumpRouter(tester);
 
-    expect(find.text('Maintenant'), findsOneWidget);
+    expect(find.text('Now'), findsOneWidget);
     expect(find.text('Découvrir'), findsOneWidget);
     expect(find.text('En cours'), findsOneWidget);
     expect(find.text('Moi'), findsOneWidget);
     expect(find.byTooltip('Makolo Mark'), findsOneWidget);
-    expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.center_focus_strong_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.schedule_outlined), findsNothing);
     expect(find.byIcon(Icons.home_outlined), findsNothing);
   });
 
@@ -172,7 +173,7 @@ void main() {
 
     await tester.tap(find.text('En cours'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Maintenant'));
+    await tester.tap(find.text('Now'));
     await tester.pumpAndSettle();
 
     expect(refreshes, 0);
@@ -215,7 +216,7 @@ void main() {
 
     await tester.tap(find.text('En cours'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Maintenant'));
+    await tester.tap(find.text('Now'));
     await tester.pumpAndSettle();
 
     expect(find.text('Compteur 1'), findsOneWidget);
@@ -242,7 +243,7 @@ void main() {
 
     await tester.tap(find.text('En cours'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Maintenant'));
+    await tester.tap(find.text('Now'));
     await tester.pumpAndSettle();
 
     final after = tester
@@ -338,16 +339,18 @@ void main() {
       status: const SyncStatus(state: SyncVisualState.offline),
     );
     expect(find.text('Now content'), findsOneWidget);
-    expect(find.textContaining('Hors connexion'), findsOneWidget);
+    expect(find.byKey(const Key('network-state-cue')), findsOneWidget);
+    expect(find.textContaining('Hors connexion'), findsNothing);
 
     await _pumpRouter(
       tester,
       status: const SyncStatus(state: SyncVisualState.failed),
     );
     expect(find.text('Now content'), findsOneWidget);
+    expect(find.byKey(const Key('network-state-cue')), findsOneWidget);
     expect(
       find.text('Impossible de mettre à jour pour le moment.'),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
@@ -355,7 +358,7 @@ void main() {
     await _pumpRouter(tester, textScale: 2);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Maintenant'), findsOneWidget);
+    expect(find.text('Now'), findsOneWidget);
     expect(find.byTooltip('Avatar'), findsOneWidget);
   });
 }

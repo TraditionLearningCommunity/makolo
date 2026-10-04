@@ -1,4 +1,5 @@
 import '../../data/local/profile_store.dart';
+import '../../presentation/humanization.dart';
 
 class ActivityOccurrenceSummary {
   const ActivityOccurrenceSummary({
@@ -10,7 +11,7 @@ class ActivityOccurrenceSummary {
 
   final String id;
   final String label;
-  final String state;
+  final String? state;
   final String? timing;
 }
 
@@ -27,8 +28,8 @@ class ActivityDetailPresentation {
 
   final String title;
   final String summary;
-  final String state;
-  final String availability;
+  final String? state;
+  final String? availability;
   final String? owner;
   final String? vertical;
   final List<ActivityOccurrenceSummary> occurrences;
@@ -47,8 +48,8 @@ class OccurrenceDetailPresentation {
 
   final String activityId;
   final String activityTitle;
-  final String state;
-  final String availability;
+  final String? state;
+  final String? availability;
   final String? timing;
   final String? place;
   final Set<String> capabilities;
@@ -59,7 +60,10 @@ class OccurrenceDetailPresentation {
 class DiscoveryDetailSelector {
   const DiscoveryDetailSelector();
 
-  ActivityDetailPresentation? activity(StoredProjection? projection) {
+  ActivityDetailPresentation? activity(
+    StoredProjection? projection, {
+    DateTime? now,
+  }) {
     final payload = projection?.payload;
     if (payload == null) return null;
     final representation = _map(payload['representation']);
@@ -80,8 +84,8 @@ class DiscoveryDetailSelector {
           ActivityOccurrenceSummary(
             id: id,
             label: _text(row['label']) ?? 'Réalisation',
-            state: _text(row['state']) ?? 'unknown',
-            timing: _timing(_map(row['timing'])),
+            state: MakoloHumanization.humanStatus(_text(row['state'])),
+            timing: _timing(_map(row['timing']), now: now ?? DateTime.now()),
           ),
         );
       }
@@ -89,15 +93,20 @@ class DiscoveryDetailSelector {
     return ActivityDetailPresentation(
       title: title,
       summary: _text(representation?['summary']) ?? '',
-      state: _text(state?['code']) ?? 'unknown',
-      availability: _text(availability?['state']) ?? 'unknown',
+      state: MakoloHumanization.humanStatus(_text(state?['code'])),
+      availability: MakoloHumanization.humanStatus(
+        _text(availability?['state']),
+      ),
       owner: _text(owner?['display_name']),
       vertical: _text(identity?['vertical']),
       occurrences: List.unmodifiable(items),
     );
   }
 
-  OccurrenceDetailPresentation? occurrence(StoredProjection? projection) {
+  OccurrenceDetailPresentation? occurrence(
+    StoredProjection? projection, {
+    DateTime? now,
+  }) {
     final payload = projection?.payload;
     if (payload == null) return null;
     final activity = _map(payload['activity']);
@@ -118,24 +127,32 @@ class DiscoveryDetailSelector {
     return OccurrenceDetailPresentation(
       activityId: id,
       activityTitle: title,
-      state: _text(state?['code']) ?? 'unknown',
-      availability: _text(availability?['state']) ?? 'unknown',
-      timing: _timing(_map(payload['timing'])),
+      state: MakoloHumanization.humanStatus(_text(state?['code'])),
+      availability: MakoloHumanization.humanStatus(
+        _text(availability?['state']),
+      ),
+      timing: _timing(_map(payload['timing']), now: now ?? DateTime.now()),
       place: placeParts.isEmpty ? null : placeParts.join(' · '),
       capabilities: Set.unmodifiable(capabilities),
     );
   }
 }
 
-String? _timing(Map<String, dynamic>? timing) {
+String? _timing(Map<String, dynamic>? timing, {required DateTime now}) {
   if (timing == null) return null;
-  final exact = _text(timing['start_at']);
-  if (exact != null) return exact;
+  final instant = MakoloHumanization.tryParseInstant(timing['start_at']);
+  if (instant != null) {
+    return MakoloHumanization.formatDateTime(instant, now: now);
+  }
   final date = _text(timing['start_date']);
   final time = _text(timing['start_time']);
-  return [date, time].whereType<String>().join(' ').trim().isEmpty
+  final parsed = date == null
       ? null
-      : [date, time].whereType<String>().join(' ');
+      : DateTime.tryParse(time == null ? date : '${date}T$time');
+  if (parsed == null) return null;
+  return time == null
+      ? MakoloHumanization.formatDay(parsed, now: now)
+      : MakoloHumanization.formatDateTime(parsed, now: now);
 }
 
 Map<String, dynamic>? _map(Object? value) =>

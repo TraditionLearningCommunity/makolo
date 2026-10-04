@@ -19,6 +19,7 @@ import '../features/now/now_routes.dart';
 import '../features/ongoing/ongoing_routes.dart';
 import '../features/preparation/preparation_routes.dart';
 import '../features/questionnaires/questionnaire_routes.dart';
+import '../features/settings/billing_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
 import '../navigation/destination.dart';
@@ -56,6 +57,7 @@ GoRouter createMakoloRouter(
       '/history',
       '/notifications',
       '/ongoing/calendar',
+      '/billing',
       '/settings',
     }.contains(path)) {
       return true;
@@ -173,6 +175,10 @@ GoRouter createMakoloRouter(
           ),
           onAddAccount: () => context.push('/login?add=1'),
         ),
+      ),
+      GoRoute(
+        path: '/billing',
+        builder: (context, state) => const BillingScreen(),
       ),
       GoRoute(
         path: '/settings',

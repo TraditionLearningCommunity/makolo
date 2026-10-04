@@ -8,6 +8,7 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
+import '../../presentation/humanization.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
@@ -143,7 +144,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                     child: MakoloStatusMetadataAction(
                       title: items[index].title,
                       subtitle: items[index].contextLabel,
-                      status: MakoloStatus(label: items[index].lifecycle),
+                      status: items[index].lifecycle == null
+                          ? null
+                          : MakoloStatus(label: items[index].lifecycle!),
                       metadata: [
                         if (items[index].attentionCount > 0)
                           MakoloMetadataItem(
@@ -299,7 +302,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     ),
                     MakoloSection(
                       title: 'Points',
-                      description: 'Les possibilités de réponse et l’attention requise viennent du serveur.',
+                      description:
+                          'Ce qui demande votre attention apparaît ici.',
                       child: detail.points.isEmpty
                           ? const MakoloCard(
                               child: Text('Aucun point à afficher.'),
@@ -350,7 +354,7 @@ class _PointCard extends StatelessWidget {
         ),
       if (point.canRespond)
         const MakoloMetadataItem(
-          'Réponse autorisée par le serveur',
+          'Vous pouvez répondre',
           icon: Icons.reply_rounded,
         ),
     ];
@@ -358,7 +362,9 @@ class _PointCard extends StatelessWidget {
       child: MakoloStatusMetadataAction(
         title: point.title,
         subtitle: point.body,
-        status: MakoloStatus(label: point.lifecycle),
+        status: point.lifecycle == null
+            ? null
+            : MakoloStatus(label: point.lifecycle!),
         metadata: metadata,
       ),
     );
@@ -377,7 +383,7 @@ class _ConversationSummary {
 
   final String id;
   final String title;
-  final String lifecycle;
+  final String? lifecycle;
   final int attentionCount;
   final bool allClear;
   final String? contextLabel;
@@ -394,7 +400,9 @@ class _ConversationSummary {
           return _ConversationSummary(
             id: _string(row['id']) ?? '',
             title: _string(row['title']) ?? 'Conversation',
-            lifecycle: _string(row['lifecycle']) ?? '',
+            lifecycle: MakoloHumanization.presentationLabel(
+              _string(row['lifecycle']),
+            ),
             attentionCount: row['attention_count'] is num
                 ? (row['attention_count'] as num).toInt()
                 : 0,
@@ -431,7 +439,9 @@ class _ConversationDetail {
     return _ConversationDetail(
       title: _string(payload['title']) ?? 'Conversation',
       purpose: _string(payload['purpose']),
-      lifecycle: _string(payload['lifecycle']),
+      lifecycle: MakoloHumanization.presentationLabel(
+        _string(payload['lifecycle']),
+      ),
       contextLabel: _string(context['label']),
       points: _maps(payload['points'])
           .map(_ConversationPoint.fromMap)
@@ -453,7 +463,7 @@ class _ConversationPoint {
 
   final String title;
   final String? body;
-  final String lifecycle;
+  final String? lifecycle;
   final bool requiresAcknowledgement;
   final bool canRespond;
   final String? attentionReason;
@@ -463,7 +473,9 @@ class _ConversationPoint {
     return _ConversationPoint(
       title: _string(row['title']) ?? 'Point',
       body: _string(row['body']),
-      lifecycle: _string(row['lifecycle']) ?? '',
+      lifecycle: MakoloHumanization.presentationLabel(
+        _string(row['lifecycle']),
+      ),
       requiresAcknowledgement: row['requires_acknowledgement'] == true,
       canRespond: row['can_respond'] == true,
       attentionReason: _string(row['attention_reason']),

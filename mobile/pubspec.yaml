@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   camera: 0.12.1
   connectivity_plus: 7.3.1
   dio: 5.11.1
@@ -25,6 +27,7 @@ dependencies:
   go_router: 18.0.1
   home_widget: 0.10.0
   image_picker: 1.2.3
+  intl: 0.20.3
   json_annotation: 4.12.0
   local_auth: 3.0.2
   maplibre_gl: 0.27.1

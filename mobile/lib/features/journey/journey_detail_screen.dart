@@ -7,6 +7,7 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
+import '../../presentation/humanization.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
@@ -110,7 +111,10 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
             );
             final available = presentation.available;
             final unavailableWithoutContent =
-                !available && source.invalidated && !_refreshing;
+                !available &&
+                (source.invalidated ||
+                    source.reachability == ReachabilityState.unreachable) &&
+                !_refreshing;
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -191,9 +195,15 @@ class _JourneyContent extends StatelessWidget {
           eyebrow: presentation.kindLabel,
           title: presentation.title,
           subtitle: presentation.summary,
-          status: presentation.journeyState.isEmpty
+          status:
+              MakoloHumanization.presentationLabel(presentation.journeyState) ==
+                  null
               ? null
-              : MakoloStatus(label: presentation.journeyState),
+              : MakoloStatus(
+                  label: MakoloHumanization.presentationLabel(
+                    presentation.journeyState,
+                  )!,
+                ),
         ),
         if (presentation.nextActionLabel != null) ...[
           Padding(
@@ -209,9 +219,6 @@ class _JourneyContent extends StatelessWidget {
         ],
         MakoloSection(
           title: 'Préparation',
-          description: presentation.readinessState.isEmpty
-              ? null
-              : 'État fourni par le serveur : ${presentation.readinessState}',
           child: _ReadinessGroups(presentation: presentation),
         ),
         if (presentation.resourcesLink != null) ...[
@@ -304,12 +311,13 @@ class _ReadinessGroups extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = presentation.nextActionLabel?.trim();
+    final actorInterventions = [
+      for (final item in presentation.actorInterventions)
+        if (primary == null || item.summary.trim() != primary) item,
+    ];
     final groups = <(String, List<JourneyReadinessItem>, IconData)>[
-      (
-        'Demande votre attention',
-        presentation.actorInterventions,
-        Icons.bolt_rounded,
-      ),
+      ('Demande votre attention', actorInterventions, Icons.bolt_rounded),
       ('Bloque la suite', presentation.blockers, Icons.block_rounded),
       ('En attente', presentation.waiting, Icons.schedule_rounded),
       ('En ordre', presentation.ready, Icons.check_circle_outline_rounded),
@@ -375,7 +383,7 @@ class _FormCard extends StatelessWidget {
         ),
     ];
     return MakoloCard(
-      semanticLabel: 'Formulaire. Statut ${form.state}',
+      semanticLabel: 'Formulaire',
       onTap: form.canComplete && form.detailLink.isNotEmpty
           ? () => onOpen(form)
           : null,
@@ -384,7 +392,11 @@ class _FormCard extends StatelessWidget {
         subtitle: form.canComplete
             ? 'Une réponse est attendue.'
             : 'Consultation uniquement pour le moment.',
-        status: MakoloStatus(label: form.state),
+        status: MakoloHumanization.presentationLabel(form.state) == null
+            ? null
+            : MakoloStatus(
+                label: MakoloHumanization.presentationLabel(form.state)!,
+              ),
         metadata: metadata,
         action: form.canComplete && form.detailLink.isNotEmpty
             ? const Icon(Icons.chevron_right_rounded)
@@ -406,9 +418,11 @@ class _ReferenceCard extends StatelessWidget {
       onTap: onTap,
       child: MakoloStatusMetadataAction(
         title: reference.label,
-        status: reference.state == null
+        status: MakoloHumanization.presentationLabel(reference.state) == null
             ? null
-            : MakoloStatus(label: reference.state!),
+            : MakoloStatus(
+                label: MakoloHumanization.presentationLabel(reference.state)!,
+              ),
         action: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
       ),
     );

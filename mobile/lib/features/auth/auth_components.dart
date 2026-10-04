@@ -62,6 +62,7 @@ class MakoloAuthField extends StatelessWidget {
       ),
       decoration: InputDecoration(
         labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         labelStyle: TextStyle(color: MakoloColors.deep.withValues(alpha: 0.72)),
         floatingLabelStyle: const TextStyle(
           color: MakoloColors.deep,

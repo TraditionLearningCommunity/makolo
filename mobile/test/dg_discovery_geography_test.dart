@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/discovery/detail_selector.dart';
@@ -9,6 +10,10 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'fakes.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('fr');
+  });
+
   late MakoloDatabase database;
   late ProfileStore store;
   late DiscoveryRepository repository;
@@ -206,14 +211,21 @@ void main() {
         },
         'state': {'code': 'scheduled'},
         'availability': {'state': 'available'},
+        'timing': {'start_at': '2026-10-04T07:00:00+00:00'},
         'capabilities': [],
       },
     );
 
-    final selected = const DiscoveryDetailSelector().occurrence(projection);
+    final selected = const DiscoveryDetailSelector().occurrence(
+      projection,
+      now: DateTime.utc(2026, 10, 4, 12),
+    );
 
     expect(selected, isNotNull);
-    expect(selected!.canOpenDayOf, isFalse);
+    expect(selected!.state, 'Prévu');
+    expect(selected.availability, 'Disponible');
+    expect(selected.timing, isNot(contains('2026-10-04T')));
+    expect(selected.canOpenDayOf, isFalse);
   });
 
   test('Watch replay is an owner collection source, not a local engine', () {

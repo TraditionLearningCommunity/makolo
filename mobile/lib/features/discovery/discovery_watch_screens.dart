@@ -6,6 +6,7 @@ import '../../data/local/profile_store.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
+import '../../presentation/humanization.dart';
 import 'discovery_repository.dart';
 import 'discovery_selector.dart';
 
@@ -13,12 +14,12 @@ class DiscoveryWatchSummary {
   const DiscoveryWatchSummary({
     required this.id,
     required this.name,
-    required this.status,
+    this.status,
   });
 
   final String id;
   final String name;
-  final String status;
+  final String? status;
 }
 
 class DiscoveryWatchSelector {
@@ -37,7 +38,7 @@ class DiscoveryWatchSelector {
         DiscoveryWatchSummary(
           id: id,
           name: name,
-          status: _text(row['status']) ?? 'unknown',
+          status: MakoloHumanization.presentationLabel(_text(row['status'])),
         ),
       );
     }
@@ -146,7 +147,9 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                   semanticLabel: 'Veille. ${watch.name}',
                   child: MakoloStatusMetadataAction(
                     title: watch.name,
-                    status: MakoloStatus(label: watch.status),
+                    status: watch.status == null
+                        ? null
+                        : MakoloStatus(label: watch.status!),
                     action: const Icon(Icons.chevron_right_rounded),
                   ),
                 );

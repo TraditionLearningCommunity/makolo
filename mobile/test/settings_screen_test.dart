@@ -30,6 +30,49 @@ void main() {
     expect(snapshot.reduceMotion, isTrue);
   });
 
+  testWidgets('appearance control stays usable with larger text', (
+    tester,
+  ) async {
+    final controller = AppPreferencesController(
+      store: FileLaunchPreferencesStore.forFile(File('unused-large-text')),
+      initial: const LaunchPreferencesSnapshot(),
+    );
+    addTearDown(controller.dispose);
+
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+      preferences: controller,
+      config: MakoloRuntimeConfig.fromValues(const {}),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
+          child: AppSettingsScreen(
+            runtime: runtime,
+            packageInfo: Future.value(
+              PackageInfo(
+                appName: 'Makolo',
+                packageName: 'com.makolo.mobile',
+                version: '1.0.0',
+                buildNumber: '1',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Système'), findsOneWidget);
+    expect(find.text('Clair'), findsOneWidget);
+    expect(find.text('Sombre'), findsOneWidget);
+  });
+
   testWidgets('settings expose active local controls only', (tester) async {
     final controller = AppPreferencesController(
       store: FileLaunchPreferencesStore.forFile(File('unused')),
@@ -66,7 +109,12 @@ void main() {
     expect(find.text('Clair'), findsOneWidget);
     expect(find.text('Sombre'), findsOneWidget);
     expect(find.text('Réduire les animations'), findsOneWidget);
-    expect(find.text('Licences'), findsOneWidget);
+    expect(find.text('Informations légales'), findsOneWidget);
+    expect(find.text('Licences open source'), findsNothing);
+
+    await tester.tap(find.text('Informations légales'));
+    await tester.pumpAndSettle();
+    expect(find.text('Licences open source'), findsOneWidget);
     expect(find.text('Passkey'), findsNothing);
     expect(find.text('2FA'), findsNothing);
     expect(find.text('Langue'), findsNothing);

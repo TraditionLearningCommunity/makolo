@@ -9,6 +9,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
+import '../../sync/freshness.dart';
 import 'day_of_repository.dart';
 import 'day_of_selector.dart';
 
@@ -98,7 +99,10 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
             );
             final available = presentation.available;
             final unavailableWithoutContent =
-                !available && source.invalidated && !_refreshing;
+                !available &&
+                (source.invalidated ||
+                    source.reachability == ReachabilityState.unreachable) &&
+                !_refreshing;
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -124,7 +128,7 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
 
             return Scaffold(
               appBar: AppBar(
-                title: const Text('Action en cours'),
+                title: const Text('Jour J'),
                 actions: [
                   IconButton(
                     tooltip: 'Actualiser',
@@ -177,7 +181,7 @@ class _DayOfContent extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
       children: [
         MakoloDetailHeader(
-          eyebrow: 'Maintenant',
+          eyebrow: 'Jour J',
           title: presentation.title,
           subtitle: presentation.occurrenceLabel,
         ),

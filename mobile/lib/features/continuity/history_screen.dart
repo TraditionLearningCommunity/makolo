@@ -8,6 +8,7 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
+import '../../presentation/humanization.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
@@ -241,8 +242,10 @@ class _HistoryView {
             kind: kind,
             id: id,
             title: _string(row['title']) ?? 'Historique',
-            occurredAt: _string(row['occurred_at']),
-            outcome: _string(outcome['label']) ?? _string(outcome['code']),
+            occurredAt: _humanInstant(row['occurred_at']),
+            outcome:
+                _string(outcome['label']) ??
+                MakoloHumanization.presentationLabel(_string(outcome['code'])),
           ),
         );
       }
@@ -302,4 +305,12 @@ Map<String, dynamic> _map(Object? value) {
 String? _string(Object? value) {
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? null : text;
+}
+
+String? _humanInstant(Object? value) {
+  final raw = _string(value);
+  if (raw == null) return null;
+  final instant = MakoloHumanization.tryParseInstant(raw);
+  if (instant == null) return raw;
+  return MakoloHumanization.formatDateTime(instant, now: DateTime.now());
 }

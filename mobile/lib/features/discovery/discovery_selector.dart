@@ -1,5 +1,6 @@
 import '../../data/local/profile_store.dart';
 import '../../design/surface_states.dart';
+import '../../presentation/humanization.dart';
 import '../../sync/freshness.dart';
 
 enum DiscoveryFieldState {
@@ -134,6 +135,7 @@ class DiscoverySelector {
     MakoloReachabilityCue reachability = MakoloReachabilityCue.unknown,
     MakoloFailureCue failure = MakoloFailureCue.none,
     bool refreshing = false,
+    DateTime? now,
   }) {
     if (projection == null) {
       final states = <DiscoveryFieldState>{
@@ -169,7 +171,10 @@ class DiscoverySelector {
       );
     }
 
-    final collection = _collectionFromPayload(projection.payload);
+    final collection = _collectionFromPayload(
+      projection.payload,
+      now: now ?? DateTime.now(),
+    );
     final malformedOnly = rawItems.isNotEmpty && collection.items.isEmpty;
     final states = <DiscoveryFieldState>{};
 
@@ -201,20 +206,24 @@ class DiscoverySelector {
     );
   }
 
-  DiscoveryCollectionPresentation collection(StoredProjection? projection) {
+  DiscoveryCollectionPresentation collection(
+    StoredProjection? projection, {
+    DateTime? now,
+  }) {
     final payload = projection?.payload;
     if (payload == null) return DiscoveryCollectionPresentation.empty;
-    return _collectionFromPayload(payload);
+    return _collectionFromPayload(payload, now: now ?? DateTime.now());
   }
 
   DiscoveryCollectionPresentation _collectionFromPayload(
-    Map<String, dynamic> payload,
-  ) {
+    Map<String, dynamic> payload, {
+    required DateTime now,
+  }) {
     final rawItems = payload['results'];
     final items = rawItems is List
         ? rawItems
               .whereType<Map>()
-              .map((item) => _item(Map<String, dynamic>.from(item)))
+              .map((item) => _item(Map<String, dynamic>.from(item), now: now))
               .whereType<DiscoveryItemPresentation>()
               .toList(growable: false)
         : const <DiscoveryItemPresentation>[];
@@ -227,10 +236,13 @@ class DiscoverySelector {
     );
   }
 
-  DiscoveryItemPresentation? detail(StoredProjection? projection) {
+  DiscoveryItemPresentation? detail(
+    StoredProjection? projection, {
+    DateTime? now,
+  }) {
     final raw = projection?.payload['item'];
     if (raw is! Map) return null;
-    return _item(Map<String, dynamic>.from(raw));
+    return _item(Map<String, dynamic>.from(raw), now: now ?? DateTime.now());
   }
 
   List<DiscoveryMapPoint> mapPointsFromCollection(
@@ -292,7 +304,10 @@ class DiscoverySelector {
     return List.unmodifiable(points);
   }
 
-  DiscoveryItemPresentation? _item(Map<String, dynamic> item) {
+  DiscoveryItemPresentation? _item(
+    Map<String, dynamic> item, {
+    required DateTime now,
+  }) {
     final identity = _map(item['identity']);
     final resource = _map(identity?['resource']);
     final representation = _map(item['representation']);
@@ -327,12 +342,7 @@ class DiscoverySelector {
     final locality = _text(place?['locality']);
     if (placeName != null) placeParts.add(placeName);
     if (locality != null && locality != placeName) placeParts.add(locality);
-    final timingText =
-        _text(timing?['start_at']) ??
-        [
-          _text(timing?['start_date']),
-          _text(timing?['start_time']),
-        ].whereType<String>().join(' ');
+    final timingText = _humanTiming(timing, now: now);
 
     String? priceText;
     final priceState = _text(price?['state']);
@@ -359,8 +369,10 @@ class DiscoverySelector {
       eyebrow: _text(representation?['eyebrow']),
       owner: _text(owner?['display_name']),
       place: placeParts.isEmpty ? null : placeParts.join(' · '),
-      timing: timingText.trim().isEmpty ? null : timingText,
-      availability: _text(availability?['state']),
+      timing: timingText,
+      availability: MakoloHumanization.humanStatus(
+        _text(availability?['state']),
+      ),
       price: priceText,
       latitude: _double(place?['latitude']),
       longitude: _double(place?['longitude']),
@@ -397,3 +409,23 @@ int? _int(Object? value) => value is int ? value : int.tryParse('$value');
 
 double? _double(Object? value) =>
     value is num ? value.toDouble() : double.tryParse('$value');
+
+String? _humanTiming(Map<String, dynamic>? timing, {required DateTime now}) {
+  if (timing == null) return null;
+  final instant = MakoloHumanization.tryParseInstant(timing['start_at']);
+  if (instant != null) {
+    return MakoloHumanization.formatDateTime(instant, now: now);
+  }
+
+  final date = _text(timing['start_date']);
+  final time = _text(timing['start_time']);
+  final parsed = date == null
+      ? null
+      : DateTime.tryParse(time == null ? date : '${date}T$time');
+  if (parsed != null) {
+    return time == null
+        ? MakoloHumanization.formatDay(parsed, now: now)
+        : MakoloHumanization.formatDateTime(parsed, now: now);
+  }
+  return null;
+}

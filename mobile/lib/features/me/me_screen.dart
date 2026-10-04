@@ -201,9 +201,7 @@ class _MeViewState extends State<MeView> {
           },
           child: MakoloSurfaceStateView(
             state: widget.selection.state,
-            recoverableErrorMessage:
-                'La mise à jour n’a pas abouti. '
-                'Ce qui est déjà disponible reste visible.',
+            recoverableErrorMessage: 'Mise à jour momentanément indisponible.',
             content: content,
           ),
         );
@@ -744,11 +742,11 @@ class _MeDepth extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: MakoloSpacing.xl),
-              Text(
-                _contextMessage(item.destination.kind),
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              if (_contextMessage(item.destination.kind)
+                  case final message?) ...[
+                const SizedBox(height: MakoloSpacing.xl),
+                Text(message, style: Theme.of(context).textTheme.bodyMedium),
+              ],
             ],
           ),
         ),
@@ -756,11 +754,9 @@ class _MeDepth extends StatelessWidget {
     );
   }
 
-  String _contextMessage(String kind) {
+  String? _contextMessage(String kind) {
     return switch (kind.toLowerCase()) {
-      'personal_asset' =>
-        'Cette ressource est disponible ici. '
-            'Son usage dépendra de ce que vous entreprendrez.',
+      'personal_asset' => null,
       'proof' =>
         'Cette preuve fait partie de ce qui '
             'est déjà établi autour de vous.',
@@ -771,9 +767,7 @@ class _MeDepth extends StatelessWidget {
       'space' =>
         'Ce contexte est visible ici selon '
             'les droits déjà établis par Makolo.',
-      _ =>
-        'Ce détail appartient à ce qui est '
-            'déjà en place autour de vous.',
+      _ => null,
     };
   }
 }

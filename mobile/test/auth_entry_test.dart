@@ -696,6 +696,10 @@ void main() {
     await _pumpLogin(tester, runtime, textScale: 2);
     expect(tester.takeException(), isNull);
     expect(find.text('Connectez-vous à Makolo'), findsOneWidget);
+    expect(find.text('Makolo marche pour vous.'), findsOneWidget);
+    expect(find.text('Makolo marche avec vous.'), findsNothing);
+    expect(find.text('Adresse e-mail'), findsOneWidget);
+    expect(find.text('Mot de passe'), findsOneWidget);
     expect(find.byKey(const Key('login-submit')), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const Key('login-password-toggle')));
