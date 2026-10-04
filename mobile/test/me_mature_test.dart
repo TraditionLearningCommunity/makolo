@@ -567,7 +567,6 @@ Future<void> _pumpFull(
   );
 }
 
-
 class _MeStreamRepository extends PersonalRepository {
   _MeStreamRepository({
     required Stream<StoredProjection?> projection,
