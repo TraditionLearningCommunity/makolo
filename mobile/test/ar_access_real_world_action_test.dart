@@ -447,11 +447,49 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     final store = ProfileStore(database, 'profile-a');
+    final payload = dayOfPayload()
+      ..['access'] = const []
+      ..['queue'] = const []
+      ..['placement'] = const []
+      ..['checkpoints'] = const {'items': [], 'next': null}
+      ..['readiness'] = const {
+        'state': 'ready',
+        'ready': [],
+        'actor_interventions': [],
+        'waiting': [],
+        'blockers': [],
+      }
+      ..['spatial'] = const {
+        'current_position': {
+          'state': 'unknown',
+          'truth': 'unknown',
+        },
+        'destination': null,
+        'zone': null,
+        'mobility': {
+          'truth': 'unknown',
+          'state': 'unknown',
+          'recommended_departure': null,
+          'itinerary_url': null,
+        },
+        'hazards': [],
+      }
+      ..['situation'] = const {
+        'temporal_relation': 'arrival',
+        'occurrence_state': 'scheduled',
+        'current_position': {
+          'state': 'unknown',
+          'truth': 'unknown',
+        },
+        'next': null,
+        'representation': null,
+      };
+
     await store.putProjection(
       kind: DayOfRepository.projectionKind,
       resourceKey: 'occurrence-1',
       schemaVersion: 1,
-      payload: dayOfPayload(),
+      payload: payload,
     );
     final repository = DayOfRepository(
       database: database,
@@ -478,12 +516,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    await tester.scrollUntilVisible(
-      find.text('Voir la situation en direct'),
-      320,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pump();
+    expect(find.text('Voir la situation en direct'), findsOneWidget);
 
     final live = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Voir la situation en direct'),
