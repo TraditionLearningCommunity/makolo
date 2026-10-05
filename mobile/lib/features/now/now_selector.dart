@@ -107,7 +107,10 @@ class NowSelector {
     final id = _string(sourceRaw['id']);
     final title = _string(raw['title']);
     final summary = _string(raw['summary']);
-    if (kind == null || id == null || title == null) return null;
+    final humanContext = _string(raw['human_context']) ?? title;
+    if (kind == null || id == null || title == null || humanContext == null) {
+      return null;
+    }
 
     final capabilities = _strings(raw['capabilities']);
     final links = raw['links'] is Map ? raw['links'] as Map : const {};
@@ -133,7 +136,7 @@ class NowSelector {
 
     return NowSituationPresentation(
       reference: reference,
-      humanContext: title,
+      humanContext: humanContext,
       meaning: summary ?? title,
       whyNow: whyNow,
       emphasis: index == 0
