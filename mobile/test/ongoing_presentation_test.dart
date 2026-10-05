@@ -48,6 +48,33 @@ void main() {
     expect(items.single.blocker, isNull);
   });
 
+  test('server synthesis wins over local fallback interpretation', () {
+    final items = OngoingContinuityPresentation.fromProjection(
+      _projection([
+        {
+          'kind': 'journey',
+          'source': {'kind': 'journey', 'id': 'server-summary'},
+          'state': 'waiting',
+          'title': 'Visa Canada',
+          'summary': 'Votre dossier est suivi par Makolo.',
+          'ready': [
+            {'title': 'Frais réglés'},
+          ],
+          'actor_interventions': [],
+          'continuation': {'state': 'waiting', 'summary': 'Réponse attendue.'},
+          'blocker': null,
+          'next': null,
+          'timing': {},
+          'place': null,
+          'capabilities': [],
+          'links': {},
+        },
+      ]),
+    );
+
+    expect(items.single.synthesis, 'Votre dossier est suivi par Makolo.');
+  });
+
   test('waiting stays distinct from blocker', () {
     final items = OngoingContinuityPresentation.fromProjection(
       _projection([
