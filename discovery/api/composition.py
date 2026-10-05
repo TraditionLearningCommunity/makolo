@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 
 from core.participant_selectors import participant_state_context
+from core.personal_surface_orchestration import pass_discovery_candidates_through_molongo
 from funding.discovery import (
     present_funding_card,
     public_funding_discovery_item,
@@ -154,6 +155,7 @@ def compose_discovery(params, *, profile=None) -> DiscoveryComposition:
         opportunity_items=opportunity_items,
         occurrence_items=occurrence_result.items,
     )
+    rows = pass_discovery_candidates_through_molongo(rows)
     return DiscoveryComposition(
         intent=intent,
         search_params=search_params,
@@ -446,6 +448,7 @@ def _handoff_for_projection(projection: dict, *, event_handoffs=None) -> dict:
 def _finalize_projection(
     projection: dict,
     *,
+    card=None,
     event_handoffs=None,
     description="",
 ) -> dict:
@@ -463,12 +466,44 @@ def _finalize_projection(
         if value in {"save", "unsave"}
     ]
     projection["capabilities"] = ["view", *saved_capabilities]
-    projection["links"] = {"detail": detail_url}
+    projection["links"] = {
+        "detail": detail_url,
+        "saved": reverse(
+            "discovery_api:item-saved",
+            kwargs={
+                "family": identity["family"],
+                "item_id": identity["resource"]["id"],
+            },
+        ),
+    }
+    if card is not None:
+        projection["links"]["web"] = card.url
+        if card.actions.save is not None and card.actions.save.url:
+            projection["links"]["web_saved"] = card.actions.save.url
+        if card.actions.share is not None and card.actions.share.url:
+            projection["links"]["web_share"] = card.actions.share.url
+        projection["presentation_facts"] = [
+            {
+                "code": fact.code,
+                "label": fact.label,
+                "value": fact.value,
+                "icon": fact.icon,
+            }
+            for fact in card.facts
+        ]
     projection["assessment"] = _assessment(projection)
     projection["engagement"] = _handoff_for_projection(
         projection,
         event_handoffs=event_handoffs,
     )
+    if card is not None and card.actions.primary is not None:
+        primary = card.actions.primary
+        projection["engagement"]["presentation"] = {
+            "label": primary.label,
+            "capability": primary.code,
+            "enabled": bool(primary.enabled),
+            "web": primary.url,
+        }
     if description:
         projection["detail"] = {"description": description}
     return projection
@@ -557,6 +592,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             continue
         finalized = _finalize_projection(
             projection,
+            card=card,
             event_handoffs=event_handoffs,
         )
         resource = finalized["identity"]["resource"]
@@ -570,7 +606,12 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     return projections
 
 
-def paginated_projection(params, *, profile=None) -> dict:
+def paginated_projection(
+    params,
+    *,
+    profile=None,
+    include_internal_rows=False,
+) -> dict:
     composition = compose_discovery(params, profile=profile)
     page, page_size = parse_page_params(params)
     start = (page - 1) * page_size
@@ -578,10 +619,23 @@ def paginated_projection(params, *, profile=None) -> dict:
     page_rows = composition.rows[start:end]
     results = project_rows(page_rows, profile=profile)
     count = len(composition.rows)
-    return {
+    payload = {
         "count": count,
         "page": page,
         "page_size": page_size,
+        "exploration": {
+            "raw_text": composition.intent.raw_text,
+            "search_params": dict(composition.search_params),
+            "constraints": [
+                {
+                    "key": constraint.key,
+                    "value": constraint.value,
+                    "label": constraint.label,
+                    "source": constraint.source.value,
+                }
+                for constraint in composition.intent.constraints
+            ],
+        },
         "has_next": end < count,
         "has_previous": page > 1 and count > 0,
         "timezone": composition.timezone_name,
@@ -598,6 +652,10 @@ def paginated_projection(params, *, profile=None) -> dict:
             }
         },
     }
+    if include_internal_rows:
+        payload["_page_rows"] = page_rows
+        payload["_all_rows"] = composition.rows
+    return payload
 
 
 def _activity_detail_candidate(activity_id, *, profile=None):
