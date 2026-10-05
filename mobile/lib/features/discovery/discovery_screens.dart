@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -677,7 +678,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               ),
             ],
           ),
-          body: activity == null
+          body: MakoloNetworkContextFrame(
+            child: activity == null
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
@@ -754,6 +756,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       ),
                   ],
                 ),
+          ),
         );
           },
         );
@@ -830,7 +833,8 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
               ),
             ],
           ),
-          body: occurrence == null
+          body: MakoloNetworkContextFrame(
+            child: occurrence == null
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
@@ -902,6 +906,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                       ),
                   ],
                 ),
+          ),
         );
           },
         );
