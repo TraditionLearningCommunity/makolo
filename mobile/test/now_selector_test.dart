@@ -65,6 +65,30 @@ void main() {
     expect(result.situations.last.emphasis.name, 'secondary');
   });
 
+  test('server human context wins over the action title', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'source': {'kind': 'journey', 'id': 'journey-1'},
+            'human_context': 'Visa Canada',
+            'title': 'Transmettre le certificat',
+            'summary': 'Votre certificat doit être transmis aujourd’hui.',
+            'capabilities': [],
+            'links': {},
+          },
+        ],
+      ),
+      now: now,
+    );
+
+    expect(result.situations.single.humanContext, 'Visa Canada');
+    expect(
+      result.situations.single.meaning,
+      'Votre certificat doit être transmis aujourd’hui.',
+    );
+  });
+
   test('known empty projection is calm', () {
     final result = selector.select(
       projection: projection(items: const []),
