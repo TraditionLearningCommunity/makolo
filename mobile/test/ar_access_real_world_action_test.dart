@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
@@ -7,9 +8,11 @@ import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/access/access_repository.dart';
 import 'package:makolo_mobile/features/access/access_selector.dart';
 import 'package:makolo_mobile/features/day_of/day_of_repository.dart';
+import 'package:makolo_mobile/features/day_of/day_of_screen.dart';
 import 'package:makolo_mobile/features/day_of/day_of_selector.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
+import 'package:makolo_mobile/sync/sync_status.dart';
 
 import 'dio_testing.dart';
 import 'fakes.dart';
@@ -437,6 +440,50 @@ void main() {
       expect(presentation.canOpenLive, isTrue);
     },
   );
+
+  testWidgets('Day Of keeps remote live action visible but disabled offline', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    await store.putProjection(
+      kind: DayOfRepository.projectionKind,
+      resourceKey: 'occurrence-1',
+      schemaVersion: 1,
+      payload: dayOfPayload(),
+    );
+    final repository = DayOfRepository(
+      database: database,
+      store: store,
+      profileId: 'profile-a',
+    );
+    var openedLive = false;
+
+    await tester.pumpWidget(
+      SyncStatusScope(
+        status: const SyncStatus(state: SyncVisualState.offline),
+        child: MaterialApp(
+          home: DayOfScreen(
+            occurrenceId: 'occurrence-1',
+            repository: repository,
+            onOpenAccess: (_, _) {},
+            onPresentCredential: (_, _) {},
+            onOpenLive: (_) => openedLive = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final live = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Voir la situation en direct'),
+    );
+    expect(live.onPressed, isNull);
+    expect(find.text('Connexion requise'), findsOneWidget);
+    expect(openedLive, isFalse);
+  });
 
   test('credential presentation requires the owner capability even when summary says presentable', () {
     final projection = StoredProjection(

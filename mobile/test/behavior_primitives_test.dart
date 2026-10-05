@@ -27,8 +27,8 @@ void main() {
       ),
     );
 
-    expect(find.text('Enregistré sur cet appareil'), findsOneWidget);
-    expect(find.text('En attente de synchronisation'), findsOneWidget);
+    expect(find.text('Enregistré'), findsOneWidget);
+    expect(find.text('Confirmation en attente'), findsOneWidget);
     expect(find.text('Confirmé'), findsOneWidget);
   });
 
@@ -274,9 +274,10 @@ void main() {
     );
 
     expect(find.text('Contenu local conservé'), findsOneWidget);
-    expect(find.text('Mise à jour…'), findsOneWidget);
+    expect(find.text('Mise à jour…'), findsNothing);
     expect(find.textContaining('Données plus anciennes'), findsNothing);
     expect(find.textContaining('source distante'), findsNothing);
+    expect(find.byType(MakoloNotice), findsNothing);
     expect(find.byType(MakoloSkeleton), findsNothing);
   });
 
@@ -299,13 +300,13 @@ void main() {
     }
 
     await pump(MakoloCommitCue.pending);
-    expect(find.text('En attente de synchronisation'), findsOneWidget);
+    expect(find.text('Confirmation en attente'), findsOneWidget);
     expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
     expect(find.text('Confirmé'), findsNothing);
 
     await pump(MakoloCommitCue.confirmed);
     expect(find.text('Confirmé'), findsOneWidget);
-    expect(find.text('En attente de synchronisation'), findsNothing);
+    expect(find.text('Confirmation en attente'), findsNothing);
   });
 
   testWidgets('blocking error stays recoverable', (tester) async {

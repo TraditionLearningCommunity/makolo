@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/ongoing/ongoing_screen.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
@@ -99,9 +100,55 @@ void main() {
     await tester.pump();
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(find.textContaining('mise à jour a échoué'), findsOneWidget);
+    expect(find.textContaining('mise à jour a échoué'), findsNothing);
+    expect(find.byType(MakoloNotice), findsNothing);
 
     await controller.close();
+  });
+
+  testWidgets('confirmation echo becomes a distinct calm status', (
+    tester,
+  ) async {
+    final projection = _projection(
+      items: const [
+        {
+          'kind': 'journey',
+          'source': {'kind': 'journey', 'id': 'router'},
+          'state': 'action_required',
+          'title': 'Obtenir un routeur bureau',
+          'ready': [],
+          'actor_interventions': [
+            {'summary': 'Confirmer : Obtenir un routeur bureau'},
+          ],
+          'continuation': {
+            'state': 'action_required',
+            'summary': 'Confirmer : Obtenir un routeur bureau',
+          },
+          'blocker': null,
+          'next': null,
+          'timing': {},
+          'place': null,
+          'capabilities': ['open_detail'],
+          'links': {'detail': '/api/v1/me/journeys/router/'},
+        },
+      ],
+    );
+
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(projection),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Obtenir un routeur bureau'), findsOneWidget);
+    expect(find.text('À confirmer'), findsOneWidget);
+    expect(
+      find.text('Confirmer : Obtenir un routeur bureau'),
+      findsNothing,
+    );
   });
 
   testWidgets('wide split uses the shared 960dp content boundary', (
