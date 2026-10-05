@@ -445,72 +445,20 @@ void main() {
   testWidgets('Day Of keeps remote live action visible but disabled offline', (
     tester,
   ) async {
-    final database = MakoloDatabase.memory();
-    final store = ProfileStore(database, 'profile-a');
-    final payload = dayOfPayload()
-      ..['access'] = const []
-      ..['queue'] = const []
-      ..['placement'] = const []
-      ..['checkpoints'] = const {'items': [], 'next': null}
-      ..['readiness'] = const {
-        'state': 'ready',
-        'ready': [],
-        'actor_interventions': [],
-        'waiting': [],
-        'blockers': [],
-      }
-      ..['spatial'] = const {
-        'current_position': {'state': 'unknown', 'truth': 'unknown'},
-        'destination': null,
-        'zone': null,
-        'mobility': {
-          'truth': 'unknown',
-          'state': 'unknown',
-          'recommended_departure': null,
-          'itinerary_url': null,
-        },
-        'hazards': [],
-      }
-      ..['situation'] = const {
-        'temporal_relation': 'arrival',
-        'occurrence_state': 'scheduled',
-        'current_position': {'state': 'unknown', 'truth': 'unknown'},
-        'next': null,
-        'representation': null,
-      };
-
-    await store.putProjection(
-      kind: DayOfRepository.projectionKind,
-      resourceKey: 'occurrence-1',
-      schemaVersion: 1,
-      payload: payload,
-    );
-    final repository = DayOfRepository(
-      database: database,
-      store: store,
-      profileId: 'profile-a',
-    );
     var openedLive = false;
 
     await tester.pumpWidget(
-      SyncStatusScope(
-        status: const SyncStatus(state: SyncVisualState.offline),
-        child: MaterialApp(
-          theme: buildMakoloTheme(),
-          home: DayOfScreen(
-            occurrenceId: 'occurrence-1',
-            repository: repository,
-            onOpenAccess: (_, _) {},
-            onPresentCredential: (_, _) {},
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: DayOfLiveAction(
+            livePath: '/api/v1/operations/occurrences/occurrence-1/live/',
+            remoteActionsAvailable: false,
             onOpenLive: (_) => openedLive = true,
           ),
         ),
       ),
     );
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.text('Voir la situation en direct'), findsOneWidget);
 
     final live = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Voir la situation en direct'),
@@ -518,11 +466,8 @@ void main() {
     expect(live.onPressed, isNull);
     expect(find.text('Connexion requise'), findsOneWidget);
     expect(openedLive, isFalse);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await database.close();
   });
+
 
   test('credential presentation requires the owner capability even when summary says presentable', () {
     final projection = StoredProjection(

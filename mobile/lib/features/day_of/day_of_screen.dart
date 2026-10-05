@@ -337,32 +337,53 @@ class _DayOfContent extends StatelessWidget {
           const SizedBox(height: MakoloSpacing.xl),
         ],
         if (presentation.canOpenLive && onOpenLive != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                FilledButton.icon(
-                  onPressed: remoteActionsAvailable
-                      ? () => onOpenLive!(presentation.livePath!)
-                      : null,
-                  icon: const Icon(Icons.play_circle_outline_rounded),
-                  label: const Text('Voir la situation en direct'),
-                ),
-                if (!remoteActionsAvailable) ...[
-                  const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    'Connexion requise',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ],
-            ),
+          DayOfLiveAction(
+            livePath: presentation.livePath!,
+            remoteActionsAvailable: remoteActionsAvailable,
+            onOpenLive: onOpenLive!,
           ),
       ],
+    );
+  }
+}
+
+
+class DayOfLiveAction extends StatelessWidget {
+  const DayOfLiveAction({
+    super.key,
+    required this.livePath,
+    required this.remoteActionsAvailable,
+    required this.onOpenLive,
+  });
+
+  final String livePath;
+  final bool remoteActionsAvailable;
+  final ValueChanged<String> onOpenLive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FilledButton.icon(
+            onPressed: remoteActionsAvailable
+                ? () => onOpenLive(livePath)
+                : null,
+            icon: const Icon(Icons.play_circle_outline_rounded),
+            label: const Text('Voir la situation en direct'),
+          ),
+          if (!remoteActionsAvailable) ...[
+            const SizedBox(height: MakoloSpacing.xs),
+            Text(
+              'Connexion requise',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
