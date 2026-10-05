@@ -468,7 +468,6 @@ void main() {
     expect(openedLive, isFalse);
   });
 
-
   test('credential presentation requires the owner capability even when summary says presentable', () {
     final projection = StoredProjection(
       kind: DayOfRepository.projectionKind,

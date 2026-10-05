@@ -347,7 +347,6 @@ class _DayOfContent extends StatelessWidget {
   }
 }
 
-
 class DayOfLiveAction extends StatelessWidget {
   const DayOfLiveAction({
     super.key,
