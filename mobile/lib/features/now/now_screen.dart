@@ -285,9 +285,9 @@ class _NowPrimarySituation extends StatelessWidget {
       button: true,
       selected: selected,
       label: [
-        if (contextLabel != null) contextLabel,
+        ?contextLabel,
         situation.meaning,
-        if (whyNow != null) whyNow,
+        ?whyNow,
       ].join('. '),
       child: InkWell(
         onTap: onSelect,
@@ -360,7 +360,7 @@ class _NowSecondarySituation extends StatelessWidget {
     return MakoloCard(
       onTap: onSelect,
       semanticLabel: [
-        if (contextLabel != null) contextLabel,
+        ?contextLabel,
         situation.meaning,
         'Ouvrir le détail',
       ].join('. '),

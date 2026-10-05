@@ -245,8 +245,8 @@ class _OngoingRow extends StatelessWidget {
       selected: selected,
       label: [
         item.title,
-        if (summary != null) summary,
-        if (supporting != null) supporting,
+        ?summary,
+        ?supporting,
       ].join('. '),
       child: InkWell(
         onTap: onTap,

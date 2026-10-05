@@ -177,33 +177,6 @@ class DiscoveryDetailSelector {
       capabilities: Set.unmodifiable(capabilities),
     );
   }
-}
-
-String? _timing(Map<String, dynamic>? timing, {required DateTime now}) {
-  if (timing == null) return null;
-  final instant = MakoloHumanization.tryParseInstant(timing['start_at']);
-  if (instant != null) {
-    return MakoloHumanization.formatDateTime(instant, now: now);
-  }
-  final date = _text(timing['start_date']);
-  final time = _text(timing['start_time']);
-  final parsed = date == null
-      ? null
-      : DateTime.tryParse(time == null ? date : '${date}T$time');
-  if (parsed == null) return null;
-  return time == null
-      ? MakoloHumanization.formatDay(parsed, now: now)
-      : MakoloHumanization.formatDateTime(parsed, now: now);
-}
-
-Map<String, dynamic>? _map(Object? value) =>
-    value is Map ? Map<String, dynamic>.from(value) : null;
-
-String? _text(Object? value) {
-  if (value == null) return null;
-  final text = value.toString().trim();
-  return text.isEmpty ? null : text;
-
   OccurrenceDetailPresentation? occurrencePreview(
     StoredProjection? projection, {
     DateTime? now,
@@ -253,6 +226,33 @@ String? _text(Object? value) {
       capabilities: const {},
     );
   }
+}
+
+String? _timing(Map<String, dynamic>? timing, {required DateTime now}) {
+  if (timing == null) return null;
+  final instant = MakoloHumanization.tryParseInstant(timing['start_at']);
+  if (instant != null) {
+    return MakoloHumanization.formatDateTime(instant, now: now);
+  }
+  final date = _text(timing['start_date']);
+  final time = _text(timing['start_time']);
+  final parsed = date == null
+      ? null
+      : DateTime.tryParse(time == null ? date : '${date}T$time');
+  if (parsed == null) return null;
+  return time == null
+      ? MakoloHumanization.formatDay(parsed, now: now)
+      : MakoloHumanization.formatDateTime(parsed, now: now);
+}
+
+Map<String, dynamic>? _map(Object? value) =>
+    value is Map ? Map<String, dynamic>.from(value) : null;
+
+String? _text(Object? value) {
+  if (value == null) return null;
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
+
 }
 
 String? _placeLabel(Map<String, dynamic>? place) {
