@@ -177,6 +177,7 @@ class DiscoveryDetailSelector {
       capabilities: Set.unmodifiable(capabilities),
     );
   }
+
   OccurrenceDetailPresentation? occurrencePreview(
     StoredProjection? projection, {
     DateTime? now,
@@ -252,7 +253,6 @@ String? _text(Object? value) {
   if (value == null) return null;
   final text = value.toString().trim();
   return text.isEmpty ? null : text;
-
 }
 
 String? _placeLabel(Map<String, dynamic>? place) {

@@ -284,11 +284,7 @@ class _NowPrimarySituation extends StatelessWidget {
       container: true,
       button: true,
       selected: selected,
-      label: [
-        ?contextLabel,
-        situation.meaning,
-        ?whyNow,
-      ].join('. '),
+      label: [?contextLabel, situation.meaning, ?whyNow].join('. '),
       child: InkWell(
         onTap: onSelect,
         borderRadius: BorderRadius.circular(MakoloRadii.card),

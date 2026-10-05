@@ -243,11 +243,7 @@ class _OngoingRow extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: [
-        item.title,
-        ?summary,
-        ?supporting,
-      ].join('. '),
+      label: [item.title, ?summary, ?supporting].join('. '),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(MakoloRadii.card),
