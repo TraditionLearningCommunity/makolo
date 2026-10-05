@@ -460,13 +460,15 @@ def _finalize_projection(
             "item_id": identity["resource"]["id"],
         },
     )
-    saved_capabilities = [
+    owner_capabilities = [
         value
         for value in projection["capabilities"]
-        if value in {"save", "unsave"}
+        if value != "view"
     ]
-    projection["capabilities"] = ["view", *saved_capabilities]
+    projection["capabilities"] = list(dict.fromkeys(["view", *owner_capabilities]))
+    owner_links = dict(projection.get("links") or {})
     projection["links"] = {
+        **owner_links,
         "detail": detail_url,
         "saved": reverse(
             "discovery_api:item-saved",
