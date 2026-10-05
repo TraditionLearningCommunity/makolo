@@ -166,6 +166,11 @@ class DjangoRealityCatalog:
         if external and source_host:
             provisional_identity = f"external:{source_host}:{normalize_text(external)}"
             basis.append("scoped_external_identifier_available")
+        elif families == ("organization",) and source_host:
+            provisional_identity = (
+                f"source-host:{source_host}:organization:{normalize_text(entity.label)}"
+            )
+            basis.append("same_source_host_provisional_identity")
         else:
             provisional_identity = f"source:{material.target_key}:{families[0]}:{normalize_text(entity.label)}"
         return EntityLookup(
