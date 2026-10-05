@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -149,19 +150,20 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
-                state: surface,
+              body: MakoloNetworkContextFrame(
+                child: MakoloSurfaceStateView(
+                  state: surface,
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de la démarche…',
                 ),
                 blockingErrorMessage: 'Cette démarche n’est pas disponible dans votre contexte actuel.',
-                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
                 onRetry: _refresh,
                 content: _JourneyContent(
                   presentation: presentation,
                   onOpenForm: widget.onOpenForm,
                   onOpenRequirement: widget.onOpenRequirement,
                   onOpenResources: widget.onOpenResources,
+                ),
                 ),
               ),
             );

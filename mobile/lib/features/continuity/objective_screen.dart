@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -135,11 +136,11 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                   ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
-                state: surface,
+              body: MakoloNetworkContextFrame(
+                child: MakoloSurfaceStateView(
+                  state: surface,
                 initialLoading: const MakoloLoadingState(label: 'Chargement…'),
                 blockingErrorMessage: 'Ce contenu n’est pas disponible dans votre contexte actuel.',
-                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
                 onRetry: _refresh,
                 content: widget.kind == ObjectiveDepth.dossier
                     ? _DossierContent(
@@ -150,6 +151,7 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                         payload: projection?.payload ?? const {},
                         onOpenDossier: widget.onOpenDossier,
                       ),
+                ),
               ),
             );
           },
