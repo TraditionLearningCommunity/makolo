@@ -132,8 +132,9 @@ void main() {
     expect(find.text('En cours'), findsOneWidget);
     expect(find.text('Moi'), findsOneWidget);
     expect(find.byTooltip('Makolo Mark'), findsOneWidget);
-    expect(find.byIcon(Icons.center_focus_strong_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.adjust), findsOneWidget);
     expect(find.byIcon(Icons.schedule_outlined), findsNothing);
+    expect(find.byIcon(Icons.route_outlined), findsOneWidget);
     expect(find.byIcon(Icons.home_outlined), findsNothing);
   });
 

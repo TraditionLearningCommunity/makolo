@@ -103,10 +103,7 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(
-      find.text('Mise à jour momentanément indisponible.'),
-      findsOneWidget,
-    );
+    expect(find.text('Mise à jour momentanément indisponible.'), findsNothing);
     expect(find.textContaining('source distante'), findsNothing);
   });
 
@@ -119,8 +116,63 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
+    expect(find.text('Mise à jour momentanément indisponible.'), findsNothing);
+  });
+
+  testWidgets('duplicate context and meaning render only once', (tester) async {
+    final duplicate = situation(
+      'speech',
+      'Vérifier la prochaine étape — Atelier prise de parole',
+      'Vérifier la prochaine étape — Atelier prise de parole',
+      primary: true,
+      whyNow: 'Vérifier la prochaine étape — Atelier prise de parole',
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: NowView(
+        selection: NowSelection(
+          situations: [duplicate],
+          state: const MakoloSurfacePresentation(
+            availability: MakoloAvailabilityCue.content,
+          ),
+        ),
+      ),
+    );
+
     expect(
-      find.text('Mise à jour momentanément indisponible.'),
+      find.text('Vérifier la prochaine étape — Atelier prise de parole'),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.text('Vérifier la prochaine étape — Atelier prise de parole'),
+    );
+    await tester.pump();
+
+    expect(
+      find.text('Vérifier la prochaine étape — Atelier prise de parole'),
+      findsOneWidget,
+    );
+    expect(find.text('Pourquoi maintenant'), findsNothing);
+  });
+
+  testWidgets('uncertain empty does not claim all clear', (tester) async {
+    await PresentationHarness.pump(
+      tester,
+      child: const NowView(
+        selection: NowSelection(
+          situations: [],
+          calmIsCurrent: false,
+          state: MakoloSurfacePresentation(
+            availability: MakoloAvailabilityCue.empty,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Tout est en ordre. ✓'), findsNothing);
+    expect(
+      find.text('Now n’est pas disponible pour le moment.'),
       findsOneWidget,
     );
   });
@@ -133,7 +185,7 @@ void main() {
       ),
     );
 
-    expect(find.text('En attente de synchronisation'), findsOneWidget);
+    expect(find.text('Confirmation en attente'), findsOneWidget);
     expect(find.text('Confirmé'), findsNothing);
   });
 

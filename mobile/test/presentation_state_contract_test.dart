@@ -22,10 +22,7 @@ void main() {
 
     expect(find.text('État connu'), findsOneWidget);
     expect(find.textContaining('source distante'), findsNothing);
-    expect(
-      find.text('Mise à jour momentanément indisponible.'),
-      findsOneWidget,
-    );
+    expect(find.byType(MakoloNotice), findsNothing);
   });
 
   testWidgets('refresh error preserves content and adds local support', (
@@ -46,7 +43,8 @@ void main() {
 
     expect(find.text('Continuité conservée'), findsOneWidget);
     expect(find.text('La mise à jour a échoué.'), findsNothing);
-    expect(find.text('Mise à jour…'), findsOneWidget);
+    expect(find.text('Mise à jour…'), findsNothing);
+    expect(find.byType(MakoloNotice), findsNothing);
     expect(find.byType(MakoloSkeleton), findsNothing);
   });
 
@@ -65,7 +63,7 @@ void main() {
     );
 
     expect(find.text('Brouillon'), findsOneWidget);
-    expect(find.text('En attente de synchronisation'), findsOneWidget);
+    expect(find.text('Confirmation en attente'), findsOneWidget);
     expect(find.text('Confirmé'), findsNothing);
   });
 }

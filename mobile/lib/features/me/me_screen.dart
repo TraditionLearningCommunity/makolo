@@ -201,7 +201,6 @@ class _MeViewState extends State<MeView> {
           },
           child: MakoloSurfaceStateView(
             state: widget.selection.state,
-            recoverableErrorMessage: 'Mise à jour momentanément indisponible.',
             content: content,
           ),
         );
@@ -241,13 +240,9 @@ class _MeFirstAvailability extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final message = offline
-        ? 'Une première connexion est nécessaire '
-              'pour rendre ces territoires disponibles ici.'
-        : unavailable
-        ? 'Ces territoires ne sont pas disponibles '
-              'sur cet appareil pour le moment.'
-        : 'Makolo prépare ce qui est déjà en place autour de vous.';
+    final message = loading
+        ? 'Chargement…'
+        : 'Ces informations ne sont pas disponibles pour le moment.';
 
     return MakoloContentFrame(
       child: SingleChildScrollView(
@@ -256,8 +251,6 @@ class _MeFirstAvailability extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Moi', style: Theme.of(context).textTheme.headlineLarge),
-            const SizedBox(height: MakoloSpacing.sm),
             Text(
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -390,8 +383,6 @@ class _MeIdentity extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Moi', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: MakoloSpacing.sm),
           Text(
             selection.presentation.identityLabel,
             style: Theme.of(context).textTheme.headlineLarge,
@@ -453,31 +444,7 @@ class _MeTerritory extends StatelessWidget {
       _ => _generic(context),
     };
 
-    final cues = <Widget>[
-      if (state.freshness != MakoloFreshnessCue.unknown &&
-          state.freshness != MakoloFreshnessCue.current)
-        MakoloFreshnessNotice(freshness: state.freshness),
-      if (state.reachability == MakoloReachabilityCue.temporarilyUnavailable)
-        const MakoloNotice(
-          message: 'Contenu déjà disponible sur cet appareil.',
-          kind: MakoloNoticeKind.warning,
-        ),
-    ];
-
-    if (cues.isEmpty) {
-      return content;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final cue in cues) ...[
-          cue,
-          const SizedBox(height: MakoloSpacing.sm),
-        ],
-        content,
-      ],
-    );
+    return content;
   }
 
   Widget _passport(BuildContext context) {

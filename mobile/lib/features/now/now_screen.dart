@@ -38,11 +38,8 @@ class NowScreen extends StatelessWidget {
           final projection = snapshot.data;
           if (projection == null) {
             return const MakoloEmptyState(
-              title: 'Pas encore disponible sur cet appareil',
-              body:
-                  'Une première connexion est nécessaire pour rendre '
-                  'Maintenant disponible ici.',
-              icon: Icons.cloud_off_outlined,
+              title: 'Now n’est pas disponible pour le moment.',
+              icon: Icons.adjust,
             );
           }
 
@@ -156,7 +153,9 @@ class _NowViewState extends State<NowView> {
       },
       child: MakoloSurfaceStateView(
         state: widget.selection.state,
-        empty: const _NowCalm(),
+        empty: widget.selection.isCalm
+            ? const _NowCalm()
+            : const _NowUnavailable(),
         content: content,
       ),
     );
@@ -232,6 +231,27 @@ class _NowField extends StatelessWidget {
       '${situation.reference.kind}:${situation.reference.id}';
 }
 
+String _presentationKey(String value) => value
+    .trim()
+    .toLowerCase()
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .replaceAll(RegExp(r'[.:;–—-]+$'), '')
+    .trim();
+
+bool _samePresentationText(String? left, String? right) {
+  if (left == null || right == null) return false;
+  return _presentationKey(left) == _presentationKey(right);
+}
+
+String? _distinctPresentationText(String? value, Iterable<String?> others) {
+  final text = value?.trim();
+  if (text == null || text.isEmpty) return null;
+  for (final other in others) {
+    if (_samePresentationText(text, other)) return null;
+  }
+  return text;
+}
+
 class _NowPrimarySituation extends StatelessWidget {
   const _NowPrimarySituation({
     required this.situation,
@@ -252,12 +272,19 @@ class _NowPrimarySituation extends StatelessWidget {
         situation.responseCapability == 'open_detail' &&
         ownerPath != null &&
         onOpenOwner != null;
+    final contextLabel = _distinctPresentationText(situation.humanContext, [
+      situation.meaning,
+    ]);
+    final whyNow = _distinctPresentationText(situation.whyNow, [
+      situation.meaning,
+      situation.humanContext,
+    ]);
 
     return Semantics(
       container: true,
       button: true,
       selected: selected,
-      label: '${situation.humanContext}. ${situation.meaning}',
+      label: [?contextLabel, situation.meaning, ?whyNow].join('. '),
       child: InkWell(
         onTap: onSelect,
         borderRadius: BorderRadius.circular(MakoloRadii.card),
@@ -266,21 +293,23 @@ class _NowPrimarySituation extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                situation.humanContext,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+              if (contextLabel != null) ...[
+                Text(
+                  contextLabel,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              const SizedBox(height: MakoloSpacing.compact),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
               Text(
                 situation.meaning,
-                style: Theme.of(context).textTheme.headlineMedium,
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-              if (situation.whyNow != null) ...[
+              if (whyNow != null) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 Text(
-                  situation.whyNow!,
+                  whyNow,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -321,19 +350,27 @@ class _NowSecondarySituation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final contextLabel = _distinctPresentationText(situation.humanContext, [
+      situation.meaning,
+    ]);
     return MakoloCard(
       onTap: onSelect,
-      semanticLabel:
-          '${situation.humanContext}. ${situation.meaning}. Ouvrir le détail.',
+      semanticLabel: [
+        ?contextLabel,
+        situation.meaning,
+        'Ouvrir le détail',
+      ].join('. '),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (contextLabel != null) ...[
+            Text(contextLabel, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: MakoloSpacing.sm),
+          ],
           Text(
-            situation.humanContext,
+            situation.meaning,
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(situation.meaning, style: Theme.of(context).textTheme.bodyLarge),
           if (situation.metadata.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.sm),
             MakoloMetadata(
@@ -364,6 +401,13 @@ class _NowDepth extends StatelessWidget {
     final canOpenOwner =
         NowScreen.ownerPathFor(situation.ownerDestination) != null &&
         onOpenOwner != null;
+    final contextLabel = _distinctPresentationText(situation.humanContext, [
+      situation.meaning,
+    ]);
+    final whyNow = _distinctPresentationText(situation.whyNow, [
+      situation.meaning,
+      situation.humanContext,
+    ]);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
@@ -380,29 +424,25 @@ class _NowDepth extends StatelessWidget {
               ),
             ),
             const SizedBox(height: MakoloSpacing.md),
-            Text(
-              situation.humanContext,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: MakoloSpacing.md),
+            if (contextLabel != null) ...[
+              Text(
+                contextLabel,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.sm),
+            ],
             Text(
               situation.meaning,
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
-            if (situation.whyNow != null) ...[
+            if (whyNow != null) ...[
               const SizedBox(height: MakoloSpacing.lg),
-              MakoloCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Pourquoi maintenant',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(situation.whyNow!),
-                  ],
-                ),
+              MakoloSection(
+                title: 'Pourquoi maintenant',
+                padding: EdgeInsets.zero,
+                child: Text(whyNow),
               ),
             ],
             if (situation.metadata.isNotEmpty) ...[
@@ -422,6 +462,22 @@ class _NowDepth extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NowUnavailable extends StatelessWidget {
+  const _NowUnavailable();
+
+  @override
+  Widget build(BuildContext context) {
+    return const MakoloContentFrame(
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(MakoloSpacing.inner),
+          child: Text('Now n’est pas disponible pour le moment.'),
         ),
       ),
     );

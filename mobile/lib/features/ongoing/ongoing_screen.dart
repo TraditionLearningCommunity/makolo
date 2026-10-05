@@ -95,7 +95,6 @@ class _OngoingScreenState extends State<OngoingScreen> {
             onSelect: _select,
             onBack: _clearSelection,
           ),
-          recoverableErrorMessage: 'La mise à jour a échoué. Le contenu déjà disponible reste utilisable.',
         );
       },
     ),
@@ -177,6 +176,44 @@ class _OngoingField extends StatelessWidget {
   );
 }
 
+String _ongoingKey(String value) => value
+    .trim()
+    .toLowerCase()
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .replaceAll(RegExp(r'[.:;–—-]+$'), '')
+    .trim();
+
+bool _sameOngoingText(String? left, String? right) {
+  if (left == null || right == null) return false;
+  return _ongoingKey(left) == _ongoingKey(right);
+}
+
+String? _ongoingSummary(String title, String synthesis) {
+  final value = synthesis.trim();
+  if (value.isEmpty || _sameOngoingText(value, title)) return null;
+  for (final entry in const <(String, String)>[
+    ('confirmer :', 'À confirmer'),
+    ('confirmer:', 'À confirmer'),
+    ('vérifier :', 'À vérifier'),
+    ('vérifier:', 'À vérifier'),
+  ]) {
+    if (value.toLowerCase().startsWith(entry.$1)) {
+      final tail = value.substring(entry.$1.length).trim();
+      if (_sameOngoingText(tail, title)) return entry.$2;
+    }
+  }
+  return value;
+}
+
+bool _ongoingRedundant(String value, OngoingContinuityPresentation item) {
+  if (_sameOngoingText(value, item.title) ||
+      _sameOngoingText(value, item.synthesis)) {
+    return true;
+  }
+  final reduced = _ongoingSummary(item.title, value);
+  return reduced == 'À confirmer' || reduced == 'À vérifier';
+}
+
 class _OngoingRow extends StatelessWidget {
   const _OngoingRow({
     required this.item,
@@ -195,44 +232,48 @@ class _OngoingRow extends StatelessWidget {
         : item.next.isNotEmpty
         ? item.next.first
         : null;
-    return candidate == null || candidate == item.synthesis ? null : candidate;
+    if (candidate == null || _ongoingRedundant(candidate, item)) return null;
+    return candidate;
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    selected: selected,
-    label: '${item.title}. ${item.synthesis}',
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(MakoloRadii.card),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(item.title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
-            if (_supportingLine(item) != null) ...[
-              const SizedBox(height: MakoloSpacing.sm),
-              Text(
-                _supportingLine(item)!,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+  Widget build(BuildContext context) {
+    final summary = _ongoingSummary(item.title, item.synthesis);
+    final supporting = _supportingLine(item);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: [item.title, ?summary, ?supporting].join('. '),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(MakoloRadii.card),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(item.title, style: Theme.of(context).textTheme.titleLarge),
+              if (summary != null) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(summary, style: Theme.of(context).textTheme.bodyLarge),
+              ],
+              if (supporting != null) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(supporting, style: Theme.of(context).textTheme.bodyMedium),
+              ],
+              if (stale) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(
+                  'Dernière information connue',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ],
-            if (stale) ...[
-              const SizedBox(height: MakoloSpacing.sm),
-              Text(
-                'Dernière information connue',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _OngoingFocusPlaceholder extends StatelessWidget {
@@ -265,9 +306,15 @@ class _OngoingFocus extends StatelessWidget {
     final seen = <String>{};
     List<String> unique(Iterable<String> values) => [
       for (final value in values)
-        if (value.trim().isNotEmpty && seen.add(value.trim())) value.trim(),
+        if (value.trim().isNotEmpty &&
+            !_ongoingRedundant(value, item) &&
+            seen.add(_ongoingKey(value)))
+          value.trim(),
     ];
 
+    seen
+      ..add(_ongoingKey(item.title))
+      ..add(_ongoingKey(item.synthesis));
     final sections = <Widget>[];
     void add(String title, Iterable<String> values) {
       final visible = unique(values);

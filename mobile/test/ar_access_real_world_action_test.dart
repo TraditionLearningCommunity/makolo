@@ -1,12 +1,15 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/access/access_repository.dart';
 import 'package:makolo_mobile/features/access/access_selector.dart';
 import 'package:makolo_mobile/features/day_of/day_of_repository.dart';
+import 'package:makolo_mobile/features/day_of/day_of_screen.dart';
 import 'package:makolo_mobile/features/day_of/day_of_selector.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
@@ -437,6 +440,32 @@ void main() {
       expect(presentation.canOpenLive, isTrue);
     },
   );
+
+  testWidgets('Day Of keeps remote live action visible but disabled offline', (
+    tester,
+  ) async {
+    var openedLive = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: DayOfLiveAction(
+            livePath: '/api/v1/operations/occurrences/occurrence-1/live/',
+            remoteActionsAvailable: false,
+            onOpenLive: (_) => openedLive = true,
+          ),
+        ),
+      ),
+    );
+
+    final live = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Voir la situation en direct'),
+    );
+    expect(live.onPressed, isNull);
+    expect(find.text('Connexion requise'), findsOneWidget);
+    expect(openedLive, isFalse);
+  });
 
   test('credential presentation requires the owner capability even when summary says presentable', () {
     final projection = StoredProjection(

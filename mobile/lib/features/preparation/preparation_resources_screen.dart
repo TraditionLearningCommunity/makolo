@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -137,26 +138,27 @@ class _PreparationResourcesScreenState
                   ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
-                state: surface,
-                empty: const MakoloEmptyState(
-                  title: 'Rien à préparer ici',
-                  body: 'Aucun document ou instruction partagé n’est disponible pour cette démarche.',
-                ),
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement des ressources de préparation…',
-                ),
-                blockingErrorMessage: 'Ces ressources ne sont pas disponibles dans votre contexte actuel.',
-                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
-                onRetry: _refresh,
-                content: ListView.separated(
-                  key: const Key('preparation-resources-content'),
-                  padding: const EdgeInsets.all(MakoloSpacing.inner),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: MakoloSpacing.sm),
-                  itemBuilder: (context, index) =>
-                      _PreparationResourceCard(resource: items[index]),
+              body: MakoloNetworkContextFrame(
+                child: MakoloSurfaceStateView(
+                  state: surface,
+                  empty: const MakoloEmptyState(
+                    title: 'Rien à préparer ici',
+                    body: 'Aucun document ou instruction partagé n’est disponible pour cette démarche.',
+                  ),
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement des ressources de préparation…',
+                  ),
+                  blockingErrorMessage: 'Ces ressources ne sont pas disponibles dans votre contexte actuel.',
+                  onRetry: _refresh,
+                  content: ListView.separated(
+                    key: const Key('preparation-resources-content'),
+                    padding: const EdgeInsets.all(MakoloSpacing.inner),
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: MakoloSpacing.sm),
+                    itemBuilder: (context, index) =>
+                        _PreparationResourceCard(resource: items[index]),
+                  ),
                 ),
               ),
             );

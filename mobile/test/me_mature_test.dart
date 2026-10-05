@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/presentation_layout.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/me/me_screen.dart';
@@ -453,6 +454,21 @@ void main() {
     expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
+  testWidgets('body starts with identity without repeating Moi', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+
+    await PresentationHarness.pump(tester, child: MeView(selection: selection));
+
+    expect(find.text('Gilbert Bemwiz'), findsOneWidget);
+    expect(find.text('Moi'), findsNothing);
+    expect(find.textContaining('projection utile'), findsNothing);
+  });
+
   testWidgets('refresh keeps existing content visible', (tester) async {
     final selection = selector.select(
       projection: _projection(_fullPayload()),
@@ -463,7 +479,8 @@ void main() {
     await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
     expect(find.text('Gilbert Bemwiz'), findsOneWidget);
-    expect(find.text('Mise à jour…'), findsOneWidget);
+    expect(find.text('Mise à jour…'), findsNothing);
+    expect(find.byType(MakoloNotice), findsNothing);
   });
 
   testWidgets('recoverable source failure preserves Moi grammar', (
@@ -480,10 +497,8 @@ void main() {
 
     expect(find.text('Gilbert Bemwiz'), findsOneWidget);
     expect(find.text('Mes ressources'), findsOneWidget);
-    expect(
-      find.text('Mise à jour momentanément indisponible.'),
-      findsOneWidget,
-    );
+    expect(find.text('Mise à jour momentanément indisponible.'), findsNothing);
+    expect(find.byType(MakoloNotice), findsNothing);
   });
 
   testWidgets('MeScreen consumes shared offline state with local snapshot', (
@@ -507,8 +522,9 @@ void main() {
     expect(find.text('Gilbert Bemwiz'), findsOneWidget);
     expect(
       find.text('Contenu déjà disponible sur cet appareil.'),
-      findsWidgets,
+      findsNothing,
     );
+    expect(find.byType(MakoloNotice), findsNothing);
   });
 
   for (final scale in [1.0, 1.3, 1.6]) {

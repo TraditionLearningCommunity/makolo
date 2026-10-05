@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -138,15 +139,16 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                   ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
-                state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’élément nécessaire…',
+              body: MakoloNetworkContextFrame(
+                child: MakoloSurfaceStateView(
+                  state: surface,
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement de l’élément nécessaire…',
+                  ),
+                  blockingErrorMessage: 'Cet élément n’est pas disponible dans votre contexte actuel.',
+                  onRetry: _refresh,
+                  content: _RequirementContent(presentation: presentation),
                 ),
-                blockingErrorMessage: 'Cet élément n’est pas disponible dans votre contexte actuel.',
-                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
-                onRetry: _refresh,
-                content: _RequirementContent(presentation: presentation),
               ),
             );
           },

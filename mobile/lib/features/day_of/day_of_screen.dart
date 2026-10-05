@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -10,6 +11,7 @@ import '../../design/surface_states.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
+import '../../sync/sync_status.dart';
 import 'day_of_repository.dart';
 import 'day_of_selector.dart';
 
@@ -137,19 +139,26 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                   ),
                 ],
               ),
-              body: MakoloSurfaceStateView(
-                state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’action en cours…',
-                ),
-                blockingErrorMessage: 'Cette action n’est pas disponible dans votre contexte actuel.',
-                preservedMessage: 'Aucune copie locale utilisable n’est disponible sur cet appareil.',
-                onRetry: _refresh,
-                content: _DayOfContent(
-                  presentation: presentation,
-                  onOpenAccess: widget.onOpenAccess,
-                  onPresentCredential: widget.onPresentCredential,
-                  onOpenLive: widget.onOpenLive,
+              body: MakoloNetworkContextFrame(
+                child: MakoloSurfaceStateView(
+                  state: surface,
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement de l’action en cours…',
+                  ),
+                  blockingErrorMessage: 'Cette action n’est pas disponible dans votre contexte actuel.',
+                  onRetry: _refresh,
+                  content: _DayOfContent(
+                    presentation: presentation,
+                    remoteActionsAvailable:
+                        source.reachability != ReachabilityState.unreachable &&
+                        SyncStatusScope.maybeOf(context)?.state !=
+                            SyncVisualState.offline &&
+                        SyncStatusScope.maybeOf(context)?.state !=
+                            SyncVisualState.failed,
+                    onOpenAccess: widget.onOpenAccess,
+                    onPresentCredential: widget.onPresentCredential,
+                    onOpenLive: widget.onOpenLive,
+                  ),
                 ),
               ),
             );
@@ -163,12 +172,14 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
 class _DayOfContent extends StatelessWidget {
   const _DayOfContent({
     required this.presentation,
+    required this.remoteActionsAvailable,
     required this.onOpenAccess,
     required this.onPresentCredential,
     this.onOpenLive,
   });
 
   final DayOfPresentation presentation;
+  final bool remoteActionsAvailable;
   final void Function(String accessId, String detailPath) onOpenAccess;
   final void Function(String accessId, String credentialPath)
   onPresentCredential;
@@ -326,17 +337,52 @@ class _DayOfContent extends StatelessWidget {
           const SizedBox(height: MakoloSpacing.xl),
         ],
         if (presentation.canOpenLive && onOpenLive != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MakoloSpacing.inner,
-            ),
-            child: FilledButton.icon(
-              onPressed: () => onOpenLive!(presentation.livePath!),
-              icon: const Icon(Icons.play_circle_outline_rounded),
-              label: const Text('Voir la situation en direct'),
-            ),
+          DayOfLiveAction(
+            livePath: presentation.livePath!,
+            remoteActionsAvailable: remoteActionsAvailable,
+            onOpenLive: onOpenLive!,
           ),
       ],
+    );
+  }
+}
+
+class DayOfLiveAction extends StatelessWidget {
+  const DayOfLiveAction({
+    super.key,
+    required this.livePath,
+    required this.remoteActionsAvailable,
+    required this.onOpenLive,
+  });
+
+  final String livePath;
+  final bool remoteActionsAvailable;
+  final ValueChanged<String> onOpenLive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FilledButton.icon(
+            onPressed: remoteActionsAvailable
+                ? () => onOpenLive(livePath)
+                : null,
+            icon: const Icon(Icons.play_circle_outline_rounded),
+            label: const Text('Voir la situation en direct'),
+          ),
+          if (!remoteActionsAvailable) ...[
+            const SizedBox(height: MakoloSpacing.xs),
+            Text(
+              'Connexion requise',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

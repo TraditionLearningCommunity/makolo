@@ -137,10 +137,7 @@ class InlineMessage extends StatelessWidget {
 }
 
 class PendingIndicator extends StatelessWidget {
-  const PendingIndicator({
-    super.key,
-    this.label = 'En attente de synchronisation',
-  });
+  const PendingIndicator({super.key, this.label = 'Confirmation en attente'});
 
   final String label;
 

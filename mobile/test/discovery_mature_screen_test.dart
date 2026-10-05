@@ -243,9 +243,7 @@ void main() {
     );
 
     expect(
-      find.text(
-        'Impossible de charger de nouvelles possibilités hors connexion.',
-      ),
+      find.text('Ce contenu n’est pas disponible pour le moment.'),
       findsOneWidget,
     );
     expect(
@@ -271,7 +269,8 @@ void main() {
 
     expect(find.text('Formation Data Science'), findsOneWidget);
     expect(find.textContaining('source distante'), findsNothing);
-    expect(find.byType(MakoloNotice), findsOneWidget);
+    expect(find.textContaining('hors connexion'), findsNothing);
+    expect(find.byType(MakoloNotice), findsNothing);
   });
 
   testWidgets('critical text scale keeps compact field reachable', (

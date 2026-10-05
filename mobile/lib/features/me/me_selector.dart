@@ -155,7 +155,7 @@ class MeSelector {
       presentation: MeTerritoryPresentation(
         key: 'passport',
         label: 'Passeport Makolo',
-        summary: 'Une projection utile de ce qui peut vous représenter.',
+        summary: 'Ce qui peut vous représenter selon le contexte.',
         state: _sectionState(
           hasContent: available,
           malformed: malformed,

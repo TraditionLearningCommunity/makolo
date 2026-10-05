@@ -5,12 +5,18 @@ import '../../presentation/contracts/now_presentation.dart';
 import '../../sync/freshness.dart';
 
 class NowSelection {
-  const NowSelection({required this.situations, required this.state});
+  const NowSelection({
+    required this.situations,
+    required this.state,
+    this.calmIsCurrent = true,
+  });
 
   final List<NowSituationPresentation> situations;
   final MakoloSurfacePresentation state;
+  final bool calmIsCurrent;
 
   bool get isCalm =>
+      calmIsCurrent &&
       state.availability == MakoloAvailabilityCue.empty &&
       state.failure == MakoloFailureCue.none &&
       situations.isEmpty;
@@ -69,16 +75,20 @@ class NowSelector {
     }
 
     final malformedOnly = items.isNotEmpty && situations.isEmpty;
+    final freshness = _freshnessPolicy.evaluate(projection, now: now);
+    final calmIsCurrent =
+        situations.isEmpty &&
+        freshness != FreshnessState.revalidationRequired &&
+        freshness != FreshnessState.expired;
 
     return NowSelection(
       situations: List.unmodifiable(situations),
+      calmIsCurrent: calmIsCurrent,
       state: MakoloSurfacePresentation(
         availability: situations.isEmpty
             ? MakoloAvailabilityCue.empty
             : MakoloAvailabilityCue.content,
-        freshness: _freshnessCue(
-          _freshnessPolicy.evaluate(projection, now: now),
-        ),
+        freshness: _freshnessCue(freshness),
         reachability: reachability,
         commit: commit,
         failure: malformedOnly ? MakoloFailureCue.blocking : failure,
