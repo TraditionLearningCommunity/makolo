@@ -45,6 +45,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Future<void> _acquire() async {
     final local = await widget.repository.readItems(_query);
+    if (local != null) {
+      await widget.repository.indexItemPreviews(_query);
+    }
     final source = await widget.repository.readSource(
       widget.repository.itemsSource(_query),
     );
@@ -543,10 +546,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
-                        message: 'Ce détail n’est pas encore disponible sur cet appareil.',
-                        preservedMessage:
-                            'Une connexion est nécessaire pour l’acquérir. '
-                            'Cela ne signifie pas que cette réalité n’existe pas.',
+                        message: 'Ce contenu n’est pas disponible.',
                         onRetry: _refresh,
                       )
               : ListView(
@@ -658,10 +658,15 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchActivity(widget.activityId),
-      builder: (context, snapshot) {
-        final activity = _selector.activity(snapshot.data);
-        return Scaffold(
+      stream: widget.repository.watchActivityPreview(widget.activityId),
+      builder: (context, previewSnapshot) {
+        return StreamBuilder<StoredProjection?>(
+          stream: widget.repository.watchActivity(widget.activityId),
+          builder: (context, snapshot) {
+            final activity =
+                _selector.activity(snapshot.data) ??
+                _selector.activityPreview(previewSnapshot.data);
+            return Scaffold(
           appBar: AppBar(
             title: const Text('Activité'),
             actions: [
@@ -676,10 +681,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
-                        message: 'Ce détail n’est pas encore disponible sur cet appareil.',
-                        preservedMessage:
-                            'Une connexion est nécessaire pour l’acquérir. '
-                            'Cela ne signifie pas que cette réalité n’existe pas.',
+                        message: 'Ce contenu n’est pas disponible.',
                         onRetry: _refresh,
                       )
               : ListView(
@@ -753,6 +755,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   ],
                 ),
         );
+          },
+        );
       },
     );
   }
@@ -807,10 +811,15 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchOccurrence(widget.occurrenceId),
-      builder: (context, snapshot) {
-        final occurrence = _selector.occurrence(snapshot.data);
-        return Scaffold(
+      stream: widget.repository.watchOccurrencePreview(widget.occurrenceId),
+      builder: (context, previewSnapshot) {
+        return StreamBuilder<StoredProjection?>(
+          stream: widget.repository.watchOccurrence(widget.occurrenceId),
+          builder: (context, snapshot) {
+            final occurrence =
+                _selector.occurrence(snapshot.data) ??
+                _selector.occurrencePreview(previewSnapshot.data);
+            return Scaffold(
           appBar: AppBar(
             title: const Text('Occurrence'),
             actions: [
@@ -825,10 +834,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
-                        message: 'Ce détail n’est pas encore disponible sur cet appareil.',
-                        preservedMessage:
-                            'Une connexion est nécessaire pour l’acquérir. '
-                            'Cela ne signifie pas que cette réalité n’existe pas.',
+                        message: 'Ce contenu n’est pas disponible.',
                         onRetry: _refresh,
                       )
               : ListView(
@@ -880,8 +886,8 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                         child: MakoloAttentionBlock(
                           title: 'Jour J disponible',
                           body:
-                              'Le serveur indique qu’une profondeur Jour J '
-                              'est disponible pour cette occurrence.',
+                              'Les informations utiles pour le moment venu '
+                              'sont disponibles.',
                           icon: Icons.directions_walk_rounded,
                           action: widget.onOpenDayOf == null
                               ? null
@@ -896,6 +902,8 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                       ),
                   ],
                 ),
+        );
+          },
         );
       },
     );

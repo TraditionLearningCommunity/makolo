@@ -103,6 +103,50 @@ class DiscoveryDetailSelector {
     );
   }
 
+  ActivityDetailPresentation? activityPreview(
+    StoredProjection? projection, {
+    DateTime? now,
+  }) {
+    final item = _map(projection?.payload['item']);
+    if (item == null) return null;
+    final identity = _map(item['identity']);
+    final representation = _map(item['representation']);
+    final owner = _map(item['owner']);
+    final availability = _map(item['availability']);
+    final occurrence = _map(identity?['occurrence']);
+    final title = _text(representation?['title']);
+    if (title == null) return null;
+
+    final occurrenceId = _text(occurrence?['id']);
+    final occurrences = occurrenceId == null
+        ? const <ActivityOccurrenceSummary>[]
+        : <ActivityOccurrenceSummary>[
+            ActivityOccurrenceSummary(
+              id: occurrenceId,
+              label: title,
+              state: null,
+              timing: _timing(
+                _map(item['timing']),
+                now: now ?? DateTime.now(),
+              ),
+            ),
+          ];
+
+    return ActivityDetailPresentation(
+      title: title,
+      summary: _text(representation?['summary']) ?? '',
+      state: null,
+      availability: MakoloHumanization.humanStatus(
+        _text(availability?['state']),
+      ),
+      owner: _text(owner?['display_name']),
+      vertical:
+          _text(representation?['eyebrow']) ??
+          _text(representation?['route_label']),
+      occurrences: List.unmodifiable(occurrences),
+    );
+  }
+
   OccurrenceDetailPresentation? occurrence(
     StoredProjection? projection, {
     DateTime? now,
@@ -162,4 +206,69 @@ String? _text(Object? value) {
   if (value == null) return null;
   final text = value.toString().trim();
   return text.isEmpty ? null : text;
+
+  OccurrenceDetailPresentation? occurrencePreview(
+    StoredProjection? projection, {
+    DateTime? now,
+  }) {
+    final payload = projection?.payload;
+    if (payload == null) return null;
+
+    final item = _map(payload['item']);
+    if (item != null) {
+      final identity = _map(item['identity']);
+      final resource = _map(identity?['resource']);
+      final representation = _map(item['representation']);
+      final availability = _map(item['availability']);
+      final activityId = _text(resource?['id']);
+      final activityTitle = _text(representation?['title']);
+      if (activityId == null || activityTitle == null) return null;
+      return OccurrenceDetailPresentation(
+        activityId: activityId,
+        activityTitle: activityTitle,
+        state: null,
+        availability: MakoloHumanization.humanStatus(
+          _text(availability?['state']),
+        ),
+        timing: _timing(_map(item['timing']), now: now ?? DateTime.now()),
+        place: _placeLabel(_map(item['place'])),
+        capabilities: const {},
+      );
+    }
+
+    final activity = _map(payload['activity']);
+    final occurrence = _map(payload['occurrence']);
+    final availability = _map(payload['availability']);
+    final activityId = _text(activity?['id']);
+    final activityTitle = _text(activity?['title']);
+    if (activityId == null || activityTitle == null || occurrence == null) {
+      return null;
+    }
+    return OccurrenceDetailPresentation(
+      activityId: activityId,
+      activityTitle: activityTitle,
+      state: MakoloHumanization.humanStatus(_text(occurrence['state'])),
+      availability: MakoloHumanization.humanStatus(
+        _text(availability?['state']),
+      ),
+      timing: _timing(
+        _map(occurrence['timing']),
+        now: now ?? DateTime.now(),
+      ),
+      place: _placeLabel(_map(occurrence['place'])),
+      capabilities: const {},
+    );
+  }
+
+}
+
+
+String? _placeLabel(Map<String, dynamic>? place) {
+  if (place == null) return null;
+  final parts = <String>[];
+  final name = _text(place['name']);
+  final locality = _text(place['locality']);
+  if (name != null) parts.add(name);
+  if (locality != null && locality != name) parts.add(locality);
+  return parts.isEmpty ? null : parts.join(' · ');
 }

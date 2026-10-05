@@ -132,12 +132,7 @@ class DiscoveryFieldView extends StatelessWidget {
   Widget build(BuildContext context) {
     return MakoloSurfaceStateView(
       state: selection.surface,
-      recoverableErrorMessage: 'La mise à jour n’a pas abouti. Les possibilités connues restent disponibles.',
-      blockingErrorMessage:
-          'Makolo ne peut pas interpréter le champ de possibilités reçu.',
-      preservedMessage: selection.collection.items.isEmpty
-          ? null
-          : 'Le champ déjà acquis reste consultable.',
+      blockingErrorMessage: 'Ce contenu n’est pas disponible.',
       onRetry: onRetry,
       empty: _DiscoveryEmptyState(
         states: selection.states,
@@ -650,21 +645,11 @@ class _DiscoveryEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (states.contains(DiscoveryFieldState.offlineNoSnapshot)) {
+    if (states.contains(DiscoveryFieldState.offlineNoSnapshot) ||
+        states.contains(DiscoveryFieldState.offlineWithSnapshot)) {
       return _EmptyBody(
-        icon: Icons.cloud_off_outlined,
-        title:
-            'Impossible de charger de nouvelles possibilités hors connexion.',
-        body: 'Aucun snapshot Discovery n’est disponible sur cet appareil. Réessayez lorsque la source est joignable.',
-        actionLabel: onRetry == null ? null : 'Réessayer',
-        onAction: onRetry,
-      );
-    }
-    if (states.contains(DiscoveryFieldState.offlineWithSnapshot)) {
-      return _EmptyBody(
-        icon: Icons.cloud_off_outlined,
-        title: 'Le champ disponible est limité à ce qui est déjà acquis.',
-        body: 'Vous êtes hors connexion. Makolo ne présente pas ce corpus local comme exhaustif.',
+        icon: Icons.info_outline_rounded,
+        title: 'Ce contenu n’est pas disponible pour le moment.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -680,8 +665,8 @@ class _DiscoveryEmptyState extends StatelessWidget {
     }
     return const _EmptyBody(
       icon: Icons.explore_outlined,
-      title: 'Aucune proposition suffisante dans ce contexte pour le moment.',
-      body: 'Makolo n’invente pas de contenu pour remplir Découvrir. Vous pouvez préciser ce que vous cherchez.',
+      title: 'Aucune proposition pour le moment.',
+      body: 'Précisez ce que vous cherchez pour explorer autrement.',
     );
   }
 }
@@ -690,14 +675,14 @@ class _EmptyBody extends StatelessWidget {
   const _EmptyBody({
     required this.icon,
     required this.title,
-    required this.body,
+    this.body,
     this.actionLabel,
     this.onAction,
   });
 
   final IconData icon;
   final String title;
-  final String body;
+  final String? body;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -715,12 +700,14 @@ class _EmptyBody extends StatelessWidget {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        const SizedBox(height: MakoloSpacing.sm),
-        Text(
-          body,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+        if (body != null && body!.isNotEmpty) ...[
+          const SizedBox(height: MakoloSpacing.sm),
+          Text(
+            body!,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
         if (actionLabel != null && onAction != null) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Center(

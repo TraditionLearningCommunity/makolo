@@ -176,6 +176,9 @@ class DiscoveryRepository {
   static const mapProjectionKind = 'discovery.map';
   static const activityProjectionKind = 'activity.detail';
   static const occurrenceProjectionKind = 'occurrence.detail';
+  static const activityPreviewProjectionKind = 'discovery.activity-preview';
+  static const occurrencePreviewProjectionKind =
+      'discovery.occurrence-preview';
   static const watchesProjectionKind = 'discovery.watches';
   static const watchResultsProjectionKind = 'discovery.watch-results';
 
@@ -317,6 +320,18 @@ class DiscoveryRepository {
   Future<StoredProjection?> readOccurrence(String id) =>
       store.readProjection(occurrenceProjectionKind, resourceKey: id);
 
+  Stream<StoredProjection?> watchActivityPreview(String id) =>
+      store.watchProjection(activityPreviewProjectionKind, resourceKey: id);
+
+  Future<StoredProjection?> readActivityPreview(String id) =>
+      store.readProjection(activityPreviewProjectionKind, resourceKey: id);
+
+  Stream<StoredProjection?> watchOccurrencePreview(String id) =>
+      store.watchProjection(occurrencePreviewProjectionKind, resourceKey: id);
+
+  Future<StoredProjection?> readOccurrencePreview(String id) =>
+      store.readProjection(occurrencePreviewProjectionKind, resourceKey: id);
+
   Stream<StoredProjection?> watchWatches() =>
       store.watchProjection(watchesProjectionKind);
 
@@ -367,15 +382,29 @@ class DiscoveryRepository {
     );
   }
 
-  Future<void> refreshItems(DiscoveryQuery query) =>
-      _refresh(itemsSource(query));
+  Future<void> refreshItems(DiscoveryQuery query) async {
+    await _refresh(itemsSource(query));
+    await indexItemPreviews(query);
+  }
+
+  Future<void> indexItemPreviews(DiscoveryQuery query) async {
+    final projection = await readItems(query);
+    if (projection == null) return;
+    await _indexDiscoveryItemPreviews(projection);
+  }
 
   Future<void> refreshMap(DiscoveryQuery query) => _refresh(mapSource(query));
 
   Future<void> refreshItem(String family, String id) =>
       _refresh(itemSource(family, id));
 
-  Future<void> refreshActivity(String id) => _refresh(activitySource(id));
+  Future<void> refreshActivity(String id) async {
+    await _refresh(activitySource(id));
+    final projection = await readActivity(id);
+    if (projection != null) {
+      await _indexActivityOccurrencePreviews(id, projection);
+    }
+  }
 
   Future<void> refreshOccurrence(String id) => _refresh(occurrenceSource(id));
 
@@ -409,6 +438,103 @@ class DiscoveryRepository {
       sourceGeneratedAt: envelope.generatedAt,
       freshnessPolicyId: detailFreshness.id,
     );
+  }
+
+  Future<void> _indexDiscoveryItemPreviews(
+    StoredProjection projection,
+  ) async {
+    final rawResults = projection.payload['results'];
+    if (rawResults is! List) return;
+
+    for (final raw in rawResults.whereType<Map>()) {
+      final item = Map<String, dynamic>.from(raw);
+      final identity = _map(item['identity']);
+      final resource = _map(identity?['resource']);
+      final family = _text(identity?['family']);
+      final resourceId = _text(resource?['id']);
+      if (family == null || resourceId == null) continue;
+
+      if (_isActivityFamily(family)) {
+        await _putPreview(
+          kind: activityPreviewProjectionKind,
+          resourceKey: resourceId,
+          payload: {'item': item},
+          source: projection,
+        );
+      }
+
+      final occurrence = _map(identity?['occurrence']);
+      final occurrenceId = _text(occurrence?['id']);
+      if (occurrenceId != null) {
+        await _putPreview(
+          kind: occurrencePreviewProjectionKind,
+          resourceKey: occurrenceId,
+          payload: {'item': item},
+          source: projection,
+        );
+      }
+    }
+  }
+
+  Future<void> _indexActivityOccurrencePreviews(
+    String activityId,
+    StoredProjection projection,
+  ) async {
+    final representation = _map(projection.payload['representation']);
+    final title = _text(representation?['title']);
+    final occurrences = projection.payload['occurrences'];
+    if (title == null || occurrences is! List) return;
+
+    for (final raw in occurrences.whereType<Map>()) {
+      final occurrence = Map<String, dynamic>.from(raw);
+      final occurrenceId = _text(occurrence['id']);
+      if (occurrenceId == null) continue;
+      await _putPreview(
+        kind: occurrencePreviewProjectionKind,
+        resourceKey: occurrenceId,
+        payload: {
+          'activity': {'id': activityId, 'title': title},
+          'occurrence': occurrence,
+          if (projection.payload['availability'] != null)
+            'availability': projection.payload['availability'],
+        },
+        source: projection,
+      );
+    }
+  }
+
+  Future<void> _putPreview({
+    required String kind,
+    required String resourceKey,
+    required Map<String, dynamic> payload,
+    required StoredProjection source,
+  }) {
+    return store.putProjection(
+      kind: kind,
+      resourceKey: resourceKey,
+      schemaVersion: source.schemaVersion,
+      payload: payload,
+      receivedAt: source.receivedAt,
+      sourceGeneratedAt: source.sourceGeneratedAt,
+      sourceUpdatedAt: source.sourceUpdatedAt,
+      lastVerifiedOnlineAt: source.lastVerifiedOnlineAt,
+      freshUntil: source.freshUntil,
+      expiresAt: source.expiresAt,
+      freshnessPolicyId: source.freshnessPolicyId,
+    );
+  }
+
+  bool _isActivityFamily(String family) =>
+      family == 'activity' ||
+      family == 'service_activity' ||
+      family == 'funding_activity';
+
+  Map<String, dynamic>? _map(Object? value) =>
+      value is Map ? Map<String, dynamic>.from(value) : null;
+
+  String? _text(Object? value) {
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? null : text;
   }
 
   Future<void> _refresh(SyncSourceDefinition source) async {
