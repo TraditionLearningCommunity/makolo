@@ -527,7 +527,7 @@ class _RailButton extends StatelessWidget {
 IconData _destinationIcon(MakoloDestination destination) =>
     switch (destination) {
       MakoloDestination.personalNow ||
-      MakoloDestination.spaceNow => Icons.center_focus_strong_outlined,
+      MakoloDestination.spaceNow => Icons.adjust,
       MakoloDestination.personalDiscover ||
       MakoloDestination.spaceDiscover => Icons.explore_outlined,
       MakoloDestination.personalContinuity => Icons.route_outlined,

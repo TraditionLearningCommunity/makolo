@@ -61,9 +61,9 @@ class SuccessFeedback extends StatelessWidget {
   final bool compact;
 
   String get _label => switch (kind) {
-    SuccessFeedbackKind.savedOnDevice => 'Enregistré sur cet appareil',
-    SuccessFeedbackKind.pendingSync => 'En attente de synchronisation',
-    SuccessFeedbackKind.synced => 'Synchronisé',
+    SuccessFeedbackKind.savedOnDevice => 'Enregistré',
+    SuccessFeedbackKind.pendingSync => 'Confirmation en attente',
+    SuccessFeedbackKind.synced => 'Confirmé',
     SuccessFeedbackKind.confirmed => 'Confirmé',
   };
 
@@ -233,6 +233,23 @@ class NetworkStateCue extends StatelessWidget {
   }
 }
 
+class MakoloNetworkContextFrame extends StatelessWidget {
+  const MakoloNetworkContextFrame({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = SyncStatusScope.maybeOf(context);
+    return Column(
+      children: [
+        if (status != null) NetworkStateCue(status: status),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
 class NetworkStateIndicator extends StatelessWidget {
   const NetworkStateIndicator({super.key, required this.status});
 
@@ -243,13 +260,12 @@ class NetworkStateIndicator extends StatelessWidget {
     SyncVisualState.syncing => 'Mise à jour…',
     SyncVisualState.pending =>
       status.pendingCount > 1
-          ? '${status.pendingCount} actions en attente de synchronisation'
-          : 'En attente de synchronisation',
-    SyncVisualState.offline =>
-      'Hors connexion · Ce qui est déjà disponible reste utilisable.',
+          ? '${status.pendingCount} actions en attente de confirmation'
+          : 'Confirmation en attente',
+    SyncVisualState.offline => 'Informations disponibles',
     SyncVisualState.conflict => 'Une modification demande votre attention.',
-    SyncVisualState.failed => 'Impossible de mettre à jour pour le moment.',
-    SyncVisualState.stale => 'Données disponibles, vérification nécessaire.',
+    SyncVisualState.failed => 'Vérification indisponible.',
+    SyncVisualState.stale => 'Vérification nécessaire.',
   };
 
   MakoloNoticeKind get _kind => switch (status.state) {
