@@ -479,12 +479,22 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    await tester.scrollUntilVisible(
+      find.text('Voir la situation en direct'),
+      320,
+      scrollable: find.byKey(const Key('day-of-content')),
+    );
+    await tester.pump();
+
     final live = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Voir la situation en direct'),
     );
     expect(live.onPressed, isNull);
     expect(find.text('Connexion requise'), findsOneWidget);
     expect(openedLive, isFalse);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   test('credential presentation requires the owner capability even when summary says presentable', () {
