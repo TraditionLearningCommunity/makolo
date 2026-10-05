@@ -127,67 +127,64 @@ void main() {
     },
   );
 
-  test('known Discovery items seed Activity and Occurrence read previews', () async {
-    const query = DiscoveryQuery(text: 'known');
-    await store.putProjection(
-      kind: DiscoveryRepository.itemsProjectionKind,
-      resourceKey: query.fingerprint,
-      schemaVersion: 1,
-      payload: const {
-        'count': 1,
-        'page': 1,
-        'page_size': 24,
-        'has_next': false,
-        'results': [
-          {
-            'identity': {
-              'family': 'activity',
-              'resource': {'kind': 'activity', 'id': 'activity-known'},
-              'occurrence': {
-                'kind': 'occurrence',
-                'id': 'occurrence-known',
+  test(
+    'known Discovery items seed Activity and Occurrence read previews',
+    () async {
+      const query = DiscoveryQuery(text: 'known');
+      await store.putProjection(
+        kind: DiscoveryRepository.itemsProjectionKind,
+        resourceKey: query.fingerprint,
+        schemaVersion: 1,
+        payload: const {
+          'count': 1,
+          'page': 1,
+          'page_size': 24,
+          'has_next': false,
+          'results': [
+            {
+              'identity': {
+                'family': 'activity',
+                'resource': {'kind': 'activity', 'id': 'activity-known'},
+                'occurrence': {'kind': 'occurrence', 'id': 'occurrence-known'},
               },
+              'representation': {
+                'title': 'Atelier prise de parole',
+                'summary': 'Une session déjà connue.',
+                'eyebrow': 'Atelier',
+              },
+              'owner': {'display_name': 'Makolo Campus'},
+              'timing': {'start_at': '2026-11-09T14:00:00+00:00'},
+              'place': {'name': 'Campus', 'locality': 'Lubumbashi'},
+              'availability': {'state': 'available'},
+              'saved': {'state': 'not_saved'},
+              'capabilities': ['view'],
+              'links': {},
             },
-            'representation': {
-              'title': 'Atelier prise de parole',
-              'summary': 'Une session déjà connue.',
-              'eyebrow': 'Atelier',
-            },
-            'owner': {'display_name': 'Makolo Campus'},
-            'timing': {'start_at': '2026-11-09T14:00:00+00:00'},
-            'place': {
-              'name': 'Campus',
-              'locality': 'Lubumbashi',
-            },
-            'availability': {'state': 'available'},
-            'saved': {'state': 'not_saved'},
-            'capabilities': ['view'],
-            'links': {},
-          },
-        ],
-      },
-    );
+          ],
+        },
+      );
 
-    await repository.indexItemPreviews(query);
+      await repository.indexItemPreviews(query);
 
-    final activity = const DiscoveryDetailSelector().activityPreview(
-      await repository.readActivityPreview('activity-known'),
-      now: DateTime.utc(2026, 11, 9, 10),
-    );
-    final occurrence = const DiscoveryDetailSelector().occurrencePreview(
-      await repository.readOccurrencePreview('occurrence-known'),
-      now: DateTime.utc(2026, 11, 9, 10),
-    );
+      final activity = const DiscoveryDetailSelector().activityPreview(
+        await repository.readActivityPreview('activity-known'),
+        now: DateTime.utc(2026, 11, 9, 10),
+      );
+      final occurrence = const DiscoveryDetailSelector().occurrencePreview(
+        await repository.readOccurrencePreview('occurrence-known'),
+        now: DateTime.utc(2026, 11, 9, 10),
+      );
 
-    expect(activity?.title, 'Atelier prise de parole');
-    expect(activity?.owner, 'Makolo Campus');
-    expect(activity?.availability, 'Disponible');
-    expect(activity?.occurrences.single.id, 'occurrence-known');
-    expect(occurrence?.activityId, 'activity-known');
-    expect(occurrence?.place, 'Campus · Lubumbashi');
-    expect(occurrence?.availability, 'Disponible');
-    expect(occurrence?.canOpenDayOf, isFalse);
-  });
+      expect(activity?.title, 'Atelier prise de parole');
+      expect(activity?.owner, 'Makolo Campus');
+      expect(activity?.availability, 'Disponible');
+      expect(activity?.occurrences.single.id, 'occurrence-known');
+      expect(occurrence?.activityId, 'activity-known');
+      expect(occurrence?.place, 'Campus · Lubumbashi');
+      expect(occurrence?.availability, 'Disponible');
+      expect(occurrence?.canOpenDayOf, isFalse);
+    },
+  );
 
   test('Real empty Discovery remains empty', () {
     final projection = StoredProjection(

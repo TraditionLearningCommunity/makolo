@@ -668,96 +668,104 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 _selector.activity(snapshot.data) ??
                 _selector.activityPreview(previewSnapshot.data);
             return Scaffold(
-          appBar: AppBar(
-            title: const Text('Activité'),
-            actions: [
-              IconButton(
-                tooltip: 'Actualiser',
-                onPressed: _refreshing ? null : _refresh,
-                icon: const Icon(Icons.refresh_rounded),
+              appBar: AppBar(
+                title: const Text('Activité'),
+                actions: [
+                  IconButton(
+                    tooltip: 'Actualiser',
+                    onPressed: _refreshing ? null : _refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
               ),
-            ],
-          ),
-          body: MakoloNetworkContextFrame(
-            child: activity == null
-              ? _refreshing
-                    ? const MakoloLoadingState(label: 'Mise à jour…')
-                    : MakoloErrorState(
-                        message: 'Ce contenu n’est pas disponible.',
-                        onRetry: _refresh,
-                      )
-              : ListView(
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-                  children: [
-                    MakoloDetailHeader(
-                      eyebrow: activity.vertical,
-                      title: activity.title,
-                      subtitle: activity.summary.isEmpty
-                          ? null
-                          : activity.summary,
-                      status: activity.state == null
-                          ? null
-                          : MakoloStatus(label: activity.state!),
-                      metadata: [
-                        if (activity.owner != null)
-                          MakoloMetadataItem(
-                            activity.owner!,
-                            icon: Icons.business_outlined,
-                          ),
-                        if (activity.availability != null)
-                          MakoloMetadataItem(
-                            activity.availability!,
-                            icon: Icons.event_available_outlined,
-                          ),
-                      ],
-                    ),
-                    if (activity.occurrences.isNotEmpty)
-                      MakoloSection(
-                        title: 'Dates et réalisations',
-                        child: Column(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < activity.occurrences.length;
-                              index++
-                            ) ...[
-                              MakoloCard(
-                                onTap: () => widget.onOpenOccurrence(
-                                  activity.occurrences[index].id,
-                                ),
-                                child: MakoloStatusMetadataAction(
-                                  title: activity.occurrences[index].label,
-                                  status:
-                                      activity.occurrences[index].state == null
-                                      ? null
-                                      : MakoloStatus(
-                                          label: activity
-                                              .occurrences[index]
-                                              .state!,
-                                        ),
-                                  metadata: [
-                                    if (activity.occurrences[index].timing !=
-                                        null)
-                                      MakoloMetadataItem(
-                                        activity.occurrences[index].timing!,
-                                        icon: Icons.schedule_outlined,
-                                      ),
-                                  ],
-                                  action: const Icon(
-                                    Icons.chevron_right_rounded,
-                                  ),
-                                ),
-                              ),
-                              if (index < activity.occurrences.length - 1)
-                                const SizedBox(height: MakoloSpacing.sm),
-                            ],
-                          ],
+              body: MakoloNetworkContextFrame(
+                child: activity == null
+                    ? _refreshing
+                          ? const MakoloLoadingState(label: 'Mise à jour…')
+                          : MakoloErrorState(
+                              message: 'Ce contenu n’est pas disponible.',
+                              onRetry: _refresh,
+                            )
+                    : ListView(
+                        padding: const EdgeInsets.only(
+                          bottom: MakoloSpacing.xl,
                         ),
+                        children: [
+                          MakoloDetailHeader(
+                            eyebrow: activity.vertical,
+                            title: activity.title,
+                            subtitle: activity.summary.isEmpty
+                                ? null
+                                : activity.summary,
+                            status: activity.state == null
+                                ? null
+                                : MakoloStatus(label: activity.state!),
+                            metadata: [
+                              if (activity.owner != null)
+                                MakoloMetadataItem(
+                                  activity.owner!,
+                                  icon: Icons.business_outlined,
+                                ),
+                              if (activity.availability != null)
+                                MakoloMetadataItem(
+                                  activity.availability!,
+                                  icon: Icons.event_available_outlined,
+                                ),
+                            ],
+                          ),
+                          if (activity.occurrences.isNotEmpty)
+                            MakoloSection(
+                              title: 'Dates et réalisations',
+                              child: Column(
+                                children: [
+                                  for (
+                                    var index = 0;
+                                    index < activity.occurrences.length;
+                                    index++
+                                  ) ...[
+                                    MakoloCard(
+                                      onTap: () => widget.onOpenOccurrence(
+                                        activity.occurrences[index].id,
+                                      ),
+                                      child: MakoloStatusMetadataAction(
+                                        title:
+                                            activity.occurrences[index].label,
+                                        status:
+                                            activity.occurrences[index].state ==
+                                                null
+                                            ? null
+                                            : MakoloStatus(
+                                                label: activity
+                                                    .occurrences[index]
+                                                    .state!,
+                                              ),
+                                        metadata: [
+                                          if (activity
+                                                  .occurrences[index]
+                                                  .timing !=
+                                              null)
+                                            MakoloMetadataItem(
+                                              activity
+                                                  .occurrences[index]
+                                                  .timing!,
+                                              icon: Icons.schedule_outlined,
+                                            ),
+                                        ],
+                                        action: const Icon(
+                                          Icons.chevron_right_rounded,
+                                        ),
+                                      ),
+                                    ),
+                                    if (index < activity.occurrences.length - 1)
+                                      const SizedBox(height: MakoloSpacing.sm),
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-          ),
-        );
+              ),
+            );
           },
         );
       },
@@ -823,91 +831,93 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                 _selector.occurrence(snapshot.data) ??
                 _selector.occurrencePreview(previewSnapshot.data);
             return Scaffold(
-          appBar: AppBar(
-            title: const Text('Occurrence'),
-            actions: [
-              IconButton(
-                tooltip: 'Actualiser',
-                onPressed: _refreshing ? null : _refresh,
-                icon: const Icon(Icons.refresh_rounded),
+              appBar: AppBar(
+                title: const Text('Occurrence'),
+                actions: [
+                  IconButton(
+                    tooltip: 'Actualiser',
+                    onPressed: _refreshing ? null : _refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
               ),
-            ],
-          ),
-          body: MakoloNetworkContextFrame(
-            child: occurrence == null
-              ? _refreshing
-                    ? const MakoloLoadingState(label: 'Mise à jour…')
-                    : MakoloErrorState(
-                        message: 'Ce contenu n’est pas disponible.',
-                        onRetry: _refresh,
-                      )
-              : ListView(
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-                  children: [
-                    MakoloDetailHeader(
-                      eyebrow: 'Occurrence',
-                      title: occurrence.activityTitle,
-                      status: occurrence.state == null
-                          ? null
-                          : MakoloStatus(label: occurrence.state!),
-                      metadata: [
-                        if (occurrence.timing != null)
-                          MakoloMetadataItem(
-                            occurrence.timing!,
-                            icon: Icons.schedule_outlined,
-                          ),
-                        if (occurrence.place != null)
-                          MakoloMetadataItem(
-                            occurrence.place!,
-                            icon: Icons.place_outlined,
-                          ),
-                        if (occurrence.availability != null)
-                          MakoloMetadataItem(
-                            occurrence.availability!,
-                            icon: Icons.event_available_outlined,
-                          ),
-                      ],
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: MakoloSpacing.inner,
-                      ),
-                      child: OutlinedButton.icon(
-                        onPressed: () =>
-                            widget.onOpenActivity(occurrence.activityId),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        label: const Text('Voir l’activité'),
-                      ),
-                    ),
-                    if (occurrence.canOpenDayOf)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          MakoloSpacing.inner,
-                          MakoloSpacing.md,
-                          MakoloSpacing.inner,
-                          0,
+              body: MakoloNetworkContextFrame(
+                child: occurrence == null
+                    ? _refreshing
+                          ? const MakoloLoadingState(label: 'Mise à jour…')
+                          : MakoloErrorState(
+                              message: 'Ce contenu n’est pas disponible.',
+                              onRetry: _refresh,
+                            )
+                    : ListView(
+                        padding: const EdgeInsets.only(
+                          bottom: MakoloSpacing.xl,
                         ),
-                        child: MakoloAttentionBlock(
-                          title: 'Jour J disponible',
-                          body:
-                              'Les informations utiles pour le moment venu '
-                              'sont disponibles.',
-                          icon: Icons.directions_walk_rounded,
-                          action: widget.onOpenDayOf == null
-                              ? null
-                              : FilledButton.icon(
-                                  onPressed: widget.onOpenDayOf,
-                                  icon: const Icon(
-                                    Icons.directions_walk_rounded,
-                                  ),
-                                  label: const Text('Ouvrir le Jour J'),
+                        children: [
+                          MakoloDetailHeader(
+                            eyebrow: 'Occurrence',
+                            title: occurrence.activityTitle,
+                            status: occurrence.state == null
+                                ? null
+                                : MakoloStatus(label: occurrence.state!),
+                            metadata: [
+                              if (occurrence.timing != null)
+                                MakoloMetadataItem(
+                                  occurrence.timing!,
+                                  icon: Icons.schedule_outlined,
                                 ),
-                        ),
+                              if (occurrence.place != null)
+                                MakoloMetadataItem(
+                                  occurrence.place!,
+                                  icon: Icons.place_outlined,
+                                ),
+                              if (occurrence.availability != null)
+                                MakoloMetadataItem(
+                                  occurrence.availability!,
+                                  icon: Icons.event_available_outlined,
+                                ),
+                            ],
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: MakoloSpacing.inner,
+                            ),
+                            child: OutlinedButton.icon(
+                              onPressed: () =>
+                                  widget.onOpenActivity(occurrence.activityId),
+                              icon: const Icon(Icons.arrow_back_rounded),
+                              label: const Text('Voir l’activité'),
+                            ),
+                          ),
+                          if (occurrence.canOpenDayOf)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                MakoloSpacing.inner,
+                                MakoloSpacing.md,
+                                MakoloSpacing.inner,
+                                0,
+                              ),
+                              child: MakoloAttentionBlock(
+                                title: 'Jour J disponible',
+                                body:
+                                    'Les informations utiles pour le moment venu '
+                                    'sont disponibles.',
+                                icon: Icons.directions_walk_rounded,
+                                action: widget.onOpenDayOf == null
+                                    ? null
+                                    : FilledButton.icon(
+                                        onPressed: widget.onOpenDayOf,
+                                        icon: const Icon(
+                                          Icons.directions_walk_rounded,
+                                        ),
+                                        label: const Text('Ouvrir le Jour J'),
+                                      ),
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-          ),
-        );
+              ),
+            );
           },
         );
       },

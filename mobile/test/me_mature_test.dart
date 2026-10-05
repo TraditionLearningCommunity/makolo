@@ -496,10 +496,7 @@ void main() {
 
     expect(find.text('Gilbert Bemwiz'), findsOneWidget);
     expect(find.text('Mes ressources'), findsOneWidget);
-    expect(
-      find.text('Mise à jour momentanément indisponible.'),
-      findsNothing,
-    );
+    expect(find.text('Mise à jour momentanément indisponible.'), findsNothing);
     expect(find.byType(MakoloNotice), findsNothing);
   });
 

@@ -142,12 +142,12 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
               body: MakoloNetworkContextFrame(
                 child: MakoloSurfaceStateView(
                   state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’élément nécessaire…',
-                ),
-                blockingErrorMessage: 'Cet élément n’est pas disponible dans votre contexte actuel.',
-                onRetry: _refresh,
-                content: _RequirementContent(presentation: presentation),
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement de l’élément nécessaire…',
+                  ),
+                  blockingErrorMessage: 'Cet élément n’est pas disponible dans votre contexte actuel.',
+                  onRetry: _refresh,
+                  content: _RequirementContent(presentation: presentation),
                 ),
               ),
             );

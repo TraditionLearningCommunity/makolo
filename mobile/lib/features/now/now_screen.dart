@@ -272,14 +272,13 @@ class _NowPrimarySituation extends StatelessWidget {
         situation.responseCapability == 'open_detail' &&
         ownerPath != null &&
         onOpenOwner != null;
-    final contextLabel = _distinctPresentationText(
+    final contextLabel = _distinctPresentationText(situation.humanContext, [
+      situation.meaning,
+    ]);
+    final whyNow = _distinctPresentationText(situation.whyNow, [
+      situation.meaning,
       situation.humanContext,
-      [situation.meaning],
-    );
-    final whyNow = _distinctPresentationText(
-      situation.whyNow,
-      [situation.meaning, situation.humanContext],
-    );
+    ]);
 
     return Semantics(
       container: true,
@@ -355,10 +354,9 @@ class _NowSecondarySituation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final contextLabel = _distinctPresentationText(
-      situation.humanContext,
-      [situation.meaning],
-    );
+    final contextLabel = _distinctPresentationText(situation.humanContext, [
+      situation.meaning,
+    ]);
     return MakoloCard(
       onTap: onSelect,
       semanticLabel: [
@@ -407,14 +405,13 @@ class _NowDepth extends StatelessWidget {
     final canOpenOwner =
         NowScreen.ownerPathFor(situation.ownerDestination) != null &&
         onOpenOwner != null;
-    final contextLabel = _distinctPresentationText(
+    final contextLabel = _distinctPresentationText(situation.humanContext, [
+      situation.meaning,
+    ]);
+    final whyNow = _distinctPresentationText(situation.whyNow, [
+      situation.meaning,
       situation.humanContext,
-      [situation.meaning],
-    );
-    final whyNow = _distinctPresentationText(
-      situation.whyNow,
-      [situation.meaning, situation.humanContext],
-    );
+    ]);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),

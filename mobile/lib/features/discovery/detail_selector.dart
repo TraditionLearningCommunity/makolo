@@ -125,10 +125,7 @@ class DiscoveryDetailSelector {
               id: occurrenceId,
               label: title,
               state: null,
-              timing: _timing(
-                _map(item['timing']),
-                now: now ?? DateTime.now(),
-              ),
+              timing: _timing(_map(item['timing']), now: now ?? DateTime.now()),
             ),
           ];
 
@@ -251,17 +248,12 @@ String? _text(Object? value) {
       availability: MakoloHumanization.humanStatus(
         _text(availability?['state']),
       ),
-      timing: _timing(
-        _map(occurrence['timing']),
-        now: now ?? DateTime.now(),
-      ),
+      timing: _timing(_map(occurrence['timing']), now: now ?? DateTime.now()),
       place: _placeLabel(_map(occurrence['place'])),
       capabilities: const {},
     );
   }
-
 }
-
 
 String? _placeLabel(Map<String, dynamic>? place) {
   if (place == null) return null;

@@ -139,18 +139,20 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
               body: MakoloNetworkContextFrame(
                 child: MakoloSurfaceStateView(
                   state: surface,
-                initialLoading: const MakoloLoadingState(label: 'Chargement…'),
-                blockingErrorMessage: 'Ce contenu n’est pas disponible dans votre contexte actuel.',
-                onRetry: _refresh,
-                content: widget.kind == ObjectiveDepth.dossier
-                    ? _DossierContent(
-                        payload: projection?.payload ?? const {},
-                        onOpenJourney: widget.onOpenJourney,
-                      )
-                    : _ProjectContent(
-                        payload: projection?.payload ?? const {},
-                        onOpenDossier: widget.onOpenDossier,
-                      ),
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement…',
+                  ),
+                  blockingErrorMessage: 'Ce contenu n’est pas disponible dans votre contexte actuel.',
+                  onRetry: _refresh,
+                  content: widget.kind == ObjectiveDepth.dossier
+                      ? _DossierContent(
+                          payload: projection?.payload ?? const {},
+                          onOpenJourney: widget.onOpenJourney,
+                        )
+                      : _ProjectContent(
+                          payload: projection?.payload ?? const {},
+                          onOpenDossier: widget.onOpenDossier,
+                        ),
                 ),
               ),
             );

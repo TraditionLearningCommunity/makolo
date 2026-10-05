@@ -142,23 +142,23 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
               body: MakoloNetworkContextFrame(
                 child: MakoloSurfaceStateView(
                   state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’action en cours…',
-                ),
-                blockingErrorMessage: 'Cette action n’est pas disponible dans votre contexte actuel.',
-                onRetry: _refresh,
-                content: _DayOfContent(
-                  presentation: presentation,
-                  remoteActionsAvailable:
-                      source.reachability != ReachabilityState.unreachable &&
-                      SyncStatusScope.maybeOf(context)?.state !=
-                          SyncVisualState.offline &&
-                      SyncStatusScope.maybeOf(context)?.state !=
-                          SyncVisualState.failed,
-                  onOpenAccess: widget.onOpenAccess,
-                  onPresentCredential: widget.onPresentCredential,
-                  onOpenLive: widget.onOpenLive,
-                ),
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement de l’action en cours…',
+                  ),
+                  blockingErrorMessage: 'Cette action n’est pas disponible dans votre contexte actuel.',
+                  onRetry: _refresh,
+                  content: _DayOfContent(
+                    presentation: presentation,
+                    remoteActionsAvailable:
+                        source.reachability != ReachabilityState.unreachable &&
+                        SyncStatusScope.maybeOf(context)?.state !=
+                            SyncVisualState.offline &&
+                        SyncStatusScope.maybeOf(context)?.state !=
+                            SyncVisualState.failed,
+                    onOpenAccess: widget.onOpenAccess,
+                    onPresentCredential: widget.onPresentCredential,
+                    onOpenLive: widget.onOpenLive,
+                  ),
                 ),
               ),
             );

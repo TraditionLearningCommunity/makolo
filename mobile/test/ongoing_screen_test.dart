@@ -145,10 +145,7 @@ void main() {
 
     expect(find.text('Obtenir un routeur bureau'), findsOneWidget);
     expect(find.text('À confirmer'), findsOneWidget);
-    expect(
-      find.text('Confirmer : Obtenir un routeur bureau'),
-      findsNothing,
-    );
+    expect(find.text('Confirmer : Obtenir un routeur bureau'), findsNothing);
   });
 
   testWidgets('wide split uses the shared 960dp content boundary', (

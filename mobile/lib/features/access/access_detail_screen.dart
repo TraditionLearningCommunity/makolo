@@ -122,17 +122,17 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
               body: MakoloNetworkContextFrame(
                 child: MakoloSurfaceStateView(
                   state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’accès…',
-                ),
-                blockingErrorMessage: 'Cet accès n’est pas disponible dans votre contexte actuel.',
-                onRetry: _refresh,
-                content: _AccessContent(
-                  presentation: presentation,
-                  onOpenDayOf: widget.onOpenDayOf,
-                  onOpenJourney: widget.onOpenJourney,
-                  onOpenPresentation: widget.onOpenPresentation,
-                ),
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement de l’accès…',
+                  ),
+                  blockingErrorMessage: 'Cet accès n’est pas disponible dans votre contexte actuel.',
+                  onRetry: _refresh,
+                  content: _AccessContent(
+                    presentation: presentation,
+                    onOpenDayOf: widget.onOpenDayOf,
+                    onOpenJourney: widget.onOpenJourney,
+                    onOpenPresentation: widget.onOpenPresentation,
+                  ),
                 ),
               ),
             );

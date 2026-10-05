@@ -177,8 +177,7 @@ class DiscoveryRepository {
   static const activityProjectionKind = 'activity.detail';
   static const occurrenceProjectionKind = 'occurrence.detail';
   static const activityPreviewProjectionKind = 'discovery.activity-preview';
-  static const occurrencePreviewProjectionKind =
-      'discovery.occurrence-preview';
+  static const occurrencePreviewProjectionKind = 'discovery.occurrence-preview';
   static const watchesProjectionKind = 'discovery.watches';
   static const watchResultsProjectionKind = 'discovery.watch-results';
 
@@ -440,9 +439,7 @@ class DiscoveryRepository {
     );
   }
 
-  Future<void> _indexDiscoveryItemPreviews(
-    StoredProjection projection,
-  ) async {
+  Future<void> _indexDiscoveryItemPreviews(StoredProjection projection) async {
     final rawResults = projection.payload['results'];
     if (rawResults is! List) return;
 

@@ -153,17 +153,17 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
               body: MakoloNetworkContextFrame(
                 child: MakoloSurfaceStateView(
                   state: surface,
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de la démarche…',
-                ),
-                blockingErrorMessage: 'Cette démarche n’est pas disponible dans votre contexte actuel.',
-                onRetry: _refresh,
-                content: _JourneyContent(
-                  presentation: presentation,
-                  onOpenForm: widget.onOpenForm,
-                  onOpenRequirement: widget.onOpenRequirement,
-                  onOpenResources: widget.onOpenResources,
-                ),
+                  initialLoading: const MakoloLoadingState(
+                    label: 'Chargement de la démarche…',
+                  ),
+                  blockingErrorMessage: 'Cette démarche n’est pas disponible dans votre contexte actuel.',
+                  onRetry: _refresh,
+                  content: _JourneyContent(
+                    presentation: presentation,
+                    onOpenForm: widget.onOpenForm,
+                    onOpenRequirement: widget.onOpenRequirement,
+                    onOpenResources: widget.onOpenResources,
+                  ),
                 ),
               ),
             );
