@@ -446,7 +446,6 @@ void main() {
     tester,
   ) async {
     final database = MakoloDatabase.memory();
-    addTearDown(database.close);
     final store = ProfileStore(database, 'profile-a');
     await store.putProjection(
       kind: DayOfRepository.projectionKind,
@@ -482,7 +481,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Voir la situation en direct'),
       320,
-      scrollable: find.byKey(const Key('day-of-content')),
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pump();
 
@@ -495,6 +494,7 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
+    await database.close();
   });
 
   test('credential presentation requires the owner capability even when summary says presentable', () {
