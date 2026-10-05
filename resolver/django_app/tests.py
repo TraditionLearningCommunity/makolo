@@ -363,6 +363,8 @@ class ResolverDjangoCatalogTests(TestCase):
         self.assertEqual(len(lookup.alternatives), 1)
         self.assertEqual(lookup.alternatives[0].strength, ResolutionStrength.POSSIBLE)
 
+    # Exact source-host convergence stabilizes provisional review identity only;
+    # it must never upgrade the candidate into a canonical match.
     def test_same_organization_on_same_source_host_reuses_provisional_identity_without_matching(self):
         entity_a = CandidateEntity("entity-a", "Université de Kinshasa", ("organization",))
         entity_b = CandidateEntity("entity-b", "Université de Kinshasa", ("organization",))
