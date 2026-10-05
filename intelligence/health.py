@@ -5,6 +5,8 @@ from time import monotonic
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.utils import timezone
 
+from research_missions import ResearchFamily, ResearchMission, ResearchOrigin, ResearchOriginKind
+
 from .capabilities import IntelligenceCapability
 from .contracts import IntelligenceRequest
 from .credentials import get_provider_secret
@@ -12,11 +14,10 @@ from .exceptions import IntelligenceError, ProviderUnavailable
 from .models import (
     ProviderConnection,
     ProviderHealth,
-    ProviderProtocol,
     ProviderScope,
     _validate_external_provider_url,
 )
-from .providers.openai_compatible import OpenAICompatibleProvider
+from .provider_factory import build_configured_provider
 
 
 def test_provider_connection(connection: ProviderConnection) -> str:
@@ -26,16 +27,14 @@ def test_provider_connection(connection: ProviderConnection) -> str:
         if connection.scope in {ProviderScope.SPACE, ProviderScope.PROFILE}:
             _validate_external_provider_url(connection.base_url)
         secret = get_provider_secret(connection=connection)
-        if connection.protocol != ProviderProtocol.OPENAI_COMPATIBLE:
+        provider = build_configured_provider(
+            connection=connection,
+            secret=secret,
+            model=connection.default_model,
+        )
+        if provider is None:
             status = ProviderHealth.UNAVAILABLE
-        else:
-            provider = OpenAICompatibleProvider(
-                key=str(connection.pk),
-                base_url=connection.base_url,
-                api_key=secret,
-                model=connection.default_model,
-                timeout_seconds=connection.timeout_seconds,
-            )
+        elif provider.supports(IntelligenceCapability.TEXT_GENERATE):
             provider.execute(
                 IntelligenceRequest(
                     capability=IntelligenceCapability.TEXT_GENERATE,
@@ -43,6 +42,38 @@ def test_provider_connection(connection: ProviderConnection) -> str:
                 )
             )
             status = ProviderHealth.HEALTHY
+        elif provider.supports(IntelligenceCapability.WEB_RESEARCH):
+            mission = ResearchMission(
+                primary_family=ResearchFamily.REFERENCE,
+                subject="Makolo provider connectivity",
+                questions=("Find one public source about Makolo.",),
+                origins=(
+                    ResearchOrigin(
+                        kind=ResearchOriginKind.INITIAL,
+                        source_ref="intelligence:provider-healthcheck",
+                    ),
+                ),
+                reasons=("Verify explicit Web Research provider connectivity.",),
+                limits={"max_candidates": 1, "max_queries": 1},
+            )
+            provider.execute(
+                IntelligenceRequest(
+                    capability=IntelligenceCapability.WEB_RESEARCH,
+                    input={
+                        "request": {
+                            "contract_version": 1,
+                            "request_ref": "provider-healthcheck",
+                            "mode": "discover",
+                            "requested_at": timezone.now().isoformat(),
+                            "mission": dict(mission.to_provenance_payload()),
+                        }
+                    },
+                    metadata={"feature": "provider_healthcheck"},
+                )
+            )
+            status = ProviderHealth.HEALTHY
+        else:
+            status = ProviderHealth.UNAVAILABLE
     except ProviderUnavailable as exc:
         status = (
             ProviderHealth.INVALID_CREDENTIALS

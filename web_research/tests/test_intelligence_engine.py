@@ -114,12 +114,12 @@ def _response_payload(*, source_url="https://example.org/scholarship", candidate
 
 
 class WebResearchIntelligenceCapabilityTests(SimpleTestCase):
-    def test_web_research_is_runtime_capability_but_not_persisted_route_yet(self):
+    def test_web_research_is_persisted_route_capability(self):
         self.assertIn(
             IntelligenceCapability.WEB_RESEARCH,
             set(IntelligenceCapability),
         )
-        self.assertNotIn(
+        self.assertIn(
             IntelligenceCapability.WEB_RESEARCH,
             PERSISTED_INTELLIGENCE_ROUTE_CAPABILITIES,
         )
@@ -134,6 +134,7 @@ class WebResearchIntelligenceCapabilityTests(SimpleTestCase):
                 "structured_generate",
                 "embed",
                 "rerank",
+                "web_research",
             },
         )
 

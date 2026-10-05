@@ -8,11 +8,10 @@ from .credentials import get_provider_secret
 from .models import (
     IntelligenceRoute,
     ProviderHealth,
-    ProviderProtocol,
     ProviderScope,
     _validate_external_provider_url,
 )
-from .providers.openai_compatible import OpenAICompatibleProvider
+from .provider_factory import build_configured_provider
 from .registry import IntelligenceRegistry
 
 
@@ -46,14 +45,11 @@ def build_runtime_registry(*, capability: IntelligenceCapability, space=None, pr
         except (ValueError, ImproperlyConfigured):
             continue
         model = route.model.strip() or connection.default_model
-        if connection.protocol == ProviderProtocol.OPENAI_COMPATIBLE:
-            providers.append(
-                OpenAICompatibleProvider(
-                    key=str(connection.pk),
-                    base_url=connection.base_url,
-                    api_key=secret,
-                    model=model,
-                    timeout_seconds=connection.timeout_seconds,
-                )
-            )
+        provider = build_configured_provider(
+            connection=connection,
+            secret=secret,
+            model=model,
+        )
+        if provider is not None and provider.supports(capability):
+            providers.append(provider)
     return IntelligenceRegistry(providers=providers)

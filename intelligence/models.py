@@ -13,6 +13,9 @@ from .capabilities import PERSISTED_INTELLIGENCE_ROUTE_CAPABILITIES
 
 class ProviderProtocol(models.TextChoices):
     OPENAI_COMPATIBLE = "openai_compatible", "OpenAI-compatible"
+    OPENAI_RESPONSES_WEB = "openai_responses_web", "OpenAI Responses Web"
+    TAVILY_SEARCH = "tavily_search", "Tavily Search"
+    EXA_SEARCH = "exa_search", "Exa Search"
 
 
 class ProviderScope(models.TextChoices):
@@ -49,7 +52,7 @@ class ProviderConnection(models.Model):
     name = models.CharField(max_length=120)
     protocol = models.CharField(max_length=32, choices=ProviderProtocol.choices)
     base_url = models.URLField(max_length=500)
-    default_model = models.CharField(max_length=160)
+    default_model = models.CharField(max_length=160, blank=True)
     scope = models.CharField(max_length=16, choices=ProviderScope.choices, default=ProviderScope.PLATFORM)
     space = models.ForeignKey(
         "organizations.Organization",
@@ -102,6 +105,17 @@ class ProviderConnection(models.Model):
             raise ValidationError("Une connexion Profil doit cibler exactement un Profil.")
         if self.timeout_seconds < 1:
             raise ValidationError({"timeout_seconds": "Le timeout doit être positif."})
+        if (
+            self.protocol
+            in {
+                ProviderProtocol.OPENAI_COMPATIBLE,
+                ProviderProtocol.OPENAI_RESPONSES_WEB,
+            }
+            and not self.default_model.strip()
+        ):
+            raise ValidationError(
+                {"default_model": "Un modèle est requis pour ce protocole."}
+            )
         if self.scope in {ProviderScope.SPACE, ProviderScope.PROFILE}:
             _validate_external_provider_url(self.base_url)
 
