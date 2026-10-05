@@ -13,7 +13,6 @@ import 'package:makolo_mobile/features/day_of/day_of_screen.dart';
 import 'package:makolo_mobile/features/day_of/day_of_selector.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
-import 'package:makolo_mobile/sync/sync_status.dart';
 
 import 'dio_testing.dart';
 import 'fakes.dart';
