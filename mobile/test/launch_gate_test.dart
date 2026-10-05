@@ -221,7 +221,7 @@ void main() {
 
       expect(find.byType(SplashScreen), findsNothing);
       expect(
-        find.text('Pas encore disponible sur cet appareil'),
+        find.text('Now n’est pas disponible pour le moment.'),
         findsOneWidget,
       );
       expect(requests, 1);
@@ -236,7 +236,7 @@ void main() {
 
       expect(requests, greaterThanOrEqualTo(1));
       expect(
-        find.text('Pas encore disponible sur cet appareil'),
+        find.text('Now n’est pas disponible pour le moment.'),
         findsOneWidget,
       );
 

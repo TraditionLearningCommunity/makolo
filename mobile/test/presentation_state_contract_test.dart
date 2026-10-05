@@ -63,7 +63,7 @@ void main() {
     );
 
     expect(find.text('Brouillon'), findsOneWidget);
-    expect(find.text('En attente de synchronisation'), findsOneWidget);
+    expect(find.text('Confirmation en attente'), findsOneWidget);
     expect(find.text('Confirmé'), findsNothing);
   });
 }

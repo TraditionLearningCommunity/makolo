@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/access/access_repository.dart';
 import 'package:makolo_mobile/features/access/access_selector.dart';
 import 'package:makolo_mobile/features/day_of/day_of_repository.dart';
@@ -464,6 +465,7 @@ void main() {
       SyncStatusScope(
         status: const SyncStatus(state: SyncVisualState.offline),
         child: MaterialApp(
+          theme: buildMakoloTheme(),
           home: DayOfScreen(
             occurrenceId: 'occurrence-1',
             repository: repository,
