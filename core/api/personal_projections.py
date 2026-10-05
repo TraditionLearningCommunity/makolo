@@ -24,6 +24,10 @@ from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entr
 
 from core.home_presentation import resolve_mature_home_contextual_actions
 from core.participant_selectors import participant_active_accesses, participant_active_journeys
+from core.personal_surface_orchestration import (
+    pass_now_candidates_through_molongo,
+    pass_ongoing_candidates_through_molongo,
+)
 from core.read_models import build_personal_ongoing_read_model
 
 
@@ -226,6 +230,7 @@ def _serialize_now_action(action: ContextualAction, dimension: str):
         "dimension": dimension,
         "source": source,
         "state": action.reason_codes[0] if action.reason_codes else action.actionability.value,
+        "actionability": action.actionability.value,
         "title": action.label,
         "summary": action.summary or None,
         "timing": _timing_from_action(action),
@@ -236,18 +241,26 @@ def _serialize_now_action(action: ContextualAction, dimension: str):
 
 def build_personal_now_projection(profile, *, observed_at=None):
     observed_at = observed_at or timezone.now()
-    result, _metadata = resolve_mature_home_contextual_actions(
+    result, metadata = resolve_mature_home_contextual_actions(
         profile,
         observed_at=observed_at,
         include_prepared_start=False,
     )
+    actions = pass_now_candidates_through_molongo(result.actions)
     items = []
-    for action in result.actions:
+    for action in actions:
         dimension = _now_dimension(action)
         if dimension is None:
             continue
         item = _serialize_now_action(action, dimension)
         if item is not None:
+            meta = metadata.get(action.identity)
+            if meta is not None:
+                item["human_context"] = meta.context_label
+                item["owner_label"] = meta.source_label
+                web_url = action.url or meta.fallback_url
+                if web_url:
+                    item["links"]["web"] = web_url
             items.append(item)
     journey_ids = {
         item["source"]["id"]
@@ -365,6 +378,11 @@ def _day_of_link(occurrence):
 
 
 def _journey_ongoing_item(journey, readiness):
+    summary = {
+        ReadinessStatus.BLOCKED: "Quelque chose empêche la suite.",
+        ReadinessStatus.ACTION_REQUIRED: "Une action de votre part permet d’avancer.",
+        ReadinessStatus.WAITING: "Vous avez fait votre part. Ça suit son cours.",
+    }.get(readiness.status, "Cette démarche continue.")
     ready = [
         {
             "kind": check.source,
@@ -375,6 +393,9 @@ def _journey_ongoing_item(journey, readiness):
         if check.state == ReadinessCheckState.SATISFIED
         and check.reason_code in _MEANINGFUL_READY_REASONS
     ]
+    if readiness.status == ReadinessStatus.READY and ready:
+        summary = "Tout est prêt pour la suite."
+
     actor_interventions = [
         _serialize_intervention(journey, check)
         for check in readiness.action_items
@@ -385,7 +406,7 @@ def _journey_ongoing_item(journey, readiness):
     if waiting:
         continuation = {
             "state": "waiting",
-            "summary": waiting[0].summary or None,
+            "summary": waiting[0].summary or summary,
         }
 
     blocker = None
@@ -418,6 +439,7 @@ def _journey_ongoing_item(journey, readiness):
         "source": {"kind": "journey", "id": str(journey.pk)},
         "state": readiness.status.value,
         "title": journey.activity.title,
+        "summary": summary,
         "ready": ready,
         "actor_interventions": actor_interventions,
         "continuation": continuation,
@@ -433,6 +455,7 @@ def _journey_ongoing_item(journey, readiness):
         "capabilities": ["open_detail"] + (["open_day_of"] if journey.occurrence_id else []),
         "links": {
             "detail": f"/api/v1/me/journeys/{journey.pk}/",
+            "web": reverse("core:participant-journey-detail", kwargs={"pk": journey.pk}),
             **(
                 {"day_of": _day_of_link(journey.occurrence)}
                 if journey.occurrence_id
@@ -448,6 +471,7 @@ def _access_ongoing_item(access):
         "source": {"kind": "access", "id": str(access.pk)},
         "state": "available",
         "title": access.activity.title,
+        "summary": "Votre accès est déjà disponible.",
         "ready": [{"kind": "access", "state": "available", "title": "Accès disponible"}],
         "actor_interventions": [],
         "continuation": None,
@@ -463,6 +487,7 @@ def _access_ongoing_item(access):
         "capabilities": ["open_access"] + (["open_day_of"] if access.occurrence_id else []),
         "links": {
             "detail": f"/api/v1/me/accesses/{access.pk}/",
+            "web": reverse("core:participant-access-detail", kwargs={"pk": access.pk}),
             **(
                 {"day_of": _day_of_link(access.occurrence)}
                 if access.occurrence_id
@@ -522,6 +547,7 @@ def _dossier_ongoing_item(dossier, *, readiness):
         "source": {"kind": "dossier", "id": str(dossier.pk)},
         "state": state,
         "title": dossier.title,
+        "summary": "Cet objectif composé continue.",
         "ready": [],
         "actor_interventions": interventions,
         "continuation": continuation,
@@ -534,7 +560,11 @@ def _dossier_ongoing_item(dossier, *, readiness):
             "detail": reverse(
                 "objectives_api:dossier-detail",
                 kwargs={"pk": dossier.pk},
-            )
+            ),
+            "web": reverse(
+                "objectives:dossier-detail",
+                kwargs={"dossier_id": dossier.pk},
+            ),
         },
     }
 
@@ -550,6 +580,7 @@ def _project_ongoing_item(project):
         "source": {"kind": "project", "id": str(project.pk)},
         "state": project.lifecycle,
         "title": project.title,
+        "summary": "Cet horizon durable est toujours actif.",
         "ready": [],
         "actor_interventions": [],
         "continuation": None,
@@ -562,7 +593,11 @@ def _project_ongoing_item(project):
             "detail": reverse(
                 "objectives_api:project-detail",
                 kwargs={"pk": project.pk},
-            )
+            ),
+            "web": reverse(
+                "objectives:project-detail",
+                kwargs={"project_id": project.pk},
+            ),
         },
     }
 
@@ -573,6 +608,7 @@ def _waitlist_ongoing_item(entry):
     capabilities = []
     links = {
         "detail": reverse("ticket-waitlist-detail", kwargs={"pk": entry.pk}),
+        "web": reverse("tickets:waitlist-list"),
     }
     if offered:
         capabilities = ["accept", "leave"]
@@ -599,6 +635,11 @@ def _waitlist_ongoing_item(entry):
         "source": {"kind": "waitlist", "id": str(entry.pk)},
         "state": "offered" if offered else "waiting",
         "title": entry.ticket_type.event.title,
+        "summary": (
+            "Une place vous est proposée."
+            if offered
+            else "Vous attendez qu’une place se libère."
+        ),
         "ready": [],
         "actor_interventions": interventions,
         "continuation": continuation,
@@ -615,6 +656,7 @@ def _transfer_ongoing_item(transfer, *, profile):
     incoming = transfer.recipient_id == profile.pk
     links = {
         "detail": reverse("ticket-transfers-detail", kwargs={"pk": transfer.pk}),
+        "web": reverse("tickets:transfer-list"),
     }
     interventions = []
     capabilities = []
@@ -647,6 +689,11 @@ def _transfer_ongoing_item(transfer, *, profile):
         "source": {"kind": "ticket_transfer", "id": str(transfer.pk)},
         "state": "pending",
         "title": transfer.ticket.event.title,
+        "summary": (
+            "Un transfert attend votre décision."
+            if incoming
+            else "Votre transfert attend la réponse du destinataire."
+        ),
         "ready": [],
         "actor_interventions": interventions,
         "continuation": continuation,
@@ -664,7 +711,8 @@ def _payment_ongoing_item(payment):
         "kind": "payment",
         "source": {"kind": "payment", "id": str(payment.pk)},
         "state": payment.status,
-        "title": "Paiement",
+        "title": "Paiement en cours",
+        "summary": f"{payment.amount} {payment.currency} · {payment.get_status_display()}",
         "ready": [],
         "actor_interventions": [],
         "continuation": {"state": "waiting", "summary": None},
@@ -675,6 +723,36 @@ def _payment_ongoing_item(payment):
         "capabilities": [],
         "links": {
             "detail": reverse("payment-detail", kwargs={"pk": payment.pk}),
+            "web": reverse("payments:detail", kwargs={"pk": payment.pk}),
+        },
+    }
+
+
+def _funding_ongoing_item(funding):
+    activity = funding.activity
+    return {
+        "kind": "funding",
+        "source": {"kind": "activity", "id": str(activity.pk)},
+        "state": activity.status,
+        "title": activity.title,
+        "summary": (
+            f"Financement {activity.get_status_display().lower()}"
+            + (
+                f" · objectif {funding.target_amount} {funding.currency}"
+                if funding.target_amount
+                else ""
+            )
+        ),
+        "ready": [],
+        "actor_interventions": [],
+        "continuation": {"state": "active", "summary": None},
+        "blocker": None,
+        "next": None,
+        "timing": {},
+        "place": None,
+        "capabilities": ["open_detail"],
+        "links": {
+            "detail": reverse("funding:manage", kwargs={"pk": funding.pk}),
         },
     }
 
@@ -686,7 +764,9 @@ def build_personal_ongoing_projection(profile, *, observed_at=None):
         profile,
         observed_at=observed_at,
         limit=ONGOING_LIMIT,
+        include_personal_funding=True,
     )
+    entries = pass_ongoing_candidates_through_molongo(entries)
     items = []
     for entry in entries:
         if entry.kind == "journey":
@@ -708,6 +788,8 @@ def build_personal_ongoing_projection(profile, *, observed_at=None):
             items.append(_transfer_ongoing_item(entry.value, profile=profile))
         elif entry.kind == "payment":
             items.append(_payment_ongoing_item(entry.value))
+        elif entry.kind == "funding":
+            items.append(_funding_ongoing_item(entry.value))
 
     if not items:
         return {"items": []}
