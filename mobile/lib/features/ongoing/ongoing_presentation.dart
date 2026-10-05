@@ -87,6 +87,7 @@ class OngoingContinuityPresentation {
     ];
 
     final rawState = _text(item['state']) ?? 'unknown';
+    final serverSummary = _text(item['summary']);
     final blockerText = _text(blocker['title']) ?? _text(blocker['summary']);
     final waitingText = continuation['state'] == 'waiting'
         ? (_text(continuation['summary']) ?? 'Une réponse est attendue.')
@@ -97,14 +98,16 @@ class OngoingContinuityPresentation {
       ownerId: _text(source['id']),
       kind: _text(item['kind']) ?? 'unknown',
       title: _text(item['title']) ?? 'Continuité',
-      synthesis: _synthesis(
-        rawState: rawState,
-        ready: settled,
-        mySide: mySide,
-        elsewhere: elsewhere,
-        blocker: blockerText,
-        waiting: waitingText,
-      ),
+      synthesis:
+          serverSummary ??
+          _synthesis(
+            rawState: rawState,
+            ready: settled,
+            mySide: mySide,
+            elsewhere: elsewhere,
+            blocker: blockerText,
+            waiting: waitingText,
+          ),
       settled: List.unmodifiable(settled),
       mySide: List.unmodifiable(mySide),
       elsewhere: List.unmodifiable(elsewhere),
