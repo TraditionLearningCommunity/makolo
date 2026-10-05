@@ -310,9 +310,11 @@ La règle de frontière est :
 
 Une même réalité peut apparaître dans les deux projections. Aucune exclusion réciproque n'existe. En revanche, `Maintenant` n'est ni une sous-vue de `En cours`, ni une vue des notifications, ni la liste de tout ce qui est techniquement faisable.
 
-### 17.1. Frontend et interprétation
+### 17.1. Sémantique serveur et Presentation client
 
-Les interprétations éditoriales et agrégées restent côté client.
+Le serveur porte la **projection sémantique canonique** : inclusion, identité, contexte humain, état, synthèse utile, actionabilité, capabilities et handoffs. Web et Flutter ne reconstruisent pas ces significations depuis les modèles métier bruts.
+
+Le client garde la Presentation : N1/N2/N3, Compact/Wide, split pane, typographie, placement du média, animation, focus et conservation du contexte.
 
 Le serveur peut retourner :
 
@@ -324,11 +326,9 @@ Le client peut alors afficher :
 
 > **Tout est en ordre. ✓**
 
-Le serveur ne crée donc pas de champ `all_clear`, `urgent_count`, `attention_count`, `has_actions` ou équivalent pour piloter cette phrase.
+Le serveur ne crée pas pour autant un état métier persistant `all_clear` ni un compteur universel d'urgence.
 
-De même, trois éléments courants ne deviennent pas une vérité serveur « 3 urgences ». Le backend expose trois éléments structurés ; Flutter choisit leur représentation.
-
-Le backend reste toutefois propriétaire de l'inclusion : Flutter ne décide jamais qu'un Payment, une Journey, un Access ou une Notification « mérite Maintenant » en reconstruisant les règles métier.
+De même, trois éléments courants ne deviennent pas une vérité serveur « 3 urgences ». Le backend expose trois Situations structurées et ordonnées ; Web et Flutter les représentent sans recalculer leur appartenance à Maintenant.
 
 ## 18. Projection `personal.now`
 
@@ -369,6 +369,9 @@ Ces codes décrivent la conséquence serveur. Ils ne prescrivent ni trois sectio
           "id": "uuid"
         },
         "state": "action_required",
+        "actionability": "actionable",
+        "human_context": "Inscription",
+        "owner_label": "Démarche",
         "title": "Action requise",
         "summary": null,
         "timing": {},
@@ -388,7 +391,9 @@ Contrat :
 - `dimension` vaut exactement `action`, `decision` ou `adaptation` ;
 - `source` identifie la ressource visible qui ancre la conséquence ; aucun objet caché n'est utilisé comme source sérialisée ;
 - `state` est un code stable issu de la conséquence propriétaire déjà résolue ; Z2 ne crée pas une taxonomie universelle de statuts métier ;
-- `title` et `summary` sont de la présentation fournie par le serveur et ne doivent jamais être parsés pour décider d'une action ;
+- `actionability` expose l'actionabilité déjà résolue par le serveur ; le client ne la redérive pas ;
+- `human_context` et `owner_label` portent le contexte humain et le propriétaire de profondeur lorsqu'ils sont connus ;
+- `title` et `summary` sont une synthèse humaine fournie par le serveur et ne doivent jamais être parsés pour décider d'une action ;
 - `timing` contient seulement des faits temporels canoniques déjà connus ; `{}` est valide ;
 - `capabilities` ne contient que des actions réellement autorisées et réellement exposables côté serveur ;
 - `links` ne contient que des destinations existantes ; Z2 n'invente pas un futur endpoint Z5 ;
@@ -460,6 +465,7 @@ ce qui vient ensuite
         },
         "state": "waiting",
         "title": "Inscription",
+        "summary": "Vous avez fait votre part. Ça suit son cours.",
         "ready": [],
         "actor_interventions": [],
         "continuation": {
@@ -483,6 +489,7 @@ Contrat :
 - `data.items` est l'unique collection de premier niveau de `personal.ongoing` v1 ;
 - une ligne représente une réalité engagée, pas une table ou une catégorie de navigation ;
 - `state` exprime l'état de continuité que le propriétaire sait réellement établir ;
+- `summary` est la synthèse humaine canonique de la continuité actuelle ; Web et Flutter ne la reconstruisent pas chacun de leur côté ;
 - `ready` est une liste compacte de faits déjà réglés qui réduisent réellement le travail ou l'incertitude ; elle peut être vide ;
 - `actor_interventions` contient uniquement les interventions que le serveur sait appartenir à l'acteur ; `[]` permet au client de formuler « rien à faire de votre côté » sans champ serveur dédié ;
 - `continuation` décrit seulement une continuité propriétaire connue, par exemple une attente normale ; elle peut être `null` ;
@@ -595,7 +602,7 @@ Dans `personal.ongoing`, une réalité `WAITING` peut avoir :
 }
 ```
 
-Le client peut alors exprimer la tranquillité sans que le serveur invente une phrase de synthèse.
+La projection peut fournir une synthèse humaine de cette attente normale. Le client choisit où et comment l'afficher, mais ne doit pas recalculer la signification de la continuité depuis les sous-objets.
 
 Une Journey `READY` reste une continuité valable dans `En cours` avec aucune obligation personnelle fabriquée.
 
@@ -676,7 +683,7 @@ GET /api/v1/me/ongoing/
 
 Ils sont strictement `IsAuthenticated`, utilisent `request.user` et l'enveloppe Z1.
 
-Le refactoring de Home garde la compatibilité Web existante : `build_mature_home()` continue à consommer Prepared Start. La projection API Z2 réutilise la même composition transversale mais appelle explicitement `include_prepared_start=False`, car une simple Opportunity sauvegardée ne satisfait pas le contrat mature de `Maintenant`.
+Le Web Mature et l'API utilisent désormais la même projection canonique `build_personal_now_projection()`. Le Web ne possède plus une admission parallèle via `build_mature_home()`. Prepared Start reste réutilisable dans le runtime, mais une simple Opportunity sauvegardée n'entre pas dans le contrat personnel `Maintenant` tant qu'un owner n'apporte pas un signal plus fort.
 
 `personal.now` conserve l'ordre déterministe de `resolve_contextual_actions()` et applique seulement le filtre d'admission Z2 :
 
@@ -687,11 +694,24 @@ Le refactoring de Home garde la compatibilité Web existante : `build_mature_hom
 - action Readiness avec échéance explicitement future → reste dans En cours ;
 - aucune règle « bientôt » n'est inventée.
 
-`personal.ongoing` compose Journey/Readiness, Access, Dossier/Collective Readiness, Project, Waitlist, Transfer et Payment autonome. Une attente normale conserve `blocker: null`. Les dates-only restent des dates et ne produisent pas minuit artificiel.
+`personal.ongoing` compose Journey/Readiness, Access, Dossier/Collective Readiness, Project, Waitlist, Transfer, Payment autonome et Funding personnel déjà admis par le read model partagé. Une attente normale conserve `blocker: null`. Les dates-only restent des dates et ne produisent pas minuit artificiel. Web consomme cette même projection et n'effectue plus une seconde composition En cours.
 
 Les capabilities Z2 ne sont exposées que lorsque l'action existe réellement dans une API actuelle. En particulier, Waitlist et Transfer pointent vers leurs mutations DRF existantes ; Conversation expose `respond` ou `acknowledge` uniquement lorsqu'un point canonique le permet. Z2 ne fabrique pas d'API Recognition ou Action Network inexistante.
 
 Tests ciblés Z2 : authentification, vide stable, frontière Journey future→actuelle, IDOR Journey, date-only, Waitlist WAITING versus OFFERED. Les suites existantes M8/UX2 continuent de couvrir la composition Home, Recognition, Action Network et Transfer réutilisée. Aucun modèle ni migration n'est introduit.
+
+### 26.1. Couture Molongo personnelle actuelle
+
+Now, En cours et Discover possèdent une couture serveur explicite vers Molongo. Tant que Molongo n'a pas défini son contrat d'entrée réel, ces fonctions sont volontairement **no-op** : elles reçoivent la collection de candidats déjà préparée par les selectors/read models actuels et la retournent inchangée.
+
+```text
+collecte canonique BDD
+→ seam Molongo no-op
+→ projection canonique
+→ Web / API / Flutter
+```
+
+Cette couture ne définit ni input Molongo futur, ni location, ni ranking, ni score, ni nouvelle vérité. Discover conserve ses paramètres de recherche/exploration HTTP actuels ; Now et En cours utilisent le Profile de `request.user`.
 
 
 ## 27. Z4 — Moi et capital personnel / collectifs
