@@ -460,10 +460,7 @@ void main() {
         'blockers': [],
       }
       ..['spatial'] = const {
-        'current_position': {
-          'state': 'unknown',
-          'truth': 'unknown',
-        },
+        'current_position': {'state': 'unknown', 'truth': 'unknown'},
         'destination': null,
         'zone': null,
         'mobility': {
@@ -477,10 +474,7 @@ void main() {
       ..['situation'] = const {
         'temporal_relation': 'arrival',
         'occurrence_state': 'scheduled',
-        'current_position': {
-          'state': 'unknown',
-          'truth': 'unknown',
-        },
+        'current_position': {'state': 'unknown', 'truth': 'unknown'},
         'next': null,
         'representation': null,
       };
