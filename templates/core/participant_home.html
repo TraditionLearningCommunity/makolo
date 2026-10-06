@@ -1,28 +1,49 @@
 {% extends 'base/app.html' %}
 {% block title %}Maintenant | Makolo{% endblock %}
 {% block content %}
-<div class="mk-mature-page" data-mk-surface="now">
+<div class="mk-mature-page" data-mk-surface="now" aria-live="polite">
   <section class="mk-mature-heading">
     <p class="mk-eyebrow">Maintenant</p>
     <p>Bonjour{% if request.user.first_name %}, {{ request.user.first_name|title }}{% endif %}.</p>
     <h1>Qu’est-ce qui compte maintenant ?</h1>
   </section>
 
-  {% if home.all_clear %}
+  {% if home.is_unavailable %}
+    <section class="mk-calm-state" aria-labelledby="home-unavailable-title">
+      <h2 id="home-unavailable-title">Maintenant n’est pas disponible.</h2>
+      <p>{% if home.terminal_message %}{{ home.terminal_message }}{% else %}Nous ne pouvons pas confirmer ce qui compte actuellement.{% endif %}</p>
+      <a href="{{ request.get_full_path }}" class="mk-now-cta">Actualiser</a>
+    </section>
+  {% elif home.all_clear %}
     <section class="mk-calm-state" aria-labelledby="home-clear-title">
       <span class="mk-calm-state__icon" aria-hidden="true"><i data-lucide="circle-check-big"></i></span>
-      <h2 id="home-clear-title">Tout est en ordre. ✓</h2>
+      <h2 id="home-clear-title">{% if home.terminal_message %}{{ home.terminal_message }}{% else %}Tout est en ordre. ✓{% endif %}</h2>
       <p>Rien à faire pour le moment.</p>
     </section>
   {% else %}
+    {% if home.is_partial %}
+    <section class="mk-now-secondary" role="status" aria-labelledby="home-partial-title">
+      <div><h2 id="home-partial-title">Vue partielle</h2><p>Ce qui est établi reste affiché. D’autres éléments peuvent manquer.</p></div>
+      <a href="{{ request.get_full_path }}" class="mk-now-cta">Actualiser</a>
+    </section>
+    {% elif home.is_stale %}
+    <section class="mk-now-secondary" role="status" aria-labelledby="home-stale-title">
+      <div><h2 id="home-stale-title">Informations à actualiser</h2><p>Ces informations peuvent avoir changé.</p></div>
+      <a href="{{ request.get_full_path }}" class="mk-now-cta">Actualiser</a>
+    </section>
+    {% endif %}
+
     {% if home.primary_attention %}
-    <section class="mk-now-primary" aria-labelledby="home-focus-title">
+    <section class="mk-now-primary" id="now-{{ home.primary_attention.identity }}" data-now-identity="{{ home.primary_attention.identity }}" aria-labelledby="home-focus-title">
       <div class="mk-now-meta">
         {% if home.primary_attention.deadline_label %}<span>{{ home.primary_attention.deadline_label }}</span>{% endif %}
-        {% if home.primary_attention.actionability == 'terminal' %}<span>Changement important</span>{% elif home.primary_attention.actionability == 'blocking' %}<span>À débloquer</span>{% else %}<span>À faire</span>{% endif %}
+        {% if home.primary_attention.source_label %}<span>{{ home.primary_attention.source_label }}</span>{% endif %}
       </div>
       <h2 id="home-focus-title">{{ home.primary_attention.context_label }}</h2>
+      {% if home.primary_attention.state %}<p>{{ home.primary_attention.state }}</p>{% endif %}
       <p>{{ home.primary_attention.summary }}</p>
+      {% if home.primary_attention.why_now %}<p>{{ home.primary_attention.why_now }}</p>{% endif %}
+      {% if home.primary_attention.consequence %}<p>{{ home.primary_attention.consequence }}</p>{% endif %}
       {% if home.primary_attention.url %}<a href="{{ home.primary_attention.url }}" class="mk-now-cta">{{ home.primary_attention.action_label }}</a>{% endif %}
     </section>
     {% endif %}
@@ -37,15 +58,23 @@
     {% if home.action_items %}
     <section class="mk-now-list" aria-label="Autres choses qui comptent maintenant">
       {% for item in home.action_items %}
-        <article>
+        <article id="now-{{ item.identity }}" data-now-identity="{{ item.identity }}">
           <div>
             {% if item.deadline_label %}<p class="mk-now-label">{{ item.deadline_label }}</p>{% endif %}
             <h2>{{ item.context_label }}</h2>
+            {% if item.state %}<p>{{ item.state }}</p>{% endif %}
             <p>{{ item.summary }}</p>
+            {% if item.why_now %}<p>{{ item.why_now }}</p>{% endif %}
+            {% if item.consequence %}<p>{{ item.consequence }}</p>{% endif %}
           </div>
           {% if item.url %}<a href="{{ item.url }}">{{ item.action_label }}</a>{% endif %}
         </article>
       {% endfor %}
+    </section>
+    {% elif not home.primary_attention %}
+    <section class="mk-calm-state" aria-labelledby="home-undetermined-title">
+      <h2 id="home-undetermined-title">Aucune situation à afficher.</h2>
+      <p>Cette vue ne permet pas de conclure que tout est en ordre.</p>
     </section>
     {% endif %}
   {% endif %}
