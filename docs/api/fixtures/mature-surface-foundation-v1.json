@@ -1,0 +1,220 @@
+{
+  "version": "mature-surface-contract-foundation-v1",
+  "base_checked": "main@dea67e759570f852bf78e70390f5fd3691cda616",
+  "reconcile_with": "PR #478 owns OpenAPI/schema/gate infrastructure; these fixtures are contract examples, not a second schema system.",
+  "common_response_contract": {
+    "surface": "string",
+    "actor": {"type": "profile|space", "id": "string", "label": "string"},
+    "viewer": {"type": "profile", "id": "string"},
+    "generated_at": "ISO-8601 datetime",
+    "freshness": {"state": "fresh|stale|partial|unavailable", "observed_at": "ISO-8601 datetime|null"},
+    "selection": {"state": "ready|empty|partial|unavailable", "reason": "string|null"},
+    "capabilities": [],
+    "handoffs": [],
+    "items": [],
+    "continuation": null,
+    "terminal": {"state": "ok|empty|blocked|unavailable", "message": "string|null"}
+  },
+  "fixtures": {
+    "now_me_ready": {
+      "method": "GET",
+      "path": "/api/v1/me/now/",
+      "request": {
+        "viewer_resolution": "request.user profile",
+        "forbidden": ["profile_id", "authority", "permission", "mandate", "is_urgent", "readiness", "access_granted"]
+      },
+      "response": {
+        "surface": "now_me",
+        "actor": {"type": "profile", "id": "self", "label": "Moi"},
+        "viewer": {"type": "profile", "id": "self"},
+        "generated_at": "2026-10-06T11:35:29Z",
+        "freshness": {"state": "fresh", "observed_at": "2026-10-06T11:35:00Z"},
+        "selection": {"state": "ready", "reason": null},
+        "items": [
+          {
+            "id": "now:visa-canada:certificate",
+            "human_context": "Visa Canada",
+            "subject": "certificat",
+            "state": "Votre certificat doit être transmis aujourd'hui.",
+            "why_now": "La fenêtre d'envoi ferme aujourd'hui.",
+            "consequence": "La demande peut rester bloquée si rien n'est transmis.",
+            "turn": "profile",
+            "response": {"type": "act", "label": "Vérifier et envoyer"},
+            "handoffs": [{"type": "owner", "target": "journey", "id": "journey:visa-canada"}]
+          }
+        ],
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": null,
+        "terminal": {"state": "ok", "message": null}
+      }
+    },
+    "now_me_empty": {
+      "method": "GET",
+      "path": "/api/v1/me/now/",
+      "response": {
+        "surface": "now_me",
+        "actor": {"type": "profile", "id": "self", "label": "Moi"},
+        "viewer": {"type": "profile", "id": "self"},
+        "generated_at": "2026-10-06T11:35:29Z",
+        "freshness": {"state": "fresh", "observed_at": "2026-10-06T11:35:00Z"},
+        "selection": {"state": "empty", "reason": "no_current_attention_needed"},
+        "items": [],
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": null,
+        "terminal": {"state": "empty", "message": "Tout est en ordre. ✓"}
+      }
+    },
+    "discover_me_partial": {
+      "method": "GET",
+      "path": "/api/v1/discovery/items/",
+      "request": {
+        "allowed_query": ["query", "filters", "sort", "map_bounds", "exploration_context", "continuation"],
+        "forbidden": ["relevance_score", "match_percentage", "global_rank", "watch_means_engaged"]
+      },
+      "response": {
+        "surface": "discover_me",
+        "actor": {"type": "profile", "id": "self", "label": "Moi"},
+        "viewer": {"type": "profile", "id": "self"},
+        "generated_at": "2026-10-06T11:35:29Z",
+        "freshness": {"state": "partial", "observed_at": "2026-10-06T10:00:00Z"},
+        "selection": {"state": "partial", "reason": "some_sources_stale"},
+        "items": [
+          {
+            "id": "possibility:training-ai-2027",
+            "title": "Formation IA 2027",
+            "possible_outcome": "Suivre une formation",
+            "basis": [{"owner": "activity", "id": "activity:training-ai-2027"}],
+            "known": ["session ouverte"],
+            "limiting": ["deadline à confirmer"],
+            "unknown": ["places restantes"],
+            "handoffs": [{"type": "owner", "target": "activity", "id": "activity:training-ai-2027"}]
+          }
+        ],
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": null,
+        "terminal": {"state": "ok", "message": null}
+      }
+    },
+    "ongoing_me_ready": {
+      "method": "GET",
+      "path": "/api/v1/me/ongoing/",
+      "response": {
+        "surface": "ongoing_me",
+        "actor": {"type": "profile", "id": "self", "label": "Moi"},
+        "viewer": {"type": "profile", "id": "self"},
+        "generated_at": "2026-10-06T11:35:29Z",
+        "freshness": {"state": "fresh", "observed_at": "2026-10-06T11:30:00Z"},
+        "selection": {"state": "ready", "reason": null},
+        "items": [
+          {
+            "id": "continuity:kolwezi-ticket",
+            "human_context": "Départ Lubumbashi → Kolwezi",
+            "where_i_am": "Billet confirmé, départ à venir.",
+            "settled": ["paiement confirmé", "accès émis"],
+            "profile_side_remaining": [],
+            "continues_elsewhere": ["opérateur prépare le départ"],
+            "makolo_preparation": "Makolo surveille les changements d'horaire connus.",
+            "handoffs": [{"type": "day_of_action", "target": "occurrence", "id": "occurrence:lub-kol-1400"}]
+          }
+        ],
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": null,
+        "terminal": {"state": "ok", "message": null}
+      }
+    },
+    "me_ready": {
+      "method": "GET",
+      "path": "/api/v1/me/",
+      "response": {
+        "surface": "me",
+        "actor": {"type": "profile", "id": "self", "label": "Moi"},
+        "viewer": {"type": "profile", "id": "self"},
+        "generated_at": "2026-10-06T11:35:29Z",
+        "freshness": {"state": "fresh", "observed_at": "2026-10-06T11:35:00Z"},
+        "selection": {"state": "ready", "reason": null},
+        "items": [],
+        "sections": {
+          "identity": {"state": "known"},
+          "passport": {"state": "available"},
+          "resources": {"state": "partial"},
+          "collectives": {"state": "known"}
+        },
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": null,
+        "terminal": {"state": "ok", "message": null}
+      }
+    },
+    "mark_me_needs_more": {
+      "method": "POST",
+      "path": "/api/v1/me/mark/",
+      "request": {
+        "body": {"text": "Je veux garder cette information", "intent": "save_or_prepare"},
+        "forbidden": ["requirement_satisfied", "proof_accepted", "payment_confirmed", "access_granted"]
+      },
+      "response": {
+        "surface": "mark_me",
+        "actor": {"type": "profile", "id": "self", "label": "Moi"},
+        "viewer": {"type": "profile", "id": "self"},
+        "generated_at": "2026-10-06T11:35:29Z",
+        "freshness": {"state": "fresh", "observed_at": "2026-10-06T11:35:29Z"},
+        "selection": {"state": "ready", "reason": null},
+        "outcome": "needs_more",
+        "next_action": {"type": "clarify", "label": "Préciser ce que Makolo doit en faire"},
+        "draft": {"state": "preserved"},
+        "items": [],
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": null,
+        "terminal": {"state": "ok", "message": null}
+      }
+    },
+    "now_space_unavailable": {
+      "method": "GET",
+      "path": "/api/v1/organizations/workspaces/mulykap/now/",
+      "response": {
+        "surface": "now_space",
+        "actor": {"type": "space", "id": "space:mulykap", "label": "Mulykap"},
+        "viewer": {"type": "profile", "id": "self"},
+        "generated_at": "2026-10-06T11:35:29Z",
+        "freshness": {"state": "unavailable", "observed_at": null},
+        "selection": {"state": "unavailable", "reason": "no_safe_selector_available"},
+        "items": [],
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": null,
+        "terminal": {"state": "unavailable", "message": "Cette surface n'est pas encore disponible dans ce contexte."}
+      }
+    },
+    "space_work_ready": {
+      "method": "GET",
+      "path": "/api/v1/organizations/workspaces/mulykap/work/",
+      "response": {
+        "surface": "space_work",
+        "actor": {"type": "space", "id": "space:mulykap", "label": "Mulykap"},
+        "viewer": {"type": "profile", "id": "self"},
+        "generated_at": "2026-10-06T11:35:29Z",
+        "freshness": {"state": "fresh", "observed_at": "2026-10-06T11:30:00Z"},
+        "selection": {"state": "ready", "reason": null},
+        "business_label": "Transport",
+        "items": [
+          {
+            "id": "work:departure-lub-kol-1400",
+            "type": "operation_context",
+            "label": "Départ Lubumbashi → Kolwezi · 14:00",
+            "ongoing_dimension": {"state": "operating", "next": "affecter véhicule"},
+            "handoffs": [{"type": "operation", "target": "occurrence", "id": "occurrence:lub-kol-1400"}]
+          }
+        ],
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": null,
+        "terminal": {"state": "ok", "message": null}
+      }
+    }
+  }
+}
