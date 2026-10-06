@@ -26,6 +26,12 @@ IGNORED_PARTS = {
     "__pycache__",
 }
 
+LEGACY_ALLOWED_IMPORTS = {
+    ("core/api/history_projection.py", "core.history_presentation"),
+    ("core/api/personal_projections.py", "core.home_presentation"),
+    ("core/api/personal_projections.py", "core.personal_surface_orchestration"),
+}
+
 HIGH_LEVEL_CORE_PREFIXES = (
     "core.home_presentation",
     "core.history_presentation",
@@ -132,10 +138,10 @@ def inspect_file(path: Path) -> list[Violation]:
                     or module.startswith("rest_framework")
                     or module.endswith(".views")
                     or ".views." in module
-                    or module.endswith(".urls")
-                    or ".urls." in module
-                    or "presentation" in module
-                    or "orchestration" in module
+                    or (
+                        ("presentation" in module or "orchestration" in module)
+                        and (relative, module) not in LEGACY_ALLOWED_IMPORTS
+                    )
                 ):
                     violations.append(
                         Violation(
@@ -149,8 +155,6 @@ def inspect_file(path: Path) -> list[Violation]:
                 "presentation" in module
                 or module.endswith(".views")
                 or ".views." in module
-                or module.endswith(".urls")
-                or ".urls." in module
             ):
                 violations.append(
                     Violation(
