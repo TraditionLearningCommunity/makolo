@@ -44,6 +44,12 @@ def _handoff_url(item):
     return None
 
 
+def _consequence_text(consequence):
+    if isinstance(consequence, dict) and consequence.get("state") == "unknown":
+        return ""
+    return _display_value(consequence, "effect", "label")
+
+
 def _web_now_item(item):
     response = item.get("response") or {}
     return SimpleNamespace(
@@ -52,9 +58,9 @@ def _web_now_item(item):
         source_label=item.get("owner_label") or "",
         action_label=response.get("label") or item.get("title") or "Ouvrir",
         summary=item.get("summary") or "",
-        state=_display_value(item.get("state"), "label", "value", "state"),
-        why_now=_display_value(item.get("why_now"), "reason", "label"),
-        consequence=_display_value(item.get("consequence"), "effect", "label"),
+        state=item.get("state_meaning") or "",
+        why_now=_display_value(item.get("why_now"), "meaning"),
+        consequence=_consequence_text(item.get("consequence")),
         turn=_display_value(item.get("turn"), "label", "type"),
         response_type=response.get("type") or "",
         url=_handoff_url(item),
