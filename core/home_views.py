@@ -15,15 +15,49 @@ def _deadline_label(timing):
     }.get(state, "")
 
 
-def _web_now_item(item):
+def _display_value(value, *keys):
+    if isinstance(value, str):
+        return value
+    if not isinstance(value, dict):
+        return ""
+    for key in keys:
+        candidate = value.get(key)
+        if isinstance(candidate, str):
+            return candidate
+    return ""
+
+
+def _handoff_url(item):
     links = item.get("links") or {}
+    direct = links.get("web") or links.get("detail")
+    if direct:
+        return direct
+    for handoff in item.get("handoffs") or ():
+        handoff_links = handoff.get("links") or {}
+        target = (
+            handoff.get("url")
+            or handoff_links.get("web")
+            or handoff_links.get("detail")
+        )
+        if target:
+            return target
+    return None
+
+
+def _web_now_item(item):
+    response = item.get("response") or {}
     return SimpleNamespace(
-        identity=item["key"],
+        identity=item.get("id") or item["key"],
         context_label=item.get("human_context") or item.get("title") or "Makolo",
         source_label=item.get("owner_label") or "",
-        action_label=item.get("title") or "Ouvrir",
+        action_label=response.get("label") or item.get("title") or "Ouvrir",
         summary=item.get("summary") or "",
-        url=links.get("web") or links.get("detail"),
+        state=_display_value(item.get("state"), "label", "value", "state"),
+        why_now=_display_value(item.get("why_now"), "reason", "label"),
+        consequence=_display_value(item.get("consequence"), "effect", "label"),
+        turn=_display_value(item.get("turn"), "label", "type"),
+        response_type=response.get("type") or "",
+        url=_handoff_url(item),
         status_label="",
         deadline_label=_deadline_label(item.get("timing")),
         priority="",
@@ -35,23 +69,42 @@ def _web_now_item(item):
 def _now_web_context(data):
     projected = [_web_now_item(item) for item in data.get("items", [])]
     primary_attention = projected[0] if projected else None
-    primary_action = next(
-        (item for item in projected if item.dimension == "action"),
-        None,
+    selection = data.get("selection") or {}
+    freshness = data.get("freshness") or {}
+    terminal = data.get("terminal") or {}
+    continuation = data.get("continuation")
+    continuation_state = (
+        continuation.get("state") if isinstance(continuation, dict) else None
     )
-    primary_ids = {
-        item.identity
-        for item in (primary_attention, primary_action)
-        if item is not None
-    }
-    remaining = tuple(item for item in projected if item.identity not in primary_ids)
+    selection_state = selection.get("state") or "unknown"
+    freshness_state = freshness.get("state") or "unknown"
+    terminal_state = terminal.get("state") or "unknown"
+    is_unavailable = (
+        selection_state == "unavailable"
+        or freshness_state == "unavailable"
+        or terminal_state == "unavailable"
+        or selection_state == "unknown"
+    )
+    is_calm = (
+        data.get("actor_attention_state") == "calm"
+        and selection_state == "empty"
+        and terminal_state == "empty"
+        and continuation_state in {None, "end", "END"}
+    )
     return SimpleNamespace(
         primary_attention=primary_attention,
-        primary_action=primary_action,
-        action_items=remaining,
+        primary_action=None,
+        action_items=tuple(projected[1:]),
         knowledge_items=(),
         upcoming=(),
-        all_clear=not projected,
+        all_clear=is_calm,
+        is_calm=is_calm,
+        is_partial=selection_state == "partial" or freshness_state == "partial",
+        is_unavailable=is_unavailable,
+        is_stale=freshness_state == "stale",
+        terminal_message=terminal.get("message") or "",
+        selection_reason=selection.get("reason") or "",
+        continuation_state=continuation_state,
     )
 
 
