@@ -164,6 +164,18 @@ if DATABASE_ENGINE == "sqlite":
         }
     }
 elif DATABASE_ENGINE in {"postgresql", "postgres"}:
+    database_options = {
+        "connect_timeout": int(
+            os.environ.get("DJANGO_DATABASE_CONNECT_TIMEOUT_SECONDS", "5")
+        ),
+    }
+    database_sslmode = os.environ.get("DJANGO_DATABASE_SSLMODE", "").strip()
+    database_sslrootcert = os.environ.get("DJANGO_DATABASE_SSLROOTCERT", "").strip()
+    if database_sslmode:
+        database_options["sslmode"] = database_sslmode
+    if database_sslrootcert:
+        database_options["sslrootcert"] = database_sslrootcert
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -173,11 +185,8 @@ elif DATABASE_ENGINE in {"postgresql", "postgres"}:
             "HOST": os.environ.get("DJANGO_DATABASE_HOST", "").strip(),
             "PORT": os.environ.get("DJANGO_DATABASE_PORT", "5432").strip(),
             "CONN_MAX_AGE": int(os.environ.get("DJANGO_DATABASE_CONN_MAX_AGE", "60")),
-            "OPTIONS": {
-                "connect_timeout": int(
-                    os.environ.get("DJANGO_DATABASE_CONNECT_TIMEOUT_SECONDS", "5")
-                ),
-            },
+            "CONN_HEALTH_CHECKS": env_bool("DJANGO_DATABASE_CONN_HEALTH_CHECKS", True),
+            "OPTIONS": database_options,
         }
     }
     missing_database_settings = [
