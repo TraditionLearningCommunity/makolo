@@ -2,20 +2,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/now/now_selector.dart';
+import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
 
 StoredProjection projection({
   Object? items = const [
     {
-      'key': 'visa',
-      'kind': 'journey.action',
-      'dimension': 'action',
-      'source': {'kind': 'journey', 'id': 'journey-1'},
-      'state': 'action_required',
-      'title': 'Visa Canada',
-      'summary': 'Votre certificat doit être transmis aujourd’hui.',
-      'timing': {'label': 'La fenêtre est ouverte aujourd’hui.'},
-      'capabilities': ['open_detail'],
-      'links': {'detail': '/api/v1/journeys/journey-1/'},
+      'id': 'now:visa:certificate',
+      'human_context': 'Visa Canada',
+      'state': 'journey.step.action_required',
+      'state_meaning': 'Votre certificat doit être transmis aujourd’hui.',
+      'why_now': {
+        'reason': 'journey.step.action_required',
+        'meaning': 'La fenêtre est ouverte aujourd’hui.',
+        'basis': [],
+      },
+      'consequence': {
+        'state': 'unknown',
+        'effect': null,
+        'target': {'kind': 'journey', 'id': 'journey:visa'},
+      },
+      'turn': {'type': 'profile'},
+      'response': {'type': 'act', 'label': 'Vérifier et envoyer'},
+      'handoffs': [
+        {'type': 'owner', 'target': 'journey', 'id': 'journey:visa'},
+      ],
     },
   ],
   DateTime? freshUntil,
@@ -23,7 +33,18 @@ StoredProjection projection({
   return StoredProjection(
     kind: 'personal.now',
     schemaVersion: 1,
-    payload: {'items': items},
+    payload: {
+      'freshness': {'state': 'fresh'},
+      'selection': {'state': items is List && items.isEmpty ? 'empty' : 'ready'},
+      'actor_attention_state': items is List && items.isEmpty
+          ? 'calm'
+          : 'active',
+      'items': items,
+      'continuation': null,
+      'terminal': {
+        'state': items is List && items.isEmpty ? 'empty' : 'ok',
+      },
+    },
     receivedAt: DateTime.utc(2026, 10, 3, 12),
     freshUntil: freshUntil,
   );
@@ -38,18 +59,14 @@ void main() {
       projection: projection(
         items: const [
           {
-            'source': {'kind': 'journey', 'id': 'first'},
-            'title': 'Premier',
-            'summary': 'Conséquence première',
-            'capabilities': [],
-            'links': {},
+            'id': 'now:first',
+            'human_context': 'Premier',
+            'state': 'Conséquence première',
           },
           {
-            'source': {'kind': 'journey', 'id': 'second'},
-            'title': 'Second',
-            'summary': 'Conséquence seconde',
-            'capabilities': [],
-            'links': {},
+            'id': 'now:second',
+            'human_context': 'Second',
+            'state': 'Conséquence seconde',
           },
         ],
       ),
@@ -57,9 +74,9 @@ void main() {
     );
 
     expect(result.state.availability, MakoloAvailabilityCue.content);
-    expect(result.situations.map((item) => item.reference.id), [
-      'first',
-      'second',
+    expect(result.situations.map((item) => item.identity), [
+      'now:first',
+      'now:second',
     ]);
     expect(result.situations.first.emphasis.name, 'primary');
     expect(result.situations.last.emphasis.name, 'secondary');
@@ -70,12 +87,9 @@ void main() {
       projection: projection(
         items: const [
           {
-            'source': {'kind': 'journey', 'id': 'journey-1'},
+            'id': 'now:journey-1',
             'human_context': 'Visa Canada',
-            'title': 'Transmettre le certificat',
-            'summary': 'Votre certificat doit être transmis aujourd’hui.',
-            'capabilities': [],
-            'links': {},
+            'state': 'Votre certificat doit être transmis aujourd’hui.',
           },
         ],
       ),
@@ -120,7 +134,7 @@ void main() {
     final result = selector.select(
       projection: projection(
         items: const [
-          {'title': 'Sans source'},
+          {'state': 'Sans identité'},
         ],
       ),
       now: now,
@@ -135,11 +149,10 @@ void main() {
       projection: projection(
         items: const [
           {
-            'source': {'kind': 'journey', 'id': 'journey-1'},
-            'title': 'Visa Canada',
-            'summary': 'Une action compte maintenant.',
+            'id': 'now:journey-1',
+            'human_context': 'Visa Canada',
+            'state': 'Une action compte maintenant.',
             'capabilities': ['submit_required_document'],
-            'links': {},
           },
         ],
       ),
@@ -148,6 +161,73 @@ void main() {
 
     expect(result.situations.single.responseCapability, isNull);
     expect(result.situations.single.responseLabel, isNull);
+  });
+
+  test('consumes C0 semantics without rebuilding them', () {
+    final result = selector.select(projection: projection(), now: now);
+    final situation = result.situations.single;
+
+    expect(situation.identity, 'now:visa:certificate');
+    expect(
+      situation.serverState,
+      'journey.step.action_required',
+    );
+    expect(situation.meaning, 'Votre certificat doit être transmis aujourd’hui.');
+    expect(situation.whyNow, 'La fenêtre est ouverte aujourd’hui.');
+    expect(situation.whyNowReason, 'journey.step.action_required');
+    expect(situation.consequence, isNull);
+    expect(situation.consequenceState, 'unknown');
+    expect(situation.turn, 'profile');
+    expect(situation.responseType, 'act');
+    expect(situation.responseLabel, 'Vérifier et envoyer');
+    expect(situation.ownerDestination?.kind, 'journey');
+    expect(situation.ownerDestination?.id, 'journey:visa');
+    expect(result.serverFreshnessState, 'fresh');
+    expect(result.actorAttentionState, 'active');
+    expect(result.continuation.state, NowContinuationState.end);
+  });
+
+  test('empty items do not imply calm when server selection is not empty', () {
+    final value = projection(items: const []);
+    final result = selector.select(
+      projection: StoredProjection(
+        kind: value.kind,
+        schemaVersion: value.schemaVersion,
+        payload: {
+          ...value.payload,
+          'selection': {'state': 'partial'},
+          'terminal': {'state': 'unavailable'},
+        },
+        receivedAt: value.receivedAt,
+        freshUntil: value.freshUntil,
+      ),
+      now: now,
+    );
+
+    expect(result.isCalm, isFalse);
+    expect(result.selectionState, 'partial');
+    expect(result.state.failure, MakoloFailureCue.recoverable);
+  });
+
+  test('keeps an opaque continuation token without interpreting it', () {
+    final value = projection();
+    final result = selector.select(
+      projection: StoredProjection(
+        kind: value.kind,
+        schemaVersion: value.schemaVersion,
+        payload: {
+          ...value.payload,
+          'continuation': {'state': 'MORE', 'token': 'opaque:next'},
+        },
+        receivedAt: value.receivedAt,
+        freshUntil: value.freshUntil,
+      ),
+      now: now,
+    );
+
+    expect(result.continuation.state, NowContinuationState.more);
+    expect(result.continuation.token, 'opaque:next');
+    expect(result.situations.single.identity, 'now:visa:certificate');
   });
 
   test('surface axes preserve offline, pending and stale independently', () {
