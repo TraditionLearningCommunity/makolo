@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
+import 'package:path/path.dart' as p;
 
 import '../local/makolo_database.dart';
 import 'profile_paths.dart';
@@ -162,10 +163,9 @@ class ProfileFileStore {
     final rows = await (database.select(
       database.fileRecords,
     )..where((row) => row.profileId.equals(profileId))).get();
-    final root = _normalizedDirectory(stagingDirectory);
     return rows
         .map(_stored)
-        .where((record) => _isInside(record.path, root))
+        .where((record) => _isInside(record.path, stagingDirectory))
         .toList(growable: false);
   }
 
@@ -248,15 +248,10 @@ class ProfileFileStore {
     );
   }
 
-  static String _normalizedDirectory(Directory directory) {
-    final path = directory.absolute.path;
-    return path.endsWith(Platform.pathSeparator)
-        ? path
-        : '$path${Platform.pathSeparator}';
-  }
-
-  static bool _isInside(String path, String normalizedRoot) {
-    return File(path).absolute.path.startsWith(normalizedRoot);
+  static bool _isInside(String path, Directory directory) {
+    final candidate = p.normalize(p.absolute(path));
+    final root = p.normalize(p.absolute(directory.path));
+    return candidate == root || p.isWithin(root, candidate);
   }
 
   static String _safeName(String value) =>
