@@ -29,6 +29,18 @@ val makoloReleaseSigningConfigured = listOf(
     makoloReleaseKeyPassword,
 ).all { !it.isNullOrBlank() }
 
+val makoloAppLinkScheme = System.getenv("MAKOLO_ANDROID_APP_LINK_SCHEME")
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+val makoloAppLinkHost = System.getenv("MAKOLO_ANDROID_APP_LINK_HOST")
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+val makoloAppLinksConfigured =
+    makoloAppLinkScheme in setOf("https") &&
+    !makoloAppLinkHost.isNullOrBlank() &&
+    !makoloAppLinkHost!!.contains("/") &&
+    !makoloAppLinkHost.contains("://")
+
 android {
     namespace = "com.makolo"
     compileSdk = 37
@@ -70,10 +82,16 @@ android {
         create("beta") {
             dimension = "environment"
             applicationId = "com.makolo.beta"
+            manifestPlaceholders["makoloAppLinkScheme"] = makoloAppLinkScheme ?: "https"
+            manifestPlaceholders["makoloAppLinkHost"] =
+                makoloAppLinkHost ?: "app-links-not-configured.invalid"
         }
         create("prod") {
             dimension = "environment"
             applicationId = "com.makolo"
+            manifestPlaceholders["makoloAppLinkScheme"] = makoloAppLinkScheme ?: "https"
+            manifestPlaceholders["makoloAppLinkHost"] =
+                makoloAppLinkHost ?: "app-links-not-configured.invalid"
         }
     }
 
@@ -109,6 +127,10 @@ tasks.configureEach {
             check(makoloReleaseSigningConfigured) {
                 "Makolo beta/prod release signing is not configured. " +
                     "Provide android/key.properties or the MAKOLO_ANDROID_KEYSTORE_* environment variables."
+            }
+            check(makoloAppLinksConfigured) {
+                "Makolo beta/prod App Links are not configured. " +
+                    "Provide MAKOLO_ANDROID_APP_LINK_SCHEME=https and MAKOLO_ANDROID_APP_LINK_HOST."
             }
         }
     }
