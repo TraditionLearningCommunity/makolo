@@ -500,6 +500,13 @@ def _finalize_projection(
                 "label": participant_state.label,
                 "secondary_label": participant_state.secondary_label,
             }
+        participant_state = card.participant_state
+        if participant_state is not None:
+            projection["participant_presentation"] = {
+                "state": participant_state.participant_state,
+                "label": participant_state.label,
+                "secondary_label": participant_state.secondary_label,
+            }
     projection["assessment"] = _assessment(projection)
     projection["engagement"] = _handoff_for_projection(
         projection,
