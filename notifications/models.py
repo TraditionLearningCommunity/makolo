@@ -190,7 +190,7 @@ class PushEndpoint(models.Model):
             ),
             models.Index(
                 fields=["provider", "active"],
-                name="push_endpoint_provider_active_idx",
+                name="push_ep_provider_active_idx",
             ),
         ]
 
