@@ -281,8 +281,8 @@ Les actions à fort impact restent bornées par Permission, Mandate, Consent, Ac
 
 ## Stack actuelle
 
-- Python 3.10
-- Django 5.2
+- Python 3.13
+- Django 5.2 LTS
 - Django REST Framework
 - Django Templates
 - HTMX
@@ -297,7 +297,7 @@ Flutter est le choix retenu pour l’application mobile native à venir.
 
 ## Installation locale sous PowerShell
 
-Créer et activer un environnement Python dédié, puis installer les dépendances :
+Créer et activer un environnement Python 3.13 dédié (voir `.python-version`), puis installer les dépendances :
 
 ```powershell
 python -m venv .venv
