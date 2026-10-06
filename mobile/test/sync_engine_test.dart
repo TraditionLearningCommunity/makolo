@@ -74,14 +74,28 @@ void main() {
               'generated_at': '2026-09-26T10:00:00Z',
               'scope': 'personal',
             },
-            'data': {
-              'revision': revision,
-              'items': key == 'personal.now'
-                  ? [
-                      {'label': 'Action $revision'},
-                    ]
-                  : <Object>[],
-            },
+            'data': key == 'personal.now'
+                ? {
+                    'revision': revision,
+                    'surface': 'now_me',
+                    'freshness': {
+                      'state': 'fresh',
+                      'observed_at': '2026-09-26T10:00:00Z',
+                    },
+                    'selection': {'state': 'ready', 'reason': null},
+                    'actor_attention_state': 'active',
+                    'items': [
+                      {
+                        'id': 'now:action-1',
+                        'human_context': 'Action',
+                        'state': 'owner.action_required',
+                        'state_meaning': 'Action $revision',
+                      },
+                    ],
+                    'continuation': null,
+                    'terminal': {'state': 'ok', 'message': null},
+                  }
+                : {'revision': revision, 'items': <Object>[]},
           }),
           200,
         );
@@ -106,6 +120,12 @@ void main() {
       expect(
         (await store.readProjection('personal.now'))?.payload['revision'],
         1,
+      );
+      expect(
+        (await store.readProjection(
+          'personal.now',
+        ))?.payload['actor_attention_state'],
+        'active',
       );
       final interoperability = await store.readProjection(
         'personal.interoperability',
