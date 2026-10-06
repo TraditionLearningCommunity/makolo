@@ -494,11 +494,12 @@ def _finalize_projection(
             for fact in card.facts
         ]
         participant_state = getattr(card, "participant_state", None)
-        if participant_state is not None:
+        participant_state_code = getattr(participant_state, "participant_state", None)
+        if participant_state_code is not None:
             projection["participant_presentation"] = {
-                "state": participant_state.participant_state,
-                "label": participant_state.label,
-                "secondary_label": participant_state.secondary_label,
+                "state": participant_state_code,
+                "label": getattr(participant_state, "label", ""),
+                "secondary_label": getattr(participant_state, "secondary_label", ""),
             }
     projection["assessment"] = _assessment(projection)
     projection["engagement"] = _handoff_for_projection(
