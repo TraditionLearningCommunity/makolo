@@ -30,10 +30,7 @@ Future<void> endMakoloAccountSession({
       final installationId = await runtime.tokens.deviceInstanceId();
       await api.delete(
         'api/v1/notifications/push/endpoints/',
-        body: {
-          'provider': 'fcm',
-          'installation_id': installationId,
-        },
+        body: {'provider': 'fcm', 'installation_id': installationId},
       );
     } on Object {
       // Local logout remains authoritative for the device. A stale push
