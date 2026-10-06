@@ -1,0 +1,8 @@
+# Local Android release-signing template.
+# Copy to android/key.properties and replace values locally.
+# Never commit android/key.properties or any keystore.
+
+storeFile=/absolute/path/to/makolo-release-keystore.jks
+storePassword=replace-locally
+keyAlias=replace-locally
+keyPassword=replace-locally
