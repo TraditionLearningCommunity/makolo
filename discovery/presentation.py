@@ -13,8 +13,8 @@ from activities.models import OccurrencePlaceRole, OccurrenceTimingKind
 from capacity.models import CapacityReservationStatus
 from commerce.models import OfferStatus
 from commerce.selectors import offer_applies_to_occurrence
-from core.participant_presentation import ParticipantActivityState, resolve_participant_activity_state
-from core.product_language import vertical_for, vocabulary_for
+from presentations.participant_state import ParticipantActivityState, resolve_participant_activity_state
+from presentations.product_language import vertical_for, vocabulary_for
 from journeys.models import WorkflowKind
 
 from .candidate_identity import activity_candidate_key
