@@ -29,7 +29,7 @@ class PushEndpointRegistrar {
     final info = await PackageInfo.fromPlatform();
     final appVersion = info.buildNumber.isEmpty
         ? info.version
-        : '\${info.version}+\${info.buildNumber}';
+        : '${info.version}+${info.buildNumber}';
 
     Future<void> register(String token) async {
       if (_disposed || token.trim().isEmpty) return;
@@ -63,10 +63,7 @@ class PushEndpointRegistrar {
     final installationId = await tokens.deviceInstanceId();
     await api.delete(
       'api/v1/notifications/push/endpoints/',
-      body: {
-        'provider': 'fcm',
-        'installation_id': installationId,
-      },
+      body: {'provider': 'fcm', 'installation_id': installationId},
     );
   }
 
