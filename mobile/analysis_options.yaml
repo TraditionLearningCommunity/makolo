@@ -1,9 +1,12 @@
-include: package:flutter_lints/flutter.yaml
+﻿include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
     - "**/*.g.dart"
+    - build/**
+    - android/**
 
 linter:
   rules:
     avoid_print: true
+
