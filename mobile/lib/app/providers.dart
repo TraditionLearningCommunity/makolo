@@ -49,24 +49,24 @@ final appRuntimeProvider = FutureProvider<AppRuntime>((ref) async {
   return runtime;
 });
 
-final pushEndpointRegistrationProvider = FutureProvider.autoDispose<void>(
-  (ref) async {
-    final runtime = await ref.watch(appRuntimeProvider.future);
-    final config = runtime.config;
-    final api = runtime.api;
-    if (!runtime.isAuthenticated ||
-        config == null ||
-        !config.firebase.enabled ||
-        api == null) {
-      return;
-    }
+final pushEndpointRegistrationProvider = FutureProvider.autoDispose<void>((
+  ref,
+) async {
+  final runtime = await ref.watch(appRuntimeProvider.future);
+  final config = runtime.config;
+  final api = runtime.api;
+  if (!runtime.isAuthenticated ||
+      config == null ||
+      !config.firebase.enabled ||
+      api == null) {
+    return;
+  }
 
-    final registrar = PushEndpointRegistrar(
-      api: api,
-      tokens: runtime.tokens,
-      source: FirebasePushTokenSource(FirebaseMessaging.instance),
-    );
-    ref.onDispose(registrar.dispose);
-    await registrar.start();
-  },
-);
+  final registrar = PushEndpointRegistrar(
+    api: api,
+    tokens: runtime.tokens,
+    source: FirebasePushTokenSource(FirebaseMessaging.instance),
+  );
+  ref.onDispose(registrar.dispose);
+  await registrar.start();
+});
