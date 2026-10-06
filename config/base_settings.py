@@ -32,6 +32,7 @@ IS_PRODUCTION = DJANGO_ENV == "production"
 DEBUG = env_bool("DJANGO_DEBUG", default=IS_DEVELOPMENT)
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+SECRET_KEY_FALLBACKS = env_list("DJANGO_SECRET_KEY_FALLBACKS")
 if not SECRET_KEY:
     if IS_PRODUCTION:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY doit être définie en production.")
@@ -74,6 +75,7 @@ DJANGO_APPS = [
 ]
 THIRD_PARTY_APPS = [
     "rest_framework",
+    "drf_spectacular",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "allauth",
@@ -250,8 +252,15 @@ LOCAL_STATIC_DIR = BASE_DIR / "static"
 if LOCAL_STATIC_DIR.exists():
     STATICFILES_DIRS.append(LOCAL_STATIC_DIR)
 
+DEFAULT_STORAGE_BACKEND = os.environ.get(
+    "DJANGO_DEFAULT_STORAGE_BACKEND",
+    "django.core.files.storage.FileSystemStorage",
+).strip()
+if not DEFAULT_STORAGE_BACKEND:
+    raise ImproperlyConfigured("DJANGO_DEFAULT_STORAGE_BACKEND ne peut pas être vide.")
+
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {"BACKEND": DEFAULT_STORAGE_BACKEND},
     "staticfiles": {
         "BACKEND": (
             "django.contrib.staticfiles.storage.StaticFilesStorage"
@@ -325,6 +334,15 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ),
     "EXCEPTION_HANDLER": "core.api.exceptions.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Makolo API",
+    "DESCRIPTION": "Contrats API v1 de Makolo. Les vérités métier restent propriétaires de leurs domaines.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
 }
 
 SIMPLE_JWT = {
