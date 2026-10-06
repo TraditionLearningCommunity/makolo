@@ -209,10 +209,14 @@ class MakoloRuntimeConfig {
       name: 'MAKOLO_BACKGROUND_LOCATION_ENABLED',
     );
 
-    if (environment != MakoloRuntimeEnvironment.dev && apiBaseUri == null) {
-      throw MakoloConfigurationException(
-        '${environment.name.toUpperCase()} requires MAKOLO_API_BASE_URL; '
-        'no release URL is inferred.',
+    if (environment == MakoloRuntimeEnvironment.prod && apiBaseUri == null) {
+      throw const MakoloConfigurationException(
+        'PROD requires MAKOLO_API_BASE_URL; no production URL is inferred.',
+      );
+    }
+    if (environment == MakoloRuntimeEnvironment.beta && apiBaseUri == null) {
+      throw const MakoloConfigurationException(
+        'BETA requires MAKOLO_API_BASE_URL; no beta URL is inferred.',
       );
     }
     if (environment == MakoloRuntimeEnvironment.prod &&
