@@ -289,7 +289,15 @@ def _web_discovery_card(item):
         operator_name=owner.get("display_name") or "",
         representation=SimpleNamespace(**representation),
         facts=tuple(facts),
-        participant_state=None,
+        participant_state=(
+            SimpleNamespace(
+                participant_state=item["participant_presentation"].get("state"),
+                label=item["participant_presentation"].get("label"),
+                secondary_label=item["participant_presentation"].get("secondary_label"),
+            )
+            if item.get("participant_presentation")
+            else None
+        ),
         actions=SimpleNamespace(
             save=save_action,
             primary=primary_action,
