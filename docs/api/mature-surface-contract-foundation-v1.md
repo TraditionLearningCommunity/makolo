@@ -106,9 +106,13 @@ Request contract:
 Response contract:
 
 - root surface: `now_me`;
+- root actor attention state: `active|calm`, established by the server;
 - collection: attention situations, possibly empty;
-- each item should explain state, why now, consequence when useful, turn, response, horizon, handoff/depth;
-- terminal empty is valid and should allow “Tout est en ordre. ✓”.
+- each item carries an opaque stable continuity identity and explains state, structured why-now basis, consequence target/effect, turn, response, horizon and owner handoff/depth;
+- machine codes remain available for reconciliation, while `state_meaning` and `why_now.meaning` carry owner-backed human meaning; clients never display or translate a code as meaning;
+- when an owner has not established a distinct consequence, `consequence.state` is `unknown` and `consequence.effect` is null rather than a renamed summary;
+- `why_now`, `consequence`, `turn`, authority and knowledge semantics are server projections and are never reconstructed by a client;
+- terminal empty is valid and may allow Presentation to say “Tout est en ordre. ✓”; that wording is not authoritative server truth.
 
 Server responsibilities:
 
