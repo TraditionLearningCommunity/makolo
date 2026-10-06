@@ -355,6 +355,10 @@ SPECTACULAR_SETTINGS = {
     # Existing APIViews are not all schema-annotated yet. The supported-client
     # contract is enforced separately by scripts/check_openapi_contract.py.
     "DISABLE_ERRORS_AND_WARNINGS": True,
+    # Schema quality is enforced in the dedicated API Contract workflow.
+    # Avoid re-emitting legacy APIView inference warnings during Django's
+    # security-focused `check --deploy`.
+    "ENABLE_DJANGO_DEPLOY_CHECK": False,
 }
 
 MAKOLO_FIREBASE_PUSH_ENABLED = env_bool("MAKOLO_FIREBASE_PUSH_ENABLED", False)
