@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
-from core.product_language import vertical_for
+from presentations.product_language import vertical_for
 from groups.models import GroupMembership, GroupMembershipStatus
 from groups.selectors import eligible_activity_ids_for_profile
 from journeys.models import Journey, JourneyStatus
