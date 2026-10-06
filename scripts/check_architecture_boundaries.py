@@ -30,6 +30,7 @@ HIGH_LEVEL_CORE_PREFIXES = (
     "core.home_presentation",
     "core.history_presentation",
     "core.participant_presentation",
+    "core.product_language",
     "core.mature_experience_views",
     "core.participant_views",
     "core.views",
