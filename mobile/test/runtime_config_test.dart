@@ -86,10 +86,30 @@ void main() {
       );
     });
 
+    test('beta also requires an explicit API base URL', () {
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_ENVIRONMENT': 'beta',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
+    });
+
+    test('prod requires https API base URL', () {
+      expect(
+        () => MakoloRuntimeConfig.fromValues(const {
+          'MAKOLO_ENVIRONMENT': 'prod',
+          'MAKOLO_API_BASE_URL': 'http://prod.example.test',
+        }),
+        throwsA(isA<MakoloConfigurationException>()),
+      );
+    });
+
     test('accepts explicit independent capabilities', () {
       final config = MakoloRuntimeConfig.fromValues(const {
         'MAKOLO_ENVIRONMENT': 'beta',
         'MAKOLO_API_BASE_URL': 'https://beta.example.test',
+        'MAKOLO_RELEASE': '0.1.0+42',
         'MAKOLO_MAPS_ENABLED': 'true',
         'MAKOLO_MAP_STYLE': 'asset://map-style.json',
         'MAKOLO_FIREBASE_ENABLED': 'true',
@@ -105,6 +125,7 @@ void main() {
       expect(config.maps.style, 'asset://map-style.json');
       expect(config.firebase.enabled, isTrue);
       expect(config.sentry.dsn, 'https://public@example.test/1');
+      expect(config.sentry.release, '0.1.0+42');
       expect(config.appLinks.host, 'links.example.test');
       expect(config.location.backgroundCapabilityEnabled, isTrue);
     });
