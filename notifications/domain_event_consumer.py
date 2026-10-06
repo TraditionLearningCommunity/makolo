@@ -8,7 +8,7 @@ from django.utils import timezone
 from access.models import Access
 from activities.models import Activity, Occurrence, OccurrenceTimingKind
 from commerce.models import PaymentMode
-from core.product_language import occurrence_change_copy, vocabulary_for
+from presentations.product_language import occurrence_change_copy, vocabulary_for
 from domain_events.contracts import DomainEventType
 from domain_events.registry import register_consumer
 from journeys.models import Journey, JourneyRequest, WorkflowKind
