@@ -11,7 +11,7 @@ from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from activities.models import OccurrenceScheduleFrequency, OccurrenceStatus, OccurrenceTimingKind
 from automation.services import ensure_policy
-from core.participant_presentation import resolve_participant_activity_state
+from presentations.participant_state import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
 from discovery.presentation import availability_presentation, presenter_for, price_presentation
 
