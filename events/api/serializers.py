@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from activities.models import OccurrenceTimingKind
-from core.participant_presentation import occurrence_timing
+from presentations.participant_state import occurrence_timing
 from events.models import Event, EventCategory, EventVenue, EventVisibility
 from events.validators import validate_event_cover
 from organizations.models import Organization

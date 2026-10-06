@@ -62,6 +62,9 @@ class MakoloApp extends ConsumerWidget {
       ),
       data: (runtime) {
         final ingress = ref.watch(runtimeIngressProvider);
+        if (runtime.isAuthenticated) {
+          ref.watch(pushEndpointRegistrationProvider);
+        }
         final router = createMakoloRouter(
           runtime,
           onAuthenticationChanged: () => ref.invalidate(appRuntimeProvider),

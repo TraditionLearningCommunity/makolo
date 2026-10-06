@@ -1,6 +1,6 @@
 from journeys.models import WorkflowKind
 
-from core.product_language import vocabulary_for
+from presentations.product_language import vocabulary_for
 
 from .enums import PresentationPurpose
 

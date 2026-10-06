@@ -25,9 +25,9 @@ from capacity.selectors import (
 )
 from core.api.projections import projection_envelope
 from core.participant_activity_context import participant_state_context_for_activities
-from core.participant_presentation import resolve_participant_activity_state
+from presentations.participant_state import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
-from core.product_language import vocabulary_for
+from presentations.product_language import vocabulary_for
 from operations.participant_occurrence_live import participant_occurrence_live_available
 from organizations.models import SpaceLifecycle
 

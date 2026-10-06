@@ -9,7 +9,7 @@ from access.services import resolve_access_credential, validate_access
 from activities.models import Activity
 from authorization.constants import PermissionCode
 from authorization.services import can
-from core.product_language import access_status_label, vocabulary_for
+from presentations.product_language import access_status_label, vocabulary_for
 from scanner.models import ScannerAssignment
 
 from .console_views import SpaceConsoleMixin

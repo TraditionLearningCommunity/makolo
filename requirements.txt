@@ -4,6 +4,8 @@ requests==2.34.2
 PyJWT==2.15.1
 djangorestframework==3.17.2
 djangorestframework-simplejwt==5.5.1
+drf-spectacular==0.30.0
+firebase-admin==7.7.0
 cryptography==50.0.1
 Pillow==12.3.0
 psycopg[binary]==3.3.4

@@ -12,7 +12,7 @@ from django.views.generic import TemplateView
 from activities.models import Activity, ActivityVisibility
 from authorization.constants import PermissionCode
 from authorization.services import can
-from core.product_language import vocabulary_for
+from presentations.product_language import vocabulary_for
 from core.participant_selectors import participant_accesses_visible_to_buyer, participant_journeys
 from journeys.models import WorkflowKind
 

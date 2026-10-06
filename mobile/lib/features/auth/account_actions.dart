@@ -25,6 +25,20 @@ Future<void> endMakoloAccountSession({
     return;
   }
 
+  if (runtime.config?.firebase.enabled == true) {
+    try {
+      final installationId = await runtime.tokens.deviceInstanceId();
+      await api.delete(
+        'api/v1/notifications/push/endpoints/',
+        body: {'provider': 'fcm', 'installation_id': installationId},
+      );
+    } on Object {
+      // Local logout remains authoritative for the device. A stale push
+      // endpoint is harmless and will be reconciled on a later authenticated
+      // registration.
+    }
+  }
+
   unawaited(
     AuthRepository(
       api,

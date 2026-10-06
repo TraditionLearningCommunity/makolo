@@ -3,6 +3,8 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from drf_spectacular.views import SpectacularAPIView
+
 from core.api.views import HealthAPIView, ReadinessAPIView
 from sharing.passport_views import PublicPassportIdentifierView
 
@@ -16,6 +18,7 @@ urlpatterns = [
     path("auth/", include("allauth.urls")),
     path("api/v1/health/", HealthAPIView.as_view(), name="api-health"),
     path("api/v1/readiness/", ReadinessAPIView.as_view(), name="api-readiness"),
+    path("api/v1/schema/", SpectacularAPIView.as_view(), name="api-schema"),
     path("api/v1/me/", include("core.api.urls")),
     path("api/v1/me/", include("core.api.detail_urls")),
     path("api/v1/me/", include("core.api.mark_urls")),

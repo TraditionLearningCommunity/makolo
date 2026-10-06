@@ -5,9 +5,15 @@ from rest_framework.exceptions import NotFound
 from core.api.privacy import PrivateNoStoreMixin
 
 from notifications.models import Notification
+from notifications.push import register_push_endpoint, revoke_push_endpoint
 from notifications.selectors import get_notifications_for_user
 
-from .serializers import NotificationSerializer
+from .serializers import (
+    NotificationSerializer,
+    PushEndpointRegistrationSerializer,
+    PushEndpointRevokeSerializer,
+    PushEndpointSerializer,
+)
 
 
 
@@ -59,3 +65,30 @@ class NotificationMarkAllReadAPIView(PrivateNoStoreMixin, views.APIView):
             updated_at=now,
         )
         return response.Response({"updated": updated})
+
+
+class PushEndpointAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = PushEndpointRegistrationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            endpoint = register_push_endpoint(
+                user=request.user,
+                **serializer.validated_data,
+            )
+        except ValueError as exc:
+            from rest_framework.exceptions import ValidationError
+
+            raise ValidationError({"detail": str(exc)}) from exc
+        return response.Response(PushEndpointSerializer(endpoint).data)
+
+    def delete(self, request):
+        serializer = PushEndpointRevokeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        revoked = revoke_push_endpoint(
+            user=request.user,
+            **serializer.validated_data,
+        )
+        return response.Response({"revoked": bool(revoked)})

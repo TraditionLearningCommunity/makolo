@@ -15,7 +15,7 @@ from authorization.services import can
 from core.api.me_views import PersonalProjectionAPIView
 from core.api.projections import projection_envelope
 from core.participant_selectors import participant_accesses_visible_to_buyer
-from core.product_language import vocabulary_for
+from presentations.product_language import vocabulary_for
 
 from .contexts import build_access_context, build_activity_context
 from .enums import PresentationPurpose

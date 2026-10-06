@@ -41,10 +41,15 @@ class MakoloFirebaseConfig {
 }
 
 class MakoloSentryConfig {
-  const MakoloSentryConfig({required this.enabled, required this.dsn});
+  const MakoloSentryConfig({
+    required this.enabled,
+    required this.dsn,
+    required this.release,
+  });
 
   final bool enabled;
   final String? dsn;
+  final String? release;
 }
 
 class MakoloAppLinksConfig {
@@ -97,6 +102,7 @@ class MakoloRuntimeConfig {
     defaultValue: 'false',
   );
   static const _sentryDsn = String.fromEnvironment('MAKOLO_SENTRY_DSN');
+  static const _release = String.fromEnvironment('MAKOLO_RELEASE');
   static const _appLinksEnabled = String.fromEnvironment(
     'MAKOLO_APP_LINKS_ENABLED',
     defaultValue: 'false',
@@ -127,6 +133,7 @@ class MakoloRuntimeConfig {
       'MAKOLO_FIREBASE_ENABLED': _firebaseEnabled,
       'MAKOLO_SENTRY_ENABLED': _sentryEnabled,
       'MAKOLO_SENTRY_DSN': _sentryDsn,
+      'MAKOLO_RELEASE': _release,
       'MAKOLO_APP_LINKS_ENABLED': _appLinksEnabled,
       'MAKOLO_APP_LINKS_SCHEME': _appLinksScheme,
       'MAKOLO_APP_LINKS_HOST': _appLinksHost,
@@ -165,6 +172,7 @@ class MakoloRuntimeConfig {
       name: 'MAKOLO_SENTRY_ENABLED',
     );
     final sentryDsn = _optional(values['MAKOLO_SENTRY_DSN']);
+    final release = _optional(values['MAKOLO_RELEASE']);
     if (sentryEnabled && sentryDsn == null) {
       throw const MakoloConfigurationException(
         'MAKOLO_SENTRY_ENABLED=true requires MAKOLO_SENTRY_DSN.',
@@ -206,13 +214,29 @@ class MakoloRuntimeConfig {
         'PROD requires MAKOLO_API_BASE_URL; no production URL is inferred.',
       );
     }
+    if (environment == MakoloRuntimeEnvironment.beta && apiBaseUri == null) {
+      throw const MakoloConfigurationException(
+        'BETA requires MAKOLO_API_BASE_URL; no beta URL is inferred.',
+      );
+    }
+    if (environment == MakoloRuntimeEnvironment.prod &&
+        apiBaseUri != null &&
+        apiBaseUri.scheme != 'https') {
+      throw const MakoloConfigurationException(
+        'PROD requires an https MAKOLO_API_BASE_URL.',
+      );
+    }
 
     return MakoloRuntimeConfig(
       environment: environment,
       api: MakoloApiConfig(baseUri: apiBaseUri),
       maps: MakoloMapsConfig(enabled: mapsEnabled, style: mapStyle),
       firebase: MakoloFirebaseConfig(enabled: firebaseEnabled),
-      sentry: MakoloSentryConfig(enabled: sentryEnabled, dsn: sentryDsn),
+      sentry: MakoloSentryConfig(
+        enabled: sentryEnabled,
+        dsn: sentryDsn,
+        release: release,
+      ),
       appLinks: MakoloAppLinksConfig(
         enabled: appLinksEnabled,
         scheme: appLinksScheme,

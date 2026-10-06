@@ -39,6 +39,15 @@ class DeliveryStatus(models.TextChoices):
     SKIPPED = "skipped", "Ignoré"
 
 
+class PushProvider(models.TextChoices):
+    FCM = "fcm", "Firebase Cloud Messaging"
+
+
+class PushPlatform(models.TextChoices):
+    ANDROID = "android", "Android"
+    IOS = "ios", "iOS"
+
+
 class Notification(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     recipient = models.ForeignKey(
@@ -131,6 +140,62 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.recipient} — {self.title}"
+
+
+class PushEndpoint(models.Model):
+    """Private technical endpoint for push transport.
+
+    The raw provider token is encrypted and never exposed by general serializers.
+    installation_id is a client-generated technical identifier, not UserDevice
+    identity, Permission, Mandate or Access.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="push_endpoints",
+    )
+    provider = models.CharField(
+        max_length=16,
+        choices=PushProvider.choices,
+        default=PushProvider.FCM,
+    )
+    platform = models.CharField(max_length=16, choices=PushPlatform.choices)
+    installation_id = models.CharField(max_length=128)
+    token_hash = models.CharField(max_length=64)
+    encrypted_token = models.TextField()
+    token_hint = models.CharField(max_length=24, blank=True)
+    app_version = models.CharField(max_length=64, blank=True)
+    active = models.BooleanField(default=True)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "installation_id"],
+                name="push_endpoint_unique_installation",
+            ),
+            models.UniqueConstraint(
+                fields=["provider", "token_hash"],
+                name="push_endpoint_unique_token",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["user", "active"],
+                name="push_endpoint_user_active_idx",
+            ),
+            models.Index(
+                fields=["provider", "active"],
+                name="push_ep_provider_active_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} — {self.provider} — {self.platform} — {'active' if self.active else 'inactive'}"
 
 
 class NotificationDelivery(models.Model):

@@ -32,6 +32,7 @@ IS_PRODUCTION = DJANGO_ENV == "production"
 DEBUG = env_bool("DJANGO_DEBUG", default=IS_DEVELOPMENT)
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+SECRET_KEY_FALLBACKS = env_list("DJANGO_SECRET_KEY_FALLBACKS")
 if not SECRET_KEY:
     if IS_PRODUCTION:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY doit être définie en production.")
@@ -74,6 +75,7 @@ DJANGO_APPS = [
 ]
 THIRD_PARTY_APPS = [
     "rest_framework",
+    "drf_spectacular",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "allauth",
@@ -162,6 +164,18 @@ if DATABASE_ENGINE == "sqlite":
         }
     }
 elif DATABASE_ENGINE in {"postgresql", "postgres"}:
+    database_options = {
+        "connect_timeout": int(
+            os.environ.get("DJANGO_DATABASE_CONNECT_TIMEOUT_SECONDS", "5")
+        ),
+    }
+    database_sslmode = os.environ.get("DJANGO_DATABASE_SSLMODE", "").strip()
+    database_sslrootcert = os.environ.get("DJANGO_DATABASE_SSLROOTCERT", "").strip()
+    if database_sslmode:
+        database_options["sslmode"] = database_sslmode
+    if database_sslrootcert:
+        database_options["sslrootcert"] = database_sslrootcert
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -171,11 +185,8 @@ elif DATABASE_ENGINE in {"postgresql", "postgres"}:
             "HOST": os.environ.get("DJANGO_DATABASE_HOST", "").strip(),
             "PORT": os.environ.get("DJANGO_DATABASE_PORT", "5432").strip(),
             "CONN_MAX_AGE": int(os.environ.get("DJANGO_DATABASE_CONN_MAX_AGE", "60")),
-            "OPTIONS": {
-                "connect_timeout": int(
-                    os.environ.get("DJANGO_DATABASE_CONNECT_TIMEOUT_SECONDS", "5")
-                ),
-            },
+            "CONN_HEALTH_CHECKS": env_bool("DJANGO_DATABASE_CONN_HEALTH_CHECKS", True),
+            "OPTIONS": database_options,
         }
     }
     missing_database_settings = [
@@ -250,8 +261,15 @@ LOCAL_STATIC_DIR = BASE_DIR / "static"
 if LOCAL_STATIC_DIR.exists():
     STATICFILES_DIRS.append(LOCAL_STATIC_DIR)
 
+DEFAULT_STORAGE_BACKEND = os.environ.get(
+    "DJANGO_DEFAULT_STORAGE_BACKEND",
+    "django.core.files.storage.FileSystemStorage",
+).strip()
+if not DEFAULT_STORAGE_BACKEND:
+    raise ImproperlyConfigured("DJANGO_DEFAULT_STORAGE_BACKEND ne peut pas être vide.")
+
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {"BACKEND": DEFAULT_STORAGE_BACKEND},
     "staticfiles": {
         "BACKEND": (
             "django.contrib.staticfiles.storage.StaticFilesStorage"
@@ -325,7 +343,34 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ),
     "EXCEPTION_HANDLER": "core.api.exceptions.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Makolo API",
+    "DESCRIPTION": "Contrats API v1 de Makolo. Les vérités métier restent propriétaires de leurs domaines.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+    # Existing APIViews are not all schema-annotated yet. The supported-client
+    # contract is enforced separately by scripts/check_openapi_contract.py.
+    "DISABLE_ERRORS_AND_WARNINGS": True,
+    # Schema quality is enforced in the dedicated API Contract workflow.
+    # Avoid re-emitting legacy APIView inference warnings during Django's
+    # security-focused `check --deploy`.
+    "ENABLE_DJANGO_DEPLOY_CHECK": False,
+}
+
+MAKOLO_FIREBASE_PUSH_ENABLED = env_bool("MAKOLO_FIREBASE_PUSH_ENABLED", False)
+MAKOLO_FIREBASE_PROJECT_ID = os.environ.get("MAKOLO_FIREBASE_PROJECT_ID", "").strip()
+MAKOLO_FIREBASE_SERVICE_ACCOUNT_FILE = os.environ.get(
+    "MAKOLO_FIREBASE_SERVICE_ACCOUNT_FILE",
+    "",
+).strip()
+MAKOLO_PUSH_INCLUDE_MESSAGE_CONTENT = env_bool(
+    "MAKOLO_PUSH_INCLUDE_MESSAGE_CONTENT",
+    False,
+)
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
