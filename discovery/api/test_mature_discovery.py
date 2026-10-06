@@ -172,6 +172,29 @@ class MatureDiscoveryAPITests(TestCase):
         )
         self.assertIsNone(opportunity["identity"]["occurrence"])
 
+    def test_web_and_api_use_the_same_canonical_discovery_field(self):
+        params = {"q": "Z3", "page_size": 20}
+        api = self._items(**params)["data"]
+        web = self.client.get(reverse("discovery:home"), params)
+
+        self.assertEqual(web.status_code, 200, web.content)
+        api_keys = [
+            row["identity"]["candidate_key"]
+            for row in api["results"]
+        ]
+        web_keys = [
+            card.candidate_key
+            for card in web.context["discovery_cards"]
+        ]
+        self.assertEqual(web_keys, api_keys)
+        self.assertEqual(
+            {constraint.key for constraint in web.context["applied_constraints"]},
+            {
+                item["key"]
+                for item in api["exploration"]["constraints"]
+            },
+        )
+
     def test_collection_empty_is_valid_and_pagination_is_bounded(self):
         payload = self._items(q="does-not-exist-z3", page_size=999)
         self.assertEqual(payload["data"]["results"], [])

@@ -36,7 +36,7 @@ from trust.credential_selectors import credentials_for_profile
 from trust.selectors import proofs_for_profile
 
 from .participant_selectors import participant_active_accesses, participant_active_journeys
-from .read_models import build_personal_ongoing_read_model
+from core.api.personal_projections import build_personal_ongoing_projection
 from .participant_presentation import occurrence_timing
 from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _primary_place
 
@@ -181,95 +181,70 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
     fragment_template_name = "core/participant_ongoing_fragment.html"
     login_url = "core:login"
 
+    @staticmethod
+    def _web_item(item):
+        links = item.get("links") or {}
+        blocker = item.get("blocker")
+        interventions = item.get("actor_interventions") or []
+        continuation = item.get("continuation")
+        ready = item.get("ready") or []
+        next_item = item.get("next")
+
+        summary = item.get("summary") or "Cette réalité continue."
+        if blocker:
+            tone = "attention"
+        elif interventions:
+            tone = "action"
+        elif continuation and continuation.get("state") == "waiting":
+            tone = "calm"
+        elif ready:
+            tone = "ready"
+        else:
+            tone = "calm"
+
+        next_action = ""
+        if interventions:
+            next_action = interventions[0].get("title") or ""
+        elif next_item:
+            next_action = next_item.get("title") or ""
+
+        timing = item.get("timing") or {}
+        compact_timing = ""
+        for key in ("start_at", "start_date", "due_at", "deadline_date", "expires_at"):
+            value = timing.get(key)
+            if value:
+                compact_timing = value
+                break
+
+        return {
+            "kind": item.get("kind"),
+            "title": item.get("title") or "",
+            "summary": summary,
+            "tone": tone,
+            "next_action": next_action,
+            "timing": {"compact_label": compact_timing} if compact_timing else None,
+            "place": item.get("place"),
+            "url": links.get("web") or links.get("detail") or "#",
+        }
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
         observed_at = get_request_context(self.request).observed_at
-        entries = build_personal_ongoing_read_model(
+        data = build_personal_ongoing_projection(
             profile,
             observed_at=observed_at,
-            limit=ONGOING_LIMIT,
-            include_personal_funding=True,
         )
-
-        presenters = {
-            "journey": lambda entry: _ongoing_journey_item(
-                entry.value,
-                entry.readiness,
-            ),
-            "access": lambda entry: _ongoing_access_item(_access_card(entry.value)),
-            "dossier": lambda entry: _ongoing_dossier_item(entry.value),
-            "project": lambda entry: _ongoing_project_item(entry.value),
-            "waitlist": lambda entry: _ongoing_waitlist_item(entry.value),
-            "transfer": lambda entry: _ongoing_transfer_item(entry.value, profile),
-            "payment": lambda entry: _ongoing_payment_item(entry.value),
-            "funding": lambda entry: _ongoing_funding_item(entry.value),
-        }
-        ongoing_items = [presenters[entry.kind](entry) for entry in entries]
-        kinds = {entry.kind for entry in entries}
-
-        budget_full = len(entries) >= ONGOING_LIMIT
-        has_personal_dossiers = "dossier" in kinds
-        has_personal_projects = "project" in kinds
-        has_waitlist = "waitlist" in kinds
-        has_transfers = "transfer" in kinds
-        has_personal_fundings = "funding" in kinds
-
-        if budget_full:
-            has_personal_dossiers = has_personal_dossiers or (
-                dossiers_for_profile(profile)
-                .filter(
-                    owner_profile=profile,
-                    lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE},
-                )
-                .exists()
-            )
-            has_personal_projects = has_personal_projects or (
-                projects_for_profile(profile)
-                .filter(
-                    owner_profile=profile,
-                    lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE},
-                )
-                .exists()
-            )
-            has_waitlist = has_waitlist or (
-                get_waitlist_entries_visible_to(profile)
-                .filter(
-                    user=profile,
-                    status__in={WaitlistStatus.WAITING, WaitlistStatus.OFFERED},
-                )
-                .exists()
-            )
-            has_transfers = has_transfers or (
-                get_ticket_transfers_visible_to(profile)
-                .filter(status=TransferStatus.PENDING)
-                .filter(models.Q(sender=profile) | models.Q(recipient=profile))
-                .exists()
-            )
-            if not has_personal_fundings:
-                personal_funding_candidates = list(
-                    FundingDetails.objects.select_related("activity")
-                    .filter(
-                        activity__owner_profile=profile,
-                        activity__space__isnull=True,
-                        activity__status__in={
-                            ActivityStatus.DRAFT,
-                            ActivityStatus.PUBLISHED,
-                        },
-                    )
-                    .order_by("-activity__updated_at", "-id")[:ONGOING_LIMIT]
-                )
-                has_personal_fundings = any(
-                    can_manage_funding(profile, funding)
-                    for funding in personal_funding_candidates
-                )
+        items = data.get("items", [])
+        ongoing_items = [self._web_item(item) for item in items]
+        kinds = {item.get("kind") for item in items}
 
         context["ongoing_items"] = ongoing_items
-        context["has_personal_dossiers"] = has_personal_dossiers
-        context["has_personal_projects"] = has_personal_projects
-        context["has_waitlist"] = has_waitlist
-        context["has_transfers"] = has_transfers
-        context["has_personal_fundings"] = has_personal_fundings
+        context["has_personal_dossiers"] = "dossier" in kinds
+        context["has_personal_projects"] = "project" in kinds
+        context["has_waitlist"] = "waitlist" in kinds
+        context["has_transfers"] = "transfer" in kinds
+        context["has_personal_fundings"] = "funding" in kinds
         return context
 
 

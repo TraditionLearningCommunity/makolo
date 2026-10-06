@@ -52,6 +52,11 @@ def _representation(card) -> dict:
     representation = card.representation
     return {
         "kind": _technical_code(representation.kind, field="representation.kind"),
+        "presentation_kind": _technical_code(
+            card.presentation_kind or "generic",
+            field="representation.presentation_kind",
+        ),
+        "vertical_label": card.vertical_label,
         "title": card.title,
         "summary": card.summary or "",
         "image_url": representation.image_url,

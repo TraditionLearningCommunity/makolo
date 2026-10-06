@@ -49,15 +49,20 @@ Le contrat Z courant expose notamment :
 
 Le bootstrap d’authentification reste `GET /api/v1/accounts/auth/me/`. Il ne doit jamais être confondu avec `GET /api/v1/me/`, qui est la surface Mature Moi.
 
-Le Web Mature garde sa propre composition. En particulier :
+Le Web Mature et les clients API partagent désormais les **mêmes projections sémantiques serveur** pour Maintenant, Découvrir et En cours. Le Web conserve seulement son adaptation Presentation.
 
 ```text
-Web /me/          = Maintenant
-API /api/v1/me/   = Moi
-API /api/v1/me/now/ = Maintenant
+Web /me/                    → personal.now
+API /api/v1/me/now/         → personal.now
+
+Web /discover/              → discovery.items
+API /api/v1/discovery/items/ → discovery.items
+
+Web /me/ongoing/            → personal.ongoing
+API /api/v1/me/ongoing/     → personal.ongoing
 ```
 
-Ce décalage de chemin est volontaire et doit être traité par le routeur Flutter, pas “corrigé” par heuristique.
+Le décalage des chemins reste volontaire ; il ne correspond plus à une duplication de composition. Flutter et Web consomment la projection canonique puis appliquent leur géométrie propre.
 
 ## 4. Collision audit
 

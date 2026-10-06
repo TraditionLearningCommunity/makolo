@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as datetime_timezone
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -104,17 +104,18 @@ class Z2JourneyBoundaryTests(TestCase):
         )
 
     def test_future_actor_step_stays_ongoing_without_entering_now_until_due(self):
+        observed_at = datetime(2026, 10, 5, 12, 0, tzinfo=datetime_timezone.utc)
         step = JourneyStep.objects.create(
             journey=self.journey,
             title="Fournir l’attestation",
             position=10,
             is_required=True,
-            due_at=timezone.now() + timedelta(days=7),
+            due_at=observed_at + timedelta(days=7),
             created_by=self.user,
         )
 
-        ongoing = build_personal_ongoing_projection(self.user)
-        now = build_personal_now_projection(self.user)
+        ongoing = build_personal_ongoing_projection(self.user, observed_at=observed_at)
+        now = build_personal_now_projection(self.user, observed_at=observed_at)
 
         journey_item = next(
             item for item in ongoing["items"]
@@ -128,16 +129,37 @@ class Z2JourneyBoundaryTests(TestCase):
             )
         )
 
-        step.due_at = timezone.now() + timedelta(hours=1)
+        step.due_at = observed_at + timedelta(hours=1)
         step.save(update_fields=["due_at", "updated_at"])
 
-        current = build_personal_now_projection(self.user)
-        self.assertTrue(
-            any(
-                item["source"] == {"kind": "journey", "id": str(self.journey.pk)}
-                and item["dimension"] == "action"
-                for item in current["items"]
+        current = build_personal_now_projection(self.user, observed_at=observed_at)
+        current_item = next(
+            item
+            for item in current["items"]
+            if item["source"] == {"kind": "journey", "id": str(self.journey.pk)}
+            and item["dimension"] == "action"
+        )
+        self.assertEqual(current_item["human_context"], self.activity.title)
+        self.assertEqual(current_item["actionability"], "actionable")
+        self.assertEqual(
+            current_item["links"]["web"],
+            reverse("core:participant-journey-detail", kwargs={"pk": self.journey.pk}),
+        )
+
+        self.client.force_login(self.user)
+        web = self.client.get(reverse("core:participant-home"))
+        projected = [
+            item
+            for item in (
+                web.context["home"].primary_attention,
+                web.context["home"].primary_action,
+                *web.context["home"].action_items,
             )
+            if item is not None
+        ]
+        self.assertIn(
+            current_item["human_context"],
+            [item.context_label for item in projected],
         )
 
     def test_foreign_journey_never_leaks_into_personal_projection(self):
@@ -180,6 +202,7 @@ class Z2JourneyBoundaryTests(TestCase):
             journey_item["timing"]["start_date"],
             occurrence.start_date.isoformat(),
         )
+        self.assertEqual(journey_item["summary"], "Cette démarche continue.")
         self.assertNotIn("start_at", journey_item["timing"])
 
 
