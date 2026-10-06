@@ -52,9 +52,20 @@ class Z2ProjectionAPITests(TestCase):
         self.assertEqual(ongoing_response.status_code, 200)
         self.assertEqual(now_response.json()["meta"]["projection"], "personal.now")
         self.assertEqual(ongoing_response.json()["meta"]["projection"], "personal.ongoing")
-        self.assertEqual(now_response.json()["data"], {"items": []})
+        now_data = now_response.json()["data"]
+        self.assertEqual(now_data["surface"], "now_me")
+        self.assertEqual(now_data["actor"], {"type": "profile", "id": str(self.user.pk)})
+        self.assertEqual(now_data["viewer"], now_data["actor"])
+        self.assertEqual(now_data["items"], [])
+        self.assertEqual(
+            now_data["selection"],
+            {"state": "empty", "reason": "no_current_attention_needed"},
+        )
+        self.assertEqual(now_data["actor_attention_state"], "calm")
+        self.assertEqual(now_data["terminal"], {"state": "empty", "message": None})
+        self.assertIsNone(now_data["continuation"])
         self.assertEqual(ongoing_response.json()["data"], {"items": []})
-        self.assertNotIn("all_clear", now_response.json()["data"])
+        self.assertNotIn("all_clear", now_data)
         self.assertEqual(now_response["Cache-Control"], "private, no-store")
         self.assertEqual(ongoing_response["Cache-Control"], "private, no-store")
 
@@ -141,10 +152,53 @@ class Z2JourneyBoundaryTests(TestCase):
         )
         self.assertEqual(current_item["human_context"], self.activity.title)
         self.assertEqual(current_item["actionability"], "actionable")
+        self.assertEqual(current["surface"], "now_me")
+        self.assertEqual(current["selection"], {"state": "ready", "reason": None})
+        self.assertEqual(current["actor_attention_state"], "active")
+        self.assertEqual(current["terminal"], {"state": "ok", "message": None})
+        self.assertEqual(current_item["id"], current_item["continuity_identity"])
+        self.assertEqual(current_item["why_now"]["basis"], [current_item["source"]])
+        self.assertEqual(current_item["why_now"]["meaning"], current_item["summary"])
+        self.assertEqual(current_item["state_meaning"], current_item["summary"])
+        self.assertEqual(current_item["consequence"]["target"], current_item["source"])
+        self.assertEqual(current_item["consequence"]["state"], "unknown")
+        self.assertIsNone(current_item["consequence"]["effect"])
+        self.assertEqual(current_item["turn"], {"type": "profile"})
+        self.assertEqual(current_item["response"]["type"], "act")
+        self.assertEqual(
+            current_item["horizon"]["state"],
+            current_item["timing"]["deadline_state"],
+        )
+        self.assertEqual(
+            current_item["owner_depth"]["links"]["detail"],
+            f"/api/v1/me/journeys/{self.journey.pk}/",
+        )
+        self.assertEqual(current_item["knowledge_context"]["knowledge_state"], "known")
+        self.assertEqual(current_item["attention"], {"level": "foreground"})
+        self.assertEqual(
+            current_item["handoffs"],
+            [
+                {
+                    "type": "owner",
+                    "target": "journey",
+                    "id": str(self.journey.pk),
+                }
+            ],
+        )
         self.assertEqual(
             current_item["links"]["web"],
             reverse("core:participant-journey-detail", kwargs={"pk": self.journey.pk}),
         )
+
+        step.due_at = observed_at - timedelta(hours=1)
+        step.save(update_fields=["due_at", "updated_at"])
+        changed = build_personal_now_projection(self.user, observed_at=observed_at)
+        changed_item = next(
+            item
+            for item in changed["items"]
+            if item["source"] == {"kind": "journey", "id": str(self.journey.pk)}
+        )
+        self.assertEqual(changed_item["continuity_identity"], current_item["continuity_identity"])
 
         self.client.force_login(self.user)
         web = self.client.get(reverse("core:participant-home"))
@@ -293,3 +347,9 @@ class Z2WaitlistBoundaryTests(TestCase):
         )
         self.assertEqual(decision["dimension"], "decision")
         self.assertEqual(decision["capabilities"], ["accept", "leave"])
+        self.assertEqual(decision["turn"], {"type": "profile"})
+        self.assertEqual(decision["response"]["type"], "decide")
+        self.assertEqual(
+            {action["capability"] for action in decision["business_actions"]},
+            {"accept", "leave"},
+        )

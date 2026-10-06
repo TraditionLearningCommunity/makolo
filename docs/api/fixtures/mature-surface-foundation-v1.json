@@ -67,15 +67,27 @@
           "state": "ready",
           "reason": null
         },
+        "actor_attention_state": "active",
         "items": [
           {
             "id": "now:visa-canada:certificate",
+            "continuity_identity": "now:visa-canada:certificate",
             "human_context": "Visa Canada",
-            "subject": "certificat",
-            "state": "Votre certificat doit être transmis aujourd'hui.",
-            "why_now": "La fenêtre d'envoi ferme aujourd'hui.",
-            "consequence": "La demande peut rester bloquée si rien n'est transmis.",
-            "turn": "profile",
+            "state": "journey.step.action_required",
+            "state_meaning": "Votre certificat doit être transmis aujourd'hui.",
+            "why_now": {
+              "reason": "journey.step.action_required",
+              "meaning": "Votre certificat doit être transmis aujourd'hui.",
+              "basis": [
+                {"kind": "journey", "id": "journey:visa-canada"}
+              ]
+            },
+            "consequence": {
+              "state": "unknown",
+              "effect": null,
+              "target": {"kind": "journey", "id": "journey:visa-canada"}
+            },
+            "turn": {"type": "profile"},
             "response": {
               "type": "act",
               "label": "Vérifier et envoyer"
@@ -121,13 +133,14 @@
           "state": "empty",
           "reason": "no_current_attention_needed"
         },
+        "actor_attention_state": "calm",
         "items": [],
         "capabilities": [],
         "handoffs": [],
         "continuation": null,
         "terminal": {
           "state": "empty",
-          "message": "Tout est en ordre. ✓"
+          "message": null
         }
       }
     },

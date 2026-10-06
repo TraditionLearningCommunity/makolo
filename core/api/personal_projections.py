@@ -76,6 +76,20 @@ def _opaque_action_key(action: ContextualAction) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
+def _opaque_continuity_identity(action: ContextualAction) -> str:
+    """Identify the owner fact without coupling continuity to its current action."""
+    identity = action.identity
+    raw = "\x1f".join(
+        (
+            identity.source_domain,
+            identity.source_key,
+            identity.context_type,
+            identity.context_id,
+        )
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+
+
 def _source_for_action(action: ContextualAction):
     context_type = action.identity.context_type
     context_id = action.identity.context_id
@@ -224,7 +238,10 @@ def _serialize_now_action(action: ContextualAction, dimension: str):
     source = _source_for_action(action)
     if source is None:
         return None
+    continuity_identity = _opaque_continuity_identity(action)
     return {
+        "id": continuity_identity,
+        "continuity_identity": continuity_identity,
         "key": _opaque_action_key(action),
         "kind": action.kind,
         "dimension": dimension,
@@ -237,6 +254,97 @@ def _serialize_now_action(action: ContextualAction, dimension: str):
         "capabilities": _action_capabilities(action),
         "links": _action_links(action),
     }
+
+
+def _now_response_type(dimension: str) -> str:
+    if dimension == "decision":
+        return "decide"
+    if dimension == "adaptation":
+        return "understand"
+    return "act"
+
+
+def _decorate_now_semantics(
+    action: ContextualAction,
+    item: dict,
+    *,
+    observed_at,
+) -> None:
+    """Expose server-owned Now meaning without copying an owner domain model."""
+    source = item["source"]
+    reason = action.reason_codes[0] if action.reason_codes else action.actionability.value
+    owner_meaning = action.summary or action.label
+    dimension = item["dimension"]
+    links = item["links"]
+
+    item.update(
+        {
+            "why_now": {
+                "reason": reason,
+                "meaning": owner_meaning,
+                "basis": [source],
+            },
+            "consequence": {
+                # ContextualAction has no distinct owner consequence field.
+                # Do not relabel its summary as a consequence.
+                "state": "unknown",
+                "effect": None,
+                "target": source,
+            },
+            "state_meaning": owner_meaning,
+            # When the owner has not established another actor, adaptation does
+            # not manufacture a system actor or transfer responsibility.
+            "turn": {"type": "none" if dimension == "adaptation" else "profile"},
+            "response": {
+                "type": _now_response_type(dimension),
+                "label": action.label,
+            },
+            "horizon": (
+                {
+                    "type": "temporal",
+                    "at": item["timing"]["deadline_at"],
+                    "state": item["timing"]["deadline_state"],
+                }
+                if item["timing"].get("deadline_at")
+                else None
+            ),
+            "owner_depth": {
+                "source": source,
+                "links": {
+                    key: value
+                    for key, value in links.items()
+                    if key in {"detail", "web", "day_of", "recognition"}
+                },
+            },
+            "knowledge_context": {
+                "provenance": [source],
+                "freshness": {
+                    "state": "fresh",
+                    "observed_at": _iso(observed_at),
+                },
+                "knowledge_state": "known",
+            },
+            "attention": {
+                "level": "near" if dimension == "adaptation" else "foreground",
+            },
+            "business_actions": [
+                {
+                    "capability": capability,
+                    "href": links[capability],
+                    "interaction_depth": "direct_now",
+                }
+                for capability in item["capabilities"]
+                if capability in links
+            ],
+            "handoffs": [
+                {
+                    "type": "owner",
+                    "target": source["kind"],
+                    "id": source["id"],
+                }
+            ],
+        }
+    )
 
 
 def build_personal_now_projection(profile, *, observed_at=None):
@@ -261,10 +369,10 @@ def build_personal_now_projection(profile, *, observed_at=None):
                 web_url = action.url or meta.fallback_url
                 if web_url:
                     item["links"]["web"] = web_url
-            items.append(item)
+            items.append((action, item))
     journey_ids = {
         item["source"]["id"]
-        for item in items
+        for _, item in items
         if item["source"]["kind"] == "journey"
     }
     occurrence_by_journey = {
@@ -275,8 +383,9 @@ def build_personal_now_projection(profile, *, observed_at=None):
         ).values_list("pk", "occurrence_id")
         if occurrence_id is not None
     }
-    for item in items:
+    for action, item in items:
         if item["source"]["kind"] != "journey":
+            _decorate_now_semantics(action, item, observed_at=observed_at)
             continue
         journey_id = item["source"]["id"]
         item["links"].setdefault(
@@ -294,7 +403,31 @@ def build_personal_now_projection(profile, *, observed_at=None):
             )
             if "open_day_of" not in item["capabilities"]:
                 item["capabilities"].append("open_day_of")
-    return {"items": items}
+        _decorate_now_semantics(action, item, observed_at=observed_at)
+
+    serialized_items = [item for _, item in items]
+    is_empty = not serialized_items
+    profile_id = str(profile.pk)
+    return {
+        "surface": "now_me",
+        "actor": {"type": "profile", "id": profile_id},
+        "viewer": {"type": "profile", "id": profile_id},
+        "freshness": {"state": "fresh", "observed_at": _iso(observed_at)},
+        "selection": {
+            "state": "empty" if is_empty else "ready",
+            "reason": "no_current_attention_needed" if is_empty else None,
+        },
+        "actor_attention_state": "calm" if is_empty else "active",
+        "capabilities": [],
+        "handoffs": [],
+        "items": serialized_items,
+        "continuation": None,
+        "terminal": {
+            "state": "empty" if is_empty else "ok",
+            # Human wording remains Presentation; the server owns the state.
+            "message": None,
+        },
+    }
 
 
 def _occurrence_timing(occurrence):
