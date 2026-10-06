@@ -352,7 +352,21 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
+    # Existing APIViews are not all schema-annotated yet. The supported-client
+    # contract is enforced separately by scripts/check_openapi_contract.py.
+    "DISABLE_ERRORS_AND_WARNINGS": True,
 }
+
+MAKOLO_FIREBASE_PUSH_ENABLED = env_bool("MAKOLO_FIREBASE_PUSH_ENABLED", False)
+MAKOLO_FIREBASE_PROJECT_ID = os.environ.get("MAKOLO_FIREBASE_PROJECT_ID", "").strip()
+MAKOLO_FIREBASE_SERVICE_ACCOUNT_FILE = os.environ.get(
+    "MAKOLO_FIREBASE_SERVICE_ACCOUNT_FILE",
+    "",
+).strip()
+MAKOLO_PUSH_INCLUDE_MESSAGE_CONTENT = env_bool(
+    "MAKOLO_PUSH_INCLUDE_MESSAGE_CONTENT",
+    False,
+)
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
