@@ -25,7 +25,7 @@ Future<void> endMakoloAccountSession({
     return;
   }
 
-  if (runtime.config?.firebaseEnabled == true) {
+  if (runtime.config?.firebase.enabled == true) {
     try {
       final installationId = await runtime.tokens.deviceInstanceId();
       await api.delete(
