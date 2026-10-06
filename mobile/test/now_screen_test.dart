@@ -18,6 +18,7 @@ NowSituationPresentation situation(
 }) {
   final destination = StructuredDestination(kind: 'journey', id: id);
   return NowSituationPresentation(
+    identity: 'now:$id',
     reference: destination,
     humanContext: context,
     meaning: meaning,
@@ -26,6 +27,7 @@ NowSituationPresentation situation(
         : NowPresentationEmphasis.secondary,
     ownerDestination: destination,
     whyNow: whyNow,
+    responseType: capability == null ? null : 'act',
     responseLabel: capability == null ? null : 'Ouvrir',
     responseCapability: capability,
   );
@@ -82,6 +84,8 @@ void main() {
       child: const NowView(
         selection: NowSelection(
           situations: [],
+          selectionState: 'empty',
+          actorAttentionState: 'calm',
           state: MakoloSurfacePresentation(
             availability: MakoloAvailabilityCue.empty,
           ),
@@ -162,6 +166,7 @@ void main() {
       child: const NowView(
         selection: NowSelection(
           situations: [],
+          selectionState: 'partial',
           calmIsCurrent: false,
           state: MakoloSurfacePresentation(
             availability: MakoloAvailabilityCue.empty,
@@ -279,5 +284,17 @@ void main() {
     await tester.pump();
 
     expect(opened?.id, 'visa');
+  });
+
+  test('owner deep link accepts the opaque owner-prefixed id', () {
+    expect(
+      NowScreen.ownerPathFor(
+        StructuredDestination(
+          kind: 'journey',
+          id: 'journey:visa-canada',
+        ),
+      ),
+      '/journeys/journey%3Avisa-canada',
+    );
   });
 }
