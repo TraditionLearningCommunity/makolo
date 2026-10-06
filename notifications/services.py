@@ -19,6 +19,7 @@ from .models import (
     NotificationDelivery,
     NotificationKind,
 )
+from .push import active_push_endpoints_for, send_push_notification
 from .selectors import get_due_deliveries
 
 
@@ -26,10 +27,12 @@ def _preferences_for(user):
     return NotificationPreference.objects.filter(user=user).first()
 
 
-def _category_allowed(preferences, category: str) -> bool:
+def _category_allowed(preferences, category: str, *, channel: str) -> bool:
     if not preferences:
         return True
-    if not preferences.email_notifications:
+    if channel == DeliveryChannel.EMAIL and not preferences.email_notifications:
+        return False
+    if channel == DeliveryChannel.PUSH and not preferences.push_notifications:
         return False
     if category in {NotificationCategory.EVENT, NotificationCategory.TICKET}:
         return preferences.event_notifications
@@ -99,6 +102,7 @@ def create_notification(
     dedup_key: str | None = None,
     metadata: dict | None = None,
     queue_email: bool = True,
+    queue_push: bool = True,
     domain_event=None,
     activity=None,
     journey=None,
@@ -134,7 +138,11 @@ def create_notification(
     if queue_email:
         email = (getattr(recipient, "email", "") or "").strip().lower()
         preferences = _preferences_for(recipient)
-        allowed = bool(email) and _category_allowed(preferences, category)
+        allowed = bool(email) and _category_allowed(
+            preferences,
+            category,
+            channel=DeliveryChannel.EMAIL,
+        )
         scheduled_for = _quiet_hours_release(preferences)
         status = DeliveryStatus.QUEUED if allowed else DeliveryStatus.SKIPPED
         reason = ""
@@ -151,6 +159,28 @@ def create_notification(
             scheduled_for=scheduled_for,
             skipped_reason=reason,
         )
+
+    if queue_push:
+        preferences = _preferences_for(recipient)
+        allowed = _category_allowed(
+            preferences,
+            category,
+            channel=DeliveryChannel.PUSH,
+        )
+        scheduled_for = _quiet_hours_release(preferences)
+        for endpoint in active_push_endpoints_for(recipient):
+            NotificationDelivery.objects.create(
+                notification=notification,
+                channel=DeliveryChannel.PUSH,
+                destination=f"push:{endpoint.pk}",
+                status=DeliveryStatus.QUEUED if allowed else DeliveryStatus.SKIPPED,
+                scheduled_for=scheduled_for,
+                skipped_reason=(
+                    ""
+                    if allowed
+                    else "Les préférences utilisateur désactivent cet envoi push."
+                ),
+            )
 
     return notification
 
@@ -178,15 +208,55 @@ def dispatch_delivery(delivery_id) -> str:
     if not delivery:
         return "ignored"
 
+    notification = delivery.notification
+
+    if delivery.channel == DeliveryChannel.PUSH:
+        from .models import PushEndpoint
+
+        raw_id = delivery.destination.removeprefix("push:").strip()
+        endpoint = PushEndpoint.objects.filter(pk=raw_id, active=True).first()
+        if endpoint is None:
+            NotificationDelivery.objects.filter(pk=delivery.pk).update(
+                status=DeliveryStatus.SKIPPED,
+                skipped_reason="Endpoint push indisponible.",
+                updated_at=timezone.now(),
+            )
+            return "skipped"
+        try:
+            reference = send_push_notification(
+                endpoint=endpoint,
+                notification=notification,
+            )
+        except Exception as exc:
+            now = timezone.now()
+            delivery.refresh_from_db(fields=["attempts", "max_attempts"])
+            terminal = delivery.attempts >= delivery.max_attempts or not endpoint.active
+            NotificationDelivery.objects.filter(pk=delivery.pk).update(
+                status=DeliveryStatus.FAILED if terminal else DeliveryStatus.QUEUED,
+                last_error=redact_sensitive_text(str(exc))[:1000],
+                scheduled_for=now + timedelta(minutes=max(delivery.attempts, 1) * 5),
+                updated_at=now,
+            )
+            return "failed" if terminal else "retry"
+
+        now = timezone.now()
+        NotificationDelivery.objects.filter(pk=delivery.pk).update(
+            status=DeliveryStatus.SENT,
+            provider_reference=str(reference)[:255],
+            sent_at=now,
+            last_error="",
+            updated_at=now,
+        )
+        return "sent"
+
     if delivery.channel != DeliveryChannel.EMAIL:
         NotificationDelivery.objects.filter(pk=delivery.pk).update(
             status=DeliveryStatus.SKIPPED,
-            skipped_reason="Canal non implémenté dans ce socle.",
+            skipped_reason="Canal non pris en charge.",
             updated_at=timezone.now(),
         )
         return "skipped"
 
-    notification = delivery.notification
     action_url = _public_url(notification.action_url)
     context = {
         "notification": notification,

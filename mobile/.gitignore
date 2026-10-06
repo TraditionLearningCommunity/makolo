@@ -8,3 +8,9 @@ coverage/
 
 # Developer/CI runtime overrides. Canonical defaults stay in config/*.json.
 config/*.local.json
+
+
+# Android release signing material must never be committed.
+android/key.properties
+android/*.jks
+android/*.keystore

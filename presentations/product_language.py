@@ -1,0 +1,350 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from access.models import AccessStatus
+from commerce.models import PaymentMode
+from journeys.models import WorkflowKind
+
+
+ACCESS_STATUS_LABELS = {
+    AccessStatus.PENDING: "En attente",
+    AccessStatus.VALID: "Valide",
+    AccessStatus.USED: "Utilisé",
+    AccessStatus.CANCELLED: "Annulé",
+    AccessStatus.REVOKED: "Révoqué",
+    AccessStatus.EXPIRED: "Expiré",
+    AccessStatus.TRANSFERRED: "Transféré",
+}
+
+
+@dataclass(frozen=True)
+class ProductVocabulary:
+    vertical: str
+    activity_noun: str
+    occurrence_noun: str
+    journey_noun: str
+    journey_detail_label: str
+    request_noun: str
+    offer_noun: str
+    access_noun: str
+    access_detail_label: str
+    participant_noun: str
+    operator_label: str
+    primary_action: str
+
+    @property
+    def noun(self):
+        return self.journey_noun
+
+    @property
+    def detail_label(self):
+        return self.journey_detail_label
+
+
+def _has_related(obj, relation_name):
+    if obj is None:
+        return False
+    try:
+        return getattr(obj, relation_name) is not None
+    except Exception:
+        return False
+
+
+def vertical_for(activity):
+    if _has_related(activity, "transport_service"):
+        return "transport"
+    if _has_related(activity, "event_vertical"):
+        return "event"
+    if _has_related(activity, "service_details"):
+        return "service"
+    if _has_related(activity, "funding_details"):
+        return "funding"
+    if _has_related(activity, "obtention_details"):
+        return "obtention"
+    return "generic"
+
+
+def _generic_vocabulary(workflow):
+    journey = {
+        WorkflowKind.PURCHASE: ("Achat", "Voir mon achat", "Voir le détail"),
+        WorkflowKind.ORDER_APPROVAL: ("Demande", "Voir ma demande", "Voir ma demande"),
+        WorkflowKind.RESERVATION: ("Réservation", "Voir ma réservation", "Réserver"),
+        WorkflowKind.REGISTRATION: ("Inscription", "Voir mon inscription", "S’inscrire"),
+        WorkflowKind.INVITATION: ("Invitation", "Voir mon invitation", "Accepter l’invitation"),
+    }.get(workflow, ("Démarche", "Voir ma démarche", "Voir le détail"))
+    access = {
+        WorkflowKind.REGISTRATION: ("Confirmation", "Voir ma confirmation"),
+        WorkflowKind.INVITATION: ("Invitation", "Voir mon invitation"),
+        WorkflowKind.RESERVATION: ("Réservation", "Voir ma réservation"),
+    }.get(workflow, ("Accès", "Voir mon accès"))
+    return ProductVocabulary(
+        vertical="generic",
+        activity_noun="Activité",
+        occurrence_noun="Date",
+        journey_noun=journey[0],
+        journey_detail_label=journey[1],
+        request_noun="Demande",
+        offer_noun="Tarif",
+        access_noun=access[0],
+        access_detail_label=access[1],
+        participant_noun="Participant",
+        operator_label="Proposé par",
+        primary_action=journey[2],
+    )
+
+
+def _event_vocabulary(workflow):
+    if workflow == WorkflowKind.INVITATION:
+        journey = ("Invitation", "Voir mon invitation", "Accepter l’invitation")
+        access = ("Invitation", "Voir mon invitation")
+    elif workflow == WorkflowKind.REGISTRATION:
+        journey = ("Inscription", "Voir mon inscription", "S’inscrire")
+        access = ("Confirmation", "Voir ma confirmation")
+    elif workflow == WorkflowKind.RESERVATION:
+        journey = ("Réservation", "Voir ma réservation", "Réserver")
+        access = ("Billet", "Voir mon billet")
+    elif workflow == WorkflowKind.PURCHASE:
+        journey = ("Achat de billet", "Voir mon achat", "Acheter le billet")
+        access = ("Billet", "Voir mon billet")
+    elif workflow == WorkflowKind.ORDER_APPROVAL:
+        journey = ("Demande d’inscription", "Voir ma demande", "Voir ma demande")
+        access = ("Billet", "Voir mon billet")
+    else:
+        journey = ("Démarche", "Voir ma démarche", "Voir l’événement")
+        access = ("Billet", "Voir mon billet")
+    return ProductVocabulary(
+        vertical="event",
+        activity_noun="Événement",
+        occurrence_noun="Date",
+        journey_noun=journey[0],
+        journey_detail_label=journey[1],
+        request_noun="Demande d’inscription",
+        offer_noun="Type de billet",
+        access_noun=access[0],
+        access_detail_label=access[1],
+        participant_noun="Participant",
+        operator_label="Organisé par",
+        primary_action=journey[2],
+    )
+
+
+def _transport_vocabulary(workflow):
+    if workflow == WorkflowKind.PURCHASE:
+        journey = ("Achat de billet", "Voir mon voyage", "Acheter le billet")
+    else:
+        journey = ("Réservation", "Voir ma réservation", "Réserver")
+    return ProductVocabulary(
+        vertical="transport",
+        activity_noun="Trajet",
+        occurrence_noun="Départ",
+        journey_noun=journey[0],
+        journey_detail_label=journey[1],
+        request_noun="Demande",
+        offer_noun="Tarif",
+        access_noun="Billet",
+        access_detail_label="Voir mon billet",
+        participant_noun="Voyageur",
+        operator_label="Opéré par",
+        primary_action=journey[2],
+    )
+
+
+def _service_vocabulary(workflow):
+    if workflow == WorkflowKind.ORDER_APPROVAL:
+        journey = ("Demande", "Voir ma demande", "Demander")
+    elif workflow == WorkflowKind.REGISTRATION:
+        journey = ("Inscription", "Voir mon inscription", "S’inscrire")
+    else:
+        journey = ("Accompagnement", "Voir mon accompagnement", "Commencer")
+    return ProductVocabulary(
+        vertical="service",
+        activity_noun="Accompagnement",
+        occurrence_noun="Créneau",
+        journey_noun=journey[0],
+        journey_detail_label=journey[1],
+        request_noun="Demande",
+        offer_noun="Tarif",
+        access_noun="Confirmation",
+        access_detail_label="Voir ma confirmation",
+        participant_noun="Participant",
+        operator_label="Proposé par",
+        primary_action=journey[2],
+    )
+
+
+
+def _obtention_mode_code(activity, mode):
+    if mode is not None:
+        return getattr(mode, "code", mode)
+    if activity is None:
+        return None
+    try:
+        configuration = (
+            activity.obtention_details.configurations
+            .filter(status="published")
+            .prefetch_related("modes")
+            .first()
+        )
+    except Exception:
+        return None
+    if configuration is None:
+        return None
+    modes = list(configuration.modes.all())
+    return modes[0].code if len(modes) == 1 else None
+
+
+def _obtention_vocabulary(activity, workflow, *, mode=None, perspective="beneficiary"):
+    code = _obtention_mode_code(activity, mode)
+    beneficiary = {
+        "buy": ("Achat", "Voir mon achat", "Acheter", "Acheteur"),
+        "rent": ("Location", "Voir ma location", "Louer", "Locataire"),
+        "borrow": ("Emprunt", "Voir mon emprunt", "Emprunter", "Emprunteur"),
+        "receive": ("Obtention", "Voir mon obtention", "Recevoir", "Bénéficiaire"),
+        "exchange": ("Échange", "Voir mon échange", "Échanger", "Bénéficiaire"),
+        "other": ("Obtention", "Voir mon obtention", "Obtenir", "Bénéficiaire"),
+    }
+    operator = {
+        "buy": ("Vente", "Voir la vente", "Mettre en vente", "Acheteur"),
+        "rent": ("Mise en location", "Voir la location", "Mettre en location", "Locataire"),
+        "borrow": ("Prêt", "Voir le prêt", "Prêter", "Emprunteur"),
+        "receive": ("Distribution", "Voir la distribution", "Distribuer", "Bénéficiaire"),
+        "exchange": ("Échange", "Voir l'échange", "Proposer un échange", "Bénéficiaire"),
+        "other": ("Obtention", "Voir l'obtention", "Proposer", "Bénéficiaire"),
+    }
+    table = operator if perspective == "operator" else beneficiary
+    journey = table.get(
+        code,
+        ("Obtention", "Voir ma démarche", "Obtenir", "Bénéficiaire"),
+    )
+    return ProductVocabulary(
+        vertical="obtention",
+        activity_noun="Obtention",
+        occurrence_noun="Disponibilité",
+        journey_noun=journey[0],
+        journey_detail_label=journey[1],
+        request_noun="Demande",
+        offer_noun="Offre",
+        access_noun="Droit d'usage" if code in {"rent", "borrow"} else "Accès",
+        access_detail_label="Voir le droit",
+        participant_noun=journey[3],
+        operator_label="Proposé par",
+        primary_action=journey[2],
+    )
+
+
+def _funding_vocabulary(workflow):
+    return ProductVocabulary(
+        vertical="funding",
+        activity_noun="Financement",
+        occurrence_noun="Période",
+        journey_noun="Contribution",
+        journey_detail_label="Voir ma contribution",
+        request_noun="Contribution",
+        offer_noun="Montant",
+        access_noun="Confirmation",
+        access_detail_label="Voir ma contribution",
+        participant_noun="Contributeur",
+        operator_label="Porté par",
+        primary_action="Contribuer",
+    )
+
+
+def vocabulary_for(*, activity=None, workflow=None, mode=None, perspective="beneficiary"):
+    vertical = vertical_for(activity)
+    if vertical == "transport":
+        return _transport_vocabulary(workflow)
+    if vertical == "event":
+        return _event_vocabulary(workflow)
+    if vertical == "service":
+        return _service_vocabulary(workflow)
+    if vertical == "funding":
+        return _funding_vocabulary(workflow)
+    if vertical == "obtention":
+        return _obtention_vocabulary(activity, workflow, mode=mode, perspective=perspective)
+    return _generic_vocabulary(workflow)
+
+
+def access_status_label(status):
+    return ACCESS_STATUS_LABELS.get(status, status)
+
+
+def participant_state_copy(*, activity, state, workflow=None):
+    """Return user-facing participant-state copy without deciding domain truth."""
+
+    vocabulary = vocabulary_for(activity=activity, workflow=workflow)
+    if state == "access_valid":
+        if vocabulary.vertical == "transport":
+            return "Votre billet est prêt", vocabulary.access_detail_label
+        if vocabulary.vertical == "service":
+            return "Tout est prêt", vocabulary.access_detail_label
+        return "Vous avez accès", vocabulary.access_detail_label
+    if state == "access_used":
+        return ("Billet utilisé" if vocabulary.vertical == "transport" else "Accès utilisé"), vocabulary.access_detail_label
+    if state == "access_revoked":
+        return "Accès révoqué", vocabulary.access_detail_label
+    if state == "access_cancelled":
+        return "Accès annulé", vocabulary.access_detail_label
+    if state == "access_expired":
+        return "Accès expiré", vocabulary.access_detail_label
+    if state == "access_pending":
+        return "Accès en préparation", vocabulary.access_detail_label
+    if state == "request_pending":
+        return "Demande envoyée", vocabulary.journey_detail_label
+    if state == "capacity_held":
+        return "Place retenue temporairement", vocabulary.journey_detail_label
+    if state == "payment_pending":
+        return "Paiement en attente", "Reprendre le paiement"
+    if state == "order_pending":
+        return "Commande en cours", vocabulary.journey_detail_label
+    if state == "order_confirmed":
+        return "Commande confirmée", vocabulary.journey_detail_label
+    if state == "order_cancelled":
+        return "Commande annulée", vocabulary.journey_detail_label
+    if state == "order_expired":
+        return "Commande expirée", vocabulary.journey_detail_label
+    if state == "journey_pending":
+        return "Démarche en cours", vocabulary.journey_detail_label
+    return "", ""
+
+
+def activity_state_label(*, activity, state):
+    vocabulary = vocabulary_for(activity=activity)
+    if state == "cancelled":
+        return "Départ annulé" if vocabulary.vertical == "transport" else (
+            "Événement annulé" if vocabulary.vertical == "event" else "Activité annulée"
+        )
+    if state == "completed":
+        return "Départ terminé" if vocabulary.vertical == "transport" else (
+            "Événement terminé" if vocabulary.vertical == "event" else "Activité terminée"
+        )
+    if state == "sold_out":
+        return "Complet"
+    if state == "closed":
+        return "Indisponible"
+    return "Disponible"
+
+
+def payment_mode_label(mode):
+    return {
+        PaymentMode.NONE: "",
+        PaymentMode.UPFRONT: "Paiement en ligne requis",
+        PaymentMode.AFTER_APPROVAL: "Paiement requis après validation",
+        PaymentMode.ON_SITE: "À payer sur place",
+        PaymentMode.LATER: "Paiement ultérieur",
+    }.get(mode, mode)
+
+
+def occurrence_change_copy(*, activity, cancelled=False):
+    vocabulary = vocabulary_for(activity=activity)
+    if cancelled:
+        if vocabulary.vertical == "transport":
+            return "Départ annulé", "Votre départ a été annulé."
+        if vocabulary.vertical == "event":
+            return "Événement annulé", "L’événement a été annulé."
+        return "Activité annulée", "Cette activité a été annulée."
+    if vocabulary.vertical == "transport":
+        return "Horaire du départ modifié", "L’horaire de votre départ a changé."
+    if vocabulary.vertical == "event":
+        return "Horaire de l’événement modifié", "L’horaire de l’événement a changé."
+    return "Horaire modifié", "L’horaire de cette activité a changé."

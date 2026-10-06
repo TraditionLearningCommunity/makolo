@@ -260,7 +260,7 @@ DJANGO_DB_PATH=/home/makolo/makolo/db.sqlite3
 DJANGO_SQLITE_TIMEOUT_SECONDS=20
 ```
 
-Futur PostgreSQL : `DJANGO_DATABASE_ENGINE=postgresql` et variables `DJANGO_DATABASE_NAME`, `USER`, `PASSWORD`, `HOST`, `PORT`. Le passage à PostgreSQL n'est **pas** une étape du déploiement PythonAnywhere actuel.
+Futur PostgreSQL : `DJANGO_DATABASE_ENGINE=postgresql` et variables `DJANGO_DATABASE_NAME`, `USER`, `PASSWORD`, `HOST`, `PORT`. Le runtime accepte aussi `DJANGO_DATABASE_CONN_MAX_AGE`, `DJANGO_DATABASE_CONN_HEALTH_CHECKS`, `DJANGO_DATABASE_CONNECT_TIMEOUT_SECONDS`, `DJANGO_DATABASE_SSLMODE` et `DJANGO_DATABASE_SSLROOTCERT` afin de porter une politique TLS/provider explicite sans la coder en dur. Le passage à PostgreSQL n'est **pas** une étape du déploiement PythonAnywhere actuel.
 
 ### E-mail
 
@@ -772,6 +772,49 @@ Cette passe ne met pas en place :
 - acquisition Browser authentifiée/privée, login externe et escalade automatique HTTP → Browser ; le Lot 4 reste Browser public et explicitement activé.
 
 Risques restant volontairement ouverts : plafond de concurrence SQLite, rate limiting web local-cache non distribué, médias sur filesystem local, dépendance à l'offre PythonAnywhere pour Always-on/scheduling, backend e-mail réel à choisir, sauvegarde off-host à opérer, migration PostgreSQL future à planifier.
+
+### 24.1 Runtime Python canonique
+
+Le développement et la CI du dépôt ciblent désormais **Python 3.13** via `.python-version` et les workflows GitHub. Django reste sur la branche 5.2 LTS.
+
+Ce changement ne modifie pas automatiquement l'interpréteur du déploiement bêta PythonAnywhere : avant de changer le virtualenv live, vérifier explicitement la version Python réellement disponible, recréer le virtualenv si nécessaire, installer `requirements.txt`, puis exécuter les checks et smoke tests normaux.
+
+### 24.2 Rotation de `SECRET_KEY`
+
+Makolo supporte `DJANGO_SECRET_KEY_FALLBACKS` pour une rotation sans invalider immédiatement les signatures encore valides.
+
+Procédure :
+
+1. générer une nouvelle clé hors dépôt ;
+2. définir la nouvelle valeur dans `DJANGO_SECRET_KEY` ;
+3. placer l'ancienne clé dans `DJANGO_SECRET_KEY_FALLBACKS` ;
+4. redéployer et vérifier login, sessions, reset et health/readiness ;
+5. retirer l'ancienne clé après la fenêtre de compatibilité décidée par l'opérateur.
+
+Ne jamais versionner une clé réelle ni conserver indéfiniment des fallbacks obsolètes.
+
+### 24.3 Stockage et future production
+
+Le stockage Django par défaut est désormais sélectionnable via `DJANGO_DEFAULT_STORAGE_BACKEND`. La bêta garde explicitement `django.core.files.storage.FileSystemStorage`.
+
+Ce switch prépare un futur backend durable sans imposer de provider aujourd'hui. Il ne prétend pas avoir migré les storages privés propriétaires (Journey artifacts, Preparation resources, Observer artifacts) : ceux-ci gardent leurs frontières privées actuelles et devront recevoir un adaptateur durable explicite avant une production distribuée.
+
+Une future production ne doit être déclarée prête que lorsque DB **et** fichiers privés possèdent une sauvegarde/restore réellement testés hors machine applicative.
+
+### 24.4 Logs, workers, rollback et incident
+
+Le handler console Django reste actif : un futur hébergeur peut donc collecter stdout/stderr centralement sans faire des fichiers locaux la source unique de diagnostic. Les fichiers tournants restent utiles pour la bêta actuelle.
+
+Avant vraie production, exiger en plus :
+
+- supervision du process Web et de chaque worker activé ;
+- alerte sur readiness, crashes récurrents et backlog owner-specific ;
+- politique de rétention des logs sans PII inutile ;
+- backup off-host et exercice de restore daté ;
+- procédure de rollback code + décision explicite pour les migrations/données ;
+- journal d'incident contenant au minimum SHA, fenêtre, symptômes, mitigation et résultat de récupération.
+
+Ne pas ajouter Redis, Celery, Kubernetes ou un SaaS d'observabilité uniquement pour cocher cette liste : le provider final doit être choisi selon l'environnement réel.
 
 ## 25. Reseed bêta canonique exceptionnel
 

@@ -7,13 +7,19 @@ import 'runtime_service_status.dart';
 typedef SentryInitializer = Future<void> Function(
   String dsn,
   String environment,
+  String? release,
 );
 
-Future<void> _initializeSentry(String dsn, String environment) {
+Future<void> _initializeSentry(
+  String dsn,
+  String environment,
+  String? release,
+) {
   return SentryFlutter.init((options) {
     options
       ..dsn = dsn
       ..environment = environment
+      ..release = release
       ..sendDefaultPii = false;
   });
 }
@@ -36,7 +42,11 @@ class ObservabilityRuntime {
     if (_status.isReady) return _status;
     _status = const RuntimeServiceStatus(RuntimeServiceState.initializing);
     try {
-      await _initializer(config.sentry.dsn!, config.environment.name);
+      await _initializer(
+        config.sentry.dsn!,
+        config.environment.name,
+        config.sentry.release,
+      );
       _reporter = const SentryCrashReporter();
       return _status = const RuntimeServiceStatus.ready();
     } catch (error) {

@@ -97,6 +97,84 @@ class OperationalSettingsTests(SimpleTestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("HTTPS", result.stderr)
 
+    def test_secret_key_fallbacks_support_rotation(self):
+        env = self._production_env()
+        env["DJANGO_SECRET_KEY_FALLBACKS"] = "previous-key,newer-previous-key"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import config.settings as s; "
+                    "assert s.SECRET_KEY_FALLBACKS == "
+                    "['previous-key', 'newer-previous-key']"
+                ),
+            ],
+            cwd=settings.BASE_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+
+    def test_default_storage_backend_is_environment_configurable(self):
+        env = self._production_env()
+        env["DJANGO_DEFAULT_STORAGE_BACKEND"] = (
+            "django.core.files.storage.InMemoryStorage"
+        )
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import config.settings as s; "
+                    "assert s.STORAGES['default']['BACKEND'] == "
+                    "'django.core.files.storage.InMemoryStorage'"
+                ),
+            ],
+            cwd=settings.BASE_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+
+    def test_postgresql_tls_and_health_settings_are_environment_configurable(self):
+        env = self._production_env()
+        env.update(
+            {
+                "DJANGO_DATABASE_ENGINE": "postgresql",
+                "DJANGO_DATABASE_NAME": "makolo",
+                "DJANGO_DATABASE_USER": "makolo",
+                "DJANGO_DATABASE_PASSWORD": "test-only-password",
+                "DJANGO_DATABASE_HOST": "db.example.internal",
+                "DJANGO_DATABASE_SSLMODE": "verify-full",
+                "DJANGO_DATABASE_SSLROOTCERT": "/tmp/provider-ca.pem",
+                "DJANGO_DATABASE_CONN_HEALTH_CHECKS": "True",
+            }
+        )
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import config.settings as s; "
+                    "db=s.DATABASES['default']; "
+                    "assert db['CONN_HEALTH_CHECKS'] is True; "
+                    "assert db['OPTIONS']['sslmode'] == 'verify-full'; "
+                    "assert db['OPTIONS']['sslrootcert'] == '/tmp/provider-ca.pem'"
+                ),
+            ],
+            cwd=settings.BASE_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+
     def test_static_and_media_roots_are_separate(self):
         self.assertNotEqual(Path(settings.STATIC_ROOT).resolve(), Path(settings.MEDIA_ROOT).resolve())
 

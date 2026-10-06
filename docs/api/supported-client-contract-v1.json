@@ -1,0 +1,54 @@
+{
+  "contract": "makolo-client-v1",
+  "version": 1,
+  "required_operations": [
+    {
+      "method": "GET",
+      "path": "/api/v1/health/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/readiness/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/now/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/ongoing/"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/me/mark/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/discovery/items/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/organizations/workspaces/{slug}/now/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/organizations/workspaces/{slug}/discover/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/organizations/workspaces/{slug}/work/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/organizations/workspaces/{slug}/us/"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/organizations/workspaces/{slug}/mark/"
+    }
+  ]
+}

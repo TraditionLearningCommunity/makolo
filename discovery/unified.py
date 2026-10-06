@@ -7,8 +7,8 @@ from django.urls import reverse
 
 from activities.models import ActivityStatus, ActivityVisibility
 from core.participant_activity_context import participant_state_context_for_activities
-from core.participant_presentation import resolve_participant_activity_state
-from core.product_language import vocabulary_for
+from presentations.participant_state import resolve_participant_activity_state
+from presentations.product_language import vocabulary_for
 from groups.selectors import (
     eligible_activity_ids_for_profile,
     filter_queryset_by_activity_group_eligibility,
