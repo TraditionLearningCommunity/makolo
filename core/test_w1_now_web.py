@@ -46,8 +46,12 @@ class NowWebPresentationTests(SimpleTestCase):
                         "id": "now:first",
                         "key": "legacy-first",
                         "human_context": "Visa Canada",
-                        "state": "Le certificat doit être transmis.",
-                        "why_now": {"reason": "La fenêtre ferme aujourd’hui."},
+                        "state": "journey.step.required",
+                        "state_meaning": "Le certificat doit être transmis.",
+                        "why_now": {
+                            "reason": "deadline.due_today",
+                            "meaning": "La fenêtre ferme aujourd’hui.",
+                        },
                         "consequence": {"effect": "La demande peut rester bloquée."},
                         "turn": {"type": "profile"},
                         "response": {"type": "act", "label": "Vérifier et envoyer"},
@@ -75,6 +79,37 @@ class NowWebPresentationTests(SimpleTestCase):
         self.assertEqual(home.primary_attention.url, "/journeys/visa/")
         self.assertEqual([item.identity for item in home.action_items], ["now:second"])
         self.assertIsNone(home.primary_action)
+
+    def test_machine_codes_and_unknown_consequence_are_not_presented_as_copy(self):
+        home = _now_web_context(
+            _response(
+                items=[
+                    {
+                        "id": "now:unknown-consequence",
+                        "key": "legacy-unknown-consequence",
+                        "title": "Préparation",
+                        "state": "requirement.pending",
+                        "state_meaning": "Une préparation reste nécessaire.",
+                        "why_now": {
+                            "reason": "requirement.current",
+                            "meaning": "Cette préparation est requise maintenant.",
+                        },
+                        "consequence": {
+                            "state": "unknown",
+                            "effect": "Ce texte ne doit pas être présenté.",
+                        },
+                        "response": {"type": "understand", "label": "Comprendre"},
+                    }
+                ]
+            )
+        )
+
+        self.assertEqual(home.primary_attention.state, "Une préparation reste nécessaire.")
+        self.assertEqual(
+            home.primary_attention.why_now,
+            "Cette préparation est requise maintenant.",
+        )
+        self.assertEqual(home.primary_attention.consequence, "")
 
     def test_missing_selection_is_unavailable_instead_of_calm(self):
         home = _now_web_context({"items": []})
