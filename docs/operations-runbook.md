@@ -260,7 +260,7 @@ DJANGO_DB_PATH=/home/makolo/makolo/db.sqlite3
 DJANGO_SQLITE_TIMEOUT_SECONDS=20
 ```
 
-Futur PostgreSQL : `DJANGO_DATABASE_ENGINE=postgresql` et variables `DJANGO_DATABASE_NAME`, `USER`, `PASSWORD`, `HOST`, `PORT`. Le passage à PostgreSQL n'est **pas** une étape du déploiement PythonAnywhere actuel.
+Futur PostgreSQL : `DJANGO_DATABASE_ENGINE=postgresql` et variables `DJANGO_DATABASE_NAME`, `USER`, `PASSWORD`, `HOST`, `PORT`. Le runtime accepte aussi `DJANGO_DATABASE_CONN_MAX_AGE`, `DJANGO_DATABASE_CONN_HEALTH_CHECKS`, `DJANGO_DATABASE_CONNECT_TIMEOUT_SECONDS`, `DJANGO_DATABASE_SSLMODE` et `DJANGO_DATABASE_SSLROOTCERT` afin de porter une politique TLS/provider explicite sans la coder en dur. Le passage à PostgreSQL n'est **pas** une étape du déploiement PythonAnywhere actuel.
 
 ### E-mail
 
