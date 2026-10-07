@@ -3,9 +3,9 @@ from __future__ import annotations
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import OuterRef, Prefetch, Subquery
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import UserProfile
-from accounts.profile_activation import build_profile_activation_summary
 from discovery.models import ActivityBookmark, DiscoveryWatch
 from groups.selectors import groups_for_profile
 from loyalty.selectors import get_accounts_visible_to, get_subscriptions_visible_to
@@ -67,26 +67,6 @@ def _display_name(profile):
     return _clean_text(profile.full_name) or _clean_text(profile.username) or str(profile.pk)
 
 
-def _activation_payload(profile, profile_extension):
-    summary = build_profile_activation_summary(profile, profile=profile_extension)
-    next_step = summary.next_step
-    return {
-        "percentage": summary.percentage,
-        "completed_steps": summary.completed_steps,
-        "available_steps": summary.available_steps,
-        "is_complete": summary.is_complete,
-        "next_step": (
-            {
-                "key": next_step.key,
-                "label": next_step.label,
-                "summary": next_step.next_copy or None,
-            }
-            if next_step is not None
-            else None
-        ),
-    }
-
-
 def _bounded(queryset, serializer, *, limit):
     rows = list(queryset[: limit + 1])
     has_more = len(rows) > limit
@@ -99,6 +79,19 @@ def _bounded(queryset, serializer, *, limit):
         "count": total,
         "items": [serializer(row) for row in rows],
         "has_more": has_more,
+    }
+
+
+def _section_state(section):
+    return {
+        "state": (
+            "partial"
+            if any(
+                isinstance(value, dict) and value.get("has_more")
+                for value in section.values()
+            )
+            else "known"
+        )
     }
 
 
@@ -119,7 +112,6 @@ def _identity_payload(profile, request=None):
             "public_profile": bool(profile_extension.public_profile),
             "searchable": bool(profile_extension.searchable),
         },
-        "activation": _activation_payload(profile, profile_extension),
         "capabilities": ["edit_identity"],
     }
 
@@ -595,27 +587,56 @@ def _support_summary(profile):
     }
 
 
-def build_personal_me_data(*, profile, request=None):
+def build_personal_me_data(*, profile, request=None, observed_at=None):
     """Compose the Mature personal Moi surface from owner-domain read models."""
+    observed_at = observed_at or timezone.now()
+    profile_id = str(profile.pk)
+    identity = _identity_payload(profile, request)
+    passport = {
+        "available": True,
+        "links": {"api": reverse("personal-projections:passport")},
+    }
+    considerations = build_personal_considerations_data(
+        profile,
+        limit=ME_PREVIEW_LIMIT,
+    )
+    collectives = build_personal_collectives_data(
+        profile,
+        limit=ME_PREVIEW_LIMIT,
+    )
+    resources = build_personal_resources_data(
+        profile,
+        limit=ME_PREVIEW_LIMIT,
+    )
+    support = _support_summary(profile)
     return {
-        "identity": _identity_payload(profile, request),
-        "passport": {
-            "available": True,
-            "links": {"api": reverse("personal-projections:passport")},
+        "surface": "me",
+        "actor": {"type": "profile", "id": profile_id},
+        "viewer": {"type": "profile", "id": profile_id},
+        "freshness": {
+            "state": "fresh",
+            "observed_at": observed_at.isoformat(),
         },
-        "considerations": build_personal_considerations_data(
-            profile,
-            limit=ME_PREVIEW_LIMIT,
-        ),
-        "collectives": build_personal_collectives_data(
-            profile,
-            limit=ME_PREVIEW_LIMIT,
-        ),
-        "resources": build_personal_resources_data(
-            profile,
-            limit=ME_PREVIEW_LIMIT,
-        ),
-        "support": _support_summary(profile),
+        "selection": {"state": "ready", "reason": None},
+        "identity": identity,
+        "passport": passport,
+        "considerations": considerations,
+        "collectives": collectives,
+        "resources": resources,
+        "support": support,
+        "sections": {
+            "identity": {"state": "known"},
+            "passport": {"state": "available"},
+            "considerations": _section_state(considerations),
+            "collectives": _section_state(collectives),
+            "resources": _section_state(resources),
+            "support": {"state": "known"},
+        },
+        "items": [],
+        "capabilities": [],
+        "handoffs": [],
+        "continuation": None,
+        "terminal": {"state": "ok", "message": None},
         "links": {
             "self": reverse("personal-projections:me"),
             "identity_update": reverse("profile-update"),

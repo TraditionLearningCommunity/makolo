@@ -72,6 +72,10 @@ def build_personal_ongoing_read_model(
     if not budget.full:
         accesses = list(
             participant_active_accesses(profile, at=observed_at)
+            # A durable right is personal capital, not a pursuit by itself.
+            # An occurrence is the owner-backed continuation that admits it
+            # into En cours.
+            .filter(occurrence__isnull=False)
             .select_related(None)
             .prefetch_related(None)
             .select_related("activity", "occurrence")
@@ -88,7 +92,7 @@ def build_personal_ongoing_read_model(
     if not budget.full:
         dossiers = list(
             owned_dossiers_for_profile(profile)
-            .filter(lifecycle__in={DossierLifecycle.DRAFT, DossierLifecycle.ACTIVE})
+            .filter(lifecycle=DossierLifecycle.ACTIVE)
             .order_by("-updated_at", "id")[: budget.remaining]
         )
         dossier_readiness = (
@@ -108,7 +112,7 @@ def build_personal_ongoing_read_model(
     if not budget.full:
         projects = list(
             owned_projects_for_profile(profile)
-            .filter(lifecycle__in={ProjectLifecycle.DRAFT, ProjectLifecycle.ACTIVE})
+            .filter(lifecycle=ProjectLifecycle.ACTIVE)
             .order_by("-updated_at", "id")[: budget.remaining]
         )
         entries.extend(
@@ -167,7 +171,7 @@ def build_personal_ongoing_read_model(
             .filter(
                 activity__owner_profile=profile,
                 activity__space__isnull=True,
-                activity__status__in={ActivityStatus.DRAFT, ActivityStatus.PUBLISHED},
+                activity__status=ActivityStatus.PUBLISHED,
             )
             .order_by("-activity__updated_at", "-id")[: budget.remaining]
             if can_manage_funding(profile, funding)

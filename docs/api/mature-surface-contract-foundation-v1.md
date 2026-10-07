@@ -145,6 +145,11 @@ Response contract:
 
 - root surface: `discover_me`;
 - collection: possibility projections;
+- authenticated responses expose the common actor/viewer, freshness, selection
+  and terminal states; the public compatibility scope stays explicitly
+  `discover_public` and never pretends to be a Profile actor;
+- continuation is `more|end` with an opaque token when another slice exists;
+  page numbers remain an implementation detail, not the primary UX contract;
 - each item must be traceable to a minimal canonical basis or existing owner identity;
 - include known/favorable/limiting/unknown state only when owner-provided or safely derived upstream;
 - empty, partial and unavailable are first-class states.
@@ -179,6 +184,13 @@ Response contract:
 
 - root surface: `ongoing_me`;
 - collection: continuity projections;
+- each item carries an opaque stable `continuity_identity`, its owner-backed
+  `continuity_basis`, human context and synthesis;
+- settled, Profile-side, elsewhere, Makolo, system/time, next and blocker
+  dimensions remain distinct; absent owner facts serialize as empty dimensions
+  rather than inferred activity;
+- blockers identify the source and blocked transition; waiting remains a
+  continuation and never becomes a blocker by presentation;
 - each continuity must satisfy personal relation, effective pursuit, continuation, remaining relevance and legitimate visibility;
 - include what is settled, what remains on the Profile side, what continues elsewhere, what Makolo prepares/watches and next handoff when available.
 
@@ -211,6 +223,7 @@ Response contract:
 
 - root surface: `me`;
 - sections may include identity, passport, considerations, collectives, resources, support and links when supported;
+- no universal activation/completeness percentage is exposed;
 - every section must distinguish known, missing, private, unavailable and unsupported states.
 
 Server responsibilities:

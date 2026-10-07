@@ -201,6 +201,41 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertEqual(payload["data"]["count"], 0)
         self.assertEqual(payload["data"]["page_size"], 50)
         self.assertFalse(payload["data"]["has_next"])
+        self.assertEqual(payload["data"]["selection"]["state"], "empty")
+        self.assertEqual(payload["data"]["selection"]["reason"], "no_match")
+        self.assertEqual(payload["data"]["continuation"]["state"], "end")
+        self.assertIsNone(payload["data"]["continuation"]["token"])
+        self.assertEqual(
+            payload["data"]["terminal"],
+            {"state": "empty", "message": None},
+        )
+
+    def test_authenticated_collection_exposes_discover_me_contract_and_cursor(self):
+        self.client.force_login(self.participant)
+
+        first = self._items(q="Z3", page_size=1)["data"]
+
+        self.assertEqual(first["surface"], "discover_me")
+        self.assertEqual(
+            first["actor"],
+            {"type": "profile", "id": str(self.participant.pk)},
+        )
+        self.assertEqual(first["viewer"], first["actor"])
+        self.assertEqual(first["selection"], {"state": "ready", "reason": None})
+        self.assertEqual(first["items"], first["results"])
+        self.assertEqual(first["continuation"]["state"], "more")
+        token = first["continuation"]["token"]
+        self.assertTrue(token)
+
+        second = self._items(
+            q="Z3",
+            page_size=1,
+            continuation=token,
+        )["data"]
+        self.assertNotEqual(
+            first["results"][0]["identity"]["candidate_key"],
+            second["results"][0]["identity"]["candidate_key"],
+        )
 
     def test_private_unlisted_cancelled_and_ended_do_not_enter_collection_or_detail(self):
         private = self._activity(

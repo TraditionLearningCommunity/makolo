@@ -1,6 +1,6 @@
 {
   "version": "mature-surface-contract-foundation-v1",
-  "base_checked": "main@609003082219f86000f04d0b7761e53d60077aa8",
+  "base_checked": "main@347d175fd613d3025710ccb1ace1cd6f737dc086",
   "reconcile_with": "Reuses the Makolo API v1 OpenAPI/schema/gate infrastructure; fixtures are contract examples, not a second schema system.",
   "common_response_contract": {
     "surface": "string",
@@ -214,7 +214,10 @@
         ],
         "capabilities": [],
         "handoffs": [],
-        "continuation": null,
+        "continuation": {
+          "state": "end",
+          "token": null
+        },
         "terminal": {
           "state": "ok",
           "message": null
@@ -247,17 +250,48 @@
         "items": [
           {
             "id": "continuity:kolwezi-ticket",
+            "continuity_identity": "continuity:kolwezi-ticket",
+            "continuity_basis": [
+              {
+                "kind": "access",
+                "id": "access:lub-kol-1400"
+              }
+            ],
             "human_context": "Départ Lubumbashi → Kolwezi",
+            "synthesis": "Billet confirmé, départ à venir.",
             "where_i_am": "Billet confirmé, départ à venir.",
             "settled": [
               "paiement confirmé",
               "accès émis"
             ],
+            "my_side": [],
+            "elsewhere": [
+              "opérateur prépare le départ"
+            ],
+            "makolo": [
+              "Makolo surveille les changements d'horaire connus."
+            ],
+            "system_or_time": [],
+            "next_items": [],
+            "blockers": [],
             "profile_side_remaining": [],
             "continues_elsewhere": [
               "opérateur prépare le départ"
             ],
             "makolo_preparation": "Makolo surveille les changements d'horaire connus.",
+            "knowledge_context": {
+              "provenance": [
+                {
+                  "kind": "access",
+                  "id": "access:lub-kol-1400"
+                }
+              ],
+              "freshness": {
+                "state": "fresh",
+                "observed_at": "2026-10-06T11:30:00Z"
+              },
+              "knowledge_state": "known"
+            },
             "handoffs": [
               {
                 "type": "day_of_action",
@@ -269,7 +303,11 @@
         ],
         "capabilities": [],
         "handoffs": [],
-        "continuation": null,
+        "coverage_state": "complete",
+        "continuation": {
+          "state": "end",
+          "token": null
+        },
         "terminal": {
           "state": "ok",
           "message": null

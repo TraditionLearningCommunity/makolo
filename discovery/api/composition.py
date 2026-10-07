@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from types import SimpleNamespace
 
+from django.core import signing
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from django.utils import timezone
 
 from core.participant_selectors import participant_state_context
 from core.personal_surface_orchestration import pass_discovery_candidates_through_molongo
@@ -47,6 +49,7 @@ from .projections import (
 DISCOVERY_API_PAGE_SIZE = 20
 DISCOVERY_API_MAX_PAGE_SIZE = 50
 DISCOVERY_RESOURCE_PREVIEW_LIMIT = 6
+DISCOVERY_CONTINUATION_SALT = "makolo.discovery.items.v1"
 
 
 @dataclass(frozen=True)
@@ -64,12 +67,21 @@ def _authenticated(profile) -> bool:
 
 def parse_page_params(params) -> tuple[int, int]:
     try:
-        page = max(int(params.get("page") or 1), 1)
+        continuation = params.get("continuation")
+        if continuation:
+            cursor = signing.loads(
+                continuation,
+                salt=DISCOVERY_CONTINUATION_SALT,
+                max_age=60 * 60 * 24,
+            )
+            page = max(int(cursor["page"]), 1)
+        else:
+            page = max(int(params.get("page") or 1), 1)
         page_size = min(
             max(int(params.get("page_size") or DISCOVERY_API_PAGE_SIZE), 1),
             DISCOVERY_API_MAX_PAGE_SIZE,
         )
-    except (TypeError, ValueError) as exc:
+    except (signing.BadSignature, KeyError, TypeError, ValueError) as exc:
         raise ValidationError("Pagination invalide.") from exc
     return page, page_size
 
@@ -629,7 +641,39 @@ def paginated_projection(
     page_rows = composition.rows[start:end]
     results = project_rows(page_rows, profile=profile)
     count = len(composition.rows)
+    has_next = end < count
+    authenticated = _authenticated(profile)
+    profile_id = str(profile.pk) if authenticated else None
+    observed_at = timezone.now()
+    has_exploration = bool(
+        composition.intent.raw_text or composition.intent.constraints
+    )
+    is_empty = not results
+    selection_reason = None
+    if is_empty:
+        selection_reason = "no_match" if has_exploration else "no_current_proposal"
     payload = {
+        "surface": "discover_me" if authenticated else "discover_public",
+        "actor": (
+            {"type": "profile", "id": profile_id}
+            if authenticated
+            else None
+        ),
+        "viewer": (
+            {"type": "profile", "id": profile_id}
+            if authenticated
+            else None
+        ),
+        "freshness": {
+            "state": "fresh",
+            "observed_at": observed_at.isoformat(),
+        },
+        "selection": {
+            "state": "empty" if is_empty else "ready",
+            "reason": selection_reason,
+        },
+        "capabilities": [],
+        "handoffs": [],
         "count": count,
         "page": page,
         "page_size": page_size,
@@ -646,12 +690,25 @@ def paginated_projection(
                 for constraint in composition.intent.constraints
             ],
         },
-        "has_next": end < count,
+        "has_next": has_next,
         "has_previous": page > 1 and count > 0,
         "timezone": composition.timezone_name,
         "nearby_active": composition.nearby_active,
+        # `results` remains the supported legacy collection name while
+        # `items` is the common C0 collection alias.
         "results": results,
+        "items": results,
         "continuation": {
+            "state": "more" if has_next else "end",
+            "token": (
+                signing.dumps(
+                    {"page": page + 1},
+                    salt=DISCOVERY_CONTINUATION_SALT,
+                    compress=True,
+                )
+                if has_next
+                else None
+            ),
             "watch": {
                 "state": (
                     "available"
@@ -660,6 +717,10 @@ def paginated_projection(
                 ),
                 "link": reverse("discovery_api:watches"),
             }
+        },
+        "terminal": {
+            "state": "empty" if is_empty else "ok",
+            "message": None,
         },
     }
     if include_internal_rows:
