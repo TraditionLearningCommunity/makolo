@@ -2,6 +2,7 @@ import '../../data/local/profile_store.dart';
 
 class OngoingContinuityPresentation {
   const OngoingContinuityPresentation({
+    required this.id,
     required this.ownerKind,
     required this.ownerId,
     required this.kind,
@@ -10,17 +11,21 @@ class OngoingContinuityPresentation {
     required this.settled,
     required this.mySide,
     required this.elsewhere,
+    required this.makolo,
+    required this.systemOrTime,
     required this.next,
     required this.waiting,
-    required this.blocker,
+    required this.blockers,
     required this.unknown,
     required this.timing,
     required this.place,
     required this.capabilities,
     required this.links,
+    required this.handoffs,
     required this.rawState,
   });
 
+  final String id;
   final String? ownerKind;
   final String? ownerId;
   final String kind;
@@ -29,14 +34,18 @@ class OngoingContinuityPresentation {
   final List<String> settled;
   final List<String> mySide;
   final List<String> elsewhere;
+  final List<String> makolo;
+  final List<String> systemOrTime;
   final List<String> next;
   final String? waiting;
-  final String? blocker;
+  final List<String> blockers;
+  String? get blocker => blockers.isEmpty ? null : blockers.first;
   final String? unknown;
   final Map<String, dynamic> timing;
   final Map<String, dynamic> place;
   final List<String> capabilities;
   final Map<String, String> links;
+  final List<OngoingHandoffPresentation> handoffs;
   final String rawState;
 
   bool get hasParallelMovement {
@@ -66,16 +75,37 @@ class OngoingContinuityPresentation {
     final blocker = _map(item['blocker']);
     final next = _map(item['next']);
     final links = _map(item['links']);
+    final c0Handoffs = _maps(item['handoffs']);
+    final continuityIdentity = _map(item['continuity_identity']);
+
+    final continuityId =
+        _text(item['id']) ??
+        _text(item['continuity_identity']) ??
+        _text(continuityIdentity['id']) ??
+        [
+          _text(source['kind']) ?? _text(item['kind']) ?? 'continuity',
+          _text(source['id']) ?? _text(item['title']) ?? 'unknown',
+        ].join(':');
 
     final settled = <String>[
+      ..._labels(item['settled']),
       for (final entry in ready)
-        if (_text(entry['title']) != null) _text(entry['title'])!,
+        if (_text(entry['title']) != null &&
+            !_labels(item['settled']).contains(_text(entry['title'])))
+          _text(entry['title'])!,
     ];
     final mySide = <String>[
+      ..._labels(item['my_side']),
+      ..._labels(item['profile_side_remaining']),
       for (final entry in interventions)
-        if (_text(entry['title']) != null) _text(entry['title'])!,
+        if ((_text(entry['title']) ?? _text(entry['summary'])) case final text?)
+          if (!_labels(item['my_side']).contains(text) &&
+              !_labels(item['profile_side_remaining']).contains(text))
+            text,
     ];
     final elsewhere = <String>[
+      ..._labels(item['elsewhere']),
+      ..._labels(item['continues_elsewhere']),
       if (_text(continuation['summary']) != null)
         _text(continuation['summary'])!,
       if (continuation['state'] == 'waiting' &&
@@ -83,22 +113,42 @@ class OngoingContinuityPresentation {
         'Une réponse est attendue.',
     ];
     final nextItems = <String>[
+      ..._labels(item['next_items']),
       if (_text(next['title']) != null) _text(next['title'])!,
     ];
+    final makolo = <String>[
+      ..._labels(item['makolo']),
+      if (_text(item['makolo_preparation']) case final preparation?)
+        preparation,
+    ];
+    final systemOrTime = _labels(item['system_or_time']);
 
-    final rawState = _text(item['state']) ?? 'unknown';
+    final explicitState = _text(item['state']);
+    final rawState = explicitState ?? 'unspecified';
     final serverSummary = _text(item['summary']);
-    final blockerText = _text(blocker['title']) ?? _text(blocker['summary']);
+    final blockers = <String>[
+      ..._labels(item['blockers']),
+      if ((_text(blocker['title']) ?? _text(blocker['summary']))
+          case final legacyBlocker?)
+        legacyBlocker,
+    ];
+    final blockerText = blockers.isEmpty ? null : blockers.first;
     final waitingText = continuation['state'] == 'waiting'
         ? (_text(continuation['summary']) ?? 'Une réponse est attendue.')
         : null;
 
     return OngoingContinuityPresentation(
+      id: continuityId,
       ownerKind: _text(source['kind']),
       ownerId: _text(source['id']),
       kind: _text(item['kind']) ?? 'unknown',
-      title: _text(item['title']) ?? 'Continuité',
+      title:
+          _text(item['human_context']) ??
+          _text(item['title']) ??
+          'Continuité',
       synthesis:
+          _text(item['synthesis']) ??
+          _text(item['where_i_am']) ??
           serverSummary ??
           _synthesis(
             rawState: rawState,
@@ -111,10 +161,12 @@ class OngoingContinuityPresentation {
       settled: List.unmodifiable(settled),
       mySide: List.unmodifiable(mySide),
       elsewhere: List.unmodifiable(elsewhere),
+      makolo: List.unmodifiable(makolo),
+      systemOrTime: List.unmodifiable(systemOrTime),
       next: List.unmodifiable(nextItems),
       waiting: waitingText,
-      blocker: blockerText,
-      unknown: rawState == 'unknown' ? 'L’état actuel est inconnu.' : null,
+      blockers: List.unmodifiable(blockers),
+      unknown: explicitState == 'unknown' ? 'L’état actuel est inconnu.' : null,
       timing: Map.unmodifiable(_map(item['timing'])),
       place: Map.unmodifiable(_map(item['place'])),
       capabilities: [
@@ -128,6 +180,11 @@ class OngoingContinuityPresentation {
         for (final entry in links.entries)
           if (entry.value is String) entry.key: entry.value as String,
       },
+      handoffs: List.unmodifiable([
+        for (final handoff in c0Handoffs)
+          if (OngoingHandoffPresentation.fromMap(handoff) case final parsed?)
+            parsed,
+      ]),
       rawState: rawState,
     );
   }
@@ -165,9 +222,46 @@ class OngoingContinuityPresentation {
     ];
   }
 
+  static List<String> _labels(Object? value) {
+    if (value is! List) return const [];
+    return [
+      for (final item in value)
+        if (item is String && _text(item) case final text?)
+          text
+        else if (item is Map &&
+            (_text(item['title']) ??
+                    _text(item['summary']) ??
+                    _text(item['label']) ??
+                    _text(_map(item['blocked_transition'])['title']) ??
+                    _text(_map(item['blocked_transition'])['summary']))
+                case final text?)
+          text,
+    ];
+  }
+
   static String? _text(Object? value) {
     if (value is! String) return null;
     final text = value.trim();
     return text.isEmpty ? null : text;
+  }
+}
+
+class OngoingHandoffPresentation {
+  const OngoingHandoffPresentation({
+    required this.type,
+    required this.target,
+    required this.id,
+  });
+
+  final String type;
+  final String target;
+  final String id;
+
+  static OngoingHandoffPresentation? fromMap(Map<String, dynamic> value) {
+    final type = OngoingContinuityPresentation._text(value['type']);
+    final target = OngoingContinuityPresentation._text(value['target']);
+    final id = OngoingContinuityPresentation._text(value['id']);
+    if (type == null || target == null || id == null) return null;
+    return OngoingHandoffPresentation(type: type, target: target, id: id);
   }
 }
