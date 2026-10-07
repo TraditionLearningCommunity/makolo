@@ -217,6 +217,21 @@ class PersonalMeCapitalAPIContractTests(TestCase):
         self.assertLessEqual(len(data["collectives"]["groups"]["items"]), 6)
         self.assertLessEqual(len(data["resources"]["documents"]["items"]), 6)
 
+    def test_root_me_marks_a_bounded_section_partial(self):
+        for index in range(7):
+            PersonalAsset.objects.create(
+                controller=self.user,
+                subject_profile=self.user,
+                title=f"Document {index}",
+            )
+
+        response = self.client.get("/api/v1/me/")
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["sections"]["resources"], {"state": "partial"})
+        self.assertTrue(data["resources"]["documents"]["has_more"])
+
     def test_all_personal_depths_require_auth_and_reject_profile_override(self):
         paths = (
             "/api/v1/me/considerations/",

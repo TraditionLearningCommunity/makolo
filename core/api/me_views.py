@@ -78,7 +78,11 @@ class PersonalMeAPIView(PersonalProjectionAPIView):
     def get(self, request):
         self._guard_personal_scope(request)
         observed_at = timezone.now()
-        data = build_personal_me_data(profile=request.user, request=request)
+        data = build_personal_me_data(
+            profile=request.user,
+            request=request,
+            observed_at=observed_at,
+        )
         return self._response(data, observed_at=observed_at)
 
 
