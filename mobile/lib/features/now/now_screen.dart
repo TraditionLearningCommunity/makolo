@@ -170,8 +170,7 @@ class _NowViewState extends State<NowView> {
     setState(() => _selectedKey = null);
   }
 
-  String _keyOf(NowSituationPresentation situation) =>
-      situation.identity;
+  String _keyOf(NowSituationPresentation situation) => situation.identity;
 }
 
 class _NowField extends StatelessWidget {
@@ -227,8 +226,7 @@ class _NowField extends StatelessWidget {
     );
   }
 
-  String _keyOf(NowSituationPresentation situation) =>
-      situation.identity;
+  String _keyOf(NowSituationPresentation situation) => situation.identity;
 }
 
 String _presentationKey(String value) => value
