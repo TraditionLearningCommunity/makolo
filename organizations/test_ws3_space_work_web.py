@@ -127,7 +127,7 @@ class WS3SpaceWorkWebTests(TestCase):
 
         sections = {section["key"]: section for section in response.context["work_sections"]}
         self.assertTrue(any(item["source"]["id"] == str(draft.pk) for item in sections["preparation"]["items"]))
-        self.assertTrue(any(item["source"]["id"] == str(published.pk) for item in sections["active"]["items"]))
+        self.assertTrue(any(item["source"]["id"] == str(published.pk) for item in sections["activities"]["items"]))
         self.assertTrue(any(item["source"]["id"] == str(occurrence.pk) for item in sections["upcoming"]["items"]))
         self.assertContains(response, "Session de demain")
 
@@ -184,10 +184,9 @@ class WS3SpaceWorkWebTests(TestCase):
         self.client.force_login(self.owner)
         response = self.client.get(self.url)
         sections = {section["key"]: section for section in response.context["work_sections"]}
-        active = sections["active"]["items"]
-        activity_item = next(item for item in active if item["source"]["id"] == str(activity.pk))
-        route_item = next(item for item in active if item["source"]["id"] == str(route.pk))
-        vehicle_item = next(item for item in active if item["source"]["id"] == str(vehicle.pk))
+        activity_item = next(item for item in sections["activities"]["items"] if item["source"]["id"] == str(activity.pk))
+        route_item = next(item for item in sections["routes"]["items"] if item["source"]["id"] == str(route.pk))
+        vehicle_item = next(item for item in sections["vehicles"]["items"] if item["source"]["id"] == str(vehicle.pk))
 
         self.assertEqual(
             activity_item["owner_url"],
