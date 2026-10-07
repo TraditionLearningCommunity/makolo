@@ -7,13 +7,17 @@ from .api.space_work_projection import build_space_work_projection
 from .space_web_views import SpaceWebMixin
 
 
-SECTION_PRESENTATION = (
-    ("preparation", "À préparer", "Rien à préparer pour le moment."),
-    ("upcoming", "À venir", "Rien à venir pour le moment."),
-    ("active", "En cours", "Rien en cours pour le moment."),
-    ("blocked", "Bloqués", "Aucun blocage projeté pour le moment."),
-    ("completed", "Terminés", "Rien de terminé dans cette vue pour le moment."),
-)
+SECTION_EMPTY_MESSAGES = {
+    "preparation": "Rien à préparer pour le moment.",
+    "upcoming": "Rien à venir pour le moment.",
+    "active": "Rien en cours pour le moment.",
+    "blocked": "Aucun blocage projeté pour le moment.",
+    "completed": "Rien de terminé dans cette vue pour le moment.",
+    "activities": "Aucun programme visible pour le moment.",
+    "offers": "Aucune offre visible pour le moment.",
+    "routes": "Aucune route visible pour le moment.",
+    "vehicles": "Aucun véhicule visible pour le moment.",
+}
 
 
 def _activity_owner_url(space, item):
@@ -42,8 +46,8 @@ def _activity_owner_url(space, item):
 def _compose_sections(space, projection):
     sections = projection.get("sections") or {}
     composed = []
-    for key, label, empty_message in SECTION_PRESENTATION:
-        section = sections.get(key) or {"items": [], "has_more": False, "links": {}}
+    for key, section in sections.items():
+        label = section.get("representation") or key.replace("_", " ").title()
         items = []
         for raw_item in section.get("items") or ():
             item = dict(raw_item)
@@ -53,7 +57,9 @@ def _compose_sections(space, projection):
             {
                 "key": key,
                 "label": label,
-                "empty_message": empty_message,
+                "empty_message": SECTION_EMPTY_MESSAGES.get(
+                    key, f"Aucun élément visible dans {label.lower()} pour le moment."
+                ),
                 "items": items,
                 "has_more": bool(section.get("has_more")),
                 "links": section.get("links") or {},

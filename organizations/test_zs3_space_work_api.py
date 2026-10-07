@@ -203,7 +203,7 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200, response.data)
         offers = [
-            item for item in response.data["sections"]["active"]["items"]
+            item for item in response.data["sections"]["offers"]["items"]
             if item["source"]["kind"] == "offer"
         ]
         self.assertEqual(len(offers), 1)
@@ -231,6 +231,7 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             item for item in response.data["sections"]["active"]["items"]
             if item["source"] == {"kind": "journey", "id": str(journey.pk)}
         )
+        self.assertEqual(row["continuity_facet"]["identity"], f"journey:{journey.pk}")
         self.assertNotIn(beneficiary.email, str(row))
         self.assertNotIn(beneficiary.username, str(row))
 
@@ -284,10 +285,17 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.client.force_authenticate(self.owner)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["routes"]["role"], "structure")
+        self.assertEqual(response.data["sections"]["vehicles"]["role"], "structure")
         sources = {
             (item["source"]["kind"], item["source"]["id"])
-            for item in response.data["sections"]["active"]["items"]
+            for key in ("routes", "vehicles")
+            for item in response.data["sections"][key]["items"]
         }
         self.assertIn(("transport_route", str(route.pk)), sources)
         self.assertIn(("vehicle", str(vehicle.pk)), sources)
+        self.assertNotIn(("transport_route", str(route.pk)), {
+            (item["source"]["kind"], item["source"]["id"])
+            for item in response.data["sections"]["active"]["items"]
+        })
         self.assertNotIn("scanner", str(response.data["capabilities"]).lower())
