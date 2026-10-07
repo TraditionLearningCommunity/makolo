@@ -294,7 +294,9 @@ void main() {
     expect(result.situations.single.identity, 'now:visa:certificate');
   });
 
-  test('source invalidation requests refresh without inventing owner state', () {
+  test(
+    'source invalidation requests refresh without inventing owner state',
+    () {
     final result = selector.select(
       projection: projection(),
       now: now,
@@ -302,8 +304,9 @@ void main() {
     );
 
     expect(result.state.freshness, MakoloFreshnessCue.refreshRecommended);
-    expect(result.state.failure, MakoloFailureCue.none);
-  });
+      expect(result.state.failure, MakoloFailureCue.none);
+    },
+  );
 
   test('surface axes preserve offline, pending and stale independently', () {
     final result = selector.select(
