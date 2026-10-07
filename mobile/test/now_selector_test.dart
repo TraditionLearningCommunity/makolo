@@ -43,9 +43,7 @@ StoredProjection projection({
           : 'active',
       'items': items,
       'continuation': null,
-      'terminal': {
-        'state': items is List && items.isEmpty ? 'empty' : 'ok',
-      },
+      'terminal': {'state': items is List && items.isEmpty ? 'empty' : 'ok'},
     },
     receivedAt: DateTime.utc(2026, 10, 3, 12),
     freshUntil: freshUntil,
@@ -170,10 +168,7 @@ void main() {
     final situation = result.situations.single;
 
     expect(situation.identity, 'now:visa:certificate');
-    expect(
-      situation.serverState,
-      'journey.step.action_required',
-    );
+    expect(situation.serverState, 'journey.step.action_required');
     expect(
       situation.meaning,
       'Votre certificat doit être transmis aujourd’hui.',
@@ -192,9 +187,7 @@ void main() {
     expect(result.continuation.state, NowContinuationState.end);
   });
 
-  test(
-    'empty items do not imply calm when server selection is not empty',
-    () {
+  test('empty items do not imply calm when server selection is not empty', () {
     final value = projection(items: const []);
     final result = selector.select(
       projection: StoredProjection(
@@ -213,9 +206,8 @@ void main() {
 
     expect(result.isCalm, isFalse);
     expect(result.selectionState, 'partial');
-      expect(result.state.failure, MakoloFailureCue.recoverable);
-    },
-  );
+    expect(result.state.failure, MakoloFailureCue.recoverable);
+  });
 
   test('keeps an opaque continuation token without interpreting it', () {
     final value = projection();
