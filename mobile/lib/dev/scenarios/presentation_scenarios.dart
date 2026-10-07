@@ -52,6 +52,7 @@ abstract final class PresentationFixtureUniverse {
   );
 
   static const visaNow = NowSituationPresentation(
+    identity: 'now:$demoVisaId',
     reference: visaJourney,
     humanContext: 'Visa Canada',
     meaning: 'Votre certificat doit être transmis aujourd’hui.',
