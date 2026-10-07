@@ -19,7 +19,6 @@ from services.selectors import service_journeys_visible_to
 from transport.models import TransportRoute, Vehicle
 
 
-SECTION_KEYS = ("preparation", "upcoming", "active", "blocked", "completed")
 PREVIEW_LIMIT = 20
 
 
@@ -153,7 +152,7 @@ def _offer_item(offer, caps):
 
 
 def _journey_item(journey, caps):
-    return {
+    item = {
         "key": f"journey:{journey.pk}",
         "source": {"kind": "journey", "id": str(journey.pk)},
         "kind": "service_case" if journey.workflow == WorkflowKind.SERVICE else "journey",
@@ -175,6 +174,23 @@ def _journey_item(journey, caps):
         "links": {"activity": f"/api/v1/activities/{journey.activity_id}/"},
         "capabilities": _capabilities_for_activity(journey.activity_id, caps),
     }
+    # A continuity facet is present only because this owner is a real,
+    # progressive journey.  It is not a transversal Business Entry state.
+    item["continuity_facet"] = {
+        "identity": f"journey:{journey.pk}",
+        "blockers": [
+            {"source": "journey_blocker", "id": str(blocker.pk)}
+            for blocker in journey.blockers.all()
+            if blocker.status == JourneyBlockerStatus.ACTIVE
+        ],
+        "next": [] if journey.status in {
+            JourneyStatus.FULFILLED,
+            JourneyStatus.REJECTED,
+            JourneyStatus.CANCELLED,
+            JourneyStatus.EXPIRED,
+        } else ["owner_transition"],
+    }
+    return item
 
 
 def _order_item(order, caps):
@@ -230,11 +246,44 @@ def _vehicle_item(vehicle):
     }
 
 
-def _empty_sections():
+def _empty_section(*, identity, role, representation):
     return {
-        key: {"items": [], "has_more": False, "links": {}}
-        for key in SECTION_KEYS
+        "identity": identity,
+        "representation": representation,
+        "role": role,
+        "coverage_state": "established",
+        "items": [],
+        "has_more": False,
+        "links": {},
     }
+
+
+def _empty_sections(*, activity_representation, include_offers=False, include_transport=False):
+    sections = {
+        "preparation": _empty_section(identity="preparation", role="continuity", representation="À préparer"),
+        "upcoming": _empty_section(identity="upcoming", role="continuity", representation="À venir"),
+        "active": _empty_section(identity="active", role="continuity", representation="En cours"),
+        "blocked": _empty_section(identity="blocked", role="continuity", representation="Bloqués"),
+        "completed": _empty_section(identity="completed", role="history", representation="Terminés"),
+    }
+    # These are structural owner collections, deliberately separate from
+    # continuity sections.  They are added only when the scoped composition
+    # can establish the corresponding owner world.
+    sections["activities"] = _empty_section(
+        identity="activities", role="structure", representation=activity_representation
+    )
+    if include_offers:
+        sections["offers"] = _empty_section(
+            identity="offers", role="structure", representation="Offres"
+        )
+    if include_transport:
+        sections["routes"] = _empty_section(
+            identity="routes", role="structure", representation="Routes"
+        )
+        sections["vehicles"] = _empty_section(
+            identity="vehicles", role="structure", representation="Véhicules"
+        )
+    return sections
 
 
 def _append(section, item):
@@ -305,7 +354,17 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
 
     preset = operating_preset_for_space(space)
     caps = _activity_capability_sets(profile)
-    sections = _empty_sections()
+    direct_portfolio = _space_has_activity_portfolio_access(profile, space)
+    transport_visible = (
+        direct_portfolio
+        and "transport" in operational_footprint_for_space(space).signals
+    )
+    commerce_visible = bool(visible_ids & caps["commerce"])
+    sections = _empty_sections(
+        activity_representation=preset.primary_business_label,
+        include_offers=commerce_visible,
+        include_transport=transport_visible,
+    )
     now = timezone.now()
     today = timezone.localdate()
 
@@ -314,7 +373,7 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         if activity.status == ActivityStatus.DRAFT:
             target = "preparation"
         elif activity.status == ActivityStatus.PUBLISHED:
-            target = "active"
+            target = "activities"
         elif activity.status in {ActivityStatus.COMPLETED, ActivityStatus.CANCELLED, ActivityStatus.ARCHIVED}:
             target = "completed"
         else:
@@ -353,7 +412,7 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         if offer.status == OfferStatus.DRAFT:
             target = "preparation"
         elif offer.status == OfferStatus.ACTIVE:
-            target = "active"
+            target = "offers"
         elif offer.status == OfferStatus.ARCHIVED:
             target = "completed"
         else:
@@ -411,12 +470,11 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             if target:
                 _append(sections[target], _journey_item(journey, caps))
 
-    direct_portfolio = _space_has_activity_portfolio_access(profile, space)
-    if direct_portfolio and "transport" in operational_footprint_for_space(space).signals:
+    if transport_visible:
         for route in TransportRoute.objects.filter(space=space).order_by("name", "pk"):
-            _append(sections["active" if route.active else "completed"], _route_item(route))
+            _append(sections["routes"], _route_item(route))
         for vehicle in Vehicle.objects.filter(space=space).order_by("label", "pk"):
-            _append(sections["active" if vehicle.active else "completed"], _vehicle_item(vehicle))
+            _append(sections["vehicles"], _vehicle_item(vehicle))
 
     footprint = (
         list(operational_footprint_for_space(space).signals)
@@ -437,6 +495,8 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         },
         "responsibility": responsibility_key or "all",
         "operational_footprint": {"signals": footprint},
+        "composition_state": "established",
+        "coverage_state": "established",
         "sections": sections,
         "links": {
             "workspace": f"/api/v1/organizations/workspaces/{space.slug}/",
