@@ -217,6 +217,30 @@ class DiscoveryPresentationWebTests(TestCase):
         self.assertEqual(by_activity[str(self.activity.pk)].candidate_key, f"activity:{self.activity.pk}")
         self.assertEqual(by_activity[str(self.activity.pk)].matching_count, 2)
 
+    def test_discovery_exposes_continuation_without_page_navigation(self):
+        for index in range(24):
+            activity = create_activity(
+                created_by=self.owner,
+                owner_profile=self.owner,
+                title=f"Possibilité suivante {index}",
+                status=ActivityStatus.PUBLISHED,
+                visibility=ActivityVisibility.PUBLIC,
+            )
+            create_occurrence(
+                activity=activity,
+                start_at=timezone.now() + timedelta(days=index + 3),
+                timezone="Africa/Lubumbashi",
+                status=OccurrenceStatus.SCHEDULED,
+            )
+
+        response = self.client.get(reverse("discovery:home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Voir plus de possibilités")
+        self.assertContains(response, 'rel="next"')
+        self.assertNotContains(response, "Précédent")
+        self.assertNotContains(response, "Page 1 / 2")
+
     def test_unauthenticated_discovery_has_explicit_save_primary_share_fallback(self):
         response = self.client.get(reverse("discovery:home"))
         self.assertEqual(response.status_code, 200)

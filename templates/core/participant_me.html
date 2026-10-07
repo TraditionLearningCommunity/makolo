@@ -1,8 +1,6 @@
 {% extends 'base/app.html' %}
-{% load profile_activation_tags %}
 {% block title %}Moi | Makolo{% endblock %}
 {% block content %}
-{% profile_activation_summary as activation %}
 <div class="mk-mature-page mk-me-workspace" data-mk-surface="me">
   <section class="mk-me-identity">
     <div class="mk-me-avatar" aria-hidden="true">
@@ -12,7 +10,6 @@
       <p class="mk-eyebrow">Moi</p>
       <h1>{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</h1>
       {% if request.user.email %}<p>{{ request.user.email }}</p>{% endif %}
-      {% if activation %}<p class="mk-me-activation">Profil Makolo · {{ activation.percentage }} % activé</p>{% endif %}
     </div>
     <a href="{% url 'account:profile' %}" class="mk-compact-action">Modifier</a>
   </section>

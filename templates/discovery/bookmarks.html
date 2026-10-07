@@ -24,6 +24,6 @@
         </article>
         {% empty %}<div class="mk-empty col-span-full py-16 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="bookmark" class="h-5 w-5"></i></div><h2 class="mt-4 text-sm font-bold">Rien de gardé pour le moment.</h2><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary mt-4"><i data-lucide="compass" class="h-4 w-4"></i>Découvrir</a></div>{% endfor %}
     </section>
-    {% if is_paginated %}<nav class="flex items-center justify-between border-t pt-5 text-xs" style="border-color:var(--mk-border);color:var(--mk-muted)">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="mk-btn mk-btn-secondary"><i data-lucide="arrow-left" class="h-4 w-4"></i>Précédent</a>{% else %}<span></span>{% endif %}<span>Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="mk-btn mk-btn-secondary">Suivant<i data-lucide="arrow-right" class="h-4 w-4"></i></a>{% endif %}</nav>{% endif %}
+    {% if page_obj.has_next %}<nav class="flex justify-center border-t pt-5" style="border-color:var(--mk-border)" aria-label="Continuer les éléments gardés"><a href="?page={{ page_obj.next_page_number }}" rel="next" class="mk-btn mk-btn-secondary"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>Voir plus d’éléments gardés</a></nav>{% endif %}
 </div>
 {% endblock %}
