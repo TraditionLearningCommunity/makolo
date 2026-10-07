@@ -198,7 +198,9 @@ void main() {
     );
   });
 
-  test('consumes an authorized business action capability without executing it', () {
+  test(
+    'consumes an authorized business action capability without executing it',
+    () {
     final result = selector.select(
       projection: projection(
         items: const [
@@ -221,8 +223,9 @@ void main() {
     );
 
     expect(result.situations.single.responseCapability, 'accept');
-    expect(result.situations.single.responseLabel, 'Répondre');
-  });
+      expect(result.situations.single.responseLabel, 'Répondre');
+    },
+  );
 
   test('consumes C0 semantics without rebuilding them', () {
     final result = selector.select(projection: projection(), now: now);
