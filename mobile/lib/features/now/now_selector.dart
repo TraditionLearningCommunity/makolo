@@ -31,6 +31,7 @@ class NowSelection {
       calmIsCurrent &&
       state.availability == MakoloAvailabilityCue.empty &&
       state.failure == MakoloFailureCue.none &&
+      state.reachability != MakoloReachabilityCue.temporarilyUnavailable &&
       situations.isEmpty;
 }
 
@@ -49,6 +50,7 @@ class NowSelector {
     MakoloCommitCue commit = MakoloCommitCue.none,
     MakoloFailureCue failure = MakoloFailureCue.none,
     bool refreshing = false,
+    bool sourceInvalidated = false,
   }) {
     if (projection == null) {
       return NowSelection(
@@ -102,7 +104,11 @@ class NowSelector {
     final actorAttentionState =
         _string(projection.payload['actor_attention_state']) ??
         (!isC0 && items.isEmpty ? 'calm' : null);
-    final freshness = _freshnessPolicy.evaluate(projection, now: now);
+    final freshness = _freshnessPolicy.evaluate(
+      projection,
+      now: now,
+      invalidated: sourceInvalidated,
+    );
     final calmIsCurrent =
         selectionState == 'empty' &&
         terminalState == 'empty' &&
@@ -175,7 +181,12 @@ class NowSelector {
     String? whyNow = _semanticString(whyNowRaw, 'meaning');
     if (timing is Map) {
       whyNow ??= _string(timing['label']) ?? _string(timing['why_now']);
-      for (final key in const ['due_at', 'starts_at', 'deadline']) {
+      for (final key in const [
+        'deadline_at',
+        'due_at',
+        'starts_at',
+        'deadline',
+      ]) {
         final value = _string(timing[key]);
         if (value != null) metadata.add(value);
       }
@@ -188,6 +199,15 @@ class NowSelector {
     final response = raw['response'] is Map ? raw['response'] as Map : const {};
     final responseType = _string(response['type']);
     final responseLabel = _string(response['label']);
+    final businessActions = raw['business_actions'];
+    String? businessCapability;
+    if (businessActions is List) {
+      for (final action in businessActions) {
+        if (action is! Map) continue;
+        businessCapability = _string(action['capability']);
+        if (businessCapability != null) break;
+      }
+    }
     final legacyCanOpen = capabilities.contains('open_detail');
 
     return NowSituationPresentation(
@@ -206,7 +226,8 @@ class NowSelector {
           ? NowPresentationEmphasis.primary
           : NowPresentationEmphasis.secondary,
       responseLabel: responseLabel ?? (legacyCanOpen ? 'Ouvrir' : null),
-      responseCapability: legacyCanOpen ? 'open_detail' : null,
+      responseCapability:
+          businessCapability ?? (legacyCanOpen ? 'open_detail' : null),
       metadata: List.unmodifiable(metadata),
       freshness: MakoloFreshnessCue.unknown,
       ownerDestination: ownerDestination,

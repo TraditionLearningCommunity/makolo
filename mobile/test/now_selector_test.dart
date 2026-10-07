@@ -113,6 +113,17 @@ void main() {
     expect(result.state.availability, MakoloAvailabilityCue.empty);
   });
 
+  test('known empty projection is not calm while offline', () {
+    final result = selector.select(
+      projection: projection(items: const []),
+      now: now,
+      reachability: MakoloReachabilityCue.temporarilyUnavailable,
+    );
+
+    expect(result.isCalm, isFalse);
+    expect(result.state.availability, MakoloAvailabilityCue.empty);
+  });
+
   test('missing projection is not calm', () {
     final result = selector.select(projection: null, now: now);
 
@@ -162,6 +173,59 @@ void main() {
     expect(result.situations.single.responseCapability, isNull);
     expect(result.situations.single.responseLabel, isNull);
   });
+
+  test('keeps server deadline_at in presentation metadata', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:deadline',
+            'human_context': 'Visa Canada',
+            'state': 'Une action compte maintenant.',
+            'timing': {
+              'deadline_at': '2026-10-07T18:00:00+00:00',
+              'deadline_state': 'current',
+            },
+          },
+        ],
+      ),
+      now: now,
+    );
+
+    expect(
+      result.situations.single.metadata,
+      contains('2026-10-07T18:00:00+00:00'),
+    );
+  });
+
+  test(
+    'consumes an authorized business action capability without executing it',
+    () {
+      final result = selector.select(
+        projection: projection(
+          items: const [
+            {
+              'id': 'now:decision',
+              'human_context': 'Liste d’attente',
+              'state': 'Une décision vous attend.',
+              'response': {'type': 'decide', 'label': 'Répondre'},
+              'business_actions': [
+                {
+                  'capability': 'accept',
+                  'href': '/api/v1/tickets/waitlist/1/accept/',
+                  'interaction_depth': 'direct_now',
+                },
+              ],
+            },
+          ],
+        ),
+        now: now,
+      );
+
+      expect(result.situations.single.responseCapability, 'accept');
+      expect(result.situations.single.responseLabel, 'Répondre');
+    },
+  );
 
   test('consumes C0 semantics without rebuilding them', () {
     final result = selector.select(projection: projection(), now: now);
@@ -229,6 +293,20 @@ void main() {
     expect(result.continuation.token, 'opaque:next');
     expect(result.situations.single.identity, 'now:visa:certificate');
   });
+
+  test(
+    'source invalidation requests refresh without inventing owner state',
+    () {
+      final result = selector.select(
+        projection: projection(),
+        now: now,
+        sourceInvalidated: true,
+      );
+
+      expect(result.state.freshness, MakoloFreshnessCue.refreshRecommended);
+      expect(result.state.failure, MakoloFailureCue.none);
+    },
+  );
 
   test('surface axes preserve offline, pending and stale independently', () {
     final result = selector.select(

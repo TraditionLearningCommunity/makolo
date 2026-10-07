@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/now/now_screen.dart';
 import 'package:makolo_mobile/features/now/now_selector.dart';
 import 'package:makolo_mobile/navigation/destination.dart';
 import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
+import 'package:makolo_mobile/repositories/personal_repository.dart';
+import 'package:makolo_mobile/sync/owner_source_state.dart';
+import 'package:makolo_mobile/sync/sync_status.dart';
 
 import 'support/presentation_harness.dart';
 
@@ -107,8 +111,11 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(find.text('Mise à jour momentanément indisponible.'), findsNothing);
-    expect(find.textContaining('source distante'), findsNothing);
+    expect(find.textContaining('Hors connexion'), findsOneWidget);
+    expect(
+      find.textContaining('état actuel ne peut pas être confirmé'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('refresh error preserves known content', (tester) async {
@@ -120,7 +127,10 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(find.text('Mise à jour momentanément indisponible.'), findsNothing);
+    expect(
+      find.text('Mise à jour momentanément indisponible.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('duplicate context and meaning render only once', (tester) async {
@@ -180,6 +190,75 @@ void main() {
       find.text('Now n’est pas disponible pour le moment.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('offline calm snapshot does not claim all clear', (tester) async {
+    await PresentationHarness.pump(
+      tester,
+      child: const NowView(
+        selection: NowSelection(
+          situations: [],
+          selectionState: 'empty',
+          actorAttentionState: 'calm',
+          state: MakoloSurfacePresentation(
+            availability: MakoloAvailabilityCue.empty,
+            reachability: MakoloReachabilityCue.temporarilyUnavailable,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Tout est en ordre. ✓'), findsNothing);
+    expect(find.textContaining('Hors connexion'), findsOneWidget);
+    expect(
+      find.text('Now n’est pas disponible pour le moment.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('NowScreen consumes the real sync scope', (tester) async {
+    final value = StoredProjection(
+      kind: 'personal.now',
+      schemaVersion: 1,
+      payload: const {
+        'surface': 'now_me',
+        'freshness': {'state': 'fresh'},
+        'selection': {'state': 'ready'},
+        'actor_attention_state': 'active',
+        'items': [
+          {
+            'id': 'now:visa',
+            'human_context': 'Visa Canada',
+            'state': 'journey.step.action_required',
+            'state_meaning': 'Une action compte maintenant.',
+            'handoffs': [
+              {'type': 'owner', 'target': 'journey', 'id': 'journey:visa'},
+            ],
+          },
+        ],
+        'continuation': null,
+        'terminal': {'state': 'ok'},
+      },
+      receivedAt: DateTime.utc(2026, 10, 7, 12),
+      freshUntil: DateTime.utc(2026, 10, 8),
+    );
+
+    await PresentationHarness.pump(
+      tester,
+      child: SyncStatusScope(
+        status: const SyncStatus(state: SyncVisualState.offline),
+        child: NowScreen(
+          repository: _NowStreamRepository(
+            projection: Stream.value(value),
+            source: Stream.value(OwnerSourceState.unknown),
+          ),
+          now: () => DateTime.utc(2026, 10, 7, 14),
+        ),
+      ),
+    );
+
+    expect(find.text('Visa Canada'), findsOneWidget);
+    expect(find.textContaining('Hors connexion'), findsOneWidget);
   });
 
   testWidgets('pending never renders confirmed', (tester) async {
@@ -286,6 +365,21 @@ void main() {
     expect(opened?.id, 'visa');
   });
 
+  test('owner handoff reuses native dossier and conversation routes', () {
+    expect(
+      NowScreen.ownerPathFor(
+        const StructuredDestination(kind: 'dossier', id: 'dossier:1'),
+      ),
+      '/dossiers/dossier%3A1',
+    );
+    expect(
+      NowScreen.ownerPathFor(
+        const StructuredDestination(kind: 'conversation', id: 'thread:1'),
+      ),
+      '/conversations/thread%3A1',
+    );
+  });
+
   test('owner deep link accepts the opaque owner-prefixed id', () {
     expect(
       NowScreen.ownerPathFor(
@@ -294,4 +388,23 @@ void main() {
       '/journeys/journey%3Avisa-canada',
     );
   });
+}
+
+class _NowStreamRepository extends PersonalRepository {
+  _NowStreamRepository({required this.projection, required this.source})
+    : super(_NeverUsedStore());
+
+  final Stream<StoredProjection?> projection;
+  final Stream<OwnerSourceState> source;
+
+  @override
+  Stream<StoredProjection?> watchNow() => projection;
+
+  @override
+  Stream<OwnerSourceState> watchNowSource() => source;
+}
+
+class _NeverUsedStore implements ProfileStore {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
