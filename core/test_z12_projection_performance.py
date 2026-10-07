@@ -18,7 +18,7 @@ from core.api.access_projection import (
 from core.api.me_projection import build_personal_resources_data
 from core.api.personal_projections import ONGOING_LIMIT, build_personal_ongoing_projection
 from journeys.models import Journey, JourneyStatus, WorkflowKind
-from objectives.models import DossierJourneyLink
+from objectives.models import DossierJourneyLink, DossierLifecycle
 from objectives.services import create_dossier
 from personal_assets.services import create_personal_asset, create_personal_asset_version
 
@@ -169,6 +169,8 @@ class Z12ProjectionPerformanceTests(TestCase):
                 owner_profile=self.user,
                 title=f"Dossier Z12 {index}",
             )
+            dossier.lifecycle = DossierLifecycle.ACTIVE
+            dossier.save(update_fields=["lifecycle", "updated_at"])
             journey = Journey.objects.create(
                 initiated_by=self.user,
                 beneficiary=self.other,
@@ -201,12 +203,21 @@ class Z12ProjectionPerformanceTests(TestCase):
         self.assertLessEqual(len(larger), len(small) + 2)
 
     def test_ongoing_access_does_not_load_deep_generic_prefetches(self):
+        observed_at = timezone.now()
+        occurrence = Occurrence.objects.create(
+            activity=self.activity,
+            status=OccurrenceStatus.SCHEDULED,
+            start_at=observed_at,
+            end_at=observed_at + timedelta(hours=1),
+        )
         for index in range(ONGOING_LIMIT):
-            self._access(beneficiary=self.user, index=100 + index)
+            access = self._access(beneficiary=self.user, index=100 + index)
+            access.occurrence = occurrence
+            access.save(update_fields=["occurrence", "updated_at"])
         with CaptureQueriesContext(connection) as queries:
             data = build_personal_ongoing_projection(
                 self.user,
-                observed_at=timezone.now(),
+                observed_at=observed_at,
             )
         self.assertEqual(len(data["items"]), ONGOING_LIMIT)
         self.assertTrue(all(row["kind"] == "access" for row in data["items"]))
