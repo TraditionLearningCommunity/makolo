@@ -35,7 +35,9 @@ StoredProjection projection({
     schemaVersion: 1,
     payload: {
       'freshness': {'state': 'fresh'},
-      'selection': {'state': items is List && items.isEmpty ? 'empty' : 'ready'},
+      'selection': {
+        'state': items is List && items.isEmpty ? 'empty' : 'ready',
+      },
       'actor_attention_state': items is List && items.isEmpty
           ? 'calm'
           : 'active',
@@ -172,7 +174,10 @@ void main() {
       situation.serverState,
       'journey.step.action_required',
     );
-    expect(situation.meaning, 'Votre certificat doit être transmis aujourd’hui.');
+    expect(
+      situation.meaning,
+      'Votre certificat doit être transmis aujourd’hui.',
+    );
     expect(situation.whyNow, 'La fenêtre est ouverte aujourd’hui.');
     expect(situation.whyNowReason, 'journey.step.action_required');
     expect(situation.consequence, isNull);
@@ -187,7 +192,9 @@ void main() {
     expect(result.continuation.state, NowContinuationState.end);
   });
 
-  test('empty items do not imply calm when server selection is not empty', () {
+  test(
+    'empty items do not imply calm when server selection is not empty',
+    () {
     final value = projection(items: const []);
     final result = selector.select(
       projection: StoredProjection(
@@ -206,8 +213,9 @@ void main() {
 
     expect(result.isCalm, isFalse);
     expect(result.selectionState, 'partial');
-    expect(result.state.failure, MakoloFailureCue.recoverable);
-  });
+      expect(result.state.failure, MakoloFailureCue.recoverable);
+    },
+  );
 
   test('keeps an opaque continuation token without interpreting it', () {
     final value = projection();
