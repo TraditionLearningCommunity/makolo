@@ -224,24 +224,31 @@ class OngoingContinuityPresentation {
 
   static List<String> _labels(Object? value) {
     if (value is! List) return const [];
-    final labels = <String>[];
-    for (final item in value) {
-      String? text;
-      if (item is String) {
-        text = _text(item);
-      } else if (item is Map) {
-        final map = Map<String, dynamic>.from(item);
-        final blockedTransition = _map(map['blocked_transition']);
-        text =
-            _text(map['title']) ??
-            _text(map['summary']) ??
-            _text(map['label']) ??
-            _text(blockedTransition['title']) ??
-            _text(blockedTransition['summary']);
-      }
-      if (text != null) labels.add(text);
-    }
-    return labels;
+    return [
+      for (final item in value)
+        if (_label(item) case final text?) text,
+    ];
+  }
+
+  static String? _label(Object? value) {
+    if (value is String) return _text(value);
+    if (value is! Map) return null;
+
+    final map = Map<String, dynamic>.from(value);
+    final title = _text(map['title']);
+    if (title != null) return title;
+
+    final summary = _text(map['summary']);
+    if (summary != null) return summary;
+
+    final label = _text(map['label']);
+    if (label != null) return label;
+
+    final blockedTransition = _map(map['blocked_transition']);
+    final blockedTitle = _text(blockedTransition['title']);
+    if (blockedTitle != null) return blockedTitle;
+
+    return _text(blockedTransition['summary']);
   }
 
   static String? _text(Object? value) {
