@@ -127,7 +127,10 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(find.text('Mise à jour momentanément indisponible.'), findsOneWidget);
+    expect(
+      find.text('Mise à jour momentanément indisponible.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('duplicate context and meaning render only once', (tester) async {
