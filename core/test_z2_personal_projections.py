@@ -64,10 +64,41 @@ class Z2ProjectionAPITests(TestCase):
         self.assertEqual(now_data["actor_attention_state"], "calm")
         self.assertEqual(now_data["terminal"], {"state": "empty", "message": None})
         self.assertIsNone(now_data["continuation"])
-        self.assertEqual(ongoing_response.json()["data"], {"items": []})
+        ongoing_data = ongoing_response.json()["data"]
+        self.assertEqual(ongoing_data["surface"], "ongoing_me")
+        self.assertEqual(
+            ongoing_data["actor"],
+            {"type": "profile", "id": str(self.user.pk)},
+        )
+        self.assertEqual(ongoing_data["viewer"], ongoing_data["actor"])
+        self.assertEqual(ongoing_data["items"], [])
+        self.assertEqual(
+            ongoing_data["selection"],
+            {"state": "empty", "reason": "no_personal_continuity"},
+        )
+        self.assertEqual(
+            ongoing_data["terminal"],
+            {"state": "empty", "message": None},
+        )
+        self.assertEqual(
+            ongoing_data["continuation"],
+            {"state": "end", "token": None},
+        )
+        self.assertEqual(ongoing_data["coverage_state"], "complete")
         self.assertNotIn("all_clear", now_data)
         self.assertEqual(now_response["Cache-Control"], "private, no-store")
         self.assertEqual(ongoing_response["Cache-Control"], "private, no-store")
+
+    def test_ongoing_rejects_invalid_opaque_continuation(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("personal-projections:ongoing"),
+            {"continuation": "not-a-valid-token"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("continuation", response.json())
 
     def test_personal_projection_endpoints_reject_client_selected_actor(self):
         self.client.force_login(self.user)
@@ -133,6 +164,38 @@ class Z2JourneyBoundaryTests(TestCase):
             if item["source"] == {"kind": "journey", "id": str(self.journey.pk)}
         )
         self.assertEqual(len(journey_item["actor_interventions"]), 1)
+        self.assertEqual(journey_item["id"], journey_item["continuity_identity"])
+        self.assertEqual(journey_item["continuity_basis"], [journey_item["source"]])
+        self.assertEqual(journey_item["human_context"], self.activity.title)
+        self.assertEqual(journey_item["synthesis"], journey_item["summary"])
+        self.assertEqual(journey_item["where_i_am"], journey_item["summary"])
+        self.assertEqual(journey_item["my_side"], journey_item["actor_interventions"])
+        self.assertEqual(
+            journey_item["profile_side_remaining"],
+            [entry["title"] for entry in journey_item["actor_interventions"]],
+        )
+        self.assertEqual(journey_item["continues_elsewhere"], [])
+        self.assertIsNone(journey_item["makolo_preparation"])
+        self.assertEqual(journey_item["blockers"], [])
+        self.assertEqual(
+            ongoing["continuation"],
+            {"state": "end", "token": None},
+        )
+        self.assertEqual(ongoing["coverage_state"], "complete")
+        self.assertEqual(
+            journey_item["knowledge_context"]["knowledge_state"],
+            "known",
+        )
+        self.assertEqual(
+            journey_item["handoffs"],
+            [
+                {
+                    "type": "owner",
+                    "target": "journey",
+                    "id": str(self.journey.pk),
+                }
+            ],
+        )
         self.assertFalse(
             any(
                 item["source"] == {"kind": "journey", "id": str(self.journey.pk)}
