@@ -8,6 +8,12 @@ class PersonalRepository {
 
   Stream<StoredProjection?> watchNow() => store.watchProjection('personal.now');
 
+  Stream<OwnerSourceState> watchNowSource() => watchOwnerSourceState(
+    database: store.database,
+    profileId: store.profileId,
+    sourceKey: 'personal.now',
+  );
+
   Stream<StoredProjection?> watchOngoing() =>
       store.watchProjection('personal.ongoing');
 
