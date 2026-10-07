@@ -201,28 +201,28 @@ void main() {
   test(
     'consumes an authorized business action capability without executing it',
     () {
-    final result = selector.select(
-      projection: projection(
-        items: const [
-          {
-            'id': 'now:decision',
-            'human_context': 'Liste d’attente',
-            'state': 'Une décision vous attend.',
-            'response': {'type': 'decide', 'label': 'Répondre'},
-            'business_actions': [
-              {
-                'capability': 'accept',
-                'href': '/api/v1/tickets/waitlist/1/accept/',
-                'interaction_depth': 'direct_now',
-              },
-            ],
-          },
-        ],
-      ),
-      now: now,
-    );
+      final result = selector.select(
+        projection: projection(
+          items: const [
+            {
+              'id': 'now:decision',
+              'human_context': 'Liste d’attente',
+              'state': 'Une décision vous attend.',
+              'response': {'type': 'decide', 'label': 'Répondre'},
+              'business_actions': [
+                {
+                  'capability': 'accept',
+                  'href': '/api/v1/tickets/waitlist/1/accept/',
+                  'interaction_depth': 'direct_now',
+                },
+              ],
+            },
+          ],
+        ),
+        now: now,
+      );
 
-    expect(result.situations.single.responseCapability, 'accept');
+      expect(result.situations.single.responseCapability, 'accept');
       expect(result.situations.single.responseLabel, 'Répondre');
     },
   );
