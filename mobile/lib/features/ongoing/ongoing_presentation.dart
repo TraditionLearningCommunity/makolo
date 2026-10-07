@@ -143,9 +143,7 @@ class OngoingContinuityPresentation {
       ownerId: _text(source['id']),
       kind: _text(item['kind']) ?? 'unknown',
       title:
-          _text(item['human_context']) ??
-          _text(item['title']) ??
-          'Continuité',
+          _text(item['human_context']) ?? _text(item['title']) ?? 'Continuité',
       synthesis:
           _text(item['synthesis']) ??
           _text(item['where_i_am']) ??
