@@ -112,7 +112,10 @@ void main() {
 
     expect(find.text('Visa Canada'), findsOneWidget);
     expect(find.textContaining('Hors connexion'), findsOneWidget);
-    expect(find.textContaining('état actuel ne peut pas être confirmé'), findsOneWidget);
+    expect(
+      find.textContaining('état actuel ne peut pas être confirmé'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('refresh error preserves known content', (tester) async {
@@ -383,7 +386,6 @@ void main() {
     );
   });
 }
-
 
 class _NowStreamRepository extends PersonalRepository {
   _NowStreamRepository({required this.projection, required this.source})
