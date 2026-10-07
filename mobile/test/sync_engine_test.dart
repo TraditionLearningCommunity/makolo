@@ -122,9 +122,8 @@ void main() {
         1,
       );
       expect(
-        (await store.readProjection(
-          'personal.now',
-        ))?.payload['actor_attention_state'],
+        (await store.readProjection('personal.now'))
+            ?.payload['actor_attention_state'],
         'active',
       );
       final interoperability = await store.readProjection(
