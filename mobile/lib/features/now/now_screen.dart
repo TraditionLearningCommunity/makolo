@@ -472,7 +472,7 @@ class _NowDepth extends StatelessWidget {
             if (canOpenOwner) ...[
               const SizedBox(height: MakoloSpacing.xl),
               OutlinedButton(
-                onPressed: () => onOpenOwner!(ownerDestination!),
+                onPressed: () => onOpenOwner!(ownerDestination),
                 child: Text(situation.responseLabel ?? 'Ouvrir la démarche'),
               ),
             ],
