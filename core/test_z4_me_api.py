@@ -88,7 +88,7 @@ class PersonalMeAPIContractTests(TestCase):
             {"public_profile": True, "searchable": True},
         )
         self.assertEqual(identity["capabilities"], ["edit_identity"])
-        self.assertGreaterEqual(identity["activation"]["percentage"], 0)
+        self.assertNotIn("activation", identity)
 
         forbidden = {
             "email",
@@ -104,6 +104,7 @@ class PersonalMeAPIContractTests(TestCase):
             "role",
             "permissions",
             "mandates",
+            "activation",
         }
         self.assertTrue(forbidden.isdisjoint(identity.keys()))
 
@@ -113,6 +114,20 @@ class PersonalMeAPIContractTests(TestCase):
         self.assertNotIn(self.profile.address, serialized)
         self.assertNotIn(self.other.email, serialized)
         self.assertNotIn("Information tierce", serialized)
+
+        data = payload["data"]
+        self.assertEqual(data["surface"], "me")
+        self.assertEqual(
+            data["actor"],
+            {"type": "profile", "id": str(self.user.pk)},
+        )
+        self.assertEqual(data["viewer"], data["actor"])
+        self.assertEqual(data["selection"], {"state": "ready", "reason": None})
+        self.assertEqual(data["terminal"], {"state": "ok", "message": None})
+        self.assertIsNone(data["continuation"])
+        self.assertEqual(data["sections"]["identity"], {"state": "known"})
+        self.assertEqual(data["sections"]["passport"], {"state": "available"})
+        self.assertEqual(data["sections"]["resources"], {"state": "known"})
 
     def test_me_and_accounts_auth_me_remain_distinct_contracts(self):
         self.client.force_authenticate(self.user)
