@@ -67,6 +67,12 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertContains(me_response, 'data-mk-surface="me"')
         self.assertContains(me_response, 'class="mk-me-grid"')
 
+    def test_me_does_not_reduce_the_person_to_a_completion_score(self):
+        response = self.client.get(reverse("core:participant-me"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "% activé")
+
     def test_ongoing_items_keep_a_compact_link_and_offer_an_expanded_detail_target(self):
         response = self.client.get(reverse("core:participant-ongoing"))
 
