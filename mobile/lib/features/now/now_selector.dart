@@ -31,6 +31,7 @@ class NowSelection {
       calmIsCurrent &&
       state.availability == MakoloAvailabilityCue.empty &&
       state.failure == MakoloFailureCue.none &&
+      state.reachability != MakoloReachabilityCue.temporarilyUnavailable &&
       situations.isEmpty;
 }
 
