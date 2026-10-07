@@ -218,9 +218,7 @@ class OngoingContinuityPresentation {
 
   static List<String> _labels(Object? value) {
     if (value is! List) return const [];
-    return [
-      for (final item in value) ?_label(item),
-    ];
+    return [for (final item in value) ?_label(item)];
   }
 
   static String? _label(Object? value) {
