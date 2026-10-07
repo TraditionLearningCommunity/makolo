@@ -289,10 +289,7 @@ void main() {
   test('owner deep link accepts the opaque owner-prefixed id', () {
     expect(
       NowScreen.ownerPathFor(
-        StructuredDestination(
-          kind: 'journey',
-          id: 'journey:visa-canada',
-        ),
+        StructuredDestination(kind: 'journey', id: 'journey:visa-canada'),
       ),
       '/journeys/journey%3Avisa-canada',
     );
