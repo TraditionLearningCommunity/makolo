@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 
+from django.core import signing
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
@@ -32,6 +33,7 @@ from core.read_models import build_personal_ongoing_read_model
 
 
 ONGOING_LIMIT = 18
+ONGOING_CONTINUATION_SALT = "makolo.personal.ongoing.v1"
 
 _DECISION_KINDS = {
     "action_network.response_required",
@@ -890,16 +892,139 @@ def _funding_ongoing_item(funding):
     }
 
 
-def build_personal_ongoing_projection(profile, *, observed_at=None):
+def _ongoing_identity(item):
+    source = item["source"]
+    material = f'{source["kind"]}:{source["id"]}'
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
+
+
+def _decorate_ongoing_semantics(item, *, observed_at):
+    """Add Mature continuity semantics without becoming an owner domain."""
+
+    identity = _ongoing_identity(item)
+    source = item["source"]
+    continuation = item.get("continuation")
+    blocker = item.get("blocker")
+    next_item = item.get("next")
+    links = item.get("links", {})
+    settled = list(item.get("ready", []))
+    my_side = list(item.get("actor_interventions", []))
+    elsewhere = [continuation] if continuation is not None else []
+    makolo = []
+    item.update(
+        {
+            "id": identity,
+            "continuity_identity": identity,
+            "continuity_basis": [source],
+            "human_context": item["title"],
+            "synthesis": item["summary"],
+            # C0 human aliases remain available beside the structured Mature
+            # dimensions during the supported-client transition.
+            "where_i_am": item["summary"],
+            "profile_side_remaining": [
+                value
+                for value in (
+                    entry.get("title") or entry.get("summary")
+                    for entry in my_side
+                )
+                if value
+            ],
+            "continues_elsewhere": [
+                value
+                for value in (
+                    entry.get("summary") or entry.get("title")
+                    for entry in elsewhere
+                )
+                if value
+            ],
+            "makolo_preparation": None,
+            "settled": settled,
+            "my_side": my_side,
+            "elsewhere": elsewhere,
+            # These remain empty until an owner establishes the corresponding
+            # facts; En cours must not invent Makolo or system activity.
+            "makolo": makolo,
+            "system_or_time": [],
+            "next_items": [next_item] if next_item is not None else [],
+            "blockers": (
+                [
+                    {
+                        "source": source,
+                        "blocked_transition": blocker,
+                        "horizon": None,
+                        "alternatives": [],
+                    }
+                ]
+                if blocker is not None
+                else []
+            ),
+            "outcome": None,
+            "knowledge_context": {
+                "provenance": [source],
+                "freshness": {
+                    "state": "fresh",
+                    "observed_at": _iso(observed_at),
+                },
+                "knowledge_state": "known",
+            },
+            "relation_projections": [],
+            "temporal_facts": [],
+            "actions": list(item.get("actor_interventions", [])),
+            "media_bindings": [],
+            "owner_depth": {
+                "source": source,
+                "links": {
+                    key: value
+                    for key, value in links.items()
+                    if key in {"detail", "web", "day_of"}
+                },
+            },
+            "handoffs": [
+                {
+                    "type": "owner",
+                    "target": source["kind"],
+                    "id": source["id"],
+                }
+            ],
+        }
+    )
+
+
+def ongoing_continuation_offset(token):
+    if not token:
+        return 0
+    payload = signing.loads(
+        token,
+        salt=ONGOING_CONTINUATION_SALT,
+        max_age=60 * 60 * 24,
+    )
+    offset = int(payload["offset"])
+    if offset < 0:
+        raise ValueError("Invalid continuation offset.")
+    return offset
+
+
+def build_personal_ongoing_projection(
+    profile,
+    *,
+    observed_at=None,
+    continuation_offset=0,
+):
     """Serialize the shared bounded En cours read model for API/mobile."""
 
+    observed_at = observed_at or timezone.now()
     entries = build_personal_ongoing_read_model(
         profile,
         observed_at=observed_at,
-        limit=ONGOING_LIMIT,
+        limit=continuation_offset + ONGOING_LIMIT + 1,
         include_personal_funding=True,
     )
     entries = pass_ongoing_candidates_through_molongo(entries)
+    entries = entries[
+        continuation_offset : continuation_offset + ONGOING_LIMIT + 1
+    ]
+    has_more = len(entries) > ONGOING_LIMIT
+    entries = entries[:ONGOING_LIMIT]
     items = []
     for entry in entries:
         if entry.kind == "journey":
@@ -924,12 +1049,45 @@ def build_personal_ongoing_projection(profile, *, observed_at=None):
         elif entry.kind == "funding":
             items.append(_funding_ongoing_item(entry.value))
 
-    if not items:
-        return {"items": []}
+    for item in items:
+        _decorate_ongoing_semantics(item, observed_at=observed_at)
+
+    is_empty = not items
+    profile_id = str(profile.pk)
     return {
+        "surface": "ongoing_me",
+        "actor": {"type": "profile", "id": profile_id},
+        "viewer": {"type": "profile", "id": profile_id},
+        "freshness": {
+            "state": "fresh",
+            "observed_at": _iso(observed_at),
+        },
+        "selection": {
+            "state": "empty" if is_empty else "ready",
+            "reason": "no_personal_continuity" if is_empty else None,
+        },
+        "capabilities": [],
+        "handoffs": [],
         "links": {
             "accesses": reverse("personal-projections:accesses"),
             "history": reverse("personal-projections:history"),
         },
         "items": items,
+        "coverage_state": "partial" if has_more else "complete",
+        "continuation": {
+            "state": "more" if has_more else "end",
+            "token": (
+                signing.dumps(
+                    {"offset": continuation_offset + ONGOING_LIMIT},
+                    salt=ONGOING_CONTINUATION_SALT,
+                    compress=True,
+                )
+                if has_more
+                else None
+            ),
+        },
+        "terminal": {
+            "state": "empty" if is_empty else "ok",
+            "message": None,
+        },
     }
