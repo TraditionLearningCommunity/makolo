@@ -118,8 +118,7 @@ class OngoingContinuityPresentation {
     ];
     final makolo = <String>[
       ..._labels(item['makolo']),
-      if (_text(item['makolo_preparation']) case final preparation?)
-        preparation,
+      ?_text(item['makolo_preparation']),
     ];
     final systemOrTime = _labels(item['system_or_time']);
 
@@ -128,9 +127,7 @@ class OngoingContinuityPresentation {
     final serverSummary = _text(item['summary']);
     final blockers = <String>[
       ..._labels(item['blockers']),
-      if ((_text(blocker['title']) ?? _text(blocker['summary']))
-          case final legacyBlocker?)
-        legacyBlocker,
+      ?(_text(blocker['title']) ?? _text(blocker['summary'])),
     ];
     final blockerText = blockers.isEmpty ? null : blockers.first;
     final waitingText = continuation['state'] == 'waiting'
@@ -180,8 +177,7 @@ class OngoingContinuityPresentation {
       },
       handoffs: List.unmodifiable([
         for (final handoff in c0Handoffs)
-          if (OngoingHandoffPresentation.fromMap(handoff) case final parsed?)
-            parsed,
+          ?OngoingHandoffPresentation.fromMap(handoff),
       ]),
       rawState: rawState,
     );
@@ -223,8 +219,7 @@ class OngoingContinuityPresentation {
   static List<String> _labels(Object? value) {
     if (value is! List) return const [];
     return [
-      for (final item in value)
-        if (_label(item) case final text?) text,
+      for (final item in value) ?_label(item),
     ];
   }
 
