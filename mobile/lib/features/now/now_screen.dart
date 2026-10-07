@@ -170,8 +170,7 @@ class _NowViewState extends State<NowView> {
     setState(() => _selectedKey = null);
   }
 
-  String _keyOf(NowSituationPresentation situation) =>
-      '${situation.reference.kind}:${situation.reference.id}';
+  String _keyOf(NowSituationPresentation situation) => situation.identity;
 }
 
 class _NowField extends StatelessWidget {
@@ -227,8 +226,7 @@ class _NowField extends StatelessWidget {
     );
   }
 
-  String _keyOf(NowSituationPresentation situation) =>
-      '${situation.reference.kind}:${situation.reference.id}';
+  String _keyOf(NowSituationPresentation situation) => situation.identity;
 }
 
 String _presentationKey(String value) => value
@@ -267,9 +265,12 @@ class _NowPrimarySituation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ownerPath = NowScreen.ownerPathFor(situation.ownerDestination);
+    final ownerDestination = situation.ownerDestination;
+    final ownerPath = ownerDestination == null
+        ? null
+        : NowScreen.ownerPathFor(ownerDestination);
     final canOpenOwner =
-        situation.responseCapability == 'open_detail' &&
+        situation.responseLabel != null &&
         ownerPath != null &&
         onOpenOwner != null;
     final contextLabel = _distinctPresentationText(situation.humanContext, [
@@ -279,7 +280,6 @@ class _NowPrimarySituation extends StatelessWidget {
       situation.meaning,
       situation.humanContext,
     ]);
-
     return Semantics(
       container: true,
       button: true,
@@ -327,7 +327,7 @@ class _NowPrimarySituation extends StatelessWidget {
               if (canOpenOwner) ...[
                 const SizedBox(height: MakoloSpacing.lg),
                 FilledButton(
-                  onPressed: () => onOpenOwner!(situation.ownerDestination),
+                  onPressed: () => onOpenOwner!(ownerDestination!),
                   child: Text(situation.responseLabel ?? 'Ouvrir'),
                 ),
               ],
@@ -398,8 +398,11 @@ class _NowDepth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ownerDestination = situation.ownerDestination;
     final canOpenOwner =
-        NowScreen.ownerPathFor(situation.ownerDestination) != null &&
+        ownerDestination != null &&
+        NowScreen.ownerPathFor(ownerDestination) != null &&
+        situation.responseLabel != null &&
         onOpenOwner != null;
     final contextLabel = _distinctPresentationText(situation.humanContext, [
       situation.meaning,
@@ -407,6 +410,10 @@ class _NowDepth extends StatelessWidget {
     final whyNow = _distinctPresentationText(situation.whyNow, [
       situation.meaning,
       situation.humanContext,
+    ]);
+    final consequence = _distinctPresentationText(situation.consequence, [
+      situation.meaning,
+      situation.whyNow,
     ]);
 
     return SingleChildScrollView(
@@ -445,6 +452,14 @@ class _NowDepth extends StatelessWidget {
                 child: Text(whyNow),
               ),
             ],
+            if (consequence != null) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloSection(
+                title: 'Conséquence',
+                padding: EdgeInsets.zero,
+                child: Text(consequence),
+              ),
+            ],
             if (situation.metadata.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.lg),
               MakoloMetadata(
@@ -457,8 +472,8 @@ class _NowDepth extends StatelessWidget {
             if (canOpenOwner) ...[
               const SizedBox(height: MakoloSpacing.xl),
               OutlinedButton(
-                onPressed: () => onOpenOwner!(situation.ownerDestination),
-                child: const Text('Ouvrir la démarche'),
+                onPressed: () => onOpenOwner!(ownerDestination),
+                child: Text(situation.responseLabel ?? 'Ouvrir la démarche'),
               ),
             ],
           ],
