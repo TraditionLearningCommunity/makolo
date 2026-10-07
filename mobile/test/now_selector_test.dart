@@ -297,13 +297,13 @@ void main() {
   test(
     'source invalidation requests refresh without inventing owner state',
     () {
-    final result = selector.select(
-      projection: projection(),
-      now: now,
-      sourceInvalidated: true,
-    );
+      final result = selector.select(
+        projection: projection(),
+        now: now,
+        sourceInvalidated: true,
+      );
 
-    expect(result.state.freshness, MakoloFreshnessCue.refreshRecommended);
+      expect(result.state.freshness, MakoloFreshnessCue.refreshRecommended);
       expect(result.state.failure, MakoloFailureCue.none);
     },
   );
