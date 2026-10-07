@@ -2,71 +2,158 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
 import '../../design/surface_states.dart';
+import '../../navigation/deep_link_resolver.dart';
 import '../../navigation/destination.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../presentation/contracts/now_presentation.dart';
 import '../../repositories/personal_repository.dart';
+import '../../sync/freshness.dart';
+import '../../sync/owner_source_state.dart';
+import '../../sync/sync_status.dart';
 import 'now_selector.dart';
 
-class NowScreen extends StatelessWidget {
+class NowScreen extends StatefulWidget {
   const NowScreen({super.key, required this.repository, this.now});
 
   final PersonalRepository repository;
   final DateTime Function()? now;
 
   @override
+  State<NowScreen> createState() => _NowScreenState();
+
+  static String? ownerPathFor(StructuredDestination destination) {
+    final encoded = StructuredDestination(
+      kind: destination.kind,
+      id: Uri.encodeComponent(destination.id),
+      link: destination.link,
+    );
+    final resolved = const DeepLinkResolver().resolve(encoded);
+    if (resolved != null) return resolved;
+
+    return switch (destination.kind.toLowerCase()) {
+      'conversation' => '/conversations/${encoded.id}',
+      _ => null,
+    };
+  }
+}
+
+class _NowScreenState extends State<NowScreen> {
+  late Stream<StoredProjection?> _projectionStream;
+  late Stream<OwnerSourceState> _sourceStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _bindStreams();
+  }
+
+  @override
+  void didUpdateWidget(covariant NowScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      _bindStreams();
+    }
+  }
+
+  void _bindStreams() {
+    _projectionStream = widget.repository.watchNow();
+    _sourceStream = widget.repository.watchNowSource();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MakoloRefreshBoundary(
-      child: StreamBuilder<StoredProjection?>(
-        stream: repository.watchNow(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting &&
-              !snapshot.hasData) {
-            return const MakoloSurfaceStateView(
-              state: MakoloSurfacePresentation(
-                availability: MakoloAvailabilityCue.loading,
-              ),
-              content: SizedBox.shrink(),
-            );
-          }
-
-          final projection = snapshot.data;
-          if (projection == null) {
-            return const MakoloEmptyState(
-              title: 'Now n’est pas disponible pour le moment.',
-              icon: Icons.adjust,
-            );
-          }
-
-          final selection = const NowSelector().select(
-            projection: projection,
-            now: (now?.call() ?? DateTime.now()).toUtc(),
-          );
-          return NowView(
-            selection: selection,
-            onOpenOwner: (destination) => _openOwner(context, destination),
+      child: StreamBuilder<OwnerSourceState>(
+        stream: _sourceStream,
+        initialData: OwnerSourceState.unknown,
+        builder: (context, sourceSnapshot) {
+          final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
+          return StreamBuilder<StoredProjection?>(
+            stream: _projectionStream,
+            builder: (context, projectionSnapshot) {
+              return _buildProjection(context, projectionSnapshot, source);
+            },
           );
         },
       ),
     );
   }
 
-  void _openOwner(BuildContext context, StructuredDestination destination) {
-    final path = ownerPathFor(destination);
-    if (path != null) context.push(path);
+  Widget _buildProjection(
+    BuildContext context,
+    AsyncSnapshot<StoredProjection?> snapshot,
+    OwnerSourceState source,
+  ) {
+    final syncStatus = SyncStatusScope.maybeOf(context);
+    final projection = snapshot.data;
+
+    if (projection == null) {
+      final loading =
+          snapshot.connectionState == ConnectionState.waiting ||
+          syncStatus?.state == SyncVisualState.syncing;
+      if (loading) {
+        return const MakoloSurfaceStateView(
+          state: MakoloSurfacePresentation(
+            availability: MakoloAvailabilityCue.loading,
+          ),
+          content: SizedBox.shrink(),
+        );
+      }
+
+      final offline = syncStatus?.state == SyncVisualState.offline;
+      return MakoloEmptyState(
+        title: offline
+            ? 'Now n’est pas disponible hors connexion sur cet appareil.'
+            : 'Now n’est pas disponible pour le moment.',
+        icon: offline ? Icons.cloud_off_outlined : Icons.adjust,
+      );
+    }
+
+    final selection = const NowSelector().select(
+      projection: projection,
+      now: (widget.now?.call() ?? DateTime.now()).toUtc(),
+      reachability: _reachability(source, syncStatus),
+      failure:
+          source.lastErrorCode != null ||
+              syncStatus?.state == SyncVisualState.failed
+          ? MakoloFailureCue.recoverable
+          : MakoloFailureCue.none,
+      refreshing: syncStatus?.state == SyncVisualState.syncing,
+      sourceInvalidated:
+          source.invalidated || syncStatus?.state == SyncVisualState.stale,
+    );
+
+    return NowView(
+      selection: selection,
+      onOpenOwner: (destination) => _openOwner(context, destination),
+    );
   }
 
-  static String? ownerPathFor(StructuredDestination destination) {
-    final id = Uri.encodeComponent(destination.id);
-    return switch (destination.kind.toLowerCase()) {
-      'journey' => '/journeys/$id',
-      _ => null,
+  MakoloReachabilityCue _reachability(
+    OwnerSourceState source,
+    SyncStatus? syncStatus,
+  ) {
+    if (syncStatus?.state == SyncVisualState.offline) {
+      return MakoloReachabilityCue.temporarilyUnavailable;
+    }
+
+    return switch (source.reachability) {
+      ReachabilityState.unknown => MakoloReachabilityCue.unknown,
+      ReachabilityState.reachable => MakoloReachabilityCue.reachable,
+      ReachabilityState.unreachable =>
+        MakoloReachabilityCue.temporarilyUnavailable,
     };
+  }
+
+  void _openOwner(BuildContext context, StructuredDestination destination) {
+    final path = NowScreen.ownerPathFor(destination);
+    if (path != null) context.push(path);
   }
 }
 
@@ -146,18 +233,57 @@ class _NowViewState extends State<NowView> {
             ),
           );
 
+    final state = widget.selection.state;
+    final surface = MakoloSurfaceStateView(
+      state: state,
+      empty: widget.selection.isCalm
+          ? const _NowCalm()
+          : const _NowUnavailable(),
+      content: content,
+    );
+    final cues = <Widget>[
+      if (state.refreshing) const MakoloRefreshIndicator(),
+      if (state.reachability == MakoloReachabilityCue.temporarilyUnavailable)
+        const MakoloNotice(
+          message:
+              'Hors connexion : les informations déjà synchronisées restent '
+              'consultables, mais leur état actuel ne peut pas être confirmé.',
+          kind: MakoloNoticeKind.warning,
+        ),
+      if (state.failure == MakoloFailureCue.recoverable &&
+          state.reachability != MakoloReachabilityCue.temporarilyUnavailable)
+        const MakoloNotice(
+          message: 'Mise à jour momentanément indisponible.',
+          kind: MakoloNoticeKind.warning,
+        ),
+      if (state.freshness != MakoloFreshnessCue.unknown &&
+          state.freshness != MakoloFreshnessCue.current)
+        MakoloFreshnessNotice(freshness: state.freshness),
+    ];
+
     return PopScope<Object?>(
       canPop: _selected == null,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && _selected != null) _closeDepth();
       },
-      child: MakoloSurfaceStateView(
-        state: widget.selection.state,
-        empty: widget.selection.isCalm
-            ? const _NowCalm()
-            : const _NowUnavailable(),
-        content: content,
-      ),
+      child: cues.isEmpty
+          ? surface
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final cue in cues)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      MakoloSpacing.md,
+                      MakoloSpacing.sm,
+                      MakoloSpacing.md,
+                      0,
+                    ),
+                    child: cue,
+                  ),
+                Expanded(child: surface),
+              ],
+            ),
     );
   }
 
