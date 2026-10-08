@@ -86,7 +86,7 @@ void main() {
 
       for (
         var i = 0;
-        i < 40 && find.text('Tout est en ordre. ✓').evaluate().isEmpty;
+        i < 40 && find.byType(NowScreen).evaluate().isEmpty;
         i++
       ) {
         await tester.pump(const Duration(milliseconds: 50));
@@ -94,7 +94,7 @@ void main() {
         if (error != null) throw error;
       }
 
-      expect(find.text('Tout est en ordre. ✓'), findsOneWidget);
+      expect(find.byType(NowScreen), findsOneWidget);
       expect(find.text('Connectez-vous à Makolo'), findsNothing);
       expect((await tokens.readSession())?.profileId, 'profile-a');
       expect(tester.takeException(), isNull);
