@@ -317,3 +317,68 @@ def process_domain_events(*, batch_size: int = 100, limit: int | None = None, ev
             if not ids_filter:
                 break
     return stats
+
+
+@transaction.atomic
+def requeue_failed_domain_event(*, event_id, actor, reason):
+    """Exceptional, single-event retry; preserve delivery evidence and idempotency.
+
+    Successful consumer receipts must never be reset. A retry whose budget is
+    exhausted requires incident investigation, not an Admin counter reset.
+    """
+    from django.core.exceptions import PermissionDenied
+    from django.db.models import F
+    from operations.services import audit_action
+
+    if not (
+        getattr(actor, "is_authenticated", False)
+        and getattr(actor, "is_active", False)
+        and getattr(actor, "is_staff", False)
+        and getattr(actor, "is_superuser", False)
+    ):
+        raise PermissionDenied("La reprise technique est réservée à un administrateur autorisé.")
+    reason = (reason or "").strip()
+    if not 5 <= len(reason) <= 2000:
+        raise ValidationError("Une justification de 5 à 2000 caractères est obligatoire.")
+
+    event = DomainEventOutbox.objects.select_for_update().get(pk=event_id)
+    if event.status != DomainEventStatus.FAILED:
+        raise ValidationError("Seul un Domain Event échoué peut être remis en attente.")
+    if event.attempts >= event.max_attempts:
+        raise ValidationError("Budget de tentatives épuisé : investigation requise.")
+
+    consumptions = list(
+        DomainEventConsumption.objects.select_for_update().filter(event=event)
+    )
+    for consumption in consumptions:
+        if consumption.status == DomainEventConsumptionStatus.PROCESSING:
+            raise ValidationError("Un consumer est encore en traitement.")
+        if (
+            consumption.status == DomainEventConsumptionStatus.FAILED
+            and consumption.attempts >= consumption.max_attempts
+        ):
+            raise ValidationError("Budget d'un consumer épuisé : investigation requise.")
+
+    changed = DomainEventOutbox.objects.filter(
+        pk=event.pk,
+        status=DomainEventStatus.FAILED,
+        attempts__lt=F("max_attempts"),
+    ).update(
+        status=DomainEventStatus.PENDING,
+        claimed_at=None,
+        updated_at=timezone.now(),
+    )
+    if changed != 1:
+        raise ValidationError("L'état du Domain Event a changé pendant la reprise.")
+
+    audit_action(
+        actor=actor,
+        action="domain_event.requeued",
+        target_type="domain_event",
+        target_id=event.pk,
+        summary="Reprise technique ciblée d'un Domain Event échoué",
+        before={"status": DomainEventStatus.FAILED, "attempts": event.attempts},
+        after={"status": DomainEventStatus.PENDING, "attempts": event.attempts},
+        metadata={"reason": reason, "consumer_count": len(consumptions)},
+    )
+    return event
