@@ -14,7 +14,7 @@ from authorization.services import grant_activity_role, grant_space_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from journeys.services import fulfill_journey
 from objectives.models import DossierLifecycle, ProjectLifecycle
-from objectives.services import create_dossier, create_project
+from objectives.services import create_dossier, create_project, set_dossier_lifecycle, set_project_lifecycle
 from organizations.models import Organization
 from personal_assets.models import PersonalAssetUse
 from personal_assets.services import create_personal_asset, create_personal_asset_version
@@ -247,10 +247,16 @@ class Z10CrossSurfaceContinuityTests(TestCase):
             owner_profile=self.user,
             title="Projet Z10",
         )
-        dossier.lifecycle = DossierLifecycle.ACTIVE
-        dossier.save(update_fields=["lifecycle", "updated_at"])
-        project.lifecycle = ProjectLifecycle.ACTIVE
-        project.save(update_fields=["lifecycle", "updated_at"])
+        dossier = set_dossier_lifecycle(
+            actor=self.user,
+            dossier=dossier,
+            lifecycle=DossierLifecycle.ACTIVE,
+        )
+        project = set_project_lifecycle(
+            actor=self.user,
+            project=project,
+            lifecycle=ProjectLifecycle.ACTIVE,
+        )
 
         ongoing = self.client.get("/api/v1/me/ongoing/").json()["data"]["items"]
         dossier_row = next(
