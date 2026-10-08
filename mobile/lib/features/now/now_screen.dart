@@ -421,7 +421,6 @@ class _NowSemanticContent extends StatelessWidget {
   final NowSituationPresentation situation;
   final MakoloApiClient? api;
   final String? profileId;
-  final String? profileId;
 
   @override
   Widget build(BuildContext context) {
@@ -546,6 +545,7 @@ class _NowPrimarySituation extends StatelessWidget {
     required this.onSelect,
     required this.onOpenOwner,
     required this.api,
+    required this.profileId,
   });
 
   final NowSituationPresentation situation;
@@ -553,7 +553,6 @@ class _NowPrimarySituation extends StatelessWidget {
   final VoidCallback onSelect;
   final ValueChanged<StructuredDestination>? onOpenOwner;
   final MakoloApiClient? api;
-  final String? profileId;
   final String? profileId;
 
   @override
