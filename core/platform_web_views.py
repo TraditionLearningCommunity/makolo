@@ -106,6 +106,7 @@ class PlatformInvestigateView(PlatformView):
         q = (self.request.GET.get("q") or "").strip()[:100]
         context["query"] = q
         allowed = {item["key"] for item in self.platform_modules}
+        context["operations_search_allowed"] = "operations" in allowed
         if q:
             if "operations" in allowed:
                 context["investigation_spaces"] = get_operations_organizations(self.request.user).filter(
