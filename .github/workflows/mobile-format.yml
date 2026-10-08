@@ -1,6 +1,9 @@
 name: Mobile Format
 
 on:
+  push:
+    branches:
+      - feat/makolo-mark-mature
   workflow_dispatch:
     inputs:
       target_ref:
