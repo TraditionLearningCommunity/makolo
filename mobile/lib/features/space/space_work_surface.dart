@@ -29,7 +29,10 @@ class SpaceWorkSurface extends StatelessWidget {
       visible.add(
         _WorkSection(
           label: _string(section['representation']) ?? entry.key,
-          items: items.whereType<Map>().map(_copyMap).toList(growable: false),
+          items: items
+              .whereType<Map>()
+              .map(_copyMap)
+              .toList(growable: false),
         ),
       );
     }
@@ -72,7 +75,8 @@ class SpaceWorkSurface extends StatelessWidget {
       subtitle: subtitle == null ? null : Text(subtitle),
       trailing: canOpenDayOf ? const Icon(Icons.chevron_right_rounded) : null,
       onTap: canOpenDayOf
-          ? () => context.push('/space/occurrences/${source!['id']}/day-of')
+          ? () =>
+                context.push('/space/occurrences/${source!['id']}/day-of')
           : null,
     );
   }
@@ -84,7 +88,9 @@ class SpaceWorkSurface extends StatelessWidget {
     final timing = _map(item['timing']);
     final day = _string(timing?['start_date']);
     final clock = _string(timing?['start_time']);
-    if (day != null) parts.add(clock == null ? day : '$day · $clock');
+    if (day != null) {
+      parts.add(clock == null ? day : '$day · $clock');
+    }
     final until = _string(timing?['available_until']);
     if (until != null) parts.add('Jusqu’au $until');
     final itemContext = _map(item['context']);

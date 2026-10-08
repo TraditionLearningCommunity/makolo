@@ -28,7 +28,10 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Aucune activité visible pour le moment.'), findsOneWidget);
+    expect(
+      find.text('Aucune activité visible pour le moment.'),
+      findsOneWidget,
+    );
     expect(find.text('À préparer'), findsNothing);
     expect(find.text('Toutes les activités'), findsNothing);
   });
@@ -80,47 +83,54 @@ void main() {
     expect(find.text('Atelier demain'), findsOneWidget);
     expect(find.text('Toutes les activités'), findsOneWidget);
   });
-  testWidgets('transport work keeps structure separate from departures', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: SpaceWorkSurface(
-          payload: {
-            'primary_business_label': 'Transport',
-            'presentation': {'empty_message': 'Aucun transport visible.'},
-            'sections': {
-              'upcoming': {
-                'representation': 'Prochains départs',
-                'role': 'continuity',
-                'items': [
-                  {
-                    'title': 'Lubumbashi → Kolwezi',
-                    'timing': {'start_date': '2026-10-09'},
-                    'context': {},
-                    'source': {'kind': 'departure', 'id': 'dep-1'},
-                    'capabilities': ['view'],
-                  },
-                ],
-              },
-              'routes': {
-                'representation': 'Routes',
-                'role': 'structure',
-                'items': [
-                  {
-                    'title': 'Route Lubumbashi → Kolwezi',
-                    'timing': {},
-                    'context': {},
-                    'source': {'kind': 'transport_route', 'id': 'route-1'},
-                    'capabilities': ['view'],
-                  },
-                ],
+
+  testWidgets(
+    'transport work keeps structure separate from departures',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: SpaceWorkSurface(
+            payload: {
+              'primary_business_label': 'Transport',
+              'presentation': {'empty_message': 'Aucun transport visible.'},
+              'sections': {
+                'upcoming': {
+                  'representation': 'Prochains départs',
+                  'role': 'continuity',
+                  'items': [
+                    {
+                      'title': 'Lubumbashi → Kolwezi',
+                      'timing': {'start_date': '2026-10-09'},
+                      'context': {},
+                      'source': {'kind': 'departure', 'id': 'dep-1'},
+                      'capabilities': ['view'],
+                    },
+                  ],
+                },
+                'routes': {
+                  'representation': 'Routes',
+                  'role': 'structure',
+                  'items': [
+                    {
+                      'title': 'Route Lubumbashi → Kolwezi',
+                      'timing': {},
+                      'context': {},
+                      'source': {
+                        'kind': 'transport_route',
+                        'id': 'route-1',
+                      },
+                      'capabilities': ['view'],
+                    },
+                  ],
+                },
               },
             },
-          },
+          ),
         ),
-      ),
-    );
-    expect(find.text('Transport'), findsOneWidget);
-    expect(find.text('Prochains départs'), findsOneWidget);
-    expect(find.text('Routes'), findsOneWidget);
-  });
+      );
+      expect(find.text('Transport'), findsOneWidget);
+      expect(find.text('Prochains départs'), findsOneWidget);
+      expect(find.text('Routes'), findsOneWidget);
+    },
+  );
 }
