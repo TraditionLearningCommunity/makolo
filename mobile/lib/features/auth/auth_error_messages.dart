@@ -1,23 +1,14 @@
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
-
 import '../../network/api_error.dart';
+import '../../platform/network/device_connectivity.dart';
 
 const makoloServerUnavailableMessage =
     'Nos serveurs sont momentanément inaccessibles. '
     'Il s’agit probablement d’une panne temporaire. Réessayez dans un instant.';
 const deviceOfflineMessage = 'Cet appareil est hors connexion.';
 
-Future<bool> deviceIsOffline() async {
-  try {
-    final results = await Connectivity().checkConnectivity();
-    return results.isNotEmpty &&
-        results.every((result) => result == ConnectivityResult.none);
-  } on Object {
-    return false;
-  }
-}
+Future<bool> deviceIsOffline() => const DeviceConnectivity().isOffline();
 
 bool _mayBeConnectivityFailure(Object error) =>
     error is TimeoutException || error is MakoloTransportError;
