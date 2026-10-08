@@ -49,7 +49,7 @@ class _MarkScreenState extends State<MarkScreen> {
     super.dispose();
   }
 
-  Future<void> _onActorChanged() async {
+  void _onActorChanged() {
     final actor = widget.runtime.actorContext?.value;
     if (actor == null || actor == _actor) return;
     setState(() {
@@ -59,7 +59,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _restoring = true;
     });
     _input.clear();
-    await _restoreDraft();
+    _restoreDraft();
   }
 
   Future<void> _restoreDraft() async {
