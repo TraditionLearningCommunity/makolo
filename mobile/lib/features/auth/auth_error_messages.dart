@@ -16,8 +16,10 @@ bool _mayBeConnectivityFailure(Object error) =>
 Future<String> resolvedAuthErrorMessage(
   Object error, {
   required String fallback,
+  Future<bool> Function()? offlineProbe,
 }) async {
-  if (_mayBeConnectivityFailure(error) && await deviceIsOffline()) {
+  final probe = offlineProbe ?? deviceIsOffline;
+  if (_mayBeConnectivityFailure(error) && await probe()) {
     return deviceOfflineMessage;
   }
   return authErrorMessage(error, fallback: fallback);
@@ -78,7 +80,10 @@ String loginErrorMessage(Object error) {
   return authErrorMessage(error, fallback: makoloServerUnavailableMessage);
 }
 
-Future<String> resolvedLoginErrorMessage(Object error) async {
+Future<String> resolvedLoginErrorMessage(
+  Object error, {
+  Future<bool> Function()? offlineProbe,
+}) async {
   if (error is MakoloApiError &&
       (error.statusCode == 400 || error.statusCode == 401)) {
     return loginErrorMessage(error);
@@ -86,13 +91,18 @@ Future<String> resolvedLoginErrorMessage(Object error) async {
   return resolvedAuthErrorMessage(
     error,
     fallback: makoloServerUnavailableMessage,
+    offlineProbe: offlineProbe,
   );
 }
 
-Future<String> resolvedSignupErrorMessage(Object error) async {
+Future<String> resolvedSignupErrorMessage(
+  Object error, {
+  Future<bool> Function()? offlineProbe,
+}) async {
   if (error is MakoloApiError) return signupErrorMessage(error);
   return resolvedAuthErrorMessage(
     error,
     fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
+    offlineProbe: offlineProbe,
   );
 }

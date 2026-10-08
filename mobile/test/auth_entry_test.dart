@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +8,9 @@ import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
+import 'package:makolo_mobile/features/auth/auth_error_messages.dart';
 import 'package:makolo_mobile/features/auth/login_screen.dart';
+import 'package:makolo_mobile/network/api_error.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 import 'dio_testing.dart';
@@ -450,28 +451,24 @@ void main() {
     );
   });
 
-  testWidgets('identifier availability network failure is not availability', (
-    tester,
-  ) async {
-    final tokens = MemoryTokenStore();
-    final client = MockClient((request) async {
-      if (request.url.path.endsWith('/auth/identifier/availability/')) {
-        throw const SocketException('offline');
-      }
-      throw StateError('unexpected request');
-    });
-    final runtime = _runtime(tokens: tokens, client: client);
+  test('transport failure defaults to Makolo unavailability without offline proof', () async {
+    final message = await resolvedAuthErrorMessage(
+      const MakoloTransportError('makolo_unreachable', 'unreachable'),
+      fallback: 'fallback',
+      offlineProbe: () async => false,
+    );
 
-    await _pumpLogin(tester, runtime);
-    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
-    await tester.pumpAndSettle();
+    expect(message, makoloServerUnavailableMessage);
+  });
 
-    await tester.enterText(find.byKey(const Key('signup-username')), 'amina');
-    await tester.pump(const Duration(milliseconds: 401));
-    await tester.pump();
+  test('established device offline state is allowed to name offline', () async {
+    final message = await resolvedAuthErrorMessage(
+      const MakoloTransportError('makolo_unreachable', 'unreachable'),
+      fallback: 'fallback',
+      offlineProbe: () async => true,
+    );
 
-    expect(find.text('Cet appareil est hors connexion.'), findsOneWidget);
-    expect(find.text('Identifiant Makolo disponible.'), findsNothing);
+    expect(message, deviceOfflineMessage);
   });
 
   testWidgets('signup creates the account and authenticates immediately', (

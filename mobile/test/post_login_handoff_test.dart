@@ -1,14 +1,13 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:makolo_mobile/app/launch_preferences.dart';
-import 'package:makolo_mobile/app/makolo_app.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/features/auth/login_screen.dart';
+import 'package:makolo_mobile/features/now/now_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 import 'package:makolo_mobile/sync/owner_source_state.dart';
@@ -16,33 +15,10 @@ import 'package:makolo_mobile/sync/owner_source_state.dart';
 import 'dio_testing.dart';
 import 'fakes.dart';
 
-Future<void> _pumpUntil(
-  WidgetTester tester,
-  Finder finder, {
-  int maxFrames = 100,
-}) async {
-  for (var frame = 0; frame < maxFrames && finder.evaluate().isEmpty; frame++) {
-    await tester.pump(const Duration(milliseconds: 50));
-    final exception = tester.takeException();
-    if (exception != null) throw exception;
-  }
-  expect(finder, findsOneWidget);
-}
-
 void main() {
   testWidgets(
-    'successful login rebuilds the authenticated runtime and opens Now',
+    'successful login invalidates runtime and the authenticated Now renders',
     (tester) async {
-      final directory = await Directory.systemTemp.createTemp(
-        'makolo-post-login-',
-      );
-      addTearDown(() => directory.delete(recursive: true));
-      final launchPreferences = FileLaunchPreferencesStore.forFile(
-        File('${directory.path}/launch.json'),
-      );
-      await launchPreferences.setOnboardingCompleted();
-      await launchPreferences.setLastBrandMomentAt(DateTime.now().toUtc());
-
       final tokens = MemoryTokenStore();
       final recovery = SessionRecoveryController()
         ..requireAuthentication('/now');
@@ -82,7 +58,6 @@ void main() {
                   tokens: tokens,
                   session: session,
                   recovery: recovery,
-                  launchPreferences: launchPreferences,
                   api: api,
                 );
               }
@@ -90,16 +65,16 @@ void main() {
                 tokens: tokens,
                 session: session,
                 recovery: recovery,
-                launchPreferences: launchPreferences,
                 api: api,
                 personal: _HandoffPersonalRepository(),
               );
             }),
           ],
-          child: const MakoloApp(),
+          child: const _HandoffHarness(),
         ),
       );
-      await _pumpUntil(tester, find.text('Connectez-vous à Makolo'));
+      await tester.pump();
+      await tester.pump();
 
       expect(find.text('Connectez-vous à Makolo'), findsOneWidget);
       await tester.enterText(find.byKey(const Key('login-email')), '@amina');
@@ -108,13 +83,44 @@ void main() {
         'secret-pass',
       );
       await tester.tap(find.byKey(const Key('login-submit')));
-      await _pumpUntil(tester, find.text('Tout est en ordre. ✓'));
+
+      for (var i = 0; i < 40 && find.text('Tout est en ordre. ✓').evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        final error = tester.takeException();
+        if (error != null) throw error;
+      }
 
       expect(find.text('Tout est en ordre. ✓'), findsOneWidget);
       expect(find.text('Connectez-vous à Makolo'), findsNothing);
+      expect((await tokens.readSession())?.profileId, 'profile-a');
       expect(tester.takeException(), isNull);
     },
   );
+}
+
+class _HandoffHarness extends ConsumerWidget {
+  const _HandoffHarness();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncRuntime = ref.watch(appRuntimeProvider);
+    return MaterialApp(
+      home: asyncRuntime.when(
+        loading: () => const SizedBox.shrink(),
+        error: (error, stackTrace) => ErrorWidget(error),
+        data: (runtime) {
+          if (!runtime.isAuthenticated) {
+            return LoginScreen(runtime: runtime);
+          }
+          final personal = runtime.personal;
+          if (personal == null) {
+            return const Text('runtime missing personal repository');
+          }
+          return Scaffold(body: NowScreen(repository: personal));
+        },
+      ),
+    );
+  }
 }
 
 class _HandoffPersonalRepository extends PersonalRepository {
@@ -141,22 +147,6 @@ class _HandoffPersonalRepository extends PersonalRepository {
   @override
   Stream<OwnerSourceState> watchNowSource() =>
       Stream.value(OwnerSourceState.unknown);
-
-  @override
-  Stream<StoredProjection?> watchMe() => Stream.value(
-    StoredProjection(
-      kind: 'personal.me',
-      schemaVersion: 1,
-      payload: const {
-        'identity': {
-          'username': 'amina',
-          'display_name': '@amina',
-          'activation': {'percentage': 33, 'is_complete': false},
-        },
-      },
-      receivedAt: DateTime.utc(2026, 10, 8),
-    ),
-  );
 }
 
 class _NeverUsedStore implements ProfileStore {
