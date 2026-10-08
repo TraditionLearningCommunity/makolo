@@ -430,3 +430,38 @@ class ZS4SpaceProjectionTests(TestCase):
             {"kind": "crm_contact", "id": "00000000-0000-0000-0000-000000000000"},
         )
         self.assertIsNone(response.data["selection"])
+
+    def test_pilot_observed_waitlist_signal_preserves_provenance(self):
+        from unittest.mock import patch
+
+        analytics = {
+            "events_count": 2,
+            "published_count": 2,
+            "upcoming_count": 1,
+            "active_tickets": 0,
+            "used_tickets": 0,
+            "confirmed_orders": 0,
+            "waitlist_waiting": 3,
+            "attendance_percent": None,
+            "money_totals": [],
+            "generated_at": "2026-10-08T00:00:00Z",
+        }
+        self.client.force_authenticate(self.owner)
+        with patch(
+            "organizations.api.space_pilot_projection.build_portfolio_analytics",
+            return_value=analytics,
+        ):
+            response = self.client.get(
+                f"/api/v1/organizations/workspaces/{self.space.slug}/pilot/"
+            )
+        self.assertEqual(response.status_code, 200, response.data)
+        signals = response.data["signals"]
+        self.assertEqual(len(signals), 1)
+        self.assertEqual(signals[0]["kind"], "observed")
+        self.assertEqual(signals[0]["evidence"]["metric_key"], "waitlist_waiting")
+        self.assertEqual(signals[0]["evidence"]["value"], 3)
+        self.assertEqual(signals[0]["owner"], "Analytics")
+        self.assertEqual(signals[0]["coverage"]["limit"], 40)
+        self.assertNotIn("forecast", signals[0])
+        self.assertNotIn("trend", signals[0])
+        self.assertNotIn("score", response.data)
