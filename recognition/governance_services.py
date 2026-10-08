@@ -70,7 +70,7 @@ def publish_policy_for_actor(*, actor, policy_id, expected_status, reason):
     # Serialise competing publications for all Recognition policies.
     list(RecognitionPolicy.objects.order_by("pk").select_for_update().values_list("pk", flat=True))
     policy = RecognitionPolicy.objects.get(pk=policy_id)
-    if policy.status != expected_status or policy.status not in {PolicyStatus.SIMULATED, PolicyStatus.SCHEDULED}:
+    if policy.status != expected_status or policy.status != PolicyStatus.SIMULATED:
         raise ValidationError("Cette Policy doit être simulée et son état vérifié avant publication.")
     now = timezone.now()
     cursor = RecognitionCursor.objects.select_for_update().filter(pk="recognition-v1").first()
