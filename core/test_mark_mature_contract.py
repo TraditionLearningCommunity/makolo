@@ -31,7 +31,7 @@ class MatureMarkContractTests(TestCase):
         self.assertEqual(data["accepted_input_kinds"], ["text"])
         self.assertEqual(
             data["request_context"]["selected"],
-            {"kind": "passport", "id": "known"},
+            {"kind": "passport"},
         )
 
     def test_personal_mark_rejects_client_authority_context(self):
