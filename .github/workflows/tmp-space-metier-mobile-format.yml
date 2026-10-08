@@ -1,0 +1,46 @@
+name: Temporary Space Metier Mobile Format
+
+on:
+  push:
+    branches:
+      - feat/space-metier-archetypes-mature
+
+concurrency:
+  group: temporary-space-metier-mobile-format-final
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: feat/space-metier-archetypes-mature
+          fetch-depth: 0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: "3.47.3"
+          channel: stable
+          cache: true
+      - name: Format Dart sources
+        working-directory: mobile
+        run: bash tool/dart_format.sh write
+      - name: Verify canonical format
+        working-directory: mobile
+        run: bash tool/dart_format.sh check
+      - name: Commit formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- mobile/lib mobile/test; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mobile/lib mobile/test
+          git commit -m "Format mobile Dart sources"
+          git push origin HEAD:feat/space-metier-archetypes-mature
