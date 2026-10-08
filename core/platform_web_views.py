@@ -189,6 +189,87 @@ class PlatformCurationView(PlatformView):
         return context
 
 
+
+class PlatformOpportunityMergeView(PlatformCurationView):
+    page = "opportunity_merge"
+    heading = "Fusionner deux Opportunities"
+    template_name = "platform/opportunity_merge.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not can(request.user, PermissionCode.OPPORTUNITIES_MERGE):
+            raise PermissionDenied("Autorité de fusion Opportunity requise.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        from opportunities.models import Opportunity, OpportunityPublicationStatus
+        context = super().get_context_data(**kwargs)
+        canonical = get_object_or_404(Opportunity.objects.select_related("current_revision"), pk=self.kwargs["pk"])
+        context["canonical"] = canonical
+        context["candidates"] = Opportunity.objects.exclude(
+            publication_status=OpportunityPublicationStatus.MERGED
+        ).exclude(pk=canonical.pk).select_related("current_revision")[:100]
+        return context
+
+    def post(self, request, *args, **kwargs):
+        from opportunities.models import Opportunity, OpportunityPublicationStatus
+        from opportunities.services import merge_opportunities
+        from django import forms
+        class DecisionForm(forms.Form):
+            duplicate = forms.UUIDField()
+            expected_canonical = forms.CharField(max_length=180)
+            expected_duplicate = forms.CharField(max_length=180)
+            reason = forms.CharField(min_length=5, max_length=2000)
+            confirm = forms.BooleanField()
+        form = DecisionForm(request.POST)
+        if not form.is_valid():
+            return self.render_to_response(
+                {**self.get_context_data(), "error_message": "Fusion, motif et confirmation explicite requis."},
+                status=400,
+            )
+        data = form.cleaned_data
+        if data["duplicate"] == self.kwargs["pk"]:
+            return self.render_to_response(
+                {**self.get_context_data(), "error_message": "Survivant et doublon doivent être différents."},
+                status=400,
+            )
+        with transaction.atomic():
+            locked = list(Opportunity.objects.select_for_update().filter(
+                pk__in=(self.kwargs["pk"], data["duplicate"])
+            ).order_by("pk"))
+            objects = {row.pk: row for row in locked}
+            canonical = objects.get(self.kwargs["pk"])
+            duplicate = objects.get(data["duplicate"])
+            if not canonical or not duplicate:
+                raise Http404
+            if not can(request.user, PermissionCode.OPPORTUNITIES_MERGE):
+                raise PermissionDenied("Autorité de fusion révoquée.")
+            if (str(canonical.updated_at.isoformat()) != data["expected_canonical"]
+                or str(duplicate.updated_at.isoformat()) != data["expected_duplicate"]
+                or canonical.publication_status == OpportunityPublicationStatus.MERGED
+                or duplicate.publication_status == OpportunityPublicationStatus.MERGED):
+                return self.render_to_response(
+                    {**self.get_context_data(), "error_message": "Les Opportunities ont changé ; actualisez avant la fusion."},
+                    status=409,
+                )
+            try:
+                merged = merge_opportunities(canonical=canonical, duplicate=duplicate, actor=request.user)
+            except ValidationError as exc:
+                return self.render_to_response(
+                    {**self.get_context_data(), "error_message": "; ".join(exc.messages)},
+                    status=409,
+                )
+            audit_action(
+                actor=request.user, action="opportunity.merge_decision",
+                target_type="opportunity", target_id=duplicate.pk,
+                summary="Fusion Opportunity confirmée",
+                before={"duplicate": str(duplicate.pk), "status": duplicate.publication_status},
+                after={"survivor": str(canonical.pk), "status": merged.publication_status},
+                metadata={"reason": data["reason"]},
+            )
+        messages.success(request, "Fusion confirmée par le domaine Opportunity.")
+        return redirect("platform_web:curation")
+
+
 class PlatformSubscriptionsView(PlatformView):
     module = "subscriptions"
     page = "subscriptions"
