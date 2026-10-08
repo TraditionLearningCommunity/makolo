@@ -37,6 +37,7 @@ from trust.selectors import proofs_for_profile
 
 from .participant_selectors import participant_active_accesses, participant_active_journeys
 from core.api.personal_projections import build_personal_ongoing_projection
+from core.api.me_projection import build_personal_me_data
 from .participant_presentation import occurrence_timing
 from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _primary_place
 
@@ -255,6 +256,10 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
+        context["me_projection"] = build_personal_me_data(
+            profile=profile,
+            request=self.request,
+        )
 
         interests = list(
             ProfileInterest.objects.filter(profile=profile)

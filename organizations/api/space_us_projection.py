@@ -126,6 +126,22 @@ def build_space_us_projection(*, profile, space):
             }
         )
 
+    handoffs = {
+        "responsibilities": f"/space/{space.slug}/us/responsibilities",
+    }
+    if direct_space:
+        handoffs["relationships"] = f"/space/{space.slug}/us/relationships"
+    if can_manage_team:
+        handoffs["team"] = f"/space/{space.slug}/us/team"
+    if can_manage_ownership:
+        handoffs["ownership"] = f"/space/{space.slug}/us/ownership"
+    if "trust" in modules:
+        handoffs["trust"] = f"/space/{space.slug}/us/trust"
+    if any(row["key"] == "analytics" for row in workspace.get("modules", [])):
+        handoffs["pilot"] = f"/space/{space.slug}/us/pilot"
+    if workspace["capabilities"].get("update_space"):
+        handoffs["settings"] = f"/space/{space.slug}/us/settings"
+
     return {
         "identity": identity,
         "team": team,
@@ -141,6 +157,7 @@ def build_space_us_projection(*, profile, space):
         },
         "authority": workspace["authority"],
         "links": institutional_links,
+        "handoffs": handoffs,
         "capabilities": {
             "update_space": workspace["capabilities"].get("update_space", False),
             "manage_team": can_manage_team,

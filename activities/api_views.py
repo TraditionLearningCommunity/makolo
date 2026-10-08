@@ -436,7 +436,7 @@ class OccurrenceDetailAPIView(APIView):
         live_link = None
         capabilities = []
         if live_available:
-            live_link = f"/api/v1/operations/occurrences/{occurrence.pk}/live/"
+            live_link = f"/api/v1/me/occurrences/{occurrence.pk}/live/"
             capabilities.append("open_live")
 
         links = {

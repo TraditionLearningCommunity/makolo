@@ -27,6 +27,14 @@ class DeepLinkResolver {
         return '/projects/${target.id}';
       case 'group':
         return '/groups/${target.id}';
+      case 'space_us_team':
+      case 'space_us_responsibilities':
+      case 'space_us_relationships':
+      case 'space_us_ownership':
+      case 'space_us_trust':
+      case 'space_us_pilot':
+      case 'space_us_settings':
+        return target.link;
       default:
         return null;
     }
