@@ -111,6 +111,53 @@ class NowWebPresentationTests(SimpleTestCase):
         )
         self.assertEqual(home.primary_attention.consequence, "")
 
+    def test_wait_is_explicit_and_never_inferred_from_state(self):
+        pending = _now_web_context(
+            _response(items=[{
+                "id": "waiting", "title": "Demande", "state": "waiting",
+                "state_meaning": "La demande est en cours.",
+                "response": {"type": "wait"},
+                "turn": {"label": "Fournisseur"},
+                "horizon": {"text": "Jusqu'à sa réponse"},
+            }])
+        ).primary_attention
+        self.assertEqual(pending.topology, "waiting")
+        self.assertEqual(pending.horizon, "Jusqu'à sa réponse")
+        no_contract = _now_web_context(
+            _response(items=[{
+                "id": "not-wait", "title": "Demande", "state": "waiting",
+            }])
+        ).primary_attention
+        self.assertEqual(no_contract.topology, "meaning")
+
+    def test_media_is_access_denied_by_default(self):
+        item = {
+            "id": "media", "title": "Certificat", "state_meaning": "Disponible",
+            "media_bindings": [
+                {"resource_ref": "proof:private", "kind": "pdf", "purpose": "understand"},
+                {"resource_ref": "proof:visible", "kind": "pdf", "purpose": "understand",
+                 "authorized": True, "label": "Document autorisé"},
+            ],
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(view.topology, "media")
+        self.assertEqual(view.media_labels, ("Document autorisé",))
+
+    def test_relation_without_owner_consequence_cannot_dominate(self):
+        item = {
+            "id": "relation", "title": "Conflit",
+            "state_meaning": "Deux engagements",
+            "relation_members": [{"id": "a"}, {"id": "b"}],
+            "relations": [{"summary": "Même heure", "kind": "conflict"}],
+            "response": {"type": "decide"},
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(view.topology, "meaning")
+        item["why_now"] = {"meaning": "Ils commencent ensemble"}
+        item["consequence"] = {"effect": "Une présence simultanée est impossible"}
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(view.topology, "composition")
+
     def test_missing_selection_is_unavailable_instead_of_calm(self):
         home = _now_web_context({"items": []})
 
