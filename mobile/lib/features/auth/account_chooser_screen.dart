@@ -38,7 +38,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
   Future<void> _activate(DeviceAccount account) async {
     if (_busyProfileId != null) return;
     if (!account.hasQuickAccess) {
-      widget.onUsePassword(account.email);
+      widget.onUsePassword(account.loginIdentifier);
       return;
     }
     setState(() => _busyProfileId = account.profileId);
@@ -48,7 +48,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
       ref.invalidate(appRuntimeProvider);
     } on Object {
       if (!mounted) return;
-      widget.onUsePassword(account.email);
+      widget.onUsePassword(account.loginIdentifier);
     } finally {
       if (mounted) setState(() => _busyProfileId = null);
     }
@@ -60,7 +60,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Retirer ce compte de cet appareil ?'),
         content: Text(
-          'Le compte ${account.email} restera un compte Makolo. Seuls son accès rapide et sa présence dans cette liste seront retirés de cet appareil.',
+          'Le compte ${account.publicIdentifier} restera un compte Makolo. Seuls son accès rapide et sa présence dans cette liste seront retirés de cet appareil.',
         ),
         actions: [
           TextButton(
@@ -177,7 +177,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
                                     ),
                                   ),
                                   Text(
-                                    account.email,
+                                    account.publicIdentifier,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(

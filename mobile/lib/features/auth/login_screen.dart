@@ -8,7 +8,7 @@ import '../../app/providers.dart';
 import '../../app/session_recovery.dart';
 import '../../auth/auth_repository.dart';
 import '../../design/makolo_theme.dart';
-import '../../network/api_error.dart';
+import 'auth_error_messages.dart';
 import 'account_chooser_screen.dart';
 import 'auth_components.dart';
 import 'auth_entry_frame.dart';
@@ -70,8 +70,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _restoreDraft() async {
     final draft = await widget.runtime.interactions?.read('login');
     if (!mounted || _email.text.isNotEmpty) return;
-    final email = draft?['email'];
-    if (email is String) _email.text = email;
+    final identifier = draft?['identifier'] ?? draft?['email'];
+    if (identifier is String) _email.text = identifier;
   }
 
   void _scheduleDraftSave() {
@@ -79,7 +79,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _draftTimer = Timer(const Duration(milliseconds: 250), () {
       unawaited(
         widget.runtime.interactions?.save('login', {
-              'email': _email.text.trim(),
+              'identifier': _email.text.trim(),
             }) ??
             Future<void>.value(),
       );
@@ -105,12 +105,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  String? _validateEmail(String? value) {
-    final email = value?.trim() ?? '';
-    if (email.isEmpty || !email.contains('@')) {
-      return 'Indiquez une adresse e-mail valide.';
+  String? _validateIdentifier(String? value) {
+    if ((value?.trim() ?? '').isEmpty) {
+      return 'Indiquez votre Identifiant Makolo ou votre adresse e-mail.';
     }
     return null;
+  }
+
+  String _passwordRecoveryEmail() {
+    final value = _email.text.trim();
+    if (value.startsWith('@') || !value.contains('@')) return '';
+    return value;
   }
 
   String? _validatePassword(String? value) {
@@ -136,26 +141,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
     try {
       await AuthRepository(api, widget.runtime.tokens).login(
-        email: _email.text.trim(),
+        identifier: _email.text.trim(),
         password: _password.text,
         rememberOnDevice: _rememberOnDevice,
       );
       TextInput.finishAutofillContext();
       await widget.runtime.interactions?.clear('login');
       ref.invalidate(appRuntimeProvider);
-    } on MakoloApiError catch (error) {
+    } on Object catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.statusCode == 400 || error.statusCode == 401
-            ? 'Adresse e-mail ou mot de passe incorrect.'
-            : error.statusCode == 429
-            ? 'Trop de tentatives pour le moment. Réessayez un peu plus tard.'
-            : 'Connexion impossible pour le moment. Réessayez dans un instant.';
-      });
-    } on Object {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Connexion impossible pour le moment. Votre saisie reste disponible.';
+        _error = loginErrorMessage(error);
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -166,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = await showForgotPasswordDialog(
       context,
       runtime: widget.runtime,
-      initialEmail: _email.text.trim(),
+      initialEmail: _passwordRecoveryEmail(),
     );
     if (!mounted || email == null || email.isEmpty) return;
     _email.text = email;
@@ -224,16 +220,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 fieldKey: const Key('login-email'),
                 controller: _email,
                 enabled: !_busy,
-                keyboardType: TextInputType.emailAddress,
+                keyboardType: TextInputType.text,
                 autofillHints: const [
                   AutofillHints.username,
                   AutofillHints.email,
                 ],
                 textInputAction: TextInputAction.next,
                 prefixIcon: Icons.alternate_email,
-                validator: _validateEmail,
+                validator: _validateIdentifier,
                 onEditingComplete: () => _passwordFocus.requestFocus(),
-                label: 'Adresse e-mail',
+                label: 'Identifiant Makolo ou adresse e-mail',
               ),
               const SizedBox(height: MakoloSpacing.md),
               MakoloAuthField(

@@ -16,15 +16,15 @@ String authErrorMessage(Object error, {required String fallback}) {
   if (error.code == 'throttled' || error.statusCode == 429) {
     return 'Trop de tentatives pour le moment. Réessayez un peu plus tard.';
   }
-  if (error.statusCode >= 500) {
-    return fallback;
-  }
   return fallback;
 }
 
 String signupErrorMessage(Object error) {
   if (error is! MakoloApiError) {
-    return 'Création du compte impossible pour le moment. Réessayez dans un instant.';
+    return authErrorMessage(
+      error,
+      fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
+    );
   }
 
   final fields = error.fields;
