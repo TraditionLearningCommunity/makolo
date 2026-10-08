@@ -7,7 +7,7 @@ StatefulShellBranch nowBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
     GoRoute(
       path: '/now',
-      builder: (context, state) => NowScreen(repository: runtime.personal!),
+      builder: (context, state) => NowScreen(repository: runtime.personal!, api: runtime.api),
     ),
   ],
 );
