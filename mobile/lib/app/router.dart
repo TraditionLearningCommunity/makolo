@@ -255,6 +255,40 @@ GoRouter createMakoloRouter(
       ),
       ...accessRoutes(runtime),
       GoRoute(
+        path: '/space/:slug/us/relationships',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Personnes & relations',
+              message: 'Sélectionnez le Space autorisé pour cette relation.',
+            );
+          }
+          return SpaceInsightScreen(
+            runtime: runtime,
+            surface: SpaceProjectionKind.relationships,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/us/pilot',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Piloter',
+              message: 'Sélectionnez le Space autorisé pour cette analyse.',
+            );
+          }
+          return SpaceInsightScreen(
+            runtime: runtime,
+            surface: SpaceProjectionKind.pilot,
+          );
+        },
+      ),
+      GoRoute(
         path: '/space/relationships',
         builder: (context, state) => SpaceInsightScreen(
           runtime: runtime,
