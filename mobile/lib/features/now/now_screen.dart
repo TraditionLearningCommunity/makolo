@@ -6,6 +6,7 @@ import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
+import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
 import '../../navigation/deep_link_resolver.dart';
 import '../../navigation/destination.dart';
@@ -377,9 +378,9 @@ NowTopology topologyFor(NowSituationPresentation situation) {
       situation.responseType != null) {
     return NowTopology.composition;
   }
-  if (situation.responseType == 'waiting' ||
-      situation.serverState == 'waiting' ||
-      situation.turn == 'waiting') {
+  // Waiting is a response owned by the projection, not an inferred status.
+  final response = situation.responseType?.toLowerCase();
+  if (response == 'wait' || response == 'monitor' || response == 'waiting') {
     return NowTopology.waiting;
   }
   return NowTopology.meaning;
@@ -399,17 +400,21 @@ class _NowSemanticContent extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ListTile(
-            leading: Icon(switch (media.kind) {
-              NowMediaKind.image => Icons.image_outlined,
-              NowMediaKind.pdf => Icons.picture_as_pdf_outlined,
-              NowMediaKind.video => Icons.play_circle_outline,
-              NowMediaKind.audio => Icons.audiotrack_outlined,
-              NowMediaKind.coordinates => Icons.place_outlined,
-              _ => Icons.insert_drive_file_outlined,
-            }),
-            title: Text(media.label ?? 'Média associé à cette situation'),
-            subtitle: const Text('Accès via la source autorisée'),
+          MakoloMediaFrame(
+            aspect: media.kind == NowMediaKind.pdf
+                ? MakoloMediaAspect.document
+                : MakoloMediaAspect.standard,
+            semanticLabel: media.label ?? 'Média lié à la situation',
+            placeholder: MakoloMediaPlaceholder(
+              icon: switch (media.kind) {
+                NowMediaKind.pdf => Icons.picture_as_pdf_outlined,
+                NowMediaKind.video => Icons.play_circle_outline,
+                NowMediaKind.audio => Icons.audiotrack_outlined,
+                NowMediaKind.coordinates => Icons.place_outlined,
+                _ => Icons.image_outlined,
+              },
+              label: media.label ?? 'Média disponible dans la source autorisée',
+            ),
           ),
           const SizedBox(height: MakoloSpacing.md),
         ],
@@ -419,6 +424,9 @@ class _NowSemanticContent extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          for (final relation in situation.relations)
+            if (relation.summary != null)
+              Text(relation.summary!, style: theme.textTheme.titleMedium),
           for (final member in situation.relationMembers)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -426,9 +434,6 @@ class _NowSemanticContent extends StatelessWidget {
               subtitle: member.subtext == null ? null : Text(member.subtext!),
               leading: const Icon(Icons.account_tree_outlined),
             ),
-          for (final relation in situation.relations)
-            if (relation.summary != null)
-              Text(relation.summary!, style: theme.textTheme.bodyMedium),
         ],
       );
     }
@@ -438,7 +443,7 @@ class _NowSemanticContent extends StatelessWidget {
           const Icon(Icons.hourglass_top_outlined),
           const SizedBox(width: MakoloSpacing.md),
           Expanded(child: Text(
-            situation.turnLabel ?? 'Makolo suit la situation. Aucune action immédiate.',
+            situation.turnLabel ?? 'En attente de la prochaine réponse.',
             style: theme.textTheme.bodyMedium,
           )),
         ],
