@@ -107,13 +107,12 @@ class ProfileActivationUxTests(TestCase):
         self.tech = Topic.objects.create(code="technology", label="Technologie")
         Topic.objects.create(code="music", label="Musique")
 
-    def test_owner_me_shows_private_activation_surface(self):
+    def test_owner_me_keeps_profile_entry_without_universal_activation_score(self):
         self.client.force_login(self.user)
-        summary = build_profile_activation_summary(self.user, profile=self.profile)
         response = self.client.get(reverse("core:participant-me"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f"Profil Makolo · {summary.percentage} % activé")
         self.assertContains(response, reverse("account:profile"))
+        self.assertNotContains(response, "% activé")
 
     def test_public_passport_does_not_show_activation_percentage(self):
         self.profile.public_profile = True
