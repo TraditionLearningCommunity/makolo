@@ -477,10 +477,14 @@ class PlatformEventDecisionView(PlatformDecisionView):
         )
 
     def lock_subject(self, request):
+        from activities.models import Activity
         from events.models import Event
-        return get_object_or_404(
+        event = get_object_or_404(
             Event.objects.select_for_update(), pk=self.kwargs["pk"]
         )
+        # Event status and visibility belong to Activity, not the Event row.
+        event.activity = Activity.objects.select_for_update().get(pk=event.activity_id)
+        return event
 
     def current_state(self, subject):
         return f"{subject.status}:{subject.visibility}"
