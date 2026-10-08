@@ -205,9 +205,19 @@ class PlatformOpportunityMergeView(PlatformCurationView):
         context = super().get_context_data(**kwargs)
         canonical = get_object_or_404(Opportunity.objects.select_related("current_revision"), pk=self.kwargs["pk"])
         context["canonical"] = canonical
-        context["candidates"] = Opportunity.objects.exclude(
+        candidates = Opportunity.objects.exclude(
             publication_status=OpportunityPublicationStatus.MERGED
-        ).exclude(pk=canonical.pk).select_related("current_revision")[:100]
+        ).exclude(pk=canonical.pk).select_related("current_revision")
+        query = (self.request.GET.get("q") or "").strip()[:100]
+        if query:
+            candidates = candidates.filter(current_revision__title__icontains=query)
+        context["query"] = query
+        context["candidates"] = [
+            {"id": str(item.pk), "version": item.updated_at.isoformat(),
+             "label": item.current_revision.title if item.current_revision else str(item.pk)}
+            for item in candidates[:100]
+        ]
+        context["canonical_version"] = canonical.updated_at.isoformat()
         return context
 
     def post(self, request, *args, **kwargs):
@@ -215,9 +225,8 @@ class PlatformOpportunityMergeView(PlatformCurationView):
         from opportunities.services import merge_opportunities
         from django import forms
         class DecisionForm(forms.Form):
-            duplicate = forms.UUIDField()
+            duplicate = forms.CharField(max_length=240)
             expected_canonical = forms.CharField(max_length=180)
-            expected_duplicate = forms.CharField(max_length=180)
             reason = forms.CharField(min_length=5, max_length=2000)
             confirm = forms.BooleanField()
         form = DecisionForm(request.POST)
@@ -227,24 +236,33 @@ class PlatformOpportunityMergeView(PlatformCurationView):
                 status=400,
             )
         data = form.cleaned_data
-        if data["duplicate"] == self.kwargs["pk"]:
+        try:
+            from uuid import UUID
+            duplicate_id, duplicate_version = data["duplicate"].split("|", 1)
+            duplicate_id = UUID(duplicate_id)
+        except (ValueError, AttributeError):
+            return self.render_to_response(
+                {**self.get_context_data(), "error_message": "Choisissez un doublon valide dans la liste."},
+                status=400,
+            )
+        if duplicate_id == self.kwargs["pk"]:
             return self.render_to_response(
                 {**self.get_context_data(), "error_message": "Survivant et doublon doivent être différents."},
                 status=400,
             )
         with transaction.atomic():
             locked = list(Opportunity.objects.select_for_update().filter(
-                pk__in=(self.kwargs["pk"], data["duplicate"])
+                pk__in=(self.kwargs["pk"], duplicate_id)
             ).order_by("pk"))
             objects = {row.pk: row for row in locked}
             canonical = objects.get(self.kwargs["pk"])
-            duplicate = objects.get(data["duplicate"])
+            duplicate = objects.get(duplicate_id)
             if not canonical or not duplicate:
                 raise Http404
             if not can(request.user, PermissionCode.OPPORTUNITIES_MERGE):
                 raise PermissionDenied("Autorité de fusion révoquée.")
             if (str(canonical.updated_at.isoformat()) != data["expected_canonical"]
-                or str(duplicate.updated_at.isoformat()) != data["expected_duplicate"]
+                or str(duplicate.updated_at.isoformat()) != duplicate_version
                 or canonical.publication_status == OpportunityPublicationStatus.MERGED
                 or duplicate.publication_status == OpportunityPublicationStatus.MERGED):
                 return self.render_to_response(
