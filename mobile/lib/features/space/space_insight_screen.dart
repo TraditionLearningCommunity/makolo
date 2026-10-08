@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
@@ -9,8 +8,6 @@ import '../../data/local/profile_store.dart';
 import '../../sync/owner_source_state.dart';
 import 'space_repository.dart';
 
-/// Secondary Space surfaces. Owner snapshots stay in WorkspaceContextRepository.
-/// Presentation never grants authority and never mutates a relationship or metric.
 class SpaceInsightScreen extends StatefulWidget {
   const SpaceInsightScreen({
     super.key,
@@ -26,170 +23,132 @@ class SpaceInsightScreen extends StatefulWidget {
 }
 
 class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
-  final _query = TextEditingController();
-  Map<String, dynamic>? _remoteSearch;
-  bool _searchUnavailable = false;
-  bool _refreshing = false;
-  String? _selectedKind;
-  String? _selectedId;
-  int _searchVersion = 0;
+  final searchController = TextEditingController();
+  Map<String, dynamic>? results;
+  bool searchFailed = false;
+  int searchVersion = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    widget.runtime.actorContext?.addListener(_onContextChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
-  }
-
-  @override
-  void dispose() {
-    widget.runtime.actorContext?.removeListener(_onContextChanged);
-    _query.dispose();
-    super.dispose();
-  }
-
-  void _onContextChanged() {
-    if (!mounted) return;
-    setState(() {
-      _remoteSearch = null;
-      _selectedKind = null;
-      _selectedId = null;
-      _searchUnavailable = false;
-      _searchVersion++;
-    });
-    _refresh();
-  }
-
-  SpaceActorContext? get _actor {
+  SpaceActorContext? get actor {
     final current = widget.runtime.actorContext?.value;
     return current is SpaceActorContext ? current : null;
   }
 
-  WorkspaceContextRepository? get _repository => widget.runtime.space;
+  @override
+  void initState() {
+    super.initState();
+    widget.runtime.actorContext?.addListener(onActorChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => refresh());
+  }
 
-  Future<void> _refresh() async {
-    final actor = _actor;
-    final repo = _repository;
-    if (actor == null || repo == null || _refreshing) return;
-    setState(() => _refreshing = true);
+  @override
+  void dispose() {
+    widget.runtime.actorContext?.removeListener(onActorChanged);
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void onActorChanged() {
+    if (!mounted) return;
+    searchVersion++;
+    setState(() {
+      results = null;
+      searchFailed = false;
+    });
+    unawaited(refresh());
+  }
+
+  Future<void> refresh() async {
+    final space = actor?.space;
+    final repository = widget.runtime.space;
+    if (space == null || repository == null) return;
     try {
       if (widget.surface == SpaceProjectionKind.relationships) {
-        await repo.refreshRelationships(actor.space);
+        await repository.refreshRelationships(space);
       } else {
-        await repo.refreshPilot(actor.space);
+        await repository.refreshPilot(space);
       }
     } on Object {
-      // Keep only the authorized last snapshot; the source state signals
-      // revocation, and live search never misreports a remote failure.
-    } finally {
-      if (mounted) setState(() => _refreshing = false);
+      // The source state decides whether cached data remains usable.
     }
   }
 
-  Future<void> _search() async {
-    final actor = _actor;
+  Future<void> search() async {
+    final space = actor?.space;
     final api = widget.runtime.api;
-    final query = _query.text.trim();
-    final version = ++_searchVersion;
-    if (actor == null || query.isEmpty) {
+    final query = searchController.text.trim();
+    final version = ++searchVersion;
+    if (space == null || api == null || query.isEmpty) {
       setState(() {
-        _remoteSearch = null;
-        _searchUnavailable = false;
-      });
-      return;
-    }
-    if (api == null) {
-      setState(() {
-        _remoteSearch = null;
-        _searchUnavailable = true;
+        results = null;
+        searchFailed = query.isNotEmpty;
       });
       return;
     }
     try {
-      final url = 'api/v1/organizations/workspaces/'
-          '${Uri.encodeComponent(actor.space.slug)}/relationships/'
+      final path = 'api/v1/organizations/workspaces/'
+          '${Uri.encodeComponent(space.slug)}/relationships/'
           '?q=${Uri.encodeQueryComponent(query)}';
-      final response = await api.get(url);
-      if (!mounted ||
-          version != _searchVersion ||
-          _actor?.space.id != actor.space.id) {
-        return;
-      }
+      final response = await api.get(path);
+      if (!mounted || version != searchVersion) return;
+      if (actor?.space.id != space.id) return;
       final payload = response.jsonObject();
       setState(() {
-        _remoteSearch = payload['search'] is Map
+        results = payload['search'] is Map
             ? Map<String, dynamic>.from(payload['search'] as Map)
             : null;
-        _searchUnavailable = false;
+        searchFailed = false;
       });
     } on Object {
-      if (!mounted || version != _searchVersion) return;
+      if (!mounted || version != searchVersion) return;
       setState(() {
-        _remoteSearch = null;
-        _searchUnavailable = true;
+        results = null;
+        searchFailed = true;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final actor = _actor;
-    final repo = _repository;
-    final title = widget.surface == SpaceProjectionKind.relationships
-        ? 'Personnes & relations'
-        : 'Piloter';
-    if (actor == null || repo == null) {
+    final space = actor?.space;
+    final repository = widget.runtime.space;
+    final relations = widget.surface == SpaceProjectionKind.relationships;
+    final title = relations ? 'Personnes & relations' : 'Piloter';
+    if (space == null || repository == null) {
       return Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: const Center(
-          child: Text('Cette surface exige le contexte Space actif.'),
-        ),
+        body: const Center(child: Text('Contexte Space indisponible.')),
       );
     }
-    final source = widget.surface == SpaceProjectionKind.relationships
-        ? repo.relationshipsSource(actor.space)
-        : repo.pilotSource(actor.space);
-    final stream = widget.surface == SpaceProjectionKind.relationships
-        ? repo.watchRelationships(actor.space)
-        : repo.watchPilot(actor.space);
+    final source = relations
+        ? repository.relationshipsSource(space)
+        : repository.pilotSource(space);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
-          IconButton(
-            tooltip: 'Actualiser',
-            onPressed: _refreshing ? null : _refresh,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(title)),
       body: StreamBuilder<OwnerSourceState>(
-        stream: repo.watchSource(source),
+        stream: repository.watchSource(source),
         initialData: OwnerSourceState.unknown,
-        builder: (context, stateSnapshot) {
-          final state = stateSnapshot.data ?? OwnerSourceState.unknown;
-          if (state.invalidated || state.lastErrorCode == 'forbidden' ||
-              state.lastErrorCode == 'not_found') {
+        builder: (context, sourceSnapshot) {
+          final status = sourceSnapshot.data;
+          if (status?.invalidated == true) {
             return const Center(
-              child: Text(
-                'Cette profondeur n’est plus autorisée dans le contexte Space actuel.',
-              ),
+              child: Text('Autorité Space révoquée ou indisponible.'),
             );
           }
           return StreamBuilder<StoredProjection?>(
-            key: ValueKey('${actor.space.id}:${widget.surface.name}'),
-            stream: stream,
+            key: ValueKey('${space.id}:${widget.surface.name}'),
+            stream: relations
+                ? repository.watchRelationships(space)
+                : repository.watchPilot(space),
             builder: (context, snapshot) {
               final payload = snapshot.data?.payload;
               if (payload == null) {
                 return const Center(
-                  child: Text('Aucune projection autorisée disponible.'),
+                  child: Text('Projection non disponible.'),
                 );
               }
-              if (widget.surface == SpaceProjectionKind.relationships) {
-                return _relations(context, payload);
-              }
-              return _pilot(context, payload);
+              return relations
+                  ? relationsBody(payload)
+                  : pilotBody(payload);
             },
           );
         },
@@ -197,264 +156,127 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     );
   }
 
-  Widget _relations(BuildContext context, Map<String, dynamic> payload) {
-    final authority = payload['authority'] is Map
-        ? payload['authority'] as Map
-        : const {};
-    final sections = payload['sections'] is Map
-        ? payload['sections'] as Map
-        : const {};
-    final label = payload['label'] is String
-        ? payload['label'] as String
-        : 'Personnes & relations';
-    const families = {
-      'team': 'Équipe',
-      'groups': 'Groupes',
-      'crm_contacts': 'Contacts',
-      'audiences': 'Audiences',
-      'partners': 'Partenaires',
-    };
-    final local = <Map<String, dynamic>>[];
-    for (final entry in families.entries) {
-      final collection = sections[entry.key];
-      if (collection is! Map || collection['items'] is! List) continue;
-      for (final raw in collection['items'] as List) {
-        if (raw is Map) local.add(Map<String, dynamic>.from(raw));
+  Widget relationsBody(Map<String, dynamic> payload) {
+    final sections = payload['sections'];
+    if (sections is! Map || sections.isEmpty) {
+      return const Center(
+        child: Text('Aucune relation visible dans ce contexte.'),
+      );
+    }
+    final query = searchController.text.trim();
+    final matches = results?['items'];
+    final rows = <Map<String, dynamic>>[];
+    if (query.isNotEmpty && matches is List) {
+      for (final item in matches) {
+        if (item is Map) rows.add(Map<String, dynamic>.from(item));
+      }
+    } else {
+      for (final section in sections.values) {
+        if (section is! Map || section['items'] is! List) continue;
+        for (final item in section['items'] as List) {
+          if (item is Map) {
+            final row = Map<String, dynamic>.from(item);
+            if (query.isEmpty || labelOf(row).toLowerCase().contains(
+              query.toLowerCase(),
+            )) {
+              rows.add(row);
+            }
+          }
+        }
       }
     }
-    final query = _query.text.trim().toLowerCase();
-    final search = _remoteSearch;
-    final remoteMatches = search?['items'] is List
-        ? search!['items'] as List
-        : null;
-    final displayed = query.isEmpty
-        ? local
-        : remoteMatches != null
-            ? remoteMatches
-                  .whereType<Map>()
-                  .map((item) => Map<String, dynamic>.from(item))
-                  .toList()
-            : local
-                  .where((row) => _name(row).toLowerCase().contains(query))
-                  .toList();
     return ListView(
       key: const Key('space-relationships-secondary'),
       padding: const EdgeInsets.all(20),
       children: [
-        Text(label, style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        const Text('Avec qui avançons-nous ?'),
-        const SizedBox(height: 16),
+        const Text('Relations conservées dans leurs domaines propriétaires.'),
+        const SizedBox(height: 12),
         TextField(
-          controller: _query,
-          onChanged: (_) => setState(() {
-            _remoteSearch = null;
-            _searchVersion++;
-          }),
-          onSubmitted: (_) => _search(),
+          controller: searchController,
+          onChanged: (_) {
+            searchVersion++;
+            setState(() => results = null);
+          },
+          onSubmitted: (_) => search(),
           decoration: InputDecoration(
-            labelText: 'Rechercher les relations visibles',
+            labelText: 'Rechercher les relations',
             suffixIcon: IconButton(
               tooltip: 'Rechercher dans le Space',
-              onPressed: _search,
+              onPressed: search,
               icon: const Icon(Icons.search),
             ),
           ),
         ),
-        if (_searchUnavailable && query.isNotEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              'Résultats disponibles sur cet appareil. La recherche complète du Space est indisponible.',
-            ),
+        if (searchFailed)
+          const Text(
+            'Recherche distante indisponible. Résultats locaux partiels.',
           ),
-        if (authority['scope'] == 'activity_limited')
-          const Padding(
-            padding: EdgeInsets.only(top: 16),
-            child: Text(
-              'Relations globales indisponibles dans cette responsabilité.',
-            ),
-          )
-        else if (sections.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 16),
-            child: Text(
-              'Aucune collection relationnelle disponible dans ce contexte.',
-            ),
-          )
-        else if (query.isNotEmpty) ...[
-          if (displayed.isEmpty)
-            Text(
-              search == null
-                  ? 'Aucune relation correspondante dans le snapshot disponible sur cet appareil.'
-                  : 'Aucune relation visible ne correspond à cette recherche.',
-            ),
-          for (final row in displayed) _relationTile(row),
-          if (search?['has_more'] == true)
-            const Text(
-              'Des résultats supplémentaires peuvent exister. Affinez la recherche.',
-            ),
-        ] else
-          for (final family in families.entries)
-            if (sections[family.key] is Map) ...[
-              const SizedBox(height: 20),
-              Text(
-                family.value,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              for (final raw
-                  in ((sections[family.key] as Map)['items'] as List? ??
-                      const []))
-                if (raw is Map) _relationTile(Map<String, dynamic>.from(raw)),
-              if ((sections[family.key] as Map)['has_more'] == true)
-                const Text(
-                  'Voir toutes les relations dans le domaine propriétaire.',
-                ),
-            ],
-        if (_selectedKind != null && _selectedId != null)
-          const Padding(
-            padding: EdgeInsets.only(top: 20),
-            child: Text(
-              'Sélection locale : ouvrir la relation dans son owner après revalidation serveur.',
-            ),
+        if (rows.isEmpty)
+          const Text('Aucune relation correspondante dans les données visibles.'),
+        for (final row in rows)
+          ListTile(
+            title: Text(labelOf(row)),
+            subtitle: Text(row['relation_type']?.toString() ?? 'Relation'),
           ),
+        if (results?['has_more'] == true)
+          const Text('Autres résultats possibles : affinez la recherche.'),
       ],
     );
   }
 
-  Widget _relationTile(Map<String, dynamic> row) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(_name(row)),
-      subtitle: Text(
-        row['relation_type']?.toString() ??
-            _type(row['kind']?.toString() ?? ''),
-      ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => setState(() {
-        _selectedKind = row['kind']?.toString();
-        _selectedId = row['id']?.toString();
-      }),
-    );
-  }
-
-  String _name(Map row) {
-    if (row['identity'] is String) return row['identity'] as String;
+  String labelOf(Map<String, dynamic> row) {
     final profile = row['profile'];
+    if (row['identity'] is String) return row['identity'] as String;
     if (profile is Map && profile['name'] is String) {
       return profile['name'] as String;
     }
-    return row['name']?.toString() ?? row['label']?.toString() ?? 'Relation';
+    return row['name']?.toString() ??
+        row['label']?.toString() ??
+        'Relation';
   }
 
-  String _type(String kind) => switch (kind) {
-    'team_member' => 'Collaborateur · Équipe',
-    'crm_contact' => 'Contact CRM',
-    'group' => 'Groupe',
-    'audience' => 'Audience',
-    'partner' => 'Partenaire',
-    _ => 'Relation propriétaire',
-  };
-
-  Widget _pilot(BuildContext context, Map<String, dynamic> payload) {
-    final authority = payload['authority'] is Map
-        ? payload['authority'] as Map
-        : const {};
-    final sections = payload['sections'] is Map
-        ? payload['sections'] as Map
-        : const {};
-    final analytics = sections['analytics'] is Map
-        ? sections['analytics'] as Map
-        : null;
-    final signals = payload['signals'] is List
-        ? payload['signals'] as List
+  Widget pilotBody(Map<String, dynamic> payload) {
+    final sections = payload['sections'];
+    final analytics = sections is Map ? sections['analytics'] : null;
+    if (analytics is! Map) {
+      return const Center(child: Text('Pilotage non autorisé ou indisponible.'));
+    }
+    final signals = analytics['signals'] is List
+        ? analytics['signals'] as List
+        : const [];
+    final metrics = analytics['metrics'] is List
+        ? analytics['metrics'] as List
         : const [];
     return ListView(
       key: const Key('space-pilot-secondary'),
       padding: const EdgeInsets.all(20),
       children: [
         Text('Piloter', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        const Text(
-          'Est-ce que cela fonctionne ? Qu’est-ce qui change ? Que devons-nous ajuster ?',
-        ),
+        const Text('Que savons-nous ? Que faut-il examiner ?'),
         const SizedBox(height: 20),
-        if (authority['scope'] == 'activity_limited')
-          const Text(
-            'Le pilotage global n’est pas disponible dans cette responsabilité.',
-          )
-        else if (analytics == null)
-          const Text(
-            'Aucune lecture de pilotage disponible avec cette autorité.',
-          )
-        else ...[
-          if (signals.isEmpty)
-            Text(
-              analytics['state'] == 'insufficient_data'
-                  ? 'Pas encore assez d’activité pour dégager une tendance utile.'
-                  : 'Aucun signal de pilotage défendable disponible pour le moment.',
+        if (signals.isEmpty)
+          const Text('Aucun signal interprétable à ce stade.'),
+        for (final signal in signals)
+          if (signal is Map)
+            ListTile(
+              title: Text(signal['title']?.toString() ?? 'Observation'),
+              subtitle: Text(signal['summary']?.toString() ?? ''),
             ),
-          for (final raw in signals)
-            if (raw is Map)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        raw['title']?.toString() ?? 'Observation',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      if (raw['summary'] != null)
-                        Text(raw['summary'].toString()),
-                      if (raw['why'] != null) Text(raw['why'].toString()),
-                      if (raw['uncertainty'] != null)
-                        Text('Limite : ${raw['uncertainty']}'),
-                      Text('Source : ${raw['owner'] ?? 'Owner analytique'}'),
-                    ],
-                  ),
+        const SizedBox(height: 12),
+        ExpansionTile(
+          title: const Text('Mesures de soutien'),
+          children: [
+            for (final metric in metrics)
+              if (metric is Map)
+                ListTile(
+                  title: Text(metric['key']?.toString() ?? 'Mesure'),
+                  subtitle: Text(metric['state'] == 'known'
+                      ? '${metric['value']}'
+                      : metric['state']?.toString() ?? 'Inconnu'),
                 ),
-              ),
-          const SizedBox(height: 20),
-          ExpansionTile(
-            title: const Text('Mesures de soutien'),
-            subtitle: Text(
-              'Portefeuille : ${(analytics['coverage'] is Map ? (analytics['coverage'] as Map)['limit'] : null) ?? 'portée non précisée'} événements visibles maximum',
-            ),
-            children: [
-              for (final metric
-                  in analytics['metrics'] is List
-                      ? analytics['metrics'] as List
-                      : const [])
-                if (metric is Map)
-                  ListTile(
-                    title: Text(metric['key']?.toString() ?? 'Mesure'),
-                    subtitle: Text(_metricText(metric)),
-                  ),
-              for (final money
-                  in analytics['money'] is List
-                      ? analytics['money'] as List
-                      : const [])
-                if (money is Map)
-                  ListTile(
-                    title: Text('Finance · ${money['currency']}'),
-                    subtitle: Text(
-                      'Brut ${money['gross']} · Remboursements ${money['refunds']} · Net ${money['net']}',
-                    ),
-                  ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ],
     );
   }
-
-  String _metricText(Map metric) => switch (metric['state']) {
-    'known' => '${metric['value']} ${metric['unit'] ?? ''}',
-    'unknown' => 'Inconnu',
-    'unavailable' => 'Indisponible',
-    'insufficient_data' => 'Données insuffisantes',
-    _ => 'État non disponible',
-  };
 }
