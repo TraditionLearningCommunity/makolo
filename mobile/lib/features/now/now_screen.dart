@@ -407,100 +407,105 @@ class _NowSemanticContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final topology = topologyFor(situation);
     final theme = Theme.of(context);
-    if (topology == NowTopology.media) {
-      final media = situation.mediaBindings.firstWhere(
-        (item) => item.canDominate,
-      );
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: api != null && nowAuthorizedMediaPath(media) != null
-                ? () => _openMedia(context, media)
-                : null,
-            child: MakoloMediaFrame(
-            aspect: media.kind == NowMediaKind.pdf
-                ? MakoloMediaAspect.document
-                : MakoloMediaAspect.standard,
-            semanticLabel: media.label ?? 'Média lié à la situation',
-            placeholder: MakoloMediaPlaceholder(
-              icon: switch (media.kind) {
-                NowMediaKind.pdf => Icons.picture_as_pdf_outlined,
-                NowMediaKind.video => Icons.play_circle_outline,
-                NowMediaKind.audio => Icons.audiotrack_outlined,
-                NowMediaKind.coordinates => Icons.place_outlined,
-                _ => Icons.image_outlined,
-              },
-              label: media.label ?? 'Média disponible dans la source autorisée',
+    final dominantMedia = topology == NowTopology.media
+        ? situation.mediaBindings.firstWhere((media) => media.canDominate)
+        : null;
+    final readable = situation.mediaBindings
+        .where((media) =>
+            media.canRender &&
+            api != null &&
+            nowAuthorizedMediaPath(media) != null)
+        .toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (dominantMedia != null) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          Semantics(
+            button: api != null &&
+                nowAuthorizedMediaPath(dominantMedia) != null,
+            label: dominantMedia.label ?? 'Lire le média dans Makolo',
+            child: InkWell(
+              onTap: api != null &&
+                      nowAuthorizedMediaPath(dominantMedia) != null
+                  ? () => _openMedia(context, dominantMedia)
+                  : null,
+              child: MakoloMediaFrame(
+                aspect: switch (dominantMedia.kind) {
+                  NowMediaKind.pdf => MakoloMediaAspect.document,
+                  NowMediaKind.video => MakoloMediaAspect.landscape,
+                  _ => MakoloMediaAspect.standard,
+                },
+                semanticLabel:
+                    dominantMedia.label ?? 'Média lié à la situation',
+                placeholder: MakoloMediaPlaceholder(
+                  icon: _mediaIcon(dominantMedia.kind),
+                  label: dominantMedia.label ?? 'Média associé',
+                ),
+              ),
             ),
           ),
-          ),
-          const SizedBox(height: MakoloSpacing.md),
         ],
-      );
-    }
-    if (topology == NowTopology.composition) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        if (topology == NowTopology.composition) ...[
           for (final relation in situation.relations)
             if (relation.summary != null)
               Text(relation.summary!, style: theme.textTheme.titleMedium),
           for (final member in situation.relationMembers)
             ListTile(
               contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.account_tree_outlined),
               title: Text(member.label),
               subtitle: member.subtext == null ? null : Text(member.subtext!),
-              leading: const Icon(Icons.account_tree_outlined),
             ),
         ],
-      );
-    }
-    if (topology == NowTopology.waiting) {
-      return Row(
-        children: [
-          const Icon(Icons.hourglass_top_outlined),
-          const SizedBox(width: MakoloSpacing.md),
-          Expanded(
-            child: Text(
-              situation.turnLabel ?? 'En attente de la prochaine réponse.',
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
-        ],
-      );
-    }
-    if (topology == NowTopology.action) {
-      return Text(
-        situation.businessActions
-            .firstWhere((action) => action.canDominate)
-            .label,
-        style: theme.textTheme.titleMedium,
-      );
-    }
-    final media = situation.mediaBindings
-        .where((binding) => binding.canRender)
-        .toList(growable: false);
-    if (media.isNotEmpty && api != null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final item in media)
-            if (nowAuthorizedMediaPath(item) != null)
-              TextButton.icon(
-                onPressed: () => _openMedia(context, item),
-                icon: Icon(item.kind == NowMediaKind.video
-                    ? Icons.play_circle_outline
-                    : item.kind == NowMediaKind.pdf
-                        ? Icons.picture_as_pdf_outlined
-                        : Icons.insert_drive_file_outlined),
-                label: Text(item.label ?? 'Lire le média'),
+        if (topology == NowTopology.waiting)
+          Row(
+            children: [
+              const Icon(Icons.hourglass_top_outlined),
+              const SizedBox(width: MakoloSpacing.md),
+              Expanded(
+                child: Text(
+                  situation.turnLabel ??
+                      'En attente de la prochaine réponse.',
+                  style: theme.textTheme.bodyMedium,
+                ),
               ),
-        ],
-      );
-    }
-    return const SizedBox.shrink();
+            ],
+          ),
+        if (topology == NowTopology.action)
+          Text(
+            situation.businessActions
+                .firstWhere((action) => action.canDominate)
+                .label,
+            style: theme.textTheme.titleMedium,
+          ),
+        for (final media in readable)
+          if (media != dominantMedia)
+            TextButton.icon(
+              onPressed: () => _openMedia(context, media),
+              icon: Icon(_mediaIcon(media.kind)),
+              label: Text(media.label ?? 'Lire le média dans Makolo'),
+            ),
+        if (dominantMedia != null &&
+            readable.contains(dominantMedia))
+          TextButton.icon(
+            onPressed: () => _openMedia(context, dominantMedia),
+            icon: const Icon(Icons.open_in_full_outlined),
+            label: const Text('Lire dans Makolo'),
+          ),
+      ],
+    );
   }
+
+  IconData _mediaIcon(NowMediaKind kind) => switch (kind) {
+    NowMediaKind.image => Icons.image_outlined,
+    NowMediaKind.pdf => Icons.picture_as_pdf_outlined,
+    NowMediaKind.video => Icons.play_circle_outline,
+    NowMediaKind.audio => Icons.audiotrack_outlined,
+    NowMediaKind.coordinates => Icons.place_outlined,
+    _ => Icons.insert_drive_file_outlined,
+  };
 
   void _openMedia(BuildContext context, NowMediaBindingPresentation media) {
     final client = api;
