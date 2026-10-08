@@ -79,18 +79,13 @@ String signupErrorMessage(Object error) {
   );
 }
 
-
 String loginErrorMessage(Object error) {
   if (error is MakoloApiError &&
       (error.statusCode == 400 || error.statusCode == 401)) {
     return 'Identifiant Makolo, adresse e-mail ou mot de passe incorrect.';
   }
-  return authErrorMessage(
-    error,
-    fallback: makoloServerUnavailableMessage,
-  );
+  return authErrorMessage(error, fallback: makoloServerUnavailableMessage);
 }
-
 
 Future<String> resolvedLoginErrorMessage(Object error) async {
   if (error is MakoloApiError &&

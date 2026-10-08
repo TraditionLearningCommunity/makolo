@@ -257,38 +257,41 @@ void main() {
     );
   });
 
-  test('connection failure is Makolo reachability, not proof of offline', () async {
-    final tokens = MemoryTokenStore();
-    final dio = Dio();
-    dio.interceptors.add(
-      InterceptorsWrapper(
-        onRequest: (options, handler) {
-          handler.reject(
-            DioException(
-              requestOptions: options,
-              type: DioExceptionType.connectionError,
-            ),
-          );
-        },
-      ),
-    );
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: tokens,
-      dio: dio,
-    );
-
-    await expectLater(
-      api.publicGet('api/v1/example/'),
-      throwsA(
-        isA<MakoloTransportError>().having(
-          (error) => error.code,
-          'code',
-          'makolo_unreachable',
+  test(
+    'connection failure is Makolo reachability, not proof of offline',
+    () async {
+      final tokens = MemoryTokenStore();
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.connectionError,
+              ),
+            );
+          },
         ),
-      ),
-    );
-  });
+      );
+      final api = MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: tokens,
+        dio: dio,
+      );
+
+      await expectLater(
+        api.publicGet('api/v1/example/'),
+        throwsA(
+          isA<MakoloTransportError>().having(
+            (error) => error.code,
+            'code',
+            'makolo_unreachable',
+          ),
+        ),
+      );
+    },
+  );
 
   test(
     'transport timeout remains distinguishable from server errors',

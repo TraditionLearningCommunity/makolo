@@ -201,7 +201,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Identifiant Makolo, adresse e-mail ou mot de passe incorrect.'),
+      find.text(
+        'Identifiant Makolo, adresse e-mail ou mot de passe incorrect.',
+      ),
       findsOneWidget,
     );
     expect(find.text('amina@example.com'), findsOneWidget);
@@ -543,7 +545,10 @@ void main() {
       }
       if (request.url.path.endsWith('/auth/register/')) {
         registration = jsonDecode(request.body) as Map<String, dynamic>;
-        return MockResponse(jsonEncode({'message': 'Compte créé.', 'user': {}}), 201);
+        return MockResponse(
+          jsonEncode({'message': 'Compte créé.', 'user': {}}),
+          201,
+        );
       }
       if (request.url.path.endsWith('/auth/login/')) {
         expect(jsonDecode(request.body), {
@@ -573,7 +578,10 @@ void main() {
     await _pumpLogin(tester, runtime);
     await _tapVisible(tester, find.byKey(const Key('create-account-link')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('signup-username')), 'sansmail');
+    await tester.enterText(
+      find.byKey(const Key('signup-username')),
+      'sansmail',
+    );
     await tester.pump(const Duration(milliseconds: 401));
     await tester.enterText(
       find.byKey(const Key('signup-password')),

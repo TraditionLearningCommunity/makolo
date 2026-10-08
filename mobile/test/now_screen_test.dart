@@ -112,7 +112,10 @@ void main() {
 
     expect(find.text('Visa Canada'), findsOneWidget);
     expect(find.textContaining('Hors connexion'), findsNothing);
-    expect(find.textContaining('état actuel ne peut pas être confirmé'), findsNothing);
+    expect(
+      find.textContaining('état actuel ne peut pas être confirmé'),
+      findsNothing,
+    );
   });
 
   testWidgets('refresh error preserves known content', (tester) async {
