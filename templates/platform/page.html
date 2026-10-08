@@ -21,9 +21,9 @@
 <a href="{% url 'platform_web:operations' %}" {% if platform_page == 'operations' %}aria-current="page"{% endif %}>Opérations</a>
 <a href="{% url 'platform_web:system' %}" {% if platform_page == 'system' %}aria-current="page"{% endif %}>Système</a>
 <a href="{% url 'platform_web:audit' %}" {% if platform_page == 'audit' %}aria-current="page"{% endif %}>Audit Operations</a>
-{% elif module.key == 'trust_review' %}<a href="{{ module.links.web }}">Confiance <span class="muted">↗</span></a>
-{% elif module.key == 'opportunity_curation' %}<a href="{{ module.links.web }}">Curation <span class="muted">↗</span></a>
-{% elif module.key == 'subscriptions' %}<a href="{{ module.links.web }}">Abonnements <span class="muted">↗</span></a>
+{% elif module.key == 'trust_review' %}<a href="{% url 'platform_web:trust' %}" {% if platform_page == 'trust' %}aria-current="page"{% endif %}>Confiance</a>
+{% elif module.key == 'opportunity_curation' %}<a href="{% url 'platform_web:curation' %}" {% if platform_page == 'curation' %}aria-current="page"{% endif %}>Curation</a>
+{% elif module.key == 'subscriptions' %}<a href="{% url 'platform_web:subscriptions' %}" {% if platform_page == 'subscriptions' %}aria-current="page"{% endif %}>Abonnements</a>
 {% elif module.key == 'recognition_governance' %}<a href="{% url 'platform_web:recognition' %}" {% if platform_page == 'recognition' or platform_page == 'recognition_simulation' %}aria-current="page"{% endif %}>Recognition</a>
 {% elif module.key == 'interoperability' %}<a href="{% url 'platform_web:interoperability' %}" {% if platform_page == 'interoperability' %}aria-current="page"{% endif %}>Interopérabilité</a>
 {% endif %}{% endfor %}
@@ -45,7 +45,7 @@
 {% endif %}
 {% if limited_operator %}<p class="notice">Aucune supervision Operations n’est autorisée pour votre rôle. Seules vos capacités métier sont accessibles ci-dessous.</p>{% endif %}
 <section class="section"><h2>Mes capacités</h2>{% for module in platform_modules %}
-<div class="module"><div><strong>{% if module.key == 'trust_review' %}Confiance{% elif module.key == 'opportunity_curation' %}Curation{% elif module.key == 'recognition_governance' %}Recognition{% elif module.key == 'subscriptions' %}Abonnements{% elif module.key == 'interoperability' %}Interopérabilité{% else %}Opérations{% endif %}</strong><p class="muted">{{ module.contract_status }} · owner existant</p></div><a class="link secondary" href="{{ module.links.web }}">Ouvrir</a></div>
+<div class="module"><div><strong>{% if module.key == 'trust_review' %}Confiance{% elif module.key == 'opportunity_curation' %}Curation{% elif module.key == 'recognition_governance' %}Recognition{% elif module.key == 'subscriptions' %}Abonnements{% elif module.key == 'interoperability' %}Interopérabilité{% else %}Opérations{% endif %}</strong><p class="muted">{{ module.contract_status }} · owner existant</p></div>{% if module.key == 'trust_review' %}<a class="link secondary" href="{% url 'platform_web:trust' %}">Ouvrir</a>{% elif module.key == 'opportunity_curation' %}<a class="link secondary" href="{% url 'platform_web:curation' %}">Ouvrir</a>{% elif module.key == 'subscriptions' %}<a class="link secondary" href="{% url 'platform_web:subscriptions' %}">Ouvrir</a>{% else %}<a class="link secondary" href="{{ module.links.web }}">Ouvrir</a>{% endif %}</div>
 {% endfor %}</section>
 {% elif platform_page == 'operations' %}
 <p class="subtle">Vue issue des signaux Operations existants. Les décisions sont exécutées par les services propriétaires.</p>
@@ -63,6 +63,27 @@
 <p class="notice">{{ coverage }} Aucune recherche globale de Profiles, Payments, Credentials ou Evidence.</p><form class="formline" method="get"><label for="query">Identifiant Space ou titre d’incident</label><input id="query" type="search" name="q" maxlength="100" value="{{ query }}" required><button type="submit">Rechercher</button></form>
 {% if query %}<section class="section"><h2>Spaces — correspondances d’identifiant</h2>{% for space in investigation_spaces %}<div class="module"><div><strong>{{ space.name }}</strong><p class="muted">{{ space.slug }} · {{ space.lifecycle }}</p></div><a class="link secondary" href="{% url 'platform_web:space-decision' space.pk %}">Examiner</a></div>{% empty %}<p>Aucune correspondance.</p>{% endfor %}</section>
 <section class="section"><h2>Incidents — correspondances de titre</h2>{% for incident in investigation_incidents %}<div class="module"><div><strong>{{ incident.title }}</strong><p class="muted">{{ incident.severity }} · {{ incident.status }}</p></div><a class="link secondary" href="{% url 'operations:incident-detail' incident.pk %}">Ouvrir owner</a></div>{% empty %}<p>Aucune correspondance.</p>{% endfor %}</section>{% endif %}
+{% elif platform_page == 'trust' %}
+<p class="subtle">Files de Trust vérifiées par le domaine propriétaire. Les pièces Evidence restent accessibles uniquement depuis leur parcours protégé.</p>
+<section class="section"><h2>Vérifications</h2>{% for item in claims %}<div class="module"><div><strong>{{ item.get_claim_type_display }}</strong><p class="muted">{{ item.get_status_display }} · {% if item.subject_space %}{{ item.subject_space.name }}{% else %}Profil (identité restreinte){% endif %}</p></div><a class="link secondary" href="{% url 'trust:staff-queue' %}">Ouvrir la file propriétaire</a></div>{% empty %}<p>Aucune vérification en attente.</p>{% endfor %}</section>
+<section class="section"><h2>Signalements</h2>{% for item in reports %}<div class="module"><div><strong>{{ item.get_category_display }}</strong><p class="muted">{{ item.get_status_display }} · {% if item.space %}{{ item.space.name }}{% else %}Contexte privé{% endif %}</p></div><a class="link secondary" href="{% url 'trust:staff-queue' %}">Examiner</a></div>{% empty %}<p>Aucun signalement en attente.</p>{% endfor %}</section>
+<section class="section"><h2>Litiges</h2>{% for item in disputes %}<div class="module"><div><strong>{{ item.get_status_display }}</strong><p class="muted">Litige à traiter selon le workflow Trust.</p></div><a class="link secondary" href="{% url 'trust:staff-queue' %}">Examiner</a></div>{% empty %}<p>Aucun litige actif.</p>{% endfor %}</section>
+<a class="link secondary" href="{% url 'trust:staff-proof-queue' %}">Vérification des preuves</a>
+{% elif platform_page == 'curation' %}
+<p class="subtle">L'Opportunity reste propriétaire de ses submissions, revisions, sources et lifecycle.</p>
+<section class="section"><h2>Propositions</h2>{% for item in submissions %}<div class="module"><div><strong>{{ item.title|default:item.url }}</strong><p class="muted">{{ item.get_status_display }}</p></div><a class="link secondary" href="{% url 'opportunities:staff-submission-review' item.pk %}">Revoir</a></div>{% empty %}<p>Aucune proposition en attente.</p>{% endfor %}</section>
+<section class="section"><h2>Sources à contrôler</h2>{% for item in sources %}<div class="module"><div><strong>{{ item.source_name }}</strong><p class="muted">{{ item.get_status_display }} · Source ≠ vérité publiée.</p></div><a class="link secondary" href="{% url 'opportunities:staff-detail' item.opportunity_id %}">Inspecter</a></div>{% empty %}<p>Aucune source signalée.</p>{% endfor %}</section>
+<section class="section"><h2>Retraits et démarches actives</h2>{% for item in withdrawn %}<div class="module"><strong>{{ item.current_revision.title|default:'Opportunity retirée' }}</strong><a class="link secondary" href="{% url 'opportunities:staff-detail' item.pk %}">Inspecter les conséquences</a></div>{% empty %}<p>Pas de retrait nécessitant une attention.</p>{% endfor %}</section>
+<a class="link" href="{% url 'opportunities:staff-dashboard' %}">Ouvrir la curation propriétaire</a>
+{% elif platform_page == 'subscriptions' %}
+<p class="subtle">Subscription ≠ Payment. Entitlement ≠ Permission. Le moteur et les décisions appartiennent à Subscriptions.</p>
+<section class="section"><h2>Parcours autorisés</h2>
+{% if catalog_allowed %}<div class="module"><span>Catalogue, plans et versions</span><a class="link secondary" href="{% url 'operations:subscription-catalog' %}">Consulter</a></div>{% endif %}
+{% if support_allowed %}<div class="module"><span>État des abonnements, transitions et support</span><a class="link secondary" href="{% url 'operations:subscription-support' %}">Consulter</a></div>{% endif %}
+{% if review_allowed %}<div class="module"><span>Reviews humaines</span><a class="link secondary" href="{% url 'operations:subscription-reviews' %}">Traiter</a></div>{% endif %}
+{% if grant_allowed %}<div class="module"><span>Gestion des Entitlement Grants</span><span class="muted">Depuis la fiche support, sous permission explicite.</span></div>{% endif %}
+<a class="link secondary" href="{% url 'operations:subscriptions' %}">Vue propriétaire des abonnements</a>
+</section>
 {% elif platform_page == 'interoperability' %}
 <p class="subtle">Connexions du contexte Platform uniquement. Identifiants secrets, clés et tokens ne sont jamais projetés ici.</p>
 <div class="tablebox"><table><thead><tr><th scope="col">Connexion</th><th scope="col">État</th><th scope="col">Santé</th><th scope="col">Capacités</th></tr></thead><tbody>{% for connection in connections %}<tr><td>{{ connection.display_name }}</td><td>{{ connection.status }}</td><td>{{ connection.health }}</td><td>{{ connection.capabilities|join:', '|default:'Aucune capacité active' }}</td></tr>{% empty %}<tr><td colspan="4">Aucune connexion Platform configurée.</td></tr>{% endfor %}</tbody></table></div>
