@@ -69,6 +69,7 @@ void main() {
           child: Scaffold(
             appBar: MakoloPrimaryHeader(
               kind: MakoloHeaderKind.me,
+              profileUsername: 'ndksk',
               onAvatar: () {},
             ),
           ),
@@ -76,7 +77,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Moi'), findsOneWidget);
+    expect(find.text('@ndksk'), findsOneWidget);
     expect(find.byType(MakoloMark), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

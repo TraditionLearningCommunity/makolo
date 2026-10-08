@@ -63,13 +63,13 @@ void main() {
       dio: testDio((request, _) async {
         expect(request.method, 'POST');
         expect(request.path, 'api/v1/accounts/auth/login/');
-        expect(request.data, {'email': 'a@b.test', 'password': 'secret'});
+        expect(request.data, {'username': '@amina', 'password': 'secret'});
         expect(request.headers['Authorization'], isNull);
         return jsonResponse({'access': 'a1', 'refresh': 'r1'}, 200);
       }),
     );
 
-    final session = await api.login(email: 'a@b.test', password: 'secret');
+    final session = await api.login(identifier: '@amina', password: 'secret');
 
     expect(session.accessToken, 'a1');
     expect((await tokens.readSession())?.refreshToken, 'r1');
@@ -253,6 +253,39 @@ void main() {
         isA<MakoloApiError>()
             .having((error) => error.code, 'code', 'validation_error')
             .having((error) => error.statusCode, 'status', 422),
+      ),
+    );
+  });
+
+  test('connection failure is Makolo reachability, not proof of offline', () async {
+    final tokens = MemoryTokenStore();
+    final dio = Dio();
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              type: DioExceptionType.connectionError,
+            ),
+          );
+        },
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: dio,
+    );
+
+    await expectLater(
+      api.publicGet('api/v1/example/'),
+      throwsA(
+        isA<MakoloTransportError>().having(
+          (error) => error.code,
+          'code',
+          'makolo_unreachable',
+        ),
       ),
     );
   });
