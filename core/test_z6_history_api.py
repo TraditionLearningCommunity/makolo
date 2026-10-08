@@ -350,3 +350,31 @@ class Z6PersonalHistoryAPIContractTests(TestCase):
             "/api/v1/me/history/",
         )
         self.assertNotIn("history", response.json()["data"])
+
+    def test_history_coverage_does_not_claim_exhaustiveness(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.get("/api/v1/me/history/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["coverage"]["state"], "partial")
+        self.assertEqual(
+            set(response.json()["data"]["coverage"]["owners"]),
+            {"journey", "access"},
+        )
+
+    def test_journey_with_access_for_another_beneficiary_remains_personal_history(self):
+        journey = self._journey(
+            status=JourneyStatus.FULFILLED,
+            fulfilled_at=self.now - timedelta(hours=3),
+        )
+        Access.objects.create(
+            beneficiary=self.other,
+            activity=self.activity,
+            occurrence=self.past_occurrence,
+            journey=journey,
+            status=AccessStatus.USED,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get("/api/v1/me/history/")
+        self.assertEqual(response.status_code, 200)
+        ids = {row["source"]["id"] for row in response.json()["data"]["items"]}
+        self.assertIn(str(journey.pk), ids)

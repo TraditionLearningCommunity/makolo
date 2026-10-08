@@ -169,7 +169,8 @@ def participant_unified_history_journeys(profile):
     """
     return (
         participant_journeys(profile)
-        .filter(status__in=HISTORY_JOURNEY_STATUSES, accesses__isnull=True)
+        .filter(status__in=HISTORY_JOURNEY_STATUSES)
+        .exclude(accesses__beneficiary=profile)
         .annotate(
             latest_history_transition_at=Max(
                 "transitions__created_at",

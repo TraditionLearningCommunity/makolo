@@ -356,7 +356,7 @@ def build_personal_day_of_data(*, profile, occurrence, live_payload):
         ),
     }
     if phase in DAY_OF_LIVE_PHASES:
-        links["live"] = f"/api/v1/operations/occurrences/{occurrence.pk}/live/"
+        links["live"] = f"/api/v1/me/occurrences/{occurrence.pk}/live/"
         capabilities.append("open_live")
     if any(row["credential"]["presentable"] for row in accesses):
         capabilities.append("present_credential")
