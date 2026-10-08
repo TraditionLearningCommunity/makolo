@@ -125,6 +125,21 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             self.assertEqual(response.status_code, 200, response.data)
             self.assertEqual(response.data["primary_business_label"], label)
 
+    def test_generic_presentation_exposes_human_grammar_without_inventing_work(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["primary_business_label"], "Activités")
+        self.assertEqual(
+            response.data["presentation"]["empty_message"],
+            "Aucune activité visible pour le moment.",
+        )
+        self.assertEqual(
+            response.data["sections"]["activities"]["representation"],
+            "Toutes les activités",
+        )
+        self.assertEqual(response.data["sections"]["activities"]["role"], "structure")
+
     def test_activity_occurrence_projection_preserves_owner_identity(self):
         activity = self._activity("Atelier")
         now = timezone.now()

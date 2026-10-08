@@ -15,6 +15,10 @@ from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStat
 from journeys.collaboration_models import JourneyBlockerStatus
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.space_product import operating_preset_for_space, operational_footprint_for_space
+from organizations.space_work_presentation import (
+    ordered_work_section_keys,
+    work_presentation_for_space,
+)
 from services.selectors import service_journeys_visible_to
 from transport.models import TransportRoute, Vehicle
 
@@ -258,7 +262,7 @@ def _vehicle_item(vehicle):
     }
 
 
-def _empty_section(*, identity, role, representation):
+def _empty_section(*, identity, role, representation, empty_message):
     return {
         "identity": identity,
         "representation": representation,
@@ -267,33 +271,48 @@ def _empty_section(*, identity, role, representation):
         "items": [],
         "has_more": False,
         "links": {},
+        "empty_message": empty_message,
     }
 
 
-def _empty_sections(*, activity_representation, include_offers=False, include_transport=False):
-    sections = {
-        "preparation": _empty_section(identity="preparation", role="continuity", representation="À préparer"),
-        "upcoming": _empty_section(identity="upcoming", role="continuity", representation="À venir"),
-        "active": _empty_section(identity="active", role="continuity", representation="En cours"),
-        "blocked": _empty_section(identity="blocked", role="continuity", representation="Bloqués"),
-        "completed": _empty_section(identity="completed", role="history", representation="Terminés"),
+def _empty_sections(*, space, include_offers=False, include_transport=False):
+    grammar = work_presentation_for_space(space)
+    roles = {
+        "preparation": "continuity",
+        "upcoming": "continuity",
+        "active": "continuity",
+        "blocked": "continuity",
+        "completed": "history",
+        "activities": "structure",
+        "offers": "structure",
+        "routes": "structure",
+        "vehicles": "structure",
     }
-    # These are structural owner collections, deliberately separate from
-    # continuity sections.  They are added only when the scoped composition
-    # can establish the corresponding owner world.
-    sections["activities"] = _empty_section(
-        identity="activities", role="structure", representation=activity_representation
-    )
+    fallback_labels = {
+        "preparation": "À préparer",
+        "upcoming": "À venir",
+        "active": "En cours",
+        "blocked": "Bloqués",
+        "completed": "Terminés",
+        "activities": operating_preset_for_space(space).primary_business_label,
+        "offers": "Offres",
+        "routes": "Routes",
+        "vehicles": "Véhicules",
+    }
+    keys = ["preparation", "upcoming", "active", "blocked", "completed", "activities"]
     if include_offers:
-        sections["offers"] = _empty_section(
-            identity="offers", role="structure", representation="Offres"
-        )
+        keys.append("offers")
     if include_transport:
-        sections["routes"] = _empty_section(
-            identity="routes", role="structure", representation="Routes"
-        )
-        sections["vehicles"] = _empty_section(
-            identity="vehicles", role="structure", representation="Véhicules"
+        keys.extend(("routes", "vehicles"))
+
+    sections = {}
+    for key in ordered_work_section_keys(space, keys):
+        label = grammar.label_for(key, fallback_labels[key])
+        sections[key] = _empty_section(
+            identity=key,
+            role=roles[key],
+            representation=label,
+            empty_message=grammar.empty_message_for(key, label),
         )
     return sections
 
@@ -373,7 +392,7 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
     )
     commerce_visible = bool(visible_ids & caps["commerce"])
     sections = _empty_sections(
-        activity_representation=preset.primary_business_label,
+        space=space,
         include_offers=commerce_visible,
         include_transport=transport_visible,
     )
@@ -501,6 +520,10 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         },
         "archetype": space.archetype,
         "primary_business_label": preset.primary_business_label,
+        "presentation": {
+            "empty_message": work_presentation_for_space(space).surface_empty_message,
+            "section_order": list(sections.keys()),
+        },
         "authority": {
             "scope": "space" if direct_portfolio else "activity_limited",
             "limited_to_activities": not direct_portfolio,
