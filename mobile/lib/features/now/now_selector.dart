@@ -204,6 +204,7 @@ class NowSelector {
     if (businessActions is List) {
       for (final action in businessActions) {
         if (action is! Map) continue;
+        if (_string(action['label']) == null) continue;
         businessCapability = _string(action['capability']);
         if (businessCapability != null) break;
       }
