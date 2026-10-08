@@ -150,6 +150,24 @@ void main() {
     expect(selected.states, isNot(contains(DiscoveryFieldState.noMatch)));
   });
 
+  test('server unavailable without snapshot stays distinct from offline', () {
+    final selected = selector.select(
+      projection: null,
+      hasCriteria: false,
+      reachability: MakoloReachabilityCue.temporarilyUnavailable,
+      serverUnavailable: true,
+    );
+
+    expect(
+      selected.states,
+      contains(DiscoveryFieldState.serverUnavailableNoSnapshot),
+    );
+    expect(
+      selected.states,
+      isNot(contains(DiscoveryFieldState.offlineNoSnapshot)),
+    );
+  });
+
   test('spatial points derive from the same collection field', () {
     final collection = selector.collection(
       fieldProjection(
