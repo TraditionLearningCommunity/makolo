@@ -200,6 +200,7 @@ class _MarkScreenState extends State<MarkScreen> {
       input: input,
       inputKind: _attachments.isEmpty ? 'text' : 'document',
       attachments: _attachments,
+      selected: _selectedContext,
     );
     if (!mounted) return;
     setState(() {
