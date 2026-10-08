@@ -104,7 +104,7 @@ class WS3SpaceWorkWebTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["work_has_items"])
-        self.assertContains(response, "Aucune activité visible pour le moment.")
+        self.assertContains(response, "Aucun programme ou session visible pour le moment.")
         self.assertContains(response, "Makolo n’invente pas d’activité")
         self.assertNotContains(response, 'id="work-preparation"')
         self.assertNotContains(response, 'id="work-upcoming"')

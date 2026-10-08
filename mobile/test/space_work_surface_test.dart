@@ -6,7 +6,8 @@ void main() {
   testWidgets('generic work empty state stays honest and calm', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: SpaceWorkSurface(
+        home: Scaffold(
+          body: SpaceWorkSurface(
           payload: {
             'primary_business_label': 'Activités',
             'presentation': {
@@ -25,6 +26,7 @@ void main() {
               },
             },
           },
+          ),
         ),
       ),
     );
@@ -39,7 +41,8 @@ void main() {
   testWidgets('generic work renders continuity and structure', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: SpaceWorkSurface(
+        home: Scaffold(
+          body: SpaceWorkSurface(
           payload: {
             'primary_business_label': 'Activités',
             'presentation': {
@@ -75,6 +78,7 @@ void main() {
               },
             },
           },
+          ),
         ),
       ),
     );
@@ -89,7 +93,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: SpaceWorkSurface(
+        home: Scaffold(
+          body: SpaceWorkSurface(
           payload: {
             'primary_business_label': 'Transport',
             'presentation': {'empty_message': 'Aucun transport visible.'},
@@ -122,6 +127,7 @@ void main() {
               },
             },
           },
+          ),
         ),
       ),
     );

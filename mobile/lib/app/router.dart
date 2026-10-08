@@ -251,6 +251,14 @@ GoRouter createMakoloRouter(
       ),
       ...accessRoutes(runtime),
       GoRoute(
+        path: '/space/:slug/us/:depth',
+        builder: (context, state) => SpaceNousDepthScreen(
+          runtime: runtime,
+          slug: state.pathParameters['slug']!,
+          depth: state.pathParameters['depth']!,
+        ),
+      ),
+      GoRoute(
         path: '/groups/:id',
         builder: (context, state) {
           runtime.recovery.rememberLocation(state.uri.toString());

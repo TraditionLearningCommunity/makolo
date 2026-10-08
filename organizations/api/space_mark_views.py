@@ -63,7 +63,7 @@ class SpaceMarkAPIView(APIView):
                 raise ValidationError({"input": ["Le texte ne peut pas être vide."]})
             if len(value) > MARK_TEXT_MAX_LENGTH:
                 raise ValidationError(
-                    {"input": [f"Le texte est limité à {MARK_TEXT_MAX_LENGTH} caractères."]}
+                    {"input": [f"Le texte est limité à {MARK_TEXT_MAX_LENGTH} caractères." ]}
                 )
 
         context = payload.get("context") or {}
@@ -85,6 +85,22 @@ class SpaceMarkAPIView(APIView):
             context=context,
             observed_at=observed_at,
         )
+        result["actor_context"] = {
+            "kind": "space",
+            "slug": space.slug,
+        }
+        result["accepted_input_kinds"] = ["text"]
+        selected = context.get("selected")
+        result["request_context"] = {
+            "responsibility": context.get("responsibility"),
+            "selected": {
+                key: selected[key]
+                for key in ("kind", "family")
+                if isinstance(selected, dict) and selected.get(key) is not None
+            }
+            if isinstance(selected, dict)
+            else None,
+        }
         response = Response(
             projection_envelope(
                 projection="space.mark",

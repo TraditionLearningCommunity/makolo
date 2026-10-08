@@ -372,7 +372,18 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             workflow=WorkflowKind.SERVICE,
             status=JourneyStatus.SUBMITTED,
         )
-        self.client.force_authenticate(self.owner)
+        operator = User.objects.create_user(
+            username="zs3-service-pending-operator",
+            email="zs3-service-pending-operator@test.local",
+            password="x",
+        )
+        grant_activity_role(
+            profile=operator,
+            activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(operator)
 
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200, response.data)
