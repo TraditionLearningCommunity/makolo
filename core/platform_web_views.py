@@ -320,14 +320,35 @@ class PlatformRecognitionView(PlatformView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        from recognition.models import RecognitionPolicy
-        context["policies"] = RecognitionPolicy.objects.all()[:80]
-        context["can_simulate"] = can(
-            self.request.user, PermissionCode.PLATFORM_RECOGNITION_POLICY_MANAGE
+        from recognition.models import (
+            AchievementDefinition, RecognitionLedgerEntry, RecognitionPolicy, RewardDefinition,
         )
-        context["can_publish"] = can(
-            self.request.user, PermissionCode.PLATFORM_RECOGNITION_POLICY_PUBLISH
+        actor = self.request.user
+        context["can_simulate"] = can(actor, PermissionCode.PLATFORM_RECOGNITION_POLICY_MANAGE)
+        context["can_publish"] = can(actor, PermissionCode.PLATFORM_RECOGNITION_POLICY_PUBLISH)
+        context["policy_allowed"] = (
+            can(actor, PermissionCode.PLATFORM_RECOGNITION_VIEW)
+            or context["can_simulate"] or context["can_publish"]
         )
+        context["rewards_allowed"] = can(actor, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE)
+        context["achievements_allowed"] = can(actor, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE)
+        context["audit_allowed"] = can(actor, PermissionCode.PLATFORM_RECOGNITION_AUDIT_VIEW)
+        if context["policy_allowed"]:
+            context["policies"] = RecognitionPolicy.objects.all()[:80]
+        if context["rewards_allowed"]:
+            context["rewards"] = RewardDefinition.objects.all()[:60]
+        if context["achievements_allowed"]:
+            context["achievements"] = AchievementDefinition.objects.all()[:60]
+        if context["audit_allowed"]:
+            context["recognition_ledger"] = (
+                RecognitionLedgerEntry.objects.select_related("actor_profile")
+                .order_by("-created_at")[:50]
+            )
+            from operations.models import OperationsAuditLog
+            context["recognition_actions"] = (
+                OperationsAuditLog.objects.filter(action__startswith="recognition.")
+                .select_related("actor").order_by("-created_at")[:50]
+            )
         return context
 
 
