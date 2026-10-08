@@ -19,10 +19,9 @@ import 'fakes.dart';
 Future<void> _pumpUntil(
   WidgetTester tester,
   Finder finder, {
-  Duration timeout = const Duration(seconds: 5),
+  int maxFrames = 100,
 }) async {
-  final deadline = DateTime.now().add(timeout);
-  while (finder.evaluate().isEmpty && DateTime.now().isBefore(deadline)) {
+  for (var frame = 0; frame < maxFrames && finder.evaluate().isEmpty; frame++) {
     await tester.pump(const Duration(milliseconds: 50));
     final exception = tester.takeException();
     if (exception != null) throw exception;
