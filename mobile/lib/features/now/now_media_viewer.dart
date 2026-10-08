@@ -40,6 +40,7 @@ String nowMediaExtension(NowMediaBindingPresentation media) {
       _ => 'jpg',
     },
     NowMediaKind.pdf => 'pdf',
+    NowMediaKind.document => 'txt',
     NowMediaKind.video => 'mp4',
     NowMediaKind.audio => 'mp3',
     _ => 'bin',
@@ -207,6 +208,17 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
               (context, error, stack) => const Text('Image illisible.'))),
         ),
       NowMediaKind.pdf => PrivatePdfView(path: file.path),
+      NowMediaKind.document => FutureBuilder<String>(
+          future: file.readAsString(),
+          builder: (context, snapshot) => snapshot.hasError
+              ? const Center(child: Text('Document illisible.'))
+              : snapshot.hasData
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: SelectableText(snapshot.data!),
+                    )
+                  : const Center(child: CircularProgressIndicator()),
+        ),
       NowMediaKind.video || NowMediaKind.audio => _videoOrAudio(),
       _ => const Center(child: Text('Ce type de média n’est pas encore lisible ici.')),
     };
