@@ -7,6 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 from operations.models import OperationsAuditLog
+from opportunities.models import Opportunity, OpportunityPublicationStatus
 from organizations.models import Organization
 from events.models import Event, EventStatus, EventVisibility
 from authorization.services import revoke_mandate
@@ -232,3 +233,30 @@ class PlatformWebContractTests(TestCase):
             target_id=str(policy.pk), action="recognition.policy_simulated"
         )
         self.assertEqual(audit.metadata["reason"], "Reviewed last month")
+
+    def test_opportunity_merge_requires_permission_reason_and_fresh_owner_revision(self):
+        survivor = Opportunity.objects.create(kind="job", created_by=self.operator)
+        duplicate = Opportunity.objects.create(kind="job", created_by=self.operator)
+        path = reverse("platform_web:opportunity-merge", kwargs={"pk": survivor.pk})
+        self.client.force_login(self.visitor)
+        self.assertEqual(self.client.get(path).status_code, 403)
+        self.client.force_login(self.operator)
+        self.assertEqual(self.client.get(path).status_code, 200)
+        post = {
+            "duplicate": "%s|%s" % (duplicate.pk, duplicate.updated_at.isoformat()),
+            "expected_canonical": survivor.updated_at.isoformat(),
+            "reason": "Confirmed duplicate of canonical source",
+        }
+        self.assertEqual(self.client.post(path, post).status_code, 400)
+        post["confirm"] = "1"
+        self.assertEqual(self.client.post(path, post).status_code, 302)
+        duplicate.refresh_from_db()
+        self.assertEqual(duplicate.publication_status, OpportunityPublicationStatus.MERGED)
+        self.assertEqual(duplicate.merged_into_id, survivor.pk)
+        self.assertEqual(self.client.post(path, post).status_code, 409)
+        audit = OperationsAuditLog.objects.filter(
+            target_id=str(duplicate.pk), action="opportunity.merge_decision"
+        )
+        self.assertEqual(audit.count(), 1)
+        self.assertEqual(audit.first().actor, self.operator)
+        self.assertEqual(audit.first().metadata["reason"], post["reason"])
