@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../design/behavior_primitives.dart';
+import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
@@ -17,10 +19,12 @@ class LiveScreen extends StatefulWidget {
     super.key,
     required this.occurrenceId,
     required this.repository,
+    this.onBackToDayOf,
   });
 
   final String occurrenceId;
   final LiveRepository repository;
+  final VoidCallback? onBackToDayOf;
 
   @override
   State<LiveScreen> createState() => _LiveScreenState();
@@ -118,11 +122,14 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
               initialLoading: const MakoloLoadingState(
                 label: 'Actualisation de la situation…',
               ),
-              blockingErrorMessage: 'La situation en direct n’est pas disponible dans ce contexte.',
+              blockingErrorMessage: source.invalidated
+                  ? 'Cette Occurrence n’est plus dans sa fenêtre Live. Retrouvez ses conséquences dans Jour J et Historique.'
+                  : 'La situation en direct n’est pas disponible dans ce contexte.',
               onRetry: _refresh,
               content: _LiveContent(
                 payload: projection?.payload,
                 freshness: base?.freshness,
+                onBackToDayOf: widget.onBackToDayOf,
               ),
             ),
           ),
@@ -133,10 +140,15 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
 }
 
 class _LiveContent extends StatelessWidget {
-  const _LiveContent({required this.payload, required this.freshness});
+  const _LiveContent({
+    required this.payload,
+    required this.freshness,
+    this.onBackToDayOf,
+  });
 
   final Map<String, dynamic>? payload;
   final FreshnessState? freshness;
+  final VoidCallback? onBackToDayOf;
 
   @override
   Widget build(BuildContext context) {
@@ -151,6 +163,15 @@ class _LiveContent extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(MakoloSpacing.lg),
       children: [
+        if (onBackToDayOf != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onBackToDayOf,
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: const Text('Retour au Jour J'),
+            ),
+          ),
         Text(
           _text(occurrence['label']) ?? 'Occurrence en cours',
           style: Theme.of(context).textTheme.headlineSmall,

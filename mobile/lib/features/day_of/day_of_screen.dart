@@ -145,7 +145,9 @@ class _DayOfScreenState extends State<DayOfScreen> with WidgetsBindingObserver {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement de l’action en cours…',
                   ),
-                  blockingErrorMessage: 'Cette action n’est pas disponible dans votre contexte actuel.',
+                  blockingErrorMessage: source.invalidated
+                      ? 'Cette Occurrence est terminée ou n’est plus disponible dans votre contexte. Retrouvez ses conséquences dans Historique.'
+                      : 'Cette action n’est pas disponible dans votre contexte actuel.',
                   onRetry: _refresh,
                   content: _DayOfContent(
                     presentation: presentation,

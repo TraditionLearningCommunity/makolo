@@ -10,6 +10,7 @@ import '../../features/journey/journey_assembly.dart';
 import '../../features/preparation/preparation_assembly.dart';
 import '../../features/questionnaires/questionnaire_assembly.dart';
 import '../../features/space/space_assembly.dart';
+import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
 import '../../presentation/mps/mps_repository.dart';
@@ -181,6 +182,12 @@ Future<AppRuntime> buildAppRuntime({
       store: store,
       profileId: profileId,
       actorContext: actorContext,
+      sync: sync,
+    ),
+    spaceOccurrences: SpaceOccurrenceRepository(
+      database: database,
+      store: store,
+      profileId: profileId,
       sync: sync,
     ),
   );

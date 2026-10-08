@@ -35,7 +35,12 @@ class DayOfRepository {
 
   static const projectionKind = 'personal.occurrence.day_of';
 
-  static const freshnessPolicy = FreshnessPolicy(id: 'day-of-volatile');
+  static const freshnessPolicy = FreshnessPolicy(
+    id: 'day-of-volatile',
+    refreshRecommendedAfter: Duration(seconds: 30),
+    usableButOldAfter: Duration(minutes: 2),
+    revalidateAfterFreshUntil: true,
+  );
 
   final MakoloDatabase database;
   final ProfileStore store;

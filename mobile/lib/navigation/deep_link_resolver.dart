@@ -5,6 +5,14 @@ class DeepLinkResolver {
 
   String? resolve(StructuredDestination target) {
     switch (target.kind.toLowerCase()) {
+      case 'occurrence_day_of':
+        return '/occurrences/${target.id}/day-of';
+      case 'occurrence_live':
+        return '/occurrences/${target.id}/live';
+      case 'space_occurrence_day_of':
+        return '/space/occurrences/${target.id}/day-of';
+      case 'space_occurrence_live':
+        return '/space/occurrences/${target.id}/live';
       case 'journey':
         return '/journeys/${target.id}';
       case 'activity':
