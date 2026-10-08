@@ -2,7 +2,7 @@ from django.urls import path
 
 from .platform_web_views import (
     PlatformAuditView, PlatformHomeView, PlatformInteroperabilityView,
-    PlatformInvestigateView, PlatformOperationsView, PlatformRecognitionSimulationView,
+    PlatformInvestigateView, PlatformOperationsView, PlatformTrustView, PlatformCurationView, PlatformSubscriptionsView, PlatformRecognitionSimulationView,
     PlatformRecognitionView, PlatformRecognitionActionView, PlatformSystemView, PlatformSpaceDecisionView, PlatformEventDecisionView,
 )
 
@@ -16,6 +16,9 @@ urlpatterns = [
     path("operations/events/<uuid:pk>/decide/", PlatformEventDecisionView.as_view(), name="event-decision"),
     path("system/", PlatformSystemView.as_view(), name="system"),
     path("audit/", PlatformAuditView.as_view(), name="audit"),
+    path("trust/", PlatformTrustView.as_view(), name="trust"),
+    path("curation/", PlatformCurationView.as_view(), name="curation"),
+    path("subscriptions/", PlatformSubscriptionsView.as_view(), name="subscriptions"),
     path("interoperability/", PlatformInteroperabilityView.as_view(), name="interoperability"),
     path("recognition/", PlatformRecognitionView.as_view(), name="recognition"),
     path("recognition/<uuid:pk>/simulation/", PlatformRecognitionSimulationView.as_view(), name="recognition-simulation"),
