@@ -225,6 +225,34 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(offers[0]["title"], "Offre ZS3")
         self.assertNotIn("payment", str(offers[0]).lower())
 
+    def test_programmes_presentation_routes_pending_registrations_to_human_queue(self):
+        self.space.archetype = SpaceArchetype.EDUCATION
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Programme Comptabilité")
+        beneficiary = User.objects.create_user(
+            username="zs3-programme-pending",
+            email="private-programme@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=beneficiary,
+            beneficiary=beneficiary,
+            activity=activity,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.PENDING_APPROVAL,
+        )
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["requests"]["representation"], "Inscriptions à traiter")
+        self.assertEqual(response.data["sections"]["upcoming"]["representation"], "Prochaines sessions")
+        row = next(
+            item for item in response.data["sections"]["requests"]["items"]
+            if item["source"] == {"kind": "journey", "id": str(journey.pk)}
+        )
+        self.assertNotIn(beneficiary.email, str(row))
+
     def test_education_journey_is_visible_without_beneficiary_leak(self):
         self.space.archetype = SpaceArchetype.EDUCATION
         self.space.save(update_fields=["archetype", "updated_at"])

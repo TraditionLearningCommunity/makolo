@@ -275,7 +275,7 @@ def _empty_section(*, identity, role, representation, empty_message):
     }
 
 
-def _empty_sections(*, space, include_offers=False, include_transport=False):
+def _empty_sections(*, space, include_offers=False, include_transport=False, include_requests=False):
     grammar = work_presentation_for_space(space)
     roles = {
         "preparation": "continuity",
@@ -287,6 +287,7 @@ def _empty_sections(*, space, include_offers=False, include_transport=False):
         "offers": "structure",
         "routes": "structure",
         "vehicles": "structure",
+        "requests": "continuity",
     }
     fallback_labels = {
         "preparation": "À préparer",
@@ -298,8 +299,11 @@ def _empty_sections(*, space, include_offers=False, include_transport=False):
         "offers": "Offres",
         "routes": "Routes",
         "vehicles": "Véhicules",
+        "requests": "Demandes",
     }
     keys = ["preparation", "upcoming", "active", "blocked", "completed", "activities"]
+    if include_requests:
+        keys.append("requests")
     if include_offers:
         keys.append("offers")
     if include_transport:
@@ -391,10 +395,13 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         and "transport" in operational_footprint_for_space(space).signals
     )
     commerce_visible = bool(visible_ids & caps["commerce"])
+    education_ids = visible_ids & caps["requests"]
+    education_visible = space.archetype == "education" and bool(education_ids)
     sections = _empty_sections(
         space=space,
         include_offers=commerce_visible,
         include_transport=transport_visible,
+        include_requests=education_visible,
     )
     now = timezone.now()
     today = timezone.localdate()
@@ -474,7 +481,6 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
                 continue
             _append(sections[target], _order_item(order, caps))
 
-    education_ids = visible_ids & caps["requests"]
     if education_ids:
         for journey in (
             Journey.objects.filter(
@@ -485,7 +491,16 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             .prefetch_related("blockers")
             .order_by("-created_at", "pk")
         ):
-            target = _journey_section(journey)
+            if (
+                education_visible
+                and journey.status in {
+                    JourneyStatus.SUBMITTED,
+                    JourneyStatus.PENDING_APPROVAL,
+                }
+            ):
+                target = "requests"
+            else:
+                target = _journey_section(journey)
             if target:
                 _append(sections[target], _journey_item(journey, caps))
 
