@@ -2,7 +2,14 @@
 from datetime import timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.http import HttpResponseBadRequest
+from django.shortcuts import redirect
+from operations.forms import EventModerationForm, OrganizationReviewForm
+from operations.services import change_organization_lifecycle, moderate_event, audit_action
+from operations.selectors import get_operations_events
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -170,3 +177,114 @@ class PlatformRecognitionSimulationView(PlatformRecognitionView):
         )
         context["simulated_at"] = now
         return context
+
+
+class PlatformDecisionView(PlatformView):
+    """Consequence-first POST-only mutations through canonical Operations services."""
+    module = "operations"
+    page = "decision"
+    template_name = "platform/decision.html"
+
+    def get_subject(self, request):
+        raise NotImplementedError
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["subject"] = self.get_subject(self.request)
+        context["form"] = self.form_class()
+        context["expected_state"] = self.current_state(context["subject"])
+        context["impact"] = self.impact
+        context["back_url"] = "/platform/operations/"
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        if not form.is_valid() or request.POST.get("confirm") != "1":
+            return self.render_to_response(
+                {**self.get_context_data(), "form": form,
+                 "error_message": "Choisissez une action, donnez une raison et confirmez la conséquence."},
+                status=400,
+            )
+        with transaction.atomic():
+            # Lock the owner row before comparing expected state and mutating.
+            subject = self.lock_subject(request)
+            if not can(request.user, PermissionCode.PLATFORM_MANAGE):
+                raise PermissionDenied("Permission Operations révoquée.")
+            before = self.current_state(subject)
+            if before != request.POST.get("expected_state"):
+                return self.render_to_response(
+                    {**self.get_context_data(), "form": form,
+                     "error_message": "La réalité a changé depuis son ouverture. Actualisez avant de décider."},
+                    status=409,
+                )
+            try:
+                result = self.apply_decision(subject, form.cleaned_data, request.user)
+            except ValidationError as exc:
+                return self.render_to_response(
+                    {**self.get_context_data(), "form": form,
+                     "error_message": "; ".join(exc.messages)},
+                    status=409,
+                )
+            after = self.current_state(result)
+        messages.success(request, f"Action confirmée : {before} → {after}.")
+        return redirect(request.path)
+
+
+class PlatformSpaceDecisionView(PlatformDecisionView):
+    heading = "Décision sur un Espace"
+    form_class = OrganizationReviewForm
+    impact = "Suspendre retire l'Espace de l'activité normale. Archiver le retire des usages courants ; restaurer le rend de nouveau actif selon les règles owner."
+
+    def get_subject(self, request):
+        return get_object_or_404(
+            get_operations_organizations(request.user), pk=self.kwargs["pk"]
+        )
+
+    def lock_subject(self, request):
+        from organizations.models import Organization
+        return get_object_or_404(
+            Organization.objects.select_for_update(), pk=self.kwargs["pk"]
+        )
+
+    def current_state(self, subject):
+        return subject.lifecycle
+
+    def apply_decision(self, subject, data, actor):
+        result = change_organization_lifecycle(
+            organization=subject, status=data["status"], actor=actor,
+            reason=data["reason"],
+        )
+        audit_action(
+            actor=actor, action="platform.space_lifecycle_decision",
+            target_type="organization", target_id=result.pk,
+            summary="Décision de lifecycle via Makolo Platform",
+            before={"lifecycle": subject.lifecycle}, after={"lifecycle": result.lifecycle},
+            metadata={"reason": data["reason"]},
+        )
+        return result
+
+
+class PlatformEventDecisionView(PlatformDecisionView):
+    heading = "Modération Event"
+    form_class = EventModerationForm
+    impact = "Retirer de la découverte ou rendre privé réduit la visibilité ; annuler affecte la réalisation de l'Event ; restaurer la visibilité n'annule pas une annulation métier."
+
+    def get_subject(self, request):
+        return get_object_or_404(
+            get_operations_events(request.user), pk=self.kwargs["pk"]
+        )
+
+    def lock_subject(self, request):
+        from events.models import Event
+        return get_object_or_404(
+            Event.objects.select_for_update(), pk=self.kwargs["pk"]
+        )
+
+    def current_state(self, subject):
+        return f"{subject.status}:{subject.visibility}"
+
+    def apply_decision(self, subject, data, actor):
+        return moderate_event(
+            event=subject, action=data["action"], actor=actor,
+            reason=data["reason"],
+        )
