@@ -4,7 +4,6 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/files/profile_file_store.dart';
 import '../../design/makolo_mark.dart';
-import '../../design/makolo_theme.dart';
 import '../../navigation/avatar_sheet.dart';
 import '../../navigation/shell_header.dart';
 import '../../navigation/space_context_bar.dart';
@@ -124,10 +123,7 @@ class _MarkScreenState extends State<MarkScreen> {
       owner: _owner,
       purpose: 'mark_intake',
       fileIdFor: (index, file) =>
-          'mark-' +
-          DateTime.now().microsecondsSinceEpoch.toString() +
-          '-' +
-          index.toString(),
+          'mark-${DateTime.now().microsecondsSinceEpoch}-$index',
     );
     if (!mounted) return;
     if (!result.acquired) {
@@ -156,7 +152,7 @@ class _MarkScreenState extends State<MarkScreen> {
       return;
     }
     final result = await coordinator.capturePhoto(
-      fileId: 'mark-photo-' + DateTime.now().microsecondsSinceEpoch.toString(),
+      fileId: 'mark-photo-${DateTime.now().microsecondsSinceEpoch}',
       owner: _owner,
       purpose: 'mark_intake',
     );
@@ -181,7 +177,7 @@ class _MarkScreenState extends State<MarkScreen> {
 
   String get _owner => switch (_actor) {
     PersonalActorContext() => 'profile',
-    SpaceActorContext(:final space) => 'space:' + space.slug,
+    SpaceActorContext(:final space) => 'space:${space.slug}',
   };
 
   Future<void> _saveDraft() => _repository.saveDraft(
@@ -274,8 +270,7 @@ class _MarkScreenState extends State<MarkScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            'Contexte sélectionné : ' +
-                                (_selectedContext!['kind'] ?? 'réalité'),
+                            'Contexte sélectionné : ${_selectedContext!['kind'] ?? 'réalité'}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
@@ -395,7 +390,7 @@ class _MarkResultView extends StatelessWidget {
               ],
               if (handoff?['surface'] != null) ...[
                 const SizedBox(height: 12),
-                Text('Suite : ' + handoff!['surface'].toString()),
+                Text('Suite : ${handoff!['surface']}'),
               ],
             ],
           ),
