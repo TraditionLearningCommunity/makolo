@@ -528,7 +528,6 @@ class _NowPrimarySituation extends StatelessWidget {
                 ),
               ],
               _NowSemanticContent(situation: situation),
-              _NowSemanticContent(situation: situation),
             if (situation.metadata.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 MakoloMetadata(
