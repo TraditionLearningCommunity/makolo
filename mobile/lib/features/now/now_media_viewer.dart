@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../network/makolo_api_client.dart';
+import '../../data/files/profile_paths.dart';
 import '../../platform/media/private_media_views.dart';
 import '../../platform/sharing/share_gateway.dart';
 import '../../presentation/contracts/now_presentation.dart';
@@ -56,12 +57,14 @@ class NowMediaViewer extends StatefulWidget {
     required this.api,
     this.sharing = const SystemShareGateway(),
     this.temporaryDirectory,
+    this.profileId,
   });
 
   final NowMediaBindingPresentation media;
   final MakoloApiClient api;
   final ShareGateway sharing;
   final Directory? temporaryDirectory;
+  final String? profileId;
 
   @override
   State<NowMediaViewer> createState() => _NowMediaViewerState();
@@ -92,7 +95,10 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
     }
     File? file;
     try {
-      final temporary = widget.temporaryDirectory ?? await getTemporaryDirectory();
+      final temporary = widget.temporaryDirectory ??
+          (widget.profileId != null
+              ? await ProfilePaths.reconstructibleCache(widget.profileId!)
+              : await getTemporaryDirectory());
       final dir = Directory('${temporary.path}/makolo-now-media');
       await dir.create(recursive: true);
       file = File(
