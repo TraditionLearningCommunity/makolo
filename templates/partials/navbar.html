@@ -1,4 +1,4 @@
-{% load conversation_tags core_navigation %}
+{% load conversation_tags core_navigation profile_activation_tags %}
 {% personal_navigation request as personal_nav %}
 {% with unread_notifications=notifications_unread_count %}
 {% if request.user.is_authenticated %}{% conversation_attention_badge request.user as conversation_attention %}{% endif %}

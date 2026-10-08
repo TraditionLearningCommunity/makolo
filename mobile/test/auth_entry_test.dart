@@ -470,7 +470,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 401));
     await tester.pump();
 
-    expect(find.text('Impossible de vérifier pour le moment.'), findsOneWidget);
+    expect(
+      find.text(
+        'Nos serveurs sont momentanément inaccessibles. '
+        'Il s’agit probablement d’une panne temporaire. Réessayez dans un instant.',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Identifiant Makolo disponible.'), findsNothing);
   });
 

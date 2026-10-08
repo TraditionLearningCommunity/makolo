@@ -16,6 +16,20 @@ import 'package:makolo_mobile/sync/owner_source_state.dart';
 import 'dio_testing.dart';
 import 'fakes.dart';
 
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (finder.evaluate().isEmpty && DateTime.now().isBefore(deadline)) {
+    await tester.pump(const Duration(milliseconds: 50));
+    final exception = tester.takeException();
+    if (exception != null) throw exception;
+  }
+  expect(finder, findsOneWidget);
+}
+
 void main() {
   testWidgets(
     'successful login rebuilds the authenticated runtime and opens Now',
@@ -85,7 +99,7 @@ void main() {
           child: const MakoloApp(),
         ),
       );
-      await tester.pumpAndSettle();
+      await _pumpUntil(tester, find.text('Connectez-vous à Makolo'));
 
       expect(find.text('Connectez-vous à Makolo'), findsOneWidget);
       await tester.enterText(find.byKey(const Key('login-email')), '@amina');
@@ -94,7 +108,7 @@ void main() {
         'secret-pass',
       );
       await tester.tap(find.byKey(const Key('login-submit')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(tester, find.text('Tout est en ordre. ✓'));
 
       expect(find.text('Tout est en ordre. ✓'), findsOneWidget);
       expect(find.text('Connectez-vous à Makolo'), findsNothing);
