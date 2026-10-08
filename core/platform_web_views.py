@@ -96,8 +96,8 @@ class PlatformAuditView(PlatformView):
 
 
 class PlatformInvestigateView(PlatformView):
-    """Conservative, owner-scoped investigation: no global PII or raw model search."""
-    module = "operations"
+    """Permission-first owner federation; never retrieve unscoped Profile/PII."""
+    module = None
     page = "investigate"
     heading = "Investiguer"
 
@@ -105,14 +105,33 @@ class PlatformInvestigateView(PlatformView):
         context = super().get_context_data(**kwargs)
         q = (self.request.GET.get("q") or "").strip()[:100]
         context["query"] = q
+        allowed = {item["key"] for item in self.platform_modules}
         if q:
-            context["investigation_spaces"] = get_operations_organizations(self.request.user).filter(
-                slug__icontains=q
-            )[:20]
-            context["investigation_incidents"] = get_operations_incidents(self.request.user).filter(
-                title__icontains=q
-            ).order_by("-created_at")[:20]
-        context["coverage"] = "Operations uniquement : Espaces par identifiant public et incidents par titre."
+            if "operations" in allowed:
+                context["investigation_spaces"] = get_operations_organizations(self.request.user).filter(
+                    slug__icontains=q
+                )[:20]
+                context["investigation_incidents"] = get_operations_incidents(self.request.user).filter(
+                    title__icontains=q
+                ).order_by("-created_at")[:20]
+                context["investigation_events"] = get_operations_events(self.request.user).filter(
+                    title__icontains=q
+                )[:20]
+            if "opportunity_curation" in allowed:
+                from opportunities.models import Opportunity
+                context["investigation_opportunities"] = Opportunity.objects.filter(
+                    current_revision__title__icontains=q
+                ).select_related("current_revision")[:20]
+            if "recognition_governance" in allowed:
+                from recognition.models import RecognitionPolicy
+                context["investigation_policies"] = RecognitionPolicy.objects.filter(
+                    name__icontains=q
+                )[:20]
+        context["coverage"] = (
+            "Recherche owner-fédérée partielle : Operations (Space slug, Event ou incident), "
+            "Opportunity et Recognition selon permission. Aucun Profile, Payment, Evidence, "
+            "Credential ou contenu privé n'est indexé."
+        )
         return context
 
 
