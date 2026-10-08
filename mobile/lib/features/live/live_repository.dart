@@ -80,8 +80,9 @@ class LiveRepository {
 
   Future<void> refresh(String occurrenceId) async {
     final engine = sync;
-    if (engine == null)
+    if (engine == null) {
       throw StateError('Remote Operations owner is not configured.');
+    }
     await engine.refreshSource(sourceFor(occurrenceId));
   }
 }
