@@ -32,6 +32,8 @@ class PlatformView(LoginRequiredMixin, TemplateView):
     heading = "Vue d'ensemble"
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         self.platform_modules = platform_modules_for(request.user)
         if not self.platform_modules or (
             self.module and self.module not in {item["key"] for item in self.platform_modules}
@@ -198,6 +200,8 @@ class PlatformOpportunityMergeView(PlatformCurationView):
     template_name = "platform/opportunity_merge.html"
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         if not can(request.user, PermissionCode.OPPORTUNITIES_MERGE):
             raise PermissionDenied("Autorité de fusion Opportunity requise.")
         return super().dispatch(request, *args, **kwargs)
@@ -357,6 +361,8 @@ class PlatformRecognitionSimulationView(PlatformRecognitionView):
     heading = "Simulation Recognition"
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         if not can(request.user, PermissionCode.PLATFORM_RECOGNITION_POLICY_MANAGE):
             raise PermissionDenied("Permission de simulation Recognition requise.")
         return super().dispatch(request, *args, **kwargs)
@@ -508,6 +514,8 @@ class PlatformRecognitionActionView(PlatformRecognitionView):
     heading = "Décision Recognition"
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         self.action = kwargs["action"]
         if self.action not in {"simulate", "publish"}:
             raise Http404
