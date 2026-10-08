@@ -95,6 +95,23 @@ void main() {
     expect(topologyFor(composed), NowTopology.composition);
   });
 
+  test('S4 is based on explicit response, never a waiting status', () {
+    NowSituationPresentation item(String? responseType, String? serverState) {
+      return NowSituationPresentation(
+        identity: 'now:wait',
+        reference: const StructuredDestination(kind: 'now', id: 'wait'),
+        humanContext: 'Demande fournisseur',
+        meaning: 'La demande a été envoyée.',
+        emphasis: NowPresentationEmphasis.primary,
+        responseType: responseType,
+        serverState: serverState,
+      );
+    }
+    expect(topologyFor(item(null, 'waiting')), NowTopology.meaning);
+    expect(topologyFor(item('wait', 'submitted')), NowTopology.waiting);
+    expect(topologyFor(item('monitor', null)), NowTopology.waiting);
+  });
+
   test('S2 and S3 precedence is independent of viewport', () {
     final situation = NowSituationPresentation(
       identity: 'now:media-action',
