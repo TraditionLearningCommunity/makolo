@@ -107,6 +107,7 @@ void main() {
         serverState: serverState,
       );
     }
+
     expect(topologyFor(item(null, 'waiting')), NowTopology.meaning);
     expect(topologyFor(item('wait', 'submitted')), NowTopology.waiting);
     expect(topologyFor(item('monitor', null)), NowTopology.waiting);

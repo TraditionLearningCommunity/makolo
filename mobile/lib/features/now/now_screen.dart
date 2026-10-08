@@ -396,7 +396,9 @@ class _NowSemanticContent extends StatelessWidget {
     final topology = topologyFor(situation);
     final theme = Theme.of(context);
     if (topology == NowTopology.media) {
-      final media = situation.mediaBindings.firstWhere((item) => item.canDominate);
+      final media = situation.mediaBindings.firstWhere(
+        (item) => item.canDominate,
+      );
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -442,16 +444,20 @@ class _NowSemanticContent extends StatelessWidget {
         children: [
           const Icon(Icons.hourglass_top_outlined),
           const SizedBox(width: MakoloSpacing.md),
-          Expanded(child: Text(
-            situation.turnLabel ?? 'En attente de la prochaine réponse.',
-            style: theme.textTheme.bodyMedium,
-          )),
+          Expanded(
+            child: Text(
+              situation.turnLabel ?? 'En attente de la prochaine réponse.',
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
         ],
       );
     }
     if (topology == NowTopology.action) {
       return Text(
-        situation.businessActions.firstWhere((action) => action.canDominate).label,
+        situation.businessActions
+            .firstWhere((action) => action.canDominate)
+            .label,
         style: theme.textTheme.titleMedium,
       );
     }
@@ -671,7 +677,8 @@ class _NowDepth extends StatelessWidget {
               ),
             ],
             _NowSemanticContent(situation: situation),
-            if (situation.horizon != null && topologyFor(situation) == NowTopology.waiting) ...[
+            if (situation.horizon != null &&
+                topologyFor(situation) == NowTopology.waiting) ...[
               const SizedBox(height: MakoloSpacing.md),
               Text(situation.horizon!),
             ],
@@ -682,7 +689,9 @@ class _NowDepth extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [for (final item in situation.makoloPreparation) Text(item)],
+                  children: [
+                    for (final item in situation.makoloPreparation) Text(item),
+                  ],
                 ),
               ),
             ],
