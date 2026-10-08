@@ -684,6 +684,7 @@ class _NowDepth extends StatelessWidget {
     required this.onClose,
     required this.onOpenOwner,
     required this.api,
+    required this.profileId,
   });
 
   final NowSituationPresentation situation;
