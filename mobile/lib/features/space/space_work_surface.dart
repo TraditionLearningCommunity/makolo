@@ -29,10 +29,7 @@ class SpaceWorkSurface extends StatelessWidget {
       visible.add(
         _WorkSection(
           label: _string(section['representation']) ?? entry.key,
-          items: items
-              .whereType<Map>()
-              .map(_copyMap)
-              .toList(growable: false),
+          items: items.whereType<Map>().map(_copyMap).toList(growable: false),
         ),
       );
     }
@@ -47,9 +44,8 @@ class SpaceWorkSurface extends StatelessWidget {
         for (final section in visible) ...[
           Text(
             section.label,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: MakoloSpacing.sm),
           for (final item in section.items) _item(context, item),
@@ -75,8 +71,7 @@ class SpaceWorkSurface extends StatelessWidget {
       subtitle: subtitle == null ? null : Text(subtitle),
       trailing: canOpenDayOf ? const Icon(Icons.chevron_right_rounded) : null,
       onTap: canOpenDayOf
-          ? () =>
-                context.push('/space/occurrences/${source!['id']}/day-of')
+          ? () => context.push('/space/occurrences/${source!['id']}/day-of')
           : null,
     );
   }
