@@ -215,7 +215,9 @@ class SpaceUsView(SpaceWebMixin):
             context["us_owner_links"] = {}
             return context
         owner_links = {
-            "relationships": context["space_relationships_url"],
+            "relationships": context["space_relationships_url"]
+            if projection.get("authority", {}).get("scope") == "space"
+            else None,
         }
         capabilities = projection.get("capabilities", {})
         if capabilities.get("manage_team"):

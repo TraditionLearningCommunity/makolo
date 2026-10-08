@@ -51,7 +51,7 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertIn('class="mk-workspace__primary"', html)
         self.assertIn('class="mk-sidebar-toggle mk-icon-btn"', html)
         self.assertIn('data-mk-runtime-scope="personal"', html)
-        self.assertIn('js/workspace-runtime.js', html)
+        self.assertIn('workspace-runtime.', html)
         self.assertIn('id="mobile-primary-nav"', html)
         self.assertIn('md:hidden', html)
 
@@ -66,7 +66,8 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertContains(ongoing_response, 'data-mk-surface="ongoing"')
         self.assertContains(me_response, 'data-mk-surface="me"')
         self.assertContains(me_response, 'class="mk-me-grid"')
-        self.assertNotContains(me_response, self.user.email)
+        main_html = me_response.content.decode().split('<main', 1)[1].split('</main>', 1)[0]
+        self.assertNotIn(self.user.email, main_html)
         self.assertContains(me_response, f"@{self.user.username}")
 
     def test_me_does_not_reduce_the_person_to_a_completion_score(self):

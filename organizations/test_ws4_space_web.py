@@ -83,6 +83,10 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(response, "Faits de vérification")
         self.assertContains(response, "Personnes & relations")
         self.assertContains(response, "Paramètres de l’Espace")
+        self.assertEqual(
+            response.context["projection"]["handoffs"]["team"],
+            f"/space/{self.space.slug}/us/team",
+        )
         html = response.content.decode().lower()
         self.assertNotIn("permissions", html)
         self.assertNotIn("health score", html)
@@ -139,6 +143,8 @@ class WS4SpaceWebTests(TestCase):
         us = self.client.get(self.url("organizations:space-us"))
         self.assertEqual(us.status_code, 200)
         self.assertEqual(us.context["projection"]["authority"]["scope"], "activity_limited")
+        self.assertNotIn("relationships", us.context["projection"]["handoffs"])
+        self.assertNotIn("team", us.context["projection"]["handoffs"])
         self.assertNotContains(us, self.member.full_name or self.member.username)
 
         relationships = self.client.get(self.url("organizations:space-relationships"))
