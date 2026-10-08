@@ -8,6 +8,49 @@
     <p>Chaque relation garde son sens propre. Une même personne peut apparaître ici dans plusieurs relations légitimes.</p>
   </header>
 
+  <form method="get" role="search" aria-label="Rechercher les relations du Space" class="mk-ws4-card">
+    <label for="relationship-search">Rechercher une relation dans ce Space</label>
+    <input id="relationship-search" type="search" name="q" value="{{ projection.search.query|default:'' }}" maxlength="120" autocomplete="off" placeholder="Nom, groupe, partenaire…">
+    <button type="submit">Rechercher</button>
+  </form>
+  {% if projection.search %}
+  <section class="mk-ws4-card" aria-labelledby="relationship-results">
+    <h3 id="relationship-results">Relations visibles correspondant à « {{ projection.search.query }} »</h3>
+    {% if projection.search.items %}
+    <ul class="mk-ws4-list">
+      {% for row in projection.search.items %}
+      <li>
+        <span class="mk-ws4-avatar" aria-hidden="true"><i data-lucide="user-round"></i></span>
+        <div>
+          <strong>{{ row.identity }}</strong>
+          <small>{{ row.relation_type }} · {{ row.owner_identity }}</small>
+          <a href="?q={{ projection.search.query|urlencode }}&amp;kind={{ row.kind|urlencode }}&amp;id={{ row.id|urlencode }}#relation-focus">Comprendre cette relation</a>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if projection.search.has_more %}<p>Autres correspondances possibles ; affinez votre recherche.</p>{% endif %}
+    {% else %}
+    <p role="status">Aucune relation visible ne correspond à « {{ projection.search.query }} ».</p>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% if projection.selection %}
+  <section class="mk-ws4-card" id="relation-focus" aria-labelledby="relation-focus-title">
+    <div class="mk-ws4-card-head"><h3 id="relation-focus-title">{% if projection.selection.profile %}{{ projection.selection.profile.name }}{% elif projection.selection.name %}{{ projection.selection.name }}{% else %}{{ projection.selection.label }}{% endif %}</h3></div>
+    <p>{{ projection.selection.relation_type }}</p>
+    <p>Relation détenue par {{ projection.selection.owner_identity }}.</p>
+    {% if projection.selection.links.owner_web %}
+    <a class="mk-ws4-deep-link" href="{{ projection.selection.links.owner_web }}">Ouvrir dans le domaine propriétaire</a>
+    {% elif projection.selection.links.owner_api %}
+    <p>La gestion de cette relation appartient à son domaine propriétaire.</p>
+    {% endif %}
+    <a href="?q={{ projection.search.query|default:''|urlencode }}#relationship-results">Revenir aux relations</a>
+  </section>
+  {% elif request.GET.kind and request.GET.id %}
+  <p role="status">Cette relation n’est pas visible dans l’autorité actuelle.</p>
+  {% endif %}
+
   {% if projection.sections %}
   <div class="mk-ws4-grid mk-ws4-grid--relations">
     {% if projection.sections.team %}
@@ -20,7 +63,7 @@
         {% endfor %}
       </ul>
       {% else %}<p class="mk-ws4-empty">Aucun membre visible dans cette collection.</p>{% endif %}
-      {% if projection.sections.team.has_more %}<p class="mk-ws4-note">Aperçu limité à 12 relations.</p>{% endif %}
+      {% if projection.sections.team.has_more %}<p class="mk-ws4-note">Voir toutes les relations dans leur domaine propriétaire.</p>{% endif %}
       {% if relationship_owner_links.team %}<a class="mk-ws4-deep-link" href="{{ relationship_owner_links.team }}">Voir l’équipe <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
