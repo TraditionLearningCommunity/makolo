@@ -29,28 +29,25 @@ void main() {
   testWidgets(
     'initial Mark keeps input dominant and exposes native intake actions',
     (tester) async {
-    final runtime = AppRuntime(
-      tokens: MemoryTokenStore(),
-      session: null,
-      recovery: SessionRecoveryController(),
-    );
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MarkScreen(runtime: runtime),
-      ),
-    );
-    await tester.pump();
+      await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
+      await tester.pump();
 
-    expect(find.text('Qu’est-ce que vous avez en tête ?'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('Joindre'), findsOneWidget);
-    expect(find.text('Photo'), findsOneWidget);
-    expect(find.text('Voix'), findsOneWidget);
-    expect(find.text('Continuer'), findsOneWidget);
-    expect(find.textContaining('A1'), findsNothing);
-    expect(find.textContaining('A2'), findsNothing);
-  });
+      expect(find.text('Qu’est-ce que vous avez en tête ?'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Joindre'), findsOneWidget);
+      expect(find.text('Photo'), findsOneWidget);
+      expect(find.text('Voix'), findsOneWidget);
+      expect(find.text('Continuer'), findsOneWidget);
+      expect(find.textContaining('A1'), findsNothing);
+      expect(find.textContaining('A2'), findsNothing);
+    },
+  );
 
   testWidgets('Mark never renders a second Space design', (tester) async {
     final runtime = AppRuntime(
@@ -59,11 +56,7 @@ void main() {
       recovery: SessionRecoveryController(),
     );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MarkScreen(runtime: runtime),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: MarkScreen(runtime: runtime)));
     await tester.pump();
 
     expect(find.text('Makolo Mark'), findsNothing);
@@ -71,9 +64,9 @@ void main() {
     expect(find.text('Thinking with AI'), findsNothing);
   });
 
-  testWidgets(
-    'selected context is visible without granting authority',
-    (tester) async {
+  testWidgets('selected context is visible without granting authority', (
+    tester,
+  ) async {
     final runtime = AppRuntime(
       tokens: MemoryTokenStore(),
       session: null,
@@ -90,6 +83,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.textContaining('Contexte sélectionné : journey'), findsOneWidget);
+    expect(
+      find.textContaining('Contexte sélectionné : journey'),
+      findsOneWidget,
+    );
   });
 }

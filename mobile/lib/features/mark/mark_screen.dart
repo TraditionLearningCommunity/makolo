@@ -115,7 +115,9 @@ class _MarkScreenState extends State<MarkScreen> {
   Future<void> _pickFiles() async {
     final coordinator = await _fileCoordinator();
     if (coordinator == null) {
-      _show('Les pièces jointes locales ne sont pas disponibles dans cette session.');
+      _show(
+        'Les pièces jointes locales ne sont pas disponibles dans cette session.',
+      );
       return;
     }
     final result = await coordinator.pickFiles(
@@ -214,9 +216,8 @@ class _MarkScreenState extends State<MarkScreen> {
 
   void _show(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -267,12 +268,14 @@ class _MarkScreenState extends State<MarkScreen> {
                       ),
                       onChanged: (_) => _saveDraft(),
                     ),
-                    if (_selectedContext != null || _attachments.isNotEmpty) ...[
+                    if (_selectedContext != null ||
+                        _attachments.isNotEmpty) ...[
                       if (_selectedContext != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            'Contexte sélectionné : ' + (_selectedContext!['kind'] ?? 'réalité'),
+                            'Contexte sélectionné : ' +
+                                (_selectedContext!['kind'] ?? 'réalité'),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
@@ -308,8 +311,8 @@ class _MarkScreenState extends State<MarkScreen> {
                           onPressed: _busy
                               ? null
                               : () => _show(
-                                    'La voix sera disponible lorsque la capability de transcription sera exposée.',
-                                  ),
+                                  'La voix sera disponible lorsque la capability de transcription sera exposée.',
+                                ),
                           icon: const Icon(Icons.mic_none),
                           label: const Text('Voix'),
                         ),
