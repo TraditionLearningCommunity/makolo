@@ -159,9 +159,10 @@ class _NowScreenState extends State<NowScreen> {
 }
 
 class NowView extends StatefulWidget {
-  const NowView({super.key, required this.selection, this.onOpenOwner, this.api});
+  const NowView({super.key, required this.selection, this.onOpenOwner, this.api, this.initialSelectedKey});
 
   final NowSelection selection;
+  final String? initialSelectedKey;
   final MakoloApiClient? api;
   final ValueChanged<StructuredDestination>? onOpenOwner;
 
@@ -172,6 +173,12 @@ class NowView extends StatefulWidget {
 class _NowViewState extends State<NowView> {
   final ScrollController _fieldController = ScrollController();
   String? _selectedKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedKey = widget.initialSelectedKey;
+  }
 
   @override
   void didUpdateWidget(covariant NowView oldWidget) {
