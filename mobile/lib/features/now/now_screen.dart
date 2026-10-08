@@ -359,6 +359,109 @@ String? _distinctPresentationText(String? value, Iterable<String?> others) {
   return text;
 }
 
+enum NowTopology { meaning, media, action, waiting, composition }
+
+NowTopology topologyFor(NowSituationPresentation situation) {
+  if (situation.mediaBindings.any((media) => media.canDominate)) {
+    return NowTopology.media;
+  }
+  if (situation.businessActions.any((action) => action.canDominate)) {
+    return NowTopology.action;
+  }
+  if (situation.relationMembers.isNotEmpty && situation.relations.isNotEmpty) {
+    return NowTopology.composition;
+  }
+  if (situation.responseType == 'waiting' ||
+      situation.serverState == 'waiting' ||
+      situation.turn == 'waiting') {
+    return NowTopology.waiting;
+  }
+  return NowTopology.meaning;
+}
+
+class _NowSemanticContent extends StatelessWidget {
+  const _NowSemanticContent({required this.situation});
+
+  final NowSituationPresentation situation;
+
+  @override
+  Widget build(BuildContext context) {
+    final topology = topologyFor(situation);
+    final theme = Theme.of(context);
+    if (topology == NowTopology.media) {
+      final media = situation.mediaBindings.firstWhere((item) => item.canDominate);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (media.kind == NowMediaKind.image &&
+              media.url != null &&
+              Uri.tryParse(media.url!)?.hasScheme == true)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(MakoloRadii.card),
+              child: Image.network(
+                media.url!,
+                height: 240,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    const SizedBox(height: 100, child: Center(child: Icon(Icons.image_not_supported_outlined))),
+              ),
+            )
+          else
+            ListTile(
+              leading: Icon(switch (media.kind) {
+                NowMediaKind.pdf => Icons.picture_as_pdf_outlined,
+                NowMediaKind.video => Icons.play_circle_outline,
+                NowMediaKind.audio => Icons.audiotrack_outlined,
+                NowMediaKind.coordinates => Icons.place_outlined,
+                _ => Icons.insert_drive_file_outlined,
+              }),
+              title: Text(media.label ?? 'Document lié à cette situation'),
+              subtitle: const Text('Consulter depuis la source autorisée'),
+            ),
+          const SizedBox(height: MakoloSpacing.md),
+        ],
+      );
+    }
+    if (topology == NowTopology.composition) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final member in situation.relationMembers)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(member.label),
+              subtitle: member.subtext == null ? null : Text(member.subtext!),
+              leading: const Icon(Icons.account_tree_outlined),
+            ),
+          for (final relation in situation.relations)
+            if (relation.summary != null)
+              Text(relation.summary!, style: theme.textTheme.bodyMedium),
+        ],
+      );
+    }
+    if (topology == NowTopology.waiting) {
+      return Row(
+        children: [
+          const Icon(Icons.hourglass_top_outlined),
+          const SizedBox(width: MakoloSpacing.md),
+          Expanded(child: Text(
+            situation.turnLabel ?? 'Makolo suit la situation. Aucune action immédiate.',
+            style: theme.textTheme.bodyMedium,
+          )),
+        ],
+      );
+    }
+    if (topology == NowTopology.action) {
+      return Text(
+        situation.businessActions.firstWhere((action) => action.canDominate).label,
+        style: theme.textTheme.titleMedium,
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
 class _NowPrimarySituation extends StatelessWidget {
   const _NowPrimarySituation({
     required this.situation,
@@ -424,7 +527,9 @@ class _NowPrimarySituation extends StatelessWidget {
                   ),
                 ),
               ],
-              if (situation.metadata.isNotEmpty) ...[
+              _NowSemanticContent(situation: situation),
+              _NowSemanticContent(situation: situation),
+            if (situation.metadata.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 MakoloMetadata(
                   items: [
