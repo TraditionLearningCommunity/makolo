@@ -85,7 +85,8 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
       return;
     }
     try {
-      final path = 'api/v1/organizations/workspaces/'
+      final path =
+          'api/v1/organizations/workspaces/'
           '${Uri.encodeComponent(space.slug)}/relationships/'
           '?q=${Uri.encodeQueryComponent(query)}';
       final response = await api.get(path);
@@ -142,13 +143,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             builder: (context, snapshot) {
               final payload = snapshot.data?.payload;
               if (payload == null) {
-                return const Center(
-                  child: Text('Projection non disponible.'),
-                );
+                return const Center(child: Text('Projection non disponible.'));
               }
-              return relations
-                  ? relationsBody(payload)
-                  : pilotBody(payload);
+              return relations ? relationsBody(payload) : pilotBody(payload);
             },
           );
         },
@@ -176,9 +173,8 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
         for (final item in section['items'] as List) {
           if (item is Map) {
             final row = Map<String, dynamic>.from(item);
-            if (query.isEmpty || labelOf(row).toLowerCase().contains(
-              query.toLowerCase(),
-            )) {
+            if (query.isEmpty ||
+                labelOf(row).toLowerCase().contains(query.toLowerCase())) {
               rows.add(row);
             }
           }
@@ -212,7 +208,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             'Recherche distante indisponible. Résultats locaux partiels.',
           ),
         if (rows.isEmpty)
-          const Text('Aucune relation correspondante dans les données visibles.'),
+          const Text(
+            'Aucune relation correspondante dans les données visibles.',
+          ),
         for (final row in rows)
           ListTile(
             title: Text(labelOf(row)),
@@ -230,16 +228,16 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     if (profile is Map && profile['name'] is String) {
       return profile['name'] as String;
     }
-    return row['name']?.toString() ??
-        row['label']?.toString() ??
-        'Relation';
+    return row['name']?.toString() ?? row['label']?.toString() ?? 'Relation';
   }
 
   Widget pilotBody(Map<String, dynamic> payload) {
     final sections = payload['sections'];
     final analytics = sections is Map ? sections['analytics'] : null;
     if (analytics is! Map) {
-      return const Center(child: Text('Pilotage non autorisé ou indisponible.'));
+      return const Center(
+        child: Text('Pilotage non autorisé ou indisponible.'),
+      );
     }
     final signals = analytics['signals'] is List
         ? analytics['signals'] as List
@@ -270,9 +268,11 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
               if (metric is Map)
                 ListTile(
                   title: Text(metric['key']?.toString() ?? 'Mesure'),
-                  subtitle: Text(metric['state'] == 'known'
-                      ? '${metric['value']}'
-                      : metric['state']?.toString() ?? 'Inconnu'),
+                  subtitle: Text(
+                    metric['state'] == 'known'
+                        ? '${metric['value']}'
+                        : metric['state']?.toString() ?? 'Inconnu',
+                  ),
                 ),
           ],
         ),
