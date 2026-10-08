@@ -52,13 +52,13 @@ def platform_modules_for(actor):
         modules.append({
             "key": "trust_review", "scope": "platform", "contract_status": "owner_web_contract",
             "capabilities": ["review"],
-            "links": {"web_queue": "/trust/staff/", "web": "/trust/staff/"},
+            "links": {"web_queue": "/trust/staff/", "web": "/platform/trust/"},
         })
     if effective & SUBSCRIPTION_CODES:
         modules.append({
             "key": "subscriptions", "scope": "platform", "contract_status": "owner_domain",
             "capabilities": sorted(effective & SUBSCRIPTION_CODES),
-            "links": {"web": "/operations/subscriptions/"},
+            "links": {"web": "/platform/subscriptions/"},
         })
     if effective & RECOGNITION_CODES:
         modules.append({
@@ -70,7 +70,7 @@ def platform_modules_for(actor):
         modules.append({
             "key": "opportunity_curation", "scope": "platform", "contract_status": "owner_domain",
             "capabilities": sorted(effective & OPPORTUNITY_CODES),
-            "links": {"web": "/opportunities/staff/"},
+            "links": {"web": "/platform/curation/"},
         })
     if PermissionCode.PLATFORM_MANAGE in effective:
         modules.append({
