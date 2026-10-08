@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +8,9 @@ import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
+import 'package:makolo_mobile/features/auth/auth_error_messages.dart';
 import 'package:makolo_mobile/features/auth/login_screen.dart';
+import 'package:makolo_mobile/network/api_error.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 import 'dio_testing.dart';
@@ -108,7 +109,40 @@ void main() {
     final session = await tokens.readSession();
     expect(session?.profileId, 'profile-a');
     expect(session?.refreshToken, 'refresh-a');
-    expect((await tokens.listAccounts()).single.email, 'amina@example.com');
+    final account = (await tokens.listAccounts()).single;
+    expect(account.username, 'amina');
+    expect(account.email, 'amina@example.com');
+  });
+
+  testWidgets('login accepts the canonical Makolo identifier', (tester) async {
+    final tokens = MemoryTokenStore();
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/login/')) {
+        expect(jsonDecode(request.body), {
+          'username': '@amina',
+          'password': 'secret-pass',
+        });
+        return MockResponse(
+          jsonEncode({'access': 'access-a', 'refresh': 'refresh-a'}),
+          200,
+        );
+      }
+      if (request.url.path.endsWith('/auth/me/')) return _meResponse();
+      throw StateError('unexpected request');
+    });
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await tester.enterText(find.byKey(const Key('login-email')), '@amina');
+    await tester.enterText(
+      find.byKey(const Key('login-password')),
+      'secret-pass',
+    );
+    await _tapVisible(tester, find.byKey(const Key('login-submit')));
+    await tester.pumpAndSettle();
+
+    expect((await tokens.readSession())?.profileId, 'profile-a');
+    expect((await tokens.listAccounts()).single.publicIdentifier, '@amina');
   });
 
   testWidgets('quick access is opt-in and never requires a stored password', (
@@ -168,7 +202,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Adresse e-mail ou mot de passe incorrect.'),
+      find.text(
+        'Identifiant Makolo, adresse e-mail ou mot de passe incorrect.',
+      ),
       findsOneWidget,
     );
     expect(find.text('amina@example.com'), findsOneWidget);
@@ -415,28 +451,27 @@ void main() {
     );
   });
 
-  testWidgets('identifier availability network failure is not availability', (
-    tester,
-  ) async {
-    final tokens = MemoryTokenStore();
-    final client = MockClient((request) async {
-      if (request.url.path.endsWith('/auth/identifier/availability/')) {
-        throw const SocketException('offline');
-      }
-      throw StateError('unexpected request');
-    });
-    final runtime = _runtime(tokens: tokens, client: client);
+  test(
+    'transport failure defaults to Makolo unavailability without offline proof',
+    () async {
+      final message = await resolvedAuthErrorMessage(
+        const MakoloTransportError('makolo_unreachable', 'unreachable'),
+        fallback: 'fallback',
+        offlineProbe: () async => false,
+      );
 
-    await _pumpLogin(tester, runtime);
-    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
-    await tester.pumpAndSettle();
+      expect(message, makoloServerUnavailableMessage);
+    },
+  );
 
-    await tester.enterText(find.byKey(const Key('signup-username')), 'amina');
-    await tester.pump(const Duration(milliseconds: 401));
-    await tester.pump();
+  test('established device offline state is allowed to name offline', () async {
+    final message = await resolvedAuthErrorMessage(
+      const MakoloTransportError('makolo_unreachable', 'unreachable'),
+      fallback: 'fallback',
+      offlineProbe: () async => true,
+    );
 
-    expect(find.text('Impossible de vérifier pour le moment.'), findsOneWidget);
-    expect(find.text('Identifiant Makolo disponible.'), findsNothing);
+    expect(message, deviceOfflineMessage);
   });
 
   testWidgets('signup creates the account and authenticates immediately', (
@@ -494,6 +529,78 @@ void main() {
     expect(payload?['password_confirm'], 'password-one');
     expect(payload?.containsKey('birth_date'), isFalse);
     expect(payload?.containsKey('country'), isFalse);
+  });
+
+  testWidgets('signup works without email and signs in with username', (
+    tester,
+  ) async {
+    Map<String, dynamic>? registration;
+    final tokens = MemoryTokenStore();
+    final client = MockClient((request) async {
+      if (request.url.path.endsWith('/auth/identifier/availability/')) {
+        return MockResponse(
+          jsonEncode({'available': true, 'username': 'sansmail'}),
+          200,
+        );
+      }
+      if (request.url.path.endsWith('/auth/register/')) {
+        registration = jsonDecode(request.body) as Map<String, dynamic>;
+        return MockResponse(
+          jsonEncode({'message': 'Compte créé.', 'user': {}}),
+          201,
+        );
+      }
+      if (request.url.path.endsWith('/auth/login/')) {
+        expect(jsonDecode(request.body), {
+          'username': 'sansmail',
+          'password': 'password-one',
+        });
+        return MockResponse(
+          jsonEncode({'access': 'access-a', 'refresh': 'refresh-a'}),
+          200,
+        );
+      }
+      if (request.url.path.endsWith('/auth/me/')) {
+        return MockResponse(
+          jsonEncode({
+            'id': 'profile-no-email',
+            'email': null,
+            'username': 'sansmail',
+            'full_name': '',
+          }),
+          200,
+        );
+      }
+      throw StateError('unexpected request');
+    });
+    final runtime = _runtime(tokens: tokens, client: client);
+
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('signup-username')),
+      'sansmail',
+    );
+    await tester.pump(const Duration(milliseconds: 401));
+    await tester.enterText(
+      find.byKey(const Key('signup-password')),
+      'password-one',
+    );
+    await tester.enterText(
+      find.byKey(const Key('signup-password-confirm')),
+      'password-one',
+    );
+    await tester.ensureVisible(find.byKey(const Key('signup-submit')));
+    await tester.tap(find.byKey(const Key('signup-submit')));
+    await tester.pumpAndSettle();
+
+    expect(registration?.containsKey('email'), isFalse);
+    final account = (await tokens.listAccounts()).single;
+    expect(account.username, 'sansmail');
+    expect(account.email, isNull);
+    expect(account.publicIdentifier, '@sansmail');
+    expect((await tokens.readSession())?.profileId, 'profile-no-email');
   });
 
   testWidgets('forgot password uses a neutral modal confirmation', (
@@ -622,6 +729,7 @@ void main() {
     await tokens.saveAccount(
       DeviceAccount(
         profileId: 'profile-a',
+        username: 'amina',
         email: 'amina@example.com',
         displayName: 'Amina K.',
         hasQuickAccess: false,
@@ -698,7 +806,7 @@ void main() {
     expect(find.text('Connectez-vous à Makolo'), findsOneWidget);
     expect(find.text('Makolo marche pour vous.'), findsOneWidget);
     expect(find.text('Makolo marche avec vous.'), findsNothing);
-    expect(find.text('Adresse e-mail'), findsOneWidget);
+    expect(find.text('Identifiant Makolo ou adresse e-mail'), findsOneWidget);
     expect(find.text('Mot de passe'), findsOneWidget);
     expect(find.byKey(const Key('login-submit')), findsOneWidget);
 

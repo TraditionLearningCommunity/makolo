@@ -201,6 +201,7 @@ class _AppShellState extends State<AppShell> {
       builder: (context, snapshot) {
         final identity = snapshot.data?.payload['identity'];
         final displayName = identity is Map ? identity['display_name'] : null;
+        final profileUsername = identity is Map ? identity['username'] : null;
         final avatarLetter =
             displayName is String && displayName.trim().isNotEmpty
             ? displayName.trim().substring(0, 1).toUpperCase()
@@ -211,6 +212,7 @@ class _AppShellState extends State<AppShell> {
           appBar: MakoloPrimaryHeader(
             kind: _headerKind,
             avatarLetter: avatarLetter,
+            profileUsername: profileUsername is String ? profileUsername : null,
             unreadNotifications: _unreadNotifications,
             onBrand: () => _goDoor(MakoloPrimaryDoor.now),
             onConversations: actor is PersonalActorContext

@@ -12,6 +12,7 @@ import '../../design/surface_states.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../sync/freshness.dart';
+import '../../sync/sync_status.dart';
 import 'detail_selector.dart';
 import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
@@ -91,8 +92,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     widget.onOpenItem(item.family, item.id);
   }
 
-  MakoloReachabilityCue _reachability(DiscoverySourceState source) {
-    if (source.reachability == ReachabilityState.unreachable) {
+  MakoloReachabilityCue _reachability(
+    DiscoverySourceState source,
+    SyncStatus? syncStatus,
+  ) {
+    if (syncStatus?.state == SyncVisualState.offline ||
+        source.reachability == ReachabilityState.unreachable) {
       return MakoloReachabilityCue.temporarilyUnavailable;
     }
     if (source.lastSuccessAt != null) {
@@ -114,6 +119,15 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             final projection = snapshot.data;
             final sourceState =
                 sourceSnapshot.data ?? DiscoverySourceState.unknown;
+            final syncStatus = SyncStatusScope.maybeOf(context);
+            final serverUnavailable =
+                syncStatus?.state != SyncVisualState.offline &&
+                const {
+                  'timeout',
+                  'makolo_unreachable',
+                  'secure_connection_failed',
+                  'transport_error',
+                }.contains(sourceState.lastErrorCode);
             final freshness = projection == null
                 ? FreshnessState.fresh
                 : DiscoveryRepository.discoveryFreshness.evaluate(
@@ -125,11 +139,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               projection: projection,
               hasCriteria: _query.hasCriteria,
               freshness: freshness,
-              reachability: _reachability(sourceState),
+              reachability: _reachability(sourceState, syncStatus),
               failure: sourceState.lastErrorCode != null && projection != null
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
               refreshing: _refreshing,
+              serverUnavailable: serverUnavailable,
             );
             return RefreshIndicator(
               onRefresh: _refreshItems,

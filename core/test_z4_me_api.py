@@ -79,6 +79,7 @@ class PersonalMeAPIContractTests(TestCase):
         identity = payload["data"]["identity"]
         self.assertEqual(identity["kind"], "profile")
         self.assertEqual(identity["id"], str(self.user.pk))
+        self.assertEqual(identity["username"], "z4-owner")
         self.assertEqual(identity["display_name"], "Amina Kabongo")
         self.assertEqual(identity["bio"], "Ingénieure et formatrice.")
         self.assertEqual(identity["profession"], "Ingénieure")
@@ -87,8 +88,11 @@ class PersonalMeAPIContractTests(TestCase):
             identity["presence"],
             {"public_profile": True, "searchable": True},
         )
+        self.assertEqual(
+            identity["activation"],
+            {"percentage": 60, "is_complete": False},
+        )
         self.assertEqual(identity["capabilities"], ["edit_identity"])
-        self.assertNotIn("activation", identity)
 
         forbidden = {
             "email",
@@ -104,7 +108,6 @@ class PersonalMeAPIContractTests(TestCase):
             "role",
             "permissions",
             "mandates",
-            "activation",
         }
         self.assertTrue(forbidden.isdisjoint(identity.keys()))
 
@@ -157,7 +160,12 @@ class PersonalMeAPIContractTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         identity = response.json()["data"]["identity"]
+        self.assertEqual(identity["username"], "z4-orphan")
         self.assertEqual(identity["display_name"], "z4-orphan")
+        self.assertEqual(
+            identity["activation"],
+            {"percentage": 33, "is_complete": False},
+        )
         self.assertIsNone(identity["profession"])
         self.assertIsNone(identity["location"])
         self.assertEqual(

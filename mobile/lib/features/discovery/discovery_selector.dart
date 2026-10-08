@@ -9,6 +9,7 @@ enum DiscoveryFieldState {
   noCurrentProposal,
   offlineWithSnapshot,
   offlineNoSnapshot,
+  serverUnavailableNoSnapshot,
 }
 
 class DiscoveryItemPresentation {
@@ -99,7 +100,8 @@ class DiscoveryFieldSelection {
   final Set<DiscoveryFieldState> states;
 
   bool get hasSnapshot =>
-      !states.contains(DiscoveryFieldState.offlineNoSnapshot);
+      !states.contains(DiscoveryFieldState.offlineNoSnapshot) &&
+      !states.contains(DiscoveryFieldState.serverUnavailableNoSnapshot);
   bool get reachedEnd => states.contains(DiscoveryFieldState.endOfField);
 }
 
@@ -135,12 +137,15 @@ class DiscoverySelector {
     MakoloReachabilityCue reachability = MakoloReachabilityCue.unknown,
     MakoloFailureCue failure = MakoloFailureCue.none,
     bool refreshing = false,
+    bool serverUnavailable = false,
     DateTime? now,
   }) {
     if (projection == null) {
       final states = <DiscoveryFieldState>{
         if (reachability == MakoloReachabilityCue.temporarilyUnavailable)
-          DiscoveryFieldState.offlineNoSnapshot,
+          serverUnavailable
+              ? DiscoveryFieldState.serverUnavailableNoSnapshot
+              : DiscoveryFieldState.offlineNoSnapshot,
       };
       return DiscoveryFieldSelection(
         collection: DiscoveryCollectionPresentation.empty,

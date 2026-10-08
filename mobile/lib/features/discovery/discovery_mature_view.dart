@@ -645,6 +645,16 @@ class _DiscoveryEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (states.contains(DiscoveryFieldState.serverUnavailableNoSnapshot)) {
+      return _EmptyBody(
+        icon: Icons.cloud_off_outlined,
+        title:
+            'Nos serveurs sont momentanément inaccessibles. '
+            'Les possibilités publiques ne peuvent pas être actualisées pour le moment.',
+        actionLabel: onRetry == null ? null : 'Réessayer',
+        onAction: onRetry,
+      );
+    }
     if (states.contains(DiscoveryFieldState.offlineNoSnapshot) ||
         states.contains(DiscoveryFieldState.offlineWithSnapshot)) {
       return _EmptyBody(

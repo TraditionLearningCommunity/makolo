@@ -42,21 +42,41 @@ class AuthSession {
 class DeviceAccount {
   const DeviceAccount({
     required this.profileId,
-    required this.email,
+    this.username = '',
+    this.email,
     required this.displayName,
     required this.hasQuickAccess,
     required this.lastUsedAt,
   });
 
   final String profileId;
-  final String email;
+  final String username;
+  final String? email;
   final String displayName;
   final bool hasQuickAccess;
   final DateTime lastUsedAt;
 
+  String get publicIdentifier {
+    final normalized = username.trim().replaceFirst(RegExp(r'^@'), '');
+    if (normalized.isNotEmpty) return '@$normalized';
+    final mail = email?.trim();
+    return mail == null || mail.isEmpty ? 'Compte Makolo' : mail;
+  }
+
+  String get loginIdentifier {
+    final normalized = username.trim().replaceFirst(RegExp(r'^@'), '');
+    if (normalized.isNotEmpty) return normalized;
+    return email?.trim() ?? '';
+  }
+
   String get avatarLetter {
-    final source = displayName.trim().isNotEmpty ? displayName : email;
-    return source.trim().substring(0, 1).toUpperCase();
+    final source = username.trim().isNotEmpty
+        ? username
+        : (displayName.trim().isNotEmpty ? displayName : email ?? 'M');
+    final normalized = source.trim().replaceFirst(RegExp(r'^@'), '');
+    return (normalized.isEmpty ? 'M' : normalized)
+        .substring(0, 1)
+        .toUpperCase();
   }
 }
 
@@ -135,17 +155,23 @@ class FlutterSecureTokenStore implements TokenStore {
     final accounts = <DeviceAccount>[];
     for (final entry in records.entries) {
       final value = entry.value;
-      final email = value['email'];
+      final rawUsername = value['username'];
+      final username = rawUsername is String ? rawUsername.trim() : '';
+      final rawEmail = value['email'];
+      final email = rawEmail is String && rawEmail.trim().isNotEmpty
+          ? rawEmail.trim()
+          : null;
       final displayName = value['display_name'];
       final lastUsedRaw = value['last_used_at'];
-      if (email is! String || email.trim().isEmpty) continue;
+      if (username.isEmpty && email == null) continue;
       accounts.add(
         DeviceAccount(
           profileId: entry.key,
+          username: username,
           email: email,
           displayName: displayName is String && displayName.trim().isNotEmpty
               ? displayName
-              : email,
+              : (username.isNotEmpty ? '@$username' : email!),
           hasQuickAccess: value['session'] is Map,
           lastUsedAt:
               DateTime.tryParse(lastUsedRaw is String ? lastUsedRaw : '') ??
@@ -164,6 +190,7 @@ class FlutterSecureTokenStore implements TokenStore {
   }) async {
     final accounts = await _readAccountRecords();
     accounts[account.profileId] = <String, dynamic>{
+      'username': account.username,
       'email': account.email,
       'display_name': account.displayName,
       'last_used_at': account.lastUsedAt.toUtc().toIso8601String(),

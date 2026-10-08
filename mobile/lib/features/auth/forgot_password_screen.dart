@@ -83,13 +83,13 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
         _externalDelivery = result.externalDelivery;
       });
     } on Object catch (error) {
+      final message = await resolvedAuthErrorMessage(
+        error,
+        fallback: 'Envoi impossible pour le moment. Réessayez dans un instant.',
+      );
       if (!mounted) return;
       setState(() {
-        _error = authErrorMessage(
-          error,
-          fallback:
-              'Envoi impossible pour le moment. Réessayez dans un instant.',
-        );
+        _error = message;
       });
     } finally {
       if (mounted) setState(() => _busy = false);

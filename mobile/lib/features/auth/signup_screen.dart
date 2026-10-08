@@ -145,12 +145,18 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  String? _requiredEmail(String? value) {
+  String? _optionalEmail(String? value) {
     final email = value?.trim() ?? '';
-    if (email.isEmpty || !email.contains('@')) {
-      return 'Indiquez une adresse e-mail valide.';
+    if (email.isNotEmpty && !email.contains('@')) {
+      return 'Indiquez une adresse e-mail valide ou laissez ce champ vide.';
     }
     return null;
+  }
+
+  String _loginHint() {
+    final username = _normalizedUsername(_username.text);
+    if (username.isNotEmpty) return '@$username';
+    return _email.text.trim();
   }
 
   String _normalizedUsername(String value) {
@@ -261,7 +267,11 @@ class _SignupScreenState extends State<SignupScreen> {
             ? 'Identifiant Makolo disponible.'
             : 'Cet Identifiant Makolo n’est pas disponible.';
       });
-    } on Object {
+    } on Object catch (error) {
+      final message = await resolvedAuthErrorMessage(
+        error,
+        fallback: 'Impossible de vérifier pour le moment.',
+      );
       if (!mounted ||
           version != _usernameAvailabilityVersion ||
           _normalizedUsername(_username.text) != normalized) {
@@ -269,7 +279,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
       setState(() {
         _usernameAvailability = _IdentifierAvailability.unableToCheck;
-        _usernameAvailabilityMessage = 'Impossible de vérifier pour le moment.';
+        _usernameAvailabilityMessage = message;
       });
     }
   }
@@ -303,8 +313,9 @@ class _SignupScreenState extends State<SignupScreen> {
       _error = null;
     });
     try {
+      final email = _email.text.trim();
       await AuthRepository(api, widget.runtime.tokens).registerAndLogin(
-        email: _email.text.trim(),
+        email: email.isEmpty ? null : email,
         username: _username.text.trim(),
         password: _password.text,
         passwordConfirm: _passwordConfirm.text,
@@ -318,8 +329,9 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
       widget.onAuthenticated();
     } on Object catch (error) {
+      final message = await resolvedSignupErrorMessage(error);
       if (!mounted) return;
-      setState(() => _error = signupErrorMessage(error));
+      setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -329,7 +341,7 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return AuthEntryFrame(
       title: 'Créer un compte',
-      onBack: () => widget.onBackToLogin(_email.text.trim()),
+      onBack: () => widget.onBackToLogin(_loginHint()),
       child: AutofillGroup(
         child: Form(
           key: _formKey,
@@ -338,14 +350,14 @@ class _SignupScreenState extends State<SignupScreen> {
             children: [
               MakoloAuthField(
                 fieldKey: const Key('signup-email'),
-                label: 'Adresse e-mail',
+                label: 'Adresse e-mail (facultatif)',
                 controller: _email,
                 enabled: !_busy,
                 keyboardType: TextInputType.emailAddress,
                 autofillHints: const [AutofillHints.email],
                 textInputAction: TextInputAction.next,
                 prefixIcon: Icons.alternate_email,
-                validator: _requiredEmail,
+                validator: _optionalEmail,
                 onEditingComplete: () => _usernameFocus.requestFocus(),
               ),
               const SizedBox(height: MakoloSpacing.md),
@@ -519,7 +531,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 label: 'J’ai déjà un compte',
                 onPressed: _busy
                     ? null
-                    : () => widget.onBackToLogin(_email.text.trim()),
+                    : () => widget.onBackToLogin(_loginHint()),
               ),
             ],
           ),

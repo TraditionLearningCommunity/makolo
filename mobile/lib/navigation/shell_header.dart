@@ -21,6 +21,7 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.onCalendar,
     this.unreadNotifications = 0,
     this.avatarLetter,
+    this.profileUsername,
   });
 
   final MakoloHeaderKind kind;
@@ -33,6 +34,7 @@ class MakoloPrimaryHeader extends StatelessWidget
   final VoidCallback? onCalendar;
   final int unreadNotifications;
   final String? avatarLetter;
+  final String? profileUsername;
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
@@ -40,11 +42,16 @@ class MakoloPrimaryHeader extends StatelessWidget
   bool get _usesFullBrand =>
       kind == MakoloHeaderKind.now || kind == MakoloHeaderKind.mark;
 
+  String get _profileTitle {
+    final value = profileUsername?.trim().replaceFirst(RegExp(r'^@'), '') ?? '';
+    return value.isEmpty ? 'Moi' : '@$value';
+  }
+
   String get _title => switch (kind) {
     MakoloHeaderKind.now || MakoloHeaderKind.mark => 'Makolo',
     MakoloHeaderKind.discover => 'Découvrir',
     MakoloHeaderKind.ongoing => 'En cours',
-    MakoloHeaderKind.me => 'Moi',
+    MakoloHeaderKind.me => _profileTitle,
     MakoloHeaderKind.work => 'Métier',
     MakoloHeaderKind.us => 'Nous',
   };
@@ -101,7 +108,7 @@ class MakoloPrimaryHeader extends StatelessWidget
             Theme.of(context).brightness == Brightness.dark
                 ? 'assets/brand/makolo-logo-white.svg'
                 : 'assets/brand/makolo-logo-violet.svg',
-            height: 34,
+            height: 38,
             fit: BoxFit.contain,
             semanticsLabel: 'Makolo',
           )

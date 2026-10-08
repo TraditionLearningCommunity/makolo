@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
-import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -106,12 +105,9 @@ class _NowScreenState extends State<NowScreen> {
         );
       }
 
-      final offline = syncStatus?.state == SyncVisualState.offline;
-      return MakoloEmptyState(
-        title: offline
-            ? 'Now n’est pas disponible hors connexion sur cet appareil.'
-            : 'Now n’est pas disponible pour le moment.',
-        icon: offline ? Icons.cloud_off_outlined : Icons.adjust,
+      return const MakoloEmptyState(
+        title: 'Now n’est pas disponible pour le moment.',
+        icon: Icons.adjust,
       );
     }
 
@@ -243,19 +239,6 @@ class _NowViewState extends State<NowView> {
     );
     final cues = <Widget>[
       if (state.refreshing) const MakoloRefreshIndicator(),
-      if (state.reachability == MakoloReachabilityCue.temporarilyUnavailable)
-        const MakoloNotice(
-          message:
-              'Hors connexion : les informations déjà synchronisées restent '
-              'consultables, mais leur état actuel ne peut pas être confirmé.',
-          kind: MakoloNoticeKind.warning,
-        ),
-      if (state.failure == MakoloFailureCue.recoverable &&
-          state.reachability != MakoloReachabilityCue.temporarilyUnavailable)
-        const MakoloNotice(
-          message: 'Mise à jour momentanément indisponible.',
-          kind: MakoloNoticeKind.warning,
-        ),
       if (state.freshness != MakoloFreshnessCue.unknown &&
           state.freshness != MakoloFreshnessCue.current)
         MakoloFreshnessNotice(freshness: state.freshness),

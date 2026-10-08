@@ -252,6 +252,32 @@ void main() {
     );
   });
 
+  testWidgets('server unavailable names Makolo instead of blaming Internet', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      child: DiscoveryFieldView(
+        selection: selection(
+          items: const [],
+          states: const {DiscoveryFieldState.serverUnavailableNoSnapshot},
+          reachability: MakoloReachabilityCue.temporarilyUnavailable,
+        ),
+        onOpen: (_) {},
+        onRetry: () {},
+      ),
+    );
+
+    expect(
+      find.text(
+        'Nos serveurs sont momentanément inaccessibles. '
+        'Les possibilités publiques ne peuvent pas être actualisées pour le moment.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Hors connexion'), findsNothing);
+  });
+
   testWidgets('offline with snapshot keeps acquired possibilities visible', (
     tester,
   ) async {

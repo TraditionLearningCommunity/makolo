@@ -42,6 +42,7 @@ class MemoryTokenStore implements TokenStore {
   }) async {
     accounts[account.profileId] = DeviceAccount(
       profileId: account.profileId,
+      username: account.username,
       email: account.email,
       displayName: account.displayName,
       hasQuickAccess: quickAccessSession != null,
@@ -66,6 +67,7 @@ class MemoryTokenStore implements TokenStore {
     if (account != null) {
       accounts[profileId] = DeviceAccount(
         profileId: account.profileId,
+        username: account.username,
         email: account.email,
         displayName: account.displayName,
         hasQuickAccess: false,

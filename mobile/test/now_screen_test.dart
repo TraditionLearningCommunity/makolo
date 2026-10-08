@@ -111,10 +111,10 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(find.textContaining('Hors connexion'), findsOneWidget);
+    expect(find.textContaining('Hors connexion'), findsNothing);
     expect(
       find.textContaining('état actuel ne peut pas être confirmé'),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
@@ -127,10 +127,7 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(
-      find.text('Mise à jour momentanément indisponible.'),
-      findsOneWidget,
-    );
+    expect(find.text('Mise à jour momentanément indisponible.'), findsNothing);
   });
 
   testWidgets('duplicate context and meaning render only once', (tester) async {
@@ -209,7 +206,7 @@ void main() {
     );
 
     expect(find.text('Tout est en ordre. ✓'), findsNothing);
-    expect(find.textContaining('Hors connexion'), findsOneWidget);
+    expect(find.textContaining('Hors connexion'), findsNothing);
     expect(
       find.text('Now n’est pas disponible pour le moment.'),
       findsOneWidget,
@@ -258,7 +255,7 @@ void main() {
     );
 
     expect(find.text('Visa Canada'), findsOneWidget);
-    expect(find.textContaining('Hors connexion'), findsOneWidget);
+    expect(find.textContaining('Hors connexion'), findsNothing);
   });
 
   testWidgets('pending never renders confirmed', (tester) async {

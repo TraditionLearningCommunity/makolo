@@ -1,20 +1,49 @@
+import 'dart:async';
+
 import '../../network/api_error.dart';
+import '../../platform/network/device_connectivity.dart';
+
+const makoloServerUnavailableMessage =
+    'Nos serveurs sont momentanément inaccessibles. '
+    'Il s’agit probablement d’une panne temporaire. Réessayez dans un instant.';
+const deviceOfflineMessage = 'Cet appareil est hors connexion.';
+
+Future<bool> deviceIsOffline() => const DeviceConnectivity().isOffline();
+
+bool _mayBeConnectivityFailure(Object error) =>
+    error is TimeoutException || error is MakoloTransportError;
+
+Future<String> resolvedAuthErrorMessage(
+  Object error, {
+  required String fallback,
+  Future<bool> Function()? offlineProbe,
+}) async {
+  final probe = offlineProbe ?? deviceIsOffline;
+  if (_mayBeConnectivityFailure(error) && await probe()) {
+    return deviceOfflineMessage;
+  }
+  return authErrorMessage(error, fallback: fallback);
+}
 
 String authErrorMessage(Object error, {required String fallback}) {
+  if (error is TimeoutException || error is MakoloTransportError) {
+    return makoloServerUnavailableMessage;
+  }
   if (error is! MakoloApiError) return fallback;
 
+  if (error.statusCode >= 500) return makoloServerUnavailableMessage;
   if (error.code == 'throttled' || error.statusCode == 429) {
     return 'Trop de tentatives pour le moment. Réessayez un peu plus tard.';
-  }
-  if (error.statusCode >= 500) {
-    return fallback;
   }
   return fallback;
 }
 
 String signupErrorMessage(Object error) {
   if (error is! MakoloApiError) {
-    return 'Création du compte impossible pour le moment. Réessayez dans un instant.';
+    return authErrorMessage(
+      error,
+      fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
+    );
   }
 
   final fields = error.fields;
@@ -40,5 +69,40 @@ String signupErrorMessage(Object error) {
   return authErrorMessage(
     error,
     fallback: 'Vérifiez les informations saisies puis réessayez.',
+  );
+}
+
+String loginErrorMessage(Object error) {
+  if (error is MakoloApiError &&
+      (error.statusCode == 400 || error.statusCode == 401)) {
+    return 'Identifiant Makolo, adresse e-mail ou mot de passe incorrect.';
+  }
+  return authErrorMessage(error, fallback: makoloServerUnavailableMessage);
+}
+
+Future<String> resolvedLoginErrorMessage(
+  Object error, {
+  Future<bool> Function()? offlineProbe,
+}) async {
+  if (error is MakoloApiError &&
+      (error.statusCode == 400 || error.statusCode == 401)) {
+    return loginErrorMessage(error);
+  }
+  return resolvedAuthErrorMessage(
+    error,
+    fallback: makoloServerUnavailableMessage,
+    offlineProbe: offlineProbe,
+  );
+}
+
+Future<String> resolvedSignupErrorMessage(
+  Object error, {
+  Future<bool> Function()? offlineProbe,
+}) async {
+  if (error is MakoloApiError) return signupErrorMessage(error);
+  return resolvedAuthErrorMessage(
+    error,
+    fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
+    offlineProbe: offlineProbe,
   );
 }
