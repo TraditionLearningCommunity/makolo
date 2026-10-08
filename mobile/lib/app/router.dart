@@ -23,6 +23,8 @@ import '../features/questionnaires/questionnaire_routes.dart';
 import '../features/settings/billing_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
+import '../features/space/space_insight_screen.dart';
+import '../features/space/space_repository.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
@@ -70,6 +72,8 @@ GoRouter createMakoloRouter(
       '/activities/',
       '/occurrences/',
       '/space/occurrences/',
+      '/space/relationships',
+      '/space/pilot',
       '/accesses/',
       '/conversations/',
       '/dossiers/',
@@ -250,6 +254,20 @@ GoRouter createMakoloRouter(
         },
       ),
       ...accessRoutes(runtime),
+      GoRoute(
+        path: '/space/relationships',
+        builder: (context, state) => SpaceInsightScreen(
+          runtime: runtime,
+          surface: SpaceProjectionKind.relationships,
+        ),
+      ),
+      GoRoute(
+        path: '/space/pilot',
+        builder: (context, state) => SpaceInsightScreen(
+          runtime: runtime,
+          surface: SpaceProjectionKind.pilot,
+        ),
+      ),
       GoRoute(
         path: '/groups/:id',
         builder: (context, state) {
