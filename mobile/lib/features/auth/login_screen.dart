@@ -149,9 +149,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await widget.runtime.interactions?.clear('login');
       ref.invalidate(appRuntimeProvider);
     } on Object catch (error) {
+      final message = await resolvedLoginErrorMessage(error);
       if (!mounted) return;
       setState(() {
-        _error = loginErrorMessage(error);
+        _error = message;
       });
     } finally {
       if (mounted) setState(() => _busy = false);

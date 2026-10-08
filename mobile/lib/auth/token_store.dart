@@ -73,7 +73,10 @@ class DeviceAccount {
     final source = username.trim().isNotEmpty
         ? username
         : (displayName.trim().isNotEmpty ? displayName : email ?? 'M');
-    return source.trim().replaceFirst(RegExp(r'^@'), '').substring(0, 1).toUpperCase();
+    final normalized = source.trim().replaceFirst(RegExp(r'^@'), '');
+    return (normalized.isEmpty ? 'M' : normalized)
+        .substring(0, 1)
+        .toUpperCase();
   }
 }
 

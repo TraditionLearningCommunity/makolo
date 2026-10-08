@@ -1,10 +1,36 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
+
 import '../../network/api_error.dart';
 
 const makoloServerUnavailableMessage =
     'Nos serveurs sont momentanément inaccessibles. '
     'Il s’agit probablement d’une panne temporaire. Réessayez dans un instant.';
+const deviceOfflineMessage = 'Cet appareil est hors connexion.';
+
+Future<bool> deviceIsOffline() async {
+  try {
+    final results = await Connectivity().checkConnectivity();
+    return results.isNotEmpty &&
+        results.every((result) => result == ConnectivityResult.none);
+  } on Object {
+    return false;
+  }
+}
+
+bool _mayBeConnectivityFailure(Object error) =>
+    error is TimeoutException || error is MakoloTransportError;
+
+Future<String> resolvedAuthErrorMessage(
+  Object error, {
+  required String fallback,
+}) async {
+  if (_mayBeConnectivityFailure(error) && await deviceIsOffline()) {
+    return deviceOfflineMessage;
+  }
+  return authErrorMessage(error, fallback: fallback);
+}
 
 String authErrorMessage(Object error, {required String fallback}) {
   if (error is TimeoutException || error is MakoloTransportError) {
@@ -62,5 +88,25 @@ String loginErrorMessage(Object error) {
   return authErrorMessage(
     error,
     fallback: makoloServerUnavailableMessage,
+  );
+}
+
+
+Future<String> resolvedLoginErrorMessage(Object error) async {
+  if (error is MakoloApiError &&
+      (error.statusCode == 400 || error.statusCode == 401)) {
+    return loginErrorMessage(error);
+  }
+  return resolvedAuthErrorMessage(
+    error,
+    fallback: makoloServerUnavailableMessage,
+  );
+}
+
+Future<String> resolvedSignupErrorMessage(Object error) async {
+  if (error is MakoloApiError) return signupErrorMessage(error);
+  return resolvedAuthErrorMessage(
+    error,
+    fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
   );
 }

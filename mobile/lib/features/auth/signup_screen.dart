@@ -267,7 +267,11 @@ class _SignupScreenState extends State<SignupScreen> {
             ? 'Identifiant Makolo disponible.'
             : 'Cet Identifiant Makolo n’est pas disponible.';
       });
-    } on Object {
+    } on Object catch (error) {
+      final message = await resolvedAuthErrorMessage(
+        error,
+        fallback: 'Impossible de vérifier pour le moment.',
+      );
       if (!mounted ||
           version != _usernameAvailabilityVersion ||
           _normalizedUsername(_username.text) != normalized) {
@@ -275,7 +279,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
       setState(() {
         _usernameAvailability = _IdentifierAvailability.unableToCheck;
-        _usernameAvailabilityMessage = 'Impossible de vérifier pour le moment.';
+        _usernameAvailabilityMessage = message;
       });
     }
   }
@@ -325,8 +329,9 @@ class _SignupScreenState extends State<SignupScreen> {
       if (!mounted) return;
       widget.onAuthenticated();
     } on Object catch (error) {
+      final message = await resolvedSignupErrorMessage(error);
       if (!mounted) return;
-      setState(() => _error = signupErrorMessage(error));
+      setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
