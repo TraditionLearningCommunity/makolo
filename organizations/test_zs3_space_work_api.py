@@ -98,6 +98,40 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.client.force_authenticate(self.platform)
         self.assertEqual(self.client.get(self.url).status_code, 404)
 
+    def test_community_group_membership_never_grants_space_work_authority(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        community_member = User.objects.create_user(
+            username="zs3-community-member",
+            email="community-member@test.local",
+            password="x",
+        )
+        group = Group.objects.create(
+            name="Communauté locale",
+            space=self.space,
+            created_by=self.owner,
+        )
+        GroupMembership.objects.create(group=group, profile=community_member)
+        self.client.force_authenticate(community_member)
+
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_community_presentation_keeps_initiative_as_ux_language_only(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Nettoyage du quartier")
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["activities"]["representation"], "Initiatives")
+        row = next(
+            item for item in response.data["sections"]["preparation"]["items"]
+            if item["source"] == {"kind": "activity", "id": str(activity.pk)}
+        )
+        self.assertEqual(row["kind"], "activity")
+        self.assertNotIn("permission", str(row).lower())
+
     def test_empty_collections_are_valid_and_do_not_invent_work(self):
         self.client.force_authenticate(self.owner)
         response = self.client.get(self.url)

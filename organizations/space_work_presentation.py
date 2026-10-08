@@ -64,6 +64,34 @@ _GENERIC_GRAMMAR = SpaceWorkPresentationGrammar(
     },
 )
 
+_COMMUNITY_GRAMMAR = SpaceWorkPresentationGrammar(
+    surface_empty_message="Aucune initiative visible pour le moment.",
+    section_order=(
+        "preparation",
+        "active",
+        "upcoming",
+        "blocked",
+        "activities",
+        "completed",
+    ),
+    labels={
+        "preparation": "À préparer",
+        "active": "En cours",
+        "upcoming": "À venir",
+        "blocked": "Bloquées",
+        "activities": "Initiatives",
+        "completed": "Historique",
+    },
+    empty_messages={
+        "preparation": "Aucune initiative à préparer.",
+        "active": "Aucune initiative en cours.",
+        "upcoming": "Aucune action à venir.",
+        "blocked": "Aucune initiative bloquée.",
+        "activities": "Aucune initiative visible.",
+        "completed": "Aucune initiative passée dans cette vue.",
+    },
+)
+
 _CREATIVE_GRAMMAR = SpaceWorkPresentationGrammar(
     surface_empty_message="Aucune création visible pour le moment.",
     section_order=(
@@ -249,6 +277,7 @@ _TRANSPORT_GRAMMAR = SpaceWorkPresentationGrammar(
 
 SPACE_WORK_PRESENTATION_GRAMMARS = {
     SpaceArchetype.GENERIC: _GENERIC_GRAMMAR,
+    SpaceArchetype.COMMUNITY: _COMMUNITY_GRAMMAR,
     SpaceArchetype.CREATIVE: _CREATIVE_GRAMMAR,
     SpaceArchetype.MEDIA: _MEDIA_GRAMMAR,
     SpaceArchetype.COMMERCE: _COMMERCE_GRAMMAR,
