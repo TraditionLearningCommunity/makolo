@@ -1,0 +1,27 @@
+{% extends "platform/page.html" %}
+{% block platform_content %}
+<a class="link secondary" href="{% url 'platform_web:curation' %}">Retour à Curation</a>
+<section class="section">
+<p class="kicker">Survivant</p><h2>{{ canonical.current_revision.title|default:'Opportunity sans révision publiée' }}</h2>
+<p class="muted">Identifiant : {{ canonical.pk }} · état : {{ canonical.publication_status }}</p>
+<p class="notice">La fusion transfère les références de sauvegarde du doublon vers l'Opportunity survivante et publie un Domain Event canonique. L'Opportunity source devient fusionnée ; cette action n'est pas une simple correction éditoriale.</p>
+{% if error_message %}<p class="notice" role="alert">{{ error_message }}</p>{% endif %}
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="expected_canonical" value="{{ canonical.updated_at|date:'c' }}">
+<div><label for="duplicate">Opportunity à fusionner (doublon)</label></div>
+<select name="duplicate" id="duplicate" required style="max-width:44rem;width:100%;background:#1f2937;color:white;border:1px solid #9097b1;border-radius:.5rem;padding:.85rem;margin:.7rem 0">
+<option value="">Choisir une Opportunity distincte</option>
+{% for option in candidates %}<option value="{{ option.pk }}" data-updated="{{ option.updated_at|date:'c' }}">{{ option.current_revision.title|default:'Opportunity sans révision publiée' }} — {{ option.pk }}</option>{% endfor %}
+</select>
+<div><label for="duplicate_stamp">Date de version du doublon (visible sur sa fiche de revue)</label></div>
+<input type="text" id="duplicate_stamp" name="expected_duplicate" placeholder="Timestamp ISO avec fuseau" required maxlength="180">
+<p class="muted">Ce contrôle évite d'appliquer une fusion à une Opportunity modifiée depuis sa revue.</p>
+<div><label for="reason">Raison de fusion</label></div>
+<textarea id="reason" name="reason" minlength="5" maxlength="2000" rows="4" required style="display:block;max-width:44rem;width:100%;background:#1f2937;color:white;border:1px solid #9097b1;border-radius:.5rem;padding:.75rem;margin:.7rem 0 1.2rem">{{ request.POST.reason }}</textarea>
+<label style="display:flex;align-items:start;gap:.7rem;margin:1rem 0"><input type="checkbox" name="confirm" value="1" style="min-width:auto;width:auto;margin-top:.25rem" required>Je confirme le survivant, le doublon, le transfert et la conséquence de cette fusion.</label>
+<a class="link secondary" href="{% url 'platform_web:curation' %}">Annuler</a>
+<button type="submit">Fusionner vers le survivant</button>
+</form>
+</section>
+{% endblock %}
