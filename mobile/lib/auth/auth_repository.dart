@@ -8,11 +8,11 @@ class AuthRepository {
   final TokenStore tokens;
 
   Future<AuthSession> login({
-    required String email,
+    required String identifier,
     required String password,
     bool rememberOnDevice = false,
   }) async {
-    var session = await api.login(email: email, password: password);
+    var session = await api.login(identifier: identifier, password: password);
     try {
       final me = await api.get('api/v1/accounts/auth/me/');
       final payload = me.jsonObject();
@@ -28,22 +28,25 @@ class AuthRepository {
       );
       await tokens.writeSession(session);
 
-      final canonicalEmail = payload['email'] is String
-          ? (payload['email'] as String).trim()
-          : email.trim();
+      final rawEmail = payload['email'];
+      final canonicalEmail = rawEmail is String && rawEmail.trim().isNotEmpty
+          ? rawEmail.trim()
+          : null;
       final fullName = payload['full_name'] is String
           ? (payload['full_name'] as String).trim()
           : '';
       final username = payload['username'] is String
           ? (payload['username'] as String).trim()
           : '';
-      final displayName = fullName.isNotEmpty
-          ? fullName
-          : (username.isNotEmpty ? username : canonicalEmail);
+      if (username.isEmpty) {
+        throw const FormatException('auth/me missing username');
+      }
+      final displayName = fullName.isNotEmpty ? fullName : '@$username';
 
       await tokens.saveAccount(
         DeviceAccount(
           profileId: profileId,
+          username: username,
           email: canonicalEmail,
           displayName: displayName,
           hasQuickAccess: rememberOnDevice,
@@ -59,7 +62,7 @@ class AuthRepository {
   }
 
   Future<void> register({
-    required String email,
+    String? email,
     required String username,
     required String password,
     required String passwordConfirm,
@@ -79,7 +82,7 @@ class AuthRepository {
   }
 
   Future<AuthSession> registerAndLogin({
-    required String email,
+    String? email,
     required String username,
     required String password,
     required String passwordConfirm,
@@ -98,7 +101,7 @@ class AuthRepository {
       phone: phone,
     );
     return login(
-      email: email,
+      identifier: username,
       password: password,
       rememberOnDevice: rememberOnDevice,
     );

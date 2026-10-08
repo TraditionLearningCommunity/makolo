@@ -1,8 +1,18 @@
+import 'dart:async';
+
 import '../../network/api_error.dart';
 
+const makoloServerUnavailableMessage =
+    'Nos serveurs sont momentanément inaccessibles. '
+    'Il s’agit probablement d’une panne temporaire. Réessayez dans un instant.';
+
 String authErrorMessage(Object error, {required String fallback}) {
+  if (error is TimeoutException || error is MakoloTransportError) {
+    return makoloServerUnavailableMessage;
+  }
   if (error is! MakoloApiError) return fallback;
 
+  if (error.statusCode >= 500) return makoloServerUnavailableMessage;
   if (error.code == 'throttled' || error.statusCode == 429) {
     return 'Trop de tentatives pour le moment. Réessayez un peu plus tard.';
   }
@@ -40,5 +50,17 @@ String signupErrorMessage(Object error) {
   return authErrorMessage(
     error,
     fallback: 'Vérifiez les informations saisies puis réessayez.',
+  );
+}
+
+
+String loginErrorMessage(Object error) {
+  if (error is MakoloApiError &&
+      (error.statusCode == 400 || error.statusCode == 401)) {
+    return 'Identifiant Makolo, adresse e-mail ou mot de passe incorrect.';
+  }
+  return authErrorMessage(
+    error,
+    fallback: makoloServerUnavailableMessage,
   );
 }

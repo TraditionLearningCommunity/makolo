@@ -86,12 +86,12 @@ class MakoloApiClient {
   void close({bool force = false}) => _dio.close(force: force);
 
   Future<AuthSession> login({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     final response = await publicPost(
       'api/v1/accounts/auth/login/',
-      body: {'email': email, 'password': password},
+      body: {'username': identifier.trim(), 'password': password},
     );
     final json = response.jsonObject();
     final session = AuthSession(
@@ -103,7 +103,7 @@ class MakoloApiClient {
   }
 
   Future<ApiResponse> register({
-    required String email,
+    String? email,
     required String username,
     required String password,
     required String passwordConfirm,
@@ -112,7 +112,7 @@ class MakoloApiClient {
     String? phone,
   }) {
     final body = <String, dynamic>{
-      'email': email,
+      if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
       'username': username,
       'password': password,
       'password_confirm': passwordConfirm,
@@ -553,10 +553,14 @@ class MakoloApiClient {
       case DioExceptionType.transformTimeout:
         return TimeoutException('Makolo network request timed out.');
       case DioExceptionType.connectionError:
+        return const MakoloTransportError(
+          'makolo_unreachable',
+          'Les serveurs Makolo sont momentanément inaccessibles.',
+        );
       case DioExceptionType.badCertificate:
         return const MakoloTransportError(
-          'network_unreachable',
-          'Le réseau est indisponible.',
+          'secure_connection_failed',
+          'La connexion sécurisée à Makolo n’a pas pu être établie.',
         );
       case DioExceptionType.badResponse:
       case DioExceptionType.unknown:
