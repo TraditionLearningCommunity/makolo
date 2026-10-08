@@ -15,8 +15,9 @@ import '../../platform/permissions/permission_gateway.dart';
 import 'mark_repository.dart';
 
 class MarkScreen extends StatefulWidget {
-  const MarkScreen({super.key, required this.runtime});
+  const MarkScreen({super.key, required this.runtime, this.selectedContext});
   final AppRuntime runtime;
+  final Map<String, String>? selectedContext;
 
   @override
   State<MarkScreen> createState() => _MarkScreenState();
@@ -30,6 +31,7 @@ class _MarkScreenState extends State<MarkScreen> {
   bool _busy = false;
   bool _restoring = true;
   List<Map<String, dynamic>> _attachments = const [];
+  Map<String, String>? _selectedContext;
   NativeFileAcquisitionCoordinator? _files;
 
   @override
@@ -39,6 +41,7 @@ class _MarkScreenState extends State<MarkScreen> {
     _repository = MarkRepository(widget.runtime);
     widget.runtime.actorContext?.addListener(_onActorChanged);
     _actor = widget.runtime.actorContext?.value ?? const PersonalActorContext();
+    _selectedContext = widget.selectedContext;
     _restoreDraft();
   }
 
@@ -56,6 +59,7 @@ class _MarkScreenState extends State<MarkScreen> {
       _actor = actor;
       _result = null;
       _attachments = const [];
+      _selectedContext = widget.selectedContext;
       _restoring = true;
     });
     _input.clear();
@@ -67,6 +71,14 @@ class _MarkScreenState extends State<MarkScreen> {
     if (!mounted) return;
     if (draft != null) {
       _input.text = draft['input']?.toString() ?? '';
+      final rawSelected = draft['selected'];
+      if (_selectedContext == null && rawSelected is Map) {
+        _selectedContext = {
+          for (final entry in rawSelected.entries)
+            if (entry.key is String && entry.value is String)
+              entry.key as String: entry.value as String,
+        };
+      }
       final raw = draft['attachments'];
       if (raw is List) {
         _attachments = [
@@ -172,6 +184,7 @@ class _MarkScreenState extends State<MarkScreen> {
     input: _input.text,
     inputKind: _attachments.isEmpty ? 'text' : 'document',
     attachments: _attachments,
+    selected: _selectedContext,
   );
 
   Future<void> _submit() async {
@@ -248,7 +261,15 @@ class _MarkScreenState extends State<MarkScreen> {
                       ),
                       onChanged: (_) => _saveDraft(),
                     ),
-                    if (_attachments.isNotEmpty) ...[
+                    if (_selectedContext != null || _attachments.isNotEmpty) ...[
+                      if (_selectedContext != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Contexte sélectionné : ' + (_selectedContext!['kind'] ?? 'réalité'),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
