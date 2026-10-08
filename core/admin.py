@@ -8,6 +8,11 @@ from domain_events.services import requeue_failed_domain_event
 from .models import DomainEventConsumption, DomainEventOutbox, DomainEventStatus
 
 
+admin.site.site_header = "Makolo — Administration technique"
+admin.site.site_title = "Administration technique Makolo"
+admin.site.index_title = "Maintenance, inspection et configuration technique"
+
+
 class DomainEventRequeueForm(forms.Form):
     reason = forms.CharField(min_length=5, max_length=2000, widget=forms.Textarea)
 
