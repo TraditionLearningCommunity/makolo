@@ -422,8 +422,18 @@ def build_personal_now_projection(profile, *, observed_at=None):
                 else "pdf" if mime == "application/pdf"
                 else "video" if mime.startswith("video/")
                 else "audio" if mime.startswith("audio/")
+                else "document" if mime in {
+                    "text/plain",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                }
                 else "unknown"
             )
+            url = reverse(
+                "personal-projections:now-journey-artifact-media",
+                kwargs={"artifact_id": artifact.pk},
+            )
+            if kind == "document":
+                url += "?view=text"
             existing.append({
                 "resource_ref": f"journey_artifact:{artifact.pk}",
                 "target": "situation",
@@ -431,10 +441,7 @@ def build_personal_now_projection(profile, *, observed_at=None):
                 "kind": kind,
                 "mime_type": mime,
                 "label": artifact.title,
-                "url": reverse(
-                    "personal-projections:now-journey-artifact-media",
-                    kwargs={"artifact_id": artifact.pk},
-                ),
+                "url": url,
                 "authorized": True,
                 "presentation_rank": "secondary",
             })
