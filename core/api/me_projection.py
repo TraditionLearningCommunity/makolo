@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import UserProfile
+from accounts.profile_activation import build_profile_activation_summary
 from discovery.models import ActivityBookmark, DiscoveryWatch
 from groups.selectors import groups_for_profile
 from loyalty.selectors import get_accounts_visible_to, get_subscriptions_visible_to
@@ -100,9 +101,14 @@ def _identity_payload(profile, request=None):
     city = _clean_text(profile_extension.city)
     country = _clean_text(profile_extension.country)
     location = {"city": city, "country": country} if city or country else None
+    activation = build_profile_activation_summary(
+        profile,
+        profile=profile_extension,
+    )
     return {
         "kind": "profile",
         "id": str(profile.pk),
+        "username": profile.username,
         "display_name": _display_name(profile),
         "avatar_url": _avatar_url(profile, request),
         "bio": _clean_text(profile.bio),
@@ -111,6 +117,10 @@ def _identity_payload(profile, request=None):
         "presence": {
             "public_profile": bool(profile_extension.public_profile),
             "searchable": bool(profile_extension.searchable),
+        },
+        "activation": {
+            "percentage": activation.percentage,
+            "is_complete": activation.is_complete,
         },
         "capabilities": ["edit_identity"],
     }

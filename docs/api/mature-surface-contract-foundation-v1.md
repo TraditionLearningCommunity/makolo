@@ -223,7 +223,7 @@ Response contract:
 
 - root surface: `me`;
 - sections may include identity, passport, considerations, collectives, resources, support and links when supported;
-- no universal activation/completeness percentage is exposed;
+- private `identity` may expose the derived Profile setup progress (`activation.percentage`, `activation.is_complete`) and canonical `username` for authenticated account chrome; this is never a public, social, reputation or employability score;
 - every section must distinguish known, missing, private, unavailable and unsupported states.
 
 Server responsibilities:
