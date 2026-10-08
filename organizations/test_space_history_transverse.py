@@ -106,5 +106,5 @@ class SpaceHistoryPermissionTests(TestCase):
     def test_revoked_activity_authority_no_longer_exposes_history(self):
         self.client.force_authenticate(self.scoped)
         self.assertEqual(self.client.get(self.url).status_code, 200)
-        revoke_mandate(self.grant, revoked_by=self.owner)
+        revoke_mandate(mandate=self.grant, actor=self.owner)
         self.assertEqual(self.client.get(self.url).status_code, 404)
