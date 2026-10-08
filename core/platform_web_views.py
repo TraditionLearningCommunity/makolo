@@ -5,7 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.http import HttpResponseBadRequest
+from django.http import Http404
 from django.shortcuts import redirect
 from operations.forms import EventModerationForm, OrganizationReviewForm
 from operations.services import change_organization_lifecycle, moderate_event, audit_action
@@ -288,3 +288,63 @@ class PlatformEventDecisionView(PlatformDecisionView):
             event=subject, action=data["action"], actor=actor,
             reason=data["reason"],
         )
+
+
+class PlatformRecognitionActionView(PlatformRecognitionView):
+    template_name = "platform/recognition_action.html"
+    page = "recognition_action"
+    heading = "Décision Recognition"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.action = kwargs["action"]
+        if self.action not in {"simulate", "publish"}:
+            raise Http404
+        code = (PermissionCode.PLATFORM_RECOGNITION_POLICY_MANAGE
+                if self.action == "simulate" else PermissionCode.PLATFORM_RECOGNITION_POLICY_PUBLISH)
+        if not can(request.user, code):
+            raise PermissionDenied("Autorité Recognition requise.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from recognition.models import RecognitionPolicy
+        policy = get_object_or_404(RecognitionPolicy, pk=self.kwargs["pk"])
+        context.update(
+            policy=policy,
+            recognition_action=self.action,
+            impact=(
+                "La simulation enregistre un état simulé sans publication ni attribution de crédits."
+                if self.action == "simulate" else
+                "La publication active ou planifie la Policy à sa frontière temporelle. Elle peut remplacer la Policy active."
+            ),
+        )
+        return context
+
+    def post(self, request, *args, **kwargs):
+        if request.POST.get("confirm") != "1":
+            return self.render_to_response(
+                {**self.get_context_data(), "error_message": "Confirmation explicite requise."},
+                status=400,
+            )
+        from recognition.governance_services import record_policy_simulation, publish_policy_for_actor
+        try:
+            if self.action == "simulate":
+                result = record_policy_simulation(
+                    actor=request.user, policy_id=self.kwargs["pk"],
+                    expected_status=request.POST.get("expected_status", ""),
+                    reason=request.POST.get("reason", ""),
+                )
+                messages.success(request, "Simulation enregistrée : %s Signals. Publication inchangée." % result["signals"])
+            else:
+                result = publish_policy_for_actor(
+                    actor=request.user, policy_id=self.kwargs["pk"],
+                    expected_status=request.POST.get("expected_status", ""),
+                    reason=request.POST.get("reason", ""),
+                )
+                messages.success(request, "Policy %s ; frontière : %s." % (result["status"], result["effective_from"].isoformat()))
+        except ValidationError as exc:
+            return self.render_to_response(
+                {**self.get_context_data(), "error_message": "; ".join(exc.messages)},
+                status=409,
+            )
+        return redirect("platform_web:recognition")
