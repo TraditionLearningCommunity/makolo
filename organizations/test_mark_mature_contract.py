@@ -44,7 +44,7 @@ class MatureSpaceMarkContractTests(TestCase):
         self.assertIn("space_id", response.json())
 
         response = self.client.post(
-            reverse("organizations:space-mark-api", kwargs={"slug": self.space.slug}),
+            reverse("organizations_api:workspace-mark", kwargs={"slug": self.space.slug}),
             {
                 "input": {"kind": "text", "value": "Ouvre le Jour J."},
                 "context": {
