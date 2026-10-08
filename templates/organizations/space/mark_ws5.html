@@ -3,7 +3,7 @@
 <div class="mk-mark-page" data-mk-mark-context="space">
   <section class="mk-mark-intro">
     <span class="mk-mark-orb" aria-hidden="true">{% include 'partials/makolo_mark_inline.html' %}</span>
-    <p class="mk-mark-context" aria-label="Contexte courant">{{ space.name }}{% if selected_responsibility.key != "all" %} · {{ selected_responsibility.label }}{% endif %}</p>
+    <p class="text-sm font-semibold" aria-label="Contexte courant">{{ space.name }}{% if selected_responsibility.key != "all" %} · {{ selected_responsibility.label }}{% endif %}</p>
     <h1>Qu’est-ce que vous avez en tête ?</h1>
     <p>Dites-le comme vous le diriez à quelqu’un.</p>
   </section>
@@ -14,7 +14,7 @@
     <textarea id="mark-value" name="value" maxlength="600" rows="7" placeholder="Ex. Ouvre le Jour J de ce départ" autocomplete="off">{{ mark_value }}</textarea>
 
     {% if mark_result.question.code == "which_occurrence" or mark_result.state == "needs_clarification" and mark_result.question.code == "which_occurrence" %}
-    <div class="mk-mark-support">
+    <div class="mt-4 space-y-3">
       <label for="mark-occurrence">Occurrence concernée, si elle est déjà connue</label>
       <input id="mark-occurrence" name="occurrence_id" type="text" value="{{ request.GET.occurrence|default:'' }}" autocomplete="off">
     </div>
@@ -39,7 +39,7 @@
       <input type="hidden" name="confirm_role" value="{{ mark_result.action.target.role }}">
       <input type="hidden" name="team_member_email" value="{{ mark_result.action.target.email }}">
       <input type="hidden" name="team_member_role" value="{{ mark_result.action.target.role }}">
-      <section class="mk-mark-consequence" aria-live="polite">
+      <section class="mk-panel mt-5 p-4" aria-live="polite">
         <strong>Confirmation nécessaire</strong>
         <p>{{ mark_result.action.consequence }}</p>
       </section>
