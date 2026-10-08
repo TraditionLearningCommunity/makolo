@@ -107,6 +107,7 @@ class PlatformInvestigateView(PlatformView):
         context["query"] = q
         allowed = {item["key"] for item in self.platform_modules}
         context["operations_search_allowed"] = "operations" in allowed
+        context["can_opportunity_merge"] = can(self.request.user, PermissionCode.OPPORTUNITIES_MERGE)
         if q:
             if "operations" in allowed:
                 context["investigation_spaces"] = get_operations_organizations(self.request.user).filter(
@@ -183,6 +184,7 @@ class PlatformCurationView(PlatformView):
         context = super().get_context_data(**kwargs)
         from services.attention_selectors import opportunity_curator_attention
         attention = opportunity_curator_attention(self.request.user)
+        context["can_opportunity_merge"] = can(self.request.user, PermissionCode.OPPORTUNITIES_MERGE)
         context["submissions"] = attention["submissions"][:30]
         context["sources"] = attention["sources"][:30]
         context["withdrawn"] = attention["withdrawn_with_active_journeys"][:30]
