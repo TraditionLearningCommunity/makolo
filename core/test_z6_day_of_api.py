@@ -101,6 +101,11 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
             f"/api/v1/me/occurrences/{self.occurrence.pk}/day-of/"
         )
 
+    def _get_live(self):
+        return self.client.get(
+            f"/api/v1/me/occurrences/{self.occurrence.pk}/live/"
+        )
+
     def test_day_of_requires_authentication_and_real_participant_relation(self):
         self.assertEqual(self._get().status_code, 401)
 
@@ -206,13 +211,46 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         )
         self.assertEqual(
             data["links"]["live"],
-            f"/api/v1/operations/occurrences/{self.occurrence.pk}/live/",
+            f"/api/v1/me/occurrences/{self.occurrence.pk}/live/",
         )
         self.assertIn("open_live", data["capabilities"])
         self.assertIn("queue", data)
         self.assertIn("placement", data)
         self.assertIn("checkpoints", data)
         self.assertIn("readiness", data)
+
+    def test_personal_live_is_explicitly_participant_safe_and_enveloped(self):
+        self.occurrence.start_at = self.now - timedelta(minutes=5)
+        self.occurrence.end_at = self.now + timedelta(hours=2)
+        self.occurrence.save(update_fields=["start_at", "end_at", "updated_at"])
+        self.client.force_authenticate(self.participant)
+
+        response = self._get_live()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["meta"]["projection"], "personal.occurrence.live")
+        self.assertEqual(response.json()["meta"]["scope"], "personal")
+        data = response.json()["data"]
+        self.assertEqual(data["perspective"], "participant")
+        self.assertEqual(data["phase"], "live")
+        rendered = str(data).lower()
+        self.assertNotIn("scanner", rendered)
+        self.assertNotIn("assignment_count", rendered)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+
+    def test_personal_live_revalidates_participant_relation_and_live_window(self):
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self._get_live().status_code, 404)
+
+        self.client.force_authenticate(self.participant)
+        self.assertEqual(self._get_live().status_code, 404)
+
+        self.occurrence.start_at = self.now - timedelta(hours=4)
+        self.occurrence.end_at = self.now - timedelta(minutes=5)
+        self.occurrence.status = OccurrenceStatus.COMPLETED
+        self.occurrence.save(update_fields=["start_at", "end_at", "status", "updated_at"])
+        self.assertEqual(self._get_live().status_code, 404)
 
     def test_operational_depths_are_composed_without_other_participant_identity(self):
         other = self._user("z6-day-other-participant")

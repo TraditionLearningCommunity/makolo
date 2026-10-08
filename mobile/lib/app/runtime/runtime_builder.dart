@@ -4,6 +4,7 @@ import '../../data/local/profile_store.dart';
 import '../../features/access/access_assembly.dart';
 import '../../features/continuity/continuity_assembly.dart';
 import '../../features/day_of/day_of_assembly.dart';
+import '../../features/live/live_repository.dart';
 import '../../features/discovery/discovery_assembly.dart';
 import '../../features/journey/journey_assembly.dart';
 import '../../features/preparation/preparation_assembly.dart';
@@ -146,6 +147,12 @@ Future<AppRuntime> buildAppRuntime({
       sync: sync,
     ),
     dayOf: buildDayOfRepository(
+      database: database,
+      store: store,
+      profileId: profileId,
+      sync: sync,
+    ),
+    live: LiveRepository(
       database: database,
       store: store,
       profileId: profileId,

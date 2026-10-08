@@ -127,7 +127,7 @@ class Z6SurfaceBridgeTests(TestCase):
         self.assertNotIn("day_of", bought.json()["data"]["links"])
         self.assertNotIn("open_day_of", bought.json()["data"]["capabilities"])
 
-    def test_occurrence_detail_uses_day_of_as_personal_root_and_keeps_live_owner(self):
+    def test_occurrence_detail_uses_personal_day_of_and_live_depth(self):
         self.client.force_authenticate(self.profile)
         response = self.client.get(f"/api/v1/occurrences/{self.occurrence.pk}/")
         self.assertEqual(response.status_code, 200)
@@ -140,7 +140,7 @@ class Z6SurfaceBridgeTests(TestCase):
         self.assertIn("open_day_of", data["capabilities"])
         self.assertEqual(
             data["links"]["live"],
-            f"/api/v1/operations/occurrences/{self.occurrence.pk}/live/",
+            f"/api/v1/me/occurrences/{self.occurrence.pk}/live/",
         )
 
     def test_outsider_cannot_use_occurrence_detail_to_discover_day_of(self):

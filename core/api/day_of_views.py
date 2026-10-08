@@ -6,6 +6,7 @@ from activities.models import Occurrence
 from core.api.day_of_projection import build_personal_day_of_data
 from core.api.me_views import PersonalProjectionAPIView
 from operations.participant_occurrence_live import resolve_participant_occurrence_live
+from operations.occurrence_live import occurrence_live_phase
 
 
 class PersonalOccurrenceDayOfAPIView(PersonalProjectionAPIView):
@@ -36,6 +37,35 @@ class PersonalOccurrenceDayOfAPIView(PersonalProjectionAPIView):
             ),
             observed_at=observed_at,
         )
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+class PersonalOccurrenceLiveAPIView(PersonalProjectionAPIView):
+    """Participant-safe Live depth for a Profile-owned Jour J handoff."""
+
+    projection_code = "personal.occurrence.live"
+
+    def get(self, request, pk):
+        self._guard_personal_scope(request)
+        observed_at = timezone.now()
+        occurrence = get_object_or_404(
+            Occurrence.objects.select_related("activity", "activity__space"),
+            pk=pk,
+        )
+        payload = resolve_participant_occurrence_live(
+            occurrence=occurrence,
+            actor=request.user,
+            observed_at=observed_at,
+        )
+        if payload is None or occurrence_live_phase(occurrence, now=observed_at) not in {
+            "arrival",
+            "live",
+        }:
+            raise Http404
+
+        response = self._response(payload, observed_at=observed_at)
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
         return response

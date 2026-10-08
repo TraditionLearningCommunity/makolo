@@ -9,6 +9,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/continuity/continuity_routes.dart';
 import '../features/day_of/day_of_routes.dart';
+import '../features/live/live_routes.dart';
 import '../features/discovery/discovery_routes.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/interoperability_routes.dart';
@@ -200,6 +201,7 @@ GoRouter createMakoloRouter(
       ...preparationRoutes(runtime),
       ...questionnaireRoutes(runtime),
       ...dayOfRoutes(runtime),
+      ...liveRoutes(runtime),
       ...accessRoutes(runtime),
       GoRoute(
         path: '/groups/:id',

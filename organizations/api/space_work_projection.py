@@ -99,6 +99,21 @@ def _activity_item(activity, caps):
 
 def _occurrence_item(occurrence, caps):
     is_departure = hasattr(occurrence, "transport_departure")
+    operation_visible = occurrence.activity_id in caps["operations"]
+    current_day_of = operation_visible and occurrence.is_ongoing
+    links = {
+        "detail": f"/api/v1/occurrences/{occurrence.pk}/",
+        "activity": f"/api/v1/activities/{occurrence.activity_id}/",
+    }
+    capabilities = _capabilities_for_activity(occurrence.activity_id, caps)
+    if current_day_of:
+        links.update(
+            {
+                "day_of": f"/api/v1/operations/occurrences/{occurrence.pk}/day-of/",
+                "live": f"/api/v1/operations/occurrences/{occurrence.pk}/live/",
+            }
+        )
+        capabilities.append("open_day_of")
     return {
         "key": f"occurrence:{occurrence.pk}",
         "source": {"kind": "occurrence", "id": str(occurrence.pk)},
@@ -120,11 +135,8 @@ def _occurrence_item(occurrence, caps):
                 "title": occurrence.activity.title,
             }
         },
-        "links": {
-            "detail": f"/api/v1/occurrences/{occurrence.pk}/",
-            "activity": f"/api/v1/activities/{occurrence.activity_id}/",
-        },
-        "capabilities": _capabilities_for_activity(occurrence.activity_id, caps),
+        "links": links,
+        "capabilities": capabilities,
     }
 
 
