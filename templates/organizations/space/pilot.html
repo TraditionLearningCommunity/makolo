@@ -17,12 +17,21 @@
       {% if analytics.signals %}
       <section class="mk-ws4-card mk-ws4-card--signal" aria-labelledby="pilot-signals">
         <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">À comprendre</span><h3 id="pilot-signals">Signaux</h3></div></div>
-        <div class="mk-ws4-signal-list">{% for signal in analytics.signals %}<article><strong>{{ signal.title }}</strong>{% if signal.summary %}<p>{{ signal.summary }}</p>{% endif %}</article>{% endfor %}</div>
+        <div class="mk-ws4-signal-list">{% for signal in analytics.signals %}
+          <article>
+            <strong>{{ signal.title }}</strong>
+            {% if signal.summary %}<p>{{ signal.summary }}</p>{% endif %}
+            {% if signal.why %}<p>{{ signal.why }}</p>{% endif %}
+            {% if signal.evidence %}<p>Base observée : {{ signal.evidence.value }} · {{ signal.evidence.unit }}</p>{% endif %}
+            {% if signal.uncertainty %}<p>Limite : {{ signal.uncertainty }}</p>{% endif %}
+            <small>Source : {{ signal.owner }} · Portefeuille borné aux {{ analytics.coverage.limit }} derniers événements visibles.</small>
+            {% if pilot_owner_links.analytics %}<p><a href="{{ pilot_owner_links.analytics }}">Approfondir dans Analytics</a></p>{% endif %}
+          </article>{% endfor %}</div>
       </section>
       {% endif %}
 
-      <section class="mk-ws4-card" aria-labelledby="pilot-operation">
-        <div class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Fonctionnement</span><h3 id="pilot-operation">Mesures disponibles</h3></div><span class="mk-ws4-coverage">{{ analytics.coverage.limit }} événements visibles max.</span></div>
+      <details class="mk-ws4-card" aria-labelledby="pilot-operation">
+        <summary class="mk-ws4-card-head"><div><span class="mk-ws4-eyebrow">Faits de soutien</span><h3 id="pilot-operation">Comprendre les mesures</h3></div><span class="mk-ws4-coverage">{{ analytics.coverage.limit }} événements visibles max.</span></summary>
         <dl class="mk-ws4-metric-grid">
           {% for metric in analytics.metrics %}
           <div class="mk-ws4-metric">
@@ -53,7 +62,7 @@
           </div>
           {% endfor %}
         </dl>
-      </section>
+      </details>
 
       {% if analytics.money %}
       <section class="mk-ws4-card" aria-labelledby="pilot-finance">
