@@ -659,6 +659,18 @@ class _NowDepth extends StatelessWidget {
                 child: Text(consequence),
               ),
             ],
+            _NowSemanticContent(situation: situation),
+            if (situation.makoloPreparation.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              MakoloSection(
+                title: 'Préparé par Makolo',
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [for (final item in situation.makoloPreparation) Text(item)],
+                ),
+              ),
+            ],
             if (situation.metadata.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.lg),
               MakoloMetadata(
