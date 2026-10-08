@@ -6,6 +6,7 @@ import '../../features/continuity/conversation_repository.dart';
 import '../../features/continuity/history_repository.dart';
 import '../../features/continuity/objective_repository.dart';
 import '../../features/day_of/day_of_repository.dart';
+import '../../features/live/live_repository.dart';
 import '../../features/discovery/discovery_repository.dart';
 import '../../features/journey/journey_repository.dart';
 import '../../features/preparation/preparation_repository.dart';
@@ -45,6 +46,7 @@ class AppRuntime {
     this.location,
     this.accesses,
     this.dayOf,
+    this.live,
     this.journeys,
     this.objectives,
     this.history,
@@ -83,6 +85,7 @@ class AppRuntime {
   final LocationCapability? location;
   final AccessRepository? accesses;
   final DayOfRepository? dayOf;
+  final LiveRepository? live;
   final JourneyRepository? journeys;
   final ObjectiveRepository? objectives;
   final HistoryRepository? history;

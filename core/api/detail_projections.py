@@ -286,7 +286,7 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         links["day_of"] = f"/api/v1/me/occurrences/{journey.occurrence_id}/day-of/"
         capabilities.append("open_day_of")
     if live is not None:
-        links["live"] = f"/api/v1/operations/occurrences/{journey.occurrence_id}/live/"
+        links["live"] = f"/api/v1/me/occurrences/{journey.occurrence_id}/live/"
         capabilities.append("open_live")
 
     actionable_form_ids = {

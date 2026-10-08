@@ -25,6 +25,8 @@ List<RouteBase> dayOfRoutes(AppRuntime runtime) => [
           '/accesses/$accessId/credential',
           extra: credentialPath,
         ),
+        onOpenLive: (livePath) =>
+            context.push('/occurrences/${state.pathParameters['id']}/live'),
       );
     },
   ),
