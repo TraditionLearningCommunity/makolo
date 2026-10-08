@@ -196,6 +196,25 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         )
         self.assertEqual(foreign.status_code, 404)
 
+    def test_creative_presentation_contextualizes_activity_without_creating_cms_truth(self):
+        self.space.archetype = SpaceArchetype.CREATIVE
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Album Première")
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["active"]["representation"], "En création")
+        self.assertEqual(response.data["sections"]["upcoming"]["representation"], "À présenter")
+        self.assertEqual(response.data["sections"]["activities"]["representation"], "Créations")
+        row = next(
+            item for item in response.data["sections"]["preparation"]["items"]
+            if item["source"] == {"kind": "activity", "id": str(activity.pk)}
+        )
+        self.assertEqual(row["kind"], "activity")
+        self.assertNotIn("publication", str(row).lower())
+        self.assertNotIn("portfolio", str(response.data).lower())
+
     def test_media_presentation_uses_activity_owner_without_inventing_feed_or_media(self):
         self.space.archetype = SpaceArchetype.MEDIA
         self.space.save(update_fields=["archetype", "updated_at"])
