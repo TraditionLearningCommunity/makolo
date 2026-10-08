@@ -451,15 +451,18 @@ void main() {
     );
   });
 
-  test('transport failure defaults to Makolo unavailability without offline proof', () async {
-    final message = await resolvedAuthErrorMessage(
-      const MakoloTransportError('makolo_unreachable', 'unreachable'),
-      fallback: 'fallback',
-      offlineProbe: () async => false,
-    );
+  test(
+    'transport failure defaults to Makolo unavailability without offline proof',
+    () async {
+      final message = await resolvedAuthErrorMessage(
+        const MakoloTransportError('makolo_unreachable', 'unreachable'),
+        fallback: 'fallback',
+        offlineProbe: () async => false,
+      );
 
-    expect(message, makoloServerUnavailableMessage);
-  });
+      expect(message, makoloServerUnavailableMessage);
+    },
+  );
 
   test('established device offline state is allowed to name offline', () async {
     final message = await resolvedAuthErrorMessage(

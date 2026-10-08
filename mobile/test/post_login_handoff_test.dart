@@ -84,7 +84,11 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('login-submit')));
 
-      for (var i = 0; i < 40 && find.text('Tout est en ordre. ✓').evaluate().isEmpty; i++) {
+      for (
+        var i = 0;
+        i < 40 && find.text('Tout est en ordre. ✓').evaluate().isEmpty;
+        i++
+      ) {
         await tester.pump(const Duration(milliseconds: 50));
         final error = tester.takeException();
         if (error != null) throw error;
