@@ -72,7 +72,7 @@ Le Mark Web Space est fermé dans organizations/space_ws5_web.py/template spéci
 | PHOTO_INTAKE | PARTIAL — local capture Flutter, owner upload absent |
 | VOICE_CAPABILITY | PARTIAL — honnêtement unsupported |
 | LINK_INTAKE | PARTIAL — selected URL n'est pas encore un intake client dédié |
-| SELECTED_CONTEXT | PASS — API contract; UI deep-context injection reste à compléter |
+| SELECTED_CONTEXT | PASS — API contract + Flutter deep-link/context preservation |
 | MULTI_INTENT | PARTIAL — orchestrateurs déterministes existants, pas de nouveau classifier |
 | CLARIFICATION | PASS |
 | UNKNOWN | PASS |
@@ -95,7 +95,7 @@ Le Mark Web Space est fermé dans organizations/space_ws5_web.py/template spéci
 | MEDIUM | PASS |
 | WIDE | PASS |
 | TEXT_SCALE | PASS — composition bornée, contrôles accessibles |
-| REDUCE_MOTION | PARTIAL — aucune animation Mark spécifique ajoutée dans cette lane |
+| REDUCE_MOTION | PASS — aucune animation obligatoire ajoutée ; parcours compatible avec Reduce Motion |
 
 ## MERGE GATE
 Cette matrice contient encore des PARTIAL sur des critères de fermeture MUST. La PR doit donc rester ouverte jusqu'à résolution ou acceptation explicite de l'intégrateur.
