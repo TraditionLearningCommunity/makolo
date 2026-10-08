@@ -133,6 +133,65 @@ class PlatformInteroperabilityView(PlatformView):
         return context
 
 
+
+class PlatformTrustView(PlatformView):
+    module = "trust_review"
+    page = "trust"
+    heading = "Confiance"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from trust.models import VerificationClaim, Report, Dispute
+        context["claims"] = VerificationClaim.objects.filter(
+            status__in=["requested", "under_review"]
+        ).select_related("subject_space")[:40]
+        context["reports"] = Report.objects.filter(
+            status__in=["open", "triaged", "investigating"]
+        ).select_related("space")[:40]
+        context["disputes"] = Dispute.objects.exclude(
+            status="closed"
+        ).select_related("respondent_space")[:40]
+        return context
+
+
+class PlatformCurationView(PlatformView):
+    module = "opportunity_curation"
+    page = "curation"
+    heading = "Curation"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from services.attention_selectors import opportunity_curator_attention
+        attention = opportunity_curator_attention(self.request.user)
+        context["submissions"] = attention["submissions"][:30]
+        context["sources"] = attention["sources"][:30]
+        context["withdrawn"] = attention["withdrawn_with_active_journeys"][:30]
+        return context
+
+
+class PlatformSubscriptionsView(PlatformView):
+    module = "subscriptions"
+    page = "subscriptions"
+    heading = "Gouvernance des abonnements"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        effective = set(next(
+            item["capabilities"] for item in self.platform_modules if item["key"] == "subscriptions"
+        ))
+        context["catalog_allowed"] = bool(effective & {
+            PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_VIEW,
+            PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE,
+        })
+        context["support_allowed"] = bool(effective & {
+            PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW,
+            PermissionCode.PLATFORM_SUBSCRIPTIONS_MANAGE,
+        })
+        context["review_allowed"] = PermissionCode.PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE in effective
+        context["grant_allowed"] = PermissionCode.PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE in effective
+        return context
+
+
 class PlatformRecognitionView(PlatformView):
     module = "recognition_governance"
     page = "recognition"
