@@ -223,6 +223,10 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         ]
         self.assertEqual(len(offers), 1)
         self.assertEqual(offers[0]["title"], "Offre ZS3")
+        self.assertEqual(response.data["sections"]["preparation"]["representation"], "À traiter")
+        self.assertEqual(response.data["sections"]["active"]["representation"], "Commandes actives")
+        self.assertEqual(response.data["sections"]["offers"]["representation"], "Offres")
+        self.assertEqual(response.data["sections"]["completed"]["representation"], "Historique")
         self.assertNotIn("payment", str(offers[0]).lower())
 
     def test_programmes_presentation_routes_pending_registrations_to_human_queue(self):
