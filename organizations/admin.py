@@ -51,6 +51,13 @@ class OrganizationAdmin(admin.ModelAdmin):
     search_fields = ("name", "slug", "contact_email", "created_by__email")
     prepopulated_fields = {"slug": ("name",)}
     inlines = [TeamInline, OrganizationMembershipInline, OrganizationFollowInline]
+    # These owner-managed transitions must not be edited as raw model fields.
+    # Space lifecycle and disclosure have their own services and permissions.
+    readonly_fields = ("lifecycle", "verification_status", "public_profile", "searchable")
+
+    def has_delete_permission(self, request, obj=None):
+        # Cascading deletion is not an emergency lifecycle transition.
+        return False
 
 
 @admin.register(Team)
