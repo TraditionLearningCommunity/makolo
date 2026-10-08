@@ -67,7 +67,7 @@ class NowMediaBindingPresentation {
     this.label,
     this.aspect,
     this.cached = false,
-    this.authorized = true,
+    this.authorized = false,
     this.presentationRank,
   });
 
