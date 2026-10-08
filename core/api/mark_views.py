@@ -39,6 +39,10 @@ class PersonalMarkAPIView(PersonalProjectionAPIView):
         if not isinstance(context, dict):
             raise ValidationError({"context": ["Le contexte doit être un objet."]})
 
+        forbidden_context = _FORBIDDEN_CONTEXT_KEYS.intersection(context)
+        if forbidden_context:
+            raise PermissionError("Le contexte d'autorité est résolu par le serveur.")
+
         result = public_mark_result(
             orchestrate_mark(
                 profile=request.user,
@@ -49,8 +53,15 @@ class PersonalMarkAPIView(PersonalProjectionAPIView):
         )
         result["actor_context"] = {"kind": "profile"}
         result["accepted_input_kinds"] = ["text"]
+        selected = context.get("selected")
         result["request_context"] = {
-            "selected": context.get("selected"),
+            "selected": {
+                key: selected[key]
+                for key in ("kind", "family")
+                if isinstance(selected, dict) and selected.get(key) is not None
+            }
+            if isinstance(selected, dict)
+            else None,
         }
         return self._response(
             result,
