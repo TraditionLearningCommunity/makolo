@@ -54,7 +54,8 @@ class SpaceHistoryPermissionTests(TestCase):
         )
         self.undated = Occurrence.objects.create(
             activity=self.activity, label="Sans date historique",
-            status=OccurrenceStatus.COMPLETED,
+            start_date=(now + timedelta(days=8)).date(),
+            timing_kind="date_only", status=OccurrenceStatus.SCHEDULED,
         )
         self.client = APIClient()
         self.url = "/api/v1/organizations/workspaces/history-space/history/"
