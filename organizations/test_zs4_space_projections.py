@@ -465,3 +465,29 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertNotIn("forecast", signals[0])
         self.assertNotIn("trend", signals[0])
         self.assertNotIn("score", response.data)
+
+    def test_team_search_does_not_return_other_members_from_same_team(self):
+        self.owner.first_name = "Alice"
+        self.owner.save(update_fields=["first_name"])
+        self.member.first_name = "Bob"
+        self.member.save(update_fields=["first_name"])
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"q": "Alice"},
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        members = [
+            row for row in response.data["search"]["items"]
+            if row["kind"] == "team_member"
+        ]
+        self.assertEqual(len(members), 1)
+        self.assertEqual(members[0]["profile"]["id"], str(self.owner.pk))
+        selected = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"kind": "team_member", "id": str(self.member_membership.pk)},
+        )
+        self.assertEqual(selected.status_code, 200, selected.data)
+        self.assertEqual(
+            selected.data["selection"]["profile"]["id"], str(self.member.pk)
+        )
