@@ -671,6 +671,10 @@ class _NowDepth extends StatelessWidget {
               ),
             ],
             _NowSemanticContent(situation: situation),
+            if (situation.horizon != null && topologyFor(situation) == NowTopology.waiting) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Text(situation.horizon!),
+            ],
             if (situation.makoloPreparation.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.lg),
               MakoloSection(
