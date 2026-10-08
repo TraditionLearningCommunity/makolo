@@ -2,6 +2,7 @@ from django.urls import path
 
 from .access_views import PersonalAccessCredentialAPIView, PersonalAccessesAPIView
 from .history_views import PersonalHistoryAPIView
+from .search_views import PersonalSearchAPIView
 from interoperability.api_views import PersonalInteroperabilityAPIView
 from .day_of_views import PersonalOccurrenceDayOfAPIView, PersonalOccurrenceLiveAPIView
 from .me_views import (
