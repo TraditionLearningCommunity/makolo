@@ -51,6 +51,10 @@ class TrustEvidenceAdmin(TrustAuditAdmin):
     search_fields = ("uploaded_by__email",)
     exclude = ("file",)
 
+    def get_readonly_fields(self, request, obj=None):
+        # Excluded fields must not be reintroduced as readonly links.
+        return tuple(field for field in super().get_readonly_fields(request, obj) if field != "file")
+
     def has_module_permission(self, request):
         return bool(request.user.is_active and request.user.is_staff and request.user.is_superuser)
 
