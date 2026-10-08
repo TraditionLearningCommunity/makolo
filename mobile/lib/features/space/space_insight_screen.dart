@@ -110,7 +110,11 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
           '${Uri.encodeComponent(actor.space.slug)}/relationships/'
           '?q=${Uri.encodeQueryComponent(query)}';
       final response = await api.get(url);
-      if (!mounted || version != _searchVersion || _actor?.space.id != actor.space.id) return;
+      if (!mounted ||
+          version != _searchVersion ||
+          _actor?.space.id != actor.space.id) {
+        return;
+      }
       final payload = response.jsonObject();
       setState(() {
         _remoteSearch = payload['search'] is Map
@@ -137,7 +141,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     if (actor == null || repo == null) {
       return Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: const Center(child: Text('Cette surface exige le contexte Space actif.')),
+        body: const Center(
+          child: Text('Cette surface exige le contexte Space actif.'),
+        ),
       );
     }
     final source = widget.surface == SpaceProjectionKind.relationships
@@ -165,7 +171,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
           if (state.invalidated || state.lastErrorCode == 'forbidden' ||
               state.lastErrorCode == 'not_found') {
             return const Center(
-              child: Text('Cette profondeur n’est plus autorisée dans le contexte Space actuel.'),
+              child: Text(
+                'Cette profondeur n’est plus autorisée dans le contexte Space actuel.',
+              ),
             );
           }
           return StreamBuilder<StoredProjection?>(
@@ -174,7 +182,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             builder: (context, snapshot) {
               final payload = snapshot.data?.payload;
               if (payload == null) {
-                return const Center(child: Text('Aucune projection autorisée disponible.'));
+                return const Center(
+                  child: Text('Aucune projection autorisée disponible.'),
+                );
               }
               if (widget.surface == SpaceProjectionKind.relationships) {
                 return _relations(context, payload);
@@ -188,9 +198,15 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
   }
 
   Widget _relations(BuildContext context, Map<String, dynamic> payload) {
-    final authority = payload['authority'] is Map ? payload['authority'] as Map : const {};
-    final sections = payload['sections'] is Map ? payload['sections'] as Map : const {};
-    final label = payload['label'] is String ? payload['label'] as String : 'Personnes & relations';
+    final authority = payload['authority'] is Map
+        ? payload['authority'] as Map
+        : const {};
+    final sections = payload['sections'] is Map
+        ? payload['sections'] as Map
+        : const {};
+    final label = payload['label'] is String
+        ? payload['label'] as String
+        : 'Personnes & relations';
     const families = {
       'team': 'Équipe',
       'groups': 'Groupes',
@@ -208,12 +224,19 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     }
     final query = _query.text.trim().toLowerCase();
     final search = _remoteSearch;
-    final remoteMatches = search?['items'] is List ? search!['items'] as List : null;
+    final remoteMatches = search?['items'] is List
+        ? search!['items'] as List
+        : null;
     final displayed = query.isEmpty
         ? local
         : remoteMatches != null
-            ? remoteMatches.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList()
-            : local.where((row) => _name(row).toLowerCase().contains(query)).toList();
+            ? remoteMatches
+                  .whereType<Map>()
+                  .map((item) => Map<String, dynamic>.from(item))
+                  .toList()
+            : local
+                  .where((row) => _name(row).toLowerCase().contains(query))
+                  .toList();
     return ListView(
       key: const Key('space-relationships-secondary'),
       padding: const EdgeInsets.all(20),
@@ -241,40 +264,59 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
         if (_searchUnavailable && query.isNotEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Résultats disponibles sur cet appareil. La recherche complète du Space est indisponible.'),
+            child: Text(
+              'Résultats disponibles sur cet appareil. La recherche complète du Space est indisponible.',
+            ),
           ),
         if (authority['scope'] == 'activity_limited')
           const Padding(
             padding: EdgeInsets.only(top: 16),
-            child: Text('Relations globales indisponibles dans cette responsabilité.'),
+            child: Text(
+              'Relations globales indisponibles dans cette responsabilité.',
+            ),
           )
         else if (sections.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 16),
-            child: Text('Aucune collection relationnelle disponible dans ce contexte.'),
+            child: Text(
+              'Aucune collection relationnelle disponible dans ce contexte.',
+            ),
           )
         else if (query.isNotEmpty) ...[
           if (displayed.isEmpty)
-            Text(search == null
-                ? 'Aucune relation correspondante dans le snapshot disponible sur cet appareil.'
-                : 'Aucune relation visible ne correspond à cette recherche.'),
+            Text(
+              search == null
+                  ? 'Aucune relation correspondante dans le snapshot disponible sur cet appareil.'
+                  : 'Aucune relation visible ne correspond à cette recherche.',
+            ),
           for (final row in displayed) _relationTile(row),
           if (search?['has_more'] == true)
-            const Text('Des résultats supplémentaires peuvent exister. Affinez la recherche.'),
+            const Text(
+              'Des résultats supplémentaires peuvent exister. Affinez la recherche.',
+            ),
         ] else
           for (final family in families.entries)
             if (sections[family.key] is Map) ...[
               const SizedBox(height: 20),
-              Text(family.value, style: Theme.of(context).textTheme.titleMedium),
-              for (final raw in ((sections[family.key] as Map)['items'] as List? ?? const []))
+              Text(
+                family.value,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              for (final raw
+                  in ((sections[family.key] as Map)['items'] as List? ??
+                      const []))
                 if (raw is Map) _relationTile(Map<String, dynamic>.from(raw)),
               if ((sections[family.key] as Map)['has_more'] == true)
-                const Text('Voir toutes les relations dans le domaine propriétaire.'),
+                const Text(
+                  'Voir toutes les relations dans le domaine propriétaire.',
+                ),
             ],
         if (_selectedKind != null && _selectedId != null)
           const Padding(
             padding: EdgeInsets.only(top: 20),
-            child: Text('Sélection locale : ouvrir la relation dans son owner après revalidation serveur.'),
+            child: Text(
+              'Sélection locale : ouvrir la relation dans son owner après revalidation serveur.',
+            ),
           ),
       ],
     );
@@ -284,7 +326,10 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(_name(row)),
-      subtitle: Text(row['relation_type']?.toString() ?? _type(row['kind']?.toString() ?? '')),
+      subtitle: Text(
+        row['relation_type']?.toString() ??
+            _type(row['kind']?.toString() ?? ''),
+      ),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => setState(() {
         _selectedKind = row['kind']?.toString();
@@ -296,7 +341,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
   String _name(Map row) {
     if (row['identity'] is String) return row['identity'] as String;
     final profile = row['profile'];
-    if (profile is Map && profile['name'] is String) return profile['name'] as String;
+    if (profile is Map && profile['name'] is String) {
+      return profile['name'] as String;
+    }
     return row['name']?.toString() ?? row['label']?.toString() ?? 'Relation';
   }
 
@@ -310,27 +357,43 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
   };
 
   Widget _pilot(BuildContext context, Map<String, dynamic> payload) {
-    final authority = payload['authority'] is Map ? payload['authority'] as Map : const {};
-    final sections = payload['sections'] is Map ? payload['sections'] as Map : const {};
-    final analytics = sections['analytics'] is Map ? sections['analytics'] as Map : null;
-    final signals = payload['signals'] is List ? payload['signals'] as List : const [];
+    final authority = payload['authority'] is Map
+        ? payload['authority'] as Map
+        : const {};
+    final sections = payload['sections'] is Map
+        ? payload['sections'] as Map
+        : const {};
+    final analytics = sections['analytics'] is Map
+        ? sections['analytics'] as Map
+        : null;
+    final signals = payload['signals'] is List
+        ? payload['signals'] as List
+        : const [];
     return ListView(
       key: const Key('space-pilot-secondary'),
       padding: const EdgeInsets.all(20),
       children: [
         Text('Piloter', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
-        const Text('Est-ce que cela fonctionne ? Qu’est-ce qui change ? Que devons-nous ajuster ?'),
+        const Text(
+          'Est-ce que cela fonctionne ? Qu’est-ce qui change ? Que devons-nous ajuster ?',
+        ),
         const SizedBox(height: 20),
         if (authority['scope'] == 'activity_limited')
-          const Text('Le pilotage global n’est pas disponible dans cette responsabilité.')
+          const Text(
+            'Le pilotage global n’est pas disponible dans cette responsabilité.',
+          )
         else if (analytics == null)
-          const Text('Aucune lecture de pilotage disponible avec cette autorité.')
+          const Text(
+            'Aucune lecture de pilotage disponible avec cette autorité.',
+          )
         else ...[
           if (signals.isEmpty)
-            Text(analytics['state'] == 'insufficient_data'
-                ? 'Pas encore assez d’activité pour dégager une tendance utile.'
-                : 'Aucun signal de pilotage défendable disponible pour le moment.'),
+            Text(
+              analytics['state'] == 'insufficient_data'
+                  ? 'Pas encore assez d’activité pour dégager une tendance utile.'
+                  : 'Aucun signal de pilotage défendable disponible pour le moment.',
+            ),
           for (final raw in signals)
             if (raw is Map)
               Card(
@@ -339,10 +402,15 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(raw['title']?.toString() ?? 'Observation', style: Theme.of(context).textTheme.titleLarge),
-                      if (raw['summary'] != null) Text(raw['summary'].toString()),
+                      Text(
+                        raw['title']?.toString() ?? 'Observation',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      if (raw['summary'] != null)
+                        Text(raw['summary'].toString()),
                       if (raw['why'] != null) Text(raw['why'].toString()),
-                      if (raw['uncertainty'] != null) Text('Limite : ${raw['uncertainty']}'),
+                      if (raw['uncertainty'] != null)
+                        Text('Limite : ${raw['uncertainty']}'),
                       Text('Source : ${raw['owner'] ?? 'Owner analytique'}'),
                     ],
                   ),
@@ -351,19 +419,29 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
           const SizedBox(height: 20),
           ExpansionTile(
             title: const Text('Mesures de soutien'),
-            subtitle: Text('Portefeuille : ${(analytics['coverage'] is Map ? (analytics['coverage'] as Map)['limit'] : null) ?? 'portée non précisée'} événements visibles maximum'),
+            subtitle: Text(
+              'Portefeuille : ${(analytics['coverage'] is Map ? (analytics['coverage'] as Map)['limit'] : null) ?? 'portée non précisée'} événements visibles maximum',
+            ),
             children: [
-              for (final metric in analytics['metrics'] is List ? analytics['metrics'] as List : const [])
+              for (final metric
+                  in analytics['metrics'] is List
+                      ? analytics['metrics'] as List
+                      : const [])
                 if (metric is Map)
                   ListTile(
                     title: Text(metric['key']?.toString() ?? 'Mesure'),
                     subtitle: Text(_metricText(metric)),
                   ),
-              for (final money in analytics['money'] is List ? analytics['money'] as List : const [])
+              for (final money
+                  in analytics['money'] is List
+                      ? analytics['money'] as List
+                      : const [])
                 if (money is Map)
                   ListTile(
                     title: Text('Finance · ${money['currency']}'),
-                    subtitle: Text('Brut ${money['gross']} · Remboursements ${money['refunds']} · Net ${money['net']}'),
+                    subtitle: Text(
+                      'Brut ${money['gross']} · Remboursements ${money['refunds']} · Net ${money['net']}',
+                    ),
                   ),
             ],
           ),
