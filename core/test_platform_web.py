@@ -174,7 +174,7 @@ class PlatformWebContractTests(TestCase):
         path = reverse("platform_web:space-decision", kwargs={"pk": space.pk})
         self.client.force_login(self.operator)
         self.assertEqual(self.client.get(path).status_code, 200)
-        mandate = self.operator.mandates.filter(
+        mandate = self.operator.authority_mandates.filter(
             role__code=SystemRoleCode.PLATFORM_ADMIN
         ).first()
         revoke_mandate(mandate=mandate)
