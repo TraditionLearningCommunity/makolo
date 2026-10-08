@@ -397,11 +397,13 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
     commerce_visible = bool(visible_ids & caps["commerce"])
     education_ids = visible_ids & caps["requests"]
     education_visible = space.archetype == "education" and bool(education_ids)
+    service_ids = visible_ids & caps["service_cases"]
+    service_visible = space.archetype == "service_provider" and bool(service_ids)
     sections = _empty_sections(
         space=space,
         include_offers=commerce_visible,
         include_transport=transport_visible,
-        include_requests=education_visible,
+        include_requests=education_visible or service_visible,
     )
     now = timezone.now()
     today = timezone.localdate()
@@ -504,7 +506,6 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             if target:
                 _append(sections[target], _journey_item(journey, caps))
 
-    service_ids = visible_ids & caps["service_cases"]
     if service_ids:
         for journey in (
             service_journeys_visible_to(profile)
@@ -512,7 +513,16 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             .select_related("activity")
             .prefetch_related("blockers")
         ):
-            target = _journey_section(journey)
+            if (
+                service_visible
+                and journey.status in {
+                    JourneyStatus.SUBMITTED,
+                    JourneyStatus.PENDING_APPROVAL,
+                }
+            ):
+                target = "requests"
+            else:
+                target = _journey_section(journey)
             if target:
                 _append(sections[target], _journey_item(journey, caps))
 

@@ -64,6 +64,37 @@ _GENERIC_GRAMMAR = SpaceWorkPresentationGrammar(
     },
 )
 
+_SERVICES_GRAMMAR = SpaceWorkPresentationGrammar(
+    surface_empty_message="Aucune prestation ou demande visible pour le moment.",
+    section_order=(
+        "requests",
+        "preparation",
+        "active",
+        "blocked",
+        "activities",
+        "upcoming",
+        "completed",
+    ),
+    labels={
+        "requests": "Demandes à traiter",
+        "preparation": "À préparer",
+        "active": "Dossiers en cours",
+        "blocked": "Dossiers bloqués",
+        "activities": "Prestations",
+        "upcoming": "À venir",
+        "completed": "Terminés",
+    },
+    empty_messages={
+        "requests": "Aucune demande à traiter.",
+        "preparation": "Aucun dossier à préparer.",
+        "active": "Aucun dossier en cours.",
+        "blocked": "Aucun dossier bloqué.",
+        "activities": "Aucune prestation visible.",
+        "upcoming": "Aucune réalisation à venir.",
+        "completed": "Aucun dossier terminé dans cette vue.",
+    },
+)
+
 _PROGRAMMES_GRAMMAR = SpaceWorkPresentationGrammar(
     surface_empty_message="Aucun programme ou session visible pour le moment.",
     section_order=(
@@ -132,6 +163,7 @@ _TRANSPORT_GRAMMAR = SpaceWorkPresentationGrammar(
 SPACE_WORK_PRESENTATION_GRAMMARS = {
     SpaceArchetype.GENERIC: _GENERIC_GRAMMAR,
     SpaceArchetype.EDUCATION: _PROGRAMMES_GRAMMAR,
+    SpaceArchetype.SERVICE_PROVIDER: _SERVICES_GRAMMAR,
     SpaceArchetype.TRANSPORT_OPERATOR: _TRANSPORT_GRAMMAR,
 }
 

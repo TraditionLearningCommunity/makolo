@@ -278,6 +278,39 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertNotIn(beneficiary.email, str(row))
         self.assertNotIn(beneficiary.username, str(row))
 
+    def test_service_presentation_separates_requests_from_active_cases(self):
+        self.space.archetype = SpaceArchetype.SERVICE_PROVIDER
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Prestation Visa")
+        ServiceDetails.objects.create(
+            activity=activity,
+            service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
+        )
+        beneficiary = User.objects.create_user(
+            username="zs3-service-pending",
+            email="private-service-pending@test.local",
+            password="x",
+        )
+        pending = Journey.objects.create(
+            initiated_by=beneficiary,
+            beneficiary=beneficiary,
+            activity=activity,
+            workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.SUBMITTED,
+        )
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["requests"]["representation"], "Demandes à traiter")
+        self.assertEqual(response.data["sections"]["active"]["representation"], "Dossiers en cours")
+        row = next(
+            item for item in response.data["sections"]["requests"]["items"]
+            if item["source"] == {"kind": "journey", "id": str(pending.pk)}
+        )
+        self.assertNotIn(beneficiary.email, str(row))
+        self.assertNotIn("requirement", str(row).lower())
+
     def test_service_case_uses_service_visibility_and_omits_private_case_data(self):
         self.space.archetype = SpaceArchetype.SERVICE_PROVIDER
         self.space.save(update_fields=["archetype", "updated_at"])
