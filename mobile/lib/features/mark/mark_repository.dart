@@ -33,12 +33,12 @@ class MarkRepository {
 
   String _draftId(ActorContext actor) => switch (actor) {
     PersonalActorContext() => 'mark:personal',
-    SpaceActorContext(:final space) => 'mark:space:' + space.slug,
+    SpaceActorContext(:final space) => 'mark:space:${space.slug}',
   };
 
   String _owner(ActorContext actor) => switch (actor) {
     PersonalActorContext() => 'profile',
-    SpaceActorContext(:final space) => 'space:' + space.slug,
+    SpaceActorContext(:final space) => 'space:${space.slug}',
   };
 
   Future<void> saveDraft({
@@ -112,7 +112,7 @@ class MarkRepository {
     }
 
     final context = <String, dynamic>{
-      if (selected != null) 'selected': selected,
+      ...?selected == null ? null : {'selected': selected},
     };
 
     try {
@@ -125,7 +125,7 @@ class MarkRepository {
           },
         ),
         SpaceActorContext(:final space, :final perspective) => await api.post(
-          'api/v1/organizations/workspaces/' + space.slug + '/mark/',
+          'api/v1/organizations/workspaces/${space.slug}/mark/',
           body: {
             'input': {'kind': inputKind, 'value': input},
             'context': {
