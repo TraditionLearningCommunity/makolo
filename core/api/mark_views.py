@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from rest_framework.exceptions import PermissionDenied
 
 from core.api.me_views import PersonalProjectionAPIView
 from core.mark_orchestration import (
@@ -47,7 +48,7 @@ class PersonalMarkAPIView(PersonalProjectionAPIView):
 
         forbidden_context = _FORBIDDEN_CONTEXT_KEYS.intersection(context)
         if forbidden_context:
-            raise PermissionError("Le contexte d'autorité est résolu par le serveur.")
+            raise PermissionDenied("Le contexte d'autorité est résolu par le serveur.")
 
         result = public_mark_result(
             orchestrate_mark(
