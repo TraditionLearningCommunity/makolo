@@ -9,6 +9,12 @@ from core.mark_orchestration import (
 )
 
 
+_FORBIDDEN_CONTEXT_KEYS = frozenset({
+    "act_as_space", "beneficiary_id", "mandate", "organization_actor", "permission",
+    "profile_id", "role", "space_context", "space_id", "subject_id", "user_id",
+})
+
+
 class PersonalMarkAPIView(PersonalProjectionAPIView):
     projection_code = "personal.mark"
 
