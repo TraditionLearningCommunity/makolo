@@ -69,25 +69,5 @@ void main() {
     expect(find.text('Agent'), findsNothing);
     expect(find.text('Thinking with AI'), findsNothing);
   });
-}
 
-
-  testWidgets('selected context is visible without granting authority', (tester) async {
-    final runtime = AppRuntime(
-      tokens: MemoryTokenStore(),
-      session: null,
-      recovery: SessionRecoveryController(),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MarkScreen(
-          runtime: runtime,
-          selectedContext: const {'kind': 'journey', 'id': '42'},
-        ),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.textContaining('Contexte sélectionné : journey'), findsOneWidget);
-  });
+  testWidgets('selected context is visible without granting authority', (tester) async {undefined
