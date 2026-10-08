@@ -323,6 +323,7 @@ class NowSelector {
       consequenceState: _semanticString(raw['consequence'], 'state'),
       turn: _semanticString(raw['turn'], 'type'),
       responseType: responseType,
+      horizon: _semanticString(raw['horizon'], 'label') ?? _semanticString(raw['horizon'], 'text'),
       turnLabel: _semanticString(raw['turn'], 'label'),
       mediaBindings: List.unmodifiable(parsedMedia),
       businessActions: List.unmodifiable(parsedActions),
