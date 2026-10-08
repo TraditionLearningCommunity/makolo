@@ -8,24 +8,24 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: SpaceWorkSurface(
-          payload: {
-            'primary_business_label': 'Activités',
-            'presentation': {
-              'empty_message': 'Aucune activité visible pour le moment.',
-            },
-            'sections': {
-              'preparation': {
-                'representation': 'À préparer',
-                'role': 'continuity',
-                'items': [],
+            payload: {
+              'primary_business_label': 'Activités',
+              'presentation': {
+                'empty_message': 'Aucune activité visible pour le moment.',
               },
-              'activities': {
-                'representation': 'Toutes les activités',
-                'role': 'structure',
-                'items': [],
+              'sections': {
+                'preparation': {
+                  'representation': 'À préparer',
+                  'role': 'continuity',
+                  'items': [],
+                },
+                'activities': {
+                  'representation': 'Toutes les activités',
+                  'role': 'structure',
+                  'items': [],
+                },
               },
             },
-          },
           ),
         ),
       ),
@@ -43,41 +43,41 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: SpaceWorkSurface(
-          payload: {
-            'primary_business_label': 'Activités',
-            'presentation': {
-              'empty_message': 'Aucune activité visible pour le moment.',
-            },
-            'sections': {
-              'upcoming': {
-                'representation': 'À venir',
-                'role': 'continuity',
-                'items': [
-                  {
-                    'title': 'Atelier demain',
-                    'summary': 'Atelier emploi',
-                    'timing': {'start_date': '2026-10-09'},
-                    'context': {},
-                    'source': {'kind': 'occurrence', 'id': 'occ-1'},
-                    'capabilities': ['view'],
-                  },
-                ],
+            payload: {
+              'primary_business_label': 'Activités',
+              'presentation': {
+                'empty_message': 'Aucune activité visible pour le moment.',
               },
-              'activities': {
-                'representation': 'Toutes les activités',
-                'role': 'structure',
-                'items': [
-                  {
-                    'title': 'Atelier emploi',
-                    'timing': {},
-                    'context': {},
-                    'source': {'kind': 'activity', 'id': 'activity-1'},
-                    'capabilities': ['view'],
-                  },
-                ],
+              'sections': {
+                'upcoming': {
+                  'representation': 'À venir',
+                  'role': 'continuity',
+                  'items': [
+                    {
+                      'title': 'Atelier demain',
+                      'summary': 'Atelier emploi',
+                      'timing': {'start_date': '2026-10-09'},
+                      'context': {},
+                      'source': {'kind': 'occurrence', 'id': 'occ-1'},
+                      'capabilities': ['view'],
+                    },
+                  ],
+                },
+                'activities': {
+                  'representation': 'Toutes les activités',
+                  'role': 'structure',
+                  'items': [
+                    {
+                      'title': 'Atelier emploi',
+                      'timing': {},
+                      'context': {},
+                      'source': {'kind': 'activity', 'id': 'activity-1'},
+                      'capabilities': ['view'],
+                    },
+                  ],
+                },
               },
             },
-          },
           ),
         ),
       ),
@@ -95,38 +95,38 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: SpaceWorkSurface(
-          payload: {
-            'primary_business_label': 'Transport',
-            'presentation': {'empty_message': 'Aucun transport visible.'},
-            'sections': {
-              'upcoming': {
-                'representation': 'Prochains départs',
-                'role': 'continuity',
-                'items': [
-                  {
-                    'title': 'Lubumbashi → Kolwezi',
-                    'timing': {'start_date': '2026-10-09'},
-                    'context': {},
-                    'source': {'kind': 'departure', 'id': 'dep-1'},
-                    'capabilities': ['view'],
-                  },
-                ],
-              },
-              'routes': {
-                'representation': 'Routes',
-                'role': 'structure',
-                'items': [
-                  {
-                    'title': 'Route Lubumbashi → Kolwezi',
-                    'timing': {},
-                    'context': {},
-                    'source': {'kind': 'transport_route', 'id': 'route-1'},
-                    'capabilities': ['view'],
-                  },
-                ],
+            payload: {
+              'primary_business_label': 'Transport',
+              'presentation': {'empty_message': 'Aucun transport visible.'},
+              'sections': {
+                'upcoming': {
+                  'representation': 'Prochains départs',
+                  'role': 'continuity',
+                  'items': [
+                    {
+                      'title': 'Lubumbashi → Kolwezi',
+                      'timing': {'start_date': '2026-10-09'},
+                      'context': {},
+                      'source': {'kind': 'departure', 'id': 'dep-1'},
+                      'capabilities': ['view'],
+                    },
+                  ],
+                },
+                'routes': {
+                  'representation': 'Routes',
+                  'role': 'structure',
+                  'items': [
+                    {
+                      'title': 'Route Lubumbashi → Kolwezi',
+                      'timing': {},
+                      'context': {},
+                      'source': {'kind': 'transport_route', 'id': 'route-1'},
+                      'capabilities': ['view'],
+                    },
+                  ],
+                },
               },
             },
-          },
           ),
         ),
       ),

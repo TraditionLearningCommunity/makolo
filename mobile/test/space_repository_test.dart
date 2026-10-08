@@ -207,9 +207,7 @@ Map<String, dynamic> _work({
       'completed',
     ])
       key: {
-        'representation': key == 'activities'
-            ? 'Toutes les activités'
-            : key,
+        'representation': key == 'activities' ? 'Toutes les activités' : key,
         'role': key == 'activities' ? 'structure' : 'continuity',
         'empty_message': 'Aucun élément visible.',
         'items': <Object>[],
