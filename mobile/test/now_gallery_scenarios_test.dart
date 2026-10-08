@@ -12,16 +12,16 @@ void main() {
   });
 
   test('S4 Gallery is a real explicit waiting response', () {
-    final situation = NowGalleryScenarios.select(
-      'now-legitimate-waiting',
-    ).situations.single;
+    final situation = NowGalleryScenarios.select('now-legitimate-waiting')
+        .situations
+        .single;
     expect(topologyFor(situation), NowTopology.waiting);
   });
 
   test('S5 Gallery is a justified composition', () {
-    final situation = NowGalleryScenarios.select(
-      'now-multiple',
-    ).situations.single;
+    final situation = NowGalleryScenarios.select('now-multiple')
+        .situations
+        .single;
     expect(topologyFor(situation), NowTopology.composition);
   });
 

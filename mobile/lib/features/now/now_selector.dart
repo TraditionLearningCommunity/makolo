@@ -267,7 +267,7 @@ class NowSelector {
             kind: switch (_string(item['kind'])) {
               'image' => NowMediaKind.image,
               'pdf' => NowMediaKind.pdf,
-            'document' => NowMediaKind.document,
+              'document' => NowMediaKind.document,
               'video' => NowMediaKind.video,
               'audio' => NowMediaKind.audio,
               'coordinates' => NowMediaKind.coordinates,

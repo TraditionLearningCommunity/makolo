@@ -24,16 +24,22 @@ abstract final class NowGalleryScenarios {
       meaning: isCompose
           ? 'Les deux engagements se chevauchent.'
           : isWait
-              ? 'La demande a été envoyée.'
-              : isMedia
-                  ? 'Ce document éclaire la situation.'
-                  : 'Votre certificat doit être transmis aujourd’hui.',
+          ? 'La demande a été envoyée.'
+          : isMedia
+          ? 'Ce document éclaire la situation.'
+          : 'Votre certificat doit être transmis aujourd’hui.',
       emphasis: NowPresentationEmphasis.primary,
       whyNow: isCompose
           ? 'Ils commencent à la même heure.'
           : 'Une échéance est ouverte.',
-      consequence: isCompose ? 'Vous ne pouvez pas être aux deux endroits.' : null,
-      responseType: isWait ? 'wait' : isCompose ? 'decide' : 'act',
+      consequence: isCompose
+          ? 'Vous ne pouvez pas être aux deux endroits.'
+          : null,
+      responseType: isWait
+          ? 'wait'
+          : isCompose
+          ? 'decide'
+          : 'act',
       turnLabel: isWait ? 'L’organisme doit répondre.' : null,
       horizon: isWait ? 'En attente de sa réponse.' : null,
       businessActions: !isWait && !isMedia && !isCompose
@@ -60,7 +66,10 @@ abstract final class NowGalleryScenarios {
           : const [],
       relationMembers: isCompose
           ? const [
-              NowRelationMemberPresentation(id: 'medical', label: 'Rendez-vous médical'),
+              NowRelationMemberPresentation(
+                id: 'medical',
+                label: 'Rendez-vous médical',
+              ),
               NowRelationMemberPresentation(id: 'meeting', label: 'Réunion'),
             ]
           : const [],
@@ -79,8 +88,12 @@ abstract final class NowGalleryScenarios {
       selectionState: isCalm ? 'empty' : 'ready',
       actorAttentionState: isCalm ? 'calm' : 'active',
       state: MakoloSurfacePresentation(
-        availability: isCalm ? MakoloAvailabilityCue.empty : MakoloAvailabilityCue.content,
-        freshness: stale ? MakoloFreshnessCue.oldObservation : MakoloFreshnessCue.current,
+        availability: isCalm
+            ? MakoloAvailabilityCue.empty
+            : MakoloAvailabilityCue.content,
+        freshness: stale
+            ? MakoloFreshnessCue.oldObservation
+            : MakoloFreshnessCue.current,
         reachability: offline
             ? MakoloReachabilityCue.temporarilyUnavailable
             : MakoloReachabilityCue.unknown,

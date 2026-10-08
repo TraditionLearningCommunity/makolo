@@ -87,15 +87,17 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
   Future<void> _load() async {
     final path = nowAuthorizedMediaPath(widget.media);
     if (path == null) {
-      if (mounted) setState(() {
-        _loading = false;
-        _error = 'Ce média ne dispose pas d’un accès autorisé.';
-      });
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _error = 'Ce média ne dispose pas d’un accès autorisé.';
+        });
       return;
     }
     File? file;
     try {
-      final temporary = widget.temporaryDirectory ??
+      final temporary =
+          widget.temporaryDirectory ??
           (widget.profileId != null
               ? await ProfilePaths.reconstructibleCache(widget.profileId!)
               : await getTemporaryDirectory());
@@ -116,7 +118,9 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       VideoPlayerController? controller;
       if (widget.media.kind == NowMediaKind.video ||
           widget.media.kind == NowMediaKind.audio) {
-        controller = await const PrivateVideoControllerFactory().open(file.path);
+        controller = await const PrivateVideoControllerFactory().open(
+          file.path,
+        );
       }
       if (!mounted) {
         await controller?.dispose();
@@ -130,10 +134,11 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       });
     } on Object {
       if (file != null && await file.exists()) await file.delete();
-      if (mounted) setState(() {
-        _error = 'Impossible de charger ce média. Vérifiez votre connexion et vos droits.';
-        _loading = false;
-      });
+      if (mounted)
+        setState(() {
+          _error = 'Impossible de charger ce média. Vérifiez votre connexion et vos droits.';
+          _loading = false;
+        });
     }
   }
 
@@ -148,7 +153,9 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de proposer l’enregistrement.')),
+          const SnackBar(
+            content: Text('Impossible de proposer l’enregistrement.'),
+          ),
         );
       }
     } finally {
@@ -171,7 +178,11 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
   Future<void> _deleteFile() async {
     final file = _file;
     if (file != null && await file.exists()) {
-      try { await file.delete(); } on FileSystemException { /* Temporary cleanup. */ }
+      try {
+        await file.delete();
+      } on FileSystemException {
+        /* Temporary cleanup. */
+      }
     }
   }
 
@@ -194,11 +205,13 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : _error != null
-                ? Center(child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_error!, textAlign: TextAlign.center),
-                  ))
-                : _content(),
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(_error!, textAlign: TextAlign.center),
+                ),
+              )
+            : _content(),
       ),
     );
   }
@@ -208,25 +221,32 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
     if (file == null) return const Center(child: Text('Média indisponible.'));
     return switch (widget.media.kind) {
       NowMediaKind.image => InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 5,
-          child: Center(child: Image.file(file, errorBuilder:
-              (context, error, stack) => const Text('Image illisible.'))),
+        minScale: 0.5,
+        maxScale: 5,
+        child: Center(
+          child: Image.file(
+            file,
+            errorBuilder: (context, error, stack) =>
+                const Text('Image illisible.'),
+          ),
         ),
+      ),
       NowMediaKind.pdf => PrivatePdfView(path: file.path),
       NowMediaKind.document => FutureBuilder<String>(
-          future: file.readAsString(),
-          builder: (context, snapshot) => snapshot.hasError
-              ? const Center(child: Text('Document illisible.'))
-              : snapshot.hasData
-                  ? SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: SelectableText(snapshot.data!),
-                    )
-                  : const Center(child: CircularProgressIndicator()),
-        ),
+        future: file.readAsString(),
+        builder: (context, snapshot) => snapshot.hasError
+            ? const Center(child: Text('Document illisible.'))
+            : snapshot.hasData
+            ? SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: SelectableText(snapshot.data!),
+              )
+            : const Center(child: CircularProgressIndicator()),
+      ),
       NowMediaKind.video || NowMediaKind.audio => _videoOrAudio(),
-      _ => const Center(child: Text('Ce type de média n’est pas encore lisible ici.')),
+      _ => const Center(
+        child: Text('Ce type de média n’est pas encore lisible ici.'),
+      ),
     };
   }
 
@@ -259,12 +279,11 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
                 children: [
                   IconButton.filledTonal(
                     tooltip: state.isPlaying ? 'Pause' : 'Lire',
-                    onPressed: () => state.isPlaying
-                        ? player.pause()
-                        : player.play(),
-                    icon: Icon(state.isPlaying
-                        ? Icons.pause
-                        : Icons.play_arrow),
+                    onPressed: () =>
+                        state.isPlaying ? player.pause() : player.play(),
+                    icon: Icon(
+                      state.isPlaying ? Icons.pause : Icons.play_arrow,
+                    ),
                   ),
                   Expanded(
                     child: Slider(
@@ -272,7 +291,8 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
                       max: total > 0 ? total : 1,
                       onChanged: total > 0
                           ? (value) => player.seekTo(
-                              Duration(milliseconds: value.toInt()))
+                              Duration(milliseconds: value.toInt()),
+                            )
                           : null,
                     ),
                   ),

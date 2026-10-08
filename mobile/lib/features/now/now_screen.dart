@@ -21,7 +21,13 @@ import 'now_selector.dart';
 import 'now_media_viewer.dart';
 
 class NowScreen extends StatefulWidget {
-  const NowScreen({super.key, required this.repository, this.now, this.api, this.profileId});
+  const NowScreen({
+    super.key,
+    required this.repository,
+    this.now,
+    this.api,
+    this.profileId,
+  });
 
   final PersonalRepository repository;
   final MakoloApiClient? api;
@@ -161,7 +167,14 @@ class _NowScreenState extends State<NowScreen> {
 }
 
 class NowView extends StatefulWidget {
-  const NowView({super.key, required this.selection, this.onOpenOwner, this.api, this.initialSelectedKey, this.profileId});
+  const NowView({
+    super.key,
+    required this.selection,
+    this.onOpenOwner,
+    this.api,
+    this.initialSelectedKey,
+    this.profileId,
+  });
 
   final NowSelection selection;
   final String? initialSelectedKey;
@@ -416,7 +429,11 @@ NowTopology topologyFor(NowSituationPresentation situation) {
 }
 
 class _NowSemanticContent extends StatelessWidget {
-  const _NowSemanticContent({required this.situation, required this.api, required this.profileId});
+  const _NowSemanticContent({
+    required this.situation,
+    required this.api,
+    required this.profileId,
+  });
 
   final NowSituationPresentation situation;
   final MakoloApiClient? api;
@@ -430,10 +447,12 @@ class _NowSemanticContent extends StatelessWidget {
         ? situation.mediaBindings.firstWhere((media) => media.canDominate)
         : null;
     final readable = situation.mediaBindings
-        .where((media) =>
-            media.canRender &&
-            api != null &&
-            nowAuthorizedMediaPath(media) != null)
+        .where(
+          (media) =>
+              media.canRender &&
+              api != null &&
+              nowAuthorizedMediaPath(media) != null,
+        )
         .toList(growable: false);
 
     return Column(
@@ -442,12 +461,12 @@ class _NowSemanticContent extends StatelessWidget {
         if (dominantMedia != null) ...[
           const SizedBox(height: MakoloSpacing.md),
           Semantics(
-            button: api != null &&
-                nowAuthorizedMediaPath(dominantMedia) != null,
+            button:
+                api != null && nowAuthorizedMediaPath(dominantMedia) != null,
             label: dominantMedia.label ?? 'Lire le média dans Makolo',
             child: InkWell(
-              onTap: api != null &&
-                      nowAuthorizedMediaPath(dominantMedia) != null
+              onTap:
+                  api != null && nowAuthorizedMediaPath(dominantMedia) != null
                   ? () => _openMedia(context, dominantMedia)
                   : null,
               child: MakoloMediaFrame(
@@ -485,8 +504,7 @@ class _NowSemanticContent extends StatelessWidget {
               const SizedBox(width: MakoloSpacing.md),
               Expanded(
                 child: Text(
-                  situation.turnLabel ??
-                      'En attente de la prochaine réponse.',
+                  situation.turnLabel ?? 'En attente de la prochaine réponse.',
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
@@ -506,8 +524,7 @@ class _NowSemanticContent extends StatelessWidget {
               icon: Icon(_mediaIcon(media.kind)),
               label: Text(media.label ?? 'Lire le média dans Makolo'),
             ),
-        if (dominantMedia != null &&
-            readable.contains(dominantMedia))
+        if (dominantMedia != null && readable.contains(dominantMedia))
           TextButton.icon(
             onPressed: () => _openMedia(context, dominantMedia),
             icon: const Icon(Icons.open_in_full_outlined),
@@ -532,7 +549,8 @@ class _NowSemanticContent extends StatelessWidget {
     if (client == null || nowAuthorizedMediaPath(media) == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => NowMediaViewer(media: media, api: client, profileId: profileId),
+        builder: (context) =>
+            NowMediaViewer(media: media, api: client, profileId: profileId),
       ),
     );
   }
@@ -607,7 +625,11 @@ class _NowPrimarySituation extends StatelessWidget {
                   ),
                 ),
               ],
-              _NowSemanticContent(situation: situation, api: api, profileId: profileId),
+              _NowSemanticContent(
+                situation: situation,
+                api: api,
+                profileId: profileId,
+              ),
               if (situation.metadata.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 MakoloMetadata(
@@ -757,7 +779,11 @@ class _NowDepth extends StatelessWidget {
                 child: Text(consequence),
               ),
             ],
-            _NowSemanticContent(situation: situation, api: api, profileId: profileId),
+            _NowSemanticContent(
+              situation: situation,
+              api: api,
+              profileId: profileId,
+            ),
             if (situation.horizon != null &&
                 topologyFor(situation) == NowTopology.waiting) ...[
               const SizedBox(height: MakoloSpacing.md),

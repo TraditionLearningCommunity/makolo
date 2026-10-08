@@ -25,27 +25,43 @@ void main() {
     expect(nowAuthorizedMediaPath(binding(url: 'https://evil.test/x')), isNull);
     expect(nowAuthorizedMediaPath(binding(url: '//evil.test/x')), isNull);
     expect(nowAuthorizedMediaPath(binding(url: '/media/private/file')), isNull);
-    expect(nowAuthorizedMediaPath(binding(url: '/api/v1/../../secrets')), isNull);
+    expect(
+      nowAuthorizedMediaPath(binding(url: '/api/v1/../../secrets')),
+      isNull,
+    );
     expect(nowAuthorizedMediaPath(binding(url: '/api/v1/x//file')), isNull);
   });
 
-  test('temporary file suffix is selected by explicitly declared media kind', () {
-    expect(nowMediaExtension(binding()), 'pdf');
-    expect(nowMediaExtension(NowMediaBindingPresentation(
-      resourceRef: 'photo:1',
-      target: NowMediaTarget.situation,
-      purpose: NowMediaPurpose.understand,
-      kind: NowMediaKind.image,
-      mimeType: 'image/png',
-      authorized: true,
-    )), 'png');
-    expect(nowMediaExtension(NowMediaBindingPresentation(
-      resourceRef: 'video:1',
-      target: NowMediaTarget.situation,
-      purpose: NowMediaPurpose.understand,
-      kind: NowMediaKind.video,
-      mimeType: 'video/mp4',
-      authorized: true,
-    )), 'mp4');
-  });
+  test(
+    'temporary file suffix is selected by explicitly declared media kind',
+    () {
+      expect(nowMediaExtension(binding()), 'pdf');
+      expect(
+        nowMediaExtension(
+          NowMediaBindingPresentation(
+            resourceRef: 'photo:1',
+            target: NowMediaTarget.situation,
+            purpose: NowMediaPurpose.understand,
+            kind: NowMediaKind.image,
+            mimeType: 'image/png',
+            authorized: true,
+          ),
+        ),
+        'png',
+      );
+      expect(
+        nowMediaExtension(
+          NowMediaBindingPresentation(
+            resourceRef: 'video:1',
+            target: NowMediaTarget.situation,
+            purpose: NowMediaPurpose.understand,
+            kind: NowMediaKind.video,
+            mimeType: 'video/mp4',
+            authorized: true,
+          ),
+        ),
+        'mp4',
+      );
+    },
+  );
 }

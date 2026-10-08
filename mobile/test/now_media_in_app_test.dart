@@ -11,10 +11,10 @@ import 'fakes.dart';
 
 class FakeNowMediaApi extends MakoloApiClient {
   FakeNowMediaApi()
-      : super(
-          baseUri: Uri.parse('https://makolo.invalid/'),
-          tokenStore: MemoryTokenStore(),
-        );
+    : super(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        tokenStore: MemoryTokenStore(),
+      );
 
   String? downloadedPath;
 
@@ -40,10 +40,7 @@ class FakeNowMediaSharing implements ShareGateway {
   Future<void> shareText(String text) async {}
 
   @override
-  Future<void> shareFiles({
-    required List<String> paths,
-    String? text,
-  }) async {
+  Future<void> shareFiles({required List<String> paths, String? text}) async {
     shared.addAll(paths);
   }
 
@@ -63,21 +60,23 @@ void main() {
       if (await root.exists()) await root.delete(recursive: true);
     });
 
-    await tester.pumpWidget(MaterialApp(
-      home: NowMediaViewer(
-        api: api,
-        sharing: sharing,
-        temporaryDirectory: root,
-        media: const NowMediaBindingPresentation(
-          resourceRef: 'journey_artifact:123',
-          target: NowMediaTarget.situation,
-          purpose: NowMediaPurpose.prepare,
-          kind: NowMediaKind.unknown,
-          url: '/api/v1/me/now/media/journey-artifacts/123/',
-          authorized: true,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowMediaViewer(
+          api: api,
+          sharing: sharing,
+          temporaryDirectory: root,
+          media: const NowMediaBindingPresentation(
+            resourceRef: 'journey_artifact:123',
+            target: NowMediaTarget.situation,
+            purpose: NowMediaPurpose.prepare,
+            kind: NowMediaKind.unknown,
+            url: '/api/v1/me/now/media/journey-artifacts/123/',
+            authorized: true,
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(api.downloadedPath, isNotNull);
     expect(sharing.shared, isEmpty);
