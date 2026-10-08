@@ -1,9 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/providers.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
+import 'package:makolo_mobile/app/runtime/actor_context.dart';
 import 'package:makolo_mobile/features/mark/mark_repository.dart';
 import 'package:makolo_mobile/features/mark/mark_screen.dart';
-import 'package:makolo_mobile/app/runtime/actor_context.dart';
 
 import 'fakes.dart';
 
@@ -70,4 +71,23 @@ void main() {
     expect(find.text('Thinking with AI'), findsNothing);
   });
 
-  testWidgets('selected context is visible without granting authority', (tester) async {undefined
+  testWidgets('selected context is visible without granting authority', (tester) async {
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MarkScreen(
+          runtime: runtime,
+          selectedContext: const {'kind': 'journey', 'id': '42'},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('Contexte sélectionné : journey'), findsOneWidget);
+  });
+}
