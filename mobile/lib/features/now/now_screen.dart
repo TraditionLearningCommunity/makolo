@@ -368,7 +368,13 @@ NowTopology topologyFor(NowSituationPresentation situation) {
   if (situation.businessActions.any((action) => action.canDominate)) {
     return NowTopology.action;
   }
-  if (situation.relationMembers.isNotEmpty && situation.relations.isNotEmpty) {
+  // A relation alone is not a composed Now situation: require a present
+  // consequence and an explicit explanation from the owning projection.
+  if (situation.relationMembers.length >= 2 &&
+      situation.relations.isNotEmpty &&
+      situation.whyNow != null &&
+      situation.consequence != null &&
+      situation.responseType != null) {
     return NowTopology.composition;
   }
   if (situation.responseType == 'waiting' ||
