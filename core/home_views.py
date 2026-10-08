@@ -50,6 +50,45 @@ def _consequence_text(consequence):
     return _display_value(consequence, "effect", "label")
 
 
+def _now_topology(item):
+    """Only render owner-provided presentation semantics, never infer monitoring."""
+    media = item.get("media_bindings") or ()
+    if any(
+        isinstance(binding, dict)
+        and binding.get("authorized") is True
+        and binding.get("resource_ref")
+        and (
+            binding.get("presentation_rank") == "primary"
+            or binding.get("purpose") in {"understand", "establish", "act"}
+        )
+        for binding in media
+    ):
+        return "media"
+    actions = item.get("business_actions") or ()
+    if any(
+        isinstance(action, dict)
+        and action.get("capability")
+        and action.get("label")
+        and action.get("interaction_depth") in {"direct_now", "focused"}
+        for action in actions
+    ):
+        return "action"
+    members = item.get("relation_members") or ()
+    relations = item.get("relations") or ()
+    response = item.get("response") or {}
+    if (
+        len(members) >= 2
+        and relations
+        and _display_value(item.get("why_now"), "meaning")
+        and _consequence_text(item.get("consequence"))
+        and response.get("type")
+    ):
+        return "composition"
+    if response.get("type") in {"wait", "monitor", "waiting"}:
+        return "waiting"
+    return "meaning"
+
+
 def _web_now_item(item):
     response = item.get("response") or {}
     return SimpleNamespace(
@@ -69,6 +108,20 @@ def _web_now_item(item):
         priority="",
         actionability=item.get("actionability") or "actionable",
         dimension=item.get("dimension"),
+        topology=_now_topology(item),
+        horizon=_display_value(item.get("horizon"), "label", "text"),
+        preparation=tuple(x for x in (item.get("makolo_preparation") or ()) if isinstance(x, str) and x.strip()),
+        media_labels=tuple(
+            binding.get("label") or "Média lié à la situation"
+            for binding in (item.get("media_bindings") or ())
+            if isinstance(binding, dict)
+            and binding.get("authorized") is True
+            and binding.get("resource_ref")
+        ),
+        relation_summaries=tuple(
+            rel["summary"] for rel in (item.get("relations") or ())
+            if isinstance(rel, dict) and isinstance(rel.get("summary"), str) and rel["summary"].strip()
+        ),
     )
 
 
