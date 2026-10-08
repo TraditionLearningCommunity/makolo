@@ -1,0 +1,76 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0F172A"><title>{{ platform_heading }} — Makolo Platform</title>
+{% include "partials/brand_head.html" %}
+<link rel="stylesheet" href="{% static 'css/platform.css' %}">
+</head>
+<body>
+<a class="skip" href="#main-content">Aller au contenu principal</a>
+<div class="shell">
+<aside>
+<a class="brand" href="{% url 'platform_web:home' %}">Makolo Platform<small>ESPACE OPÉRATEUR</small></a>
+<nav class="nav" aria-label="Navigation Platform">
+<a href="{% url 'platform_web:home' %}" {% if platform_page == 'overview' %}aria-current="page"{% endif %}>Vue d’ensemble</a>
+{% for module in platform_modules %}
+{% if module.key == 'operations' %}
+<a href="{% url 'platform_web:investigate' %}" {% if platform_page == 'investigate' %}aria-current="page"{% endif %}>Investiguer</a>
+<a href="{% url 'platform_web:operations' %}" {% if platform_page == 'operations' %}aria-current="page"{% endif %}>Opérations</a>
+<a href="{% url 'platform_web:system' %}" {% if platform_page == 'system' %}aria-current="page"{% endif %}>Système</a>
+<a href="{% url 'platform_web:audit' %}" {% if platform_page == 'audit' %}aria-current="page"{% endif %}>Audit Operations</a>
+{% elif module.key == 'trust_review' %}<a href="{{ module.links.web }}">Confiance <span class="muted">↗</span></a>
+{% elif module.key == 'opportunity_curation' %}<a href="{{ module.links.web }}">Curation <span class="muted">↗</span></a>
+{% elif module.key == 'subscriptions' %}<a href="{{ module.links.web }}">Abonnements <span class="muted">↗</span></a>
+{% elif module.key == 'recognition_governance' %}<a href="{% url 'platform_web:recognition' %}" {% if platform_page == 'recognition' or platform_page == 'recognition_simulation' %}aria-current="page"{% endif %}>Recognition</a>
+{% elif module.key == 'interoperability' %}<a href="{% url 'platform_web:interoperability' %}" {% if platform_page == 'interoperability' %}aria-current="page"{% endif %}>Interopérabilité</a>
+{% endif %}{% endfor %}
+</nav>
+<div class="operator"><div class="kicker">Opérateur authentifié</div><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><p class="muted">Les droits sont vérifiés côté serveur.</p></div>
+</aside>
+<div class="workspace">
+<header class="top"><span>Contexte : Platform · autorité en ligne</span><a href="/">Retour à Makolo ↗</a></header>
+<main id="main-content" class="main" tabindex="-1">
+<p class="kicker">Makolo Platform / {{ platform_heading }}</p>
+<h1>{{ platform_heading }}</h1>
+{% if messages %}<div role="status" aria-live="polite">{% for message in messages %}<p class="notice">{{ message }}</p>{% endfor %}</div>{% endif %}
+{% if platform_page == 'overview' %}
+{% if overview %}
+<p class="subtle">Situation Operations observée à {{ overview.generated_at|date:'d/m/Y H:i:s' }}. Cette synthèse ne couvre pas la santé de chaque domaine.</p>
+<div class="section"><h2>Attention opérationnelle</h2><p>État observé : <span class="status {{ overview.health }}">{{ overview.health }}</span></p>
+{% for signal in overview.signals %}<div class="signal"><div><strong>{{ signal.title }}</strong><p class="subtle">{{ signal.detail }}</p><span class="muted">{{ signal.domain }} · {{ signal.severity }}</span></div><strong>{{ signal.count }}</strong></div>{% empty %}<p class="subtle">Aucun signal prioritaire dans la couverture Operations actuelle.</p>{% endfor %}
+<a class="link" href="{% url 'platform_web:operations' %}">Ouvrir Operations</a></div>
+{% endif %}
+{% if limited_operator %}<p class="notice">Aucune supervision Operations n’est autorisée pour votre rôle. Seules vos capacités métier sont accessibles ci-dessous.</p>{% endif %}
+<section class="section"><h2>Mes capacités</h2>{% for module in platform_modules %}
+<div class="module"><div><strong>{% if module.key == 'trust_review' %}Confiance{% elif module.key == 'opportunity_curation' %}Curation{% elif module.key == 'recognition_governance' %}Recognition{% elif module.key == 'subscriptions' %}Abonnements{% elif module.key == 'interoperability' %}Interopérabilité{% else %}Opérations{% endif %}</strong><p class="muted">{{ module.contract_status }} · owner existant</p></div><a class="link secondary" href="{{ module.links.web }}">Ouvrir</a></div>
+{% endfor %}</section>
+{% elif platform_page == 'operations' %}
+<p class="subtle">Vue issue des signaux Operations existants. Les décisions sont exécutées par les services propriétaires.</p>
+<section class="section"><h2>Alertes</h2><p>État observé : <span class="status {{ overview.health }}">{{ overview.health }}</span> · {{ overview.generated_at|date:'d/m/Y H:i:s' }}</p>
+{% for signal in overview.signals %}<div class="signal"><div><strong>{{ signal.title }}</strong><p>{{ signal.detail }}</p></div><span>{{ signal.count }} · {{ signal.severity }}</span></div>{% empty %}<p>Aucun signal prioritaire détecté.</p>{% endfor %}</section>
+<section class="section"><h2>Files Operations</h2><a class="link secondary" href="{% url 'operations:organizations' %}">Organisations</a><a class="link secondary" href="{% url 'operations:events' %}">Événements</a><a class="link secondary" href="{% url 'operations:incidents' %}">Incidents</a><a class="link secondary" href="{% url 'operations:moderation' %}">Modération</a></section>
+{% elif platform_page == 'system' %}
+<p class="subtle">État du runtime observé via Operations. Un worker absent n’est pas considéré comme sain.</p>
+<section class="section"><h2>Workers observés</h2><div class="tablebox"><table><thead><tr><th scope="col">Worker</th><th scope="col">Instance</th><th scope="col">État</th><th scope="col">Dernier heartbeat</th></tr></thead><tbody>
+{% for worker in overview.workers %}<tr><td>{{ worker.worker_name }}</td><td>{{ worker.instance_id }}</td><td>{% if worker.stale %}En retard{% else %}{{ worker.state }}{% endif %}</td><td>{{ worker.last_seen_at|date:'d/m/Y H:i:s' }}</td></tr>{% empty %}<tr><td colspan="4">Aucun heartbeat observé ; état des workers inconnu.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="section"><h2>Signaux système</h2><p>État de couverture Operations : <span class="status {{ overview.health }}">{{ overview.health }}</span>. Dernière observation : {{ overview.generated_at|date:'d/m/Y H:i:s' }}.</p><a class="link secondary" href="{% url 'platform_web:interoperability' %}">Connexions</a></section>
+{% elif platform_page == 'audit' %}
+<p class="subtle">Trace Operations uniquement. Les autres domaines conservent leurs propres audits ; aucune fédération globale n’est revendiquée.</p><div class="tablebox"><table><thead><tr><th scope="col">Moment</th><th scope="col">Acteur</th><th scope="col">Action</th><th scope="col">Cible</th><th scope="col">Résumé</th></tr></thead><tbody>{% for row in audit_rows %}<tr><td>{{ row.created_at|date:'d/m/Y H:i:s' }}</td><td>{{ row.actor.get_full_name|default:row.actor.username|default:'Acteur non disponible' }}</td><td>{{ row.action }}</td><td>{{ row.target_type }}</td><td>{{ row.summary }}</td></tr>{% empty %}<tr><td colspan="5">Aucune action Operations enregistrée.</td></tr>{% endfor %}</tbody></table></div>
+{% elif platform_page == 'investigate' %}
+<p class="notice">{{ coverage }} Aucune recherche globale de Profiles, Payments, Credentials ou Evidence.</p><form class="formline" method="get"><label for="query">Identifiant Space ou titre d’incident</label><input id="query" type="search" name="q" maxlength="100" value="{{ query }}" required><button type="submit">Rechercher</button></form>
+{% if query %}<section class="section"><h2>Spaces — correspondances d’identifiant</h2>{% for space in investigation_spaces %}<div class="module"><div><strong>{{ space.name }}</strong><p class="muted">{{ space.slug }} · {{ space.lifecycle }}</p></div><a class="link secondary" href="{% url 'operations:organizations' %}?q={{ space.slug|urlencode }}">Ouvrir owner</a></div>{% empty %}<p>Aucune correspondance.</p>{% endfor %}</section>
+<section class="section"><h2>Incidents — correspondances de titre</h2>{% for incident in investigation_incidents %}<div class="module"><div><strong>{{ incident.title }}</strong><p class="muted">{{ incident.severity }} · {{ incident.status }}</p></div><a class="link secondary" href="{% url 'operations:incident-detail' incident.pk %}">Ouvrir owner</a></div>{% empty %}<p>Aucune correspondance.</p>{% endfor %}</section>{% endif %}
+{% elif platform_page == 'interoperability' %}
+<p class="subtle">Connexions du contexte Platform uniquement. Identifiants secrets, clés et tokens ne sont jamais projetés ici.</p>
+<div class="tablebox"><table><thead><tr><th scope="col">Connexion</th><th scope="col">État</th><th scope="col">Santé</th><th scope="col">Capacités</th></tr></thead><tbody>{% for connection in connections %}<tr><td>{{ connection.display_name }}</td><td>{{ connection.status }}</td><td>{{ connection.health }}</td><td>{{ connection.capabilities|join:', '|default:'Aucune capacité active' }}</td></tr>{% empty %}<tr><td colspan="4">Aucune connexion Platform configurée.</td></tr>{% endfor %}</tbody></table></div>
+{% elif platform_page == 'recognition' %}
+<p class="subtle">Policies Recognition : workflow propriétaire. Simulation en lecture seule ; publication non exposée tant que confirmation, cohérence temporelle et audit ne sont pas établis par un service owner.</p>
+<div class="tablebox"><table><thead><tr><th scope="col">Policy</th><th scope="col">Version</th><th scope="col">État</th><th scope="col">Frontière effective</th><th scope="col">Action sûre</th></tr></thead><tbody>{% for policy in policies %}<tr><td>{{ policy.name }}</td><td>{{ policy.version_key }}</td><td>{{ policy.get_status_display }}</td><td>{{ policy.effective_from|date:'d/m/Y H:i'|default:'Non planifiée' }}</td><td>{% if can_simulate and policy.status == 'draft' or can_simulate and policy.status == 'simulated' %}<a class="link secondary" href="{% url 'platform_web:recognition-simulation' policy.pk %}">Simuler 30 jours</a>{% else %}Consultation{% endif %}</td></tr>{% empty %}<tr><td colspan="5">Aucune policy disponible.</td></tr>{% endfor %}</tbody></table></div>
+{% elif platform_page == 'recognition_simulation' %}
+<a class="link secondary" href="{% url 'platform_web:recognition' %}">Retour aux policies</a><p class="notice">Simulation à {{ simulated_at|date:'d/m/Y H:i:s' }} sur les 30 derniers jours, sans écriture ni publication.</p><section class="section"><h2>{{ policy.name }} · {{ policy.version_key }}</h2><dl><dt>Signals</dt><dd>{{ simulation.signals }}</dd><dt>Correspondances</dt><dd>{{ simulation.matches }}</dd><dt>Crédits projetés</dt><dd>{{ simulation.projected_credits }}</dd><dt>Objets</dt><dd>{{ simulation.objects }}</dd></dl></section>
+{% endif %}
+<footer class="footer">Makolo Platform · Le Profile humain demeure l’acteur. Les domaines canoniques demeurent propriétaires.</footer>
+</main></div></div>
+</body></html>
