@@ -19,7 +19,7 @@ from core.api.me_projection import build_personal_resources_data
 from core.api.personal_projections import ONGOING_LIMIT, build_personal_ongoing_projection
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from objectives.models import DossierJourneyLink, DossierLifecycle
-from objectives.services import create_dossier
+from objectives.services import create_dossier, set_dossier_lifecycle
 from personal_assets.services import create_personal_asset, create_personal_asset_version
 
 
@@ -169,8 +169,11 @@ class Z12ProjectionPerformanceTests(TestCase):
                 owner_profile=self.user,
                 title=f"Dossier Z12 {index}",
             )
-            dossier.lifecycle = DossierLifecycle.ACTIVE
-            dossier.save(update_fields=["lifecycle", "updated_at"])
+            dossier = set_dossier_lifecycle(
+                actor=self.user,
+                dossier=dossier,
+                lifecycle=DossierLifecycle.ACTIVE,
+            )
             journey = Journey.objects.create(
                 initiated_by=self.user,
                 beneficiary=self.other,
