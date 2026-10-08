@@ -29,7 +29,7 @@ class MatureSpaceMarkContractTests(TestCase):
 
     def test_space_mark_response_exposes_server_resolved_actor_context(self):
         response = self.client.post(
-            reverse("organizations:space-mark-api", kwargs={"slug": self.space.slug}),
+            reverse("organizations-api:workspace-mark", kwargs={"slug": self.space.slug}),
             {
                 "input": {"kind": "text", "value": "Ouvre le Jour J."},
                 "context": {
