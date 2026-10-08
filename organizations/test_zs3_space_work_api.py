@@ -196,6 +196,23 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         )
         self.assertEqual(foreign.status_code, 404)
 
+    def test_media_presentation_uses_activity_owner_without_inventing_feed_or_media(self):
+        self.space.archetype = SpaceArchetype.MEDIA
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Journal du quartier")
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["active"]["representation"], "En production")
+        self.assertEqual(response.data["sections"]["activities"]["representation"], "Productions")
+        row = next(
+            item for item in response.data["sections"]["preparation"]["items"]
+            if item["source"] == {"kind": "activity", "id": str(activity.pk)}
+        )
+        self.assertNotIn("feed", str(response.data).lower())
+        self.assertNotIn("media", str(row).lower())
+
     def test_commerce_offer_requires_activity_commerce_authority(self):
         self.space.archetype = SpaceArchetype.COMMERCE
         self.space.save(update_fields=["archetype", "updated_at"])

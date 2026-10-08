@@ -64,6 +64,34 @@ _GENERIC_GRAMMAR = SpaceWorkPresentationGrammar(
     },
 )
 
+_MEDIA_GRAMMAR = SpaceWorkPresentationGrammar(
+    surface_empty_message="Aucune production visible pour le moment.",
+    section_order=(
+        "preparation",
+        "active",
+        "upcoming",
+        "blocked",
+        "activities",
+        "completed",
+    ),
+    labels={
+        "preparation": "À préparer",
+        "active": "En production",
+        "upcoming": "À venir",
+        "blocked": "Bloquées",
+        "activities": "Productions",
+        "completed": "Historique",
+    },
+    empty_messages={
+        "preparation": "Aucune production à préparer.",
+        "active": "Aucune production en cours.",
+        "upcoming": "Aucune réalisation à venir.",
+        "blocked": "Aucune production bloquée.",
+        "activities": "Aucune production visible.",
+        "completed": "Aucune production passée dans cette vue.",
+    },
+)
+
 _COMMERCE_GRAMMAR = SpaceWorkPresentationGrammar(
     surface_empty_message="Aucune offre ou commande visible pour le moment.",
     section_order=(
@@ -193,6 +221,7 @@ _TRANSPORT_GRAMMAR = SpaceWorkPresentationGrammar(
 
 SPACE_WORK_PRESENTATION_GRAMMARS = {
     SpaceArchetype.GENERIC: _GENERIC_GRAMMAR,
+    SpaceArchetype.MEDIA: _MEDIA_GRAMMAR,
     SpaceArchetype.COMMERCE: _COMMERCE_GRAMMAR,
     SpaceArchetype.EDUCATION: _PROGRAMMES_GRAMMAR,
     SpaceArchetype.SERVICE_PROVIDER: _SERVICES_GRAMMAR,
