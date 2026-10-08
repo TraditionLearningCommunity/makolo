@@ -31,7 +31,9 @@ class PlatformView(LoginRequiredMixin, TemplateView):
             self.module and self.module not in {item["key"] for item in self.platform_modules}
         ):
             raise PermissionDenied("Autorité Platform requise.")
-        return super().dispatch(request, *args, **kwargs)
+        response = super().dispatch(request, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
