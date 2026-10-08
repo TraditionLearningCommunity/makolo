@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from rest_framework.exceptions import PermissionDenied
 
 from core.api.me_views import PersonalProjectionAPIView
 from core.mark_orchestration import (
@@ -7,6 +8,12 @@ from core.mark_orchestration import (
     orchestrate_mark,
     public_mark_result,
 )
+
+
+_FORBIDDEN_CONTEXT_KEYS = frozenset({
+    "act_as_space", "beneficiary_id", "mandate", "organization_actor", "permission",
+    "profile_id", "role", "space_context", "space_id", "subject_id", "user_id",
+})
 
 
 class PersonalMarkAPIView(PersonalProjectionAPIView):
@@ -39,13 +46,31 @@ class PersonalMarkAPIView(PersonalProjectionAPIView):
         if not isinstance(context, dict):
             raise ValidationError({"context": ["Le contexte doit être un objet."]})
 
-        result = orchestrate_mark(
-            profile=request.user,
-            input_kind=input_kind,
-            value=value,
-            context=context,
+        forbidden_context = _FORBIDDEN_CONTEXT_KEYS.intersection(context)
+        if forbidden_context:
+            raise PermissionDenied("Le contexte d'autorité est résolu par le serveur.")
+
+        result = public_mark_result(
+            orchestrate_mark(
+                profile=request.user,
+                input_kind=input_kind,
+                value=value,
+                context=context,
+            )
         )
+        result["actor_context"] = {"kind": "profile"}
+        result["accepted_input_kinds"] = ["text"]
+        selected = context.get("selected")
+        result["request_context"] = {
+            "selected": {
+                key: selected[key]
+                for key in ("kind", "family")
+                if isinstance(selected, dict) and selected.get(key) is not None
+            }
+            if isinstance(selected, dict)
+            else None,
+        }
         return self._response(
-            public_mark_result(result),
+            result,
             observed_at=timezone.now(),
         )
