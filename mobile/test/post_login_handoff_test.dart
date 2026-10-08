@@ -42,6 +42,7 @@ void main() {
         File('${directory.path}/launch.json'),
       );
       await launchPreferences.setOnboardingCompleted();
+      await launchPreferences.setLastBrandMomentAt(DateTime.now().toUtc());
 
       final tokens = MemoryTokenStore();
       final recovery = SessionRecoveryController()
