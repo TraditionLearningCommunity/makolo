@@ -204,7 +204,7 @@ class NowSelector {
     if (businessActions is List) {
       for (final action in businessActions) {
         if (action is! Map) continue;
-        if (_string(action['label']) == null) continue;
+        if (_string(action['label']) == null && responseLabel == null) continue;
         businessCapability = _string(action['capability']);
         if (businessCapability != null) break;
       }
@@ -216,7 +216,7 @@ class NowSelector {
       for (final item in businessActions) {
         if (item is! Map) continue;
         final capability = _string(item['capability']);
-        final label = _string(item['label']);
+        final label = _string(item['label']) ?? responseLabel;
         if (capability == null || label == null) continue;
         parsedActions.add(NowBusinessActionPresentation(
           capability: capability,
