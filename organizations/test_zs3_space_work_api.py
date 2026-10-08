@@ -285,6 +285,22 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertNotIn(beneficiary.email, str(row))
         self.assertNotIn("requirement", str(row).lower())
 
+    def test_transport_presentation_contextualizes_without_reclassifying_structure(self):
+        self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
+        self.space.save(update_fields=["archetype", "updated_at"])
+        self._activity("Service Lubumbashi Kolwezi")
+        TransportRoute.objects.create(space=self.space, name="Lubumbashi → Kolwezi")
+        Vehicle.objects.create(space=self.space, label="Bus 18", passenger_capacity=50)
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["upcoming"]["representation"], "Prochains départs")
+        self.assertEqual(response.data["sections"]["active"]["representation"], "Départs en cours")
+        self.assertEqual(response.data["sections"]["activities"]["representation"], "Services")
+        self.assertEqual(response.data["sections"]["routes"]["role"], "structure")
+        self.assertEqual(response.data["sections"]["vehicles"]["role"], "structure")
+
     def test_transport_space_projection_uses_real_route_and_vehicle_owners(self):
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
         self.space.save(update_fields=["archetype", "updated_at"])
