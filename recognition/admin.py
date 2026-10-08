@@ -52,6 +52,8 @@ class RecognitionPolicyAdmin(admin.ModelAdmin):
     list_filter = ("status",)
     search_fields = ("code", "name")
     inlines = (RecognitionRuleInline,)
+    # Status transitions must only happen through explicit policy actions.
+    readonly_fields = ("status", "effective_until")
     actions = ("simulate_last_30_days", "publish_or_schedule")
 
     def has_module_permission(self, request):
