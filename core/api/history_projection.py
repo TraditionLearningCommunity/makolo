@@ -181,6 +181,11 @@ def build_personal_history_data(
             "limit": limit,
             "has_more": offset + len(items) < total,
         },
+        "coverage": {
+            "state": "partial",
+            "owners": ["journey", "access"],
+            "message": "Historique visible dans les sources actuellement couvertes.",
+        },
         "links": {
             "self": base,
             "current_accesses": reverse("personal-projections:accesses"),
