@@ -64,6 +64,64 @@ NowSelection contentSelection({
 }
 
 void main() {
+  test('S5 requires consequence and a coherent owner response', () {
+    final base = NowSituationPresentation(
+      identity: 'now:conflict',
+      reference: const StructuredDestination(kind: 'now', id: 'conflict'),
+      humanContext: 'Deux rendez-vous',
+      meaning: 'Les horaires se chevauchent.',
+      emphasis: NowPresentationEmphasis.primary,
+      relationMembers: const [
+        NowRelationMemberPresentation(id: 'a', label: 'Rendez-vous A'),
+        NowRelationMemberPresentation(id: 'b', label: 'Rendez-vous B'),
+      ],
+      relations: const [
+        NowRelationPresentation(kind: 'conflict', memberIds: ['a', 'b']),
+      ],
+    );
+    expect(topologyFor(base), NowTopology.meaning);
+    final composed = NowSituationPresentation(
+      identity: base.identity,
+      reference: base.reference,
+      humanContext: base.humanContext,
+      meaning: base.meaning,
+      emphasis: base.emphasis,
+      relationMembers: base.relationMembers,
+      relations: base.relations,
+      whyNow: 'Les rendez-vous ont lieu au même moment.',
+      consequence: 'Une présence simultanée est impossible.',
+      responseType: 'decide',
+    );
+    expect(topologyFor(composed), NowTopology.composition);
+  });
+
+  test('S2 and S3 precedence is independent of viewport', () {
+    final situation = NowSituationPresentation(
+      identity: 'now:media-action',
+      reference: const StructuredDestination(kind: 'now', id: 'media-action'),
+      humanContext: 'Certificat',
+      meaning: 'Vérifiez la pièce.',
+      emphasis: NowPresentationEmphasis.primary,
+      mediaBindings: const [
+        NowMediaBindingPresentation(
+          resourceRef: 'resource:1',
+          target: NowMediaTarget.state,
+          purpose: NowMediaPurpose.understand,
+          kind: NowMediaKind.pdf,
+          authorized: true,
+        ),
+      ],
+      businessActions: const [
+        NowBusinessActionPresentation(
+          capability: 'review',
+          label: 'Vérifier',
+          interactionDepth: NowInteractionDepth.focused,
+        ),
+      ],
+    );
+    expect(topologyFor(situation), NowTopology.media);
+  });
+
   testWidgets(
     'G01 compact keeps one dominant consequence and quieter secondary',
     (tester) async {
