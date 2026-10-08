@@ -393,32 +393,18 @@ class _NowSemanticContent extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (media.kind == NowMediaKind.image &&
-              media.url != null &&
-              Uri.tryParse(media.url!)?.hasScheme == true)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(MakoloRadii.card),
-              child: Image.network(
-                media.url!,
-                height: 240,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const SizedBox(height: 100, child: Center(child: Icon(Icons.image_not_supported_outlined))),
-              ),
-            )
-          else
-            ListTile(
-              leading: Icon(switch (media.kind) {
-                NowMediaKind.pdf => Icons.picture_as_pdf_outlined,
-                NowMediaKind.video => Icons.play_circle_outline,
-                NowMediaKind.audio => Icons.audiotrack_outlined,
-                NowMediaKind.coordinates => Icons.place_outlined,
-                _ => Icons.insert_drive_file_outlined,
-              }),
-              title: Text(media.label ?? 'Document lié à cette situation'),
-              subtitle: const Text('Consulter depuis la source autorisée'),
-            ),
+          ListTile(
+            leading: Icon(switch (media.kind) {
+              NowMediaKind.image => Icons.image_outlined,
+              NowMediaKind.pdf => Icons.picture_as_pdf_outlined,
+              NowMediaKind.video => Icons.play_circle_outline,
+              NowMediaKind.audio => Icons.audiotrack_outlined,
+              NowMediaKind.coordinates => Icons.place_outlined,
+              _ => Icons.insert_drive_file_outlined,
+            }),
+            title: Text(media.label ?? 'Média associé à cette situation'),
+            subtitle: const Text('Accès via la source autorisée'),
+          ),
           const SizedBox(height: MakoloSpacing.md),
         ],
       );
@@ -528,7 +514,7 @@ class _NowPrimarySituation extends StatelessWidget {
                 ),
               ],
               _NowSemanticContent(situation: situation),
-            if (situation.metadata.isNotEmpty) ...[
+              if (situation.metadata.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 MakoloMetadata(
                   items: [
