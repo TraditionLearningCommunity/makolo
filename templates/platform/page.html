@@ -13,7 +13,8 @@
 <aside>
 <a class="brand" href="{% url 'platform_web:home' %}">Makolo Platform<small>ESPACE OPÉRATEUR</small></a>
 <nav class="nav" aria-label="Navigation Platform">
-<a href="{% url 'platform_web:home' %}" {% if platform_page == 'overview' %}aria-current="page"{% endif %}>Vue d’ensemble</a>
+<a href="{% url 'platform_web:home' %}" {% block platform_content %}
+{% if platform_page == 'overview' %}aria-current="page"{% endif %}>Vue d’ensemble</a>
 {% for module in platform_modules %}
 {% if module.key == 'operations' %}
 <a href="{% url 'platform_web:investigate' %}" {% if platform_page == 'investigate' %}aria-current="page"{% endif %}>Investiguer</a>
@@ -71,6 +72,7 @@
 {% elif platform_page == 'recognition_simulation' %}
 <a class="link secondary" href="{% url 'platform_web:recognition' %}">Retour aux policies</a><p class="notice">Simulation à {{ simulated_at|date:'d/m/Y H:i:s' }} sur les 30 derniers jours, sans écriture ni publication.</p><section class="section"><h2>{{ policy.name }} · {{ policy.version_key }}</h2><dl><dt>Signals</dt><dd>{{ simulation.signals }}</dd><dt>Correspondances</dt><dd>{{ simulation.matches }}</dd><dt>Crédits projetés</dt><dd>{{ simulation.projected_credits }}</dd><dt>Objets</dt><dd>{{ simulation.objects }}</dd></dl></section>
 {% endif %}
+{% endblock %}
 <footer class="footer">Makolo Platform · Le Profile humain demeure l’acteur. Les domaines canoniques demeurent propriétaires.</footer>
 </main></div></div>
 </body></html>
