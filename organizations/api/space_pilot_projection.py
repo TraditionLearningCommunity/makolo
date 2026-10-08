@@ -17,6 +17,28 @@ def _metric(key, value, *, unit="count", period=None):
     }
 
 
+def _known_signals(analytics):
+    """Interpret established owner measurements without inferring trends or causes."""
+    signals = []
+    waiting = analytics.get("waitlist_waiting")
+    if isinstance(waiting, int) and waiting > 0:
+        signals.append({
+            "kind": "observed",
+            "title": "Des personnes attendent une place disponible.",
+            "summary": f"{waiting} demande(s) actuellement en liste d’attente dans le portefeuille couvert.",
+            "why": "Cette attente peut mériter une vérification de la capacité et des possibilités de délivrance.",
+            "state": "known",
+            "evidence": {"metric_key": "waitlist_waiting", "value": waiting, "unit": "count"},
+            "uncertainty": "Ce constat ne prouve ni saturation globale, ni évolution dans le temps.",
+            "owner": "Analytics",
+            "source": {"kind": "portfolio_analytics", "metric": "waitlist_waiting"},
+            "coverage": {"kind": "latest_visible_events", "limit": 40},
+            "period": None,
+            "links": {"deep": "analytics"},
+        })
+    return signals
+
+
 def build_space_pilot_projection(*, profile, space):
     workspace = build_space_workspace(profile, space)
     if workspace is None:
@@ -73,11 +95,12 @@ def build_space_pilot_projection(*, profile, space):
                 }
             )
 
+        signals = _known_signals(analytics)
         sections["analytics"] = {
             "state": state,
             "metrics": metrics,
             "money": money,
-            "signals": [],
+            "signals": signals,
             "source": {"kind": "analytics", "id": str(space.pk)},
             "generated_at": analytics["generated_at"],
             "coverage": {
@@ -92,7 +115,7 @@ def build_space_pilot_projection(*, profile, space):
     return {
         "authority": workspace["authority"],
         "sections": sections,
-        "signals": [],
+        "signals": sections.get("analytics", {}).get("signals", []),
         "links": {"workspace": workspace["links"]["workspace"]},
         "capabilities": {
             "view_analytics": analytics_visible,
