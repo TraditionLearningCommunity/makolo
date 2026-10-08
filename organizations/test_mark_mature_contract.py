@@ -63,7 +63,7 @@ class MatureSpaceMarkContractTests(TestCase):
 
     def test_space_mark_does_not_accept_client_permission(self):
         response = self.client.post(
-            reverse("organizations:space-mark-api", kwargs={"slug": self.space.slug}),
+            reverse("organizations_api:workspace-mark", kwargs={"slug": self.space.slug}),
             {
                 "input": {"kind": "text", "value": "Ajoute Marie."},
                 "context": {"permission": "space.owner"},
