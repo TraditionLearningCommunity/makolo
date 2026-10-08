@@ -82,7 +82,10 @@ void main() {
         find.byKey(const Key('login-password')),
         'secret-pass',
       );
-      await tester.tap(find.byKey(const Key('login-submit')));
+      final submit = find.byKey(const Key('login-submit'));
+      await tester.ensureVisible(submit);
+      await tester.pump();
+      await tester.tap(submit);
 
       for (
         var i = 0;
