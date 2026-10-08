@@ -39,13 +39,20 @@ class PersonalMarkAPIView(PersonalProjectionAPIView):
         if not isinstance(context, dict):
             raise ValidationError({"context": ["Le contexte doit être un objet."]})
 
-        result = orchestrate_mark(
-            profile=request.user,
-            input_kind=input_kind,
-            value=value,
-            context=context,
+        result = public_mark_result(
+            orchestrate_mark(
+                profile=request.user,
+                input_kind=input_kind,
+                value=value,
+                context=context,
+            )
         )
+        result["actor_context"] = {"kind": "profile"}
+        result["accepted_input_kinds"] = ["text"]
+        result["request_context"] = {
+            "selected": context.get("selected"),
+        }
         return self._response(
-            public_mark_result(result),
+            result,
             observed_at=timezone.now(),
         )
