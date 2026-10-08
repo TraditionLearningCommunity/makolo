@@ -200,12 +200,24 @@ class SpaceUsView(SpaceWebMixin):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        projection = build_space_us_projection(
-            profile=self.request.user,
-            space=self.space,
-        )
+        try:
+            projection = build_space_us_projection(
+                profile=self.request.user,
+                space=self.space,
+            )
+        except Exception:
+            logger.exception(
+                "Space Nous projection failed",
+                extra={"space_slug": self.space.slug},
+            )
+            context["projection"] = None
+            context["us_projection_error"] = True
+            context["us_owner_links"] = {}
+            return context
         owner_links = {
-            "relationships": context["space_relationships_url"],
+            "relationships": context["space_relationships_url"]
+            if projection.get("authority", {}).get("scope") == "space"
+            else None,
         }
         capabilities = projection.get("capabilities", {})
         if capabilities.get("manage_team"):

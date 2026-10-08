@@ -140,7 +140,7 @@ class Z6SurfaceBridgeTests(TestCase):
         self.assertIn("open_day_of", data["capabilities"])
         self.assertEqual(
             data["links"]["live"],
-            f"/api/v1/me/occurrences/{self.occurrence.pk}/live/",
+            f"/api/v1/operations/occurrences/{self.occurrence.pk}/live/",
         )
 
     def test_outsider_cannot_use_occurrence_detail_to_discover_day_of(self):

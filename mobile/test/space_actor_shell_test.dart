@@ -11,6 +11,7 @@ import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/mark/mark_screen.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
+import 'package:makolo_mobile/features/space/space_shell_routes.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 
 import 'fakes.dart';
@@ -109,6 +110,31 @@ Future<_Harness> _harness({bool startInSpace = false}) async {
           'combined': false,
         },
       ],
+    },
+  );
+  await store.putProjection(
+    kind: SpaceProjectionKind.us.wireValue,
+    resourceKey: SpaceSyncKeys.resourceKey('space-x'),
+    schemaVersion: 1,
+    payload: {
+      'identity': {'id': 'space-x', 'slug': 'space-x', 'name': 'Space X'},
+      'authority': {'scope': 'space', 'limited_to_activities': false},
+      'team': {
+        'items': [
+          {
+            'profile': {'name': 'Amina'},
+          },
+        ],
+      },
+      'responsibilities': {'items': []},
+      'ownership': {'items': []},
+      'trust': {'verified': false},
+      'capabilities': {'manage_team': true},
+      'handoffs': {
+        'team': '/space/space-x/us/team',
+        'responsibilities': '/space/space-x/us/responsibilities',
+      },
+      'links': {'workspace': '/api/v1/organizations/workspaces/space-x/'},
     },
   );
   await store.putProjection(
@@ -241,6 +267,58 @@ Future<void> _chooseActor(WidgetTester tester, String label) async {
 }
 
 void main() {
+  testWidgets('Nous depth keeps the authorized Space context', (tester) async {
+    final harness = await _harness(startInSpace: true);
+    addTearDown(harness.close);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: SpaceNousDepthScreen(
+          runtime: harness.runtime,
+          slug: 'space-x',
+          depth: 'team',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Équipe'), findsOneWidget);
+    expect(find.text('Amina'), findsOneWidget);
+    expect(harness.actorContext.value, isA<SpaceActorContext>());
+    expect(
+      (harness.actorContext.value as SpaceActorContext).space.slug,
+      'space-x',
+    );
+    await _disposeUi(tester);
+  });
+
+  testWidgets('Nous depth refuses a Space outside the authorized inventory', (
+    tester,
+  ) async {
+    final harness = await _harness(startInSpace: false);
+    addTearDown(harness.close);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: SpaceNousDepthScreen(
+          runtime: harness.runtime,
+          slug: 'not-authorized',
+          depth: 'team',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Ce contexte Space n’est pas disponible pour votre Profil.'),
+      findsOneWidget,
+    );
+    expect(harness.actorContext.value, const PersonalActorContext());
+    await _disposeUi(tester);
+  });
+
   testWidgets('Agir comme switches the same shell from personal to Space', (
     tester,
   ) async {

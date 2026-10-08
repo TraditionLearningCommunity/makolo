@@ -226,10 +226,7 @@ class Z7MakoloMarkAPIContractTests(TestCase):
                 "role": "owner",
             },
         )
-        data = response.json()["data"]
-
-        self.assertEqual(data["state"], "forbidden")
-        self.assertEqual(data["result"]["reason"], "personal_scope_only")
+        self.assertEqual(response.status_code, 403)
         self.assertNotIn(str(self.other.pk), response.content.decode())
 
         for key in (
@@ -244,12 +241,7 @@ class Z7MakoloMarkAPIContractTests(TestCase):
                     "Ouvre ma candidature",
                     context={key: str(self.other.pk)},
                 )
-                attempt_data = attempt.json()["data"]
-                self.assertEqual(attempt_data["state"], "forbidden")
-                self.assertEqual(
-                    attempt_data["result"]["reason"],
-                    "personal_scope_only",
-                )
+                self.assertEqual(attempt.status_code, 403)
                 self.assertNotIn(str(self.other.pk), attempt.content.decode())
 
     def test_mark_rejects_top_level_actor_override_and_is_no_store(self):
