@@ -210,6 +210,106 @@ class NowSelector {
     }
     final legacyCanOpen = capabilities.contains('open_detail');
 
+    final parsedActions = <NowBusinessActionPresentation>[];
+    if (businessActions is List) {
+      for (final item in businessActions) {
+        if (item is! Map) continue;
+        final capability = _string(item['capability']);
+        final label = _string(item['label']);
+        if (capability == null || label == null) continue;
+        parsedActions.add(NowBusinessActionPresentation(
+          capability: capability,
+          label: label,
+          href: _string(item['href']),
+          presentationRank: _string(item['presentation_rank']),
+          interactionDepth: switch (_string(item['interaction_depth'])) {
+            'direct_now' => NowInteractionDepth.directNow,
+            'focused' => NowInteractionDepth.focused,
+            'domain_depth' => NowInteractionDepth.domainDepth,
+            'none' => NowInteractionDepth.none,
+            _ => NowInteractionDepth.unknown,
+          },
+        ));
+      }
+    }
+    final parsedMedia = <NowMediaBindingPresentation>[];
+    final rawMedia = raw['media_bindings'];
+    if (rawMedia is List) {
+      for (final item in rawMedia) {
+        if (item is! Map) continue;
+        final ref = _string(item['resource_ref']);
+        if (ref == null) continue;
+        parsedMedia.add(NowMediaBindingPresentation(
+          resourceRef: ref,
+          target: switch (_string(item['target'])) {
+            'situation' => NowMediaTarget.situation,
+            'subject' => NowMediaTarget.subject,
+            'human_context' => NowMediaTarget.humanContext,
+            'state' => NowMediaTarget.state,
+            'delta' => NowMediaTarget.delta,
+            'turn' => NowMediaTarget.turn,
+            'makolo_preparation' => NowMediaTarget.makoloPreparation,
+            'action' => NowMediaTarget.action,
+            _ => NowMediaTarget.unknown,
+          },
+          purpose: switch (_string(item['purpose'])) {
+            'recognize' => NowMediaPurpose.recognize,
+            'understand' => NowMediaPurpose.understand,
+            'establish' => NowMediaPurpose.establish,
+            'prepare' => NowMediaPurpose.prepare,
+            'act' => NowMediaPurpose.act,
+            _ => NowMediaPurpose.unknown,
+          },
+          kind: switch (_string(item['kind'])) {
+            'image' => NowMediaKind.image,
+            'pdf' => NowMediaKind.pdf,
+            'video' => NowMediaKind.video,
+            'audio' => NowMediaKind.audio,
+            'coordinates' => NowMediaKind.coordinates,
+            _ => NowMediaKind.unknown,
+          },
+          mimeType: _string(item['mime_type']),
+          url: _string(item['url']),
+          localPath: _string(item['local_path']),
+          label: _string(item['label']),
+          aspect: _string(item['aspect']),
+          cached: item['cached'] == true,
+          authorized: item['authorized'] == true,
+          presentationRank: _string(item['presentation_rank']),
+        ));
+      }
+    }
+    final members = <NowRelationMemberPresentation>[];
+    final rawMembers = raw['relation_members'];
+    if (rawMembers is List) {
+      for (final item in rawMembers) {
+        if (item is! Map) continue;
+        final id = _string(item['id']);
+        final label = _string(item['label']);
+        if (id != null && label != null) {
+          members.add(NowRelationMemberPresentation(
+            id: id, label: label,
+            subtext: _string(item['subtext']),
+            knowledgeState: _string(item['knowledge_state']),
+          ));
+        }
+      }
+    }
+    final relations = <NowRelationPresentation>[];
+    final rawRelations = raw['relations'];
+    if (rawRelations is List) {
+      for (final item in rawRelations) {
+        if (item is! Map) continue;
+        final kind = _string(item['kind']);
+        if (kind != null) {
+          relations.add(NowRelationPresentation(
+            kind: kind,
+            memberIds: _strings(item['member_ids']),
+            summary: _string(item['summary']),
+          ));
+        }
+      }
+    }
     return NowSituationPresentation(
       identity: identity,
       reference: reference,
@@ -222,6 +322,13 @@ class NowSelector {
       consequenceState: _semanticString(raw['consequence'], 'state'),
       turn: _semanticString(raw['turn'], 'type'),
       responseType: responseType,
+      turnLabel: _semanticString(raw['turn'], 'label'),
+      mediaBindings: List.unmodifiable(parsedMedia),
+      businessActions: List.unmodifiable(parsedActions),
+      relationMembers: List.unmodifiable(members),
+      relations: List.unmodifiable(relations),
+      makoloPreparation: List.unmodifiable(_strings(raw['makolo_preparation'])),
+      knowledgeState: _string(raw['knowledge_state']),
       emphasis: index == 0
           ? NowPresentationEmphasis.primary
           : NowPresentationEmphasis.secondary,
