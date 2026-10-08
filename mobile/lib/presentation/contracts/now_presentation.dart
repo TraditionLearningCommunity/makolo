@@ -19,7 +19,7 @@ enum NowMediaTarget {
   unknown,
 }
 
-enum NowMediaKind { image, pdf, video, audio, coordinates, unknown }
+enum NowMediaKind { image, pdf, document, video, audio, coordinates, unknown }
 
 enum NowInteractionDepth { directNow, focused, domainDepth, none, unknown }
 
