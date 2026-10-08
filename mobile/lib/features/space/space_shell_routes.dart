@@ -185,7 +185,7 @@ class _SpaceProjectionBody extends StatelessWidget {
         payload,
         emptyMessage: 'Rien à découvrir pour le moment.',
       ),
-      SpaceShellSurface.work => _workBody(payload),
+      SpaceShellSurface.work => _workBody(context, payload),
       SpaceShellSurface.us => _usBody(payload),
     };
   }
@@ -206,7 +206,7 @@ class _SpaceProjectionBody extends StatelessWidget {
     );
   }
 
-  Widget _workBody(Map<String, dynamic> payload) {
+  Widget _workBody(BuildContext context, Map<String, dynamic> payload) {
     final sections = payload['sections'];
     if (sections is! Map) {
       return _message('Cette vue n’est pas disponible pour le moment.');
@@ -219,11 +219,25 @@ class _SpaceProjectionBody extends StatelessWidget {
       'completed': 'Terminés',
     };
     final rows = <MapEntry<String, int>>[];
+    final activeOccurrences = <Map<String, dynamic>>[];
     for (final entry in labels.entries) {
       final section = sections[entry.key];
       final items = section is Map ? section['items'] : null;
       if (items is List && items.isNotEmpty) {
         rows.add(MapEntry(entry.value, items.length));
+        if (entry.key == 'active') {
+          for (final item in items.whereType<Map>()) {
+            final row = Map<String, dynamic>.from(item);
+            final capabilities = row['capabilities'];
+            final source = row['source'];
+            if (source is Map &&
+                source['kind'] == 'occurrence' &&
+                capabilities is List &&
+                capabilities.contains('open_day_of')) {
+              activeOccurrences.add(row);
+            }
+          }
+        }
       }
     }
     if (rows.isEmpty) {
@@ -239,6 +253,30 @@ class _SpaceProjectionBody extends StatelessWidget {
             title: Text(row.key),
             trailing: Text('${row.value}'),
           ),
+        if (activeOccurrences.isNotEmpty) ...[
+          const Divider(height: MakoloSpacing.xl),
+          const Text(
+            'Occurrences à opérer maintenant',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          for (final item in activeOccurrences)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                item['title'] is String
+                    ? item['title'] as String
+                    : 'Occurrence',
+              ),
+              subtitle: const Text('Ouvrir le Jour J Space'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                final source = item['source'];
+                if (source is Map && source['id'] is String) {
+                  context.push('/space/occurrences/${source['id']}/day-of');
+                }
+              },
+            ),
+        ],
       ],
     );
   }

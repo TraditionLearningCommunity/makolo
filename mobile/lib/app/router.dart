@@ -23,6 +23,7 @@ import '../features/questionnaires/questionnaire_routes.dart';
 import '../features/settings/billing_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
+import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
 import 'app_shell.dart';
@@ -68,6 +69,7 @@ GoRouter createMakoloRouter(
       '/discover/items/',
       '/activities/',
       '/occurrences/',
+      '/space/occurrences/',
       '/accesses/',
       '/conversations/',
       '/dossiers/',
@@ -202,6 +204,51 @@ GoRouter createMakoloRouter(
       ...questionnaireRoutes(runtime),
       ...dayOfRoutes(runtime),
       ...liveRoutes(runtime),
+      GoRoute(
+        path: '/space/occurrences/:id/day-of',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          final repository = runtime.spaceOccurrences;
+          if (actor is! SpaceActorContext || repository == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Jour J Space',
+              message: 'Cette Occurrence n’est pas disponible dans le contexte Space actuel.',
+            );
+          }
+          return SpaceOccurrenceScreen(
+            space: actor.space,
+            occurrenceId: state.pathParameters['id']!,
+            repository: repository,
+            live: false,
+            onOpenLive: () => context.push(
+              '/space/occurrences/${state.pathParameters['id']}/live',
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/occurrences/:id/live',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          final repository = runtime.spaceOccurrences;
+          if (actor is! SpaceActorContext || repository == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Live Space',
+              message:
+                  'Le Live opérateur n’est pas disponible dans ce contexte.',
+            );
+          }
+          return SpaceOccurrenceScreen(
+            space: actor.space,
+            occurrenceId: state.pathParameters['id']!,
+            repository: repository,
+            live: true,
+            onBackToDayOf: () => context.go(
+              '/space/occurrences/${state.pathParameters['id']}/day-of',
+            ),
+          );
+        },
+      ),
       ...accessRoutes(runtime),
       GoRoute(
         path: '/groups/:id',
