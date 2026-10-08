@@ -200,7 +200,7 @@ class WS4SpaceWebTests(TestCase):
         response = self.client.get(self.url("organizations:space-relationships"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Aperçu limité à 12 relations.")
+        self.assertContains(response, "Voir toutes les relations dans leur domaine propriétaire.")
         self.assertContains(response, "Contact borné 00")
         self.assertNotContains(response, "Contact borné 12")
         self.assertContains(response, "Aucun groupe visible dans ce contexte.")
