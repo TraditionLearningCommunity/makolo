@@ -21,10 +21,11 @@ import 'now_selector.dart';
 import 'now_media_viewer.dart';
 
 class NowScreen extends StatefulWidget {
-  const NowScreen({super.key, required this.repository, this.now, this.api});
+  const NowScreen({super.key, required this.repository, this.now, this.api, this.profileId});
 
   final PersonalRepository repository;
   final MakoloApiClient? api;
+  final String? profileId;
   final DateTime Function()? now;
 
   @override
@@ -132,6 +133,7 @@ class _NowScreenState extends State<NowScreen> {
     return NowView(
       selection: selection,
       api: widget.api,
+      profileId: widget.profileId,
       onOpenOwner: (destination) => _openOwner(context, destination),
     );
   }
@@ -159,10 +161,11 @@ class _NowScreenState extends State<NowScreen> {
 }
 
 class NowView extends StatefulWidget {
-  const NowView({super.key, required this.selection, this.onOpenOwner, this.api, this.initialSelectedKey});
+  const NowView({super.key, required this.selection, this.onOpenOwner, this.api, this.initialSelectedKey, this.profileId});
 
   final NowSelection selection;
   final String? initialSelectedKey;
+  final String? profileId;
   final MakoloApiClient? api;
   final ValueChanged<StructuredDestination>? onOpenOwner;
 
@@ -216,6 +219,7 @@ class _NowViewState extends State<NowView> {
       onSelect: _select,
       onOpenOwner: widget.onOpenOwner,
       api: widget.api,
+      profileId: widget.profileId,
     );
 
     final content = selected == null
@@ -232,6 +236,8 @@ class _NowViewState extends State<NowView> {
                 onClose: _closeDepth,
                 onOpenOwner: widget.onOpenOwner,
                 api: widget.api,
+
+                profileId: widget.profileId,
               ),
             ),
             narrow: MakoloContentFrame(
@@ -241,6 +247,8 @@ class _NowViewState extends State<NowView> {
                 onClose: _closeDepth,
                 onOpenOwner: widget.onOpenOwner,
                 api: widget.api,
+
+                profileId: widget.profileId,
               ),
             ),
           );
@@ -306,6 +314,7 @@ class _NowField extends StatelessWidget {
     required this.onSelect,
     required this.onOpenOwner,
     required this.api,
+    required this.profileId,
   });
 
   final List<NowSituationPresentation> situations;
@@ -314,6 +323,7 @@ class _NowField extends StatelessWidget {
   final ValueChanged<NowSituationPresentation> onSelect;
   final ValueChanged<StructuredDestination>? onOpenOwner;
   final MakoloApiClient? api;
+  final String? profileId;
 
   @override
   Widget build(BuildContext context) {
@@ -333,6 +343,7 @@ class _NowField extends StatelessWidget {
           onSelect: () => onSelect(primary),
           onOpenOwner: onOpenOwner,
           api: api,
+          profileId: profileId,
         ),
         if (secondary.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.strong),
@@ -405,10 +416,12 @@ NowTopology topologyFor(NowSituationPresentation situation) {
 }
 
 class _NowSemanticContent extends StatelessWidget {
-  const _NowSemanticContent({required this.situation, required this.api});
+  const _NowSemanticContent({required this.situation, required this.api, required this.profileId});
 
   final NowSituationPresentation situation;
   final MakoloApiClient? api;
+  final String? profileId;
+  final String? profileId;
 
   @override
   Widget build(BuildContext context) {
@@ -520,7 +533,7 @@ class _NowSemanticContent extends StatelessWidget {
     if (client == null || nowAuthorizedMediaPath(media) == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (context) => NowMediaViewer(media: media, api: client),
+        builder: (context) => NowMediaViewer(media: media, api: client, profileId: profileId),
       ),
     );
   }
@@ -540,6 +553,8 @@ class _NowPrimarySituation extends StatelessWidget {
   final VoidCallback onSelect;
   final ValueChanged<StructuredDestination>? onOpenOwner;
   final MakoloApiClient? api;
+  final String? profileId;
+  final String? profileId;
 
   @override
   Widget build(BuildContext context) {
@@ -593,7 +608,7 @@ class _NowPrimarySituation extends StatelessWidget {
                   ),
                 ),
               ],
-              _NowSemanticContent(situation: situation, api: api),
+              _NowSemanticContent(situation: situation, api: api, profileId: profileId),
               if (situation.metadata.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 MakoloMetadata(
@@ -676,6 +691,7 @@ class _NowDepth extends StatelessWidget {
   final VoidCallback onClose;
   final ValueChanged<StructuredDestination>? onOpenOwner;
   final MakoloApiClient? api;
+  final String? profileId;
 
   @override
   Widget build(BuildContext context) {
@@ -741,7 +757,7 @@ class _NowDepth extends StatelessWidget {
                 child: Text(consequence),
               ),
             ],
-            _NowSemanticContent(situation: situation, api: api),
+            _NowSemanticContent(situation: situation, api: api, profileId: profileId),
             if (situation.horizon != null &&
                 topologyFor(situation) == NowTopology.waiting) ...[
               const SizedBox(height: MakoloSpacing.md),
