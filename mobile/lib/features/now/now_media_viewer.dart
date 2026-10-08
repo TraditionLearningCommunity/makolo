@@ -54,11 +54,13 @@ class NowMediaViewer extends StatefulWidget {
     required this.media,
     required this.api,
     this.sharing = const SystemShareGateway(),
+    this.temporaryDirectory,
   });
 
   final NowMediaBindingPresentation media;
   final MakoloApiClient api;
   final ShareGateway sharing;
+  final Directory? temporaryDirectory;
 
   @override
   State<NowMediaViewer> createState() => _NowMediaViewerState();
@@ -89,7 +91,7 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
     }
     File? file;
     try {
-      final temporary = await getTemporaryDirectory();
+      final temporary = widget.temporaryDirectory ?? await getTemporaryDirectory();
       final dir = Directory('${temporary.path}/makolo-now-media');
       await dir.create(recursive: true);
       file = File(
@@ -216,31 +218,52 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       return const Center(child: Text('Lecture indisponible.'));
     }
     final isAudio = widget.media.kind == NowMediaKind.audio;
-    return Center(child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (!isAudio)
-          AspectRatio(
-            aspectRatio: player.value.aspectRatio > 0
-                ? player.value.aspectRatio : 16 / 9,
-            child: VideoPlayer(player),
-          )
-        else
-          const Icon(Icons.audiotrack_outlined, size: 80),
-        const SizedBox(height: 16),
-        IconButton.filledTonal(
-          tooltip: player.value.isPlaying ? 'Pause' : 'Lire',
-          onPressed: () async {
-            if (player.value.isPlaying) {
-              await player.pause();
-            } else {
-              await player.play();
-            }
-            if (mounted) setState(() {});
-          },
-          icon: Icon(player.value.isPlaying ? Icons.pause : Icons.play_arrow),
-        ),
-      ],
-    ));
+    return Center(
+      child: ValueListenableBuilder<VideoPlayerValue>(
+        valueListenable: player,
+        builder: (context, state, child) {
+          final total = state.duration.inMilliseconds.toDouble();
+          final current = state.position.inMilliseconds.toDouble();
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isAudio)
+                AspectRatio(
+                  aspectRatio: state.aspectRatio > 0
+                      ? state.aspectRatio
+                      : 16 / 9,
+                  child: VideoPlayer(player),
+                )
+              else
+                const Icon(Icons.audiotrack_outlined, size: 80),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  IconButton.filledTonal(
+                    tooltip: state.isPlaying ? 'Pause' : 'Lire',
+                    onPressed: () => state.isPlaying
+                        ? player.pause()
+                        : player.play(),
+                    icon: Icon(state.isPlaying
+                        ? Icons.pause
+                        : Icons.play_arrow),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: total > 0 ? current.clamp(0.0, total) : 0,
+                      max: total > 0 ? total : 1,
+                      onChanged: total > 0
+                          ? (value) => player.seekTo(
+                              Duration(milliseconds: value.toInt()))
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }
