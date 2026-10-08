@@ -237,6 +237,9 @@ class SpaceRelationshipsView(SpaceWebMixin):
         projection = build_space_relationships_projection(
             profile=self.request.user,
             space=self.space,
+            query=self.request.GET.get("q", "")[:120],
+            relation_kind=self.request.GET.get("kind", "")[:40],
+            relation_id=self.request.GET.get("id", "")[:80],
         )
         sections = projection.get("sections", {})
         owner_links = {}
