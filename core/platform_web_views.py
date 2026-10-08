@@ -10,7 +10,6 @@ from django.shortcuts import redirect
 from operations.forms import EventModerationForm, OrganizationReviewForm
 from operations.services import change_organization_lifecycle, moderate_event, audit_action
 from operations.selectors import get_operations_events
-from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.generic import TemplateView
@@ -250,6 +249,8 @@ class PlatformSpaceDecisionView(PlatformDecisionView):
         return subject.lifecycle
 
     def apply_decision(self, subject, data, actor):
+        if subject.lifecycle == data["status"]:
+            raise ValidationError("Cette décision est déjà appliquée.")
         result = change_organization_lifecycle(
             organization=subject, status=data["status"], actor=actor,
             reason=data["reason"],
@@ -284,6 +285,12 @@ class PlatformEventDecisionView(PlatformDecisionView):
         return f"{subject.status}:{subject.visibility}"
 
     def apply_decision(self, subject, data, actor):
+        from events.models import EventStatus, EventVisibility
+        if ((data["action"] == "unlist" and subject.visibility == EventVisibility.UNLISTED)
+            or (data["action"] == "private" and subject.visibility == EventVisibility.PRIVATE)
+            or (data["action"] == "cancel" and subject.status == EventStatus.CANCELLED)
+            or (data["action"] == "restore_public" and subject.visibility == EventVisibility.PUBLIC)):
+            raise ValidationError("Cette décision est déjà appliquée.")
         return moderate_event(
             event=subject, action=data["action"], actor=actor,
             reason=data["reason"],
