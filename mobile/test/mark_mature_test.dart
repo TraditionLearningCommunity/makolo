@@ -26,9 +26,9 @@ void main() {
     expect(result.message, contains('Enregistré sur cet appareil'));
   });
 
-  testWidgets('initial Mark keeps input dominant and exposes native intake actions', (
-    tester,
-  ) async {
+  testWidgets(
+    'initial Mark keeps input dominant and exposes native intake actions',
+    (tester) async {
     final runtime = AppRuntime(
       tokens: MemoryTokenStore(),
       session: null,
@@ -71,7 +71,9 @@ void main() {
     expect(find.text('Thinking with AI'), findsNothing);
   });
 
-  testWidgets('selected context is visible without granting authority', (tester) async {
+  testWidgets(
+    'selected context is visible without granting authority',
+    (tester) async {
     final runtime = AppRuntime(
       tokens: MemoryTokenStore(),
       session: null,
