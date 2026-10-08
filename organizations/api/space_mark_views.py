@@ -90,9 +90,16 @@ class SpaceMarkAPIView(APIView):
             "slug": space.slug,
         }
         result["accepted_input_kinds"] = ["text"]
+        selected = context.get("selected")
         result["request_context"] = {
             "responsibility": context.get("responsibility"),
-            "selected": context.get("selected"),
+            "selected": {
+                key: selected[key]
+                for key in ("kind", "family")
+                if isinstance(selected, dict) and selected.get(key) is not None
+            }
+            if isinstance(selected, dict)
+            else None,
         }
         response = Response(
             projection_envelope(
