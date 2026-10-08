@@ -6,10 +6,10 @@
 <p class="muted">Identifiant : {{ canonical.pk }} · état : {{ canonical.publication_status }}</p>
 <p class="notice">La fusion transfère les références de sauvegarde du doublon vers l'Opportunity survivante et publie un Domain Event canonique. L'Opportunity source devient fusionnée ; cette action n'est pas une simple correction éditoriale.</p>
 {% if error_message %}<p class="notice" role="alert">{{ error_message }}</p>{% endif %}
+<form method="get" class="formline"><label for="lookup">Rechercher le doublon</label><input id="lookup" name="q" value="{{ query }}" maxlength="100" type="search"><button type="submit">Filtrer</button></form>
 <form method="post">
 {% csrf_token %}
 <input type="hidden" name="expected_canonical" value="{{ canonical_version }}">
-<form method="get" class="formline"><label for="lookup">Rechercher le doublon</label><input id="lookup" name="q" value="{{ query }}" maxlength="100" type="search"><button type="submit">Filtrer</button></form>
 <div><label for="duplicate">Opportunity à fusionner (doublon)</label></div>
 <select name="duplicate" id="duplicate" required style="max-width:44rem;width:100%;background:#1f2937;color:white;border:1px solid #9097b1;border-radius:.5rem;padding:.85rem;margin:.7rem 0">
 <option value="">Choisir une Opportunity distincte</option>
