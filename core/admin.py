@@ -41,7 +41,7 @@ class DomainEventOutboxAdmin(admin.ModelAdmin):
             actions.pop("requeue_failed_events", None)
         return actions
 
-    @admin.action(description="Reprise technique ciblée (raison obligatoire)")
+    @admin.action(permissions=["view"], description="Reprise technique ciblée (raison obligatoire)")
     def requeue_failed_events(self, request, queryset):
         if not (request.user.is_active and request.user.is_staff and request.user.is_superuser):
             raise PermissionDenied
