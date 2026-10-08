@@ -508,6 +508,7 @@ class _NowSemanticContent extends StatelessWidget {
   IconData _mediaIcon(NowMediaKind kind) => switch (kind) {
     NowMediaKind.image => Icons.image_outlined,
     NowMediaKind.pdf => Icons.picture_as_pdf_outlined,
+    NowMediaKind.document => Icons.description_outlined,
     NowMediaKind.video => Icons.play_circle_outline,
     NowMediaKind.audio => Icons.audiotrack_outlined,
     NowMediaKind.coordinates => Icons.place_outlined,
