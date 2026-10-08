@@ -28,17 +28,20 @@ def _collection(queryset, serializer, *, links=None):
     }
 
 
-def _team_rows(space, query=None):
-    rows = space.teams.filter(
+def _team_rows(space, query=None, membership_id=None):
+    predicates = Q(
         is_default=True,
         memberships__status=TeamMembershipStatus.ACTIVE,
     )
     if query:
-        rows = rows.filter(
+        predicates &= (
             Q(memberships__user__first_name__icontains=query)
             | Q(memberships__user__last_name__icontains=query)
             | Q(memberships__user__username__icontains=query)
         )
+    if membership_id:
+        predicates &= Q(memberships__id=membership_id)
+    rows = space.teams.filter(predicates)
     return (
         rows.values(
             "name",
@@ -282,7 +285,7 @@ def _build_selection(
         return None
 
     if relation_kind == "team_member" and team_visible:
-        row = _safe_first(team_rows(), memberships__id=relation_id)
+        row = team_rows(membership_id=relation_id).first()
         return serializers["team"](row) if row else None
     if relation_kind == "group" and group_visible:
         row = _safe_first(groups, pk=relation_id)
@@ -393,7 +396,9 @@ def build_space_relationships_projection(
         group_visible=group_visible,
         crm_visible=crm_visible,
         partner_visible=partner_visible,
-        team_rows=lambda query=None: _team_rows(space, query=query),
+        team_rows=lambda query=None, membership_id=None: _team_rows(
+            space, query=query, membership_id=membership_id
+        ),
         groups=groups,
         contacts=contacts,
         audiences=audiences,
@@ -407,7 +412,9 @@ def build_space_relationships_projection(
         group_visible=group_visible,
         crm_visible=crm_visible,
         partner_visible=partner_visible,
-        team_rows=lambda: _team_rows(space),
+        team_rows=lambda membership_id=None: _team_rows(
+            space, membership_id=membership_id
+        ),
         groups=groups,
         contacts=contacts,
         audiences=audiences,
