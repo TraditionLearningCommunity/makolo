@@ -120,7 +120,12 @@ class _HandoffHarness extends ConsumerWidget {
           if (personal == null) {
             return const Text('runtime missing personal repository');
           }
-          return Scaffold(body: NowScreen(repository: personal));
+          return Scaffold(
+            body: NowScreen(
+              repository: personal,
+              now: () => DateTime.utc(2026, 10, 8),
+            ),
+          );
         },
       ),
     );
