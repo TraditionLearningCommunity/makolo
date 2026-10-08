@@ -66,6 +66,8 @@ class MaturePersonalExperienceTests(TestCase):
         self.assertContains(ongoing_response, 'data-mk-surface="ongoing"')
         self.assertContains(me_response, 'data-mk-surface="me"')
         self.assertContains(me_response, 'class="mk-me-grid"')
+        self.assertNotContains(me_response, self.user.email)
+        self.assertContains(me_response, f"@{self.user.username}")
 
     def test_me_does_not_reduce_the_person_to_a_completion_score(self):
         response = self.client.get(reverse("core:participant-me"))

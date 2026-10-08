@@ -1,6 +1,9 @@
 {% extends 'organizations/space/ws4_base.html' %}
 {% block space_content %}
 <section class="mk-ws4-stack" aria-labelledby="space-us-heading">
+  {% if us_projection_error %}
+  <div class="mk-ws4-state mk-ws4-state--wide" role="alert"><i data-lucide="triangle-alert" aria-hidden="true"></i><div><strong>La surface Nous ne peut pas être actualisée pour le moment.</strong><p>L’identité de l’Espace reste disponible dans le shell. Réessayez lorsque la projection collective sera à nouveau accessible.</p></div></div>
+  {% else %}
   <header class="mk-ws4-heading">
     <span class="mk-kicker">Nous</span>
     <h2 id="space-us-heading">Qui sommes-nous, avec qui fonctionnons-nous et comment sommes-nous organisés ?</h2>
@@ -23,6 +26,9 @@
   </article>
 
   <div class="mk-ws4-grid mk-ws4-grid--us">
+    {% if projection.authority.scope == 'activity_limited' %}
+    <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Contexte limité à certaines activités</strong><p>Vous voyez uniquement ce que cette responsabilité permet de connaître. L’équipe globale, l’ownership et les paramètres privés restent masqués.</p></div></div>
+    {% endif %}
     {% if projection.authority.scope == 'space' %}
     <section class="mk-ws4-card" aria-labelledby="space-us-team">
       <div class="mk-ws4-card-head">
@@ -95,6 +101,7 @@
     {% if us_owner_links.pilot %}<a class="mk-ws4-action" href="{{ us_owner_links.pilot }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Piloter</strong><small>Comprendre ce qui fonctionne et ce qui change.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
     {% if us_owner_links.settings %}<a class="mk-ws4-action mk-ws4-action--quiet" href="{{ us_owner_links.settings }}"><i data-lucide="settings-2" aria-hidden="true"></i><span><strong>Paramètres de l’Espace</strong><small>Administration institutionnelle.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
   </nav>
+  {% endif %}
 </section>
 <!-- Keep WS1 utility tokens in Tailwind's content graph after replacing the placeholder:
 space-y-4 mt-2 text-3xl font-extrabold tracking-[-.04em] mk-panel p-6 font-bold max-w-2xl text-sm mk-btn mk-btn-secondary mt-5
