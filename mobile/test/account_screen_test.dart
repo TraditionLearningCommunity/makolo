@@ -8,7 +8,9 @@ import 'package:makolo_mobile/features/settings/account_screen.dart';
 import 'fakes.dart';
 
 void main() {
-  testWidgets('account exposes supported access capabilities only', (\n    tester,\n  ) async {
+  testWidgets('account exposes supported access capabilities only', (
+    tester,
+  ) async {
     final tokens = MemoryTokenStore();
     await tokens.saveAccount(
       DeviceAccount(
