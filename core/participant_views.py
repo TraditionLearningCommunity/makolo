@@ -331,13 +331,25 @@ class ParticipantHistoryView(LoginRequiredMixin, TemplateView):
             limit=PERSONAL_PAGE_SIZE,
         )
         page_obj.object_list = items
+        selected_ref = (self.request.GET.get("selected") or "")[:120]
+        selected_history = None
+        for item in items:
+            target = (
+                item["access_card"]["access"].pk if item["kind"] == "access"
+                else item["journey_card"]["journey"].pk
+            )
+            if f'{item["kind"]}:{target}' == selected_ref:
+                selected_history = item
+                break
         context.update(
             {
                 "q": q,
                 "history_filter": history_filter,
                 "history_items": items,
                 "page_obj": page_obj,
-                "pagination_query": _pagination_query(self.request, "page"),
+                "pagination_query": _pagination_query(self.request, "page", "selected"),
+                "selected_history": selected_history,
+                "selected_ref": selected_ref,
             }
         )
         return context
