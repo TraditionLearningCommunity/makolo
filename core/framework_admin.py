@@ -42,6 +42,12 @@ class SecretSafeSocialAppForm(SocialAppForm):
     class Meta(SocialAppForm.Meta):
         exclude = ("secret", "key", "settings")
 
+    def clean_settings_payload(self):
+        payload = self.cleaned_data.get("settings_payload")
+        if payload is not None and not isinstance(payload, dict):
+            raise forms.ValidationError("Les paramètres du provider doivent former un objet JSON.")
+        return payload
+
 
 class TechnicalSocialAppAdmin(SocialAppAdmin):
     form = SecretSafeSocialAppForm
@@ -63,7 +69,7 @@ class TechnicalSocialAppAdmin(SocialAppAdmin):
         return False
 
     def save_model(self, request, obj, form, change):
-        # A blank replacement retains encrypted-at-rest/out-of-band values; do
+        # A blank replacement retains the existing framework credential; do
         # not accidentally overwrite an existing provider secret with blanks.
         secret = form.cleaned_data.get("new_secret")
         key = form.cleaned_data.get("new_key")
