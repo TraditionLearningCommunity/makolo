@@ -63,6 +63,7 @@ class NowMediaBindingPresentation {
     required this.kind,
     this.mimeType,
     this.url,
+    this.downloadUrl,
     this.localPath,
     this.label,
     this.aspect,
@@ -77,6 +78,7 @@ class NowMediaBindingPresentation {
   final NowMediaKind kind;
   final String? mimeType;
   final String? url;
+  final String? downloadUrl;
   final String? localPath;
   final String? label;
   final String? aspect;
