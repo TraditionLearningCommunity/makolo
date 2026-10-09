@@ -1,4 +1,5 @@
 from django.urls import path
+from .platform_trust_views import PlatformTrustCaseView
 
 from .platform_web_views import (
     PlatformAuditView, PlatformHomeView, PlatformInteroperabilityView,
@@ -17,6 +18,7 @@ urlpatterns = [
     path("system/", PlatformSystemView.as_view(), name="system"),
     path("audit/", PlatformAuditView.as_view(), name="audit"),
     path("trust/", PlatformTrustView.as_view(), name="trust"),
+    path("trust/<str:case_type>/<uuid:pk>/", PlatformTrustCaseView.as_view(), name="trust-case"),
     path("curation/", PlatformCurationView.as_view(), name="curation"),
     path("curation/<uuid:pk>/merge/", PlatformOpportunityMergeView.as_view(), name="opportunity-merge"),
     path("subscriptions/", PlatformSubscriptionsView.as_view(), name="subscriptions"),
