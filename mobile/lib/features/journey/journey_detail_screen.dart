@@ -256,7 +256,7 @@ class _JourneyContent extends StatelessWidget {
                   ? 'Ce qui se passe maintenant'
                   : 'Jour J',
               body: presentation.liveLink != null
-                  ? 'Cette occurrence a une profondeur Live disponible.'
+                  ? 'Cette occurrence est en cours. Retrouvez uniquement ce qui aide à agir maintenant.'
                   : 'Les informations utiles pour vivre cette occurrence sont disponibles.',
               icon: presentation.liveLink != null
                   ? Icons.bolt_rounded
@@ -487,8 +487,16 @@ class _ReadinessGroups extends StatelessWidget {
     final visible = groups.where((group) => group.$2.isNotEmpty).toList();
 
     if (visible.isEmpty) {
-      return const MakoloCard(
-        child: Text('Aucun détail de préparation supplémentaire.'),
+      final isCalm =
+          (presentation.readinessState == 'ready' ||
+              presentation.readinessState == 'complete') &&
+          presentation.freshness == FreshnessState.fresh;
+      return MakoloCard(
+        child: Text(
+          isCalm
+              ? 'Tout est en ordre pour le moment. ✓'
+              : 'Aucun détail de préparation supplémentaire.',
+        ),
       );
     }
 
