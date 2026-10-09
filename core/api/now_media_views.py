@@ -15,6 +15,17 @@ from journeys.collaboration_services import artifact_for_download
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 MAX_DOCUMENT_TEXT = 512 * 1024
 
+# Uploaded content is not trusted. Never render active formats inline from the
+# authenticated Makolo origin. Only explicitly supported inert viewers may
+# receive inline content, with a restrictive CSP.
+INLINE_MIME_TYPES = frozenset({
+    "application/pdf",
+    "image/jpeg", "image/png", "image/webp", "image/gif",
+    "video/mp4", "video/webm", "audio/mpeg", "audio/mp4",
+    "audio/ogg", "audio/wav",
+})
+
+
 
 def _docx_readable_text(file):
     """Bounded, non-executable text representation of a private DOCX."""
@@ -67,14 +78,22 @@ class PersonalNowJourneyArtifactMediaAPIView(APIView):
             response = HttpResponse(readable, content_type="text/plain; charset=utf-8")
             response["X-Content-Type-Options"] = "nosniff"
             response["Cache-Control"] = "private, no-store"
+            response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+            response["Cross-Origin-Resource-Policy"] = "same-origin"
             return response
 
+        mime = (artifact.mime_type or "").lower().strip()
+        allowed_inline = mime in INLINE_MIME_TYPES
         response = FileResponse(
             artifact.file.open("rb"),
-            content_type=artifact.mime_type or "application/octet-stream",
-            as_attachment=False,
+            content_type=mime if allowed_inline else "application/octet-stream",
+            as_attachment=not allowed_inline,
+            filename="document" if not allowed_inline else None,
         )
-        response["Content-Disposition"] = "inline"
+        if allowed_inline:
+            response["Content-Disposition"] = "inline"
+        response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        response["Cross-Origin-Resource-Policy"] = "same-origin"
         response["X-Content-Type-Options"] = "nosniff"
         response["Cache-Control"] = "private, no-store"
         return response
