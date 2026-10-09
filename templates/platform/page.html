@@ -88,6 +88,23 @@
 {% if grant_allowed %}<div class="module"><span>Gestion des Entitlement Grants</span><span class="muted">Depuis la fiche support, sous permission explicite.</span></div>{% endif %}
 <a class="link secondary" href="{% url 'operations:subscriptions' %}">Vue propriétaire des abonnements</a>
 </section>
+{% if catalog_allowed %}
+<section class="section" aria-labelledby="subscription-catalog">
+<h2 id="subscription-catalog">Catalogue actuellement connu</h2>
+<div class="tablebox"><table><thead><tr><th scope="col">Plan</th><th scope="col">Portée</th><th scope="col">État</th><th scope="col">Version courante</th></tr></thead><tbody>
+{% for plan in subscription_plans %}<tr><td><a href="{% url 'operations:subscription-plan' plan.pk %}">{{ plan.code }}</a></td><td>{{ plan.get_subject_type_display }}</td><td>{% if plan.is_active %}Actif{% else %}Inactif{% endif %}</td><td>{{ plan.current_version.version|default:'Non publiée' }}</td></tr>{% empty %}<tr><td colspan="4">Aucun plan observé dans le catalogue.</td></tr>{% endfor %}
+</tbody></table></div>
+</section>{% endif %}
+{% if support_allowed %}
+<section class="section" aria-labelledby="subscription-runtime"><h2 id="subscription-runtime">Subscriptions observées</h2>
+<p class="muted">La consultation ne fournit pas d'accès aux Payments ou aux identifiants complets des Profiles.</p>
+<div class="tablebox"><table><thead><tr><th scope="col">Sujet</th><th scope="col">État</th><th scope="col">Action autorisée</th></tr></thead><tbody>
+{% for sub in subscription_rows %}<tr><td>{% if sub.space %}Space · {{ sub.space.name }}{% else %}Profile — référence restreinte{% endif %}</td><td>{{ sub.get_status_display }}</td><td><a href="{% url 'operations:subscription-detail' sub.pk %}">Ouvrir le workflow owner</a></td></tr>{% empty %}<tr><td colspan="3">Aucune Subscription dans cette couverture.</td></tr>{% endfor %}
+</tbody></table></div></section>{% endif %}
+{% if review_allowed %}
+<section class="section" aria-labelledby="subscription-review"><h2 id="subscription-review">Requirements à examiner</h2>
+{% for review in subscription_reviews %}<div class="module"><div><strong>{{ review.plan_requirement }}</strong><p class="muted">{{ review.get_state_display }} · Transition propriétaire</p></div><a class="link secondary" href="{% url 'operations:subscription-detail' review.transition.subscription_id %}">Examiner le contexte et décider</a></div>{% empty %}<p>Aucune review en attente dans la couverture owner actuelle.</p>{% endfor %}
+</section>{% endif %}
 {% elif platform_page == 'interoperability' %}
 <p class="subtle">Connexions du contexte Platform uniquement. Identifiants secrets, clés, tokens, endpoints et modèles ne sont jamais projetés ici.</p>
 <div class="tablebox"><table><thead><tr><th scope="col">Connexion</th><th scope="col">État</th><th scope="col">Capacités</th></tr></thead><tbody>{% for connection in connections %}<tr><td>{{ connection.display_name }}</td><td>{{ connection.status_label }}</td><td>{% if connection.capability_labels %}{{ connection.capability_labels|join:', ' }}{% else %}Aucune capacité active{% endif %}</td></tr>{% empty %}<tr><td colspan="3">Aucune connexion Platform configurée.</td></tr>{% endfor %}</tbody></table></div>
