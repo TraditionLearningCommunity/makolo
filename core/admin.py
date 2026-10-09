@@ -11,6 +11,7 @@ from .models import DomainEventConsumption, DomainEventOutbox, DomainEventStatus
 admin.site.site_header = "Makolo — Administration technique"
 admin.site.site_title = "Administration technique Makolo"
 admin.site.index_title = "Maintenance, inspection et configuration technique"
+admin.site.index_template = "admin/makolo_technical_index.html"
 
 
 class DomainEventRequeueForm(forms.Form):
