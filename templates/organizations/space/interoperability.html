@@ -21,25 +21,10 @@
         <span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="workflow"></i></span>
         <div>
           <strong>{{ connection.display_name }}</strong>
-          <small>
-            {% if not connection.enabled or connection.status == 'disabled' %}
-              Désactivé
-            {% elif connection.health == 'unavailable' %}
-              Momentanément indisponible
-            {% elif connection.health == 'degraded' %}
-              Connecté · disponibilité réduite
-            {% elif connection.health == 'unknown' %}
-              Connecté · état à vérifier
-            {% elif connection.usable %}
-              Connecté et disponible
-            {% elif connection.connected %}
-              Connecté
-            {% elif connection.available %}
-              Disponible
-            {% else %}
-              État à vérifier
-            {% endif %}
-          </small>
+          <small>{{ connection.status_label }}</small>
+          {% if connection.capability_labels %}
+          <small>{% for capability in connection.capability_labels %}{{ capability }}{% if not forloop.last %} · {% endif %}{% endfor %}</small>
+          {% endif %}
         </div>
       </li>
       {% endfor %}
