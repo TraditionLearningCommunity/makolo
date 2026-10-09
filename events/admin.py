@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from core.admin_boundaries import TechnicalReadOnlyAdmin
+
 from .models import Event, EventCategory, EventVenue
 
 
@@ -21,7 +23,7 @@ class EventVenueAdmin(admin.ModelAdmin):
 
 
 @admin.register(Event)
-class EventAdmin(admin.ModelAdmin):
+class EventAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "display_title",
         "display_space",

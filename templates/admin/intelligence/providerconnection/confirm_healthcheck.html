@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Test actif de connectivité externe. Un seul ProviderConnection peut être testé par action. Le diagnostic et sa justification sont audités. Aucun secret ne sera affiché.</p>
+<p><strong>Connexion :</strong> {{ connection.name }} ({{ connection.scope }})</p>
+<form method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {{ form.as_p }}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="{{ action_checkbox_name }}" value="{{ connection.pk }}">
+  <input type="hidden" name="confirm_healthcheck" value="1">
+  <input type="hidden" name="index" value="0">
+  <button class="default" type="submit">Confirmer le test de connexion</button>
+  <a href="{% url 'admin:intelligence_providerconnection_changelist' %}">Annuler</a>
+</form>
+{% endblock %}

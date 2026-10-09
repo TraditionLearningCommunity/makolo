@@ -1,10 +1,12 @@
 from django.contrib import admin
 
+from core.admin_boundaries import TechnicalReadOnlyAdmin
+
 from .models import EventAccessGate, ScanLog, ScannerAssignment
 
 
 @admin.register(EventAccessGate)
-class EventAccessGateAdmin(admin.ModelAdmin):
+class EventAccessGateAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "event",
         "name",
@@ -20,7 +22,7 @@ class EventAccessGateAdmin(admin.ModelAdmin):
 
 
 @admin.register(ScannerAssignment)
-class ScannerAssignmentAdmin(admin.ModelAdmin):
+class ScannerAssignmentAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "activity",
         "occurrence",
@@ -61,7 +63,7 @@ class ScannerAssignmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(ScanLog)
-class ScanLogAdmin(admin.ModelAdmin):
+class ScanLogAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "scanned_at",
         "event",
