@@ -37,7 +37,8 @@ test('participant sees personal navigation and can enter personal Event creation
   await expect(page.getByRole('link', { name: 'Makolo Mark' })).toBeVisible();
   await expect(page.getByRole('link', { name: /^Notifications/ })).toBeVisible();
   await page.getByRole('button', { name: 'Menu utilisateur' }).click();
-  await expect(page.getByRole('menuitem', { name: 'Compte et paramètres' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Compte', exact: true })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Paramètres', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Activités', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Operations Center' })).toHaveCount(0);
   await expectPersonalEventCreation(page);
