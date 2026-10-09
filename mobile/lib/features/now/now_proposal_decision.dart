@@ -37,8 +37,7 @@ class NowProposalDecision extends StatefulWidget {
         action.interactionDepth != NowInteractionDepth.focused) {
       return null;
     }
-    final expected =
-        '/api/v1/social/action-proposals/${owner.id}/respond/';
+    final expected = '/api/v1/social/action-proposals/${owner.id}/respond/';
     return action.href == expected ? expected.substring(1) : null;
   }
 
@@ -92,7 +91,8 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
         throw StateError('Explicit actor context is unavailable.');
       }
       if (isSpace &&
-          (contextId == null || !NowProposalDecision._uuid.hasMatch(contextId))) {
+          (contextId == null ||
+              !NowProposalDecision._uuid.hasMatch(contextId))) {
         throw StateError('Space authority context is missing.');
       }
       if (!mounted) return;
@@ -106,9 +106,9 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
           content: Text(
             isSpace
                 ? 'Vous allez répondre au nom de cet Espace. '
-                    'Le serveur vérifiera votre Mandate et vos permissions.'
+                      'Le serveur vérifiera votre Mandate et vos permissions.'
                 : 'Vous allez répondre personnellement. '
-                    'La décision sera vérifiée par le propriétaire.',
+                      'La décision sera vérifiée par le propriétaire.',
           ),
           actions: [
             TextButton(
@@ -130,10 +130,7 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
 
       final response = await widget.api.post(
         postPath,
-        body: {
-          'status': decision,
-          if (isSpace) 'acting_space_id': contextId,
-        },
+        body: {'status': decision, if (isSpace) 'acting_space_id': contextId},
       );
       final answer = response.jsonObject();
       final returnedIdentity = answer['identity'];
@@ -153,9 +150,11 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
       }
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'La décision n’a pas été confirmée. '
-            'Consultez la proposition avant de réessayer.');
+        setState(
+          () => _error =
+              'La décision n’a pas été confirmée. '
+              'Consultez la proposition avant de réessayer.',
+        );
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -167,17 +166,17 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       FilledButton.icon(
-        onPressed: _sending || _confirmed
-            ? null
-            : () => unawaited(_respond()),
+        onPressed: _sending || _confirmed ? null : () => unawaited(_respond()),
         icon: const Icon(Icons.arrow_forward_rounded),
         label: Text(widget.action.label),
       ),
       if (_sending) const LinearProgressIndicator(),
-      if (_confirmed)
-        const Text('Réponse confirmée par le réseau d’action.'),
+      if (_confirmed) const Text('Réponse confirmée par le réseau d’action.'),
       if (_error != null)
-        Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        Text(
+          _error!,
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
     ],
   );
 }

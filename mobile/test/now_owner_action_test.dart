@@ -44,35 +44,38 @@ void main() {
     expect(NowProposalDecision.authorizedPath(item, invalid), isNull);
   });
 
-  test('existing ticket owner APIs are callable only for the matching resource', () {
-    for (final entry in [
-      ('waitlist', 'accept', 'api/v1/tickets/waitlist/'),
-      ('waitlist', 'leave', 'api/v1/tickets/waitlist/'),
-      ('ticket_transfer', 'accept', 'api/v1/tickets/transfers/'),
-      ('ticket_transfer', 'decline', 'api/v1/tickets/transfers/'),
-    ]) {
-      final scopedOwner = StructuredDestination(kind: entry.$1, id: id);
-      final item = NowSituationPresentation(
-        identity: 'now:${entry.$1}',
-        reference: scopedOwner,
-        ownerDestination: scopedOwner,
-        humanContext: 'Décision',
-        meaning: 'Une réponse est requise.',
-        emphasis: NowPresentationEmphasis.primary,
-      );
-      final action = NowBusinessActionPresentation(
-        capability: entry.$2,
-        label: 'Confirmer',
-        href: '/${entry.$3}$id/${entry.$2}/',
-        interactionDepth: NowInteractionDepth.directNow,
-        confirmationRequired: true,
-      );
-      expect(
-        NowOwnerAction.authorizedPath(item, action),
-        '${entry.$3}$id/${entry.$2}/',
-      );
-    }
-  });
+  test(
+    'existing ticket owner APIs are callable only for the matching resource',
+    () {
+      for (final entry in [
+        ('waitlist', 'accept', 'api/v1/tickets/waitlist/'),
+        ('waitlist', 'leave', 'api/v1/tickets/waitlist/'),
+        ('ticket_transfer', 'accept', 'api/v1/tickets/transfers/'),
+        ('ticket_transfer', 'decline', 'api/v1/tickets/transfers/'),
+      ]) {
+        final scopedOwner = StructuredDestination(kind: entry.$1, id: id);
+        final item = NowSituationPresentation(
+          identity: 'now:${entry.$1}',
+          reference: scopedOwner,
+          ownerDestination: scopedOwner,
+          humanContext: 'Décision',
+          meaning: 'Une réponse est requise.',
+          emphasis: NowPresentationEmphasis.primary,
+        );
+        final action = NowBusinessActionPresentation(
+          capability: entry.$2,
+          label: 'Confirmer',
+          href: '/${entry.$3}$id/${entry.$2}/',
+          interactionDepth: NowInteractionDepth.directNow,
+          confirmationRequired: true,
+        );
+        expect(
+          NowOwnerAction.authorizedPath(item, action),
+          '${entry.$3}$id/${entry.$2}/',
+        );
+      }
+    },
+  );
 
   test('owner-issued direct decision is the only callable action', () {
     const allowed = NowBusinessActionPresentation(

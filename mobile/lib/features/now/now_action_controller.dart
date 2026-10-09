@@ -74,9 +74,7 @@ abstract final class NowOwnerAction {
         action.capability == 'accept') {
       // The ticket owner returns the newly reserved Order, not the Waitlist
       // entry. Payment may still be due: do not claim that it was completed.
-      if (id == null ||
-          !_uuid.hasMatch(id) ||
-          data['status'] is! String) {
+      if (id == null || !_uuid.hasMatch(id) || data['status'] is! String) {
         throw StateError('Owner did not return a reserved Order.');
       }
     } else if (id?.toLowerCase() != owner.id.toLowerCase()) {
@@ -223,7 +221,10 @@ class _NowActionGroupState extends State<NowActionGroup> {
               final canHandoff = widget.onOpenOwner != null;
               final proposal =
                   widget.api != null &&
-                  NowProposalDecision.authorizedPath(widget.situation, action) !=
+                  NowProposalDecision.authorizedPath(
+                        widget.situation,
+                        action,
+                      ) !=
                       null;
               if (proposal) {
                 return NowProposalDecision(
