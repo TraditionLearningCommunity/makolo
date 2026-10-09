@@ -57,6 +57,32 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     });
   }
 
+  @override
+  void didUpdateWidget(covariant TransverseRetrievalScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime.actorContext != widget.runtime.actorContext) {
+      oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
+      widget.runtime.actorContext?.addListener(_onActorChanged);
+    }
+    if (oldWidget.runtime.store != widget.runtime.store ||
+        oldWidget.spaceActor != widget.spaceActor ||
+        oldWidget.runtime.session?.profileId !=
+            widget.runtime.session?.profileId) {
+      _version++;
+      _local = [];
+      _remote = [];
+      _more = false;
+      _offset = 0;
+      _selected = null;
+      _failed = false;
+      _revoked = false;
+      _query.text = widget.initialQuery;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_submit());
+      });
+    }
+  }
+
   void _onActorChanged() {
     _version++;
     if (!mounted) return;
