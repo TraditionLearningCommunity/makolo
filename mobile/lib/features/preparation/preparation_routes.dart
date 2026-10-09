@@ -3,9 +3,20 @@ import 'package:go_router/go_router.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
 import '../../platform/sharing/share_gateway.dart';
+import '../../platform/sharing/share_gateway.dart';
 import '../journey/journey_selector.dart';
 import 'preparation_resources_screen.dart';
 import 'requirement_detail_screen.dart';
+
+Future<void> _openOwnerLink(AppRuntime runtime, String link) async {
+  final parsed = Uri.tryParse(link);
+  if (parsed == null) return;
+  final target = parsed.hasScheme
+      ? parsed
+      : runtime.config?.api.baseUri?.resolve(link);
+  if (target == null) return;
+  await const SystemShareGateway().openExternal(target);
+}
 
 List<RouteBase> preparationRoutes(AppRuntime runtime) => [
   GoRoute(
@@ -27,6 +38,7 @@ List<RouteBase> preparationRoutes(AppRuntime runtime) => [
         assessmentId: state.pathParameters['assessmentId']!,
         detailPath: reference?.link,
         repository: repository,
+        onOpenOwnerLink: (link) => _openOwnerLink(runtime, link),
       );
     },
   ),
