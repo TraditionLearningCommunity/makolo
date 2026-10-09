@@ -7,9 +7,25 @@ from uuid import uuid4
 from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.test import SimpleTestCase
+from django.urls import reverse
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from core.api.now_media_views import PersonalNowJourneyArtifactMediaAPIView
+
+
+class NowRoutesRegressionTests(SimpleTestCase):
+    def test_now_media_and_main_search_endpoints_coexist(self):
+        artifact_id = uuid4()
+        self.assertEqual(
+            reverse(
+                "personal-projections:now-journey-artifact-media",
+                kwargs={"artifact_id": artifact_id},
+            ),
+            f"/api/v1/me/now/media/journey-artifacts/{artifact_id}/",
+        )
+        self.assertEqual(
+            reverse("personal-projections:search"), "/api/v1/me/search/",
+        )
 
 
 class PersonalNowMediaAuthorizationTests(SimpleTestCase):
