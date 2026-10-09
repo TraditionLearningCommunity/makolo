@@ -1,0 +1,39 @@
+{% extends "platform/page.html" %}
+{% block platform_content %}
+<a class="link secondary" href="{% url 'platform_web:investigate' %}">Retour à la recherche</a>
+<section class="section"><p class="kicker">{{ target_kind }} · {{ target.pk }}</p>
+<h2>{{ target.name|default:target.title }}</h2>
+<p>État actuel canonique : <strong>{{ target_state }}</strong></p>
+<p class="muted">Investigation limitée à vos Permissions Platform. Aucun accès implicite aux paiements, pièces Evidence ou secrets.</p>
+{% if target_kind == 'space' %}<a class="link" href="{% url 'platform_web:space-decision' target.pk %}">Examiner une décision sur le Space</a>
+{% else %}<a class="link" href="{% url 'platform_web:event-decision' target.pk %}">Examiner une modération Event</a>{% endif %}
+</section>
+{% if activity_rows %}
+<section class="section"><h2>Activités du Space</h2>
+{% for item in activity_rows %}<div class="module"><strong>{{ item.title }}</strong><span>{{ item.status }}</span></div>{% endfor %}</section>{% endif %}
+{% if event_rows %}
+<section class="section"><h2>Events associés</h2>{% for item in event_rows %}<div class="module"><div><strong>{{ item.title }}</strong><p class="muted">{{ item.status }} · {{ item.visibility }}</p></div><a class="link secondary" href="{% url 'platform_web:investigation-event' item.pk %}">Investiguer</a></div>{% endfor %}</section>{% endif %}
+{% if occurrence_rows %}
+<section class="section"><h2>Occurrences canoniques</h2>
+{% for item in occurrence_rows %}<div class="module"><div><strong>{{ item.label|default:'Occurrence' }}</strong><p class="muted">{{ item.status }} · {% if item.start_at %}{{ item.start_at|date:'d/m/Y H:i' }}{% elif item.start_date %}{{ item.start_date|date:'d/m/Y' }} — heure non fixée{% else %}Temps inconnu{% endif %}</p></div></div>{% endfor %}
+</section>{% endif %}
+<section class="section"><h2>Incidents Operations</h2>
+{% for incident in incident_rows %}<div class="module"><div><strong>{{ incident.title }}</strong><p class="muted">{{ incident.get_status_display }} · {{ incident.get_severity_display }} · détecté {{ incident.detected_at|date:'d/m/Y H:i' }}</p></div><a class="link secondary" href="{% url 'operations:incident-detail' incident.pk %}">Ouvrir le diagnostic owner</a></div>{% empty %}<p>Aucun incident dans la couverture Operations de cette cible.</p>{% endfor %}
+</section>
+<section class="section"><h2>Historique de modération</h2>
+{% for row in moderation_rows %}<div class="module"><div><strong>{{ row.get_status_display }}</strong><p class="muted">{{ row.outcome }} · {{ row.created_at|date:'d/m/Y H:i' }}</p></div></div>{% empty %}<p>Aucun dossier de modération lié à cette cible.</p>{% endfor %}
+</section>
+{% if trust_claims or trust_reports %}
+<section class="section"><h2>Confiance (permission Trust Review)</h2>
+{% for claim in trust_claims %}<div class="module"><span>{{ claim.get_claim_type_display }} · {{ claim.get_status_display }}</span><a class="link secondary" href="{% url 'platform_web:trust-case' 'verification' claim.pk %}">Revoir</a></div>{% endfor %}
+{% for report in trust_reports %}<div class="module"><span>{{ report.get_category_display }} · {{ report.get_status_display }}</span><a class="link secondary" href="{% url 'platform_web:trust-case' 'report' report.pk %}">Revoir</a></div>{% endfor %}
+</section>{% endif %}
+{% if space_subscription %}
+<section class="section"><h2>Subscription du Space</h2><p>{{ space_subscription.get_status_display }} — une Subscription ne prouve pas qu'un Payment soit réussi.</p><a class="link secondary" href="{% url 'operations:subscription-detail' space_subscription.pk %}">Ouvrir Subscription owner</a></section>
+{% endif %}
+<section class="section"><h2>Journal opérateur Operations</h2>
+<div class="tablebox"><table><thead><tr><th scope="col">Quand</th><th scope="col">Qui</th><th scope="col">Action</th><th scope="col">Cible</th></tr></thead><tbody>
+{% for log in audit_rows %}<tr><td>{{ log.created_at|date:'d/m/Y H:i:s' }}</td><td>{{ log.actor.get_full_name|default:log.actor.username|default:'Non disponible' }}</td><td>{{ log.action }}</td><td>{{ log.target_type }}</td></tr>{% empty %}<tr><td colspan="4">Aucune intervention Operations auditée pour cette cible.</td></tr>{% endfor %}
+</tbody></table></div><p class="muted">Cet historique ne prétend pas fédérer tous les Domain Events, le paiement ou le CRM.</p>
+</section>
+{% endblock %}
