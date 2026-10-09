@@ -8,17 +8,24 @@ from rest_framework.exceptions import NotFound, ValidationError as DRFValidation
 from rest_framework.response import Response
 
 from core.api.privacy import PrivateNoStoreMixin
+from organizations.models import Organization
 
+from .attention import has_conversation_attention
 from .core_models import Conversation, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
 from .presentation import (
     conversation_context_label,
     conversation_rows_for_profile,
+    essential_points_for_profile,
     now_points_for_profile,
     search_conversations_for_profile,
 )
-from .services import can_view_conversation, respond_to_conversation_invitation
+from .services import (
+    can_view_conversation,
+    respond_to_conversation_invitation,
+    update_personal_conversation_state,
+)
 
 
 MAX_PAGE_SIZE = 100
@@ -56,6 +63,10 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "deadline_at": point.deadline_at,
         "valid_until": point.valid_until,
         "can_respond": point_response_allowed(profile, point),
+        "options": [
+            {"id": str(option.pk), "label": option.label}
+            for option in point.options.all()
+        ],
         "attention_reason": reason,
         "section": section,
         "resolution_summary": _resolution_summary(point),
@@ -111,6 +122,13 @@ def _service_error(exc):
     return Response({"errors": getattr(exc, "messages", [str(exc)])}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ConversationAttentionPresenceAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response({"has_attention": has_conversation_attention(request.user)})
+
+
 class ConversationListAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -157,8 +175,11 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
 
     def get(self, request, pk):
         conversation = _visible_conversation_or_404(request.user, pk)
-        rows = now_points_for_profile(request.user, conversation, limit=_bounded_limit(request))
+        limit = _bounded_limit(request)
+        rows = now_points_for_profile(request.user, conversation, limit=limit)
+        essential = essential_points_for_profile(request.user, conversation, limit=limit)
         label = conversation_context_label(conversation, request.user)
+        state = conversation.user_states.filter(profile=request.user).first()
         return Response({
             "id": str(conversation.pk),
             "title": conversation.title_override or label,
@@ -169,6 +190,17 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 _serialize_point(item["point"], profile=request.user, reason=item["reason"], section=item["section"])
                 for item in rows
             ],
+            "essential": [
+                _serialize_point(point, profile=request.user, section="essential")
+                for point in essential
+            ],
+            "personal_state": {
+                "muted": bool(state and state.muted_at),
+                "hidden": bool(state and state.hidden_at),
+                "archived": bool(state and state.archived_at),
+                "pinned": bool(state and state.pinned_at),
+                "revisit": bool(state and state.revisit_at),
+            },
             "updated_at": conversation.updated_at,
         })
 
@@ -181,11 +213,18 @@ class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
         value = request.data.get("value")
         if point.response_mode == ConversationPointResponseMode.MULTIPLE_CHOICE and not isinstance(value, list):
             raise DRFValidationError({"value": "Une liste de choix est attendue."})
+        represented_space = None
+        represented_space_id = request.data.get("represented_space_id")
+        if represented_space_id:
+            represented_space = Organization.objects.filter(pk=represented_space_id).first()
+            if represented_space is None:
+                raise DRFValidationError({"represented_space_id": "Espace introuvable."})
         try:
             point_response = submit_point_response(
                 actor=request.user,
                 point=point,
                 value=value,
+                represented_space=represented_space,
                 client_reference=request.data.get("client_reference") or None,
             )
         except (ValidationError, PermissionDenied) as exc:
@@ -196,6 +235,37 @@ class ConversationPointResponseAPIView(PrivateNoStoreMixin, views.APIView):
             "status": point_response.status,
             "value": point_response.value,
             "submitted_at": point_response.submitted_at,
+        })
+
+
+class ConversationPersonalStateAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        conversation = _visible_conversation_or_404(request.user, pk)
+        allowed = {"mute", "hidden", "archived", "pinned", "revisit"}
+        unknown = set(request.data) - allowed
+        if unknown:
+            raise DRFValidationError({"detail": "État Conversation inconnu."})
+        try:
+            state = update_personal_conversation_state(
+                actor=request.user,
+                conversation=conversation,
+                mute=bool(request.data.get("mute", False)),
+                hidden=request.data.get("hidden") if "hidden" in request.data else None,
+                archived=request.data.get("archived") if "archived" in request.data else None,
+                pinned=request.data.get("pinned") if "pinned" in request.data else None,
+                revisit=request.data.get("revisit") if "revisit" in request.data else None,
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            return _service_error(exc)
+        return Response({
+            "conversation_id": str(conversation.pk),
+            "muted": bool(state.muted_at),
+            "hidden": bool(state.hidden_at),
+            "archived": bool(state.archived_at),
+            "pinned": bool(state.pinned_at),
+            "revisit": bool(state.revisit_at),
         })
 
 
