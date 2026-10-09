@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.test import TestCase
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -84,7 +85,7 @@ class SpaceHistoryPermissionTests(TestCase):
         self.assertIn(str(self.past.pk), ids)
         self.assertNotIn(str(self.undated.pk), ids)
         row = next(row for row in response.data["items"] if row["source"]["id"] == str(self.past.pk))
-        self.assertEqual(row["occurred_at"], self.past.end_at.isoformat())
+        self.assertEqual(parse_datetime(row["occurred_at"]), self.past.end_at)
 
     def test_search_pagination_and_invalid_responsibility(self):
         self.client.force_authenticate(self.owner)
