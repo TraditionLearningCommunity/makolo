@@ -44,10 +44,26 @@
       <p>{{ home.primary_attention.summary }}</p>
       {% if home.primary_attention.why_now %}<p>{{ home.primary_attention.why_now }}</p>{% endif %}
       {% if home.primary_attention.consequence %}<p>{{ home.primary_attention.consequence }}</p>{% endif %}
-      {% if home.primary_attention.topology == "media" %}
-        {% for label in home.primary_attention.media_labels %}
-          {% if forloop.first %}<div class="mk-now-media" role="group" aria-label="Média associé"><p>{{ label }}</p><p>Consulter depuis la source autorisée.</p></div>{% endif %}
-        {% endfor %}
+      {% if home.primary_attention.inline_media %}
+        <div class="mk-now-media" aria-label="Médias de cette situation">
+          {% for media in home.primary_attention.inline_media %}
+          <figure>
+            {% if media.kind == "image" %}
+              <img src="{{ media.url }}" alt="{{ media.label }}" loading="lazy">
+            {% elif media.kind == "pdf" %}
+              <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
+            {% elif media.kind == "video" %}
+              <video src="{{ media.url }}" controls preload="metadata" playsinline aria-label="{{ media.label }}"></video>
+            {% elif media.kind == "audio" %}
+              <audio src="{{ media.url }}" controls preload="none" aria-label="{{ media.label }}"></audio>
+            {% elif media.kind == "document" %}
+              <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
+            {% endif %}
+            <figcaption>{{ media.label }}</figcaption>
+            <a href="{{ media.url }}" download>Enregistrer sur l’appareil</a>
+          </figure>
+          {% endfor %}
+        </div>
       {% elif home.primary_attention.topology == "composition" %}
         {% for summary in home.primary_attention.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
       {% elif home.primary_attention.topology == "waiting" %}
