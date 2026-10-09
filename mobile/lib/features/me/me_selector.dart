@@ -103,6 +103,7 @@ class MeSelector {
           : MakoloFailureCue.none,
     );
 
+    final links = _map(projection.payload['links']);
     final territories = <MeTerritorySelection>[
       _passport(projection.payload['passport'], freshness, reachability),
       _considerations(
@@ -111,6 +112,8 @@ class MeSelector {
         reachability,
       ),
       _collectives(projection.payload['collectives'], freshness, reachability),
+      if (_string(links?['accesses']) != null)
+        _accesses(freshness, reachability),
       _resources(projection.payload['resources'], freshness, reachability),
     ];
 
@@ -232,6 +235,30 @@ class MeSelector {
       summary: 'Les collectifs auxquels votre Profil est relié.',
       items: items,
       malformed: malformed,
+      freshness: freshness,
+      reachability: reachability,
+    );
+  }
+
+  MeTerritorySelection _accesses(
+    MakoloFreshnessCue freshness,
+    MakoloReachabilityCue reachability,
+  ) {
+    return _territory(
+      key: 'accesses',
+      label: 'Mes accès',
+      summary: 'Les droits déjà accordés et leur prochain usage réel.',
+      items: const [
+        MeItemPresentation(
+          destination: StructuredDestination(
+            kind: 'access_collection',
+            id: 'mine',
+          ),
+          title: 'Voir mes droits disponibles',
+          subtitle: 'Access reste la source de vérité',
+        ),
+      ],
+      malformed: false,
       freshness: freshness,
       reachability: reachability,
     );
