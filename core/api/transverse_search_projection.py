@@ -1,6 +1,8 @@
 """Permission-first retrieval of already-known personal Journey/Access realities."""
 from django.urls import reverse
 
+from personal_assets.selectors import personal_assets_for_controller
+
 from access.models import AccessStatus
 from journeys.models import JourneyStatus
 
@@ -24,7 +26,7 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": ["journey", "access"]},
+            "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset"]},
         }
     # Both selectors are beneficiary-scoped BEFORE any free text match.
     journeys = participant_journey_search(
@@ -72,8 +74,27 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "destination": reverse("personal-detail-projections:access-detail", kwargs={"pk": row.pk}),
             },
         ))
+    # Personal resources are owned by the document controller, never by Search.
+    assets = personal_assets_for_controller(profile).filter(
+        title__icontains=query
+    ).order_by("-created_at", "pk")
+    for row in assets[:offset + limit]:
+        entries.append((
+            row.created_at, "personal_asset", str(row.pk),
+            {
+                "source": {"kind": "personal_asset", "id": str(row.pk)},
+                "title": row.title,
+                "human_type": "Document",
+                "relation": "Ma ressource",
+                "historical": False,
+                "context": "Moi",
+                "destination": reverse(
+                    "personal-projections:resource-detail", kwargs={"pk": row.pk}
+                ),
+            },
+        ))
     entries.sort(key=lambda row: (row[0], row[1], row[2]), reverse=True)
-    total = journeys.count() + accesses.count()
+    total = journeys.count() + accesses.count() + assets.count()
     selected = [row[3] for row in entries[offset:offset + limit]]
     return {
         "actor_context": {"kind": "profile"},

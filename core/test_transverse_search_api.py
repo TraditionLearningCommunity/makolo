@@ -107,3 +107,22 @@ class TransverseSearchBoundaryTests(TestCase):
         payload = self.client.get(url, {"q": "Route"}).data
         row = next(item for item in payload["items"] if item["source"]["id"] == str(occurrence.pk))
         self.assertTrue(row["historical"])
+
+    def test_personal_search_federates_owned_document_without_other_user_leak(self):
+        from personal_assets.models import PersonalAsset
+        from personal_assets.selectors import personal_assets_for_controller
+        # Owner selectors, rather than direct global asset enumeration, govern visibility.
+        self.assertFalse(personal_assets_for_controller(self.owner).filter(
+            title__icontains="particulier"
+        ).exists())
+
+    def test_activity_limited_search_cannot_federate_space_relationships(self):
+        self.client.force_authenticate(self.scoped)
+        payload = self.client.get(
+            "/api/v1/organizations/workspaces/search-space/search/",
+            {"q": "Route"},
+        ).data
+        self.assertFalse(any(
+            row.get("owner") in {"team", "crm", "partners"}
+            for row in payload["items"]
+        ))

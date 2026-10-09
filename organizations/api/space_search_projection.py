@@ -6,6 +6,8 @@ from authorization.constants import PermissionCode
 from authorization.selectors import activity_ids_with_direct_permission
 
 from .space_history_projection import visible_history_activity_ids
+from .space_relationships_projection import build_space_relationships_projection
+from .space_work_projection import _activity_scope_from_responsibility
 from .space_work_projection import _space_has_activity_portfolio_access
 
 LIMIT = 24
@@ -25,7 +27,7 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": ["activity", "occurrence"]},
+            "coverage": {"state": "partial", "owners": ["activity", "occurrence", "visible_space_relationships"]},
         }
     activities = Activity.objects.filter(
         space=space, pk__in=ids
@@ -65,13 +67,66 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                 "destination": f"/api/v1/occurrences/{row.pk}/",
             },
         ))
-    candidates.sort(key=lambda entry: (entry[0], entry[1], entry[2]), reverse=True)
-    total = activities.count() + occurrences.count()
+    # The relationship owner is already query- and permission-scoped.
+    # Never traverse its records under an activity-only perspective.
+    relation_items = []
+    relations_partial = False
+    if _activity_scope_from_responsibility(
+        profile, space, responsibility_key
+    ) is None:
+        relations = build_space_relationships_projection(
+            profile=profile, space=space, query=query
+        )
+        relation_search = relations.get("search") if relations else None
+        if relation_search:
+            relation_items = relation_search["items"]
+            relations_partial = relation_search["has_more"]
+            for row in relation_items:
+                profile_ref = row.get("profile") or {}
+                owner_ref = row["owner"]
+                relation = row["relation_type"]
+                identity = (owner_ref, row["kind"], row["id"], relation)
+                # Distinct relations to the same person are deliberately preserved.
+                destination = (
+                    row.get("links", {}).get("owner_web")
+                    or row.get("links", {}).get("owner_api")
+                )
+                candidates.append((
+                    None, row["kind"], ":".join(identity),
+                    {
+                        "source": {"kind": row["kind"], "id": row["id"]},
+                        "title": row["identity"],
+                        "human_type": relation,
+                        "relation": relation,
+                        "owner": owner_ref,
+                        "historical": False,
+                        "destination": destination,
+                    },
+                ))
+    # Dated owner results ahead of undated relationships; not a global score.
+    candidates.sort(
+        key=lambda entry: (
+            entry[0] is not None,
+            entry[0].timestamp() if entry[0] else 0,
+            entry[1],
+            entry[2],
+        ),
+        reverse=True,
+    )
+    total = activities.count() + occurrences.count() + len(relation_items)
     result = [entry[3] for entry in candidates[offset:offset + limit]]
     return {
         "actor_context": {"kind": "space", "id": str(space.pk), "name": space.name},
         "query": query,
         "items": result,
-        "page": {"count": total, "offset": offset, "limit": limit, "has_more": offset + len(result) < total},
-        "coverage": {"state": "partial", "owners": ["activity", "occurrence"]},
+        "page": {
+            "count": total, "count_state": "lower_bound" if relations_partial else "exact",
+            "offset": offset, "limit": limit,
+            "has_more": offset + len(result) < total or relations_partial,
+        },
+        "coverage": {
+            "state": "partial",
+            "owners": ["activity", "occurrence", "visible_space_relationships"],
+            "limited_sources": ["visible_space_relationships"] if relations_partial else [],
+        },
     }
