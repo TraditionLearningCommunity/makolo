@@ -85,7 +85,12 @@ jobs:
       - name: Verify generated-code policy
         run: git diff --exit-code -- lib test
       - name: Format check
-        run: bash tool/dart_format.sh check
+        run: |
+          if ! bash tool/dart_format.sh check; then
+            dart format lib test
+            git diff -- lib test
+            exit 1
+          fi
       - name: Architecture guard
         run: flutter test test/architecture_guard_test.dart
       - name: Analyze
