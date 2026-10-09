@@ -18,6 +18,22 @@ def _response(**overrides):
 
 
 class NowWebPresentationTests(SimpleTestCase):
+    def test_shared_server_fixture_preserves_S1_to_S5_parity(self):
+        import json
+        from pathlib import Path
+
+        fixture_file = (
+            Path(__file__).resolve().parent.parent
+            / "mobile/test/fixtures/now_s1_s5_contract.json"
+        )
+        fixture = json.loads(fixture_file.read_text(encoding="utf-8"))
+        expected = ("meaning", "media", "action", "waiting", "composition")
+        actual = tuple(
+            _now_web_context({**fixture, "items": [item]}).primary_attention.topology
+            for item in fixture["items"]
+        )
+        self.assertEqual(actual, expected)
+
     def test_empty_items_do_not_create_a_calm_claim(self):
         home = _now_web_context(_response())
 
