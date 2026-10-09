@@ -221,7 +221,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         spacing: MakoloSpacing.sm,
                         runSpacing: MakoloSpacing.sm,
                         children: [
-                          if (detail.downloadPath != null)
+                          if (detail.downloadPath != null &&
+                              detail.sensitivity == 'normal')
                             FilledButton.icon(
                               onPressed: _downloading
                                   ? null
@@ -239,6 +240,19 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                             ),
                         ],
                       ),
+                      if (detail.downloadPath != null &&
+                          detail.sensitivity != 'normal') ...[
+                        const SizedBox(height: MakoloSpacing.sm),
+                        Text(
+                          'Téléchargement local non proposé pour cette '
+                          'ressource sensible sans stockage protégé explicite.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                       if (_downloading && _downloadProgress != null) ...[
                         const SizedBox(height: MakoloSpacing.sm),
                         LinearProgressIndicator(value: _downloadProgress),
