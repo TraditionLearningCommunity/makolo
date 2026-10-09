@@ -148,7 +148,8 @@ class NowWebPresentationTests(SimpleTestCase):
             "id": "relation", "title": "Conflit",
             "state_meaning": "Deux engagements",
             "relation_members": [{"id": "a"}, {"id": "b"}],
-            "relations": [{"summary": "Même heure", "kind": "conflict"}],
+            "relations": [{"summary": "Même heure", "kind": "conflict",
+                           "member_ids": ["a", "b"]}],
             "response": {"type": "decide"},
         }
         view = _now_web_context(_response(items=[item])).primary_attention
@@ -157,6 +158,9 @@ class NowWebPresentationTests(SimpleTestCase):
         item["consequence"] = {"effect": "Une présence simultanée est impossible"}
         view = _now_web_context(_response(items=[item])).primary_attention
         self.assertEqual(view.topology, "composition")
+        item["relations"][0]["member_ids"] = ["a", "external"]
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(view.topology, "meaning")
 
     def test_inline_reader_is_first_party_and_owner_authorized_only(self):
         from uuid import uuid4
