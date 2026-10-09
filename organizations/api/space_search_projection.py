@@ -36,7 +36,10 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": ["activity", "occurrence", "visible_space_relationships", "commerce_order"]},
+            "coverage": {"state": "partial", "owners": [
+                "activity", "occurrence",
+                *(['visible_space_relationships', 'commerce_order'] if unrestricted_lens else []),
+            ]},
         }
     preset = operating_preset_for_space(space)
     can_open_activity_console = _space_has_activity_portfolio_access(profile, space)
@@ -93,7 +96,11 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
             },
         ))
     # Commerce owns orders and checks Space authority before filtering.
-    orders_visible = has_direct_space_permission(
+    # A named responsibility must not silently inherit another mandate's
+    # Space-wide business visibility. Owner relations/orders are offered in
+    # the combined "all" perspective only.
+    unrestricted_lens = responsibility_key in (None, "", "all")
+    orders_visible = unrestricted_lens and has_direct_space_permission(
         profile, space, PermissionCode.ORDERS_VIEW
     )
     orders = CommerceOrder.objects.none()
@@ -141,7 +148,7 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
     relation_items = []
     relations_partial = False
     unavailable_sources = []
-    if _activity_scope_from_responsibility(
+    if unrestricted_lens and _activity_scope_from_responsibility(
         profile, space, responsibility_key
     ) is None:
         try:

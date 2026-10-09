@@ -86,8 +86,11 @@ def build_space_history_projection(
 
     # Orders may be historical when their actual cancellation time exists.
     # The Space Orders owner controls authority before its rows are queried.
-    orders_visible = has_direct_space_permission(
-        profile, space, PermissionCode.ORDERS_VIEW
+    orders_visible = (
+        responsibility_key in (None, "", "all")
+        and has_direct_space_permission(
+            profile, space, PermissionCode.ORDERS_VIEW
+        )
     )
     orders = CommerceOrder.objects.none()
     if orders_visible:
