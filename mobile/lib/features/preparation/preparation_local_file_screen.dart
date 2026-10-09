@@ -18,10 +18,7 @@ class PreparationLocalFileArgs {
 }
 
 class PreparationLocalFileScreen extends StatelessWidget {
-  const PreparationLocalFileScreen({
-    super.key,
-    required this.args,
-  });
+  const PreparationLocalFileScreen({super.key, required this.args});
 
   final PreparationLocalFileArgs args;
 
@@ -34,26 +31,26 @@ class PreparationLocalFileScreen extends StatelessWidget {
         child: switch (mime) {
           'application/pdf' => PrivatePdfView(path: args.path),
           'image/jpeg' || 'image/png' || 'image/webp' => InteractiveViewer(
-              minScale: 0.8,
-              maxScale: 4,
-              child: Center(
-                child: Image.file(
-                  File(args.path),
-                  fit: BoxFit.contain,
-                  semanticLabel: args.title,
-                ),
+            minScale: 0.8,
+            maxScale: 4,
+            child: Center(
+              child: Image.file(
+                File(args.path),
+                fit: BoxFit.contain,
+                semanticLabel: args.title,
               ),
             ),
+          ),
           _ => Padding(
-              padding: const EdgeInsets.all(MakoloSpacing.inner),
-              child: Center(
-                child: Text(
-                  'Ce document est téléchargé sur cet appareil. '
-                  'Aucun aperçu intégré sûr n’est disponible pour ce format.',
-                  textAlign: TextAlign.center,
-                ),
+            padding: const EdgeInsets.all(MakoloSpacing.inner),
+            child: Center(
+              child: Text(
+                'Ce document est téléchargé sur cet appareil. '
+                'Aucun aperçu intégré sûr n’est disponible pour ce format.',
+                textAlign: TextAlign.center,
               ),
             ),
+          ),
         },
       ),
     );

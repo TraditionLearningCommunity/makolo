@@ -1,5 +1,5 @@
-
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -102,7 +102,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Téléchargement impossible pour le moment.')),
+        const SnackBar(
+          content: Text('Téléchargement impossible pour le moment.'),
+        ),
       );
     } finally {
       if (mounted) {
@@ -145,7 +147,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Ce document ne peut pas être réutilisé ici pour le moment.'),
+          content: Text(
+            'Ce document ne peut pas être réutilisé ici pour le moment.',
+          ),
         ),
       );
     }
@@ -202,7 +206,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (source.reachability == ReachabilityState.unreachable) ...[
+                    if (source.reachability ==
+                        ReachabilityState.unreachable) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
                         'Dernières métadonnées connues. '
@@ -234,9 +239,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                             OutlinedButton.icon(
                               onPressed: () => _reuse(detail),
                               icon: const Icon(Icons.redo_rounded),
-                              label: const Text(
-                                'Réutiliser dans une démarche',
-                              ),
+                              label: const Text('Réutiliser dans une démarche'),
                             ),
                         ],
                       ),
@@ -246,11 +249,12 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                         Text(
                           'Téléchargement local non proposé pour cette '
                           'ressource sensible sans stockage protégé explicite.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
                         ),
                       ],
                       if (_downloading && _downloadProgress != null) ...[
@@ -491,8 +495,7 @@ class _ResourceVersion {
           : 0,
       current: payload['current'] == true,
       validityLabel: _validityLabel(_string(validity['state'])),
-      provenanceLabel:
-          _string(provenance['kind']) == 'journey_artifact'
+      provenanceLabel: _string(provenance['kind']) == 'journey_artifact'
           ? 'pièce de démarche'
           : 'inconnue',
     );

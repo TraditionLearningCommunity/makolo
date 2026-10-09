@@ -239,10 +239,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         ],
         if (projection.extensions.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
-          Text(
-            'Extensions',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Extensions', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: MakoloSpacing.sm),
           for (final extension in projection.extensions)
             _extensionCard(extension),

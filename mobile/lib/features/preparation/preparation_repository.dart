@@ -221,7 +221,6 @@ String _relativeApiPath(String value) {
   return trimmed;
 }
 
-
 String _resourceFilename({
   required String resourceId,
   required String title,

@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -174,9 +173,11 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                               ),
                       )
                     else
-                      for (var index = 0;
-                          index < view.items.length;
-                          index++) ...[
+                      for (
+                        var index = 0;
+                        index < view.items.length;
+                        index++
+                      ) ...[
                         _AccessCollectionCard(
                           item: view.items[index],
                           onOpen: () =>
@@ -188,8 +189,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                     if (view.hasMore) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       OutlinedButton(
-                        onPressed:
-                            _loadingMore ? null : () => _loadMore(view),
+                        onPressed: _loadingMore ? null : () => _loadMore(view),
                         child: Text(
                           _loadingMore ? 'Chargement…' : 'Afficher la suite',
                         ),
@@ -278,14 +278,15 @@ class _AccessCollectionView {
     required String relationship,
   }) {
     final prefix = relationship + ':';
-    final selected = pages
-        .where(
-          (page) =>
-              page.kind == AccessRepository.collectionProjectionKind &&
-              page.resourceKey.startsWith(prefix),
-        )
-        .toList()
-      ..sort((a, b) => _offset(a).compareTo(_offset(b)));
+    final selected =
+        pages
+            .where(
+              (page) =>
+                  page.kind == AccessRepository.collectionProjectionKind &&
+                  page.resourceKey.startsWith(prefix),
+            )
+            .toList()
+          ..sort((a, b) => _offset(a).compareTo(_offset(b)));
 
     if (selected.isEmpty) {
       return const _AccessCollectionView(
@@ -318,8 +319,7 @@ class _AccessCollectionView {
             id: id,
             title: title,
             stateLabel:
-                _string(state['label']) ??
-                _humanState(_string(state['code'])),
+                _string(state['label']) ?? _humanState(_string(state['code'])),
             context: _contextLabel(timing, place),
             validity: _validityLabel(validity),
             holder: _string(holder['display_name']),
@@ -393,16 +393,15 @@ String _humanState(String? value) => switch (value) {
   _ => 'État connu',
 };
 
-String? _contextLabel(
-  Map<String, dynamic> timing,
-  Map<String, dynamic> place,
-) {
+String? _contextLabel(Map<String, dynamic> timing, Map<String, dynamic> place) {
   final placeName = _string(place['name']) ?? _string(place['locality']);
   final startAt = _dateTime(timing['start_at']);
   final startDate = _string(timing['start_date']);
   final parts = <String>[
-    if (startAt != null) _shortDateTime(startAt)
-    else if (startDate != null) startDate,
+    if (startAt != null)
+      _shortDateTime(startAt)
+    else if (startDate != null)
+      startDate,
     if (placeName != null) placeName,
   ];
   return parts.isEmpty ? null : parts.join(' · ');

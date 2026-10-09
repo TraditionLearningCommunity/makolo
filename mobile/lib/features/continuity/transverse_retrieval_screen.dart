@@ -52,6 +52,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     if (_isSpace) return current == widget.spaceActor;
     return current == null || current is PersonalActorContext;
   }
+
   String get _title => widget.history ? 'Historique' : 'Recherche';
 
   @override
@@ -126,8 +127,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         if (widget.history && _isSpace) 'kind': _historyKind,
         if (widget.history && _startDate != null)
           'from': _dateString(_startDate!),
-        if (widget.history && _endDate != null)
-          'to': _dateString(_endDate!),
+        if (widget.history && _endDate != null) 'to': _dateString(_endDate!),
         'limit': '24',
         'offset': '$offset',
         if (actor != null && !actor.perspective.isAll)
@@ -208,7 +208,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         for (final page in snapshots) {
           if (!page.resourceKey.startsWith(prefix) ||
               (!page.resourceKey.startsWith(queryPrefix) &&
-               !page.resourceKey.startsWith(allPrefix))) {
+                  !page.resourceKey.startsWith(allPrefix))) {
             continue;
           }
           final values = page.payload['items'];
@@ -235,10 +235,17 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         // Only the explicit Space History owner projection has defensible
         // historical dates. Work's completed items are not another History.
         final normalized = query.toLowerCase();
-        return _deduplicate(rows.where((row) =>
-          normalized.isEmpty ||
-          (row['title']?.toString().toLowerCase() ?? '')
-              .contains(normalized)).toList());
+        return _deduplicate(
+          rows
+              .where(
+                (row) =>
+                    normalized.isEmpty ||
+                    (row['title']?.toString().toLowerCase() ?? '').contains(
+                      normalized,
+                    ),
+              )
+              .toList(),
+        );
       }
       final source = repository.workSource(actor.space, actor.perspective);
       final state = await repository.readSource(source);
@@ -298,8 +305,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                 if (id == null) continue;
                 rows.add({
                   'source': {'kind': item['kind'], 'id': id},
-                  'title': label ?? item['name'] ??
-                      item['label'] ?? item['owner_identity'],
+                  'title':
+                      label ??
+                      item['name'] ??
+                      item['label'] ??
+                      item['owner_identity'],
                   'human_type': item['relation_type'] ?? 'Relation',
                   'relation': item['relation_type'] ?? 'Relation',
                   'historical': false,
@@ -324,7 +334,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     return rows.where((row) {
       final source = row['source'];
       if (source is! Map) return false;
-      final key = '${source['kind']}:${source['id']}:'
+      final key =
+          '${source['kind']}:${source['id']}:'
           '${row['relation'] ?? ''}';
       return seen.add(key);
     }).toList();
@@ -375,17 +386,21 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       if (list is! List || page is! Map) {
         throw const FormatException('Invalid owner projection');
       }
-      final items = list.whereType<Map>().map(
-        (value) => Map<String, dynamic>.from(value),
-      ).toList();
+      final items = list
+          .whereType<Map>()
+          .map((value) => Map<String, dynamic>.from(value))
+          .toList();
       final coverage = payload['coverage'];
-      final unavailable = coverage is Map && coverage['unavailable_sources'] is List
+      final unavailable =
+          coverage is Map && coverage['unavailable_sources'] is List
           ? (coverage['unavailable_sources'] as List)
-              .map((item) => item.toString()).toList()
+                .map((item) => item.toString())
+                .toList()
           : <String>[];
       final limited = coverage is Map && coverage['limited_sources'] is List
           ? (coverage['limited_sources'] as List)
-              .map((item) => item.toString()).toList()
+                .map((item) => item.toString())
+                .toList()
           : <String>[];
       if (!mounted || !_actorValid || version != _version) return;
       final store = widget.runtime.store;
@@ -398,7 +413,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
               _spaceCacheQueryPrefix(actor, query),
             )) {
               await store.deleteProjection(
-                'space.history', resourceKey: page.resourceKey,
+                'space.history',
+                resourceKey: page.resourceKey,
               );
             }
           }
@@ -434,7 +450,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
               _spaceCachePrefix(widget.spaceActor!),
             )) {
               await store.deleteProjection(
-                'space.history', resourceKey: page.resourceKey,
+                'space.history',
+                resourceKey: page.resourceKey,
               );
             }
           }
@@ -470,8 +487,14 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   }
 
   static const _spaceKinds = <String>{
-    'activity', 'occurrence', 'commerce_order',
-    'team_member', 'group', 'crm_contact', 'audience', 'partner',
+    'activity',
+    'occurrence',
+    'commerce_order',
+    'team_member',
+    'group',
+    'crm_contact',
+    'audience',
+    'partner',
   };
 
   bool _canOpen(Map<String, dynamic> item) {
@@ -480,7 +503,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     final kind = source['kind']?.toString();
     if (_isSpace) return _spaceKinds.contains(kind);
     return {
-      'journey', 'access', 'personal_asset', 'group', 'commerce_order',
+      'journey',
+      'access',
+      'personal_asset',
+      'group',
+      'commerce_order',
     }.contains(kind);
   }
 
@@ -509,23 +536,26 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final rows = _remote.isEmpty && (_failed || _loading)
-        ? _local
-        : _remote;
+    final rows = _remote.isEmpty && (_failed || _loading) ? _local : _remote;
     final viewport = MediaQuery.sizeOf(context);
-    final large = viewport.width >= 900 &&
+    final large =
+        viewport.width >= 900 &&
         MediaQuery.textScalerOf(context).scale(16) < 25.6;
     final selected = _selected != null && _selected! < rows.length
         ? rows[_selected!]
         : null;
     return Scaffold(
-      appBar: AppBar(title: Text(
-        _isSpace ? '$_title · ${widget.spaceActor!.space.slug}' : _title,
-      )),
+      appBar: AppBar(
+        title: Text(
+          _isSpace ? '$_title · ${widget.spaceActor!.space.slug}' : _title,
+        ),
+      ),
       body: !_actorValid || _revoked
-          ? const Center(child: Text(
-              'Ce contexte n’est plus autorisé. Retournez à votre Espace.',
-            ))
+          ? const Center(
+              child: Text(
+                'Ce contexte n’est plus autorisé. Retournez à votre Espace.',
+              ),
+            )
           : Row(
               children: [
                 Expanded(
@@ -595,7 +625,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           items: const [
                             DropdownMenuItem(value: 'all', child: Text('Tout')),
                             DropdownMenuItem(
-                              value: 'occurrence', child: Text('Séances passées'),
+                              value: 'occurrence',
+                              child: Text('Séances passées'),
                             ),
                             DropdownMenuItem(
                               value: 'commerce_order',
@@ -625,9 +656,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                 setState(() => _startDate = date);
                                 unawaited(_submit());
                               },
-                              child: Text(_startDate == null
-                                  ? 'Depuis'
-                                  : 'Depuis ${_dateString(_startDate!)}'),
+                              child: Text(
+                                _startDate == null
+                                    ? 'Depuis'
+                                    : 'Depuis ${_dateString(_startDate!)}',
+                              ),
                             ),
                             OutlinedButton(
                               onPressed: () async {
@@ -641,9 +674,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                                 setState(() => _endDate = date);
                                 unawaited(_submit());
                               },
-                              child: Text(_endDate == null
-                                  ? 'Jusqu’au'
-                                  : 'Jusqu’au ${_dateString(_endDate!)}'),
+                              child: Text(
+                                _endDate == null
+                                    ? 'Jusqu’au'
+                                    : 'Jusqu’au ${_dateString(_endDate!)}',
+                              ),
                             ),
                             if (_startDate != null || _endDate != null)
                               TextButton(
@@ -661,28 +696,33 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                       ],
                       const SizedBox(height: 12),
                       if (rows.isEmpty && !_loading)
-                        Text(_query.text.trim().isEmpty && !widget.history
-                            ? 'Saisissez ce que vous souhaitez retrouver.'
-                            : 'Aucun résultat visible dans ce contexte.'),
+                        Text(
+                          _query.text.trim().isEmpty && !widget.history
+                              ? 'Saisissez ce que vous souhaitez retrouver.'
+                              : 'Aucun résultat visible dans ce contexte.',
+                        ),
                       for (var index = 0; index < rows.length; index++)
                         ListTile(
                           key: ValueKey('retrieval-$index'),
-                          title: Text(rows[index]['title']?.toString() ??
-                              'Élément'),
-                          subtitle: Text([
-                            rows[index]['human_type']?.toString() ?? 'Réel',
-                            rows[index]['relation']?.toString() ?? '',
-                            if (rows[index]['historical'] == true)
-                              'Historique',
-                          ].where((label) => label.isNotEmpty).join(' · ')),
+                          title: Text(
+                            rows[index]['title']?.toString() ?? 'Élément',
+                          ),
+                          subtitle: Text(
+                            [
+                              rows[index]['human_type']?.toString() ?? 'Réel',
+                              rows[index]['relation']?.toString() ?? '',
+                              if (rows[index]['historical'] == true)
+                                'Historique',
+                            ].where((label) => label.isNotEmpty).join(' · '),
+                          ),
                           trailing: _canOpen(rows[index])
                               ? const Icon(Icons.chevron_right)
                               : null,
                           onTap: large
                               ? () => setState(() => _selected = index)
                               : _canOpen(rows[index])
-                                  ? () => _open(rows[index])
-                                  : null,
+                              ? () => _open(rows[index])
+                              : null,
                         ),
                       if (_more)
                         OutlinedButton(

@@ -37,12 +37,14 @@ void main() {
         'page': {'offset': 0, 'limit': 24, 'has_more': false},
       },
     );
-    await tester.pumpWidget(MaterialApp(
-      home: TransverseRetrievalScreen(
-        runtime: _runtime(alice),
-        initialQuery: 'Atelier',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransverseRetrievalScreen(
+          runtime: _runtime(alice),
+          initialQuery: 'Atelier',
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.text('Atelier mémorable'), findsOneWidget);
     expect(find.textContaining('Actualisation indisponible'), findsOneWidget);
@@ -68,21 +70,25 @@ void main() {
         ],
       },
     );
-    await tester.pumpWidget(MaterialApp(
-      home: TransverseRetrievalScreen(
-        runtime: _runtime(alice),
-        initialQuery: 'Privé',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransverseRetrievalScreen(
+          runtime: _runtime(alice),
+          initialQuery: 'Privé',
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.text('Privé Alice'), findsOneWidget);
 
-    await tester.pumpWidget(MaterialApp(
-      home: TransverseRetrievalScreen(
-        runtime: _runtime(bob),
-        initialQuery: 'Privé',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransverseRetrievalScreen(
+          runtime: _runtime(bob),
+          initialQuery: 'Privé',
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.text('Privé Alice'), findsNothing);
   });
@@ -98,16 +104,16 @@ void main() {
       tester.view.resetDevicePixelRatio();
       tester.view.resetPhysicalSize();
     });
-    await tester.pumpWidget(MaterialApp(
-      home: MediaQuery(
-        data: const MediaQueryData(
-          textScaler: TextScaler.linear(1.6),
-        ),
-        child: TransverseRetrievalScreen(
-          runtime: _runtime(ProfileStore(db, 'alice')),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
+          child: TransverseRetrievalScreen(
+            runtime: _runtime(ProfileStore(db, 'alice')),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.byType(TextField), findsOneWidget);
     expect(find.byTooltip('Lancer la recherche'), findsOneWidget);

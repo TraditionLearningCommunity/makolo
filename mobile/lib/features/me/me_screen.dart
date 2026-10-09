@@ -127,11 +127,7 @@ class _MeScreenState extends State<MeScreen> {
 }
 
 class MeView extends StatefulWidget {
-  const MeView({
-    super.key,
-    required this.selection,
-    this.onOpenDestination,
-  });
+  const MeView({super.key, required this.selection, this.onOpenDestination});
 
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;

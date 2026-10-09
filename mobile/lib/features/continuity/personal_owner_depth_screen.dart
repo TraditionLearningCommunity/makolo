@@ -66,9 +66,15 @@ class _PersonalOwnerDepthScreenState extends State<PersonalOwnerDepthScreen> {
     final document = widget.kind == 'personal_asset';
     final order = widget.kind == 'commerce_order';
     return Scaffold(
-      appBar: AppBar(title: Text(document
-          ? 'Mon document'
-          : order ? 'Ma commande' : 'Mon groupe')),
+      appBar: AppBar(
+        title: Text(
+          document
+              ? 'Mon document'
+              : order
+              ? 'Ma commande'
+              : 'Mon groupe',
+        ),
+      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _detail,
         builder: (context, snapshot) {
@@ -95,8 +101,7 @@ class _PersonalOwnerDepthScreenState extends State<PersonalOwnerDepthScreen> {
           final data = snapshot.data!;
           final title = document || order ? data['title'] : data['name'];
           final details = <String>[
-            if (document)
-              data['asset_kind_label']?.toString() ?? 'Document',
+            if (document) data['asset_kind_label']?.toString() ?? 'Document',
             if (!document && data['description'] is String)
               data['description'] as String,
             if (data['status'] is String) data['status'] as String,

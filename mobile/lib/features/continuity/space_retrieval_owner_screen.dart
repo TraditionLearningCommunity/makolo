@@ -79,7 +79,10 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     final data = switch (kind) {
       'activity' || 'occurrence' => await _readActivityOwner(api, kind, id),
       'commerce_order' => await _readOrderOwner(api, id),
-      'team_member' || 'group' || 'crm_contact' || 'audience' ||
+      'team_member' ||
+      'group' ||
+      'crm_contact' ||
+      'audience' ||
       'partner' => await _readRelationshipOwner(api, kind, id),
       _ => throw const FormatException('Unknown owner'),
     };
@@ -161,7 +164,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     }
     final profile = selection['profile'];
     return {
-      'title': (profile is Map ? profile['name'] : null) ??
+      'title':
+          (profile is Map ? profile['name'] : null) ??
           selection['name'] ??
           selection['label'] ??
           selection['owner_identity'] ??

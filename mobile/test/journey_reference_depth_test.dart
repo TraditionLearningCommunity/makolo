@@ -173,14 +173,8 @@ void main() {
       expect(result.occurrence?.link, '/api/v1/occurrences/occurrence-1/');
       expect(result.access?.id, 'access-1');
       expect(result.access?.link, '/api/v1/me/accesses/access-1/');
-      expect(
-        result.dayOfLink,
-        '/api/v1/me/occurrences/occurrence-1/day-of/',
-      );
-      expect(
-        result.liveLink,
-        '/api/v1/me/occurrences/occurrence-1/live/',
-      );
+      expect(result.dayOfLink, '/api/v1/me/occurrences/occurrence-1/day-of/');
+      expect(result.liveLink, '/api/v1/me/occurrences/occurrence-1/live/');
     },
   );
 

@@ -1,4 +1,3 @@
-
 import 'package:drift/drift.dart';
 
 import '../../data/local/makolo_database.dart';
@@ -131,15 +130,14 @@ class ResourceRepository {
     required String query,
     required int offset,
     int limit = defaultLimit,
-  }) =>
-      store.readProjection(
-        collectionProjectionKind,
-        resourceKey: collectionResourceKey(
-          query: query,
-          offset: offset,
-          limit: limit,
-        ),
-      );
+  }) => store.readProjection(
+    collectionProjectionKind,
+    resourceKey: collectionResourceKey(
+      query: query,
+      offset: offset,
+      limit: limit,
+    ),
+  );
 
   Future<void> refreshCollectionPage({
     required String query,
@@ -167,10 +165,9 @@ class ResourceRepository {
     required String query,
     int offset = 0,
     int limit = defaultLimit,
-  }) =>
-      _watchSource(
-        collectionSourceKey(query: query, offset: offset, limit: limit),
-      );
+  }) => _watchSource(
+    collectionSourceKey(query: query, offset: offset, limit: limit),
+  );
 
   Stream<ResourceSourceState> watchDetailSource(String assetId) =>
       _watchSource('resource:' + assetId);

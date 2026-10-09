@@ -99,16 +99,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _searchFailed = false;
     });
     try {
-      final nextOffset =
-          more && _remoteHistory != null ? _remoteHistory!.nextOffset : 0;
+      final nextOffset = more && _remoteHistory != null
+          ? _remoteHistory!.nextOffset
+          : 0;
       final payload = await widget.repository.searchPage(
         query: query,
         offset: nextOffset,
         type: filter == 'access'
             ? 'accesses'
             : filter == 'journey'
-                ? 'journeys'
-                : 'all',
+            ? 'journeys'
+            : 'all',
       );
       if (!mounted || _query != query || _filter != filter) return;
       final snapshot = StoredProjection(
@@ -165,7 +166,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   item.title.toLowerCase().contains(_query.toLowerCase());
             }).toList();
             final first = view.firstPage ?? _remoteHistory?.firstPage;
-            final wide = MediaQuery.sizeOf(context).width >= 900 &&
+            final wide =
+                MediaQuery.sizeOf(context).width >= 900 &&
                 MediaQuery.textScalerOf(context).scale(16) < 26;
             _HistoryItem? selected;
             for (final item in visible) {
@@ -236,134 +238,153 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Expanded(
                       flex: 3,
                       child: ListView(
-                  key: const Key('history-content'),
-                  padding: const EdgeInsets.all(MakoloSpacing.inner),
-                  children: [
-                    TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Rechercher dans l’historique synchronisé',
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                      onChanged: (value) => setState(() {
-                        _query = value.trim();
-                        _remoteHistory = null;
-                        _remotePages = [];
-                        _selectedHistoryKey = null;
-                      }),
-                      onSubmitted: (_) => _remoteSearch(),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final filter in const ['all', 'access', 'journey'])
-                          ChoiceChip(
-                            label: Text(filter == 'all'
-                                ? 'Tout'
-                                : filter == 'access'
-                                    ? 'Accès'
-                                    : 'Démarches'),
-                            selected: _filter == filter,
-                            onSelected: (_) {
-                              setState(() {
-                                _filter = filter;
-                                _remoteHistory = null;
-                                _remotePages = [];
-                                _selectedHistoryKey = null;
-                              });
-                              unawaited(_remoteSearch());
-                            },
+                        key: const Key('history-content'),
+                        padding: const EdgeInsets.all(MakoloSpacing.inner),
+                        children: [
+                          TextField(
+                            decoration: const InputDecoration(
+                              labelText:
+                                  'Rechercher dans l’historique synchronisé',
+                              prefixIcon: Icon(Icons.search),
+                            ),
+                            onChanged: (value) => setState(() {
+                              _query = value.trim();
+                              _remoteHistory = null;
+                              _remotePages = [];
+                              _selectedHistoryKey = null;
+                            }),
+                            onSubmitted: (_) => _remoteSearch(),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Historique partiel. Résultats locaux puis '
-                            'actualisation chez les propriétaires.',
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              for (final filter in const [
+                                'all',
+                                'access',
+                                'journey',
+                              ])
+                                ChoiceChip(
+                                  label: Text(
+                                    filter == 'all'
+                                        ? 'Tout'
+                                        : filter == 'access'
+                                        ? 'Accès'
+                                        : 'Démarches',
+                                  ),
+                                  selected: _filter == filter,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      _filter = filter;
+                                      _remoteHistory = null;
+                                      _remotePages = [];
+                                      _selectedHistoryKey = null;
+                                    });
+                                    unawaited(_remoteSearch());
+                                  },
+                                ),
+                            ],
                           ),
-                        ),
-                        IconButton(
-                          tooltip: 'Rechercher dans tout l’historique visible',
-                          onPressed: _searching ? null : _remoteSearch,
-                          icon: const Icon(Icons.search),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Historique partiel. Résultats locaux puis '
+                                  'actualisation chez les propriétaires.',
+                                ),
+                              ),
+                              IconButton(
+                                tooltip:
+                                    'Rechercher dans tout l’historique visible',
+                                onPressed: _searching ? null : _remoteSearch,
+                                icon: const Icon(Icons.search),
+                              ),
+                            ],
+                          ),
+                          if (_searching) const LinearProgressIndicator(),
+                          if (_searchFailed)
+                            const Text(
+                              'Recherche distante indisponible. '
+                              'Les pages locales restent consultables.',
+                            ),
+                          if (visible.isEmpty)
+                            const Text(
+                              'Aucun élément correspondant parmi les '
+                              'pages synchronisées.',
+                            ),
+                          for (
+                            var index = 0;
+                            index < visible.length;
+                            index++
+                          ) ...[
+                            _HistoryCard(
+                              item: visible[index],
+                              onOpen: (kind, id) {
+                                if (wide) {
+                                  setState(
+                                    () => _selectedHistoryKey = '$kind:$id',
+                                  );
+                                } else {
+                                  widget.onOpenResource(kind, id);
+                                }
+                              },
+                            ),
+                            if (index < visible.length - 1)
+                              const SizedBox(height: MakoloSpacing.sm),
+                          ],
+                          if ((_remoteHistory ?? view).hasMore) ...[
+                            const SizedBox(height: MakoloSpacing.md),
+                            OutlinedButton(
+                              onPressed: _loadingMore || _searching
+                                  ? null
+                                  : _remoteHistory == null
+                                  ? () => _loadMore(view)
+                                  : () => _remoteSearch(more: true),
+                              child: Text(
+                                _loadingMore || _searching
+                                    ? 'Chargement…'
+                                    : 'Afficher la suite',
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    if (_searching) const LinearProgressIndicator(),
-                    if (_searchFailed)
-                      const Text(
-                        'Recherche distante indisponible. '
-                        'Les pages locales restent consultables.',
-                      ),
-                    if (visible.isEmpty)
-                      const Text('Aucun élément correspondant parmi les '
-                          'pages synchronisées.'),
-                    for (var index = 0; index < visible.length; index++) ...[
-                      _HistoryCard(
-                        item: visible[index],
-                        onOpen: (kind, id) {
-                          if (wide) {
-                            setState(() => _selectedHistoryKey = '$kind:$id');
-                          } else {
-                            widget.onOpenResource(kind, id);
-                          }
-                        },
-                      ),
-                      if (index < visible.length - 1)
-                        const SizedBox(height: MakoloSpacing.sm),
-                    ],
-                    if ((_remoteHistory ?? view).hasMore) ...[
-                      const SizedBox(height: MakoloSpacing.md),
-                      OutlinedButton(
-                        onPressed: _loadingMore || _searching
-                            ? null
-                            : _remoteHistory == null
-                                ? () => _loadMore(view)
-                                : () => _remoteSearch(more: true),
-                        child: Text(
-                          _loadingMore || _searching
-                              ? 'Chargement…'
-                              : 'Afficher la suite',
+                    if (wide && chosen != null) ...[
+                      const VerticalDivider(width: 1),
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                chosen.title,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 12),
+                              if (chosen.outcome != null) Text(chosen.outcome!),
+                              Text(chosen.occurredAt ?? 'Date non précisée'),
+                              const SizedBox(height: 20),
+                              if (chosen.id != null)
+                                OutlinedButton(
+                                  onPressed: () => widget.onOpenResource(
+                                    chosen.kind,
+                                    chosen.id!,
+                                  ),
+                                  child: const Text(
+                                    'Ouvrir chez le propriétaire',
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ],
                 ),
-              ),
-              if (wide && chosen != null) ...[
-                const VerticalDivider(width: 1),
-                Expanded(
-                  flex: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          chosen.title,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 12),
-                        if (chosen.outcome != null) Text(chosen.outcome!),
-                        Text(chosen.occurredAt ?? 'Date non précisée'),
-                        const SizedBox(height: 20),
-                        if (chosen.id != null)
-                          OutlinedButton(
-                            onPressed: () => widget.onOpenResource(
-                              chosen.kind, chosen.id!,
-                            ),
-                            child: const Text('Ouvrir chez le propriétaire'),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
               ),
             );
           },

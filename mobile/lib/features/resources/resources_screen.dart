@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -178,8 +177,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
                     if (view.hasMore) ...[
                       const SizedBox(height: MakoloSpacing.sm),
                       OutlinedButton(
-                        onPressed:
-                            _loadingMore ? null : () => _loadMore(view),
+                        onPressed: _loadingMore ? null : () => _loadMore(view),
                         child: Text(
                           _loadingMore ? 'Chargement…' : 'Afficher la suite',
                         ),
@@ -242,9 +240,8 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(height: MakoloSpacing.xs),
         Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     ),
@@ -317,14 +314,15 @@ class _ResourcesView {
   }) {
     final encoded = Uri.encodeComponent(query.trim());
     final prefix = encoded + ':';
-    final selected = pages
-        .where(
-          (page) =>
-              page.kind == ResourceRepository.collectionProjectionKind &&
-              page.resourceKey.startsWith(prefix),
-        )
-        .toList()
-      ..sort((a, b) => _offset(a).compareTo(_offset(b)));
+    final selected =
+        pages
+            .where(
+              (page) =>
+                  page.kind == ResourceRepository.collectionProjectionKind &&
+                  page.resourceKey.startsWith(prefix),
+            )
+            .toList()
+          ..sort((a, b) => _offset(a).compareTo(_offset(b)));
 
     if (selected.isEmpty) {
       return const _ResourcesView(
@@ -353,8 +351,7 @@ class _ResourcesView {
           _DocumentItem(
             id: id,
             title: title,
-            kindLabel:
-                _string(row['asset_kind_label']) ?? 'Document',
+            kindLabel: _string(row['asset_kind_label']) ?? 'Document',
             sensitivityLabel: _string(row['sensitivity_label']),
             validityLabel: _validity(validity),
           ),

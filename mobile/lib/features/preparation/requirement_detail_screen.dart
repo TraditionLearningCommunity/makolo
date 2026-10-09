@@ -164,10 +164,7 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
 }
 
 class _RequirementContent extends StatelessWidget {
-  const _RequirementContent({
-    required this.presentation,
-    this.onOpenOwnerLink,
-  });
+  const _RequirementContent({required this.presentation, this.onOpenOwnerLink});
 
   final _RequirementPresentation presentation;
   final Future<void> Function(String link)? onOpenOwnerLink;
@@ -272,7 +269,8 @@ class _RequirementWay {
 
   String get handoffLabel => switch (kind) {
     'payment' => 'Continuer auprès du propriétaire du paiement.',
-    'trusted_reuse' => 'Choisir un élément existant sans le déclarer automatiquement satisfait.',
+    'trusted_reuse' =>
+      'Choisir un élément existant sans le déclarer automatiquement satisfait.',
     'journey_step' => 'Cette étape reste pilotée par son propriétaire.',
     _ => 'Continuer auprès du propriétaire de cette action.',
   };
