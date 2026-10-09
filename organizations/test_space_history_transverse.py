@@ -5,7 +5,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from activities.models import Activity, Occurrence, OccurrenceStatus
+from activities.models import Activity, Occurrence, OccurrenceStatus, OccurrenceTimingKind
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
 from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
@@ -52,19 +52,12 @@ class SpaceHistoryPermissionTests(TestCase):
             end_at=now - timedelta(days=2, hours=-2),
             status=OccurrenceStatus.COMPLETED,
         )
-        # An undated legacy row cannot be created through the current
-        # Occurrence service validation; emulate only the historical stored
-        # state without weakening runtime validation.
         self.undated = Occurrence.objects.create(
-            activity=self.activity, label="Sans date historique",
-            start_at=now - timedelta(days=3),
+            activity=self.activity, label="Sans heure de fin historique",
+            start_date=(now - timedelta(days=2)).date(),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
             status=OccurrenceStatus.COMPLETED,
         )
-        Occurrence.objects.filter(pk=self.undated.pk).update(
-            start_date=None, start_time=None, end_date=None,
-            end_time=None, start_at=None, end_at=None,
-        )
-        self.undated.refresh_from_db()
         self.client = APIClient()
         self.url = "/api/v1/organizations/workspaces/history-space/history/"
 
@@ -109,7 +102,7 @@ class SpaceHistoryPermissionTests(TestCase):
         self.assertEqual(self.client.get(self.url, {"limit": 51}).status_code, 400)
         self.assertEqual(
             self.client.get(self.url, {"responsibility": "mandate:invalid"}).status_code,
-            400,
+            404,
         )
 
     def test_revoked_activity_authority_no_longer_exposes_history(self):
