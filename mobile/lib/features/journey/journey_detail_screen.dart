@@ -392,9 +392,13 @@ class _JourneyContent extends StatelessWidget {
     final link = presentation.nextActionLink;
     if (link == null || link.isEmpty) return null;
 
-    final form = presentation.forms
-        .where((item) => item.detailLink == link)
-        .firstOrNull;
+    JourneyFormSummary? form;
+    for (final item in presentation.forms) {
+      if (item.detailLink == link) {
+        form = item;
+        break;
+      }
+    }
     if (form != null) {
       return FilledButton(
         onPressed: () => onOpenForm(form),
@@ -402,9 +406,13 @@ class _JourneyContent extends StatelessWidget {
       );
     }
 
-    final requirement = presentation.requirements
-        .where((item) => item.link == link)
-        .firstOrNull;
+    JourneyReference? requirement;
+    for (final item in presentation.requirements) {
+      if (item.link == link) {
+        requirement = item;
+        break;
+      }
+    }
     if (requirement != null) {
       return FilledButton(
         onPressed: () => onOpenRequirement(requirement),
