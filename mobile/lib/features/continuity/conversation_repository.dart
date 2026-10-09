@@ -238,6 +238,7 @@ class ConversationRepository {
 
   Future<void> updatePersonalState({
     required String conversationId,
+    bool? mute,
     bool? hidden,
     bool? archived,
     bool? pinned,
@@ -250,6 +251,7 @@ class ConversationRepository {
     await engine.api.post(
       'api/v1/conversations/$conversationId/personal-state/',
       body: {
+        if (mute != null) 'mute': mute,
         if (hidden != null) 'hidden': hidden,
         if (archived != null) 'archived': archived,
         if (pinned != null) 'pinned': pinned,
