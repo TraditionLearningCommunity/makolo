@@ -1,6 +1,8 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+
+from accounts.models import UserProfile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +12,15 @@ from operations.models import OperationsAuditLog
 from opportunities.models import Opportunity, OpportunityPublicationStatus
 from organizations.models import Organization
 from events.models import Event, EventStatus, EventVisibility
+from intelligence.capabilities import IntelligenceCapability
+from intelligence.models import (
+    IntelligenceRoute,
+    ProviderConnection,
+    ProviderCredential,
+    ProviderHealth,
+    ProviderProtocol,
+    ProviderScope,
+)
 from authorization.services import revoke_mandate
 
 from authorization.constants import SystemRoleCode
@@ -70,6 +81,113 @@ class PlatformWebContractTests(TestCase):
             keys, {item["key"] for item in
                    self.client.get("/api/v1/platform/capabilities/").data["modules"]}
         )
+
+    def test_platform_interoperability_is_human_scope_isolated_and_secret_free(self):
+        platform_connection = ProviderConnection.objects.create(
+            name="Service Platform",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://platform-provider.example.test/v1",
+            default_model="private-platform-model",
+            scope=ProviderScope.PLATFORM,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
+        IntelligenceRoute.objects.create(
+            connection=platform_connection,
+            capability=IntelligenceCapability.TEXT_GENERATE.value,
+            enabled=True,
+        )
+        ProviderCredential.objects.create(
+            connection=platform_connection,
+            encrypted_secret="platform-secret-ciphertext",
+            key_hint="platform-key-hint",
+        )
+
+        profile, _ = UserProfile.objects.get_or_create(user=self.operator)
+        ProviderConnection.objects.create(
+            name="Connexion Profile privée",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://profile-provider.example.test/v1",
+            default_model="profile-model",
+            scope=ProviderScope.PROFILE,
+            profile=profile,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
+        space = Organization.objects.create(
+            name="Platform foreign Space",
+            slug="platform-foreign-space",
+            created_by=self.operator,
+        )
+        ProviderConnection.objects.create(
+            name="Connexion Space privée",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://space-provider.example.test/v1",
+            default_model="space-model",
+            scope=ProviderScope.SPACE,
+            space=space,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
+
+        self.client.force_login(self.operator)
+        response = self.client.get("/platform/interoperability/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertEqual(response.context["interoperability"]["context"], "platform")
+        self.assertContains(response, "Service Platform")
+        self.assertContains(response, "Connecté et disponible")
+        self.assertContains(response, "Génération de texte")
+        self.assertNotContains(response, "Connexion Profile privée")
+        self.assertNotContains(response, "Connexion Space privée")
+
+        html = response.content.decode("utf-8")
+        for forbidden in (
+            "platform-secret-ciphertext",
+            "platform-key-hint",
+            "platform-provider.example.test",
+            "private-platform-model",
+            "openai_compatible",
+            "text_generate",
+        ):
+            self.assertNotIn(forbidden, html)
+
+    def test_platform_interoperability_preserves_degraded_disabled_and_empty_states(self):
+        ProviderConnection.objects.create(
+            name="Service désactivé",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://disabled.example.test/v1",
+            default_model="disabled-model",
+            scope=ProviderScope.PLATFORM,
+            enabled=False,
+            health_status=ProviderHealth.HEALTHY,
+        )
+        degraded = ProviderConnection.objects.create(
+            name="Service dégradé",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://degraded.example.test/v1",
+            default_model="degraded-model",
+            scope=ProviderScope.PLATFORM,
+            enabled=True,
+            health_status=ProviderHealth.DEGRADED,
+        )
+        IntelligenceRoute.objects.create(
+            connection=degraded,
+            capability=IntelligenceCapability.TEXT_GENERATE.value,
+            enabled=True,
+        )
+
+        self.client.force_login(self.operator)
+        response = self.client.get("/platform/interoperability/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Désactivé")
+        self.assertContains(response, "Connecté · disponibilité réduite")
+
+        ProviderConnection.objects.filter(scope=ProviderScope.PLATFORM).delete()
+        response = self.client.get("/platform/interoperability/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucune connexion Platform configurée.")
 
     def test_specialized_curator_has_no_operations_navigation_or_deeplinks(self):
         self.client.force_login(self.curator)
