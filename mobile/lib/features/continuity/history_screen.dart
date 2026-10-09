@@ -164,7 +164,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
               return _query.isEmpty ||
                   item.title.toLowerCase().contains(_query.toLowerCase());
             }).toList();
-            final chosen = selected;
             final first = view.firstPage ?? _remoteHistory?.firstPage;
             final wide = MediaQuery.sizeOf(context).width >= 900 &&
                 MediaQuery.textScalerOf(context).scale(16) < 26;
@@ -175,6 +174,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 break;
               }
             }
+            final chosen = selected;
             final freshness = first == null
                 ? null
                 : HistoryRepository.freshnessPolicy.evaluate(
