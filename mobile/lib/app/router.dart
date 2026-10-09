@@ -8,6 +8,7 @@ import '../features/auth/account_chooser_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/continuity/continuity_routes.dart';
+import '../features/continuity/transverse_retrieval_screen.dart';
 import '../features/day_of/day_of_routes.dart';
 import '../features/live/live_routes.dart';
 import '../features/discovery/discovery_routes.dart';
@@ -59,6 +60,9 @@ GoRouter createMakoloRouter(
       '/connections',
       '/conversations',
       '/history',
+      '/search',
+      '/space/history',
+      '/space/search',
       '/notifications',
       '/ongoing/calendar',
       '/billing',
@@ -194,6 +198,48 @@ GoRouter createMakoloRouter(
       ...interoperabilityRoutes(runtime),
       ...markRoutes(runtime),
       ...continuityRoutes(runtime),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => TransverseRetrievalScreen(
+          runtime: runtime,
+          initialQuery: state.uri.queryParameters['q'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: '/space/search',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Recherche',
+              message: 'Choisissez un Espace autorisé.',
+            );
+          }
+          return TransverseRetrievalScreen(
+            runtime: runtime,
+            spaceActor: actor,
+            initialQuery: state.uri.queryParameters['q'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/history',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Historique',
+              message: 'Choisissez un Espace autorisé.',
+            );
+          }
+          return TransverseRetrievalScreen(
+            runtime: runtime,
+            spaceActor: actor,
+            history: true,
+            initialQuery: state.uri.queryParameters['q'] ?? '',
+          );
+        },
+      ),
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const MakoloSecondaryScreen(

@@ -32,6 +32,8 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
+  String _query = '';
+  String _filter = 'all';
   bool _loadingMore = false;
   bool _requestedInitialRefresh = false;
 
@@ -96,6 +98,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             final pages = pagesSnapshot.data ?? const [];
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
             final view = _HistoryView.fromPages(pages);
+            final visible = view.items.where((item) {
+              if (_filter != 'all' && item.kind != _filter) return false;
+              return _query.isEmpty ||
+                  item.title.toLowerCase().contains(_query.toLowerCase());
+            }).toList();
             final first = view.firstPage;
             final freshness = first == null
                 ? null
@@ -152,12 +159,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   key: const Key('history-content'),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
                   children: [
-                    for (var index = 0; index < view.items.length; index++) ...[
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Rechercher dans l’historique synchronisé',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (value) => setState(() => _query = value.trim()),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final filter in const ['all', 'access', 'journey'])
+                          ChoiceChip(
+                            label: Text(filter == 'all'
+                                ? 'Tout'
+                                : filter == 'access'
+                                    ? 'Accès'
+                                    : 'Démarches'),
+                            selected: _filter == filter,
+                            onSelected: (_) => setState(() => _filter = filter),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Historique partiel. Recherche locale dans les '
+                      'pages déjà synchronisées.',
+                    ),
+                    if (visible.isEmpty)
+                      const Text('Aucun élément correspondant parmi les '
+                          'pages synchronisées.'),
+                    for (var index = 0; index < visible.length; index++) ...[
                       _HistoryCard(
-                        item: view.items[index],
+                        item: visible[index],
                         onOpen: widget.onOpenResource,
                       ),
-                      if (index < view.items.length - 1)
+                      if (index < visible.length - 1)
                         const SizedBox(height: MakoloSpacing.sm),
                     ],
                     if (view.hasMore) ...[
