@@ -133,11 +133,11 @@
 {% if rewards_allowed %}
 <section class="section"><h2>Economy — Rewards</h2><p class="muted">Consultation sûre de la configuration. Aucun fulfillment brut ni mutation directe depuis cet écran.</p>
 <div class="tablebox"><table><thead><tr><th scope="col">Reward</th><th scope="col">Coût</th><th scope="col">Type</th><th scope="col">Disponibilité</th></tr></thead><tbody>
-{% for reward in rewards %}<tr><td>{{ reward.name }}</td><td>{{ reward.points_cost }} crédits</td><td>{{ reward.get_kind_display }}</td><td>{% if reward.is_active %}Active{% else %}Inactive{% endif %}</td></tr>{% empty %}<tr><td colspan="4">Aucune Reward.</td></tr>{% endfor %}</tbody></table></div></section>
+{% for reward in rewards %}<tr><td>{{ reward.name }}</td><td>{{ reward.points_cost }} crédits</td><td>{{ reward.get_kind_display }}</td><td>{% if reward.is_active %}Active{% else %}Inactive{% endif %} <a href="{% url 'platform_web:recognition-availability' 'reward' reward.pk %}">Gouverner</a></td></tr>{% empty %}<tr><td colspan="4">Aucune Reward.</td></tr>{% endfor %}</tbody></table></div></section>
 {% endif %}
 {% if achievements_allowed %}
 <section class="section"><h2>Achievements</h2><div class="tablebox"><table><thead><tr><th scope="col">Achievement</th><th scope="col">Code</th><th scope="col">État</th></tr></thead><tbody>
-{% for achievement in achievements %}<tr><td>{{ achievement.name }}</td><td>{{ achievement.code }}</td><td>{% if achievement.is_active %}Actif{% else %}Inactif{% endif %}</td></tr>{% empty %}<tr><td colspan="3">Aucun Achievement.</td></tr>{% endfor %}</tbody></table></div></section>
+{% for achievement in achievements %}<tr><td>{{ achievement.name }}</td><td>{{ achievement.code }}</td><td>{% if achievement.is_active %}Actif{% else %}Inactif{% endif %} <a href="{% url 'platform_web:recognition-availability' 'achievement' achievement.pk %}">Gouverner</a></td></tr>{% empty %}<tr><td colspan="3">Aucun Achievement.</td></tr>{% endfor %}</tbody></table></div></section>
 {% endif %}
 {% if audit_allowed %}
 <section class="section"><h2>Audit Recognition</h2><p class="muted">Traces owner et décisions opérateur. Les payloads et les identités de bénéficiaires ne sont pas exposés.</p>
