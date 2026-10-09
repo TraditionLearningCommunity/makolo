@@ -65,6 +65,36 @@ class NowWebPresentationTests(SimpleTestCase):
         item["business_actions"][0]["confirmation_required"] = False
         self.assertEqual(_now_web_context(_response(items=[item])).primary_attention.direct_actions, ())
 
+    def test_s3_ticket_actions_use_only_their_exact_owner_api_routes(self):
+        from uuid import uuid4
+        from django.urls import reverse
+
+        owner_id = uuid4()
+        for kind, capability, route in (
+            ("waitlist", "accept", "ticket-waitlist-accept"),
+            ("waitlist", "leave", "ticket-waitlist-leave"),
+            ("ticket_transfer", "accept", "ticket-transfers-accept"),
+            ("ticket_transfer", "decline", "ticket-transfers-decline"),
+        ):
+            with self.subTest(kind=kind, capability=capability):
+                url = reverse(route, kwargs={"pk": owner_id})
+                action = {
+                    "capability": capability,
+                    "href": url,
+                    "interaction_depth": "direct_now",
+                    "confirmation_required": True,
+                }
+                item = {
+                    "id": "decision",
+                    "source": {"kind": kind, "id": str(owner_id)},
+                    "business_actions": [action],
+                }
+                view = _now_web_context(_response(items=[item])).primary_attention
+                self.assertEqual(view.direct_actions[0]["url"], url)
+                action["href"] = url + "?unsafe=1"
+                view = _now_web_context(_response(items=[item])).primary_attention
+                self.assertEqual(view.direct_actions, ())
+
     def test_s4_web_horizon_only_formats_owner_supplied_datetime(self):
         item = {
             "id": "now:wait",
