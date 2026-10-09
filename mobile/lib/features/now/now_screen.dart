@@ -15,6 +15,7 @@ import '../../navigation/refresh_boundary.dart';
 import '../../presentation/contracts/now_presentation.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
+import '../../sync/sync_engine.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
 import 'now_selector.dart';
@@ -29,9 +30,11 @@ class NowScreen extends StatefulWidget {
     this.now,
     this.api,
     this.profileId,
+    this.sync,
   });
 
   final PersonalRepository repository;
+  final SyncEngine? sync;
   final MakoloApiClient? api;
   final String? profileId;
   final DateTime Function()? now;
@@ -138,12 +141,19 @@ class _NowScreenState extends State<NowScreen> {
           source.invalidated || syncStatus?.state == SyncVisualState.stale,
     );
 
-    return NowView(
+    final view = NowView(
       selection: selection,
       api: widget.api,
       profileId: widget.profileId,
       onOpenOwner: (destination) => _openOwner(context, destination),
     );
+    final sync = widget.sync;
+    return sync == null
+        ? view
+        : NowActionRefreshScope(
+            onRefresh: () => sync.pull(SyncEngine.roots.first),
+            child: view,
+          );
   }
 
   MakoloReachabilityCue _reachability(
