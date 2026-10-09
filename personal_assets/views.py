@@ -64,6 +64,7 @@ def library_list(request):
             "page": page,
             "query": query,
             "active_filter": active_filter,
+            "today": timezone.localdate(),
         },
     )
 
