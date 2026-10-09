@@ -100,21 +100,28 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
     orders_visible = unrestricted_lens and has_direct_space_permission(
         profile, space, PermissionCode.ORDERS_VIEW
     )
-    orders = CommerceOrder.objects.none()
+    unavailable_sources = []
+    orders_count = 0
+    orders_rows = []
     if orders_visible:
-        orders = (
-            CommerceOrder.objects.filter(
-                payee_space=space,
-                journey__activity_id__in=ids,
+        try:
+            orders = (
+                CommerceOrder.objects.filter(
+                    payee_space=space, journey__activity_id__in=ids,
+                )
+                .filter(
+                    Q(reference__icontains=query)
+                    | Q(journey__activity__title__icontains=query)
+                )
+                .select_related("journey__activity")
+                .order_by("-created_at", "pk")
             )
-            .filter(
-                Q(reference__icontains=query)
-                | Q(journey__activity__title__icontains=query)
-            )
-            .select_related("journey__activity")
-            .order_by("-created_at", "pk")
-        )
-        for order in orders[:offset + limit]:
+            orders_rows = list(orders[:offset + limit])
+            orders_count = orders.count()
+        except (DatabaseError, TimeoutError):
+            logger.exception("Commerce Search owner is unavailable")
+            unavailable_sources.append("commerce_order")
+        for order in orders_rows:
             historical = (
                 order.status == CommerceOrderStatus.CANCELLED
                 and order.cancelled_at is not None
@@ -144,7 +151,6 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
     # Never traverse its records under an activity-only perspective.
     relation_items = []
     relations_partial = False
-    unavailable_sources = []
     if unrestricted_lens and _activity_scope_from_responsibility(
         profile, space, responsibility_key
     ) is None:
@@ -197,7 +203,7 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
     total = (
         activities.count()
         + occurrences.count()
-        + (orders.count() if orders_visible else 0)
+        + orders_count
         + len(relation_items)
     )
     result = [entry[3] for entry in candidates[offset:offset + limit]]
@@ -215,7 +221,8 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
         "coverage": {
             "state": "partial",
             "owners": [
-                "activity", "occurrence", "visible_space_relationships",
+                "activity", "occurrence",
+                *(['visible_space_relationships'] if unrestricted_lens else []),
                 *(['commerce_order'] if orders_visible else []),
             ],
             "limited_sources": ["visible_space_relationships"] if relations_partial else [],
