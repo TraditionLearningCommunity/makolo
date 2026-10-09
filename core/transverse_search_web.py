@@ -21,5 +21,16 @@ class PersonalSearchWebView(LoginRequiredMixin, TemplateView):
             profile=self.request.user, query=query,
             offset=(page - 1) * 24, limit=24,
         )
-        context.update(search=data, q=query, page=page)
+        selected_ref = (self.request.GET.get("selected") or "")[:120]
+        selected = next(
+            (
+                item for item in data["items"]
+                if f'{item["source"]["kind"]}:{item["source"]["id"]}' == selected_ref
+            ),
+            None,
+        )
+        context.update(
+            search=data, q=query, page=page,
+            selected_item=selected, selected_ref=selected_ref,
+        )
         return context

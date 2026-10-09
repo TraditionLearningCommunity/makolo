@@ -2,6 +2,7 @@
 from django.urls import reverse
 
 from personal_assets.selectors import personal_assets_for_controller
+from groups.selectors import groups_for_profile
 
 from access.models import AccessStatus
 from journeys.models import JourneyStatus
@@ -26,7 +27,7 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset"]},
+            "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset", "group"]},
         }
     # Both selectors are beneficiary-scoped BEFORE any free text match.
     journeys = participant_journey_search(
@@ -93,8 +94,26 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 ),
             },
         ))
+    groups = groups_for_profile(profile).filter(
+        name__icontains=query
+    ).order_by("-created_at", "pk")
+    for row in groups[:offset + limit]:
+        entries.append((
+            row.created_at, "group", str(row.pk),
+            {
+                "source": {"kind": "group", "id": str(row.pk)},
+                "title": row.name,
+                "human_type": "Groupe",
+                "relation": "Mon collectif",
+                "historical": False,
+                "context": "Moi",
+                "destination": reverse(
+                    "personal-projections:group-detail", kwargs={"pk": row.pk}
+                ),
+            },
+        ))
     entries.sort(key=lambda row: (row[0], row[1], row[2]), reverse=True)
-    total = journeys.count() + accesses.count() + assets.count()
+    total = journeys.count() + accesses.count() + assets.count() + groups.count()
     selected = [row[3] for row in entries[offset:offset + limit]]
     return {
         "actor_context": {"kind": "profile"},

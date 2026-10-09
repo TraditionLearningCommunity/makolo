@@ -25,7 +25,16 @@ class _SpaceRetrievalWebView(SpaceWebMixin):
         )
         if projection is None:
             raise Http404
+        selected_ref = (self.request.GET.get("selected") or "")[:120]
+        selected = next(
+            (
+                item for item in projection["items"]
+                if f'{item["source"]["kind"]}:{item["source"]["id"]}' == selected_ref
+            ),
+            None,
+        )
         context.update(
+            selected_item=selected, selected_ref=selected_ref,
             retrieval=projection, q=query, page=page,
             is_history=self.space_page_title == "Historique",
             route_name=self.route_name,
