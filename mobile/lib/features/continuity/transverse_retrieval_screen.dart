@@ -419,6 +419,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       context.push('/journeys/$id');
     } else if (source['kind'] == 'access') {
       context.push('/accesses/$id');
+    } else if (source['kind'] == 'personal_asset') {
+      context.push('/me/resources/$id');
+    } else if (source['kind'] == 'group') {
+      context.push('/groups/$id');
     }
   }
 
@@ -495,7 +499,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           trailing: (large || (!_isSpace &&
                                   (rows[index]['source'] as Map?)?['kind'] == 'journey') ||
                                   (!_isSpace &&
-                                      (rows[index]['source'] as Map?)?['kind'] == 'access'))
+                                      (rows[index]['source'] as Map?)?['kind'] == 'access') ||
+                                  (!_isSpace &&
+                                      (rows[index]['source'] as Map?)?['kind'] == 'personal_asset') ||
+                                  (!_isSpace &&
+                                      (rows[index]['source'] as Map?)?['kind'] == 'group'))
                               ? const Icon(Icons.chevron_right)
                               : null,
                           onTap: large
@@ -503,6 +511,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                               : (!_isSpace && {
                                   'journey',
                                   'access',
+                                  'personal_asset',
+                                  'group',
                                 }.contains(
                                   (rows[index]['source'] as Map?)?['kind'],
                                 ))

@@ -8,6 +8,7 @@ import '../features/auth/account_chooser_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/continuity/continuity_routes.dart';
+import '../features/continuity/personal_owner_depth_screen.dart';
 import '../features/continuity/transverse_retrieval_screen.dart';
 import '../features/day_of/day_of_routes.dart';
 import '../features/live/live_routes.dart';
@@ -83,6 +84,7 @@ GoRouter createMakoloRouter(
       '/dossiers/',
       '/projects/',
       '/groups/',
+      '/me/resources/',
     ].any(path.startsWith);
   }
 
@@ -357,14 +359,20 @@ GoRouter createMakoloRouter(
         ),
       ),
       GoRoute(
+        path: '/me/resources/:id',
+        builder: (context, state) => PersonalOwnerDepthScreen(
+          runtime: runtime,
+          kind: 'personal_asset',
+          id: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
         path: '/groups/:id',
-        builder: (context, state) {
-          runtime.recovery.rememberLocation(state.uri.toString());
-          return const MakoloSecondaryScreen(
-            title: 'Makolo',
-            message: 'Aucun détail supplémentaire à afficher pour le moment.',
-          );
-        },
+        builder: (context, state) => PersonalOwnerDepthScreen(
+          runtime: runtime,
+          kind: 'group',
+          id: state.pathParameters['id']!,
+        ),
       ),
     ],
   );
