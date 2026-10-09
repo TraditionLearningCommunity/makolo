@@ -114,7 +114,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
               return RefreshIndicator(
                 onRefresh: _refreshFirst,
                 child: ListView(
-                  key: PageStorageKey<String>('resources:' + _query),
+                  key: PageStorageKey<String>('resources:$_query'),
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
                   children: [
@@ -313,7 +313,7 @@ class _ResourcesView {
     required String query,
   }) {
     final encoded = Uri.encodeComponent(query.trim());
-    final prefix = encoded + ':';
+    final prefix = '$encoded:';
     final selected =
         pages
             .where(
@@ -440,7 +440,7 @@ List<_SimpleItem> _simpleItems(
     result.add(
       _SimpleItem(
         title: title,
-        subtitle: status == null ? fallback : fallback + ' · ' + status,
+        subtitle: status == null ? fallback : '$fallback · $status',
       ),
     );
   }

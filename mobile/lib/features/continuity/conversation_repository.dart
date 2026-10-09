@@ -197,8 +197,7 @@ class ConversationRepository {
       body: {
         'value': value,
         'client_reference': clientReference,
-        if (representedSpaceId != null)
-          'represented_space_id': representedSpaceId,
+        'represented_space_id': ?representedSpaceId,
       },
     );
     await refreshDetail(conversationId);
@@ -255,11 +254,11 @@ class ConversationRepository {
     await engine.api.post(
       'api/v1/conversations/$conversationId/personal-state/',
       body: {
-        if (mute != null) 'mute': mute,
-        if (hidden != null) 'hidden': hidden,
-        if (archived != null) 'archived': archived,
-        if (pinned != null) 'pinned': pinned,
-        if (revisit != null) 'revisit': revisit,
+        'mute': ?mute,
+        'hidden': ?hidden,
+        'archived': ?archived,
+        'pinned': ?pinned,
+        'revisit': ?revisit,
       },
     );
     await refreshDetail(conversationId);

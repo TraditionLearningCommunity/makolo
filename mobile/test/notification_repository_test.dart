@@ -100,7 +100,7 @@ void main() {
             200,
           );
         }
-        throw StateError('Unexpected request ' + request.url.path);
+        throw StateError('Unexpected request ${request.url.path}');
       });
 
       await repository.refreshList();
@@ -139,7 +139,7 @@ void main() {
           200,
         );
       }
-      throw StateError('Unexpected request ' + request.url.path);
+      throw StateError('Unexpected request ${request.url.path}');
     });
 
     await repository.refreshPreferences();

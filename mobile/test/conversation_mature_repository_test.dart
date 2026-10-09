@@ -134,7 +134,7 @@ void main() {
             200,
           );
         }
-        throw StateError('Unexpected request ' + request.url.path);
+        throw StateError('Unexpected request ${request.url.path}');
       });
 
       await repository.respondToPoint(
@@ -196,7 +196,7 @@ void main() {
             200,
           );
         }
-        throw StateError('Unexpected request ' + request.url.path);
+        throw StateError('Unexpected request ${request.url.path}');
       });
 
       await repository.refreshInvitations();

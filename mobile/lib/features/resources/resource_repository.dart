@@ -65,7 +65,7 @@ class ResourceRepository {
     int limit = defaultLimit,
   }) {
     final normalized = Uri.encodeComponent(query.trim());
-    return normalized + ':' + offset.toString() + ':' + limit.toString();
+    return '$normalized:$offset:$limit';
   }
 
   String collectionSourceKey({
@@ -73,8 +73,7 @@ class ResourceRepository {
     required int offset,
     int limit = defaultLimit,
   }) =>
-      'resources:' +
-      collectionResourceKey(query: query, offset: offset, limit: limit);
+      'resources:${collectionResourceKey(query: query, offset: offset, limit: limit)}';
 
   SyncSourceDefinition collectionSourceFor({
     required String query,
@@ -89,13 +88,7 @@ class ResourceRepository {
         limit: limit,
       ),
       owner: 'PersonalAsset',
-      path:
-          'api/v1/me/resources/?q=' +
-          encoded +
-          '&limit=' +
-          limit.toString() +
-          '&offset=' +
-          offset.toString(),
+      path: 'api/v1/me/resources/?q=$encoded&limit=$limit&offset=$offset',
       projectionKind: collectionProjectionKind,
       resourceKey: collectionResourceKey(
         query: query,
@@ -107,20 +100,18 @@ class ResourceRepository {
     );
   }
 
-  SyncSourceDefinition detailSourceFor(String assetId) =>
-      SyncSourceDefinition.projectionEnvelope(
-        sourceKey: 'resource:' + assetId,
-        owner: 'PersonalAsset',
-        path:
-            'api/v1/me/resources/' +
-            Uri.encodeComponent(assetId) +
-            '/?version_limit=' +
-            versionLimit.toString(),
-        projectionKind: detailProjectionKind,
-        resourceKey: assetId,
-        category: SyncSourceCategory.keyedDetail,
-        freshnessPolicy: freshnessPolicy,
-      );
+  SyncSourceDefinition detailSourceFor(
+    String assetId,
+  ) => SyncSourceDefinition.projectionEnvelope(
+    sourceKey: 'resource:$assetId',
+    owner: 'PersonalAsset',
+    path:
+        'api/v1/me/resources/${Uri.encodeComponent(assetId)}/?version_limit=$versionLimit',
+    projectionKind: detailProjectionKind,
+    resourceKey: assetId,
+    category: SyncSourceCategory.keyedDetail,
+    freshnessPolicy: freshnessPolicy,
+  );
 
   Stream<List<StoredProjection>> watchCollectionPages() =>
       store.watchProjections(collectionProjectionKind);
@@ -172,7 +163,7 @@ class ResourceRepository {
   );
 
   Stream<ResourceSourceState> watchDetailSource(String assetId) =>
-      _watchSource('resource:' + assetId);
+      _watchSource('resource:$assetId');
 
   Stream<ResourceSourceState> _watchSource(String sourceKey) {
     final query = database.select(database.syncSources)

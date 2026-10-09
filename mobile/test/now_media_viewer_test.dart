@@ -71,7 +71,7 @@ void main() {
       kind: NowMediaKind.document,
       authorized: true,
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      url: original + '?view=text',
+      url: '$original?view=text',
       downloadUrl: original,
     );
     expect(
@@ -89,7 +89,7 @@ void main() {
       purpose: NowMediaPurpose.prepare,
       kind: NowMediaKind.document,
       authorized: true,
-      url: original + '?view=text',
+      url: '$original?view=text',
       downloadUrl: '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/',
     );
     expect(nowAuthorizedOriginalDownloadPath(hostile), isNull);

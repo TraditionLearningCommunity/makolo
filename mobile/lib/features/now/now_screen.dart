@@ -496,6 +496,10 @@ class _NowSemanticContent extends StatelessWidget {
                 },
                 semanticLabel:
                     dominantMedia.label ?? 'Média lié à la situation',
+                placeholder: MakoloMediaPlaceholder(
+                  icon: _mediaIcon(dominantMedia.kind),
+                  label: dominantMedia.label ?? 'Média associé',
+                ),
                 child:
                     dominantMedia.kind == NowMediaKind.image &&
                         api != null &&
@@ -512,10 +516,6 @@ class _NowSemanticContent extends StatelessWidget {
                         ),
                       )
                     : null,
-                placeholder: MakoloMediaPlaceholder(
-                  icon: _mediaIcon(dominantMedia.kind),
-                  label: dominantMedia.label ?? 'Média associé',
-                ),
               ),
             ),
           ),

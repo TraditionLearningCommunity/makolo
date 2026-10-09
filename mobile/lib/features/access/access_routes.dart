@@ -21,7 +21,7 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
       }
       return AccessCollectionScreen(
         repository: repository,
-        onOpenAccess: (id) => context.push('/accesses/' + id),
+        onOpenAccess: (id) => context.push('/accesses/$id'),
         onOpenHistory: () => context.push('/history'),
       );
     },

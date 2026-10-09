@@ -18,8 +18,6 @@ Future<String> resourceDownloadDestination({
     'resources',
     profileId,
     assetId,
-    (safeTitle.isEmpty ? 'document' : safeTitle) +
-        '-v' +
-        versionNumber.toString(),
+    '${safeTitle.isEmpty ? 'document' : safeTitle}-v$versionNumber',
   );
 }

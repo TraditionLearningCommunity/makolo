@@ -116,7 +116,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                 onRefresh: _refreshFirst,
                 child: ListView(
                   key: PageStorageKey<String>(
-                    'personal-accesses-' + _relationship,
+                    'personal-accesses-$_relationship',
                   ),
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
@@ -227,7 +227,7 @@ class _AccessCollectionCard extends StatelessWidget {
       if (item.context != null) item.context!,
       item.stateLabel,
       if (item.validity != null) item.validity!,
-      if (item.holder != null) 'Pour ' + item.holder!,
+      if (item.holder != null) 'Pour ${item.holder!}',
     ];
 
     return MakoloCard(
@@ -277,7 +277,7 @@ class _AccessCollectionView {
     List<StoredProjection> pages, {
     required String relationship,
   }) {
-    final prefix = relationship + ':';
+    final prefix = '$relationship:';
     final selected =
         pages
             .where(
@@ -398,11 +398,8 @@ String? _contextLabel(Map<String, dynamic> timing, Map<String, dynamic> place) {
   final startAt = _dateTime(timing['start_at']);
   final startDate = _string(timing['start_date']);
   final parts = <String>[
-    if (startAt != null)
-      _shortDateTime(startAt)
-    else if (startDate != null)
-      startDate,
-    if (placeName != null) placeName,
+    if (startAt != null) _shortDateTime(startAt) else ?startDate,
+    ?placeName,
   ];
   return parts.isEmpty ? null : parts.join(' · ');
 }
@@ -412,30 +409,20 @@ String? _validityLabel(Map<String, dynamic> validity) {
   final until = _dateTime(validity['until']);
   if (from == null && until == null) return null;
   if (from != null && until != null) {
-    return 'Valable du ' + _shortDate(from) + ' au ' + _shortDate(until);
+    return 'Valable du ${_shortDate(from)} au ${_shortDate(until)}';
   }
-  if (from != null) return 'Valable à partir du ' + _shortDate(from);
-  return 'Valable jusqu’au ' + _shortDate(until!);
+  if (from != null) return 'Valable à partir du ${_shortDate(from)}';
+  return 'Valable jusqu’au ${_shortDate(until!)}';
 }
 
 String _shortDate(DateTime value) {
   final local = value.toLocal();
-  return local.day.toString().padLeft(2, '0') +
-      '/' +
-      local.month.toString().padLeft(2, '0') +
-      '/' +
-      local.year.toString();
+  return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}';
 }
 
 String _shortDateTime(DateTime value) {
   final local = value.toLocal();
-  return local.day.toString().padLeft(2, '0') +
-      '/' +
-      local.month.toString().padLeft(2, '0') +
-      ' ' +
-      local.hour.toString().padLeft(2, '0') +
-      ':' +
-      local.minute.toString().padLeft(2, '0');
+  return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
 }
 
 DateTime? _dateTime(Object? value) {

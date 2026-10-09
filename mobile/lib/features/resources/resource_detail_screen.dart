@@ -291,12 +291,12 @@ class _VersionSummary extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Version courante ' + version.number.toString(),
+          'Version courante ${version.number}',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: MakoloSpacing.xs),
-        Text('Validité : ' + version.validityLabel),
-        Text('Provenance : ' + version.provenanceLabel),
+        Text('Validité : ${version.validityLabel}'),
+        Text('Provenance : ${version.provenanceLabel}'),
       ],
     ),
   );
@@ -315,14 +315,12 @@ class _VersionRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Version ' +
-                version.number.toString() +
-                (version.current ? ' · courante' : ''),
+            'Version ${version.number}${version.current ? ' · courante' : ''}',
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: MakoloSpacing.xs),
           Text(
-            version.validityLabel + ' · provenance ' + version.provenanceLabel,
+            '${version.validityLabel} · provenance ${version.provenanceLabel}',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

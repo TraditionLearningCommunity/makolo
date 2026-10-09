@@ -229,10 +229,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                           return Semantics(
                             button: true,
                             label:
-                                (row.isRead ? 'Lue. ' : 'Non lue. ') +
-                                row.title +
-                                '. ' +
-                                row.message,
+                                '${row.isRead ? 'Lue. ' : 'Non lue. '}${row.title}. ${row.message}',
                             child: ListTile(
                               onTap: () => _open(row),
                               leading: ExcludeSemantics(
@@ -255,7 +252,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                 row.message +
                                     (row.createdAt == null
                                         ? ''
-                                        : '\n' + _timeLabel(row.createdAt!)),
+                                        : '\n${_timeLabel(row.createdAt!)}'),
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -346,10 +343,7 @@ class _NotificationPreferencesScreenState
     setState(() {
       _draft ??= <String, dynamic>{};
       _draft![key] =
-          picked.hour.toString().padLeft(2, '0') +
-          ':' +
-          picked.minute.toString().padLeft(2, '0') +
-          ':00';
+          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}:00';
     });
   }
 
@@ -525,14 +519,14 @@ class _NotificationRow {
           String? path;
           if (destination != null) {
             path = switch (destination.kind.toLowerCase()) {
-              'conversation' => '/conversations/' + destination.id,
-              'journey' => '/journeys/' + destination.id,
-              'activity' => '/activities/' + destination.id,
-              'occurrence' => '/occurrences/' + destination.id,
-              'access' => '/accesses/' + destination.id,
-              'dossier' => '/dossiers/' + destination.id,
-              'project' => '/projects/' + destination.id,
-              'group' => '/groups/' + destination.id,
+              'conversation' => '/conversations/${destination.id}',
+              'journey' => '/journeys/${destination.id}',
+              'activity' => '/activities/${destination.id}',
+              'occurrence' => '/occurrences/${destination.id}',
+              'access' => '/accesses/${destination.id}',
+              'dossier' => '/dossiers/${destination.id}',
+              'project' => '/projects/${destination.id}',
+              'group' => '/groups/${destination.id}',
               _ => null,
             };
           }
@@ -555,13 +549,5 @@ class _NotificationRow {
 String _timeLabel(DateTime value) {
   final local = value.toLocal();
   String two(int part) => part.toString().padLeft(2, '0');
-  return two(local.day) +
-      '/' +
-      two(local.month) +
-      '/' +
-      local.year.toString() +
-      ' · ' +
-      two(local.hour) +
-      ':' +
-      two(local.minute);
+  return '${two(local.day)}/${two(local.month)}/${local.year} · ${two(local.hour)}:${two(local.minute)}';
 }

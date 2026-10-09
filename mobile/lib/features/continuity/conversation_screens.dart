@@ -248,8 +248,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                     metadata: [
                       if (filtered[index].attentionCount > 0)
                         MakoloMetadataItem(
-                          filtered[index].attentionCount.toString() +
-                              ' élément(s) à voir',
+                          '${filtered[index].attentionCount} élément(s) à voir',
                           icon: Icons.notifications_active_outlined,
                         ),
                       if (filtered[index].allClear)
@@ -675,10 +674,7 @@ class _PointCardState extends State<_PointCard> {
 
   String _newClientReference() {
     _clientReference ??=
-        'mobile-' +
-        widget.point.id +
-        '-' +
-        DateTime.now().microsecondsSinceEpoch.toString();
+        'mobile-${widget.point.id}-${DateTime.now().microsecondsSinceEpoch}';
     return _clientReference!;
   }
 
@@ -770,7 +766,7 @@ class _PointCardState extends State<_PointCard> {
           ),
           if (point.resolutionSummary != null) ...[
             const SizedBox(height: MakoloSpacing.sm),
-            Text('✓ ' + point.resolutionSummary!),
+            Text('✓ ${point.resolutionSummary!}'),
           ],
           if (_feedback != null) ...[
             const SizedBox(height: MakoloSpacing.sm),

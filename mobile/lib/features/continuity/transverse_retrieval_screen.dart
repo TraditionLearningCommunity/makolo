@@ -146,7 +146,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   String _spaceCacheQueryPrefix(SpaceActorContext actor, String query) =>
       '${_spaceCachePrefix(actor)}${Uri.encodeComponent(query)}:'
-      '${_historyKind}:'
+      '$_historyKind:'
       '${_startDate == null ? '-' : _dateString(_startDate!)}:'
       '${_endDate == null ? '-' : _dateString(_endDate!)}:';
 

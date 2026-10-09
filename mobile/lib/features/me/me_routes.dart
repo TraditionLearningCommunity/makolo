@@ -22,7 +22,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             return true;
           }
           if (destination.kind == 'personal_asset') {
-            context.push('/me/resources/' + destination.id);
+            context.push('/me/resources/${destination.id}');
             return true;
           }
           return false;
@@ -42,7 +42,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             }
             return ResourcesScreen(
               repository: repository,
-              onOpenResource: (id) => context.push('/me/resources/' + id),
+              onOpenResource: (id) => context.push('/me/resources/$id'),
             );
           },
           routes: [
@@ -61,7 +61,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   assetId: state.pathParameters['id']!,
                   repository: repository,
                   personal: personal,
-                  onOpenJourney: (id) => context.push('/journeys/' + id),
+                  onOpenJourney: (id) => context.push('/journeys/$id'),
                 );
               },
             ),
