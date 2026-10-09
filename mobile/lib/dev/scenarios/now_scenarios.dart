@@ -37,6 +37,9 @@ abstract final class NowGalleryScenarios {
           ? 'La demande de visa est en cours de préparation.'
           : 'Votre certificat doit être transmis aujourd’hui.',
       emphasis: NowPresentationEmphasis.primary,
+      ownerDestination: isAction
+          ? const StructuredDestination(kind: 'journey', id: 'gallery-visa')
+          : null,
       whyNow: isCompose
           ? 'Ils commencent à la même heure.'
           : 'Une échéance est ouverte.',
@@ -126,5 +129,10 @@ class NowGalleryScenarioPreview extends StatelessWidget {
   Widget build(BuildContext context) => NowView(
     selection: NowGalleryScenarios.select(id),
     initialSelectedKey: id == 'now-n2' ? 'gallery-now' : null,
+    onOpenOwner: (_) => ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Démonstration : aucune action métier exécutée.'),
+      ),
+    ),
   );
 }
