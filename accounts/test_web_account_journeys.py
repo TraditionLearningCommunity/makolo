@@ -202,6 +202,38 @@ class WebAccountJourneyTests(TestCase):
         self.assertContains(response_unknown, "Vérifiez votre boîte e-mail")
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_forgot_password_preserves_identifier_and_safe_destination(self):
+        forgot_url = reverse("account:password-forgot")
+        response = self.client.get(
+            forgot_url,
+            {"email": "amina@example.com", "next": "/tickets/"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="amina@example.com"')
+        self.assertContains(response, 'name="next" value="/tickets/"')
+
+        completed = self.client.post(
+            forgot_url,
+            {"email": "amina@example.com", "next": "/tickets/"},
+        )
+        self.assertEqual(completed.status_code, 200)
+        self.assertContains(completed, "login=amina%40example.com")
+        self.assertContains(completed, "next=%2Ftickets%2F")
+
+    def test_forgot_password_drops_unsafe_destination(self):
+        response = self.client.post(
+            reverse("account:password-forgot"),
+            {
+                "email": "amina@example.com",
+                "next": "https://evil.example/steal",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "login=amina%40example.com")
+        self.assertNotContains(response, "evil.example")
+
     def test_password_reset_accepts_valid_token_and_rejects_invalid_token(self):
         user = User.objects.create_user(
             username="reset-web",

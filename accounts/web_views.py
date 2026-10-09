@@ -137,6 +137,36 @@ class PasswordForgotView(FormView):
     template_name = "accounts/password_forgot.html"
     form_class = PasswordForgotForm
 
+    def get_initial(self):
+        initial = super().get_initial()
+        email = (self.request.GET.get("email") or "").strip()
+        if "@" in email and not email.startswith("@"):
+            initial["email"] = email
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        next_url = _safe_next_url(
+            self.request,
+            self.request.POST.get("next") or self.request.GET.get("next"),
+        )
+        identifier = (
+            self.request.POST.get("email")
+            or self.request.GET.get("email")
+            or ""
+        ).strip()
+        query = {}
+        if identifier:
+            query["login"] = identifier
+        if next_url:
+            query["next"] = next_url
+        login_url = reverse("core:login")
+        context["login_url"] = (
+            f"{login_url}?{urlencode(query)}" if query else login_url
+        )
+        context["next_url"] = next_url
+        return context
+
     def post(self, request, *args, **kwargs):
         email = request.POST.get("email", "")
         if not allow_web_request(
@@ -151,7 +181,11 @@ class PasswordForgotView(FormView):
 
     def form_valid(self, form):
         request_password_reset(email=form.cleaned_data["email"])
-        return render(self.request, "accounts/password_forgot_done.html")
+        return render(
+            self.request,
+            "accounts/password_forgot_done.html",
+            self.get_context_data(form=form),
+        )
 
 
 class PasswordResetConfirmView(FormView):
