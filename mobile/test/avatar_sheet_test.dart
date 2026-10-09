@@ -17,9 +17,7 @@ Future<AppRuntime> _runtimeWithIdentity() async {
     kind: 'personal.me',
     schemaVersion: 1,
     payload: {
-      'identity': {
-        'display_name': 'Amina',
-      },
+      'identity': {'display_name': 'Amina'},
     },
   );
   return AppRuntime(
