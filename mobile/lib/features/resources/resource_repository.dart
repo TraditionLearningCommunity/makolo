@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import '../../data/files/resource_download_destination.dart';
 
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
@@ -198,19 +198,11 @@ class ResourceRepository {
     required int versionNumber,
     TransferProgress? onProgress,
   }) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final safeTitle = title
-        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '-')
-        .replaceAll(RegExp(r'-+'), '-');
-    final destination = p.join(
-      directory.path,
-      'makolo',
-      'resources',
-      profileId,
-      assetId,
-      (safeTitle.isEmpty ? 'document' : safeTitle) +
-          '-v' +
-          versionNumber.toString(),
+    final destination = await resourceDownloadDestination(
+      profileId: profileId,
+      assetId: assetId,
+      title: title,
+      versionNumber: versionNumber,
     );
     await downloadVersion(
       path: path,
