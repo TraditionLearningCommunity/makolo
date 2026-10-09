@@ -37,6 +37,7 @@ urlpatterns = [
     path("ongoing/", PersonalOngoingAPIView.as_view(), name="ongoing"),
     path("accesses/", PersonalAccessesAPIView.as_view(), name="accesses"),
     path("history/", PersonalHistoryAPIView.as_view(), name="history"),
+    path("search/", PersonalSearchAPIView.as_view(), name="search"),
     path("interoperability/", PersonalInteroperabilityAPIView.as_view(), name="interoperability"),
     path(
         "occurrences/<uuid:pk>/day-of/",
