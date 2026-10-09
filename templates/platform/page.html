@@ -115,7 +115,7 @@
 </tbody></table></div></section>{% endif %}
 {% if review_allowed %}
 <section class="section" aria-labelledby="subscription-review"><h2 id="subscription-review">Requirements à examiner</h2>
-{% for review in subscription_reviews %}<div class="module"><div><strong>{{ review.plan_requirement }}</strong><p class="muted">{{ review.get_state_display }} · Transition propriétaire</p></div><a class="link secondary" href="{% url 'operations:subscription-detail' review.transition.subscription_id %}">Examiner le contexte et décider</a></div>{% empty %}<p>Aucune review en attente dans la couverture owner actuelle.</p>{% endfor %}
+{% for review in subscription_reviews %}<div class="module"><div><strong>{{ review.plan_requirement }}</strong><p class="muted">{{ review.get_state_display }} · Transition propriétaire</p></div>{% if support_allowed %}<a class="link secondary" href="{% url 'operations:subscription-detail' review.transition.subscription_id %}">Examiner le contexte</a>{% else %}<a class="link secondary" href="{% url 'operations:subscription-reviews' %}">Ouvrir la file de décision</a>{% endif %}</div>{% empty %}<p>Aucune review en attente dans la couverture owner actuelle.</p>{% endfor %}
 </section>{% endif %}
 {% elif platform_page == 'interoperability' %}
 <p class="subtle">Connexions du contexte Platform uniquement. Identifiants secrets, clés, tokens, endpoints et modèles ne sont jamais projetés ici.</p>
