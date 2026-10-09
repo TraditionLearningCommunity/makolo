@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/makolo_components.dart';
@@ -73,23 +71,11 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       _downloadProgress = null;
     });
     try {
-      final directory = await getApplicationDocumentsDirectory();
-      final safeTitle = detail.title
-          .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '-')
-          .replaceAll(RegExp(r'-+'), '-');
-      final destination = p.join(
-        directory.path,
-        'makolo',
-        'resources',
-        widget.repository.profileId,
-        widget.assetId,
-        (safeTitle.isEmpty ? 'document' : safeTitle) +
-            '-v' +
-            version.number.toString(),
-      );
-      await widget.repository.downloadVersion(
+      await widget.repository.downloadVersionToLocal(
         path: path,
-        destinationPath: destination,
+        assetId: widget.assetId,
+        title: detail.title,
+        versionNumber: version.number,
         onProgress: (transferred, total) {
           if (!mounted || total <= 0) return;
           setState(() => _downloadProgress = transferred / total);
