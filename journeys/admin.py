@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from core.admin_boundaries import TechnicalReadOnlyAdmin
+from core.admin_boundaries import TechnicalReadOnlyAdmin, TechnicalSuperuserReadOnlyAdmin
 
 from .models import (
     Journey,
@@ -79,7 +79,7 @@ class JourneyStepAssignmentAdmin(TechnicalReadOnlyAdmin):
 
 
 @admin.register(JourneyArtifact)
-class JourneyArtifactAdmin(TechnicalReadOnlyAdmin):
+class JourneyArtifactAdmin(TechnicalSuperuserReadOnlyAdmin):
     list_display = ("journey", "step", "kind", "title", "version", "status", "sensitivity", "uploaded_at")
     list_filter = ("kind", "status", "sensitivity")
     readonly_fields = ("file", "status", "supersedes", "version", "uploaded_by", "uploaded_at", "size", "mime_type", "content_hash", "created_at", "updated_at")
@@ -96,14 +96,14 @@ class JourneyArtifactAdmin(TechnicalReadOnlyAdmin):
 
 
 @admin.register(JourneyArtifactReview)
-class JourneyArtifactReviewAdmin(TechnicalReadOnlyAdmin):
+class JourneyArtifactReviewAdmin(TechnicalSuperuserReadOnlyAdmin):
     list_display = ("artifact", "reviewer", "status", "requested_at", "decided_at")
     list_filter = ("status",)
     readonly_fields = ("artifact", "reviewer", "requested_by", "status", "comment", "requested_at", "started_at", "decided_at", "created_at", "updated_at")
 
 
 @admin.register(JourneyNote)
-class JourneyNoteAdmin(TechnicalReadOnlyAdmin):
+class JourneyNoteAdmin(TechnicalSuperuserReadOnlyAdmin):
     list_display = ("journey", "step", "author", "visibility", "created_at")
     list_filter = ("visibility",)
     readonly_fields = ("journey", "step", "author", "visibility", "body", "created_at", "updated_at")
