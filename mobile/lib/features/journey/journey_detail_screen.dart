@@ -240,7 +240,7 @@ class _JourneyContent extends StatelessWidget {
             child: MakoloAttentionBlock(
               title: 'À faire maintenant',
               body: presentation.nextActionLabel!,
-              action: _nextActionButton(context),
+              action: _nextActionButton(),
             ),
           ),
           const SizedBox(height: MakoloSpacing.xl),
@@ -388,7 +388,7 @@ class _JourneyContent extends StatelessWidget {
     );
   }
 
-  Widget? _nextActionButton(BuildContext context) {
+  Widget? _nextActionButton() {
     final link = presentation.nextActionLink;
     if (link == null || link.isEmpty) return null;
 
