@@ -36,6 +36,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _query = '';
   String _filter = 'all';
   _HistoryView? _remoteHistory;
+  List<StoredProjection> _remotePages = [];
   bool _searching = false;
   bool _searchFailed = false;
   bool _loadingMore = false;
@@ -89,7 +90,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Future<void> _remoteSearch() async {
+  Future<void> _remoteSearch({bool more = false}) async {
     final query = _query;
     final filter = _filter;
     setState(() {
@@ -97,8 +98,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _searchFailed = false;
     });
     try {
+      final nextOffset =
+          more && _remoteHistory != null ? _remoteHistory!.nextOffset : 0;
       final payload = await widget.repository.searchPage(
         query: query,
+        offset: nextOffset,
         type: filter == 'access'
             ? 'accesses'
             : filter == 'journey'
@@ -108,13 +112,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (!mounted || _query != query || _filter != filter) return;
       final snapshot = StoredProjection(
         kind: HistoryRepository.projectionKind,
-        resourceKey: 'offset:0:limit:24',
+        resourceKey: 'offset:$nextOffset:limit:24',
         schemaVersion: 1,
         payload: payload,
         receivedAt: DateTime.now(),
       );
       setState(() {
-        _remoteHistory = _HistoryView.fromPages([snapshot]);
+        _remotePages = more ? [..._remotePages, snapshot] : [snapshot];
+        _remoteHistory = _HistoryView.fromPages(_remotePages);
       });
     } on Object {
       if (mounted && _query == query && _filter == filter) {
@@ -227,6 +232,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       onChanged: (value) => setState(() {
                         _query = value.trim();
                         _remoteHistory = null;
+                        _remotePages = [];
                       }),
                       onSubmitted: (_) => _remoteSearch(),
                     ),
@@ -246,6 +252,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               setState(() {
                                 _filter = filter;
                                 _remoteHistory = null;
+                                _remotePages = [];
                               });
                               unawaited(_remoteSearch());
                             },
@@ -285,12 +292,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       if (index < visible.length - 1)
                         const SizedBox(height: MakoloSpacing.sm),
                     ],
-                    if (view.hasMore) ...[
+                    if ((_remoteHistory ?? view).hasMore) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       OutlinedButton(
-                        onPressed: _loadingMore ? null : () => _loadMore(view),
+                        onPressed: _loadingMore || _searching
+                            ? null
+                            : _remoteHistory == null
+                                ? () => _loadMore(view)
+                                : () => _remoteSearch(more: true),
                         child: Text(
-                          _loadingMore ? 'Chargement…' : 'Afficher la suite',
+                          _loadingMore || _searching
+                              ? 'Chargement…'
+                              : 'Afficher la suite',
                         ),
                       ),
                     ],
