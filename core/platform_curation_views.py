@@ -64,8 +64,8 @@ class PlatformCurationDetailView(LoginRequiredMixin, TemplateView):
             platform_page="curation",
             platform_heading="Dossier de curation",
             opportunity=opportunity,
-            revision_rows=opportunity.revisions.order_by("-version")[:30],
-            source_rows=opportunity.sources.order_by("-is_primary", "source_name")[:30],
+            revision_rows=[{"item": row, "version": row.created_at.isoformat()} for row in opportunity.revisions.order_by("-version")[:30]],
+            source_rows=[{"item": row, "version": row.updated_at.isoformat()} for row in opportunity.sources.order_by("-is_primary", "source_name")[:30]],
             can_manage=can(self.request.user, PermissionCode.OPPORTUNITIES_MANAGE),
             can_check_source=can(self.request.user, PermissionCode.OPPORTUNITIES_SOURCES_VERIFY),
             can_merge=can(self.request.user, PermissionCode.OPPORTUNITIES_MERGE),
@@ -109,7 +109,7 @@ class PlatformCurationDecisionView(PlatformCurationDetailView):
             before = op.publication_status
             target = None
             if action in {"withdraw", "archive"}:
-                if before in ("withdrawn", "archived", "merged"):
+                if before == "merged" or (action == "withdraw" and before != "published") or (action == "archive" and before == "archived"):
                     return self.render_to_response(self.get_context_data(
                         error_message="La transition a déjà été appliquée ou n'est plus autorisée."
                     ), status=409)
