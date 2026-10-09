@@ -44,6 +44,21 @@
       <p>{{ home.primary_attention.summary }}</p>
       {% if home.primary_attention.why_now %}<p>{{ home.primary_attention.why_now }}</p>{% endif %}
       {% if home.primary_attention.consequence %}<p>{{ home.primary_attention.consequence }}</p>{% endif %}
+      {% if home.primary_attention.topology == "media" %}
+        {% for label in home.primary_attention.media_labels %}
+          {% if forloop.first %}<div class="mk-now-media" role="group" aria-label="Média associé"><p>{{ label }}</p><p>Consulter depuis la source autorisée.</p></div>{% endif %}
+        {% endfor %}
+      {% elif home.primary_attention.topology == "composition" %}
+        {% for summary in home.primary_attention.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
+      {% elif home.primary_attention.topology == "waiting" %}
+        <p class="mk-now-wait">{{ home.primary_attention.turn|default:"En attente de la prochaine réponse." }}</p>
+        {% if home.primary_attention.horizon %}<p>{{ home.primary_attention.horizon }}</p>{% endif %}
+      {% endif %}
+      {% if home.primary_attention.preparation %}
+        <div aria-label="Préparé par Makolo">
+          {% for preparation in home.primary_attention.preparation %}<p>{{ preparation }}</p>{% endfor %}
+        </div>
+      {% endif %}
       {% if home.primary_attention.url %}<a href="{{ home.primary_attention.url }}" class="mk-now-cta">{{ home.primary_attention.action_label }}</a>{% endif %}
     </section>
     {% endif %}

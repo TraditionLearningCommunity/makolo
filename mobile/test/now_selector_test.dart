@@ -308,6 +308,78 @@ void main() {
     },
   );
 
+  test(
+    'authorized media is retained but unauthorized media cannot dominate',
+    () {
+      final result = selector.select(
+        projection: projection(
+          items: const [
+            {
+              'id': 'now:media',
+              'human_context': 'Pièce justificative',
+              'state_meaning': 'Une pièce est disponible.',
+              'media_bindings': [
+                {
+                  'resource_ref': 'proof:1',
+                  'target': 'state',
+                  'purpose': 'establish',
+                  'kind': 'pdf',
+                  'authorized': false,
+                  'presentation_rank': 'primary',
+                },
+                {
+                  'resource_ref': 'proof:2',
+                  'target': 'state',
+                  'purpose': 'understand',
+                  'kind': 'image',
+                  'authorized': true,
+                },
+              ],
+            },
+          ],
+        ),
+        now: now,
+      );
+      final media = result.situations.single.mediaBindings;
+      expect(media, hasLength(2));
+      expect(media.first.canRender, isFalse);
+      expect(media.first.canDominate, isFalse);
+      expect(media.last.canDominate, isTrue);
+    },
+  );
+
+  test('composition and preparation preserve owner semantics', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:composition',
+            'human_context': 'Préparer le déplacement',
+            'state_meaning': 'Deux éléments sont liés.',
+            'relation_members': [
+              {'id': 'a', 'label': 'Billet', 'knowledge_state': 'known'},
+              {'id': 'b', 'label': 'Départ'},
+            ],
+            'relations': [
+              {
+                'kind': 'depends_on',
+                'member_ids': ['a', 'b'],
+                'summary': 'Le billet concerne ce départ.',
+              },
+            ],
+            'makolo_preparation': ['Données du billet retrouvées'],
+          },
+        ],
+      ),
+      now: now,
+    );
+    final item = result.situations.single;
+    expect(item.relationMembers.map((member) => member.id), ['a', 'b']);
+    expect(item.relations.single.memberIds, ['a', 'b']);
+    expect(item.makoloPreparation, ['Données du billet retrouvées']);
+    expect(item.knowledgeState, isNull);
+  });
+
   test('surface axes preserve offline, pending and stale independently', () {
     final result = selector.select(
       projection: projection(freshUntil: DateTime.utc(2026, 10, 3, 13)),

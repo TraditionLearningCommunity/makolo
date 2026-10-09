@@ -12,6 +12,11 @@ from objectives.readiness import resolve_owned_dossiers_readiness
 from objectives.selectors import owned_dossiers_for_profile, owned_projects_for_profile
 from payments.models import PaymentStatus
 from journeys.models import Journey
+from journeys.collaboration_models import (
+    JourneyArtifact,
+    JourneyArtifactSensitivity,
+    JourneyArtifactStatus,
+)
 from payments.selectors import get_payments_visible_to
 from preparation.contextual_actions import (
     ContextualAction,
@@ -385,6 +390,62 @@ def build_personal_now_projection(profile, *, observed_at=None):
         ).values_list("pk", "occurrence_id")
         if occurrence_id is not None
     }
+    # These artifacts belong to their Journeys, not to Presentation.
+    # Only documents already inside a Journey owned by this profile are
+    # exposed. The download endpoint independently rechecks authorization.
+    artifact_media_by_journey = {}
+    if journey_ids:
+        artifacts = (
+            JourneyArtifact.objects.filter(
+                journey_id__in=journey_ids,
+                journey__beneficiary=profile,
+                status__in=[
+                    JourneyArtifactStatus.DRAFT,
+                    JourneyArtifactStatus.SUBMITTED,
+                    JourneyArtifactStatus.IN_REVIEW,
+                    JourneyArtifactStatus.ACCEPTED,
+                    JourneyArtifactStatus.REJECTED,
+                ],
+            )
+            .exclude(sensitivity=JourneyArtifactSensitivity.RESTRICTED)
+            .order_by("journey_id", "-uploaded_at", "-created_at")
+        )
+        for artifact in artifacts:
+            existing = artifact_media_by_journey.setdefault(
+                str(artifact.journey_id), []
+            )
+            if len(existing) >= 3 or not artifact.file:
+                continue
+            mime = (artifact.mime_type or "").lower()
+            kind = (
+                "image" if mime.startswith("image/")
+                else "pdf" if mime == "application/pdf"
+                else "video" if mime.startswith("video/")
+                else "audio" if mime.startswith("audio/")
+                else "document" if mime in {
+                    "text/plain",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                }
+                else "unknown"
+            )
+            url = reverse(
+                "personal-projections:now-journey-artifact-media",
+                kwargs={"artifact_id": artifact.pk},
+            )
+            if kind == "document":
+                url += "?view=text"
+            existing.append({
+                "resource_ref": f"journey_artifact:{artifact.pk}",
+                "target": "situation",
+                "purpose": "prepare",
+                "kind": kind,
+                "mime_type": mime,
+                "label": artifact.title,
+                "url": url,
+                "authorized": True,
+                "presentation_rank": "secondary",
+            })
+
     for action, item in items:
         if item["source"]["kind"] != "journey":
             _decorate_now_semantics(action, item, observed_at=observed_at)
@@ -406,6 +467,9 @@ def build_personal_now_projection(profile, *, observed_at=None):
             if "open_day_of" not in item["capabilities"]:
                 item["capabilities"].append("open_day_of")
         _decorate_now_semantics(action, item, observed_at=observed_at)
+        media = artifact_media_by_journey.get(journey_id)
+        if media:
+            item["media_bindings"] = list(media)
 
     serialized_items = [item for _, item in items]
     is_empty = not serialized_items
