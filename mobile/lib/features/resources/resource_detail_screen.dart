@@ -83,6 +83,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         directory.path,
         'makolo',
         'resources',
+        widget.repository.profileId,
         widget.assetId,
         (safeTitle.isEmpty ? 'document' : safeTitle) +
             '-v' +
