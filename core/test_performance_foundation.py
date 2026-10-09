@@ -58,14 +58,14 @@ class RequestPerformanceFoundationTests(TestCase):
         self.assertFalse(hasattr(context, "journeys"))
         self.assertFalse(hasattr(context, "permissions"))
 
-    def test_space_surface_requests_space_authority_not_personal_badges(self):
+    def test_space_surface_keeps_authority_and_transverse_profile_signals(self):
         request = self._request("/spaces/perf-space/overview/")
         context = get_request_context(request)
         self.assertEqual(context.surface.family, "space")
         self.assertIn("space_authority", context.surface.needs)
         self.assertIn("space_navigation", context.surface.needs)
-        self.assertNotIn("notifications", context.surface.needs)
-        self.assertNotIn("conversation_attention", context.surface.needs)
+        self.assertIn("notifications", context.surface.needs)
+        self.assertIn("conversation_attention", context.surface.needs)
 
     def test_fragment_helper_uses_explicit_htmx_headers(self):
         request = self._request(
