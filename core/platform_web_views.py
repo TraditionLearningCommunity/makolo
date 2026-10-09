@@ -17,6 +17,8 @@ from django.views.generic import TemplateView
 from authorization.constants import PermissionCode
 from authorization.services import can
 from core.platform_presentation import platform_modules_for
+from interoperability.presentation import present_connection
+from interoperability.projections import build_interoperability_payload
 from operations.product_overview import build_product_operations_overview
 from operations.selectors import (
     get_operations_audit_logs, get_operations_incidents,
@@ -147,12 +149,22 @@ class PlatformInteroperabilityView(PlatformView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from intelligence.interoperability import (
-            platform_provider_connections, project_provider_connection,
+            platform_provider_connections,
+            project_provider_connection,
         )
-        context["connections"] = [
+
+        connections = [
             project_provider_connection(item, manageable=True)
             for item in platform_provider_connections()
         ]
+        context["interoperability"] = build_interoperability_payload(
+            context="platform",
+            connections=connections,
+            self_link="/api/v1/platform/interoperability/",
+            actor=self.request.user,
+            authority_context="platform",
+        )
+        context["connections"] = [present_connection(row) for row in connections]
         return context
 
 
