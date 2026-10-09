@@ -4,7 +4,7 @@ from .platform_curation_views import PlatformCurationDecisionView, PlatformCurat
 
 from .platform_web_views import (
     PlatformAuditView, PlatformHomeView, PlatformInteroperabilityView,
-    PlatformInvestigateView, PlatformOperationsView, PlatformTrustView, PlatformCurationView, PlatformOpportunityMergeView, PlatformSubscriptionsView, PlatformRecognitionSimulationView,
+    PlatformInvestigateView, PlatformSpaceInvestigationView, PlatformEventInvestigationView, PlatformOperationsView, PlatformTrustView, PlatformCurationView, PlatformOpportunityMergeView, PlatformSubscriptionsView, PlatformRecognitionSimulationView,
     PlatformRecognitionView, PlatformRecognitionActionView, PlatformSystemView, PlatformSpaceDecisionView, PlatformEventDecisionView,
 )
 
@@ -13,6 +13,8 @@ app_name = "platform_web"
 urlpatterns = [
     path("", PlatformHomeView.as_view(), name="home"),
     path("investigate/", PlatformInvestigateView.as_view(), name="investigate"),
+    path("investigate/spaces/<uuid:pk>/", PlatformSpaceInvestigationView.as_view(), name="investigation-space"),
+    path("investigate/events/<uuid:pk>/", PlatformEventInvestigationView.as_view(), name="investigation-event"),
     path("operations/", PlatformOperationsView.as_view(), name="operations"),
     path("operations/spaces/<uuid:pk>/decide/", PlatformSpaceDecisionView.as_view(), name="space-decision"),
     path("operations/events/<uuid:pk>/decide/", PlatformEventDecisionView.as_view(), name="event-decision"),
