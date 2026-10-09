@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 
+import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
 import 'conversation_screens.dart';
@@ -35,9 +36,12 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
           message: 'Cette conversation n’est pas disponible sur cet appareil.',
         );
       }
+      final actor = runtime.actorContext?.value;
       return ConversationDetailScreen(
         id: state.pathParameters['id']!,
         repository: repository,
+        representedSpaceId:
+            actor is SpaceActorContext ? actor.space.id : null,
       );
     },
   ),
