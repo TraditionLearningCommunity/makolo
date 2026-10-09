@@ -158,6 +158,50 @@ class NowWebPresentationTests(SimpleTestCase):
         view = _now_web_context(_response(items=[item])).primary_attention
         self.assertEqual(view.topology, "composition")
 
+    def test_inline_reader_is_first_party_and_owner_authorized_only(self):
+        from uuid import uuid4
+
+        artifact_id = str(uuid4())
+        safe = f"/api/v1/me/now/media/journey-artifacts/{artifact_id}/"
+        item = {
+            "id": "now:media",
+            "title": "Pièce liée à la démarche",
+            "media_bindings": [
+                {"resource_ref": "file:unapproved", "authorized": False,
+                 "kind": "pdf", "url": safe},
+                {"resource_ref": "file:external", "authorized": True,
+                 "kind": "image", "url": "https://external.invalid/private.jpg"},
+                {"resource_ref": "file:traversal", "authorized": True,
+                 "kind": "pdf", "url": "/api/v1/me/now/media/journey-artifacts/../"},
+                {"resource_ref": "file:approved", "authorized": True,
+                 "kind": "pdf", "url": safe, "label": "Document autorisé"},
+            ],
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(
+            view.inline_media,
+            ({"url": safe, "kind": "pdf", "label": "Document autorisé"},),
+        )
+
+    def test_inline_document_only_accepts_bounded_text_preview(self):
+        from uuid import uuid4
+
+        identifier = str(uuid4())
+        path = f"/api/v1/me/now/media/journey-artifacts/{identifier}/"
+        item = {
+            "id": "now:doc",
+            "title": "Document",
+            "media_bindings": [
+                {"resource_ref": "file:document", "authorized": True,
+                 "kind": "document", "url": path + "?view=text"},
+                {"resource_ref": "file:unsafe", "authorized": True,
+                 "kind": "document", "url": path + "?view=admin"},
+            ],
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(len(view.inline_media), 1)
+        self.assertEqual(view.inline_media[0]["url"], path + "?view=text")
+
     def test_missing_selection_is_unavailable_instead_of_calm(self):
         home = _now_web_context({"items": []})
 
