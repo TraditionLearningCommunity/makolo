@@ -6,8 +6,7 @@ from django.db.utils import DatabaseError
 
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
 from organizations.space_product import operating_preset_for_space
-from authorization.constants import PermissionCode
-from authorization.selectors import activity_ids_with_direct_permission
+from django.urls import reverse
 
 from .space_history_projection import visible_history_activity_ids
 from .space_relationships_projection import build_space_relationships_projection
@@ -36,6 +35,7 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
             "coverage": {"state": "partial", "owners": ["activity", "occurrence", "visible_space_relationships"]},
         }
     preset = operating_preset_for_space(space)
+    can_open_activity_console = _space_has_activity_portfolio_access(profile, space)
     activities = Activity.objects.filter(
         space=space, pk__in=ids
     ).filter(title__icontains=query).order_by("-created_at", "pk")
@@ -57,7 +57,14 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                     ActivityStatus.COMPLETED, ActivityStatus.CANCELLED,
                     ActivityStatus.ARCHIVED,
                 },
-                "destination": f"/api/v1/activities/{row.pk}/",
+                "destination": (
+                    reverse(
+                        "organizations:console-activity-detail",
+                        kwargs={"slug": space.slug, "activity_id": row.pk},
+                    )
+                    if can_open_activity_console else None
+                ),
+                "owner_api": f"/api/v1/activities/{row.pk}/",
             },
         ))
     for row in occurrences[:offset + limit]:
@@ -75,7 +82,10 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                 "historical": row.status in {
                     OccurrenceStatus.COMPLETED, OccurrenceStatus.CANCELLED,
                 },
-                "destination": f"/api/v1/occurrences/{row.pk}/",
+                # The server detail owner has the correct visibility checks; the
+                # Space Work screen is not an occurrence-specific handoff.
+                "destination": None,
+                "owner_api": f"/api/v1/occurrences/{row.pk}/",
             },
         ))
     # The relationship owner is already query- and permission-scoped.
@@ -100,7 +110,6 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
             relation_items = relation_search["items"]
             relations_partial = relation_search["has_more"]
             for row in relation_items:
-                profile_ref = row.get("profile") or {}
                 owner_ref = row["owner"]
                 relation = row["relation_type"]
                 identity = (owner_ref, row["kind"], row["id"], relation)
@@ -118,7 +127,9 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                         "relation": relation,
                         "owner": owner_ref,
                         "historical": False,
-                        "destination": destination,
+                        "destination": destination if destination and not destination.startswith("/api/") else None,
+                        "owner_api": row.get("links", {}).get("owner_api"),
+                        "relationship_kind": row["kind"],
                     },
                 ))
     # Dated owner results ahead of undated relationships; not a global score.

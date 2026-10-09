@@ -1,4 +1,4 @@
-"""Permission-first retrieval of already-known personal Journey/Access realities."""
+"""Permission-first federation of existing personal owner selectors."""
 from django.urls import reverse
 
 from personal_assets.selectors import personal_assets_for_controller
@@ -55,7 +55,8 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "relation": "Ma démarche",
                 "historical": is_past,
                 "context": "Historique" if is_past else "En cours",
-                "destination": reverse("personal-detail-projections:journey-detail", kwargs={"pk": row.pk}),
+                "destination": reverse("core:participant-journey-detail", kwargs={"pk": row.pk}),
+                "owner_api": reverse("personal-detail-projections:journey-detail", kwargs={"pk": row.pk}),
             },
         ))
     for row in access_rows:
@@ -72,7 +73,8 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "relation": "Mon accès",
                 "historical": is_past,
                 "context": "Historique" if is_past else "Accès",
-                "destination": reverse("personal-detail-projections:access-detail", kwargs={"pk": row.pk}),
+                "destination": reverse("core:participant-access-detail", kwargs={"pk": row.pk}),
+                "owner_api": reverse("personal-detail-projections:access-detail", kwargs={"pk": row.pk}),
             },
         ))
     # Personal resources are owned by the document controller, never by Search.
@@ -90,6 +92,9 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "historical": False,
                 "context": "Moi",
                 "destination": reverse(
+                    "personal_assets:detail", kwargs={"asset_id": row.pk}
+                ),
+                "owner_api": reverse(
                     "personal-projections:resource-detail", kwargs={"pk": row.pk}
                 ),
             },
@@ -109,6 +114,9 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "historical": False,
                 "context": "Moi",
                 "destination": reverse(
+                    "groups:detail", kwargs={"slug": row.slug}
+                ),
+                "owner_api": reverse(
                     "personal-projections:group-detail", kwargs={"pk": row.pk}
                 ),
             },
@@ -124,5 +132,5 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             "count": total, "offset": offset, "limit": limit,
             "has_more": offset + len(selected) < total,
         },
-        "coverage": {"state": "partial", "owners": ["journey", "access"]},
+        "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset", "group"]},
     }
