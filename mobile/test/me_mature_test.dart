@@ -211,6 +211,7 @@ void main() {
       (territory) => territory.presentation.key == 'resources',
     );
     expect(resources.items.map((item) => item.destination.kind), [
+      'resource_collection',
       'personal_asset',
       'proof',
       'credential',
