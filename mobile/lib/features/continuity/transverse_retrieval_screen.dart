@@ -89,7 +89,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         'limit': '24',
         'offset': '$offset',
         if (actor != null && !actor.perspective.isAll)
-          'responsibility': 'mandate:${actor.perspective.id}',
+          'responsibility': actor.perspective.id!,
       },
     ).toString();
   }
@@ -339,14 +339,22 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                             if (rows[index]['historical'] == true)
                               'Historique',
                           ].where((label) => label.isNotEmpty).join(' · ')),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            if (large) {
-                              setState(() => _selected = index);
-                            } else {
-                              _open(rows[index]);
-                            }
-                          },
+                          trailing: (large || (!_isSpace &&
+                                  (rows[index]['source'] as Map?)?['kind'] == 'journey') ||
+                                  (!_isSpace &&
+                                      (rows[index]['source'] as Map?)?['kind'] == 'access'))
+                              ? const Icon(Icons.chevron_right)
+                              : null,
+                          onTap: large
+                              ? () => setState(() => _selected = index)
+                              : (!_isSpace && {
+                                  'journey',
+                                  'access',
+                                }.contains(
+                                  (rows[index]['source'] as Map?)?['kind'],
+                                ))
+                              ? () => _open(rows[index])
+                              : null,
                         ),
                       if (_more)
                         OutlinedButton(

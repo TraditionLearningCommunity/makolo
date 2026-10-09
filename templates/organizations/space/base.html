@@ -40,6 +40,10 @@
     </div>
   </section>
 
+  <nav class="flex flex-wrap gap-3 text-sm" aria-label="Outils secondaires de récupération">
+    <a href="{% url 'organizations:space-search' space.slug %}?responsibility={{ selected_responsibility.key|urlencode }}">Rechercher dans cet Espace</a>
+    <a href="{% url 'organizations:space-history' space.slug %}?responsibility={{ selected_responsibility.key|urlencode }}">Historique de cet Espace</a>
+  </nav>
   {% block space_content %}{% endblock %}
 </div>
 {% endblock %}

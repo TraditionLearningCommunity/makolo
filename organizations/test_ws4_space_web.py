@@ -294,3 +294,34 @@ class WS4SpaceWebTests(TestCase):
                 self.url(route, responsibility=f"mandate:{foreign.pk}")
             )
             self.assertEqual(response.status_code, 404)
+
+    def test_transverse_retrieval_is_secondary_and_authority_scoped(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from activities.models import Occurrence, OccurrenceStatus
+        past = Occurrence.objects.create(
+            activity=Activity.objects.create(
+                title="Atelier de mémoire", created_by=self.owner, space=self.space,
+            ),
+            label="Session achevée",
+            status=OccurrenceStatus.COMPLETED,
+            start_at=timezone.now() - timedelta(days=2),
+            end_at=timezone.now() - timedelta(days=1),
+        )
+        self.client.force_login(self.owner)
+        history = self.client.get(self.url("organizations:space-history"))
+        self.assertEqual(history.status_code, 200)
+        self.assertContains(history, "Session achevée")
+        self.assertContains(history, "Couverture partielle")
+        search = self.client.get(
+            self.url("organizations:space-search", q="Atelier")
+        )
+        self.assertEqual(search.status_code, 200)
+        self.assertContains(search, "Atelier de mémoire")
+        self.client.force_login(self.member)
+        self.assertEqual(
+            self.client.get(self.url("organizations:space-history")).status_code, 404
+        )
+        self.assertEqual(
+            self.client.get(self.url("organizations:space-search")).status_code, 404
+        )
