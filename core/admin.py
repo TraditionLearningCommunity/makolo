@@ -106,3 +106,7 @@ class DomainEventConsumptionAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# Register hardened allauth technical Admin surfaces after upstream admin autodiscovery.
+from . import framework_admin  # noqa: F401,E402
