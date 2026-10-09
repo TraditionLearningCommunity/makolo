@@ -23,9 +23,12 @@ import '../features/questionnaires/questionnaire_routes.dart';
 import '../features/settings/billing_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
+import '../features/space/space_insight_screen.dart';
+import '../features/space/space_repository.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
+import '../notifications/notification_routes.dart';
 import 'app_shell.dart';
 import 'runtime/actor_context.dart';
 import 'runtime/app_runtime.dart';
@@ -70,6 +73,8 @@ GoRouter createMakoloRouter(
       '/activities/',
       '/occurrences/',
       '/space/occurrences/',
+      '/space/relationships',
+      '/space/pilot',
       '/accesses/',
       '/conversations/',
       '/dossiers/',
@@ -190,13 +195,7 @@ GoRouter createMakoloRouter(
       ...interoperabilityRoutes(runtime),
       ...markRoutes(runtime),
       ...continuityRoutes(runtime),
-      GoRoute(
-        path: '/notifications',
-        builder: (context, state) => const MakoloSecondaryScreen(
-          title: 'Notifications',
-          message: 'Rien de nouveau pour le moment.',
-        ),
-      ),
+      ...notificationRoutes(runtime),
       ...discoveryRoutes(runtime),
       ...ongoingRoutes(runtime),
       ...journeyRoutes(runtime),
@@ -250,6 +249,54 @@ GoRouter createMakoloRouter(
         },
       ),
       ...accessRoutes(runtime),
+      GoRoute(
+        path: '/space/:slug/us/relationships',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Personnes & relations',
+              message: 'Sélectionnez le Space autorisé pour cette relation.',
+            );
+          }
+          return SpaceInsightScreen(
+            runtime: runtime,
+            surface: SpaceProjectionKind.relationships,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/us/pilot',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Piloter',
+              message: 'Sélectionnez le Space autorisé pour cette analyse.',
+            );
+          }
+          return SpaceInsightScreen(
+            runtime: runtime,
+            surface: SpaceProjectionKind.pilot,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/relationships',
+        builder: (context, state) => SpaceInsightScreen(
+          runtime: runtime,
+          surface: SpaceProjectionKind.relationships,
+        ),
+      ),
+      GoRoute(
+        path: '/space/pilot',
+        builder: (context, state) => SpaceInsightScreen(
+          runtime: runtime,
+          surface: SpaceProjectionKind.pilot,
+        ),
+      ),
       GoRoute(
         path: '/space/:slug/us/:depth',
         builder: (context, state) => SpaceNousDepthScreen(
