@@ -66,7 +66,12 @@ def surface_context_for_request(request) -> SurfaceContext:
     if family == "personal":
         needs.add("personal_navigation")
     if family == "space":
-        needs.update({"space_navigation", "space_authority"})
+        needs.update({
+            "space_navigation",
+            "space_authority",
+            "notifications",
+            "conversation_attention",
+        })
 
     if qualified == "core:participant-home":
         needs.update({"notifications", "conversation_attention"})

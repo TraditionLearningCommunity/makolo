@@ -219,6 +219,16 @@ def attention_points_for_profile(profile, *, at=None, limit=100):
     return items
 
 
+def has_conversation_attention(profile, *, at=None):
+    """Return whether at least one Point currently needs this Profile.
+
+    This is a Presentation signal for shells. It intentionally preserves the
+    Conversation attention semantics instead of treating unread activity as
+    attention, and stops as soon as one qualifying Point is found.
+    """
+    return bool(attention_points_for_profile(profile, at=at, limit=1))
+
+
 def conversation_attention_count(profile, *, at=None, limit=1000):
     return len(attention_points_for_profile(profile, at=at, limit=limit))
 

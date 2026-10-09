@@ -9,6 +9,12 @@ def get_notifications_for_user(user):
     return Notification.objects.filter(recipient=user).prefetch_related("deliveries")
 
 
+def has_unread_notifications(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return Notification.objects.filter(recipient=user, read_at__isnull=True).exists()
+
+
 def get_unread_notifications_count(user) -> int:
     if not getattr(user, "is_authenticated", False):
         return 0

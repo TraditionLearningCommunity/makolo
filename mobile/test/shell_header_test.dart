@@ -15,7 +15,8 @@ void main() {
         home: Scaffold(
           appBar: MakoloPrimaryHeader(
             kind: MakoloHeaderKind.now,
-            unreadNotifications: 3,
+            hasConversationAttention: true,
+            hasUnreadNotifications: true,
             onConversations: () {},
             onNotifications: () {},
             onAvatar: () {},
@@ -26,8 +27,14 @@ void main() {
 
     expect(find.byType(SvgPicture), findsOneWidget);
     expect(find.bySemanticsLabel('Makolo'), findsOneWidget);
-    expect(find.byTooltip('Conversations'), findsOneWidget);
-    expect(find.byTooltip('Notifications, 3 non lues'), findsOneWidget);
+    expect(
+      find.byTooltip('Conversations — quelque chose demande votre attention'),
+      findsOneWidget,
+    );
+    expect(
+      find.byTooltip('Notifications — nouveaux signaux disponibles'),
+      findsOneWidget,
+    );
     expect(find.byTooltip('Avatar'), findsOneWidget);
   });
 

@@ -11,7 +11,7 @@ from accounts.models import NotificationPreference, UserProfile
 from accounts.profile_activation import build_profile_activation_summary
 from accounts.templatetags.profile_activation_tags import profile_activation_summary
 from activities.models import Activity
-from conversations.templatetags.conversation_tags import conversation_attention_badge
+from conversations.templatetags.conversation_tags import conversation_attention_badge, conversation_attention_signal
 from core.projections import ProjectionBudget
 from core.web.fragments import is_fragment_request
 from core.web.performance import PerformanceEnvelopeMiddleware
@@ -58,14 +58,14 @@ class RequestPerformanceFoundationTests(TestCase):
         self.assertFalse(hasattr(context, "journeys"))
         self.assertFalse(hasattr(context, "permissions"))
 
-    def test_space_surface_requests_space_authority_not_personal_badges(self):
+    def test_space_surface_keeps_authority_and_transverse_profile_signals(self):
         request = self._request("/spaces/perf-space/overview/")
         context = get_request_context(request)
         self.assertEqual(context.surface.family, "space")
         self.assertIn("space_authority", context.surface.needs)
         self.assertIn("space_navigation", context.surface.needs)
-        self.assertNotIn("notifications", context.surface.needs)
-        self.assertNotIn("conversation_attention", context.surface.needs)
+        self.assertIn("notifications", context.surface.needs)
+        self.assertIn("conversation_attention", context.surface.needs)
 
     def test_fragment_helper_uses_explicit_htmx_headers(self):
         request = self._request(
@@ -80,23 +80,23 @@ class RequestPerformanceFoundationTests(TestCase):
     def test_notifications_are_not_queried_off_now_surface(self):
         request = self._request("/me/ongoing/")
         with patch(
-            "notifications.context_processors.get_unread_notifications_count",
-            side_effect=AssertionError("notification count must not run here"),
+            "notifications.context_processors.has_unread_notifications",
+            side_effect=AssertionError("notification presence must not run here"),
         ):
             self.assertEqual(
                 notifications_summary(request),
-                {"notifications_unread_count": 0},
+                {"notifications_has_unread": False},
             )
 
-    def test_notification_count_is_memoized_on_now_surface(self):
+    def test_notification_presence_is_memoized_on_now_surface(self):
         request = self._request("/me/")
         with patch(
-            "notifications.context_processors.get_unread_notifications_count",
-            return_value=4,
-        ) as counter:
-            self.assertEqual(notifications_summary(request)["notifications_unread_count"], 4)
-            self.assertEqual(notifications_summary(request)["notifications_unread_count"], 4)
-        counter.assert_called_once_with(self.user)
+            "notifications.context_processors.has_unread_notifications",
+            return_value=True,
+        ) as selector:
+            self.assertTrue(notifications_summary(request)["notifications_has_unread"])
+            self.assertTrue(notifications_summary(request)["notifications_has_unread"])
+        selector.assert_called_once_with(self.user)
 
     def test_profile_activation_does_not_create_profile_on_read(self):
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
@@ -126,6 +126,30 @@ class RequestPerformanceFoundationTests(TestCase):
                 conversation_attention_badge({"request": request}, self.user),
                 0,
             )
+
+    def test_conversation_presence_is_not_computed_off_now_surface(self):
+        request = self._request("/me/ongoing/")
+        with patch(
+            "conversations.templatetags.conversation_tags.has_conversation_attention",
+            side_effect=AssertionError("conversation presence must not run here"),
+        ):
+            self.assertFalse(
+                conversation_attention_signal({"request": request}, self.user)
+            )
+
+    def test_conversation_presence_is_memoized_on_now_surface(self):
+        request = self._request("/me/")
+        with patch(
+            "conversations.templatetags.conversation_tags.has_conversation_attention",
+            return_value=True,
+        ) as selector:
+            self.assertTrue(
+                conversation_attention_signal({"request": request}, self.user)
+            )
+            self.assertTrue(
+                conversation_attention_signal({"request": request}, self.user)
+            )
+        selector.assert_called_once()
 
     def test_conversation_badge_is_memoized_on_now_surface(self):
         request = self._request("/me/")

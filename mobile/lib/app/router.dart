@@ -30,6 +30,7 @@ import '../features/space/space_repository.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
+import '../notifications/notification_routes.dart';
 import 'app_shell.dart';
 import 'runtime/actor_context.dart';
 import 'runtime/app_runtime.dart';
@@ -215,13 +216,7 @@ GoRouter createMakoloRouter(
       ...interoperabilityRoutes(runtime),
       ...markRoutes(runtime),
       ...continuityRoutes(runtime),
-      GoRoute(
-        path: '/notifications',
-        builder: (context, state) => const MakoloSecondaryScreen(
-          title: 'Notifications',
-          message: 'Rien de nouveau pour le moment.',
-        ),
-      ),
+      ...notificationRoutes(runtime),
       ...discoveryRoutes(runtime),
       ...ongoingRoutes(runtime),
       ...journeyRoutes(runtime),
