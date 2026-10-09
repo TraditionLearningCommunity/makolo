@@ -27,11 +27,25 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
   String _query = '';
   bool _refreshing = false;
   bool _loadingMore = false;
+  late Stream<List<StoredProjection>> _pages;
+  late Stream<ResourceSourceState> _source;
 
   @override
   void initState() {
     super.initState();
+    _pages = widget.repository.watchCollectionPages();
+    _source = widget.repository.watchCollectionSource(query: _query);
     unawaited(_ensureFirstPage());
+  }
+
+  @override
+  void didUpdateWidget(covariant ResourcesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      _pages = widget.repository.watchCollectionPages();
+      _source = widget.repository.watchCollectionSource(query: _query);
+      unawaited(_ensureFirstPage());
+    }
   }
 
   @override
@@ -81,7 +95,10 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       unawaited(_refreshFirst());
       return;
     }
-    setState(() => _query = next);
+    setState(() {
+      _query = next;
+      _source = widget.repository.watchCollectionSource(query: _query);
+    });
     unawaited(_ensureFirstPage());
   }
 
@@ -99,7 +116,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
         ],
       ),
       body: StreamBuilder<List<StoredProjection>>(
-        stream: widget.repository.watchCollectionPages(),
+        stream: _pages,
         initialData: const [],
         builder: (context, pagesSnapshot) {
           final view = _ResourcesView.fromPages(
@@ -107,7 +124,7 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
             query: _query,
           );
           return StreamBuilder<ResourceSourceState>(
-            stream: widget.repository.watchCollectionSource(query: _query),
+            stream: _source,
             initialData: ResourceSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? ResourceSourceState.unknown;
