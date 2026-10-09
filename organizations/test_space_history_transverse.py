@@ -53,23 +53,9 @@ class SpaceHistoryPermissionTests(TestCase):
             status=OccurrenceStatus.COMPLETED,
         )
         self.undated = Occurrence.objects.create(
-            activity=self.activity,
-            label="Sans date historique",
-            start_at=now - timedelta(days=3),
-            end_at=now - timedelta(days=3, hours=-2),
+            activity=self.activity, label="Sans date historique",
             status=OccurrenceStatus.COMPLETED,
         )
-        # Simule une ancienne ligne partielle pré-validation : l'historique doit
-        # l'ignorer plutôt que d'inventer une date depuis updated_at.
-        Occurrence.objects.filter(pk=self.undated.pk).update(
-            start_at=None,
-            end_at=None,
-            start_date=None,
-            start_time=None,
-            end_date=None,
-            end_time=None,
-        )
-        self.undated.refresh_from_db()
         self.client = APIClient()
         self.url = "/api/v1/organizations/workspaces/history-space/history/"
 
