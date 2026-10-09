@@ -608,7 +608,7 @@ def join_conversation(*, actor, conversation: Conversation):
 
 @transaction.atomic
 def update_personal_conversation_state(
-    *, actor, conversation: Conversation, opened=False, mute=False, mute_until=None, hidden=None, archived=None, pinned=None, revisit=None
+    *, actor, conversation: Conversation, opened=False, mute=None, mute_until=None, hidden=None, archived=None, pinned=None, revisit=None
 ) -> ConversationUserState:
     if not can_view_conversation(actor, conversation):
         raise PermissionDenied("Cette Conversation n’est pas accessible.")
@@ -616,9 +616,14 @@ def update_personal_conversation_state(
     now = timezone.now()
     if opened:
         state.last_opened_at = now
-    if mute:
+    if mute is True:
         state.muted_at = now
         state.muted_until = mute_until
+    elif mute is False:
+        if mute_until is not None:
+            raise ValidationError("mute_until exige l’activation de la sourdine.")
+        state.muted_at = None
+        state.muted_until = None
     elif mute_until is not None:
         raise ValidationError("mute_until exige l’activation de la sourdine.")
     if hidden is not None:
