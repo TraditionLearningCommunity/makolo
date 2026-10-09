@@ -98,6 +98,22 @@
             {% if item.why_now %}<p>{{ item.why_now }}</p>{% endif %}
             {% if item.consequence %}<p>{{ item.consequence }}</p>{% endif %}
           </div>
+          {% if item.inline_media %}
+            <div class="mk-now-media" aria-label="Médias de cette situation">
+              {% for media in item.inline_media %}
+                {% if media.kind == "image" %}
+                  <img src="{{ media.url }}" alt="{{ media.label }}" loading="lazy">
+                {% elif media.kind == "pdf" or media.kind == "document" %}
+                  <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
+                {% elif media.kind == "video" %}
+                  <video src="{{ media.url }}" controls preload="metadata" playsinline aria-label="{{ media.label }}"></video>
+                {% elif media.kind == "audio" %}
+                  <audio src="{{ media.url }}" controls preload="none" aria-label="{{ media.label }}"></audio>
+                {% endif %}
+                <a href="{{ media.url }}" download>Enregistrer {{ media.label }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
           {% if item.url %}<a href="{{ item.url }}">{{ item.action_label }}</a>{% endif %}
         </article>
       {% endfor %}
