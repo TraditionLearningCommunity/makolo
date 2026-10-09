@@ -65,6 +65,23 @@ class PersonalNowMediaAuthorizationTests(SimpleTestCase):
         self.assertEqual(response["Cache-Control"], "private, no-store")
 
     @patch("core.api.now_media_views.artifact_for_download")
+    def test_docx_preview_rejects_xml_entity_expansion(self, lookup):
+        buffer = BytesIO()
+        with ZipFile(buffer, "w") as document:
+            document.writestr(
+                "word/document.xml",
+                '<!DOCTYPE word [<!ENTITY secret "unsafe">]>'
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/'
+                'wordprocessingml/2006/main"><w:p><w:t>&secret;</w:t></w:p>'
+                '</w:document>',
+            )
+        lookup.return_value = SimpleNamespace(
+            file=SimpleNamespace(open=lambda mode: ContentFile(buffer.getvalue())),
+            mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        self.assertEqual(self._get(view="text").status_code, 404)
+
+    @patch("core.api.now_media_views.artifact_for_download")
     def test_text_view_refuses_raw_binary_files(self, lookup):
         lookup.return_value = SimpleNamespace(
             file=SimpleNamespace(open=lambda mode: ContentFile(b"%PDF-1.4")),
