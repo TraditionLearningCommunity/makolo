@@ -140,6 +140,20 @@ def _now_dimension(action: ContextualAction):
             return "action"
         return None
 
+    # S4 is admitted only for an owner Readiness check whose waiting
+    # consequence is CURRENT (due or overdue). Routine waiting belongs in
+    # En cours and must never populate Now just to fill its root.
+    if (
+        action.actionability == ContextualActionability.WAITING
+        and action.kind == "readiness.waiting"
+        and action.identity.context_type == "journey"
+        and action.deadline_state in {
+            ContextualDeadlineState.OVERDUE,
+            ContextualDeadlineState.DUE_TODAY,
+        }
+    ):
+        return "waiting"
+
     if action.actionability in {
         ContextualActionability.TERMINAL,
         ContextualActionability.BLOCKING,
@@ -264,6 +278,8 @@ def _serialize_now_action(action: ContextualAction, dimension: str):
 
 
 def _now_response_type(dimension: str) -> str:
+    if dimension == "waiting":
+        return "wait"
     if dimension == "decision":
         return "decide"
     if dimension == "adaptation":
@@ -335,7 +351,7 @@ def _decorate_now_semantics(
             "state_meaning": owner_meaning,
             # When the owner has not established another actor, adaptation does
             # not manufacture a system actor or transfer responsibility.
-            "turn": {"type": "none" if dimension == "adaptation" else "profile"},
+            "turn": {"type": "none" if dimension in {"adaptation", "waiting"} else "profile"},
             "response": {
                 "type": _now_response_type(dimension),
                 "label": action.label,
@@ -388,11 +404,33 @@ def build_personal_now_projection(profile, *, observed_at=None):
         include_prepared_start=False,
     )
     actions = pass_now_candidates_through_molongo(result.actions)
+    # Current owner-backed waiting must not compete with an intervention
+    # already emitted by the same owner. Keep its calm S4 presence bounded.
+    active_sources = {
+        (source["kind"], source["id"])
+        for action in actions
+        if (dimension := _now_dimension(action)) is not None
+        and dimension != "waiting"
+        if (source := _source_for_action(action)) is not None
+    }
+    waiting_sources = set()
     items = []
     for action in actions:
         dimension = _now_dimension(action)
         if dimension is None:
             continue
+        if dimension == "waiting":
+            source = _source_for_action(action)
+            if source is None:
+                continue
+            key = (source["kind"], source["id"])
+            if (
+                key in active_sources
+                or key in waiting_sources
+                or len(waiting_sources) >= 3
+            ):
+                continue
+            waiting_sources.add(key)
         item = _serialize_now_action(action, dimension)
         if item is not None:
             meta = metadata.get(action.identity)
