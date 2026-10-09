@@ -1,0 +1,65 @@
+name: Now Presentation Goldens
+
+on:
+  push:
+    branches:
+      - feat/now-presentation-media-mature
+    paths:
+      - "mobile/lib/features/now/**"
+      - "mobile/lib/dev/scenarios/now_scenarios.dart"
+      - "mobile/lib/dev/scenarios/presentation_scenarios.dart"
+      - "mobile/test/now_golden_test.dart"
+      - ".github/workflows/now-golden-baselines.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: now-goldens-feature-505
+  cancel-in-progress: false
+
+jobs:
+  golden-baselines:
+    if: github.ref == 'refs/heads/feat/now-presentation-media-mature'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: "3.47.3"
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Format feature Dart sources
+        run: bash tool/dart_format.sh write
+
+      - name: Generate Dart sources
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Regenerate G01 S1-S5 baselines from production Now
+        run: flutter test --update-goldens test/now_golden_test.dart
+
+      - name: Commit source formatting and baseline PNGs on feature branch only
+        working-directory: .
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/feat/now-presentation-media-mature"
+          git add mobile/lib mobile/test
+          if git diff --cached --quiet; then
+            echo "No format or baseline changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Format Now and establish G01 S1-S5 reference goldens"
+          git push origin HEAD:feat/now-presentation-media-mature
