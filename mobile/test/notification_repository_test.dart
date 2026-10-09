@@ -53,66 +53,66 @@ void main() {
     );
   }
 
-  test('notification list stays owner-backed and mark read reprojections', () async {
-    var read = false;
-    final requests = <String>[];
-    final repository = repositoryFor((request) async {
-      requests.add(request.url.path);
-      if (request.url.path == '/api/v1/notifications/notification-1/read/') {
-        read = true;
-        return MockResponse(
-          jsonEncode({
-            'id': 'notification-1',
-            'title': 'Document accepté',
-            'message': 'Votre document a été accepté.',
-            'is_read': true,
-          }),
-          200,
-        );
-      }
-      if (request.url.path == '/api/v1/notifications/') {
-        return MockResponse(
-          jsonEncode({
-            'count': 1,
-            'next': null,
-            'previous': null,
-            'results': [
-              {
-                'id': 'notification-1',
-                'kind': 'system',
-                'category': 'system',
-                'title': 'Document accepté',
-                'message': 'Votre document a été accepté.',
-                'navigation': {
-                  'schema_version': 1,
-                  'target': 'journey',
-                  'resource': {'kind': 'journey', 'id': 'journey-1'},
-                  'links': {'api': '/api/v1/me/journeys/journey-1/'},
+  test(
+    'notification list stays owner-backed and mark read reprojections',
+    () async {
+      var read = false;
+      final requests = <String>[];
+      final repository = repositoryFor((request) async {
+        requests.add(request.url.path);
+        if (request.url.path == '/api/v1/notifications/notification-1/read/') {
+          read = true;
+          return MockResponse(
+            jsonEncode({
+              'id': 'notification-1',
+              'title': 'Document accepté',
+              'message': 'Votre document a été accepté.',
+              'is_read': true,
+            }),
+            200,
+          );
+        }
+        if (request.url.path == '/api/v1/notifications/') {
+          return MockResponse(
+            jsonEncode({
+              'count': 1,
+              'next': null,
+              'previous': null,
+              'results': [
+                {
+                  'id': 'notification-1',
+                  'kind': 'system',
+                  'category': 'system',
+                  'title': 'Document accepté',
+                  'message': 'Votre document a été accepté.',
+                  'navigation': {
+                    'schema_version': 1,
+                    'target': 'journey',
+                    'resource': {'kind': 'journey', 'id': 'journey-1'},
+                    'links': {'api': '/api/v1/me/journeys/journey-1/'},
+                  },
+                  'is_read': read,
+                  'read_at': read ? '2026-10-09T09:00:00Z' : null,
+                  'created_at': '2026-10-09T08:30:00Z',
                 },
-                'is_read': read,
-                'read_at': read ? '2026-10-09T09:00:00Z' : null,
-                'created_at': '2026-10-09T08:30:00Z',
-              },
-            ],
-          }),
-          200,
-        );
-      }
-      throw StateError('Unexpected request ' + request.url.path);
-    });
+              ],
+            }),
+            200,
+          );
+        }
+        throw StateError('Unexpected request ' + request.url.path);
+      });
 
-    await repository.refreshList();
-    var stored = await repository.readList();
-    expect((stored?.payload['results'] as List).single['is_read'], false);
+      await repository.refreshList();
+      var stored = await repository.readList();
+      expect((stored?.payload['results'] as List).single['is_read'], false);
 
-    await repository.markRead('notification-1');
-    stored = await repository.readList();
-    expect((stored?.payload['results'] as List).single['is_read'], true);
-    expect(
-      requests,
-      contains('/api/v1/notifications/notification-1/read/'),
-    );
-  });
+      await repository.markRead('notification-1');
+      stored = await repository.readList();
+      expect((stored?.payload['results'] as List).single['is_read'], true);
+      expect(requests, contains('/api/v1/notifications/notification-1/read/'));
+    },
+  );
 
   test('preferences remain local until a remote patch is confirmed', () async {
     var push = true;

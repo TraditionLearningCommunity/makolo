@@ -146,9 +146,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
 
     try {
-      final response = await api.get(
-        'api/v1/notifications/unread-presence/',
-      );
+      final response = await api.get('api/v1/notifications/unread-presence/');
       final value = response.jsonObject()['has_unread'];
       if (mounted) {
         setState(() => _hasUnreadNotifications = value is bool ? value : null);
@@ -251,14 +249,11 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             kind: _headerKind,
             avatarLetter: avatarLetter,
             profileUsername: profileUsername is String ? profileUsername : null,
-            hasConversationAttention:
-                _hasConversationAttention == true,
+            hasConversationAttention: _hasConversationAttention == true,
             hasUnreadNotifications: _hasUnreadNotifications == true,
             onBrand: () => _goDoor(MakoloPrimaryDoor.now),
-            onConversations: () =>
-                unawaited(_openSecondary('/conversations')),
-            onNotifications: () =>
-                unawaited(_openSecondary('/notifications')),
+            onConversations: () => unawaited(_openSecondary('/conversations')),
+            onNotifications: () => unawaited(_openSecondary('/notifications')),
             onSearch: actor is PersonalActorContext
                 ? () => context.push('/discover/search')
                 : null,

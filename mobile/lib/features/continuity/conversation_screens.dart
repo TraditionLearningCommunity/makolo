@@ -208,7 +208,6 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   }
 }
 
-
 class _ConversationListBody extends StatefulWidget {
   const _ConversationListBody({
     required this.repository,
@@ -233,12 +232,14 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
     final filtered = normalized.isEmpty
         ? widget.items
         : widget.items
-            .where(
-              (item) =>
-                  item.title.toLowerCase().contains(normalized) ||
-                  (item.contextLabel ?? '').toLowerCase().contains(normalized),
-            )
-            .toList(growable: false);
+              .where(
+                (item) =>
+                    item.title.toLowerCase().contains(normalized) ||
+                    (item.contextLabel ?? '').toLowerCase().contains(
+                      normalized,
+                    ),
+              )
+              .toList(growable: false);
 
     return StreamBuilder<StoredProjection?>(
       stream: widget.repository.watchInvitations(),
@@ -277,7 +278,9 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
             const SizedBox(height: MakoloSpacing.md),
             if (filtered.isEmpty)
               const MakoloCard(
-                child: Text('Aucune coordination ne correspond à cette recherche.'),
+                child: Text(
+                  'Aucune coordination ne correspond à cette recherche.',
+                ),
               )
             else
               for (var index = 0; index < filtered.length; index++) ...[
@@ -403,7 +406,6 @@ class _ConversationInvitationCardState
     );
   }
 }
-
 
 class ConversationDetailScreen extends StatefulWidget {
   const ConversationDetailScreen({
@@ -603,7 +605,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                                     point: detail.points[index],
                                     repository: widget.repository,
                                     conversationId: widget.id,
-                                    representedSpaceId: widget.representedSpaceId,
+                                    representedSpaceId:
+                                        widget.representedSpaceId,
                                   ),
                                   if (index < detail.points.length - 1)
                                     const SizedBox(height: MakoloSpacing.sm),
@@ -614,8 +617,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     if (detail.essential.isNotEmpty)
                       MakoloSection(
                         title: 'Essentiel',
-                        description:
-                            'Les décisions et résultats actuels restent lisibles sans relire tout le passé.',
+                        description: 'Les décisions et résultats actuels restent lisibles sans relire tout le passé.',
                         child: Column(
                           children: [
                             for (
@@ -726,8 +728,7 @@ class _PointCardState extends State<_PointCard> {
       await widget.repository.refreshDetail(widget.conversationId);
       if (!mounted) return;
       setState(
-        () => _feedback =
-            'Ce point a changé ou la réponse n’a pas été confirmée. Votre ancienne saisie n’a pas été déclarée envoyée.',
+        () => _feedback = 'Ce point a changé ou la réponse n’a pas été confirmée. Votre ancienne saisie n’a pas été déclarée envoyée.',
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -807,7 +808,6 @@ class _PointCardState extends State<_PointCard> {
   }
 }
 
-
 final Object _cancelledResponse = Object();
 
 Future<Object?> _collectResponseValue(
@@ -878,17 +878,16 @@ Future<Object?> _collectResponseValue(
                 ),
                 actions: [
                   TextButton(
-                    onPressed: () =>
-                        Navigator.pop(context, _cancelledResponse),
+                    onPressed: () => Navigator.pop(context, _cancelledResponse),
                     child: const Text('Annuler'),
                   ),
                   FilledButton(
                     onPressed: selected.isEmpty
                         ? null
                         : () => Navigator.pop(
-                              context,
-                              selected.toList(growable: false),
-                            ),
+                            context,
+                            selected.toList(growable: false),
+                          ),
                     child: const Text('Continuer'),
                   ),
                 ],
@@ -941,8 +940,9 @@ Future<Object?> _collectResponseValue(
             minLines: 1,
             maxLines: point.responseMode == 'number' ? 1 : 5,
             decoration: InputDecoration(
-              labelText:
-                  point.responseMode == 'number' ? 'Valeur' : 'Votre réponse',
+              labelText: point.responseMode == 'number'
+                  ? 'Valeur'
+                  : 'Votre réponse',
             ),
           ),
           actions: [
@@ -966,7 +966,6 @@ Future<Object?> _collectResponseValue(
       return _cancelledResponse;
   }
 }
-
 
 class _ConversationSummary {
   const _ConversationSummary({
@@ -1011,7 +1010,6 @@ class _ConversationSummary {
         .toList(growable: false);
   }
 }
-
 
 class _ConversationDetail {
   const _ConversationDetail({
@@ -1063,7 +1061,6 @@ class _ConversationDetail {
   }
 }
 
-
 class _ConversationPersonalState {
   const _ConversationPersonalState({
     this.muted = false,
@@ -1088,7 +1085,6 @@ class _ConversationPersonalState {
         revisit: row['revisit'] == true,
       );
 }
-
 
 class _ConversationOption {
   const _ConversationOption({required this.id, required this.label});
@@ -1131,23 +1127,22 @@ class _ConversationPoint {
   final String? resolutionSummary;
 
   bool get supportsInteractiveResponse => switch (responseMode) {
-        'free_text' ||
-        'boolean' ||
-        'single_choice' ||
-        'multiple_choice' ||
-        'number' ||
-        'date' ||
-        'datetime' =>
-          true,
-        _ => false,
-      };
+    'free_text' ||
+    'boolean' ||
+    'single_choice' ||
+    'multiple_choice' ||
+    'number' ||
+    'date' ||
+    'datetime' => true,
+    _ => false,
+  };
 
   String get responseActionLabel => switch (responseMode) {
-        'boolean' => 'Confirmer',
-        'single_choice' || 'multiple_choice' => 'Choisir',
-        'date' || 'datetime' => 'Indiquer',
-        _ => 'Répondre',
-      };
+    'boolean' => 'Confirmer',
+    'single_choice' || 'multiple_choice' => 'Choisir',
+    'date' || 'datetime' => 'Indiquer',
+    _ => 'Répondre',
+  };
 
   factory _ConversationPoint.fromMap(Map<String, dynamic> row) {
     return _ConversationPoint(
@@ -1192,20 +1187,18 @@ class _ConversationInvitation {
 
   static List<_ConversationInvitation> fromProjection(
     StoredProjection? projection,
-  ) =>
-      _maps(projection?.payload['results'])
-          .map(
-            (row) => _ConversationInvitation(
-              id: _string(row['id']) ?? '',
-              conversationId: _string(row['conversation_id']) ?? '',
-              status: _string(row['status']) ?? '',
-              expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
-            ),
-          )
-          .where((item) => item.id.isNotEmpty)
-          .toList(growable: false);
+  ) => _maps(projection?.payload['results'])
+      .map(
+        (row) => _ConversationInvitation(
+          id: _string(row['id']) ?? '',
+          conversationId: _string(row['conversation_id']) ?? '',
+          status: _string(row['status']) ?? '',
+          expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
+        ),
+      )
+      .where((item) => item.id.isNotEmpty)
+      .toList(growable: false);
 }
-
 
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) return value;

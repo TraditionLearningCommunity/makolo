@@ -188,7 +188,9 @@ class ConversationRepository {
   }) async {
     final engine = sync;
     if (engine == null) {
-      throw StateError('Une connexion est nécessaire pour envoyer cette réponse.');
+      throw StateError(
+        'Une connexion est nécessaire pour envoyer cette réponse.',
+      );
     }
     await engine.api.post(
       'api/v1/conversations/points/$pointId/respond/',
@@ -209,11 +211,11 @@ class ConversationRepository {
   }) async {
     final engine = sync;
     if (engine == null) {
-      throw StateError('Une connexion est nécessaire pour confirmer la lecture.');
+      throw StateError(
+        'Une connexion est nécessaire pour confirmer la lecture.',
+      );
     }
-    await engine.api.post(
-      'api/v1/conversations/points/$pointId/acknowledge/',
-    );
+    await engine.api.post('api/v1/conversations/points/$pointId/acknowledge/');
     await refreshDetail(conversationId);
     await refreshList();
   }
@@ -224,7 +226,9 @@ class ConversationRepository {
   }) async {
     final engine = sync;
     if (engine == null) {
-      throw StateError('Une connexion est nécessaire pour répondre à cette invitation.');
+      throw StateError(
+        'Une connexion est nécessaire pour répondre à cette invitation.',
+      );
     }
     final response = await engine.api.post(
       'api/v1/conversations/invitations/$invitationId/respond/',

@@ -179,8 +179,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   title: _onlyUnread
                       ? 'Aucune notification non lue.'
                       : 'Aucune notification.',
-                  body:
-                      'Les signaux utiles apparaîtront ici lorsqu’ils auront quelque chose à vous porter.',
+                  body: 'Les signaux utiles apparaîtront ici lorsqu’ils auront quelque chose à vous porter.',
                 ),
                 onRetry: _refresh,
                 content: Column(
@@ -258,8 +257,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              trailing:
-                                  const Icon(Icons.chevron_right_rounded),
+                              trailing: const Icon(Icons.chevron_right_rounded),
                             ),
                           );
                         },
@@ -277,10 +275,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
 }
 
 class NotificationPreferencesScreen extends StatefulWidget {
-  const NotificationPreferencesScreen({
-    super.key,
-    required this.repository,
-  });
+  const NotificationPreferencesScreen({super.key, required this.repository});
 
   final NotificationRepository repository;
 
@@ -363,8 +358,8 @@ class _NotificationPreferencesScreenState
         (_time('quiet_hours_start') == null ||
             _time('quiet_hours_end') == null)) {
       setState(
-        () => _message =
-            'Choisissez le début et la fin des heures silencieuses.',
+        () =>
+            _message = 'Choisissez le début et la fin des heures silencieuses.',
       );
       return;
     }
@@ -381,10 +376,7 @@ class _NotificationPreferencesScreenState
           fallback: true,
         ),
         'event_notifications': _bool('event_notifications', fallback: true),
-        'service_notifications': _bool(
-          'service_notifications',
-          fallback: true,
-        ),
+        'service_notifications': _bool('service_notifications', fallback: true),
         'opportunity_notifications': _bool(
           'opportunity_notifications',
           fallback: true,
@@ -398,8 +390,7 @@ class _NotificationPreferencesScreenState
     } on Object {
       if (mounted) {
         setState(
-          () => _message =
-              'Les préférences n’ont pas été confirmées. Réessayez lorsque Makolo est joignable.',
+          () => _message = 'Les préférences n’ont pas été confirmées. Réessayez lorsque Makolo est joignable.',
         );
       }
     } finally {
@@ -419,10 +410,7 @@ class _NotificationPreferencesScreenState
       body: ListView(
         padding: const EdgeInsets.all(MakoloSpacing.inner),
         children: [
-          Text(
-            'Canaux',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
           SwitchListTile(
             title: const Text('Push'),
             subtitle: const Text(
@@ -437,10 +425,7 @@ class _NotificationPreferencesScreenState
             onChanged: (value) => _setBool('email_notifications', value),
           ),
           const Divider(),
-          Text(
-            'Catégories',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Catégories', style: Theme.of(context).textTheme.titleMedium),
           _preferenceSwitch(
             'Sécurité',
             'security_notifications',
@@ -501,11 +486,7 @@ class _NotificationPreferencesScreenState
     );
   }
 
-  Widget _preferenceSwitch(
-    String label,
-    String key, {
-    bool fallback = false,
-  }) =>
+  Widget _preferenceSwitch(String label, String key, {bool fallback = false}) =>
       SwitchListTile(
         title: Text(label),
         value: _bool(key, fallback: fallback),
@@ -537,9 +518,7 @@ class _NotificationRow {
     return raw
         .whereType<Map>()
         .map((item) {
-          final row = item.map(
-            (key, value) => MapEntry(key.toString(), value),
-          );
+          final row = item.map((key, value) => MapEntry(key.toString(), value));
           final destination = codec.fromNavigation(row['navigation']);
           String? path;
           if (destination != null) {

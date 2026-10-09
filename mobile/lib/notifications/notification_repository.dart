@@ -64,8 +64,8 @@ class NotificationRepository {
     freshnessPolicy: preferencesFreshness,
     parser: (response) => AcquiredProjection(
       schemaVersion: 1,
-      payload: jsonDecode(jsonEncode(response.jsonObject()))
-          as Map<String, dynamic>,
+      payload:
+          jsonDecode(jsonEncode(response.jsonObject())) as Map<String, dynamic>,
     ),
     applier: applyProjectionSnapshot,
   );

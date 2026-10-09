@@ -40,8 +40,7 @@ List<RouteBase> continuityRoutes(AppRuntime runtime) => [
       return ConversationDetailScreen(
         id: state.pathParameters['id']!,
         repository: repository,
-        representedSpaceId:
-            actor is SpaceActorContext ? actor.space.id : null,
+        representedSpaceId: actor is SpaceActorContext ? actor.space.id : null,
       );
     },
   ),
