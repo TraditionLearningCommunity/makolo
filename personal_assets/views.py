@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from journeys.collaboration_models import JourneyArtifact
 from journeys.collaboration_services import artifact_for_download, ensure_case_access
 from journeys.models import Journey
+from journeys.selectors import journeys_for_profile
 
 from .forms import PersonalAssetCreateForm, PersonalAssetVersionForm, SaveArtifactToLibraryForm
 from .models import PersonalAsset, PersonalAssetVersion
@@ -75,6 +76,55 @@ def library_detail(request, asset_id):
     versions = list(personal_asset_versions_for_controller(request.user, asset).order_by("-version"))
     latest = versions[0] if versions else None
     return render(request, "personal_assets/detail.html", {"asset": asset, "versions": versions, "latest": latest, "today": timezone.localdate()})
+
+
+@login_required
+def library_reuse(request, asset_id):
+    asset = _asset_for_request(request, asset_id)
+    version = _latest_version(asset)
+    if version is None:
+        raise Http404
+
+    journeys = []
+    for journey in journeys_for_profile(request.user).order_by("-updated_at", "id"):
+        try:
+            ensure_case_access(request.user, journey, write=False)
+        except PermissionDenied:
+            continue
+        journeys.append(journey)
+
+    if request.method == "POST":
+        journey = next(
+            (
+                candidate
+                for candidate in journeys
+                if str(candidate.pk) == (request.POST.get("journey_id") or "")
+            ),
+            None,
+        )
+        if journey is None:
+            raise Http404
+        try:
+            artifact = use_personal_asset_version_in_journey(
+                actor=request.user,
+                personal_asset_version=version,
+                journey=journey,
+            )
+        except (PermissionDenied, ValidationError) as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(
+                request,
+                "Document ajouté à la démarche. "
+                "La satisfaction des exigences reste décidée par son owner.",
+            )
+            return redirect("core:participant-journey-detail", pk=journey.pk)
+
+    return render(
+        request,
+        "personal_assets/reuse.html",
+        {"asset": asset, "version": version, "journeys": journeys},
+    )
 
 
 @login_required
