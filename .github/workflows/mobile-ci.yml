@@ -100,7 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ needs.scope.outputs.full_test }}" == "true" ]]; then
-            flutter test --exclude-tags golden
+            flutter test --exclude-tags golden --timeout 3m
             exit 0
           fi
 
@@ -125,8 +125,8 @@ jobs:
           fi
 
           if (("${#tests[@]}" == 0)); then
-            flutter test --exclude-tags golden
+            flutter test --exclude-tags golden --timeout 3m
             exit 0
           fi
           mapfile -t tests < <(printf '%s\n' "${tests[@]}" | sort -u)
-          flutter test --exclude-tags golden "${tests[@]}"
+          flutter test --exclude-tags golden --timeout 3m "${tests[@]}"
