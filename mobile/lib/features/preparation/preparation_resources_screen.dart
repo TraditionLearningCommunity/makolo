@@ -22,12 +22,15 @@ class PreparationResourcesScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenExternal,
     this.resourcesPath,
+    this.onOpenDownloadedFile,
   });
 
   final String journeyId;
   final PreparationResourcesRepository repository;
   final Future<bool> Function(String url) onOpenExternal;
   final String? resourcesPath;
+  final Future<void> Function(String path, String? mimeType, String title)?
+  onOpenDownloadedFile;
 
   @override
   State<PreparationResourcesScreen> createState() =>
@@ -39,6 +42,8 @@ class _PreparationResourcesScreenState
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
+  final Set<String> _downloading = <String>{};
+  final Map<String, String> _downloaded = <String, String>{};
 
   @override
   void initState() {
@@ -77,6 +82,51 @@ class _PreparationResourcesScreenState
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
+  }
+
+  Future<void> _download(_PreparationResource resource) async {
+    final downloadUrl = resource.downloadUrl;
+    if (downloadUrl == null || _downloading.contains(resource.id)) return;
+    setState(() => _downloading.add(resource.id));
+    try {
+      final file = await widget.repository.downloadResource(
+        resourceId: resource.id,
+        downloadPath: downloadUrl,
+        title: resource.title,
+        mimeType: resource.mimeType,
+      );
+      if (!mounted) return;
+      setState(() => _downloaded[resource.id] = file.path);
+      await widget.onOpenDownloadedFile?.call(
+        file.path,
+        resource.mimeType,
+        resource.title,
+      );
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Le document n’a pas pu être téléchargé. Les autres ressources restent disponibles.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _downloading.remove(resource.id));
+    }
+  }
+
+  Future<void> _openFile(_PreparationResource resource) async {
+    final localPath = _downloaded[resource.id];
+    if (localPath == null) {
+      await _download(resource);
+      return;
+    }
+    await widget.onOpenDownloadedFile?.call(
+      localPath,
+      resource.mimeType,
+      resource.title,
+    );
   }
 
   @override
@@ -161,6 +211,9 @@ class _PreparationResourcesScreenState
                     itemBuilder: (context, index) => _PreparationResourceCard(
                       resource: items[index],
                       onOpenExternal: widget.onOpenExternal,
+                      downloading: _downloading.contains(items[index].id),
+                      downloaded: _downloaded.containsKey(items[index].id),
+                      onOpenFile: () => _openFile(items[index]),
                     ),
                   ),
                 ),
@@ -177,10 +230,16 @@ class _PreparationResourceCard extends StatelessWidget {
   const _PreparationResourceCard({
     required this.resource,
     required this.onOpenExternal,
+    required this.downloading,
+    required this.downloaded,
+    required this.onOpenFile,
   });
 
   final _PreparationResource resource;
   final Future<bool> Function(String url) onOpenExternal;
+  final bool downloading;
+  final bool downloaded;
+  final VoidCallback onOpenFile;
 
   @override
   Widget build(BuildContext context) {
@@ -227,9 +286,25 @@ class _PreparationResourceCard extends StatelessWidget {
           ],
           if (resource.downloadUrl != null) ...[
             const SizedBox(height: MakoloSpacing.md),
-            Text(
-              'Document disponible dans Makolo.',
-              style: Theme.of(context).textTheme.bodySmall,
+            FilledButton.tonalIcon(
+              onPressed: downloading ? null : onOpenFile,
+              icon: downloading
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      downloaded
+                          ? Icons.description_outlined
+                          : Icons.download_rounded,
+                    ),
+              label: Text(
+                downloading
+                    ? 'Téléchargement…'
+                    : downloaded
+                    ? 'Ouvrir le document'
+                    : 'Télécharger le document',
+              ),
             ),
           ],
         ],
@@ -240,6 +315,7 @@ class _PreparationResourceCard extends StatelessWidget {
 
 class _PreparationResource {
   const _PreparationResource({
+    required this.id,
     required this.title,
     required this.kindLabel,
     required this.version,
@@ -248,8 +324,11 @@ class _PreparationResource {
     this.text,
     this.externalUrl,
     this.downloadUrl,
+    this.mimeType,
+    this.size,
   });
 
+  final String id;
   final String title;
   final String kindLabel;
   final int version;
@@ -258,6 +337,8 @@ class _PreparationResource {
   final String? text;
   final String? externalUrl;
   final String? downloadUrl;
+  final String? mimeType;
+  final int? size;
 
   static List<_PreparationResource> fromProjection(
     StoredProjection? projection,
@@ -274,6 +355,7 @@ class _PreparationResource {
               : const <String, dynamic>{};
           final kind = _string(row['kind']) ?? 'resource';
           return _PreparationResource(
+            id: _string(row['id']) ?? '',
             title: _string(row['title']) ?? 'Ressource',
             description: _string(row['description']),
             kindLabel: switch (kind) {
@@ -289,9 +371,13 @@ class _PreparationResource {
             text: _string(row['text']),
             externalUrl: _string(row['external_url']),
             downloadUrl: _string(row['download_url']),
+            mimeType: _string(row['mime_type']),
+            size: row['size'] is num
+                ? (row['size'] as num).toInt()
+                : int.tryParse(row['size']?.toString() ?? ''),
           );
         })
-        .where((item) => item.title.isNotEmpty)
+        .where((item) => item.id.isNotEmpty && item.title.isNotEmpty)
         .toList(growable: false);
   }
 }
