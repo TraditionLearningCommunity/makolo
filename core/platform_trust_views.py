@@ -128,6 +128,32 @@ class PlatformTrustCaseView(LoginRequiredMixin, TemplateView):
                     decision_form=form, error_message="Ce dossier a changé. Actualisez-le avant de décider."
                 ), status=409)
             before = current.status
+            # Owner services are idempotent in isolation; Platform must not
+            # present a repeated submission as a new audited decision.
+            already_done = (
+                (self.case_type == "verification" and (
+                    (action == "review" and before == "under_review") or
+                    (action == "verify" and before == "verified") or
+                    (action == "reject" and before == "rejected") or
+                    (action == "revoke" and before == "revoked")
+                )) or
+                (self.case_type == "report" and (
+                    (action == "triage" and before == "triaged") or
+                    (action == "investigate" and before == "investigating") or
+                    (action == "resolve" and before == "resolved") or
+                    (action == "dismiss" and before == "dismissed") or
+                    (action == "dispute" and Dispute.objects.filter(report=current).exists())
+                )) or
+                (self.case_type == "dispute" and (
+                    (action == "request_info" and before == "awaiting_information") or
+                    (action == "decide" and before == "decided") or
+                    (action == "close" and before == "closed")
+                ))
+            )
+            if already_done:
+                return self.render_to_response(self.get_context_data(
+                    decision_form=form, error_message="Cette action a déjà été appliquée. Aucune nouvelle décision n'a été enregistrée."
+                ), status=409)
             try:
                 outcome = self._apply(current, action, data, request.user)
             except ValidationError as exc:
