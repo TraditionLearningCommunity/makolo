@@ -367,7 +367,9 @@ class _HistoryView {
             kind: kind,
             id: id,
             title: _string(row['title']) ?? 'Historique',
-            occurredAt: _humanInstant(row['occurred_at']),
+            occurredAt: row['time_quality'] == 'unknown_legacy'
+                ? 'Date non précisée'
+                : _humanInstant(row['occurred_at']),
             outcome:
                 _string(outcome['label']) ??
                 MakoloHumanization.presentationLabel(_string(outcome['code'])),

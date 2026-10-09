@@ -415,3 +415,15 @@ class Z6PersonalHistoryAPIContractTests(TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["source"]["id"], str(second.pk))
         self.assertEqual(response.json()["data"]["page"]["count"], 1)
+
+    def test_legacy_updated_at_is_marked_unknown_without_inventing_event_time(self):
+        row = self._journey(status=JourneyStatus.REJECTED)
+        self.client.force_authenticate(self.owner)
+        result = self.client.get("/api/v1/me/history/?type=journeys")
+        self.assertEqual(result.status_code, 200)
+        matching = next(
+            item for item in result.json()["data"]["items"]
+            if item["source"]["id"] == str(row.pk)
+        )
+        self.assertEqual(matching["time_quality"], "unknown_legacy")
+        self.assertIsNotNone(matching["occurred_at"])

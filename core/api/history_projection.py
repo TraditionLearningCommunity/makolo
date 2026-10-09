@@ -39,6 +39,15 @@ def _occurrence_ref(occurrence):
 
 
 def _access_item(access):
+    # A technical update cannot be presented as an observed historical event.
+    event_known = (
+        (access.status == "used" and access.latest_accepted_use_at is not None)
+        or (
+            access.status == "valid"
+            and (access.occurrence and access.occurrence.end_at is not None
+                 or access.valid_until is not None)
+        )
+    )
     workflow = access.journey.workflow if access.journey_id else None
     vocabulary = vocabulary_for(activity=access.activity, workflow=workflow)
     return {
@@ -46,6 +55,7 @@ def _access_item(access):
         "source": {"kind": "access", "id": str(access.pk)},
         "title": access.activity.title,
         "occurred_at": _iso(getattr(access, "history_at", access.updated_at)),
+        "time_quality": "owner_event" if event_known else "unknown_legacy",
         "outcome": {
             "code": access.status,
             "label": history_access_label(access),
@@ -71,12 +81,19 @@ def _access_item(access):
 
 
 def _journey_item(journey):
+    event_known = bool(
+        (journey.status == "fulfilled" and journey.fulfilled_at is not None)
+        or (journey.status == "cancelled" and journey.cancelled_at is not None)
+        or (journey.status == "expired" and journey.expires_at is not None)
+        or journey.latest_history_transition_at is not None
+    )
     vocabulary = vocabulary_for(activity=journey.activity, workflow=journey.workflow)
     return {
         "kind": "journey",
         "source": {"kind": "journey", "id": str(journey.pk)},
         "title": journey.activity.title,
         "occurred_at": _iso(getattr(journey, "history_at", journey.updated_at)),
+        "time_quality": "owner_event" if event_known else "unknown_legacy",
         "outcome": {
             "code": journey.status,
             "label": history_journey_label(journey),
