@@ -20,11 +20,13 @@ class PreparationResourcesScreen extends StatefulWidget {
     super.key,
     required this.journeyId,
     required this.repository,
+    required this.onOpenExternal,
     this.resourcesPath,
   });
 
   final String journeyId;
   final PreparationResourcesRepository repository;
+  final Future<bool> Function(String url) onOpenExternal;
   final String? resourcesPath;
 
   @override
@@ -156,8 +158,10 @@ class _PreparationResourcesScreenState
                     itemCount: items.length,
                     separatorBuilder: (_, _) =>
                         const SizedBox(height: MakoloSpacing.sm),
-                    itemBuilder: (context, index) =>
-                        _PreparationResourceCard(resource: items[index]),
+                    itemBuilder: (context, index) => _PreparationResourceCard(
+                      resource: items[index],
+                      onOpenExternal: widget.onOpenExternal,
+                    ),
                   ),
                 ),
               ),
@@ -170,9 +174,13 @@ class _PreparationResourcesScreenState
 }
 
 class _PreparationResourceCard extends StatelessWidget {
-  const _PreparationResourceCard({required this.resource});
+  const _PreparationResourceCard({
+    required this.resource,
+    required this.onOpenExternal,
+  });
 
   final _PreparationResource resource;
+  final Future<bool> Function(String url) onOpenExternal;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +208,22 @@ class _PreparationResourceCard extends StatelessWidget {
           ],
           if (resource.externalUrl != null) ...[
             const SizedBox(height: MakoloSpacing.md),
-            SelectableText(resource.externalUrl!),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final opened = await onOpenExternal(resource.externalUrl!);
+                if (!opened && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Ce lien externe n’est pas disponible pour le moment.',
+                      ),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text('Ouvrir le site externe'),
+            ),
           ],
           if (resource.downloadUrl != null) ...[
             const SizedBox(height: MakoloSpacing.md),
