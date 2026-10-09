@@ -66,6 +66,11 @@
         </div>
       {% elif home.primary_attention.topology == "composition" %}
         {% for summary in home.primary_attention.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
+        <ul aria-label="Démarches de la composition">
+          {% for member in home.primary_attention.relation_members %}
+            <li>{{ member.label }}{% if member.subtext %} — {{ member.subtext }}{% endif %}</li>
+          {% endfor %}
+        </ul>
       {% elif home.primary_attention.topology == "waiting" %}
         <p class="mk-now-wait">{{ home.primary_attention.turn|default:"En attente de la prochaine réponse." }}</p>
         {% if home.primary_attention.horizon %}<p>{{ home.primary_attention.horizon }}</p>{% endif %}
@@ -109,6 +114,12 @@
             <p>{{ item.summary }}</p>
             {% if item.why_now %}<p>{{ item.why_now }}</p>{% endif %}
             {% if item.consequence %}<p>{{ item.consequence }}</p>{% endif %}
+            {% if item.topology == "waiting" %}
+              <p class="mk-now-wait">{{ item.turn|default:"En attente de la prochaine réponse." }}</p>
+              {% if item.horizon %}<p>{{ item.horizon }}</p>{% endif %}
+            {% elif item.topology == "composition" %}
+              {% for summary in item.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
+            {% endif %}
           </div>
           {% if item.inline_media %}
             <div class="mk-now-media" aria-label="Médias de cette situation">
