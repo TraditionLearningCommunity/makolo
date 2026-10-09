@@ -70,6 +70,23 @@ void main() {
     expect(topologyFor(situation), NowTopology.composition);
   });
 
+  testWidgets('G01 S3 action handoff uses production CTA with no mutation', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      child: const NowGalleryScenarioPreview(id: 'now-g01-s3-min'),
+    );
+    expect(find.widgetWithText(FilledButton, 'Vérifier le dossier'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Vérifier le dossier'));
+    await tester.pump();
+    expect(
+      find.text('Démonstration : aucune action métier exécutée.'),
+      findsOneWidget,
+    );
+    expect(find.text('Confirmé'), findsNothing);
+  });
+
   testWidgets('Gallery scenario calm is not a fake empty loading state', (
     tester,
   ) async {
