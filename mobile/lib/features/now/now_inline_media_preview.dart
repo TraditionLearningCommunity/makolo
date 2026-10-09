@@ -53,6 +53,8 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
       _cancel?.cancel();
       unawaited(_discard(_downloaded));
       _downloaded = null;
+      _loading = false;
+      _failed = false;
       _prepare();
     }
   }
