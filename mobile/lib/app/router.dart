@@ -376,8 +376,7 @@ GoRouter createMakoloRouter(
           runtime.recovery.rememberLocation(state.uri.toString());
           return const MakoloSecondaryScreen(
             title: 'Makolo',
-            message:
-                'Aucun détail supplémentaire à afficher pour le moment.',
+            message: 'Aucun détail supplémentaire à afficher pour le moment.',
           );
         },
       ),
