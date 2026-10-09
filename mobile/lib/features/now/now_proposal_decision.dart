@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
 import '../../presentation/contracts/now_presentation.dart';
-import 'now_action_controller.dart';
 
 /// Focused decision owned by Action Network, including explicit Space context.
 /// No local authority can be inferred from Membership or the action label.
@@ -14,11 +13,13 @@ class NowProposalDecision extends StatefulWidget {
     required this.situation,
     required this.action,
     required this.api,
+    this.onRefresh,
   });
 
   final NowSituationPresentation situation;
   final NowBusinessActionPresentation action;
   final MakoloApiClient api;
+  final Future<void> Function()? onRefresh;
 
   static final RegExp _uuid = RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -146,7 +147,7 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
       if (!mounted) return;
       setState(() => _confirmed = true);
       try {
-        await NowActionRefreshScope.maybeOf(context)?.call();
+        await widget.onRefresh?.call();
       } on Object {
         // The owner confirmation is retained while Now refreshes later.
       }
