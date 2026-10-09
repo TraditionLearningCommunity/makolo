@@ -89,6 +89,43 @@ def _now_topology(item):
     return "meaning"
 
 
+def _now_inline_media(item):
+    """Expose only the first-party resource-view endpoint; never raw storage URLs."""
+    allowed_prefix = "/api/v1/me/now/media/journey-artifacts/"
+    result = []
+    for binding in item.get("media_bindings") or ():
+        if not isinstance(binding, dict) or binding.get("authorized") is not True:
+            continue
+        if not binding.get("resource_ref"):
+            continue
+        url = binding.get("url")
+        if not isinstance(url, str) or not url.startswith(allowed_prefix):
+            continue
+        path, separator, query = url.partition("?")
+        resource_id = path[len(allowed_prefix):].strip("/")
+        if not resource_id or "/" in resource_id:
+            continue
+        from uuid import UUID
+
+        try:
+            UUID(resource_id)
+        except (ValueError, AttributeError):
+            continue
+        if separator and query != "view=text":
+            continue
+        kind = binding.get("kind")
+        if kind not in {"image", "pdf", "document", "audio", "video"}:
+            continue
+        result.append({
+            "url": url,
+            "kind": kind,
+            "label": binding.get("label") or "Média associé à la situation",
+        })
+        if len(result) == 3:
+            break
+    return tuple(result)
+
+
 def _web_now_item(item):
     response = item.get("response") or {}
     return SimpleNamespace(
@@ -111,6 +148,7 @@ def _web_now_item(item):
         topology=_now_topology(item),
         horizon=_display_value(item.get("horizon"), "label", "text"),
         preparation=tuple(x for x in (item.get("makolo_preparation") or ()) if isinstance(x, str) and x.strip()),
+        inline_media=_now_inline_media(item),
         media_labels=tuple(
             binding.get("label") or "Média lié à la situation"
             for binding in (item.get("media_bindings") or ())
