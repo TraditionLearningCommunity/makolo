@@ -394,7 +394,11 @@ def build_requirement_detail(*, journey, assessment, profile):
                 )
         ways.append(way)
 
-    if trusted_reuse_options_for_assessment(assessment=assessment, actor=profile):
+    reuse_options = trusted_reuse_options_for_assessment(
+        assessment=assessment,
+        actor=profile,
+    )
+    if any(option.can_apply for option in reuse_options):
         ways.append(
             {
                 "kind": "trusted_reuse",
