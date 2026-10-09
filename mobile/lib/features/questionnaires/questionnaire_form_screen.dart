@@ -608,16 +608,17 @@ class _DateField extends StatelessWidget {
         if (question.helpText != null) Text(question.helpText!),
         const SizedBox(height: MakoloSpacing.sm),
         OutlinedButton.icon(
-          onPressed: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: parsed ?? DateTime.now(),
-              firstDate: DateTime(1900),
-              lastDate: DateTime(2200),
-            );
-            if (picked != null) {
-              final iso = picked.toIso8601String().split('T').first;
-              onChanged(iso);
+          onPressed: enabled
+              ? () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: parsed ?? DateTime.now(),
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime(2200),
+                  );
+                  if (picked != null) {
+                    final iso = picked.toIso8601String().split('T').first;
+                    onChanged(iso);
                   }
                 }
               : null,
