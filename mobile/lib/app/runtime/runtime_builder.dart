@@ -105,6 +105,7 @@ Future<AppRuntime> buildAppRuntime({
     database: database,
     store: store,
     profileId: profileId,
+    api: api,
     sync: sync,
   );
   final questionnaires = buildQuestionnaireAssembly(
