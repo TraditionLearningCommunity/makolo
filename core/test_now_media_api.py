@@ -74,6 +74,20 @@ class PersonalNowMediaAuthorizationTests(SimpleTestCase):
         self.assertEqual(response.status_code, 404)
 
     @patch("core.api.now_media_views.artifact_for_download")
+    def test_active_html_upload_is_never_rendered_inline_on_makolo_origin(self, lookup):
+        lookup.return_value = SimpleNamespace(
+            file=SimpleNamespace(open=lambda mode: ContentFile(b"<script>alert(1)</script>")),
+            mime_type="text/html",
+        )
+        response = self._get()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/octet-stream")
+        self.assertTrue(response["Content-Disposition"].startswith("attachment"))
+        self.assertEqual(response["Cross-Origin-Resource-Policy"], "same-origin")
+        self.assertIn("sandbox", response["Content-Security-Policy"])
+        response.close()
+
+    @patch("core.api.now_media_views.artifact_for_download")
     def test_authorized_content_is_streamed_without_public_cache(self, lookup):
         lookup.return_value = SimpleNamespace(
             file=SimpleNamespace(open=lambda mode: ContentFile(b"%PDF-1.4\n")),
