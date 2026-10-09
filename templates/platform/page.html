@@ -57,6 +57,18 @@
 <section class="section"><h2>Workers observés</h2><div class="tablebox"><table><thead><tr><th scope="col">Worker</th><th scope="col">Instance</th><th scope="col">État</th><th scope="col">Dernier heartbeat</th></tr></thead><tbody>
 {% for worker in overview.workers %}<tr><td>{{ worker.worker_name }}</td><td>{{ worker.instance_id }}</td><td>{% if worker.stale %}En retard{% else %}{{ worker.state }}{% endif %}</td><td>{{ worker.last_seen_at|date:'d/m/Y H:i:s' }}</td></tr>{% empty %}<tr><td colspan="4">Aucun heartbeat observé ; état des workers inconnu.</td></tr>{% endfor %}</tbody></table></div></section>
 <section class="section"><h2>Signaux système</h2><p>État de couverture Operations : <span class="status {{ overview.health }}">{{ overview.health }}</span>. Dernière observation : {{ overview.generated_at|date:'d/m/Y H:i:s' }}.</p><a class="link secondary" href="{% url 'platform_web:interoperability' %}">Connexions</a></section>
+<section class="section">
+<h2>Domain Events et consommateurs</h2>
+<p class="muted">Observation à {{ domain_events.observed_at|date:'d/m/Y H:i:s' }}. {{ domain_events.coverage }}. Ce n'est pas un diagnostic universel de tous les services.</p>
+<div class="tablebox"><table><thead><tr><th scope="col">Outbox pending</th><th scope="col">Processing</th><th scope="col">Processed</th><th scope="col">Failed</th></tr></thead><tbody>
+<tr><td>{{ domain_events.event_counts.pending|default:0 }}</td><td>{{ domain_events.event_counts.processing|default:0 }}</td><td>{{ domain_events.event_counts.processed|default:0 }}</td><td>{{ domain_events.event_counts.failed|default:0 }}</td></tr>
+</tbody></table></div>
+<h2>Échecs de consommation récents</h2>
+<div class="tablebox"><table><thead><tr><th scope="col">Type</th><th scope="col">Consumer</th><th scope="col">Essais</th><th scope="col">Dernier état</th></tr></thead><tbody>
+{% for failure in domain_events.failures %}<tr><td>{{ failure.event_type }}</td><td>{{ failure.consumer }}</td><td>{{ failure.attempts }} / {{ failure.max_attempts }}</td><td>{{ failure.status }} · {{ failure.last_changed|date:'d/m/Y H:i' }}</td></tr>{% empty %}<tr><td colspan="4">Aucun échec de consommation relevé. L'absence d'autres données ne signifie pas que tous les mécanismes sont sains.</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="notice">Aucun requeue générique : l'événement, le consumer, l'idempotence et l'impact doivent être vérifiés dans le parcours technique owner avant toute relance. Aucun payload ou message d'erreur brut n'est exposé.</p>
+</section>
 {% elif platform_page == 'audit' %}
 <p class="subtle">Trace Operations uniquement. Les autres domaines conservent leurs propres audits ; aucune fédération globale n’est revendiquée.</p><div class="tablebox"><table><thead><tr><th scope="col">Moment</th><th scope="col">Acteur</th><th scope="col">Action</th><th scope="col">Cible</th><th scope="col">Résumé</th></tr></thead><tbody>{% for row in audit_rows %}<tr><td>{{ row.created_at|date:'d/m/Y H:i:s' }}</td><td>{{ row.actor.get_full_name|default:row.actor.username|default:'Acteur non disponible' }}</td><td>{{ row.action }}</td><td>{{ row.target_type }}</td><td>{{ row.summary }}</td></tr>{% empty %}<tr><td colspan="5">Aucune action Operations enregistrée.</td></tr>{% endfor %}</tbody></table></div>
 {% elif platform_page == 'investigate' %}
