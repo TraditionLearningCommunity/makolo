@@ -114,7 +114,12 @@ class MeSelector {
       _collectives(projection.payload['collectives'], freshness, reachability),
       if (_string(links?['accesses']) != null)
         _accesses(freshness, reachability),
-      _resources(projection.payload['resources'], freshness, reachability),
+      _resources(
+        projection.payload['resources'],
+        freshness,
+        reachability,
+        ownerAvailable: _string(links?['resources']) != null,
+      ),
     ];
 
     final support = _support(
@@ -267,19 +272,21 @@ class MeSelector {
   MeTerritorySelection _resources(
     Object? raw,
     MakoloFreshnessCue freshness,
-    MakoloReachabilityCue reachability,
-  ) {
+    MakoloReachabilityCue reachability, {
+    required bool ownerAvailable,
+  }) {
     final section = _map(raw);
     var malformed = raw != null && section == null;
     final items = <MeItemPresentation>[
-      const MeItemPresentation(
-        destination: StructuredDestination(
-          kind: 'resource_collection',
-          id: 'mine',
+      if (ownerAvailable)
+        const MeItemPresentation(
+          destination: StructuredDestination(
+            kind: 'resource_collection',
+            id: 'mine',
+          ),
+          title: 'Ouvrir Mes ressources',
+          subtitle: 'Bibliothèque, Proofs et Credentials',
         ),
-        title: 'Ouvrir Mes ressources',
-        subtitle: 'Bibliothèque, Proofs et Credentials',
-      ),
     ];
 
     if (section != null) {
