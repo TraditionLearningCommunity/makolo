@@ -26,7 +26,7 @@ class FakeNowMediaApi extends MakoloApiClient {
     MakoloCancelHandle? cancel,
     TransferProgress? onProgress,
   }) async {
-    expect(path, 'api/v1/me/now/media/journey-artifacts/123/');
+    expect(path, 'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/');
     downloadedPath = destinationPath;
     await File(destinationPath).writeAsBytes([1, 2, 3]);
     return const ApiResponse(200, '', {});
@@ -67,11 +67,11 @@ void main() {
           sharing: sharing,
           temporaryDirectory: root,
           media: const NowMediaBindingPresentation(
-            resourceRef: 'journey_artifact:123',
+            resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',
             target: NowMediaTarget.situation,
             purpose: NowMediaPurpose.prepare,
             kind: NowMediaKind.unknown,
-            url: '/api/v1/me/now/media/journey-artifacts/123/',
+            url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
             authorized: true,
           ),
         ),
