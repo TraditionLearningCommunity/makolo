@@ -80,7 +80,7 @@ def build_space_history_projection(
             "source": {"kind": "occurrence", "id": str(row.pk)},
             "title": row.label or row.activity.title,
             "context": {"activity": row.activity.title},
-            "occurred_at": row.end_at.isoformat(),
+            "occurred_at": timezone.localtime(row.end_at).isoformat(),
             "time_basis": "scheduled_end_of_completed_occurrence",
             "outcome": {"code": row.status, "label": "Séance passée"},
             "links": {"detail": f"/api/v1/occurrences/{row.pk}/"},

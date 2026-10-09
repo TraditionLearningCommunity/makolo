@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.utils import timezone
 
@@ -335,15 +336,18 @@ def _activity_scope_from_responsibility(profile, space, responsibility_key):
     if not responsibility_key.startswith(prefix):
         return set()
     mandate_id = responsibility_key[len(prefix) :]
-    mandate = (
-        current_mandates()
-        .filter(profile=profile, pk=mandate_id)
-        .filter(
-            Q(scope_type=AuthorityScope.SPACE, space=space)
-            | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
+    try:
+        mandate = (
+            current_mandates()
+            .filter(profile=profile, pk=mandate_id)
+            .filter(
+                Q(scope_type=AuthorityScope.SPACE, space=space)
+                | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
+            )
+            .first()
         )
-        .first()
-    )
+    except (DjangoValidationError, ValueError):
+        return set()
     if mandate is None:
         return set()
     if mandate.scope_type == AuthorityScope.ACTIVITY:
