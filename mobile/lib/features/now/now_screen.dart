@@ -413,11 +413,16 @@ NowTopology topologyFor(NowSituationPresentation situation) {
   }
   // A relation alone is not a composed Now situation: require a present
   // consequence and an explicit explanation from the owning projection.
-  if (situation.relationMembers.length >= 2 &&
-      situation.relations.isNotEmpty &&
-      situation.whyNow != null &&
-      situation.consequence != null &&
-      situation.responseType != null) {
+  final memberIds = situation.relationMembers.map((item) => item.id).toSet();
+  final hasRealRelation = situation.relations.any((relation) {
+    final linked = relation.memberIds.toSet().intersection(memberIds);
+    return relation.kind.trim().isNotEmpty && linked.length >= 2;
+  });
+  if (memberIds.length >= 2 &&
+      hasRealRelation &&
+      situation.whyNow?.trim().isNotEmpty == true &&
+      situation.consequence?.trim().isNotEmpty == true &&
+      situation.responseType?.trim().isNotEmpty == true) {
     return NowTopology.composition;
   }
   // Waiting is a response owned by the projection, not an inferred status.
