@@ -41,7 +41,7 @@ Les faits de domaine ne changent pas de propriétaire selon l'interface utilisé
 | ScannerAssignment, ScanLog, EventAccessGate | Inspection seulement | Scanner/Access et permissions opérationnelles | APP / OPERATIONS |
 | User, UserProfile, UserSession, UserDevice, NotificationPreference | User technique superuser uniquement ; pas de bulk ou vérification email brute ; sous-modèles readonly ; clé de session cachée | Accounts / Trust / préférences utilisateur | APP / TECH bootstrap |
 | ProviderConnection, IntelligenceRoute | Configuration technique superuser ; credentials non réaffichés, check health unitaire justifié et audité | `intelligence.credentials` et `intelligence.health` | ADMIN technique / PLATFORM projection |
-| allauth SocialApp OAuth/OIDC | Configuration framework conservée dans Django Admin | Setup infra via runbook, pas workflow produit | ADMIN |
+| allauth SocialApp OAuth/OIDC | Configuration superuser conservée ; secret et settings non réaffichés ; rotation explicite | Setup infra via runbook, pas workflow produit | ADMIN |\n| allauth SocialToken et SocialAccount | Inspection superuser uniquement ; tokens bruts jamais affichés, pas de relink/edit/delete | Handshake allauth et services Accounts | ADMIN forensic |
 | Variables d'environnement, clés, migrations, schéma | Jamais exposés comme données brutes dans Platform/Admin | Configuration environnement et engineering | ENV / ENGINEERING |
 
 Les modèles laissés éditables ne sont **pas** une permission métier : ce sont des configurations techniques identifiées ou un secours conservé en attendant un chemin propriétaire certifié équivalent. Avant de supprimer un autre fallback, vérifier couverture du service, validation, audit, permissions et rollback.
@@ -70,7 +70,7 @@ Ne pas rétablir les anciennes actions `queryset.update(status=...)` : elles per
 - Les sous-modèles de profil, préférences, devices et sessions sont consultables mais non éditables par ce chemin. `session_key` n'est ni un champ de détail visible ni un champ d'inline.
 - `TrustEvidence.file` et `JourneyArtifact.file` ne produisent pas de lien direct vers le stockage depuis Admin. L'ouverture de preuve à travers Platform/Trust reste explicite, privée, contrôlée et no-store.
 - Les credentials Intelligence se saisissent via un champ password vide par défaut ; une valeur vide conserve l'existante. Le stockage chiffré passe par `set_provider_secret`. Ne pas copier de clé en logs, tests, commentaires ou audit. Le check de connectivité est limité à une connexion par demande, justifié et audité ; il peut provoquer un appel externe réel.
-- Les secrets d'environnement n'appartiennent ni au shell Platform ni à une fiche Admin. L'Admin SocialApp allauth demeure une configuration framework exceptionnelle.
+- L'Admin SocialApp allauth demeure une configuration framework exceptionnelle, superuser-only. Les champs du secret et de la clé existants restent non affichés : utiliser les champs de remplacement facultatifs pour une rotation, et laisser vide pour conserver. Les paramètres provider existants ne sont jamais réaffichés ; leur remplacement est un objet JSON complet, validé. Les tokens OAuth et les secrets de refresh de SocialToken ne sont jamais visibles dans Django Admin. Les secrets SocialApp stockés en base par allauth ne sont **pas** présumés chiffrés au repos ; privilégier les protections de stockage et la configuration d'environnement appropriées.\n- Les secrets d'environnement n'appartiennent ni au shell Platform ni à une fiche Admin.
 
 ## 6. Validation, déploiement, rollback
 
