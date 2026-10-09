@@ -10,7 +10,7 @@ import 'package:makolo_mobile/repositories/personal_repository.dart';
 
 import 'fakes.dart';
 
-Future<AppRuntime> _runtimeWithActivation(int percentage) async {
+Future<AppRuntime> _runtimeWithIdentity() async {
   final database = MakoloDatabase.memory();
   final store = ProfileStore(database, 'profile-a');
   await store.putProjection(
@@ -19,7 +19,6 @@ Future<AppRuntime> _runtimeWithActivation(int percentage) async {
     payload: {
       'identity': {
         'display_name': 'Amina',
-        'activation': {'percentage': percentage},
       },
     },
   );
@@ -38,7 +37,7 @@ void main() {
     'Avatar exposes global app actions without Compte et paramètres',
     (tester) async {
       var settingsOpened = false;
-      final runtime = await _runtimeWithActivation(72);
+      final runtime = await _runtimeWithIdentity();
       addTearDown(runtime.close);
 
       await tester.pumpWidget(
@@ -67,7 +66,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Amina'), findsOneWidget);
-      expect(find.text('Profil Makolo · 72 % renseigné'), findsOneWidget);
+      expect(find.textContaining('% renseigné'), findsNothing);
       expect(find.text('Agir comme'), findsOneWidget);
       expect(find.text('Connexions'), findsOneWidget);
       expect(find.text('Abonnement & facturation'), findsOneWidget);
@@ -82,8 +81,10 @@ void main() {
     },
   );
 
-  testWidgets('100 percent activation disappears from Avatar', (tester) async {
-    final runtime = await _runtimeWithActivation(100);
+  testWidgets('Avatar keeps human identity concise without completion score', (
+    tester,
+  ) async {
+    final runtime = await _runtimeWithIdentity();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -102,6 +103,7 @@ void main() {
     await tester.tap(find.text('Avatar'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Amina'), findsOneWidget);
     expect(find.textContaining('renseigné'), findsNothing);
 
     Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();

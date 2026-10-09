@@ -78,15 +78,6 @@ class MakoloAvatarSheet extends StatelessWidget {
         builder: (context, snapshot) {
           final identity = _identity(snapshot.data);
           final displayName = identity?['display_name'] as String?;
-          final activation = identity?['activation'];
-          final activationPercentage = activation is Map
-              ? activation['percentage']
-              : null;
-          final activationPercent = activationPercentage is num
-              ? activationPercentage.round()
-              : null;
-          final showActivation =
-              activationPercent != null && activationPercent < 100;
           final firstLetter =
               displayName != null && displayName.trim().isNotEmpty
               ? displayName.trim().substring(0, 1).toUpperCase()
@@ -130,16 +121,6 @@ class MakoloAvatarSheet extends StatelessWidget {
                                 : 'Profil Makolo',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
-                          if (showActivation) ...[
-                            const SizedBox(height: MakoloSpacing.xs),
-                            Text(
-                              'Profil Makolo · $activationPercent % renseigné',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
