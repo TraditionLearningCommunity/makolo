@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../data/files/profile_paths.dart';
-import '../../design/presentation_media.dart';
 import '../../network/makolo_api_client.dart';
 import '../../presentation/contracts/now_presentation.dart';
 import 'now_media_viewer.dart';
@@ -47,9 +46,10 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.media.resourceRef != widget.media.resourceRef ||
         oldWidget.media.url != widget.media.url ||
+        oldWidget.media.authorized != widget.media.authorized ||
         oldWidget.profileId != widget.profileId) {
       _cancel?.cancel();
-      _discard(_downloaded);
+      unawaited(_discard(_downloaded));
       _downloaded = null;
       _prepare();
     }
@@ -83,7 +83,7 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
         cancel: cancel,
       );
       if (!mounted || cancel.isCancelled || _cancel != cancel) {
-        _discard(downloaded);
+        unawaited(_discard(downloaded));
         return;
       }
       setState(() {
@@ -91,7 +91,7 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
         _loading = false;
       });
     } on Object {
-      _discard(downloaded);
+      unawaited(_discard(downloaded));
       if (mounted && _cancel == cancel) {
         setState(() {
           _loading = false;
