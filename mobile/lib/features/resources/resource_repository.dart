@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
@@ -186,6 +188,34 @@ class ResourceRepository {
               invalidated: row.invalidated,
               lastErrorCode: row.lastErrorCode,
             ),
+    );
+  }
+
+  Future<void> downloadVersionToLocal({
+    required String path,
+    required String assetId,
+    required String title,
+    required int versionNumber,
+    TransferProgress? onProgress,
+  }) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final safeTitle = title
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-');
+    final destination = p.join(
+      directory.path,
+      'makolo',
+      'resources',
+      profileId,
+      assetId,
+      (safeTitle.isEmpty ? 'document' : safeTitle) +
+          '-v' +
+          versionNumber.toString(),
+    );
+    await downloadVersion(
+      path: path,
+      destinationPath: destination,
+      onProgress: onProgress,
     );
   }
 
