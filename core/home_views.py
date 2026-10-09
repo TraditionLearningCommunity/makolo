@@ -133,8 +133,12 @@ def _now_inline_media(item):
         kind = binding.get("kind")
         if kind not in {"image", "pdf", "document", "audio", "video"}:
             continue
+        original_url = binding.get("download_url")
+        if not isinstance(original_url, str) or original_url != path:
+            original_url = url
         result.append({
             "url": url,
+            "download_url": original_url,
             "kind": kind,
             "label": binding.get("label") or "Média associé à la situation",
         })
