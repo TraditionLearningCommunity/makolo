@@ -305,7 +305,8 @@ class _SpaceProjectionBody extends StatelessWidget {
           _usSection(
             context,
             title: 'Ownership',
-            description: 'Une responsabilité institutionnelle distincte de l’équipe.',
+            description:
+                'Une responsabilité institutionnelle distincte de l’équipe.',
             child: _usRows(ownershipItems, empty: ''),
           ),
         if (!limited && handoffs?['ownership'] is String)
