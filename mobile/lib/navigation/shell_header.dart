@@ -19,7 +19,8 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.onSearch,
     this.onMap,
     this.onCalendar,
-    this.unreadNotifications = 0,
+    this.hasConversationAttention = false,
+    this.hasUnreadNotifications = false,
     this.avatarLetter,
     this.profileUsername,
   });
@@ -32,7 +33,8 @@ class MakoloPrimaryHeader extends StatelessWidget
   final VoidCallback? onSearch;
   final VoidCallback? onMap;
   final VoidCallback? onCalendar;
-  final int unreadNotifications;
+  final bool hasConversationAttention;
+  final bool hasUnreadNotifications;
   final String? avatarLetter;
   final String? profileUsername;
 
@@ -60,18 +62,21 @@ class MakoloPrimaryHeader extends StatelessWidget
     MakoloHeaderKind.now => [
       if (onConversations != null)
         _HeaderAction(
-          tooltip: 'Conversations',
+          tooltip: hasConversationAttention
+              ? 'Conversations — quelque chose demande votre attention'
+              : 'Conversations',
           icon: Icons.forum_outlined,
           onPressed: onConversations,
+          attention: hasConversationAttention,
         ),
       if (onNotifications != null)
         _HeaderAction(
-          tooltip: unreadNotifications > 0
-              ? 'Notifications, $unreadNotifications non lues'
+          tooltip: hasUnreadNotifications
+              ? 'Notifications — nouveaux signaux disponibles'
               : 'Notifications',
           icon: Icons.notifications_none_outlined,
           onPressed: onNotifications,
-          attention: unreadNotifications > 0,
+          attention: hasUnreadNotifications,
         ),
     ],
     MakoloHeaderKind.discover => [
