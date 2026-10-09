@@ -177,7 +177,7 @@ class _SpaceProjectionBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final payload = projection?.payload;
     if (payload == null) {
-      return _message('Cette vue n’est pas disponible pour le moment.');
+      return _message('Cette vue nÔÇÖest pas disponible pour le moment.');
     }
 
     return switch (surface) {
@@ -187,7 +187,7 @@ class _SpaceProjectionBody extends StatelessWidget {
       ),
       SpaceShellSurface.discover => _attentionBody(
         payload,
-        emptyMessage: 'Rien à découvrir pour le moment.',
+        emptyMessage: 'Rien ├á d├®couvrir pour le moment.',
       ),
       SpaceShellSurface.work => SpaceWorkSurface(payload: payload),
       SpaceShellSurface.us => _usBody(context, payload),
@@ -201,12 +201,105 @@ class _SpaceProjectionBody extends StatelessWidget {
     final selection = payload['selection'];
     final state = selection is Map ? selection['state'] : null;
     if (state == 'unavailable') {
-      return _message('Cette vue n’est pas disponible pour le moment.');
+      return _message('Cette vue nÔÇÖest pas disponible pour le moment.');
     }
     final items = payload['items'];
     if (items is! List || items.isEmpty) return _message(emptyMessage);
     return _message(
-      '${items.length} élément${items.length > 1 ? 's' : ''} à consulter.',
+      '${items.length} ├®l├®ment${items.length > 1 ? 's' : ''} ├á consulter.',
+    );
+  }
+
+  Widget _workBody(BuildContext context, Map<String, dynamic> payload) {
+    final sections = payload['sections'];
+    if (sections is! Map) {
+      return _message('Cette vue nÔÇÖest pas disponible pour le moment.');
+    }
+    const labels = <String, String>{
+      'preparation': '├Ç pr├®parer',
+      'upcoming': '├Ç venir',
+      'active': 'En cours',
+      'blocked': 'Bloqu├®s',
+      'completed': 'Termin├®s',
+    };
+    final rows = <MapEntry<String, int>>[];
+    final activeOccurrences = <Map<String, dynamic>>[];
+    for (final entry in labels.entries) {
+      final section = sections[entry.key];
+      final items = section is Map ? section['items'] : null;
+      if (items is List && items.isNotEmpty) {
+        rows.add(MapEntry(entry.value, items.length));
+        if (entry.key == 'active') {
+          for (final item in items.whereType<Map>()) {
+            final row = Map<String, dynamic>.from(item);
+            final capabilities = row['capabilities'];
+            final source = row['source'];
+            if (source is Map &&
+                source['kind'] == 'occurrence' &&
+                capabilities is List &&
+                capabilities.contains('open_day_of')) {
+              activeOccurrences.add(row);
+            }
+          }
+        }
+      }
+    }
+    return ListView(
+      key: const Key('space-work-projection'),
+      padding: const EdgeInsets.all(MakoloSpacing.lg),
+      children: [
+        Wrap(
+          spacing: MakoloSpacing.sm,
+          runSpacing: MakoloSpacing.sm,
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.search),
+              label: const Text('Rechercher'),
+              onPressed: () => context.push('/space/search'),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.history),
+              label: const Text('Historique'),
+              onPressed: () => context.push('/space/history'),
+            ),
+          ],
+        ),
+        if (rows.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: MakoloSpacing.md),
+            child: Text('Aucune activit├® ├á afficher pour le moment.'),
+          ),
+        for (final row in rows)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(row.key),
+            trailing: Text('${row.value}'),
+          ),
+        if (activeOccurrences.isNotEmpty) ...[
+          const Divider(height: MakoloSpacing.xl),
+          const Text(
+            'Occurrences ├á op├®rer maintenant',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          for (final item in activeOccurrences)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                item['title'] is String
+                    ? item['title'] as String
+                    : 'Occurrence',
+              ),
+              subtitle: const Text('Ouvrir le Jour J Space'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                final source = item['source'];
+                if (source is Map && source['id'] is String) {
+                  context.push('/space/occurrences/${source['id']}/day-of');
+                }
+              },
+            ),
+        ],
+      ],
     );
   }
 
@@ -252,7 +345,7 @@ class _SpaceProjectionBody extends StatelessWidget {
         if (limited) ...[
           const SizedBox(height: MakoloSpacing.md),
           const MakoloStatus(
-            label: 'Contexte limité à certaines activités',
+            label: 'Contexte limit├® ├á certaines activit├®s',
             tone: MakoloStatusTone.info,
             icon: Icons.lock_outline,
           ),
@@ -260,24 +353,24 @@ class _SpaceProjectionBody extends StatelessWidget {
         const SizedBox(height: MakoloSpacing.xl),
         _usSection(
           context,
-          title: 'Équipe',
+          title: '├ëquipe',
           description: limited
-              ? 'La composition globale n’est pas visible dans ce contexte.'
+              ? 'La composition globale nÔÇÖest pas visible dans ce contexte.'
               : 'Les personnes qui font vivre cet Espace.',
           child: limited
-              ? const Text('Détails réservés à une autorité Space.')
+              ? const Text('D├®tails r├®serv├®s ├á une autorit├® Space.')
               : _usRows(
                   teamItems,
                   empty: 'Aucun membre visible pour le moment.',
                 ),
         ),
         if (handoffs?['team'] is String)
-          _usHandoff(context, handoffs!['team'] as String, 'Voir l’équipe'),
+          _usHandoff(context, handoffs!['team'] as String, 'Voir lÔÇÖ├®quipe'),
         if (handoffs?['responsibilities'] is String)
           _usHandoff(
             context,
             handoffs!['responsibilities'] as String,
-            'Approfondir les responsabilités',
+            'Approfondir les responsabilit├®s',
           ),
         if (handoffs?['relationships'] is String)
           _usHandoff(
@@ -287,17 +380,17 @@ class _SpaceProjectionBody extends StatelessWidget {
           ),
         _usSection(
           context,
-          title: 'Responsabilités',
+          title: 'Responsabilit├®s',
           description:
-              'Qui porte quoi, sans confondre responsabilité et autorité.',
+              'Qui porte quoi, sans confondre responsabilit├® et autorit├®.',
           child: _usRows(
             responsibilityItems,
-            empty: 'Aucune responsabilité visible dans ce contexte.',
-            label: (item) => _text(_map(item)?['label']) ?? 'Responsabilité',
+            empty: 'Aucune responsabilit├® visible dans ce contexte.',
+            label: (item) => _text(_map(item)?['label']) ?? 'Responsabilit├®',
             detail: (item) {
               final row = _map(item);
               final activity = _map(row?['activity']);
-              return _text(activity?['title']) ?? 'Portée de l’Espace';
+              return _text(activity?['title']) ?? 'Port├®e de lÔÇÖEspace';
             },
           ),
         ),
@@ -306,7 +399,7 @@ class _SpaceProjectionBody extends StatelessWidget {
             context,
             title: 'Ownership',
             description:
-                'Une responsabilité institutionnelle distincte de l’équipe.',
+                'Une responsabilit├® institutionnelle distincte de lÔÇÖ├®quipe.',
             child: _usRows(ownershipItems, empty: ''),
           ),
         if (!limited && handoffs?['ownership'] is String)
@@ -318,11 +411,11 @@ class _SpaceProjectionBody extends StatelessWidget {
         _usSection(
           context,
           title: 'Confiance',
-          description: 'Des faits contextualisés, jamais un score global.',
+          description: 'Des faits contextualis├®s, jamais un score global.',
           child: Text(
             trust?['verified'] == true
-                ? 'Identité de l’Espace vérifiée dans un périmètre connu.'
-                : 'Aucun fait public de vérification actif n’est projeté.',
+                ? 'Identit├® de lÔÇÖEspace v├®rifi├®e dans un p├®rim├¿tre connu.'
+                : 'Aucun fait public de v├®rification actif nÔÇÖest projet├®.',
           ),
         ),
         if (handoffs?['trust'] is String)
@@ -332,14 +425,14 @@ class _SpaceProjectionBody extends StatelessWidget {
         if (!limited && capabilities?['update_space'] == true) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Text(
-            'Paramètres de l’Espace restent une profondeur institutionnelle.',
+            'Param├¿tres de lÔÇÖEspace restent une profondeur institutionnelle.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (handoffs?['settings'] is String)
             _usHandoff(
               context,
               handoffs!['settings'] as String,
-              'Paramètres institutionnels',
+              'Param├¿tres institutionnels',
             ),
         ],
       ],
@@ -389,7 +482,7 @@ class _SpaceProjectionBody extends StatelessWidget {
     final profile = _map(row?['profile']);
     return _text(profile?['name']) ??
         _text(row?['name']) ??
-        'Élément collectif';
+        '├ël├®ment collectif';
   }
 
   String _rowDetail(Object item) {
@@ -481,13 +574,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     if (_loading) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
-        message: 'Vérification du contexte Space…',
+        message: 'V├®rification du contexte SpaceÔÇª',
       );
     }
     if (_denied || _space == null) {
       return const MakoloSecondaryScreen(
         title: 'Nous',
-        message: 'Ce contexte Space n’est pas disponible pour votre Profil.',
+        message: 'Ce contexte Space nÔÇÖest pas disponible pour votre Profil.',
       );
     }
     final repository = widget.runtime.space!;
@@ -500,7 +593,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         if (state.invalidated || state.lastErrorCode != null) {
           return MakoloSecondaryScreen(
             title: _depthTitle(widget.depth),
-            message: 'Cette profondeur n’est plus disponible avec l’autorité actuelle. Le contexte public de l’Espace reste protégé.',
+            message: 'Cette profondeur nÔÇÖest plus disponible avec lÔÇÖautorit├® actuelle. Le contexte public de lÔÇÖEspace reste prot├®g├®.',
           );
         }
         return StreamBuilder<StoredProjection?>(
@@ -510,7 +603,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             if (payload == null) {
               return MakoloSecondaryScreen(
                 title: _depthTitle(widget.depth),
-                message: 'Cette profondeur ne peut pas être actualisée pour le moment.',
+                message: 'Cette profondeur ne peut pas ├¬tre actualis├®e pour le moment.',
               );
             }
             final handoffs = payload['handoffs'];
@@ -520,7 +613,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               return MakoloSecondaryScreen(
                 title: _depthTitle(widget.depth),
                 message:
-                    'Cette profondeur n’est pas autorisée dans ce contexte.',
+                    'Cette profondeur nÔÇÖest pas autoris├®e dans ce contexte.',
               );
             }
             return _depthBody(context, payload);
@@ -548,14 +641,14 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           Text('Nous', style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: MakoloSpacing.sm),
           Text(
-            'Cette profondeur reste attachée au Space actif et à son autorité serveur.',
+            'Cette profondeur reste attach├®e au Space actif et ├á son autorit├® serveur.',
           ),
           const SizedBox(height: MakoloSpacing.lg),
           if (widget.depth == 'trust')
             Text(
               _map(payload['trust'])?['verified'] == true
-                  ? 'Identité de l’Espace vérifiée dans un périmètre connu.'
-                  : 'Aucun fait public de vérification actif n’est projeté.',
+                  ? 'Identit├® de lÔÇÖEspace v├®rifi├®e dans un p├®rim├¿tre connu.'
+                  : 'Aucun fait public de v├®rification actif nÔÇÖest projet├®.',
             )
           else if (rows is List && rows.isNotEmpty)
             for (final row in rows)
@@ -565,20 +658,20 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                 subtitle: Text(_depthRowDetail(row)),
               )
           else
-            const Text('Aucun élément visible dans ce contexte.'),
+            const Text('Aucun ├®l├®ment visible dans ce contexte.'),
         ],
       ),
     );
   }
 
   String _depthTitle(String depth) => switch (depth) {
-    'team' => 'Équipe',
-    'responsibilities' => 'Responsabilités',
+    'team' => '├ëquipe',
+    'responsibilities' => 'Responsabilit├®s',
     'relationships' => 'Personnes & relations',
     'ownership' => 'Ownership',
     'trust' => 'Trust',
     'pilot' => 'Piloter',
-    'settings' => 'Paramètres institutionnels',
+    'settings' => 'Param├¿tres institutionnels',
     _ => 'Nous',
   };
 
@@ -588,7 +681,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     return _text(profile?['name']) ??
         _text(row?['label']) ??
         _text(row?['name']) ??
-        'Élément';
+        '├ël├®ment';
   }
 
   String _depthRowDetail(Object? value) {
@@ -597,7 +690,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final activity = _map(row?['activity']);
     return _text(responsibility?['label']) ??
         _text(activity?['title']) ??
-        'Fait projeté par le serveur';
+        'Fait projet├® par le serveur';
   }
 
   Map<String, dynamic>? _map(Object? value) => value is Map

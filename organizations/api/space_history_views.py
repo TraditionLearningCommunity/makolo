@@ -1,5 +1,7 @@
 from uuid import UUID
 
+from datetime import date
+
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -46,8 +48,26 @@ class SpaceHistoryAPIView(APIView):
                 UUID(responsibility_key.removeprefix("mandate:"))
             except ValueError as exc:
                 raise NotFound() from exc
+        kind = (request.query_params.get("kind") or "all").strip()
+        if kind not in {"all", "occurrence", "commerce_order"}:
+            raise ValidationError({"kind": "Type historique inconnu."})
+
+        def parse_date(name):
+            raw = request.query_params.get(name)
+            if not raw:
+                return None
+            try:
+                return date.fromisoformat(raw)
+            except ValueError as exc:
+                raise ValidationError({name: "Date ISO attendue."}) from exc
+
+        start_date = parse_date("from")
+        end_date = parse_date("to")
+        if start_date and end_date and start_date > end_date:
+            raise ValidationError({"to": "La fin précède le début."})
         payload = build_space_history_projection(
             profile=request.user, space=space, query=query,
+            history_kind=kind, start_date=start_date, end_date=end_date,
             responsibility_key=responsibility_key,
             offset=offset, limit=limit,
         )

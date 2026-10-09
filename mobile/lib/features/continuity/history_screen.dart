@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
@@ -32,6 +33,13 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
+  String _query = '';
+  String _filter = 'all';
+  _HistoryView? _remoteHistory;
+  String? _selectedHistoryKey;
+  List<StoredProjection> _remotePages = [];
+  bool _searching = false;
+  bool _searchFailed = false;
   bool _loadingMore = false;
   bool _requestedInitialRefresh = false;
 
@@ -83,6 +91,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  Future<void> _remoteSearch({bool more = false}) async {
+    final query = _query;
+    final filter = _filter;
+    setState(() {
+      _searching = true;
+      _searchFailed = false;
+    });
+    try {
+      final nextOffset =
+          more && _remoteHistory != null ? _remoteHistory!.nextOffset : 0;
+      final payload = await widget.repository.searchPage(
+        query: query,
+        offset: nextOffset,
+        type: filter == 'access'
+            ? 'accesses'
+            : filter == 'journey'
+                ? 'journeys'
+                : 'all',
+      );
+      if (!mounted || _query != query || _filter != filter) return;
+      final snapshot = StoredProjection(
+        kind: HistoryRepository.projectionKind,
+        resourceKey: 'offset:$nextOffset:limit:24',
+        schemaVersion: 1,
+        payload: payload,
+        receivedAt: DateTime.now(),
+      );
+      setState(() {
+        _remotePages = more ? [..._remotePages, snapshot] : [snapshot];
+        _remoteHistory = _HistoryView.fromPages(_remotePages);
+      });
+    } on Object {
+      if (mounted && _query == query && _filter == filter) {
+        setState(() => _searchFailed = true);
+      }
+    } finally {
+      if (mounted && _query == query && _filter == filter) {
+        setState(() => _searching = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<StoredProjection>>(
@@ -95,8 +145,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
           builder: (context, sourceSnapshot) {
             final pages = pagesSnapshot.data ?? const [];
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
-            final view = _HistoryView.fromPages(pages);
-            final first = view.firstPage;
+            if (source.invalidated) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('Historique')),
+                body: const Center(
+                  child: Text(
+                    'Cet historique n’est plus disponible avec '
+                    'l’autorité actuelle.',
+                  ),
+                ),
+              );
+            }
+            final view = source.invalidated
+                ? _HistoryView.fromPages(const [])
+                : _HistoryView.fromPages(pages);
+            final visible = (_remoteHistory ?? view).items.where((item) {
+              if (_filter != 'all' && item.kind != _filter) return false;
+              return _query.isEmpty ||
+                  item.title.toLowerCase().contains(_query.toLowerCase());
+            }).toList();
+            final first = view.firstPage ?? _remoteHistory?.firstPage;
+            final wide = MediaQuery.sizeOf(context).width >= 900 &&
+                MediaQuery.textScalerOf(context).scale(16) < 26;
+            _HistoryItem? selected;
+            for (final item in visible) {
+              if ('${item.kind}:${item.id}' == _selectedHistoryKey) {
+                selected = item;
+                break;
+              }
+            }
+            final chosen = selected;
             final freshness = first == null
                 ? null
                 : HistoryRepository.freshnessPolicy.evaluate(
@@ -104,7 +182,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     now: DateTime.now(),
                     invalidated: source.invalidated,
                   );
-            final available = first != null;
+            final available = first != null && !source.invalidated;
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
@@ -132,6 +210,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 title: const Text('Historique'),
                 actions: [
                   IconButton(
+                    tooltip: 'Recherche transverse',
+                    onPressed: () => context.push('/search'),
+                    icon: const Icon(Icons.search),
+                  ),
+                  IconButton(
                     tooltip: 'Actualiser',
                     onPressed: _refreshing ? null : _refreshFirst,
                     icon: const Icon(Icons.refresh_rounded),
@@ -148,29 +231,139 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   label: 'Chargement de l’historique…',
                 ),
                 onRetry: _refreshFirst,
-                content: ListView(
+                content: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: ListView(
                   key: const Key('history-content'),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
                   children: [
-                    for (var index = 0; index < view.items.length; index++) ...[
-                      _HistoryCard(
-                        item: view.items[index],
-                        onOpen: widget.onOpenResource,
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Rechercher dans l’historique synchronisé',
+                        prefixIcon: Icon(Icons.search),
                       ),
-                      if (index < view.items.length - 1)
+                      onChanged: (value) => setState(() {
+                        _query = value.trim();
+                        _remoteHistory = null;
+                        _remotePages = [];
+                        _selectedHistoryKey = null;
+                      }),
+                      onSubmitted: (_) => _remoteSearch(),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final filter in const ['all', 'access', 'journey'])
+                          ChoiceChip(
+                            label: Text(filter == 'all'
+                                ? 'Tout'
+                                : filter == 'access'
+                                    ? 'Accès'
+                                    : 'Démarches'),
+                            selected: _filter == filter,
+                            onSelected: (_) {
+                              setState(() {
+                                _filter = filter;
+                                _remoteHistory = null;
+                                _remotePages = [];
+                                _selectedHistoryKey = null;
+                              });
+                              unawaited(_remoteSearch());
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Historique partiel. Résultats locaux puis '
+                            'actualisation chez les propriétaires.',
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Rechercher dans tout l’historique visible',
+                          onPressed: _searching ? null : _remoteSearch,
+                          icon: const Icon(Icons.search),
+                        ),
+                      ],
+                    ),
+                    if (_searching) const LinearProgressIndicator(),
+                    if (_searchFailed)
+                      const Text(
+                        'Recherche distante indisponible. '
+                        'Les pages locales restent consultables.',
+                      ),
+                    if (visible.isEmpty)
+                      const Text('Aucun élément correspondant parmi les '
+                          'pages synchronisées.'),
+                    for (var index = 0; index < visible.length; index++) ...[
+                      _HistoryCard(
+                        item: visible[index],
+                        onOpen: (kind, id) {
+                          if (wide) {
+                            setState(() => _selectedHistoryKey = '$kind:$id');
+                          } else {
+                            widget.onOpenResource(kind, id);
+                          }
+                        },
+                      ),
+                      if (index < visible.length - 1)
                         const SizedBox(height: MakoloSpacing.sm),
                     ],
-                    if (view.hasMore) ...[
+                    if ((_remoteHistory ?? view).hasMore) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       OutlinedButton(
-                        onPressed: _loadingMore ? null : () => _loadMore(view),
+                        onPressed: _loadingMore || _searching
+                            ? null
+                            : _remoteHistory == null
+                                ? () => _loadMore(view)
+                                : () => _remoteSearch(more: true),
                         child: Text(
-                          _loadingMore ? 'Chargement…' : 'Afficher la suite',
+                          _loadingMore || _searching
+                              ? 'Chargement…'
+                              : 'Afficher la suite',
                         ),
                       ),
                     ],
                   ],
                 ),
+              ),
+              if (wide && chosen != null) ...[
+                const VerticalDivider(width: 1),
+                Expanded(
+                  flex: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          chosen.title,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 12),
+                        if (chosen.outcome != null) Text(chosen.outcome!),
+                        Text(chosen.occurredAt ?? 'Date non précisée'),
+                        const SizedBox(height: 20),
+                        if (chosen.id != null)
+                          OutlinedButton(
+                            onPressed: () => widget.onOpenResource(
+                              chosen.kind, chosen.id!,
+                            ),
+                            child: const Text('Ouvrir chez le propriétaire'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
               ),
             );
           },
@@ -242,7 +435,9 @@ class _HistoryView {
             kind: kind,
             id: id,
             title: _string(row['title']) ?? 'Historique',
-            occurredAt: _humanInstant(row['occurred_at']),
+            occurredAt: row['time_quality'] == 'unknown_legacy'
+                ? 'Date non précisée'
+                : _humanInstant(row['occurred_at']),
             outcome:
                 _string(outcome['label']) ??
                 MakoloHumanization.presentationLabel(_string(outcome['code'])),

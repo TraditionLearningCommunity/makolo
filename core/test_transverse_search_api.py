@@ -82,3 +82,65 @@ class TransverseSearchBoundaryTests(TestCase):
             ).status_code,
             404,
         )
+
+    def test_search_marks_owner_backed_closed_journey_as_historical(self):
+        journey = Journey.objects.create(
+            initiated_by=self.owner,
+            beneficiary=self.owner,
+            activity=self.visible,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.FULFILLED,
+        )
+        self.client.force_authenticate(self.owner)
+        payload = self.client.get("/api/v1/me/search/", {"q": "Route"}).json()["data"]
+        row = next(item for item in payload["items"] if item["source"]["id"] == str(journey.pk))
+        self.assertTrue(row["historical"])
+        self.assertEqual(row["context"], "Historique")
+
+    def test_search_marks_completed_space_occurrence_as_historical(self):
+        occurrence = Occurrence.objects.create(
+            activity=self.visible, label="Route passée",
+            status="completed",
+        )
+        self.client.force_authenticate(self.owner)
+        url = "/api/v1/organizations/workspaces/search-space/search/"
+        payload = self.client.get(url, {"q": "Route"}).data
+        row = next(item for item in payload["items"] if item["source"]["id"] == str(occurrence.pk))
+        self.assertTrue(row["historical"])
+
+    def test_personal_search_federates_owned_document_without_other_user_leak(self):
+        from personal_assets.models import PersonalAsset
+        from personal_assets.selectors import personal_assets_for_controller
+        # Owner selectors, rather than direct global asset enumeration, govern visibility.
+        self.assertFalse(personal_assets_for_controller(self.owner).filter(
+            title__icontains="particulier"
+        ).exists())
+
+    def test_activity_limited_search_cannot_federate_space_relationships(self):
+        self.client.force_authenticate(self.scoped)
+        payload = self.client.get(
+            "/api/v1/organizations/workspaces/search-space/search/",
+            {"q": "Route"},
+        ).data
+        self.assertFalse(any(
+            row.get("owner") in {"team", "crm", "partners"}
+            for row in payload["items"]
+        ))
+
+    def test_relationship_owner_failure_is_not_reported_as_zero(self):
+        from unittest.mock import patch
+        self.client.force_authenticate(self.owner)
+        url = "/api/v1/organizations/workspaces/search-space/search/"
+        with patch(
+            "organizations.api.space_search_projection."
+            "build_space_relationships_projection",
+            side_effect=TimeoutError(),
+        ):
+            response = self.client.get(url, {"q": "Route"})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["items"])
+        self.assertEqual(response.data["page"]["count_state"], "lower_bound")
+        self.assertIn(
+            "visible_space_relationships",
+            response.data["coverage"]["unavailable_sources"],
+        )

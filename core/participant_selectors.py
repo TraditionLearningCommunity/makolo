@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from django.db.models import Case, DateTimeField, F, Max, Prefetch, Q, When
+from django.db.models import Case, DateTimeField, F, Max, OuterRef, Prefetch, Q, Subquery, When
 from django.utils import timezone
 
 from access.models import Access, AccessStatus, AccessUseResult
@@ -363,6 +363,24 @@ def participant_unified_history_accesses(profile, *, at=None):
             )
         )
         .order_by("-history_at", "-created_at", "id")
+    )
+
+
+def participant_unified_history_unique_accesses(profile, *, at=None):
+    """Represent multiple historical Access rights on one Journey only once.
+
+    The Access owner remains authoritative; this is a read-only UX projection.
+    The latest historical Access becomes the representative and the other
+    underlying owner records are not deleted or combined.
+    """
+    correlated = (
+        participant_unified_history_accesses(profile, at=at)
+        .filter(journey_id=OuterRef("journey_id"))
+        .order_by("-history_at", "-created_at", "pk")
+        .values("pk")[:1]
+    )
+    return participant_unified_history_accesses(profile, at=at).filter(
+        Q(journey_id__isnull=True) | Q(pk=Subquery(correlated))
     )
 
 
