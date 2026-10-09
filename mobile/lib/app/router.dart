@@ -89,6 +89,7 @@ GoRouter createMakoloRouter(
       '/projects/',
       '/groups/',
       '/me/resources/',
+      '/me/orders/',
     ].any(path.startsWith);
   }
 
@@ -395,6 +396,14 @@ GoRouter createMakoloRouter(
           runtime: runtime,
           slug: state.pathParameters['slug']!,
           depth: state.pathParameters['depth']!,
+        ),
+      ),
+      GoRoute(
+        path: '/me/orders/:id',
+        builder: (context, state) => PersonalOwnerDepthScreen(
+          runtime: runtime,
+          kind: 'commerce_order',
+          id: state.pathParameters['id']!,
         ),
       ),
       GoRoute(

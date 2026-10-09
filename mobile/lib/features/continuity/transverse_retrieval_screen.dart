@@ -419,7 +419,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     if (source is! Map || source['id'] == null) return false;
     final kind = source['kind']?.toString();
     if (_isSpace) return _spaceKinds.contains(kind);
-    return {'journey', 'access', 'personal_asset', 'group'}.contains(kind);
+    return {
+      'journey', 'access', 'personal_asset', 'group', 'commerce_order',
+    }.contains(kind);
   }
 
   void _open(Map<String, dynamic> item) {
@@ -438,6 +440,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         'access' => '/accesses/$id',
         'personal_asset' => '/me/resources/$id',
         'group' => '/groups/$id',
+        'commerce_order' => '/me/orders/$id',
         _ => null,
       };
       if (path != null) context.push(path);

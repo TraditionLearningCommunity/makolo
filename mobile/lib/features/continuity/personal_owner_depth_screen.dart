@@ -44,9 +44,12 @@ class _PersonalOwnerDepthScreenState extends State<PersonalOwnerDepthScreen> {
     if (api == null) {
       throw StateError('Owner service unavailable');
     }
-    final segment = widget.kind == 'personal_asset'
-        ? 'resources/${Uri.encodeComponent(widget.id)}/'
-        : 'collectives/groups/${Uri.encodeComponent(widget.id)}/';
+    final segment = switch (widget.kind) {
+      'personal_asset' => 'resources/${Uri.encodeComponent(widget.id)}/',
+      'group' => 'collectives/groups/${Uri.encodeComponent(widget.id)}/',
+      'commerce_order' => 'orders/${Uri.encodeComponent(widget.id)}/',
+      _ => throw const FormatException('Unknown owner kind'),
+    };
     final response = await api.get('api/v1/me/$segment');
     final envelope = response.jsonObject();
     final raw = envelope['data'];
@@ -61,8 +64,11 @@ class _PersonalOwnerDepthScreenState extends State<PersonalOwnerDepthScreen> {
   @override
   Widget build(BuildContext context) {
     final document = widget.kind == 'personal_asset';
+    final order = widget.kind == 'commerce_order';
     return Scaffold(
-      appBar: AppBar(title: Text(document ? 'Mon document' : 'Mon groupe')),
+      appBar: AppBar(title: Text(document
+          ? 'Mon document'
+          : order ? 'Ma commande' : 'Mon groupe')),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _detail,
         builder: (context, snapshot) {
@@ -87,13 +93,15 @@ class _PersonalOwnerDepthScreenState extends State<PersonalOwnerDepthScreen> {
             );
           }
           final data = snapshot.data!;
-          final title = document ? data['title'] : data['name'];
+          final title = document || order ? data['title'] : data['name'];
           final details = <String>[
             if (document)
               data['asset_kind_label']?.toString() ?? 'Document',
             if (!document && data['description'] is String)
               data['description'] as String,
             if (data['status'] is String) data['status'] as String,
+            if (order && data['activity'] is Map)
+              (data['activity'] as Map)['title']?.toString() ?? '',
           ];
           return ListView(
             padding: const EdgeInsets.all(24),
