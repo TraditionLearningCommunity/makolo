@@ -95,11 +95,12 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
     }
     File? file;
     try {
+      final profile = widget.profileId;
+      if (widget.temporaryDirectory == null && profile == null) {
+        throw StateError('Authenticated profile required for private media.');
+      }
       final temporary = widget.temporaryDirectory ??
-          await ProfilePaths.reconstructibleCache(
-            widget.profileId ??
-                (throw StateError('Authenticated profile required for private media.')),
-          );
+          await ProfilePaths.reconstructibleCache(profile!);
       final dir = Directory('${temporary.path}/makolo-now-media');
       await dir.create(recursive: true);
       file = File(
