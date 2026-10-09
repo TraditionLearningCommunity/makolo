@@ -76,6 +76,8 @@ void main() {
       expect(find.text('Participation'), findsOneWidget);
       expect(find.text('Attestation de participation'), findsOneWidget);
       expect(find.text('Rechercher dans mes documents'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     },
   );
 
@@ -143,6 +145,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.textContaining('Requirement satisfait'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
     },
   );
 }
