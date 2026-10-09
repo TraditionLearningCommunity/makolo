@@ -78,7 +78,7 @@
       {% if home.primary_attention.direct_actions %}
         <div class="mk-now-business-actions" aria-label="Décision de la situation">
           {% for action in home.primary_attention.direct_actions %}
-            <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}">
+            <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
               {% csrf_token %}
               <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
               <output aria-live="polite" role="status"></output>
@@ -131,7 +131,7 @@
           {% if item.direct_actions %}
             <div class="mk-now-business-actions" aria-label="Décision de la situation">
               {% for action in item.direct_actions %}
-                <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}">
+                <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
                   {% csrf_token %}
                   <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
                   <output aria-live="polite" role="status"></output>
