@@ -344,8 +344,19 @@ class AccountHomeView(LoginRequiredMixin, TemplateView):
 class AccountSettingsView(AccountProfileView):
     template_name = "accounts/settings.html"
 
+    def _settings_profile_forms(self, request, profile, *, bound=False):
+        profile_forms = self._profile_forms(
+            request,
+            profile,
+            bound_section="preferences" if bound else None,
+        )
+        for field in profile_forms["preferences"].fields.values():
+            field.widget.attrs.pop("form", None)
+        return profile_forms
+
     def get(self, request):
         profile, preferences = self._objects(request)
+        profile_forms = self._settings_profile_forms(request, profile)
         return render(
             request,
             self.template_name,
@@ -353,6 +364,7 @@ class AccountSettingsView(AccountProfileView):
                 request,
                 profile,
                 NotificationPreferencesForm(instance=preferences),
+                profile_forms=profile_forms,
             ),
         )
 
@@ -361,7 +373,7 @@ class AccountSettingsView(AccountProfileView):
         section = request.POST.get("section", "")
         appearance_form = AppearancePreferencesForm(profile=profile)
         preferences_form = NotificationPreferencesForm(instance=preferences)
-        profile_forms = self._profile_forms(request, profile)
+        profile_forms = self._settings_profile_forms(request, profile)
 
         if section == "appearance":
             appearance_form = AppearancePreferencesForm(request.POST, profile=profile)
@@ -376,7 +388,7 @@ class AccountSettingsView(AccountProfileView):
                 messages.success(request, "Préférences de notification mises à jour.")
                 return redirect(f"{reverse('account:settings')}#notifications")
         elif section == "preferences":
-            profile_forms = self._profile_forms(request, profile, bound_section="preferences")
+            profile_forms = self._settings_profile_forms(request, profile, bound=True)
             form = profile_forms["preferences"]
             if form.is_valid():
                 form.save()
