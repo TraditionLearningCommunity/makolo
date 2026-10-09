@@ -353,7 +353,7 @@ class _FormContent extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
-      ],
+      ),
     );
   }
 }
