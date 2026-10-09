@@ -20,6 +20,7 @@ import '../../sync/sync_status.dart';
 import 'now_selector.dart';
 import 'now_media_viewer.dart';
 import 'now_inline_media_preview.dart';
+import 'now_action_controller.dart';
 
 class NowScreen extends StatefulWidget {
   const NowScreen({
@@ -536,27 +537,15 @@ class _NowSemanticContent extends StatelessWidget {
           ),
         if (topology == NowTopology.action) ...[
           const SizedBox(height: MakoloSpacing.md),
-          Builder(
-            builder: (context) {
-              final action = situation.businessActions.firstWhere(
-                (candidate) => candidate.canDominate,
-              );
-              final owner = situation.ownerDestination;
-              final canHandoff =
-                  owner != null &&
-                  onOpenOwner != null &&
-                  NowScreen.ownerPathFor(owner) != null;
-              if (!canHandoff) {
-                // A capability label does not confer authority; never
-                // fabricate a direct mutation when no owner route exists.
-                return Text(action.label, style: theme.textTheme.titleMedium);
-              }
-              return FilledButton.icon(
-                onPressed: () => onOpenOwner!(owner!),
-                icon: const Icon(Icons.arrow_forward_rounded),
-                label: Text(action.label),
-              );
-            },
+          NowActionGroup(
+            key: ValueKey('now-actions-${situation.identity}'),
+            situation: situation,
+            api: api,
+            onOpenOwner: situation.ownerDestination != null &&
+                    onOpenOwner != null &&
+                    NowScreen.ownerPathFor(situation.ownerDestination!) != null
+                ? () => onOpenOwner!(situation.ownerDestination!)
+                : null,
           ),
         ],
         for (final media in readable)
