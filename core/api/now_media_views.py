@@ -99,7 +99,10 @@ class PersonalNowJourneyArtifactMediaAPIView(APIView):
         )
         if allowed_inline:
             response["Content-Disposition"] = "inline"
-        response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        response["Content-Security-Policy"] = (
+            "default-src 'none'; script-src 'none'; object-src 'none'; "
+            "base-uri 'none'" if allowed_inline else "default-src 'none'; sandbox"
+        )
         response["Cross-Origin-Resource-Policy"] = "same-origin"
         response["X-Content-Type-Options"] = "nosniff"
         response["Cache-Control"] = "private, no-store"
