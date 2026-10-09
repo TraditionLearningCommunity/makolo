@@ -69,8 +69,7 @@ def _present_connection(connection):
 def _present_provider(provider):
     return {
         **provider,
-        "display_name": provider.get("display_name")
-        or _humanize_code(provider.get("code"), "Service"),
+        "display_name": provider.get("display_name") or "Service disponible",
         "status_label": "Disponible" if provider.get("available") else "Indisponible",
         "capability_labels": [
             _CAPABILITY_LABELS.get(code, _humanize_code(code, "Capacité disponible"))
