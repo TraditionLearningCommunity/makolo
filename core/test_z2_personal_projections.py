@@ -421,7 +421,7 @@ class Z2WaitlistBoundaryTests(TestCase):
             {"accept": "Accepter", "leave": "Laisser passer"},
         )
         self.assertTrue(all(
-            action["interaction_depth"] == "focused"
-            and action["confirmation_required"] is False
+            action["interaction_depth"] == "direct_now"
+            and action["confirmation_required"] is True
             for action in decision["business_actions"]
         ))
