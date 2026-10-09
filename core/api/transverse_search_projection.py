@@ -1,6 +1,10 @@
 """Permission-first retrieval of already-known personal Journey/Access realities."""
 from django.urls import reverse
 
+from access.models import AccessStatus
+from journeys.models import JourneyStatus
+
+
 from core.participant_selectors import (
     participant_access_search,
     participant_accesses,
@@ -33,6 +37,12 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
     access_rows = list(accesses[:offset + limit])
     entries = []
     for row in journey_rows:
+        is_past = row.status in {
+            JourneyStatus.FULFILLED, JourneyStatus.REJECTED,
+            JourneyStatus.CANCELLED, JourneyStatus.EXPIRED,
+        }
+        # The owner detail remains the destination; historical classification
+        # does not create another Journey or expose another person's Access.
         entries.append((
             row.created_at, "journey", str(row.pk),
             {
@@ -40,10 +50,16 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "title": row.activity.title,
                 "human_type": "Démarche",
                 "relation": "Ma démarche",
+                "historical": is_past,
+                "context": "Historique" if is_past else "En cours",
                 "destination": reverse("personal-detail-projections:journey-detail", kwargs={"pk": row.pk}),
             },
         ))
     for row in access_rows:
+        is_past = row.status in {
+            AccessStatus.USED, AccessStatus.CANCELLED, AccessStatus.REVOKED,
+            AccessStatus.EXPIRED, AccessStatus.TRANSFERRED,
+        }
         entries.append((
             row.created_at, "access", str(row.pk),
             {
@@ -51,6 +67,8 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "title": row.activity.title,
                 "human_type": "Accès",
                 "relation": "Mon accès",
+                "historical": is_past,
+                "context": "Historique" if is_past else "Accès",
                 "destination": reverse("personal-detail-projections:access-detail", kwargs={"pk": row.pk}),
             },
         ))

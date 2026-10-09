@@ -1,7 +1,7 @@
 """Space retrieval constrained by the existing Work owner's permitted scope."""
 from django.db.models import Q
 
-from activities.models import Activity, Occurrence
+from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
 from authorization.constants import PermissionCode
 from authorization.selectors import activity_ids_with_direct_permission
 
@@ -44,6 +44,10 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                 "title": row.title,
                 "human_type": "Activité",
                 "relation": "Activité du Space",
+                "historical": row.status in {
+                    ActivityStatus.COMPLETED, ActivityStatus.CANCELLED,
+                    ActivityStatus.ARCHIVED,
+                },
                 "destination": f"/api/v1/activities/{row.pk}/",
             },
         ))
@@ -55,6 +59,9 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                 "title": row.label or row.activity.title,
                 "human_type": "Séance",
                 "relation": row.activity.title,
+                "historical": row.status in {
+                    OccurrenceStatus.COMPLETED, OccurrenceStatus.CANCELLED,
+                },
                 "destination": f"/api/v1/occurrences/{row.pk}/",
             },
         ))

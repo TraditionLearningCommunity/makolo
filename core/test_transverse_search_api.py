@@ -82,3 +82,28 @@ class TransverseSearchBoundaryTests(TestCase):
             ).status_code,
             404,
         )
+
+    def test_search_marks_owner_backed_closed_journey_as_historical(self):
+        journey = Journey.objects.create(
+            initiated_by=self.owner,
+            beneficiary=self.owner,
+            activity=self.visible,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.FULFILLED,
+        )
+        self.client.force_authenticate(self.owner)
+        payload = self.client.get("/api/v1/me/search/", {"q": "Route"}).json()["data"]
+        row = next(item for item in payload["items"] if item["source"]["id"] == str(journey.pk))
+        self.assertTrue(row["historical"])
+        self.assertEqual(row["context"], "Historique")
+
+    def test_search_marks_completed_space_occurrence_as_historical(self):
+        occurrence = Occurrence.objects.create(
+            activity=self.visible, label="Route passée",
+            status="completed",
+        )
+        self.client.force_authenticate(self.owner)
+        url = "/api/v1/organizations/workspaces/search-space/search/"
+        payload = self.client.get(url, {"q": "Route"}).data
+        row = next(item for item in payload["items"] if item["source"]["id"] == str(occurrence.pk))
+        self.assertTrue(row["historical"])
