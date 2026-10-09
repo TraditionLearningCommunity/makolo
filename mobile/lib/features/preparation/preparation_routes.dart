@@ -47,7 +47,11 @@ List<RouteBase> preparationRoutes(AppRuntime runtime) => [
         repository: repository,
         onOpenExternal: (url) {
           final uri = Uri.tryParse(url);
-          if (uri == null || !uri.hasScheme) return Future.value(false);
+          if (uri == null ||
+              !uri.hasScheme ||
+              !{'http', 'https'}.contains(uri.scheme.toLowerCase())) {
+            return Future.value(false);
+          }
           return const SystemShareGateway().openExternal(uri);
         },
       );
