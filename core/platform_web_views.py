@@ -326,6 +326,30 @@ class PlatformSubscriptionsView(PlatformView):
         })
         context["review_allowed"] = PermissionCode.PLATFORM_SUBSCRIPTIONS_REVIEWS_MANAGE in effective
         context["grant_allowed"] = PermissionCode.PLATFORM_SUBSCRIPTIONS_GRANTS_MANAGE in effective
+        # Query each owner only after its dedicated Permission. No fallback
+        # to personal/Space subscription authority for a Platform view.
+        if context["catalog_allowed"]:
+            from subscriptions.models import SubscriptionPlan
+            context["subscription_plans"] = (
+                SubscriptionPlan.objects.select_related("current_version")
+                .order_by("subject_type", "code")[:30]
+            )
+        if context["support_allowed"]:
+            from subscriptions.runtime_models import Subscription
+            context["subscription_rows"] = (
+                Subscription.objects.select_related("space")
+                .order_by("-created_at")[:40]
+            )
+        if context["review_allowed"]:
+            from subscriptions.transition_models import SubscriptionRequirementAssessment
+            from subscriptions.contracts import RequirementAssessmentState, RequirementMode
+            context["subscription_reviews"] = (
+                SubscriptionRequirementAssessment.objects.filter(
+                    plan_requirement__mode=RequirementMode.REVIEW,
+                    state__in=[RequirementAssessmentState.UNASSESSED, RequirementAssessmentState.PENDING],
+                ).select_related("transition", "plan_requirement")
+                .order_by("created_at")[:30]
+            )
         return context
 
 
