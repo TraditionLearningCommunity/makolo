@@ -11,6 +11,7 @@ StatefulShellBranch nowBranch(AppRuntime runtime) => StatefulShellBranch(
         repository: runtime.personal!,
         api: runtime.api,
         profileId: runtime.session?.profileId,
+        sync: runtime.sync,
       ),
     ),
   ],
