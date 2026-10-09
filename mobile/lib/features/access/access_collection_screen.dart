@@ -31,11 +31,25 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
   String _relationship = _mine;
   bool _refreshing = false;
   bool _loadingMore = false;
+  late Stream<List<StoredProjection>> _pages;
+  late Stream<AccessSourceState> _source;
 
   @override
   void initState() {
     super.initState();
+    _pages = widget.repository.watchCollectionPages();
+    _source = widget.repository.watchCollectionSource(relationship: _relationship);
     unawaited(_ensureFirstPage());
+  }
+
+  @override
+  void didUpdateWidget(covariant AccessCollectionScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      _pages = widget.repository.watchCollectionPages();
+      _source = widget.repository.watchCollectionSource(relationship: _relationship);
+      unawaited(_ensureFirstPage());
+    }
   }
 
   Future<void> _ensureFirstPage() async {
@@ -80,7 +94,10 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
 
   void _selectRelationship(String relationship) {
     if (_relationship == relationship) return;
-    setState(() => _relationship = relationship);
+    setState(() {
+      _relationship = relationship;
+      _source = widget.repository.watchCollectionSource(relationship: _relationship);
+    });
     unawaited(_ensureFirstPage());
   }
 
@@ -98,7 +115,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
         ],
       ),
       body: StreamBuilder<List<StoredProjection>>(
-        stream: widget.repository.watchCollectionPages(),
+        stream: _pages,
         initialData: const [],
         builder: (context, pagesSnapshot) {
           final view = _AccessCollectionView.fromPages(
@@ -106,9 +123,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
             relationship: _relationship,
           );
           return StreamBuilder<AccessSourceState>(
-            stream: widget.repository.watchCollectionSource(
-              relationship: _relationship,
-            ),
+            stream: _source,
             initialData: AccessSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? AccessSourceState.unknown;
