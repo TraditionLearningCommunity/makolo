@@ -436,6 +436,7 @@ def build_personal_now_projection(profile, *, observed_at=None):
                 "personal-projections:now-journey-artifact-media",
                 kwargs={"artifact_id": artifact.pk},
             )
+            original_url = url
             if kind == "document":
                 url += "?view=text"
             existing.append({
@@ -446,6 +447,7 @@ def build_personal_now_projection(profile, *, observed_at=None):
                 "mime_type": mime,
                 "label": artifact.title,
                 "url": url,
+                "download_url": original_url,
                 "authorized": True,
                 "presentation_rank": "secondary",
             })
