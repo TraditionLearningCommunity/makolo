@@ -3,8 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
 import '../../platform/sharing/share_gateway.dart';
-import '../../platform/sharing/share_gateway.dart';
 import '../journey/journey_selector.dart';
+import 'preparation_local_file_screen.dart';
 import 'preparation_resources_screen.dart';
 import 'requirement_detail_screen.dart';
 
@@ -66,7 +66,32 @@ List<RouteBase> preparationRoutes(AppRuntime runtime) => [
           }
           return const SystemShareGateway().openExternal(uri);
         },
+        onOpenDownloadedFile: (path, mimeType, title) async {
+          await context.push(
+            '/preparation/local-file',
+            extra: PreparationLocalFileArgs(
+              path: path,
+              mimeType: mimeType,
+              title: title,
+            ),
+          );
+        },
       );
+    },
+  ),
+  GoRoute(
+    path: '/preparation/local-file',
+    builder: (context, state) {
+      final args = state.extra is PreparationLocalFileArgs
+          ? state.extra! as PreparationLocalFileArgs
+          : null;
+      if (args == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Document',
+          message: 'Ce document local n’est plus disponible.',
+        );
+      }
+      return PreparationLocalFileScreen(args: args);
     },
   ),
 ];
