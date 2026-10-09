@@ -4,9 +4,9 @@ import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
 
 NowMediaBindingPresentation binding({
   bool authorized = true,
-  String? url = '/api/v1/me/now/media/journey-artifacts/123/',
+  String? url = '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
 }) => NowMediaBindingPresentation(
-  resourceRef: 'journey_artifact:123',
+  resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',
   target: NowMediaTarget.situation,
   purpose: NowMediaPurpose.prepare,
   kind: NowMediaKind.pdf,
@@ -18,7 +18,7 @@ void main() {
   test('only owner-authorized first-party API media can be opened', () {
     expect(
       nowAuthorizedMediaPath(binding()),
-      'api/v1/me/now/media/journey-artifacts/123/',
+      'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
     );
     expect(nowAuthorizedMediaPath(binding(authorized: false)), isNull);
     expect(nowAuthorizedMediaPath(binding(url: null)), isNull);
