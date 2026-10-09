@@ -271,7 +271,16 @@ class MeSelector {
   ) {
     final section = _map(raw);
     var malformed = raw != null && section == null;
-    final items = <MeItemPresentation>[];
+    final items = <MeItemPresentation>[
+      const MeItemPresentation(
+        destination: StructuredDestination(
+          kind: 'resource_collection',
+          id: 'mine',
+        ),
+        title: 'Ouvrir Mes ressources',
+        subtitle: 'Bibliothèque, Proofs et Credentials',
+      ),
+    ];
 
     if (section != null) {
       malformed =
