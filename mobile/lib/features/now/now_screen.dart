@@ -19,6 +19,7 @@ import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
 import 'now_selector.dart';
 import 'now_media_viewer.dart';
+import 'now_inline_media_preview.dart';
 
 class NowScreen extends StatefulWidget {
   const NowScreen({
@@ -484,6 +485,21 @@ class _NowSemanticContent extends StatelessWidget {
                 },
                 semanticLabel:
                     dominantMedia.label ?? 'Média lié à la situation',
+                child: dominantMedia.kind == NowMediaKind.image &&
+                        api != null &&
+                        profileId != null &&
+                        nowAuthorizedMediaPath(dominantMedia) != null
+                    ? NowInlineMediaPreview(
+                        key: ValueKey(dominantMedia.resourceRef),
+                        media: dominantMedia,
+                        api: api!,
+                        profileId: profileId!,
+                        placeholder: MakoloMediaPlaceholder(
+                          icon: _mediaIcon(dominantMedia.kind),
+                          label: dominantMedia.label ?? 'Média associé',
+                        ),
+                      )
+                    : null,
                 placeholder: MakoloMediaPlaceholder(
                   icon: _mediaIcon(dominantMedia.kind),
                   label: dominantMedia.label ?? 'Média associé',
