@@ -352,10 +352,12 @@ class ConversationDetailScreen extends StatefulWidget {
     super.key,
     required this.id,
     required this.repository,
+    this.representedSpaceId,
   });
 
   final String id;
   final ConversationRepository repository;
+  final String? representedSpaceId;
 
   @override
   State<ConversationDetailScreen> createState() =>
@@ -490,13 +492,43 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                                   index < detail.points.length;
                                   index++
                                 ) ...[
-                                  _PointCard(point: detail.points[index]),
+                                  _PointCard(
+                                    point: detail.points[index],
+                                    repository: widget.repository,
+                                    conversationId: widget.id,
+                                    representedSpaceId: widget.representedSpaceId,
+                                  ),
                                   if (index < detail.points.length - 1)
                                     const SizedBox(height: MakoloSpacing.sm),
                                 ],
                               ],
                             ),
                     ),
+                    if (detail.essential.isNotEmpty)
+                      MakoloSection(
+                        title: 'Essentiel',
+                        description:
+                            'Les décisions et résultats actuels restent lisibles sans relire tout le passé.',
+                        child: Column(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < detail.essential.length;
+                              index++
+                            ) ...[
+                              _PointCard(
+                                point: detail.essential[index],
+                                repository: widget.repository,
+                                conversationId: widget.id,
+                                representedSpaceId: widget.representedSpaceId,
+                                readOnly: true,
+                              ),
+                              if (index < detail.essential.length - 1)
+                                const SizedBox(height: MakoloSpacing.sm),
+                            ],
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -508,13 +540,96 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   }
 }
 
-class _PointCard extends StatelessWidget {
-  const _PointCard({required this.point});
+class _PointCard extends StatefulWidget {
+  const _PointCard({
+    required this.point,
+    required this.repository,
+    required this.conversationId,
+    this.representedSpaceId,
+    this.readOnly = false,
+  });
 
   final _ConversationPoint point;
+  final ConversationRepository repository;
+  final String conversationId;
+  final String? representedSpaceId;
+  final bool readOnly;
+
+  @override
+  State<_PointCard> createState() => _PointCardState();
+}
+
+class _PointCardState extends State<_PointCard> {
+  bool _busy = false;
+  String? _feedback;
+  String? _clientReference;
+
+  String _newClientReference() {
+    _clientReference ??=
+        'mobile-' +
+        widget.point.id +
+        '-' +
+        DateTime.now().microsecondsSinceEpoch.toString();
+    return _clientReference!;
+  }
+
+  Future<void> _acknowledge() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _feedback = null;
+    });
+    try {
+      await widget.repository.acknowledgePoint(
+        conversationId: widget.conversationId,
+        pointId: widget.point.id,
+      );
+    } on Object {
+      if (!mounted) return;
+      await widget.repository.refreshDetail(widget.conversationId);
+      if (!mounted) return;
+      setState(
+        () => _feedback =
+            'Ce point a changé. Voici son état actuel après actualisation.',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _respond() async {
+    if (_busy) return;
+    final value = await _collectResponseValue(context, widget.point);
+    if (!mounted || identical(value, _cancelledResponse)) return;
+    setState(() {
+      _busy = true;
+      _feedback = null;
+    });
+    try {
+      await widget.repository.respondToPoint(
+        conversationId: widget.conversationId,
+        pointId: widget.point.id,
+        value: value,
+        clientReference: _newClientReference(),
+        representedSpaceId: widget.representedSpaceId,
+      );
+      _clientReference = null;
+    } on Object {
+      if (!mounted) return;
+      await widget.repository.refreshDetail(widget.conversationId);
+      if (!mounted) return;
+      setState(
+        () => _feedback =
+            'Ce point a changé ou la réponse n’a pas été confirmée. Votre ancienne saisie n’a pas été déclarée envoyée.',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final point = widget.point;
     final metadata = <MakoloMetadataItem>[
       if (point.attentionReason != null)
         MakoloMetadataItem(
@@ -534,13 +649,52 @@ class _PointCard extends StatelessWidget {
         ),
     ];
     return MakoloCard(
-      child: MakoloStatusMetadataAction(
-        title: point.title,
-        subtitle: point.body,
-        status: point.lifecycle == null
-            ? null
-            : MakoloStatus(label: point.lifecycle!),
-        metadata: metadata,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MakoloStatusMetadataAction(
+            title: point.title,
+            subtitle: point.body,
+            status: point.lifecycle == null
+                ? null
+                : MakoloStatus(label: point.lifecycle!),
+            metadata: metadata,
+          ),
+          if (point.resolutionSummary != null) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text('✓ ' + point.resolutionSummary!),
+          ],
+          if (_feedback != null) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(_feedback!),
+          ],
+          if (!widget.readOnly &&
+              point.requiresAcknowledgement &&
+              point.attentionReason == 'acknowledge') ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            FilledButton(
+              onPressed: _busy ? null : _acknowledge,
+              child: Text(_busy ? 'En cours…' : 'J’ai pris connaissance'),
+            ),
+          ],
+          if (!widget.readOnly &&
+              point.canRespond &&
+              point.supportsInteractiveResponse) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            FilledButton(
+              onPressed: _busy ? null : _respond,
+              child: Text(_busy ? 'Envoi…' : point.responseActionLabel),
+            ),
+          ],
+          if (!widget.readOnly &&
+              point.canRespond &&
+              !point.supportsInteractiveResponse) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            const Text(
+              'Ce type de réponse nécessite une capacité média ou formulaire explicitement disponible.',
+            ),
+          ],
+        ],
       ),
     );
   }
