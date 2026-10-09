@@ -36,6 +36,51 @@ class NowWebPresentationTests(SimpleTestCase):
         )
         self.assertEqual(actual, expected)
 
+    def test_s3_web_owner_action_requires_exact_path_and_permission_contract(self):
+        from uuid import uuid4
+        from django.urls import reverse
+
+        owner_id = uuid4()
+        url = reverse(
+            "recognition_api:redemption-decision",
+            kwargs={"redemption_id": owner_id, "decision": "accept"},
+        )
+        item = {
+            "id": "now:consent",
+            "human_context": "Reconnaissance",
+            "source": {"kind": "recognition_redemption", "id": str(owner_id)},
+            "business_actions": [{
+                "capability": "accept",
+                "label": "Accepter",
+                "href": url,
+                "interaction_depth": "direct_now",
+                "confirmation_required": True,
+            }],
+        }
+        home = _now_web_context(_response(items=[item]))
+        self.assertEqual(home.primary_attention.direct_actions[0]["url"], url)
+        item["business_actions"][0]["href"] = "/api/v1/unrelated/"
+        self.assertEqual(_now_web_context(_response(items=[item])).primary_attention.direct_actions, ())
+        item["business_actions"][0]["href"] = url
+        item["business_actions"][0]["confirmation_required"] = False
+        self.assertEqual(_now_web_context(_response(items=[item])).primary_attention.direct_actions, ())
+
+    def test_s4_web_horizon_only_formats_owner_supplied_datetime(self):
+        item = {
+            "id": "now:wait",
+            "human_context": "Démarche",
+            "response": {"type": "wait"},
+            "horizon": {
+                "type": "temporal",
+                "at": "2026-10-09T09:00:00Z",
+                "state": "due_today",
+            },
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertTrue(view.horizon.startswith("Échéance : "))
+        item["horizon"] = {"type": "temporal", "state": "unknown"}
+        self.assertEqual(_now_web_context(_response(items=[item])).primary_attention.horizon, "")
+
     def test_s4_only_admits_current_owner_waiting(self):
         from types import SimpleNamespace
 
