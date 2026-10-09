@@ -38,8 +38,9 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
-  int _unreadNotifications = 0;
+class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
+  bool? _hasUnreadNotifications;
+  bool? _hasConversationAttention;
   Stream<StoredProjection?>? _meStream;
   ActorContextController? _actorController;
   String? _rememberedPath;
@@ -47,9 +48,10 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _meStream = widget.runtime.personal?.watchMe();
     _bindActorContext();
-    unawaited(_loadUnreadNotifications());
+    unawaited(_refreshShellSignals());
   }
 
   void _bindActorContext() {
@@ -111,18 +113,54 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
-  Future<void> _loadUnreadNotifications() async {
-    final api = widget.runtime.api;
-    if (api == null) return;
-    try {
-      final response = await api.get('api/v1/notifications/unread-count/');
-      final value = response.jsonObject()['unread_count'];
-      if (!mounted || value is! num) return;
-      setState(() => _unreadNotifications = value.toInt());
-    } on Object {
-      // A badge is supplemental shell information. Local content remains usable
-      // when its dedicated endpoint is unavailable.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshShellSignals());
     }
+  }
+
+  Future<void> _refreshShellSignals() async {
+    final api = widget.runtime.api;
+    if (api == null) {
+      if (!mounted) return;
+      setState(() {
+        _hasConversationAttention = null;
+        _hasUnreadNotifications = null;
+      });
+      return;
+    }
+
+    try {
+      final response = await api.get(
+        'api/v1/conversations/attention-presence/',
+      );
+      final value = response.jsonObject()['has_attention'];
+      if (mounted) {
+        setState(
+          () => _hasConversationAttention = value is bool ? value : null,
+        );
+      }
+    } on Object {
+      if (mounted) setState(() => _hasConversationAttention = null);
+    }
+
+    try {
+      final response = await api.get(
+        'api/v1/notifications/unread-presence/',
+      );
+      final value = response.jsonObject()['has_unread'];
+      if (mounted) {
+        setState(() => _hasUnreadNotifications = value is bool ? value : null);
+      }
+    } on Object {
+      if (mounted) setState(() => _hasUnreadNotifications = null);
+    }
+  }
+
+  Future<void> _openSecondary(String path) async {
+    await context.push<Object?>(path);
+    if (mounted) unawaited(_refreshShellSignals());
   }
 
   void _rememberDestination(MakoloDestination destination) {
@@ -213,14 +251,14 @@ class _AppShellState extends State<AppShell> {
             kind: _headerKind,
             avatarLetter: avatarLetter,
             profileUsername: profileUsername is String ? profileUsername : null,
-            unreadNotifications: _unreadNotifications,
+            hasConversationAttention:
+                _hasConversationAttention == true,
+            hasUnreadNotifications: _hasUnreadNotifications == true,
             onBrand: () => _goDoor(MakoloPrimaryDoor.now),
-            onConversations: actor is PersonalActorContext
-                ? () => context.push('/conversations')
-                : null,
-            onNotifications: actor is PersonalActorContext
-                ? () => context.push('/notifications')
-                : null,
+            onConversations: () =>
+                unawaited(_openSecondary('/conversations')),
+            onNotifications: () =>
+                unawaited(_openSecondary('/notifications')),
             onSearch: actor is PersonalActorContext
                 ? () => context.push('/discover/search')
                 : null,
@@ -264,6 +302,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _actorController?.removeListener(_onActorContextChanged);
     super.dispose();
   }
