@@ -251,7 +251,7 @@ class ConversationPersonalStateAPIView(PrivateNoStoreMixin, views.APIView):
             state = update_personal_conversation_state(
                 actor=request.user,
                 conversation=conversation,
-                mute=bool(request.data.get("mute", False)),
+                mute=request.data.get("mute") if "mute" in request.data else None,
                 hidden=request.data.get("hidden") if "hidden" in request.data else None,
                 archived=request.data.get("archived") if "archived" in request.data else None,
                 pinned=request.data.get("pinned") if "pinned" in request.data else None,
