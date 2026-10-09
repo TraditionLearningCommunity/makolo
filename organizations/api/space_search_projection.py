@@ -5,6 +5,10 @@ from django.db.models import Q
 from django.db.utils import DatabaseError
 
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
+from commerce.models import CommerceOrder, CommerceOrderStatus
+from authorization.constants import PermissionCode
+from authorization.selectors import has_direct_space_permission
+from urllib.parse import urlencode
 from organizations.space_product import operating_preset_for_space
 from django.urls import reverse
 
@@ -32,7 +36,7 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": ["activity", "occurrence", "visible_space_relationships"]},
+            "coverage": {"state": "partial", "owners": ["activity", "occurrence", "visible_space_relationships", "commerce_order"]},
         }
     preset = operating_preset_for_space(space)
     can_open_activity_console = _space_has_activity_portfolio_access(profile, space)
@@ -88,6 +92,50 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                 "owner_api": f"/api/v1/occurrences/{row.pk}/",
             },
         ))
+    # Commerce owns orders and checks Space authority before filtering.
+    orders_visible = has_direct_space_permission(
+        profile, space, PermissionCode.ORDERS_VIEW
+    )
+    orders = CommerceOrder.objects.none()
+    if orders_visible:
+        orders = (
+            CommerceOrder.objects.filter(
+                payee_space=space,
+                journey__activity_id__in=ids,
+            )
+            .filter(
+                Q(reference__icontains=query)
+                | Q(journey__activity__title__icontains=query)
+            )
+            .select_related("journey__activity")
+            .order_by("-created_at", "pk")
+        )
+        for order in orders[:offset + limit]:
+            historical = (
+                order.status == CommerceOrderStatus.CANCELLED
+                and order.cancelled_at is not None
+            )
+            candidates.append((
+                order.created_at, "commerce_order", str(order.pk),
+                {
+                    "source": {"kind": "commerce_order", "id": str(order.pk)},
+                    "title": f"Commande {order.reference}",
+                    "human_type": "Commande",
+                    "relation": order.journey.activity.title,
+                    "historical": historical,
+                    "context": "Historique" if historical else "Commerce",
+                    "destination": (
+                        reverse(
+                            "organizations:console-orders",
+                            kwargs={"slug": space.slug},
+                        ) + "?" + urlencode({"q": order.reference})
+                    ),
+                    "owner_api": reverse(
+                        "organizations_api:workspace-commerce-order-detail",
+                        kwargs={"slug": space.slug, "order_id": order.pk},
+                    ),
+                },
+            ))
     # The relationship owner is already query- and permission-scoped.
     # Never traverse its records under an activity-only perspective.
     relation_items = []
@@ -142,7 +190,12 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
         ),
         reverse=True,
     )
-    total = activities.count() + occurrences.count() + len(relation_items)
+    total = (
+        activities.count()
+        + occurrences.count()
+        + (orders.count() if orders_visible else 0)
+        + len(relation_items)
+    )
     result = [entry[3] for entry in candidates[offset:offset + limit]]
     return {
         "actor_context": {"kind": "space", "id": str(space.pk), "name": space.name},
@@ -157,7 +210,10 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
         },
         "coverage": {
             "state": "partial",
-            "owners": ["activity", "occurrence", "visible_space_relationships"],
+            "owners": [
+                "activity", "occurrence", "visible_space_relationships",
+                *(['commerce_order'] if orders_visible else []),
+            ],
             "limited_sources": ["visible_space_relationships"] if relations_partial else [],
             "unavailable_sources": unavailable_sources,
         },

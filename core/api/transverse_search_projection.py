@@ -5,6 +5,8 @@ from personal_assets.selectors import personal_assets_for_controller
 from groups.selectors import groups_for_profile
 
 from access.models import AccessStatus
+from commerce.models import CommerceOrder, CommerceOrderStatus
+from django.db.models import Q
 from journeys.models import JourneyStatus
 
 
@@ -27,7 +29,7 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset", "group"]},
+            "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset", "group", "commerce_order"]},
         }
     # Both selectors are beneficiary-scoped BEFORE any free text match.
     journeys = participant_journey_search(
@@ -121,8 +123,36 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 ),
             },
         ))
+    orders = CommerceOrder.objects.filter(buyer=profile).filter(
+        Q(reference__icontains=query)
+        | Q(journey__activity__title__icontains=query)
+    ).select_related("journey__activity").order_by("-created_at", "pk")
+    for order in orders[:offset + limit]:
+        completed = (
+            order.status == CommerceOrderStatus.CANCELLED
+            and order.cancelled_at is not None
+        )
+        entries.append((
+            order.created_at, "commerce_order", str(order.pk),
+            {
+                "source": {"kind": "commerce_order", "id": str(order.pk)},
+                "title": f"Commande {order.reference}",
+                "human_type": "Commande",
+                "relation": "Mon achat",
+                "context": "Historique" if completed else "Commande",
+                "historical": completed,
+                "destination": reverse(
+                    "core:participant-commerce-order-detail",
+                    kwargs={"pk": order.pk},
+                ),
+                "owner_api": reverse(
+                    "personal-projections:commerce-order-detail",
+                    kwargs={"order_id": order.pk},
+                ),
+            },
+        ))
     entries.sort(key=lambda row: (row[0], row[1], row[2]), reverse=True)
-    total = journeys.count() + accesses.count() + assets.count() + groups.count()
+    total = journeys.count() + accesses.count() + assets.count() + groups.count() + orders.count()
     selected = [row[3] for row in entries[offset:offset + limit]]
     return {
         "actor_context": {"kind": "profile"},
