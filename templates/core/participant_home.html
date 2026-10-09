@@ -44,7 +44,55 @@
       <p>{{ home.primary_attention.summary }}</p>
       {% if home.primary_attention.why_now %}<p>{{ home.primary_attention.why_now }}</p>{% endif %}
       {% if home.primary_attention.consequence %}<p>{{ home.primary_attention.consequence }}</p>{% endif %}
-      {% if home.primary_attention.url %}<a href="{{ home.primary_attention.url }}" class="mk-now-cta">{{ home.primary_attention.action_label }}</a>{% endif %}
+      {% if home.primary_attention.inline_media %}
+        <div class="mk-now-media" aria-label="Médias de cette situation">
+          {% for media in home.primary_attention.inline_media %}
+          <figure>
+            {% if media.kind == "image" %}
+              <img src="{{ media.url }}" alt="{{ media.label }}" loading="lazy">
+            {% elif media.kind == "pdf" %}
+              <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" referrerpolicy="no-referrer"></iframe>
+            {% elif media.kind == "video" %}
+              <video src="{{ media.url }}" controls preload="metadata" playsinline aria-label="{{ media.label }}"></video>
+            {% elif media.kind == "audio" %}
+              <audio src="{{ media.url }}" controls preload="none" aria-label="{{ media.label }}"></audio>
+            {% elif media.kind == "document" %}
+              <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
+            {% endif %}
+            <figcaption>{{ media.label }}</figcaption>
+            <a href="{{ media.download_url }}" download>Enregistrer sur l’appareil</a>
+          </figure>
+          {% endfor %}
+        </div>
+      {% elif home.primary_attention.topology == "composition" %}
+        {% for summary in home.primary_attention.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
+        <ul aria-label="Démarches de la composition">
+          {% for member in home.primary_attention.relation_members %}
+            <li>{{ member.label }}{% if member.subtext %} — {{ member.subtext }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+      {% elif home.primary_attention.topology == "waiting" %}
+        <p class="mk-now-wait">{{ home.primary_attention.turn|default:"En attente de la prochaine réponse." }}</p>
+        {% if home.primary_attention.horizon %}<p>{{ home.primary_attention.horizon }}</p>{% endif %}
+      {% endif %}
+      {% if home.primary_attention.preparation %}
+        <div aria-label="Préparé par Makolo">
+          {% for preparation in home.primary_attention.preparation %}<p>{{ preparation }}</p>{% endfor %}
+        </div>
+      {% endif %}
+      {% if home.primary_attention.direct_actions %}
+        <div class="mk-now-business-actions" aria-label="Décision de la situation">
+          {% for action in home.primary_attention.direct_actions %}
+            <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
+              {% csrf_token %}
+              <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
+              <output aria-live="polite" role="status"></output>
+            </form>
+          {% endfor %}
+        </div>
+      {% elif home.primary_attention.url %}
+        <a href="{{ home.primary_attention.url }}" class="mk-now-cta">{{ home.primary_attention.action_label }}</a>
+      {% endif %}
     </section>
     {% endif %}
 
@@ -66,8 +114,44 @@
             <p>{{ item.summary }}</p>
             {% if item.why_now %}<p>{{ item.why_now }}</p>{% endif %}
             {% if item.consequence %}<p>{{ item.consequence }}</p>{% endif %}
+            {% if item.topology == "waiting" %}
+              <p class="mk-now-wait">{{ item.turn|default:"En attente de la prochaine réponse." }}</p>
+              {% if item.horizon %}<p>{{ item.horizon }}</p>{% endif %}
+            {% elif item.topology == "composition" %}
+              {% for summary in item.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
+            {% endif %}
           </div>
-          {% if item.url %}<a href="{{ item.url }}">{{ item.action_label }}</a>{% endif %}
+          {% if item.inline_media %}
+            <div class="mk-now-media" aria-label="Médias de cette situation">
+              {% for media in item.inline_media %}
+                {% if media.kind == "image" %}
+                  <img src="{{ media.url }}" alt="{{ media.label }}" loading="lazy">
+                {% elif media.kind == "pdf" %}
+                  <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" referrerpolicy="no-referrer"></iframe>
+                {% elif media.kind == "document" %}
+                  <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
+                {% elif media.kind == "video" %}
+                  <video src="{{ media.url }}" controls preload="metadata" playsinline aria-label="{{ media.label }}"></video>
+                {% elif media.kind == "audio" %}
+                  <audio src="{{ media.url }}" controls preload="none" aria-label="{{ media.label }}"></audio>
+                {% endif %}
+                <a href="{{ media.download_url }}" download>Enregistrer {{ media.label }}</a>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if item.direct_actions %}
+            <div class="mk-now-business-actions" aria-label="Décision de la situation">
+              {% for action in item.direct_actions %}
+                <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
+                  {% csrf_token %}
+                  <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
+                  <output aria-live="polite" role="status"></output>
+                </form>
+              {% endfor %}
+            </div>
+          {% elif item.url %}
+            <a href="{{ item.url }}">{{ item.action_label }}</a>
+          {% endif %}
         </article>
       {% endfor %}
     </section>
@@ -79,4 +163,9 @@
     {% endif %}
   {% endif %}
 </div>
+{% endblock %}
+{% block extra_js %}
+  {{ block.super }}
+  {% load static %}
+  <script defer src="{% static 'js/now-owner-actions.js' %}"></script>
 {% endblock %}

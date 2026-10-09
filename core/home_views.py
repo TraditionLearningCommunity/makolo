@@ -1,6 +1,10 @@
 from types import SimpleNamespace
+from uuid import UUID
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import NoReverseMatch, reverse
+from django.utils.dateparse import parse_datetime
+from django.utils.formats import date_format
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -50,6 +54,188 @@ def _consequence_text(consequence):
     return _display_value(consequence, "effect", "label")
 
 
+def _now_topology(item):
+    """Only render owner-provided presentation semantics, never infer monitoring."""
+    media = item.get("media_bindings") or ()
+    if any(
+        isinstance(binding, dict)
+        and binding.get("authorized") is True
+        and binding.get("resource_ref")
+        and (
+            binding.get("presentation_rank") == "primary"
+            or binding.get("purpose") in {"understand", "establish", "act"}
+        )
+        for binding in media
+    ):
+        return "media"
+    actions = item.get("business_actions") or ()
+    if any(
+        isinstance(action, dict)
+        and action.get("capability")
+        and action.get("label")
+        and action.get("interaction_depth") in {"direct_now", "focused"}
+        for action in actions
+    ):
+        return "action"
+    members = item.get("relation_members") or ()
+    relations = item.get("relations") or ()
+    response = item.get("response") or {}
+    member_ids = {
+        member.get("id")
+        for member in members
+        if isinstance(member, dict) and isinstance(member.get("id"), str)
+    }
+    linked = any(
+        isinstance(relation, dict)
+        and isinstance(relation.get("kind"), str)
+        and relation["kind"].strip()
+        and len({
+            value for value in (relation.get("member_ids") or ())
+            if isinstance(value, str) and value in member_ids
+        }) >= 2
+        for relation in relations
+        if isinstance(relation, dict)
+        and isinstance(relation.get("member_ids"), (list, tuple))
+    )
+    if (
+        len(member_ids) >= 2
+        and linked
+        and _display_value(item.get("why_now"), "meaning")
+        and _consequence_text(item.get("consequence"))
+        and response.get("type")
+    ):
+        return "composition"
+    if response.get("type") in {"wait", "monitor", "waiting"}:
+        return "waiting"
+    return "meaning"
+
+
+def _now_inline_media(item):
+    """Expose only the first-party resource-view endpoint; never raw storage URLs."""
+    allowed_prefix = "/api/v1/me/now/media/journey-artifacts/"
+    result = []
+    for binding in item.get("media_bindings") or ():
+        if not isinstance(binding, dict) or binding.get("authorized") is not True:
+            continue
+        if not binding.get("resource_ref"):
+            continue
+        url = binding.get("url")
+        if not isinstance(url, str) or not url.startswith(allowed_prefix):
+            continue
+        path, separator, query = url.partition("?")
+        resource_id = path[len(allowed_prefix):].strip("/")
+        if not resource_id or "/" in resource_id:
+            continue
+        from uuid import UUID
+
+        try:
+            UUID(resource_id)
+        except (ValueError, AttributeError):
+            continue
+        if separator and query != "view=text":
+            continue
+        kind = binding.get("kind")
+        if kind not in {"image", "pdf", "document", "audio", "video"}:
+            continue
+        original_url = binding.get("download_url")
+        if not isinstance(original_url, str) or original_url != path:
+            original_url = url
+        result.append({
+            "url": url,
+            "download_url": original_url,
+            "kind": kind,
+            "label": binding.get("label") or "Média associé à la situation",
+        })
+        if len(result) == 3:
+            break
+    return tuple(result)
+
+
+def _now_horizon(item):
+    value = item.get("horizon")
+    human = _display_value(value, "label", "text")
+    if human:
+        return human
+    if not isinstance(value, dict) or value.get("type") != "temporal":
+        return ""
+    raw = value.get("at")
+    if not isinstance(raw, str):
+        return ""
+    parsed = parse_datetime(raw)
+    if parsed is None or timezone.is_naive(parsed):
+        return ""
+    formatted = date_format(timezone.localtime(parsed), "d/m/Y H:i")
+    return (
+        f"Échéance dépassée : {formatted}"
+        if value.get("state") == "overdue"
+        else f"Échéance : {formatted}"
+    )
+
+
+def _now_web_direct_actions(item):
+    """Exact bearer/session owner API URLs only, never arbitrary POST links."""
+    source = item.get("source") or {}
+    owner_kind = source.get("kind")
+    if owner_kind not in {"recognition_redemption", "waitlist", "ticket_transfer"}:
+        return ()
+    try:
+        owner_id = UUID(str(source.get("id")))
+    except (ValueError, AttributeError, TypeError):
+        return ()
+
+    capabilities = {
+        "recognition_redemption": {
+            "accept": "recognition_api:redemption-decision",
+            "decline": "recognition_api:redemption-decision",
+        },
+        "waitlist": {
+            "accept": "ticket-waitlist-accept",
+            "leave": "ticket-waitlist-leave",
+        },
+        "ticket_transfer": {
+            "accept": "ticket-transfers-accept",
+            "decline": "ticket-transfers-decline",
+        },
+    }[owner_kind]
+    labels = {
+        "accept": "Accepter",
+        "decline": "Refuser",
+        "leave": "Laisser passer",
+    }
+    forms = []
+    for action in item.get("business_actions") or ():
+        if not isinstance(action, dict):
+            continue
+        capability = action.get("capability")
+        if (
+            capability not in capabilities
+            or action.get("interaction_depth") != "direct_now"
+            or action.get("confirmation_required") is not True
+        ):
+            continue
+        try:
+            name = capabilities[capability]
+            if owner_kind == "recognition_redemption":
+                expected = reverse(
+                    name,
+                    kwargs={"redemption_id": owner_id, "decision": capability},
+                )
+            else:
+                expected = reverse(name, kwargs={"pk": owner_id})
+        except NoReverseMatch:
+            continue
+        if action.get("href") != expected:
+            continue
+        forms.append({
+            "url": expected,
+            "label": labels[capability],
+            "owner_id": str(owner_id),
+            "owner_kind": owner_kind,
+            "capability": capability,
+        })
+    return tuple(forms)
+
+
 def _web_now_item(item):
     response = item.get("response") or {}
     return SimpleNamespace(
@@ -69,6 +255,32 @@ def _web_now_item(item):
         priority="",
         actionability=item.get("actionability") or "actionable",
         dimension=item.get("dimension"),
+        topology=_now_topology(item),
+        horizon=_now_horizon(item),
+        preparation=tuple(x for x in (item.get("makolo_preparation") or ()) if isinstance(x, str) and x.strip()),
+        inline_media=_now_inline_media(item),
+        direct_actions=_now_web_direct_actions(item),
+        media_labels=tuple(
+            binding.get("label") or "Média lié à la situation"
+            for binding in (item.get("media_bindings") or ())
+            if isinstance(binding, dict)
+            and binding.get("authorized") is True
+            and binding.get("resource_ref")
+        ),
+        relation_summaries=tuple(
+            rel["summary"] for rel in (item.get("relations") or ())
+            if isinstance(rel, dict) and isinstance(rel.get("summary"), str) and rel["summary"].strip()
+        ),
+        relation_members=tuple(
+            {
+                "label": member["label"],
+                "subtext": member.get("subtext") or "",
+            }
+            for member in (item.get("relation_members") or ())
+            if isinstance(member, dict)
+            and isinstance(member.get("label"), str)
+            and member["label"].strip()
+        ),
     )
 
 

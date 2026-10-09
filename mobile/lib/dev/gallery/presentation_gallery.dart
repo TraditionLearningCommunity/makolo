@@ -9,6 +9,7 @@ import '../../design/presentation_layout.dart';
 import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
 import '../scenarios/presentation_fixture_resolver.dart';
+import '../scenarios/now_scenarios.dart';
 import '../scenarios/presentation_scenarios.dart';
 
 enum _GalleryCategory { foundations, primitives, patterns, states, scenarios }
@@ -406,6 +407,9 @@ class _ScenarioPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scenario = PresentationScenarioCatalog.byId(scenarioId);
+    if (scenario.surface == 'now') {
+      return NowGalleryScenarioPreview(id: scenarioId);
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(MakoloSpacing.md),
       child: MakoloCard(
