@@ -1,7 +1,10 @@
+from datetime import datetime
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -134,6 +137,17 @@ class PointRespondView(LoginRequiredMixin, View):
         elif point.response_mode == ConversationPointResponseMode.BOOLEAN:
             raw = request.POST.get("value")
             value = True if raw == "true" else False if raw == "false" else raw
+        elif point.response_mode == ConversationPointResponseMode.DATETIME:
+            raw = request.POST.get("value")
+            try:
+                parsed = datetime.fromisoformat(raw) if raw else None
+            except ValueError:
+                parsed = None
+            value = (
+                timezone.make_aware(parsed, timezone.get_current_timezone())
+                if parsed is not None and timezone.is_naive(parsed)
+                else parsed or raw
+            )
         else:
             value = request.POST.get("value")
         try:
