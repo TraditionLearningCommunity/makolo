@@ -10,7 +10,8 @@ class TechnicalReadOnlyAdmin(admin.ModelAdmin):
     """Inspect existing rows; no create, edit, delete or bulk delete."""
 
     def get_readonly_fields(self, request, obj=None):
-        return tuple(field.name for field in self.model._meta.fields)
+        declared = super().get_readonly_fields(request, obj)
+        return tuple(dict.fromkeys((*declared, *(field.name for field in self.model._meta.fields))))
 
     def has_add_permission(self, request):
         return False
