@@ -95,6 +95,7 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             },
         ))
     groups = groups_for_profile(profile).filter(
+        space__isnull=True,
         name__icontains=query
     ).order_by("-created_at", "pk")
     for row in groups[:offset + limit]:
