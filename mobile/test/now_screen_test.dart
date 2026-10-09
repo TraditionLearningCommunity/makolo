@@ -119,6 +119,80 @@ void main() {
     expect(topologyFor(value(['a', 'b'])), NowTopology.composition);
   });
 
+  testWidgets('S3 focused action only hands off to a real owner', (
+    tester,
+  ) async {
+    StructuredDestination? opened;
+    const journey = StructuredDestination(kind: 'journey', id: 'visa');
+    const item = NowSituationPresentation(
+      identity: 'now:action',
+      reference: journey,
+      humanContext: 'Visa Canada',
+      meaning: 'Le dossier attend votre vérification.',
+      emphasis: NowPresentationEmphasis.primary,
+      ownerDestination: journey,
+      responseType: 'act',
+      businessActions: [
+        NowBusinessActionPresentation(
+          capability: 'open_detail',
+          label: 'Vérifier le dossier',
+          interactionDepth: NowInteractionDepth.focused,
+        ),
+      ],
+    );
+    final selection = NowSelection(
+      situations: const [item],
+      state: const MakoloSurfacePresentation(
+        availability: MakoloAvailabilityCue.content,
+      ),
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: NowView(
+        selection: selection,
+        onOpenOwner: (destination) => opened = destination,
+      ),
+    );
+    expect(topologyFor(item), NowTopology.action);
+    expect(find.text('Vérifier le dossier'), findsOneWidget);
+    await tester.tap(find.text('Vérifier le dossier'));
+    await tester.pump();
+    expect(opened?.id, 'visa');
+    expect(find.text('Confirmé'), findsNothing);
+  });
+
+  testWidgets('S3 cannot execute a capability without an owner handoff', (
+    tester,
+  ) async {
+    const item = NowSituationPresentation(
+      identity: 'now:unbound',
+      reference: StructuredDestination(kind: 'now', id: 'unbound'),
+      humanContext: 'Action proposée',
+      meaning: 'Une étape est à vérifier.',
+      emphasis: NowPresentationEmphasis.primary,
+      businessActions: [
+        NowBusinessActionPresentation(
+          capability: 'submit',
+          label: 'Envoyer',
+          interactionDepth: NowInteractionDepth.directNow,
+        ),
+      ],
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: const NowView(
+        selection: NowSelection(
+          situations: [item],
+          state: MakoloSurfacePresentation(
+            availability: MakoloAvailabilityCue.content,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Envoyer'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Envoyer'), findsNothing);
+  });
+
   test('S4 is based on explicit response, never a waiting status', () {
     NowSituationPresentation item(String? responseType, String? serverState) {
       return NowSituationPresentation(
