@@ -123,6 +123,7 @@ class WS4SpaceWebTests(TestCase):
                 "organizations:space-us",
                 "organizations:space-relationships",
                 "organizations:space-pilot",
+                "organizations:space-interoperability",
             ):
                 self.assertEqual(self.client.get(self.url(route)).status_code, 404)
 
@@ -169,6 +170,13 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(
             pilot,
             "Pilotage global indisponible pour cette responsabilité",
+        )
+
+        self.assertEqual(
+            self.client.get(
+                self.url("organizations:space-interoperability")
+            ).status_code,
+            404,
         )
 
     def test_space_interoperability_is_direct_authority_scoped_and_secret_free(self):
