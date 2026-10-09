@@ -34,6 +34,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   late final TextEditingController _query;
   List<Map<String, dynamic>> _local = [];
   List<Map<String, dynamic>> _remote = [];
+  List<String> _unavailableSources = [];
+  List<String> _limitedSources = [];
   bool _loading = false;
   bool _failed = false;
   bool _revoked = false;
@@ -77,6 +79,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       _version++;
       _local = [];
       _remote = [];
+      _unavailableSources = [];
+      _limitedSources = [];
       _more = false;
       _offset = 0;
       _selected = null;
@@ -95,6 +99,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     setState(() {
       _local = [];
       _remote = [];
+      _unavailableSources = [];
+      _limitedSources = [];
       _revoked = !_actorValid;
       _selected = null;
     });
@@ -196,9 +202,16 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       final actor = widget.spaceActor!;
       if (widget.history) {
         final snapshots = await store.readProjections('space.history');
-        final prefix = _spaceCacheQueryPrefix(actor, query);
+        final prefix = _spaceCachePrefix(actor);
+        final queryPrefix = _spaceCacheQueryPrefix(actor, query);
+        final allPrefix = _spaceCacheQueryPrefix(actor, '');
+
         for (final page in snapshots) {
-          if (!page.resourceKey.startsWith(prefix)) continue;
+          if (!page.resourceKey.startsWith(prefix) ||
+              (!page.resourceKey.startsWith(queryPrefix) &&
+               !page.resourceKey.startsWith(allPrefix))) {
+            continue;
+          }
           final values = page.payload['items'];
           if (values is! List) continue;
           for (final value in values.whereType<Map>()) {
@@ -331,6 +344,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         _offset = 0;
         _more = false;
         _failed = false;
+        _unavailableSources = [];
+        _limitedSources = [];
         _revoked = false;
         _selected = null;
       });
@@ -364,6 +379,15 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       final items = list.whereType<Map>().map(
         (value) => Map<String, dynamic>.from(value),
       ).toList();
+      final coverage = payload['coverage'];
+      final unavailable = coverage is Map && coverage['unavailable_sources'] is List
+          ? (coverage['unavailable_sources'] as List)
+              .map((item) => item.toString()).toList()
+          : <String>[];
+      final limited = coverage is Map && coverage['limited_sources'] is List
+          ? (coverage['limited_sources'] as List)
+              .map((item) => item.toString()).toList()
+          : <String>[];
       if (!mounted || !_actorValid || version != _version) return;
       final store = widget.runtime.store;
       if (widget.history && _isSpace && store != null) {
@@ -371,7 +395,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         if (!more) {
           final previous = await store.readProjections('space.history');
           for (final page in previous) {
-            if (page.resourceKey.startsWith(_spaceCachePrefix(actor))) {
+            if (page.resourceKey.startsWith(
+              _spaceCacheQueryPrefix(actor, query),
+            )) {
               await store.deleteProjection(
                 'space.history', resourceKey: page.resourceKey,
               );
@@ -394,6 +420,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         _offset = nextOffset + items.length;
         _more = page['has_more'] == true && items.isNotEmpty;
         _failed = false;
+        _unavailableSources = unavailable;
+        _limitedSources = limited;
       });
     } on MakoloApiError catch (error) {
       if (!mounted || version != _version) return;
@@ -428,6 +456,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       setState(() {
         _failed = true;
         if (denied) {
+          _unavailableSources = [];
+          _limitedSources = [];
           _revoked = true;
           _local = [];
           _remote = [];
@@ -517,6 +547,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                             _more = false;
                             _offset = 0;
                             _failed = false;
+                            _unavailableSources = [];
+                            _limitedSources = [];
                             _selected = null;
                           });
                         },
@@ -538,6 +570,16 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           's’ils existent, peuvent être incomplets.',
                         ),
                       if (_loading) const LinearProgressIndicator(),
+                      if (_unavailableSources.isNotEmpty)
+                        const Text(
+                          'Certaines sources ne peuvent pas être actualisées. '
+                          'Les autres résultats restent visibles.',
+                        ),
+                      if (_limitedSources.isNotEmpty)
+                        const Text(
+                          'Certaines sources disposent de résultats supplémentaires '
+                          'dans leur recherche spécialisée.',
+                        ),
                       if (_isSpace)
                         Text(
                           'Contexte : ${widget.spaceActor!.space.slug}. '
