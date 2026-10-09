@@ -8,6 +8,12 @@ from django.http import Http404
 from django.urls import reverse
 from django.views.generic import TemplateView
 
+from authorization.constants import PermissionCode
+from authorization.selectors import has_direct_space_permission
+from intelligence.interoperability import project_provider_connection, provider_connections_for_space
+from interoperability.presentation import present_connection
+from interoperability.projections import build_interoperability_payload
+
 from .api.space_attention_projection import (
     build_space_discover_projection,
     build_space_now_projection,
@@ -233,10 +239,51 @@ class SpaceUsView(SpaceWebMixin):
             for module in self.workspace.get("modules", ())
         ):
             owner_links["pilot"] = context["space_pilot_url"]
+        if has_direct_space_permission(
+            self.request.user, self.space, PermissionCode.SPACE_MANAGE
+        ):
+            owner_links["connections"] = self._space_url(
+                "organizations:space-interoperability"
+            )
 
         context["projection"] = projection
         context["us_owner_links"] = owner_links
         return context
+
+
+class SpaceInteroperabilityView(SpaceWebMixin):
+    template_name = "organizations/space/interoperability.html"
+    space_nav_key = "us"
+    space_page_title = "Connexions"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if not has_direct_space_permission(
+            self.request.user, self.space, PermissionCode.SPACE_MANAGE
+        ):
+            raise Http404
+
+        connections = [
+            project_provider_connection(connection, manageable=True)
+            for connection in provider_connections_for_space(self.space)
+        ]
+        context["interoperability"] = build_interoperability_payload(
+            context="space",
+            connections=connections,
+            self_link=(
+                f"/api/v1/organizations/workspaces/{self.space.slug}/"
+                "interoperability/"
+            ),
+            actor=self.request.user,
+            authority_context=self.space,
+        )
+        context["connections"] = [present_connection(row) for row in connections]
+        return context
+
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class SpaceRelationshipsView(SpaceWebMixin):

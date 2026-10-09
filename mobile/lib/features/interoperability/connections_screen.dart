@@ -38,8 +38,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       try {
         await sync.pullInteroperability();
       } on Object {
-        // The screen will render the shared offline/error state. Existing
-        // cached data is never discarded by a failed refresh.
+        // Existing cached data is never discarded by a failed refresh.
       }
     }
   }
@@ -55,36 +54,68 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     return text[0].toUpperCase() + text.substring(1);
   }
 
+  String _capabilityLabel(String value) {
+    return switch (value) {
+      'text_generate' => 'Génération de texte',
+      'structured_generate' => 'Données structurées',
+      'embed' => 'Représentation sémantique',
+      'rerank' => 'Classement de résultats',
+      'web_research' => 'Recherche sur le Web',
+      _ => _humanize(value),
+    };
+  }
+
   String _connectionState(InteroperabilityConnectionProjection connection) {
     if (!connection.enabled || connection.status == 'disabled') {
       return 'Désactivé';
     }
     if (connection.health == 'unavailable') {
-      return 'Indisponible pour le moment';
+      return 'Momentanément indisponible';
+    }
+    if (connection.health == 'degraded') {
+      return connection.connected
+          ? 'Connecté · disponibilité réduite'
+          : 'Disponibilité réduite';
+    }
+    if (connection.health == 'unknown') {
+      return connection.connected
+          ? 'Connecté · état à vérifier'
+          : 'État à vérifier';
     }
     if (connection.usable) return 'Connecté et disponible';
     if (connection.connected) return 'Connecté';
-    return connection.available ? 'Disponible' : 'Indisponible';
+    return connection.available ? 'Disponible' : 'État à vérifier';
   }
 
   Widget _connectionCard(InteroperabilityConnectionProjection connection) {
+    final capabilities = connection.capabilities
+        .map(_capabilityLabel)
+        .join(' · ');
     return Card(
       child: ListTile(
         key: Key('connection-${connection.id}'),
         leading: const Icon(Icons.link_outlined),
         title: Text(connection.displayName),
-        subtitle: Text(_connectionState(connection)),
+        subtitle: capabilities.isEmpty
+            ? Text(_connectionState(connection))
+            : Text('${_connectionState(connection)}\n$capabilities'),
+        isThreeLine: capabilities.isNotEmpty,
       ),
     );
   }
 
   Widget _providerCard(InteroperabilityProviderProjection provider) {
+    final capabilities = provider.capabilities
+        .map(_capabilityLabel)
+        .join(' · ');
     return Card(
       child: ListTile(
         key: Key('provider-${provider.code}'),
         leading: const Icon(Icons.extension_outlined),
-        title: Text(_humanize(provider.code)),
-        subtitle: Text(provider.available ? 'Disponible' : 'Indisponible'),
+        title: const Text('Service disponible'),
+        subtitle: Text(
+          capabilities.isEmpty ? 'Disponible' : 'Disponible · $capabilities',
+        ),
       ),
     );
   }
@@ -109,7 +140,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         title: Text(_humanize(action.code)),
         subtitle: Text(
           available
-              ? 'Action disponible'
+              ? 'Disponible'
               : action.requiresConnection
               ? 'Connexion requise'
               : 'Indisponible pour le moment',
@@ -119,20 +150,45 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     );
   }
 
+  Widget _freshnessNotice(BuildContext context, SyncStatus? syncStatus) {
+    if (syncStatus == null) return const SizedBox.shrink();
+    if (syncStatus.state == SyncVisualState.syncing) {
+      return const LinearProgressIndicator(
+        key: Key('profile-connections-refreshing'),
+        minHeight: 2,
+      );
+    }
+    if (syncStatus.state == SyncVisualState.offline ||
+        syncStatus.state == SyncVisualState.stale ||
+        syncStatus.state == SyncVisualState.failed) {
+      return Padding(
+        key: const Key('profile-connections-last-known'),
+        padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
+        child: Text(
+          'Dernier état connu. La disponibilité actuelle peut avoir changé.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   Widget _content(
     BuildContext context,
     ProfileInteroperabilityProjection projection,
+    SyncStatus? syncStatus,
   ) {
     if (projection.isEmpty) {
       return ListView(
         key: const Key('profile-connections-empty'),
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(
+        children: [
+          _freshnessNotice(context, syncStatus),
+          const SizedBox(
             height: 520,
             child: MakoloEmptyState(
               title: 'Aucune connexion pour le moment',
-              body: 'Aucun service ni aucune extension n’est encore disponible pour votre Profil.',
+              body: 'Aucun service n’est encore disponible pour votre Profil.',
             ),
           ),
         ],
@@ -148,8 +204,9 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         MakoloSpacing.strong,
       ),
       children: [
+        _freshnessNotice(context, syncStatus),
         Text(
-          'Reliez Makolo aux services que vous utilisez.',
+          'Les services externes reliés à votre Profil et ce que Makolo peut réellement utiliser maintenant.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         if (projection.connections.isNotEmpty) ...[
@@ -174,23 +231,22 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         if (projection.actions.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Text(
-            'Actions disponibles',
+            'Capacités et actions',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: MakoloSpacing.sm),
           for (final action in projection.actions) _actionCard(action),
         ],
-        const SizedBox(height: MakoloSpacing.lg),
-        Text('Extensions', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: MakoloSpacing.sm),
-        if (projection.extensions.isEmpty)
+        if (projection.extensions.isNotEmpty) ...[
+          const SizedBox(height: MakoloSpacing.lg),
           Text(
-            'Aucune extension disponible pour le moment.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          )
-        else
+            'Extensions',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: MakoloSpacing.sm),
           for (final extension in projection.extensions)
             _extensionCard(extension),
+        ],
       ],
     );
   }
@@ -221,12 +277,12 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             );
           }
 
+          final syncStatus = SyncStatusScope.maybeOf(context);
           final projection = snapshot.data;
           if (projection != null) {
-            return _content(context, projection);
+            return _content(context, projection, syncStatus);
           }
 
-          final syncStatus = SyncStatusScope.maybeOf(context);
           if (syncStatus?.state == SyncVisualState.offline) {
             return ListView(
               key: const Key('profile-connections-offline-empty'),
@@ -236,7 +292,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
                   height: 520,
                   child: MakoloEmptyState(
                     title: 'Connexions indisponibles hors ligne',
-                    body: 'Aucune copie locale n’est encore disponible. Réessayez lorsque le réseau revient.',
+                    body: 'Aucune copie locale n’est encore disponible. Le reste de Makolo continue de fonctionner.',
                   ),
                 ),
               ],

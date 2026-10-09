@@ -3,13 +3,22 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import User
+from accounts.models import User, UserProfile
 from activities.models import Activity
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role
 from crm.models import CRMContact
 from groups.models import Group
+from intelligence.capabilities import IntelligenceCapability
+from intelligence.models import (
+    IntelligenceRoute,
+    ProviderConnection,
+    ProviderCredential,
+    ProviderHealth,
+    ProviderProtocol,
+    ProviderScope,
+)
 from organizations.models import (
     Organization,
     SpaceArchetype,
@@ -83,6 +92,7 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(response, "Faits de vérification")
         self.assertContains(response, "Personnes & relations")
         self.assertContains(response, "Paramètres de l’Espace")
+        self.assertContains(response, "Connexions")
         self.assertEqual(
             response.context["projection"]["handoffs"]["team"],
             f"/space/{self.space.slug}/us/team",
@@ -113,6 +123,7 @@ class WS4SpaceWebTests(TestCase):
                 "organizations:space-us",
                 "organizations:space-relationships",
                 "organizations:space-pilot",
+                "organizations:space-interoperability",
             ):
                 self.assertEqual(self.client.get(self.url(route)).status_code, 404)
 
@@ -160,6 +171,109 @@ class WS4SpaceWebTests(TestCase):
             pilot,
             "Pilotage global indisponible pour cette responsabilité",
         )
+
+        self.assertEqual(
+            self.client.get(
+                self.url("organizations:space-interoperability")
+            ).status_code,
+            404,
+        )
+
+    def test_space_interoperability_is_direct_authority_scoped_and_secret_free(self):
+        connection = ProviderConnection.objects.create(
+            name="Service institutionnel",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://space-provider.example.test/v1",
+            default_model="private-model",
+            scope=ProviderScope.SPACE,
+            space=self.space,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
+        IntelligenceRoute.objects.create(
+            connection=connection,
+            capability=IntelligenceCapability.TEXT_GENERATE.value,
+            enabled=True,
+        )
+        ProviderCredential.objects.create(
+            connection=connection,
+            encrypted_secret="space-secret-ciphertext",
+            key_hint="space-key-hint",
+        )
+        owner_profile, _ = UserProfile.objects.get_or_create(user=self.owner)
+        self._foreign_profile_connection = ProviderConnection.objects.create(
+            name="Connexion Profile privée",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://profile-provider.example.test/v1",
+            default_model="profile-model",
+            scope=ProviderScope.PROFILE,
+            profile=owner_profile,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
+        self._foreign_platform_connection = ProviderConnection.objects.create(
+            name="Connexion Platform privée",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://platform-provider.example.test/v1",
+            default_model="platform-model",
+            scope=ProviderScope.PLATFORM,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
+
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            self.url("organizations:space-interoperability")
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(response.context["interoperability"]["context"], "space")
+        self.assertContains(response, "Service institutionnel")
+        self.assertContains(response, "Connecté et disponible")
+        self.assertContains(response, "Génération de texte")
+        self.assertNotContains(response, "Connexion Profile privée")
+        self.assertNotContains(response, "Connexion Platform privée")
+        html = response.content.decode("utf-8")
+        self.assertNotIn("space-secret-ciphertext", html)
+        self.assertNotIn("space-key-hint", html)
+        self.assertNotIn("space-provider.example.test", html)
+        self.assertNotIn("private-model", html)
+        self.assertNotIn("openai_compatible", html)
+        self.assertNotIn("text_generate", html)
+
+        self.client.force_login(self.member)
+        self.assertEqual(
+            self.client.get(
+                self.url("organizations:space-interoperability")
+            ).status_code,
+            404,
+        )
+
+        platform = User.objects.create_user(
+            username="ws4-interoperability-platform",
+            email="ws4-interoperability-platform@test.local",
+            password="x",
+        )
+        grant_platform_role(
+            profile=platform,
+            role=SystemRoleCode.PLATFORM_ADMIN,
+            granted_by=platform,
+        )
+        self.client.force_login(platform)
+        self.assertEqual(
+            self.client.get(
+                self.url("organizations:space-interoperability")
+            ).status_code,
+            404,
+        )
+
+    def test_space_interoperability_empty_is_not_permission_denied(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            self.url("organizations:space-interoperability")
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucune connexion configurée pour ce Space.")
 
     def test_relationships_preserve_kinds_and_same_profile_is_not_merged(self):
         Group.objects.create(
