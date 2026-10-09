@@ -86,6 +86,8 @@ void main() {
     await tester.tap(find.text('Voyage Lubumbashi → Kolwezi'));
     await tester.pump();
     expect(opened, 'access-1');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 
   testWidgets('purchased for other keeps the holder relationship explicit', (
@@ -130,5 +132,7 @@ void main() {
 
     expect(find.text('Programme Comptabilité'), findsOneWidget);
     expect(find.textContaining('Pour Benoît Mulumba'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
   });
 }
