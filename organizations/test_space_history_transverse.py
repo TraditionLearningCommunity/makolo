@@ -52,10 +52,19 @@ class SpaceHistoryPermissionTests(TestCase):
             end_at=now - timedelta(days=2, hours=-2),
             status=OccurrenceStatus.COMPLETED,
         )
+        # An undated legacy row cannot be created through the current
+        # Occurrence service validation; emulate only the historical stored
+        # state without weakening runtime validation.
         self.undated = Occurrence.objects.create(
             activity=self.activity, label="Sans date historique",
+            start_at=now - timedelta(days=3),
             status=OccurrenceStatus.COMPLETED,
         )
+        Occurrence.objects.filter(pk=self.undated.pk).update(
+            start_date=None, start_time=None, end_date=None,
+            end_time=None, start_at=None, end_at=None,
+        )
+        self.undated.refresh_from_db()
         self.client = APIClient()
         self.url = "/api/v1/organizations/workspaces/history-space/history/"
 
