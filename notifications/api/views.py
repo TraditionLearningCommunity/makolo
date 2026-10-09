@@ -6,7 +6,7 @@ from core.api.privacy import PrivateNoStoreMixin
 
 from notifications.models import Notification
 from notifications.push import register_push_endpoint, revoke_push_endpoint
-from notifications.selectors import get_notifications_for_user
+from notifications.selectors import get_notifications_for_user, has_unread_notifications
 
 from .serializers import (
     NotificationSerializer,
@@ -34,6 +34,13 @@ class NotificationDetailAPIView(PrivateNoStoreMixin, generics.RetrieveAPIView):
 
     def get_queryset(self):
         return get_notifications_for_user(self.request.user)
+
+
+class NotificationUnreadPresenceAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return response.Response({"has_unread": has_unread_notifications(request.user)})
 
 
 class NotificationUnreadCountAPIView(PrivateNoStoreMixin, views.APIView):
