@@ -9,6 +9,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/continuity/continuity_routes.dart';
 import '../features/continuity/personal_owner_depth_screen.dart';
+import '../features/continuity/space_retrieval_owner_screen.dart';
 import '../features/continuity/transverse_retrieval_screen.dart';
 import '../features/day_of/day_of_routes.dart';
 import '../features/live/live_routes.dart';
@@ -78,6 +79,9 @@ GoRouter createMakoloRouter(
       '/occurrences/',
       '/space/occurrences/',
       '/space/relationships',
+      '/space/history',
+      '/space/search',
+      '/space/',
       '/space/pilot',
       '/accesses/',
       '/conversations/',
@@ -302,6 +306,31 @@ GoRouter createMakoloRouter(
         },
       ),
       ...accessRoutes(runtime),
+      GoRoute(
+        path: '/space/:slug/retrieval/:kind/:id',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          final slug = state.pathParameters['slug']!;
+          final kind = state.pathParameters['kind']!;
+          const allowed = {
+            'activity', 'occurrence', 'commerce_order',
+            'team_member', 'group', 'crm_contact', 'audience', 'partner',
+          };
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != slug || !allowed.contains(kind)) {
+            return const MakoloSecondaryScreen(
+              title: 'Détail Space',
+              message: 'Ce détail n’est pas disponible dans ce contexte.',
+            );
+          }
+          return SpaceRetrievalOwnerScreen(
+            runtime: runtime,
+            spaceActor: actor,
+            kind: kind,
+            id: state.pathParameters['id']!,
+          );
+        },
+      ),
       GoRoute(
         path: '/space/:slug/us/relationships',
         builder: (context, state) {

@@ -409,20 +409,38 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     }
   }
 
-  void _open(Map<String, dynamic> item) {
-    if (_isSpace || !_actorValid) return;
+  static const _spaceKinds = <String>{
+    'activity', 'occurrence', 'commerce_order',
+    'team_member', 'group', 'crm_contact', 'audience', 'partner',
+  };
+
+  bool _canOpen(Map<String, dynamic> item) {
     final source = item['source'];
-    if (source is! Map) return;
-    final id = source['id']?.toString();
-    if (id == null) return;
-    if (source['kind'] == 'journey') {
-      context.push('/journeys/$id');
-    } else if (source['kind'] == 'access') {
-      context.push('/accesses/$id');
-    } else if (source['kind'] == 'personal_asset') {
-      context.push('/me/resources/$id');
-    } else if (source['kind'] == 'group') {
-      context.push('/groups/$id');
+    if (source is! Map || source['id'] == null) return false;
+    final kind = source['kind']?.toString();
+    if (_isSpace) return _spaceKinds.contains(kind);
+    return {'journey', 'access', 'personal_asset', 'group'}.contains(kind);
+  }
+
+  void _open(Map<String, dynamic> item) {
+    if (!_actorValid || !_canOpen(item)) return;
+    final source = item['source'] as Map;
+    final id = Uri.encodeComponent(source['id'].toString());
+    final kind = source['kind'].toString();
+    if (_isSpace) {
+      context.push(
+        '/space/${Uri.encodeComponent(widget.spaceActor!.space.slug)}'
+        '/retrieval/${Uri.encodeComponent(kind)}/$id',
+      );
+    } else {
+      final path = switch (kind) {
+        'journey' => '/journeys/$id',
+        'access' => '/accesses/$id',
+        'personal_asset' => '/me/resources/$id',
+        'group' => '/groups/$id',
+        _ => null,
+      };
+      if (path != null) context.push(path);
     }
   }
 
@@ -496,28 +514,14 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                             if (rows[index]['historical'] == true)
                               'Historique',
                           ].where((label) => label.isNotEmpty).join(' · ')),
-                          trailing: (large || (!_isSpace &&
-                                  (rows[index]['source'] as Map?)?['kind'] == 'journey') ||
-                                  (!_isSpace &&
-                                      (rows[index]['source'] as Map?)?['kind'] == 'access') ||
-                                  (!_isSpace &&
-                                      (rows[index]['source'] as Map?)?['kind'] == 'personal_asset') ||
-                                  (!_isSpace &&
-                                      (rows[index]['source'] as Map?)?['kind'] == 'group'))
+                          trailing: _canOpen(rows[index])
                               ? const Icon(Icons.chevron_right)
                               : null,
                           onTap: large
                               ? () => setState(() => _selected = index)
-                              : (!_isSpace && {
-                                  'journey',
-                                  'access',
-                                  'personal_asset',
-                                  'group',
-                                }.contains(
-                                  (rows[index]['source'] as Map?)?['kind'],
-                                ))
-                              ? () => _open(rows[index])
-                              : null,
+                              : _canOpen(rows[index])
+                                  ? () => _open(rows[index])
+                                  : null,
                         ),
                       if (_more)
                         OutlinedButton(
@@ -550,7 +554,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(selected['relation']?.toString() ?? ''),
-                          if (!_isSpace)
+                          if (_canOpen(selected))
                             TextButton(
                               onPressed: () => _open(selected),
                               child: const Text('Ouvrir chez le propriétaire'),
