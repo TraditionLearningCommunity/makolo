@@ -28,6 +28,7 @@ from readiness.selectors import readiness_queryset
 from tickets.models import TransferStatus, WaitlistStatus
 from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entries_visible_to
 
+from core.api.now_composition_projection import dossier_dependency_now_situations
 from core.home_presentation import resolve_mature_home_contextual_actions
 from core.participant_selectors import participant_active_accesses, participant_active_journeys
 from core.personal_surface_orchestration import (
@@ -538,6 +539,25 @@ def build_personal_now_projection(profile, *, observed_at=None):
             item["media_bindings"] = list(media)
 
     serialized_items = [item for _, item in items]
+    for composed in dossier_dependency_now_situations(profile, observed_at=observed_at):
+        # Upgrade an already displayed generic Dossier blocker when the
+        # owner's exact visible dependency explains it more precisely. Never
+        # replace an action or the privacy-safe hidden-influence signal.
+        replace_at = next(
+            (
+                i
+                for i, existing in enumerate(serialized_items)
+                if existing["source"] == composed["source"]
+                and existing.get("dimension") == "adaptation"
+                and existing.get("kind") != "dossier.hidden_influence"
+                and not existing.get("business_actions")
+            ),
+            None,
+        )
+        if replace_at is None:
+            serialized_items.append(composed)
+        else:
+            serialized_items[replace_at] = composed
     is_empty = not serialized_items
     profile_id = str(profile.pk)
     return {
