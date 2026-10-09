@@ -36,6 +36,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _query = '';
   String _filter = 'all';
   _HistoryView? _remoteHistory;
+  String? _selectedHistoryKey;
   List<StoredProjection> _remotePages = [];
   bool _searching = false;
   bool _searchFailed = false;
@@ -163,7 +164,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
               return _query.isEmpty ||
                   item.title.toLowerCase().contains(_query.toLowerCase());
             }).toList();
-            final first = view.firstPage;
+            final first = view.firstPage ?? _remoteHistory?.firstPage;
+            final wide = MediaQuery.sizeOf(context).width >= 900 &&
+                MediaQuery.textScalerOf(context).scale(16) < 26;
+            _HistoryItem? selected;
+            for (final item in visible) {
+              if ('${item.kind}:${item.id}' == _selectedHistoryKey) {
+                selected = item;
+                break;
+              }
+            }
             final freshness = first == null
                 ? null
                 : HistoryRepository.freshnessPolicy.evaluate(
@@ -220,7 +230,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   label: 'Chargement de l’historique…',
                 ),
                 onRetry: _refreshFirst,
-                content: ListView(
+                content: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: ListView(
                   key: const Key('history-content'),
                   padding: const EdgeInsets.all(MakoloSpacing.inner),
                   children: [
@@ -233,6 +247,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         _query = value.trim();
                         _remoteHistory = null;
                         _remotePages = [];
+                        _selectedHistoryKey = null;
                       }),
                       onSubmitted: (_) => _remoteSearch(),
                     ),
@@ -253,6 +268,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 _filter = filter;
                                 _remoteHistory = null;
                                 _remotePages = [];
+                                _selectedHistoryKey = null;
                               });
                               unawaited(_remoteSearch());
                             },
@@ -287,7 +303,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     for (var index = 0; index < visible.length; index++) ...[
                       _HistoryCard(
                         item: visible[index],
-                        onOpen: widget.onOpenResource,
+                        onOpen: (kind, id) {
+                          if (wide) {
+                            setState(() => _selectedHistoryKey = '$kind:$id');
+                          } else {
+                            widget.onOpenResource(kind, id);
+                          }
+                        },
                       ),
                       if (index < visible.length - 1)
                         const SizedBox(height: MakoloSpacing.sm),
@@ -309,6 +331,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ],
                   ],
                 ),
+              ),
+              if (wide && selected != null) ...[
+                const VerticalDivider(width: 1),
+                Expanded(
+                  flex: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selected.title,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 12),
+                        if (selected.outcome != null) Text(selected.outcome!),
+                        Text(selected.occurredAt ?? 'Date non précisée'),
+                        const SizedBox(height: 20),
+                        if (selected.id != null)
+                          OutlinedButton(
+                            onPressed: () => widget.onOpenResource(
+                              selected!.kind, selected.id!,
+                            ),
+                            child: const Text('Ouvrir chez le propriétaire'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
               ),
             );
           },
