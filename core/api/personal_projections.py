@@ -271,6 +271,40 @@ def _now_response_type(dimension: str) -> str:
     return "act"
 
 
+_NOW_CAPABILITY_LABELS = {
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "leave": "Laisser passer",
+    "acknowledge": "Confirmer la lecture",
+    "respond": "Répondre",
+}
+
+def _now_business_action_payloads(action: ContextualAction, item: dict) -> list[dict]:
+    """Interpret existing owner links; Presentation never grants authority."""
+    owner = item["source"]
+    links = item["links"]
+    result = []
+    for capability in item["capabilities"]:
+        if capability not in links:
+            continue
+        # Only a precisely scoped Profile recognition decision has a
+        # supported bearer-authenticated one-step owner mutation. All other
+        # operations remain focused owner handoffs.
+        direct = (
+            owner["kind"] == "recognition_redemption"
+            and action.kind == "recognition.beneficiary_decision"
+            and capability in {"accept", "decline"}
+        )
+        result.append({
+            "capability": capability,
+            "label": _NOW_CAPABILITY_LABELS.get(capability, action.label),
+            "href": links[capability],
+            "interaction_depth": "direct_now" if direct else "focused",
+            "confirmation_required": direct,
+        })
+    return result
+
+
 def _decorate_now_semantics(
     action: ContextualAction,
     item: dict,
@@ -334,19 +368,7 @@ def _decorate_now_semantics(
             "attention": {
                 "level": "near" if dimension == "adaptation" else "foreground",
             },
-            "business_actions": [
-                {
-                    "capability": capability,
-                    "label": action.label,
-                    "href": links[capability],
-                    # No generic mutation is executed from Now. The owner
-                    # performs the action with its own permissions and
-                    # confirmation; this is a focused owner handoff.
-                    "interaction_depth": "focused",
-                }
-                for capability in item["capabilities"]
-                if capability in links
-            ],
+            "business_actions": _now_business_action_payloads(action, item),
             "handoffs": [
                 {
                     "type": "owner",
