@@ -179,7 +179,8 @@ class AchievementDefinitionAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE) and not (obj and obj.grants.exists())
     def has_delete_permission(self, request, obj=None):
-        return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE) and not (obj and obj.grants.exists())
+        # No generic/bulk deletion of published economy definitions.
+        return False
 
 
 @admin.register(RewardDefinition)
@@ -191,4 +192,5 @@ class RewardDefinitionAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE) and not (obj and obj.redemptions.exists())
     def has_delete_permission(self, request, obj=None):
-        return _allowed(request, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE) and not (obj and obj.redemptions.exists())
+        # Definitions are versioned and may be referenced by historic redemptions.
+        return False
