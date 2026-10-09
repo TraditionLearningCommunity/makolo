@@ -18,12 +18,14 @@ class NowInlineMediaPreview extends StatefulWidget {
     required this.api,
     required this.profileId,
     required this.placeholder,
+    this.temporaryDirectory,
   });
 
   final NowMediaBindingPresentation media;
   final MakoloApiClient api;
   final String profileId;
   final Widget placeholder;
+  final Directory? temporaryDirectory;
 
   @override
   State<NowInlineMediaPreview> createState() => _NowInlineMediaPreviewState();
@@ -70,7 +72,8 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
 
     File? downloaded;
     try {
-      final base = await ProfilePaths.reconstructibleCache(widget.profileId);
+      final base = widget.temporaryDirectory ??
+          await ProfilePaths.reconstructibleCache(widget.profileId);
       final directory = Directory('${base.path}/now-previews');
       await directory.create(recursive: true);
       downloaded = File(
