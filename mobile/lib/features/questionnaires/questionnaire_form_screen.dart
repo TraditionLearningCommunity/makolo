@@ -309,10 +309,11 @@ class _FormContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(MakoloSpacing.inner),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      children: [
+    return MakoloReadingWidth(
+      child: ListView(
+        padding: const EdgeInsets.all(MakoloSpacing.inner),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: [
         if (detail.description != null) ...[
           Text(
             detail.description!,
