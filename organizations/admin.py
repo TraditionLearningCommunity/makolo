@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from core.admin_boundaries import TechnicalReadOnlyAdmin
+
 from .models import (
     Organization,
     OrganizationFollow,
@@ -14,6 +16,12 @@ class ReadOnlyCompatibilityInline(admin.TabularInline):
     can_delete = False
 
     def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False
 
 
@@ -45,7 +53,7 @@ class OrganizationFollowInline(ReadOnlyCompatibilityInline):
 
 
 @admin.register(Organization)
-class OrganizationAdmin(admin.ModelAdmin):
+class OrganizationAdmin(TechnicalReadOnlyAdmin):
     list_display = ("name", "archetype", "verification_status", "public_profile", "created_by", "created_at")
     list_filter = ("archetype", "verification_status", "public_profile", "created_at")
     search_fields = ("name", "slug", "contact_email", "created_by__email")
@@ -61,7 +69,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 
 @admin.register(Team)
-class TeamAdmin(admin.ModelAdmin):
+class TeamAdmin(TechnicalReadOnlyAdmin):
     list_display = ("name", "organization", "is_default", "is_active", "created_at")
     list_filter = ("is_default", "is_active", "created_at")
     search_fields = ("name", "organization__name", "organization__slug")
@@ -76,7 +84,7 @@ class TeamAdmin(admin.ModelAdmin):
 
 
 @admin.register(TeamMembership)
-class TeamMembershipAdmin(admin.ModelAdmin):
+class TeamMembershipAdmin(TechnicalReadOnlyAdmin):
     list_display = ("team", "user", "status", "invited_by", "joined_at")
     list_filter = ("status", "team__organization", "joined_at")
     search_fields = (
@@ -96,7 +104,7 @@ class TeamMembershipAdmin(admin.ModelAdmin):
 
 
 @admin.register(OrganizationMembership)
-class OrganizationMembershipAdmin(admin.ModelAdmin):
+class OrganizationMembershipAdmin(TechnicalReadOnlyAdmin):
     """Read-only compatibility projection; authority lives in Mandate."""
 
     list_display = ("organization", "user", "role", "is_active", "joined_at")
@@ -113,7 +121,7 @@ class OrganizationMembershipAdmin(admin.ModelAdmin):
 
 
 @admin.register(OrganizationFollow)
-class OrganizationFollowAdmin(admin.ModelAdmin):
+class OrganizationFollowAdmin(TechnicalReadOnlyAdmin):
     list_display = ("organization", "user", "notify_new_events", "email_new_events", "notify_announcements", "email_announcements", "followed_at")
     list_filter = ("notify_new_events", "email_new_events", "notify_announcements", "email_announcements", "followed_at")
     search_fields = ("organization__name", "user__email", "user__username")
