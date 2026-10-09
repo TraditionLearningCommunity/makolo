@@ -1,3 +1,5 @@
+import '../features/continuity/transverse_retrieval_screen.dart';
+
 import 'dart:async';
 
 import 'package:go_router/go_router.dart';
@@ -374,7 +376,8 @@ GoRouter createMakoloRouter(
           runtime.recovery.rememberLocation(state.uri.toString());
           return const MakoloSecondaryScreen(
             title: 'Makolo',
-            message: 'Aucun d├®tail suppl├®mentaire ├á afficher pour le moment.',
+            message:
+                'Aucun d├®tail suppl├®mentaire ├á afficher pour le moment.',
           );
         },
       ),

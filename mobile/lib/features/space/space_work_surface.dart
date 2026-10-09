@@ -33,13 +33,30 @@ class SpaceWorkSurface extends StatelessWidget {
         ),
       );
     }
-    if (visible.isEmpty) return _message(emptyMessage);
 
     return ListView(
       key: const Key('space-work-projection'),
       padding: const EdgeInsets.all(MakoloSpacing.lg),
       children: [
         Text(label, style: Theme.of(context).textTheme.headlineSmall),
+        Wrap(
+          spacing: MakoloSpacing.sm,
+          runSpacing: MakoloSpacing.sm,
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.search),
+              label: const Text('Rechercher'),
+              onPressed: () => context.push('/space/search'),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.history),
+              label: const Text('Historique'),
+              onPressed: () => context.push('/space/history'),
+            ),
+          ],
+        ),
+        const SizedBox(height: MakoloSpacing.md),
+        if (visible.isEmpty) Text(emptyMessage),
         const SizedBox(height: MakoloSpacing.lg),
         for (final section in visible) ...[
           Text(

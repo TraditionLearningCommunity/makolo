@@ -210,99 +210,6 @@ class _SpaceProjectionBody extends StatelessWidget {
     );
   }
 
-  Widget _workBody(BuildContext context, Map<String, dynamic> payload) {
-    final sections = payload['sections'];
-    if (sections is! Map) {
-      return _message('Cette vue nÔÇÖest pas disponible pour le moment.');
-    }
-    const labels = <String, String>{
-      'preparation': '├Ç pr├®parer',
-      'upcoming': '├Ç venir',
-      'active': 'En cours',
-      'blocked': 'Bloqu├®s',
-      'completed': 'Termin├®s',
-    };
-    final rows = <MapEntry<String, int>>[];
-    final activeOccurrences = <Map<String, dynamic>>[];
-    for (final entry in labels.entries) {
-      final section = sections[entry.key];
-      final items = section is Map ? section['items'] : null;
-      if (items is List && items.isNotEmpty) {
-        rows.add(MapEntry(entry.value, items.length));
-        if (entry.key == 'active') {
-          for (final item in items.whereType<Map>()) {
-            final row = Map<String, dynamic>.from(item);
-            final capabilities = row['capabilities'];
-            final source = row['source'];
-            if (source is Map &&
-                source['kind'] == 'occurrence' &&
-                capabilities is List &&
-                capabilities.contains('open_day_of')) {
-              activeOccurrences.add(row);
-            }
-          }
-        }
-      }
-    }
-    return ListView(
-      key: const Key('space-work-projection'),
-      padding: const EdgeInsets.all(MakoloSpacing.lg),
-      children: [
-        Wrap(
-          spacing: MakoloSpacing.sm,
-          runSpacing: MakoloSpacing.sm,
-          children: [
-            OutlinedButton.icon(
-              icon: const Icon(Icons.search),
-              label: const Text('Rechercher'),
-              onPressed: () => context.push('/space/search'),
-            ),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.history),
-              label: const Text('Historique'),
-              onPressed: () => context.push('/space/history'),
-            ),
-          ],
-        ),
-        if (rows.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: MakoloSpacing.md),
-            child: Text('Aucune activit├® ├á afficher pour le moment.'),
-          ),
-        for (final row in rows)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(row.key),
-            trailing: Text('${row.value}'),
-          ),
-        if (activeOccurrences.isNotEmpty) ...[
-          const Divider(height: MakoloSpacing.xl),
-          const Text(
-            'Occurrences ├á op├®rer maintenant',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-          for (final item in activeOccurrences)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                item['title'] is String
-                    ? item['title'] as String
-                    : 'Occurrence',
-              ),
-              subtitle: const Text('Ouvrir le Jour J Space'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                final source = item['source'];
-                if (source is Map && source['id'] is String) {
-                  context.push('/space/occurrences/${source['id']}/day-of');
-                }
-              },
-            ),
-        ],
-      ],
-    );
-  }
-
   Widget _usBody(BuildContext context, Map<String, dynamic> payload) {
     final identity = _map(payload['identity']);
     final name = _text(identity?['name']) ?? fallbackSpaceName;
@@ -398,8 +305,7 @@ class _SpaceProjectionBody extends StatelessWidget {
           _usSection(
             context,
             title: 'Ownership',
-            description:
-                'Une responsabilit├® institutionnelle distincte de lÔÇÖ├®quipe.',
+            description: 'Une responsabilit├® institutionnelle distincte de lÔÇÖ├®quipe.',
             child: _usRows(ownershipItems, empty: ''),
           ),
         if (!limited && handoffs?['ownership'] is String)

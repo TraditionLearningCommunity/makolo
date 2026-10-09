@@ -1,8 +1,9 @@
+import '../../design/makolo_patterns.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -454,12 +455,13 @@ class _QuestionField extends StatelessWidget {
                   ButtonSegment<bool>(value: true, label: Text('Oui')),
                   ButtonSegment<bool>(value: false, label: Text('Non')),
                 ],
-                selected: value is bool ? <bool>{value as bool} : const <bool>{},
+                selected: value is bool
+                    ? <bool>{value as bool}
+                    : const <bool>{},
                 emptySelectionAllowed: true,
                 onSelectionChanged: enabled
-                    ? (selected) => onChanged(
-                        selected.isEmpty ? null : selected.first,
-                      )
+                    ? (selected) =>
+                          onChanged(selected.isEmpty ? null : selected.first)
                     : null,
               ),
               if (error != null)
@@ -543,12 +545,12 @@ class _ChoiceField extends StatelessWidget {
                 value: selected.contains(choice),
                 onChanged: enabled
                     ? (checked) {
-                  final next = Set<String>.from(selected);
-                  if (checked == true) {
-                    next.add(choice);
-                  } else {
-                    next.remove(choice);
-                  }
+                        final next = Set<String>.from(selected);
+                        if (checked == true) {
+                          next.add(choice);
+                        } else {
+                          next.remove(choice);
+                        }
                         onChanged(next);
                       }
                     : null,
@@ -634,7 +636,6 @@ class _DateField extends StatelessWidget {
     );
   }
 }
-
 
 String _requestStateLabel(QuestionnaireRequestDetail detail) {
   if (detail.isSubmitted) return 'Confirmé';

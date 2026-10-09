@@ -1,3 +1,5 @@
+import 'fakes.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/providers.dart';
@@ -95,71 +97,72 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('Profile Connexions keeps scopes isolated and humanizes capabilities', (
-    tester,
-  ) async {
-    final database = MakoloDatabase.memory();
-    final runtime = await _runtimeWithPayload(
-      _payload(
-        connections: [
-          {
-            'id': 'profile-connection',
-            'scope': 'profile',
-            'owner': 'intelligence',
-            'provider_protocol': 'openai_compatible',
-            'display_name': 'Mon service',
-            'available': true,
-            'connected': true,
-            'usable': true,
-            'manageable': true,
-            'enabled': true,
-            'status': 'connected',
-            'health': 'healthy',
-            'capabilities': ['text_generate'],
-            'permissions': {'use': true, 'manage': true},
-            'encrypted_secret': 'never-render-me',
-          },
-          {
-            'id': 'space-connection',
-            'scope': 'space',
-            'owner': 'intelligence',
-            'provider_protocol': 'openai_compatible',
-            'display_name': 'Service Espace',
-            'available': true,
-            'connected': true,
-            'usable': true,
-            'manageable': true,
-            'enabled': true,
-            'status': 'connected',
-            'health': 'healthy',
-            'capabilities': ['text_generate'],
-            'permissions': {'use': true, 'manage': true},
-          },
-        ],
-      ),
-      database: database,
-    );
+  testWidgets(
+    'Profile Connexions keeps scopes isolated and humanizes capabilities',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      final runtime = await _runtimeWithPayload(
+        _payload(
+          connections: [
+            {
+              'id': 'profile-connection',
+              'scope': 'profile',
+              'owner': 'intelligence',
+              'provider_protocol': 'openai_compatible',
+              'display_name': 'Mon service',
+              'available': true,
+              'connected': true,
+              'usable': true,
+              'manageable': true,
+              'enabled': true,
+              'status': 'connected',
+              'health': 'healthy',
+              'capabilities': ['text_generate'],
+              'permissions': {'use': true, 'manage': true},
+              'encrypted_secret': 'never-render-me',
+            },
+            {
+              'id': 'space-connection',
+              'scope': 'space',
+              'owner': 'intelligence',
+              'provider_protocol': 'openai_compatible',
+              'display_name': 'Service Espace',
+              'available': true,
+              'connected': true,
+              'usable': true,
+              'manageable': true,
+              'enabled': true,
+              'status': 'connected',
+              'health': 'healthy',
+              'capabilities': ['text_generate'],
+              'permissions': {'use': true, 'manage': true},
+            },
+          ],
+        ),
+        database: database,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: ProfileConnectionsScreen(runtime: runtime),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: ProfileConnectionsScreen(runtime: runtime),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
-    expect(find.text('Mon service'), findsOneWidget);
-    expect(find.textContaining('Connecté et disponible'), findsOneWidget);
-    expect(find.textContaining('Génération de texte'), findsOneWidget);
-    expect(find.text('Service Espace'), findsNothing);
-    expect(find.textContaining('never-render-me'), findsNothing);
-    expect(find.textContaining('openai_compatible'), findsNothing);
-    expect(find.textContaining('text_generate'), findsNothing);
-    expect(find.textContaining('Déconnecter'), findsNothing);
+      expect(find.text('Mon service'), findsOneWidget);
+      expect(find.textContaining('Connecté et disponible'), findsOneWidget);
+      expect(find.textContaining('Génération de texte'), findsOneWidget);
+      expect(find.text('Service Espace'), findsNothing);
+      expect(find.textContaining('never-render-me'), findsNothing);
+      expect(find.textContaining('openai_compatible'), findsNothing);
+      expect(find.textContaining('text_generate'), findsNothing);
+      expect(find.textContaining('Déconnecter'), findsNothing);
 
-    await _unmount(tester);
-  });
+      await _unmount(tester);
+    },
+  );
 
   testWidgets('Profile Connexions preserves distinct connection states', (
     tester,
@@ -371,9 +374,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('offline without cache degrades only Connexions', (
-    tester,
-  ) async {
+  testWidgets('offline without cache degrades only Connexions', (tester) async {
     final database = MakoloDatabase.memory();
     final store = ProfileStore(database, 'profile-a');
     final runtime = _runtimeWithStore(store, database);

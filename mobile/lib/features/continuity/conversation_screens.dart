@@ -130,53 +130,6 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
               appBar: AppBar(
                 title: const Text('Conversations'),
                 actions: [
-                  PopupMenuButton<String>(
-                    tooltip: 'État personnel',
-                    onSelected: (action) =>
-                        _updatePersonalState(action, detail.personalState),
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'pin',
-                        child: Text(
-                          detail.personalState.pinned
-                              ? 'Retirer l’épingle'
-                              : 'Épingler pour moi',
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'mute',
-                        child: Text(
-                          detail.personalState.muted
-                              ? 'Réactiver les signaux'
-                              : 'Mettre les signaux en sourdine',
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'revisit',
-                        child: Text(
-                          detail.personalState.revisit
-                              ? 'Retirer le rappel de revisite'
-                              : 'Revoir plus tard',
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'archive',
-                        child: Text(
-                          detail.personalState.archived
-                              ? 'Retirer de mes archives'
-                              : 'Archiver pour moi',
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'hide',
-                        child: Text(
-                          detail.personalState.hidden
-                              ? 'Afficher de nouveau'
-                              : 'Masquer pour moi',
-                        ),
-                      ),
-                    ],
-                  ),
                   IconButton(
                     tooltip: 'Actualiser',
                     onPressed: _refreshing ? null : _refresh,
@@ -560,6 +513,53 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
               appBar: AppBar(
                 title: const Text('Conversation'),
                 actions: [
+                  PopupMenuButton<String>(
+                    tooltip: 'État personnel',
+                    onSelected: (action) =>
+                        _updatePersonalState(action, detail.personalState),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'pin',
+                        child: Text(
+                          detail.personalState.pinned
+                              ? 'Retirer l’épingle'
+                              : 'Épingler pour moi',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'mute',
+                        child: Text(
+                          detail.personalState.muted
+                              ? 'Réactiver les signaux'
+                              : 'Mettre les signaux en sourdine',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'revisit',
+                        child: Text(
+                          detail.personalState.revisit
+                              ? 'Retirer le rappel de revisite'
+                              : 'Revoir plus tard',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'archive',
+                        child: Text(
+                          detail.personalState.archived
+                              ? 'Retirer de mes archives'
+                              : 'Archiver pour moi',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'hide',
+                        child: Text(
+                          detail.personalState.hidden
+                              ? 'Afficher de nouveau'
+                              : 'Masquer pour moi',
+                        ),
+                      ),
+                    ],
+                  ),
                   IconButton(
                     tooltip: 'Actualiser',
                     onPressed: _refreshing ? null : _refresh,
