@@ -342,7 +342,7 @@ class PlatformSubscriptionsView(PlatformView):
             )
         if context["review_allowed"]:
             from subscriptions.transition_models import SubscriptionRequirementAssessment
-            from subscriptions.contracts import RequirementAssessmentState, RequirementMode
+            from requirements.contracts import RequirementAssessmentState, RequirementMode
             context["subscription_reviews"] = (
                 SubscriptionRequirementAssessment.objects.filter(
                     plan_requirement__mode=RequirementMode.REVIEW,
