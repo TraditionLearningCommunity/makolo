@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.models import User
+from accounts.models import User, UserProfile
 from activities.models import Activity
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
@@ -200,6 +200,26 @@ class WS4SpaceWebTests(TestCase):
             encrypted_secret="space-secret-ciphertext",
             key_hint="space-key-hint",
         )
+        owner_profile, _ = UserProfile.objects.get_or_create(user=self.owner)
+        self._foreign_profile_connection = ProviderConnection.objects.create(
+            name="Connexion Profile privée",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://profile-provider.example.test/v1",
+            default_model="profile-model",
+            scope=ProviderScope.PROFILE,
+            profile=owner_profile,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
+        self._foreign_platform_connection = ProviderConnection.objects.create(
+            name="Connexion Platform privée",
+            protocol=ProviderProtocol.OPENAI_COMPATIBLE,
+            base_url="https://platform-provider.example.test/v1",
+            default_model="platform-model",
+            scope=ProviderScope.PLATFORM,
+            enabled=True,
+            health_status=ProviderHealth.HEALTHY,
+        )
 
         self.client.force_login(self.owner)
         response = self.client.get(
@@ -210,12 +230,16 @@ class WS4SpaceWebTests(TestCase):
         self.assertEqual(response.context["interoperability"]["context"], "space")
         self.assertContains(response, "Service institutionnel")
         self.assertContains(response, "Connecté et disponible")
+        self.assertContains(response, "Génération de texte")
+        self.assertNotContains(response, "Connexion Profile privée")
+        self.assertNotContains(response, "Connexion Platform privée")
         html = response.content.decode("utf-8")
         self.assertNotIn("space-secret-ciphertext", html)
         self.assertNotIn("space-key-hint", html)
         self.assertNotIn("space-provider.example.test", html)
         self.assertNotIn("private-model", html)
         self.assertNotIn("openai_compatible", html)
+        self.assertNotIn("text_generate", html)
 
         self.client.force_login(self.member)
         self.assertEqual(
