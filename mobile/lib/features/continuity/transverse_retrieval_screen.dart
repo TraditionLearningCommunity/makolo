@@ -94,6 +94,12 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     ).toString();
   }
 
+  String _spaceCachePrefix(SpaceActorContext actor) =>
+      '${actor.space.id}:${SpaceSyncKeys.perspectiveKey(actor.perspective)}:';
+
+  String _spaceCacheKey(SpaceActorContext actor, String query, int offset) =>
+      '${_spaceCachePrefix(actor)}${Uri.encodeComponent(query)}:$offset';
+
   Future<List<Map<String, dynamic>>> _cachedRows(String query) async {
     final store = widget.runtime.store;
     if (store == null || !_actorValid) return [];
@@ -122,6 +128,29 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       }
     } else {
       final actor = widget.spaceActor!;
+      if (widget.history) {
+        final snapshots = await store.readProjections('space.history');
+        final prefix = _spaceCachePrefix(actor);
+        for (final page in snapshots) {
+          if (!page.resourceKey.startsWith(prefix)) continue;
+          final values = page.payload['items'];
+          if (values is! List) continue;
+          for (final value in values.whereType<Map>()) {
+            final item = Map<String, dynamic>.from(value);
+            final source = item['source'];
+            if (source is! Map) continue;
+            rows.add({
+              'source': source,
+              'title': item['title'],
+              'human_type': 'Séance passée',
+              'relation': (item['outcome'] is Map)
+                  ? (item['outcome'] as Map)['label']
+                  : 'Historique',
+              'historical': true,
+            });
+          }
+        }
+      }
       final repository = widget.runtime.space;
       if (repository == null) return [];
       final source = repository.workSource(actor.space, actor.perspective);
@@ -229,6 +258,27 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         (value) => Map<String, dynamic>.from(value),
       ).toList();
       if (!mounted || !_actorValid || version != _version) return;
+      final store = widget.runtime.store;
+      if (widget.history && _isSpace && store != null) {
+        final actor = widget.spaceActor!;
+        if (!more) {
+          final previous = await store.readProjections('space.history');
+          for (final page in previous) {
+            if (page.resourceKey.startsWith(_spaceCachePrefix(actor))) {
+              await store.deleteProjection(
+                'space.history', resourceKey: page.resourceKey,
+              );
+            }
+          }
+        }
+        await store.putProjection(
+          kind: 'space.history',
+          resourceKey: _spaceCacheKey(actor, query, nextOffset),
+          schemaVersion: 1,
+          payload: Map<String, dynamic>.from(payload),
+        );
+      }
+      if (!mounted || !_actorValid || version != _version) return;
       setState(() {
         _remote = _deduplicate(more ? [..._remote, ...items] : items);
         // A current owner result replaces previously synchronized snippets.
@@ -241,6 +291,21 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     } on MakoloApiError catch (error) {
       if (!mounted || version != _version) return;
       final denied = {401, 403, 404}.contains(error.statusCode);
+      if (denied && widget.history && _isSpace) {
+        final store = widget.runtime.store;
+        if (store != null) {
+          final cached = await store.readProjections('space.history');
+          for (final page in cached) {
+            if (page.resourceKey.startsWith(
+              _spaceCachePrefix(widget.spaceActor!),
+            )) {
+              await store.deleteProjection(
+                'space.history', resourceKey: page.resourceKey,
+              );
+            }
+          }
+        }
+      }
       setState(() {
         _failed = true;
         if (denied) {

@@ -97,7 +97,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           builder: (context, sourceSnapshot) {
             final pages = pagesSnapshot.data ?? const [];
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
-            final view = _HistoryView.fromPages(pages);
+            final view = source.invalidated
+                ? _HistoryView.fromPages(const [])
+                : _HistoryView.fromPages(pages);
             final visible = view.items.where((item) {
               if (_filter != 'all' && item.kind != _filter) return false;
               return _query.isEmpty ||
@@ -111,7 +113,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     now: DateTime.now(),
                     invalidated: source.invalidated,
                   );
-            final available = first != null;
+            final available = first != null && !source.invalidated;
             final surface = _surfaceAdapter.adapt(
               projection: ProjectionPresentationModel(
                 available: available,
