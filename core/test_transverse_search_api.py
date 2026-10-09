@@ -126,3 +126,21 @@ class TransverseSearchBoundaryTests(TestCase):
             row.get("owner") in {"team", "crm", "partners"}
             for row in payload["items"]
         ))
+
+    def test_relationship_owner_failure_is_not_reported_as_zero(self):
+        from unittest.mock import patch
+        self.client.force_authenticate(self.owner)
+        url = "/api/v1/organizations/workspaces/search-space/search/"
+        with patch(
+            "organizations.api.space_search_projection."
+            "build_space_relationships_projection",
+            side_effect=TimeoutError(),
+        ):
+            response = self.client.get(url, {"q": "Route"})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["items"])
+        self.assertEqual(response.data["page"]["count_state"], "lower_bound")
+        self.assertIn(
+            "visible_space_relationships",
+            response.data["coverage"]["unavailable_sources"],
+        )

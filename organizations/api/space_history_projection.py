@@ -82,7 +82,14 @@ def build_space_history_projection(
             "context": {"activity": row.activity.title},
             "occurred_at": row.end_at.isoformat(),
             "time_basis": "scheduled_end_of_completed_occurrence",
-            "outcome": {"code": row.status, "label": "Séance passée"},
+            "outcome": {
+                "code": row.status,
+                "label": (
+                    "Départ passé" if space.archetype == "transport_operator"
+                    else "Session passée" if space.archetype == "education"
+                    else "Séance passée"
+                ),
+            },
             "links": {"detail": f"/api/v1/occurrences/{row.pk}/"},
             "capabilities": ["view_detail"],
         }
