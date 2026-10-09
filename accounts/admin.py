@@ -1,8 +1,5 @@
-import csv
-
-from django.contrib import admin, messages
+from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.http import HttpResponse
 from django.utils.html import format_html
 
 from core.admin_boundaries import TechnicalReadOnlyAdmin
@@ -69,6 +66,8 @@ class UserDeviceInline(admin.TabularInline):
 class UserSessionInline(admin.TabularInline):
     model = UserSession
     extra = 0
+    can_delete = False
+    exclude = ("session_key",)
     readonly_fields = (
         "ip_address",
         "started_at",
@@ -84,48 +83,6 @@ class UserSessionInline(admin.TabularInline):
 
     def has_delete_permission(self, request, obj=None):
         return False
-
-
-@admin.action(description="Activate selected users")
-def activate_users(modeladmin, request, queryset):
-    updated = queryset.update(is_active=True)
-    messages.success(request, f"{updated} users activated.")
-
-
-@admin.action(description="Deactivate selected users")
-def deactivate_users(modeladmin, request, queryset):
-    updated = queryset.update(is_active=False)
-    messages.warning(request, f"{updated} users deactivated.")
-
-
-@admin.action(description="Mark email as verified")
-def verify_email(modeladmin, request, queryset):
-    updated = queryset.update(email_verified=True)
-    messages.success(request, f"{updated} email(s) verified.")
-
-
-@admin.action(description="Reset failed login attempts")
-def reset_login_attempts(modeladmin, request, queryset):
-    updated = queryset.update(failed_login_attempts=0, account_locked_until=None)
-    messages.success(request, f"{updated} account(s) unlocked.")
-
-
-@admin.action(description="Export selected users to CSV")
-def export_users_csv(modeladmin, request, queryset):
-    response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = 'attachment; filename="users.csv"'
-    writer = csv.writer(response)
-    writer.writerow(["ID", "Email", "Username", "Phone", "Active", "Date Joined"])
-    for user in queryset:
-        writer.writerow([
-            user.id,
-            user.email,
-            user.username,
-            user.phone,
-            user.is_active,
-            user.date_joined,
-        ])
-    return response
 
 
 @admin.register(User)
@@ -320,6 +277,9 @@ class UserSessionAdmin(TechnicalReadOnlyAdmin):
     )
     search_fields = ("user__email", "ip_address")
     exclude = ("session_key",)
+
+    def get_fields(self, request, obj=None):
+        return tuple(field for field in super().get_fields(request, obj) if field != "session_key")
 
 
 @admin.register(NotificationPreference)
