@@ -158,26 +158,17 @@ def moderate_event(*, event, action, actor, reason):
     if action not in allowed:
         raise ValidationError({"action": "Action de modération invalide."})
 
-    from activities.models import Activity
-    from events.services import cancel_event, update_event
+    from events.services import moderate_event_for_platform
 
-    event = type(event).objects.select_for_update().get(pk=event.pk)
-    event.activity = Activity.objects.select_for_update().get(pk=event.activity_id)
     before = _snapshot_event(event)
     now = timezone.now()
-    if action == "unlist":
-        event = update_event(event=event, actor=actor, visibility=EventVisibility.UNLISTED)
-        outcome = "Événement retiré de la découverte publique."
-    elif action == "private":
-        event = update_event(event=event, actor=actor, visibility=EventVisibility.PRIVATE)
-        outcome = "Événement rendu privé."
-    elif action == "cancel":
-        event = cancel_event(event=event, actor=actor)
-        outcome = "Événement annulé par Operations."
-    else:
-        event = update_event(event=event, actor=actor, visibility=EventVisibility.PUBLIC)
-        outcome = "Visibilité publique restaurée sans changer le statut métier."
-
+    event = moderate_event_for_platform(event=event, actor=actor, action=action)
+    outcome = {
+        "unlist": "Événement retiré de la découverte publique.",
+        "private": "Événement rendu privé.",
+        "cancel": "Événement annulé par Operations.",
+        "restore_public": "Visibilité publique restaurée sans changer le statut métier.",
+    }[action]
     after = _snapshot_event(event)
     ModerationCase.objects.create(
         target_type=ModerationTarget.EVENT,
