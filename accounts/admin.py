@@ -5,6 +5,8 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.http import HttpResponse
 from django.utils.html import format_html
 
+from core.admin_boundaries import TechnicalReadOnlyAdmin
+
 from .models import (
     NotificationPreference,
     User,
@@ -18,12 +20,26 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     extra = 0
     can_delete = False
+    readonly_fields = tuple(field.name for field in UserProfile._meta.fields)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 class NotificationPreferenceInline(admin.StackedInline):
     model = NotificationPreference
     extra = 0
     can_delete = False
+    readonly_fields = tuple(field.name for field in NotificationPreference._meta.fields)
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 class UserDeviceInline(admin.TabularInline):
@@ -40,17 +56,34 @@ class UserDeviceInline(admin.TabularInline):
         "created_at",
     )
 
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 class UserSessionInline(admin.TabularInline):
     model = UserSession
     extra = 0
     readonly_fields = (
-        "session_key",
         "ip_address",
         "started_at",
         "ended_at",
         "active",
     )
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.action(description="Activate selected users")
@@ -145,13 +178,10 @@ class UserAdmin(BaseUserAdmin):
         UserDeviceInline,
         UserSessionInline,
     ]
-    actions = [
-        activate_users,
-        deactivate_users,
-        verify_email,
-        reset_login_attempts,
-        export_users_csv,
-    ]
+    # Bulk activation, email-verification and unlock used raw queryset.update
+    # without owner validation, a reason or audit. Keep single-account technical
+    # fallback only; routine identity assurance belongs to Trust.
+    actions = []
 
     fieldsets = (
         ("Identity", {
@@ -180,6 +210,30 @@ class UserAdmin(BaseUserAdmin):
         ("Metadata", {"classes": ("collapse",), "fields": ("metadata",)}),
         ("Dates", {"fields": ("last_seen", "date_joined", "created_at", "updated_at")}),
     )
+
+    def _technical_superuser(self, request):
+        user = request.user
+        return bool(user.is_authenticated and user.is_active and user.is_staff and user.is_superuser)
+
+    def has_module_permission(self, request):
+        return self._technical_superuser(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._technical_superuser(request)
+
+    def has_add_permission(self, request):
+        return self._technical_superuser(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._technical_superuser(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = tuple(super().get_readonly_fields(request, obj))
+        # Email/phone assurance cannot be awarded as generic account edits.
+        return tuple(dict.fromkeys((*fields, "email_verified", "phone_verified")))
 
     add_fieldsets = (
         (
@@ -239,7 +293,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 @admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
+class UserProfileAdmin(TechnicalReadOnlyAdmin):
     list_display = ("user", "country", "city", "profession", "completion_status", "public_profile")
     list_filter = ("country", "public_profile")
     search_fields = ("user__email", "company_name", "organization_name")
@@ -250,25 +304,26 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 
 @admin.register(UserDevice)
-class UserDeviceAdmin(admin.ModelAdmin):
+class UserDeviceAdmin(TechnicalReadOnlyAdmin):
     list_display = ("user", "device_name", "device_type", "browser", "os", "trusted", "last_used")
     list_filter = ("trusted", "device_type", "os")
     search_fields = ("user__email", "device_name", "ip_address")
 
 
 @admin.register(UserSession)
-class UserSessionAdmin(admin.ModelAdmin):
+class UserSessionAdmin(TechnicalReadOnlyAdmin):
     list_display = ("user", "ip_address", "started_at", "ended_at", "active")
     list_filter = ("active", "started_at")
     readonly_fields = (
-        "session_key", "user", "ip_address", "user_agent", "started_at",
+        "user", "ip_address", "user_agent", "started_at",
         "ended_at", "metadata",
     )
     search_fields = ("user__email", "ip_address")
+    exclude = ("session_key",)
 
 
 @admin.register(NotificationPreference)
-class NotificationPreferenceAdmin(admin.ModelAdmin):
+class NotificationPreferenceAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "user", "email_notifications", "sms_notifications", "push_notifications",
         "marketing_notifications",
