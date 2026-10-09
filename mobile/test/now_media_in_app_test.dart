@@ -58,7 +58,7 @@ void main() {
   ) async {
     final root = await tester.runAsync(
       () => Directory.systemTemp.createTemp('now-preview-test-'),
-    );
+    )!;
     final api = FakeNowMediaApi();
     addTearDown(() async {
       api.close();
@@ -100,7 +100,7 @@ void main() {
   ) async {
     final root = await tester.runAsync(
       () => Directory.systemTemp.createTemp('now-viewer-test-'),
-    );
+    )!;
     final api = FakeNowMediaApi();
     final sharing = FakeNowMediaSharing();
     addTearDown(() async {
