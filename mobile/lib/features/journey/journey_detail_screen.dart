@@ -399,9 +399,10 @@ class _JourneyContent extends StatelessWidget {
         break;
       }
     }
-    if (form != null) {
+    final matchedForm = form;
+    if (matchedForm != null) {
       return FilledButton(
-        onPressed: () => onOpenForm(form),
+        onPressed: () => onOpenForm(matchedForm),
         child: Text(presentation.nextActionLabel ?? 'Continuer'),
       );
     }
@@ -413,9 +414,10 @@ class _JourneyContent extends StatelessWidget {
         break;
       }
     }
-    if (requirement != null) {
+    final matchedRequirement = requirement;
+    if (matchedRequirement != null) {
       return FilledButton(
-        onPressed: () => onOpenRequirement(requirement),
+        onPressed: () => onOpenRequirement(matchedRequirement),
         child: Text(presentation.nextActionLabel ?? 'Continuer'),
       );
     }
