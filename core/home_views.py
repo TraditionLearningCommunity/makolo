@@ -3,6 +3,8 @@ from uuid import UUID
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import NoReverseMatch, reverse
+from django.utils.dateparse import parse_datetime
+from django.utils.formats import date_format
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -149,6 +151,27 @@ def _now_inline_media(item):
     return tuple(result)
 
 
+def _now_horizon(item):
+    value = item.get("horizon")
+    human = _display_value(value, "label", "text")
+    if human:
+        return human
+    if not isinstance(value, dict) or value.get("type") != "temporal":
+        return ""
+    raw = value.get("at")
+    if not isinstance(raw, str):
+        return ""
+    parsed = parse_datetime(raw)
+    if parsed is None or timezone.is_naive(parsed):
+        return ""
+    formatted = date_format(timezone.localtime(parsed), "d/m/Y H:i")
+    return (
+        f"Échéance dépassée : {formatted}"
+        if value.get("state") == "overdue"
+        else f"Échéance : {formatted}"
+    )
+
+
 def _now_web_direct_actions(item):
     """Expose exact owner-issued form targets, never arbitrary POST links."""
     source = item.get("source") or {}
@@ -207,7 +230,7 @@ def _web_now_item(item):
         actionability=item.get("actionability") or "actionable",
         dimension=item.get("dimension"),
         topology=_now_topology(item),
-        horizon=_display_value(item.get("horizon"), "label", "text"),
+        horizon=_now_horizon(item),
         preparation=tuple(x for x in (item.get("makolo_preparation") or ()) if isinstance(x, str) and x.strip()),
         inline_media=_now_inline_media(item),
         direct_actions=_now_web_direct_actions(item),
