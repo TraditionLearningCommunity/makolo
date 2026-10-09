@@ -12,7 +12,7 @@
     </div>
 
     {% if form.errors %}
-    <div class="mb-5 flex gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/[.07] p-4 text-sm text-rose-600 dark:text-rose-300">
+    <div role="alert" aria-live="polite" class="mb-5 flex gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/[.07] p-4 text-sm text-rose-600 dark:text-rose-300">
         <i data-lucide="circle-alert" class="mt-0.5 h-4 w-4 shrink-0"></i><p>Identifiant Makolo, adresse e-mail ou mot de passe incorrect.</p>
     </div>
     {% endif %}
@@ -29,7 +29,7 @@
     <div class="my-6 flex items-center gap-3"><span class="h-px flex-1" style="background:var(--mk-border)"></span><span class="text-[11px] font-semibold uppercase tracking-[.12em]" style="color:var(--mk-subtle)">ou</span><span class="h-px flex-1" style="background:var(--mk-border)"></span></div>
     {% endif %}
 
-    <form method="post" class="space-y-5">
+    <form method="post" class="space-y-5" data-auth-submit-lock>
         {% csrf_token %}
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
         <div>
@@ -38,9 +38,9 @@
         </div>
         <div>
             <div class="mb-2 flex items-center justify-between gap-3"><label for="id_password" class="block text-xs">Mot de passe</label><a href="{% url 'account:password-forgot' %}?email={{ request.GET.login|default:''|urlencode }}{% if next %}&amp;next={{ next|urlencode }}{% endif %}" class="text-xs font-semibold" style="color:var(--mk-brand)">Mot de passe oublié ?</a></div>
-            <div class="relative"><i data-lucide="lock-keyhole" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="id_password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" class="!pl-12"></div>
+            <div class="relative"><i data-lucide="lock-keyhole" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2" style="color:var(--mk-subtle)"></i><input id="id_password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" class="!pl-12 !pr-12"><button type="button" class="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg" aria-label="Afficher le mot de passe" aria-controls="id_password" aria-pressed="false" data-password-toggle="id_password"><i data-lucide="eye" aria-hidden="true" class="h-4 w-4"></i></button></div>
         </div>
-        <button type="submit" class="mk-btn mk-btn-primary min-h-11 w-full"><span>Se connecter</span><i data-lucide="arrow-right" class="h-4 w-4"></i></button>
+        <button type="submit" class="mk-btn mk-btn-primary min-h-11 w-full" data-busy-label="Connexion…"><span data-auth-submit-label>Se connecter</span><i data-lucide="arrow-right" class="h-4 w-4"></i></button>
     </form>
     <p class="mt-6 text-center text-xs" style="color:var(--mk-muted)">Pas encore de compte ? <a href="{% url 'account:register' %}" class="font-bold" style="color:var(--mk-brand)">Créer un compte</a></p>
 </div>
