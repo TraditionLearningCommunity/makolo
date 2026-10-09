@@ -85,7 +85,10 @@ def _now_topology(item):
         isinstance(relation, dict)
         and isinstance(relation.get("kind"), str)
         and relation["kind"].strip()
-        and len(set(relation.get("member_ids") or ()) & member_ids) >= 2
+        and len({
+            value for value in (relation.get("member_ids") or ())
+            if isinstance(value, str) and value in member_ids
+        }) >= 2
         for relation in relations
         if isinstance(relation, dict)
         and isinstance(relation.get("member_ids"), (list, tuple))
