@@ -60,7 +60,7 @@
               <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
             {% endif %}
             <figcaption>{{ media.label }}</figcaption>
-            <a href="{{ media.url }}" download>Enregistrer sur l’appareil</a>
+            <a href="{{ media.download_url }}" download>Enregistrer sur l’appareil</a>
           </figure>
           {% endfor %}
         </div>
@@ -112,7 +112,7 @@
                 {% elif media.kind == "audio" %}
                   <audio src="{{ media.url }}" controls preload="none" aria-label="{{ media.label }}"></audio>
                 {% endif %}
-                <a href="{{ media.url }}" download>Enregistrer {{ media.label }}</a>
+                <a href="{{ media.download_url }}" download>Enregistrer {{ media.label }}</a>
               {% endfor %}
             </div>
           {% endif %}
