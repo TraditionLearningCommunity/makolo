@@ -164,6 +164,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               return _query.isEmpty ||
                   item.title.toLowerCase().contains(_query.toLowerCase());
             }).toList();
+            final chosen = selected;
             final first = view.firstPage ?? _remoteHistory?.firstPage;
             final wide = MediaQuery.sizeOf(context).width >= 900 &&
                 MediaQuery.textScalerOf(context).scale(16) < 26;
@@ -332,7 +333,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ],
                 ),
               ),
-              if (wide && selected != null) ...[
+              if (wide && chosen != null) ...[
                 const VerticalDivider(width: 1),
                 Expanded(
                   flex: 2,
@@ -342,17 +343,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          selected.title,
+                          chosen.title,
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 12),
-                        if (selected.outcome != null) Text(selected.outcome!),
-                        Text(selected.occurredAt ?? 'Date non précisée'),
+                        if (chosen.outcome != null) Text(chosen.outcome!),
+                        Text(chosen.occurredAt ?? 'Date non précisée'),
                         const SizedBox(height: 20),
-                        if (selected.id != null)
+                        if (chosen.id != null)
                           OutlinedButton(
                             onPressed: () => widget.onOpenResource(
-                              selected!.kind, selected.id!,
+                              chosen.kind, chosen.id!,
                             ),
                             child: const Text('Ouvrir chez le propriétaire'),
                           ),
