@@ -57,6 +57,33 @@ void main() {
     );
   });
 
+  test('document reading and original DOCX export use separate owner URLs', () {
+    const original = '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/';
+    const source = NowMediaBindingPresentation(
+      resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',
+      target: NowMediaTarget.situation,
+      purpose: NowMediaPurpose.prepare,
+      kind: NowMediaKind.document,
+      authorized: true,
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      url: original + '?view=text',
+      downloadUrl: original,
+    );
+    expect(nowAuthorizedMediaPath(source), 'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=text');
+    expect(nowAuthorizedOriginalDownloadPath(source), 'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/');
+    expect(nowOriginalDocumentExtension(source), 'docx');
+    const hostile = NowMediaBindingPresentation(
+      resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',
+      target: NowMediaTarget.situation,
+      purpose: NowMediaPurpose.prepare,
+      kind: NowMediaKind.document,
+      authorized: true,
+      url: original + '?view=text',
+      downloadUrl: '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/',
+    );
+    expect(nowAuthorizedOriginalDownloadPath(hostile), isNull);
+  });
+
   test(
     'temporary file suffix is selected by explicitly declared media kind',
     () {
