@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p>Action exceptionnelle de gouvernance Recognition. Une seule Policy peut être traitée ; la simulation et la publication sont déléguées au service propriétaire et auditées. Les décisions concurrentes sont rejetées.</p>
+<p><strong>Policy :</strong> {{ policy.code }} v{{ policy.version }} — {{ policy.get_status_display }}</p>
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {{ form.as_p }}
+    <input type="hidden" name="action" value="{{ action }}">
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ policy.pk }}">
+    <input type="hidden" name="confirm_governance" value="1">
+    <input type="hidden" name="index" value="0">
+    <button class="default" type="submit">Confirmer la décision</button>
+    <a href="{% url 'admin:recognition_recognitionpolicy_changelist' %}">Annuler</a>
+</form>
+{% endblock %}
