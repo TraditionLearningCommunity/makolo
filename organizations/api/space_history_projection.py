@@ -140,10 +140,14 @@ def build_space_history_projection(
                         "label": "Commande annulée",
                     },
                     "links": {
-                        "detail": reverse(
-                            "organizations:console-orders",
-                            kwargs={"slug": space.slug},
-                        )
+                        "detail": (
+                            reverse("organizations:console-orders", kwargs={"slug": space.slug})
+                            + "?q=" + order.reference
+                        ),
+                        "owner_api": reverse(
+                            "organizations_api:workspace-commerce-order-detail",
+                            kwargs={"slug": space.slug, "order_id": order.pk},
+                        ),
                     },
                     "capabilities": ["view_detail"],
                 },
