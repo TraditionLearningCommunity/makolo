@@ -130,6 +130,53 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
               appBar: AppBar(
                 title: const Text('Conversations'),
                 actions: [
+                  PopupMenuButton<String>(
+                    tooltip: 'État personnel',
+                    onSelected: (action) =>
+                        _updatePersonalState(action, detail.personalState),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'pin',
+                        child: Text(
+                          detail.personalState.pinned
+                              ? 'Retirer l’épingle'
+                              : 'Épingler pour moi',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'mute',
+                        child: Text(
+                          detail.personalState.muted
+                              ? 'Réactiver les signaux'
+                              : 'Mettre les signaux en sourdine',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'revisit',
+                        child: Text(
+                          detail.personalState.revisit
+                              ? 'Retirer le rappel de revisite'
+                              : 'Revoir plus tard',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'archive',
+                        child: Text(
+                          detail.personalState.archived
+                              ? 'Retirer de mes archives'
+                              : 'Archiver pour moi',
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'hide',
+                        child: Text(
+                          detail.personalState.hidden
+                              ? 'Afficher de nouveau'
+                              : 'Masquer pour moi',
+                        ),
+                      ),
+                    ],
+                  ),
                   IconButton(
                     tooltip: 'Actualiser',
                     onPressed: _refreshing ? null : _refresh,
@@ -413,6 +460,55 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       // Preserve the local detail.
     } finally {
       if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _updatePersonalState(
+    String action,
+    _ConversationPersonalState state,
+  ) async {
+    try {
+      switch (action) {
+        case 'pin':
+          await widget.repository.updatePersonalState(
+            conversationId: widget.id,
+            pinned: !state.pinned,
+          );
+          break;
+        case 'mute':
+          await widget.repository.updatePersonalState(
+            conversationId: widget.id,
+            mute: !state.muted,
+          );
+          break;
+        case 'archive':
+          await widget.repository.updatePersonalState(
+            conversationId: widget.id,
+            archived: !state.archived,
+          );
+          break;
+        case 'hide':
+          await widget.repository.updatePersonalState(
+            conversationId: widget.id,
+            hidden: !state.hidden,
+          );
+          break;
+        case 'revisit':
+          await widget.repository.updatePersonalState(
+            conversationId: widget.id,
+            revisit: !state.revisit,
+          );
+          break;
+      }
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cet état personnel n’a pas été confirmé. L’état serveur connu est conservé.',
+          ),
+        ),
+      );
     }
   }
 
@@ -922,6 +1018,7 @@ class _ConversationDetail {
     required this.title,
     required this.points,
     required this.essential,
+    required this.personalState,
     this.purpose,
     this.lifecycle,
     this.contextLabel,
@@ -933,6 +1030,7 @@ class _ConversationDetail {
   final String? contextLabel;
   final List<_ConversationPoint> points;
   final List<_ConversationPoint> essential;
+  final _ConversationPersonalState personalState;
 
   factory _ConversationDetail.fromProjection(StoredProjection? projection) {
     if (projection == null) {
@@ -940,6 +1038,7 @@ class _ConversationDetail {
         title: 'Conversation',
         points: [],
         essential: [],
+        personalState: _ConversationPersonalState(),
       );
     }
     final payload = projection.payload;
@@ -957,9 +1056,39 @@ class _ConversationDetail {
       essential: _maps(payload['essential'])
           .map(_ConversationPoint.fromMap)
           .toList(growable: false),
+      personalState: _ConversationPersonalState.fromMap(
+        _map(payload['personal_state']),
+      ),
     );
   }
 }
+
+
+class _ConversationPersonalState {
+  const _ConversationPersonalState({
+    this.muted = false,
+    this.hidden = false,
+    this.archived = false,
+    this.pinned = false,
+    this.revisit = false,
+  });
+
+  final bool muted;
+  final bool hidden;
+  final bool archived;
+  final bool pinned;
+  final bool revisit;
+
+  factory _ConversationPersonalState.fromMap(Map<String, dynamic> row) =>
+      _ConversationPersonalState(
+        muted: row['muted'] == true,
+        hidden: row['hidden'] == true,
+        archived: row['archived'] == true,
+        pinned: row['pinned'] == true,
+        revisit: row['revisit'] == true,
+      );
+}
+
 
 class _ConversationOption {
   const _ConversationOption({required this.id, required this.label});
