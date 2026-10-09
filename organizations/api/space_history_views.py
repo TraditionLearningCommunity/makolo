@@ -38,17 +38,17 @@ class SpaceHistoryAPIView(APIView):
         limit = _bounded_integer(
             request, "limit", default=DEFAULT_LIMIT, minimum=1, maximum=MAX_LIMIT,
         )
-        responsibility = (request.query_params.get("responsibility") or "").strip() or None
-        if responsibility and responsibility != "all":
-            if not responsibility.startswith("mandate:"):
+        responsibility_key = (request.query_params.get("responsibility") or "").strip() or None
+        if responsibility_key not in (None, "all"):
+            if not responsibility_key.startswith("mandate:"):
                 raise NotFound()
             try:
-                UUID(responsibility.removeprefix("mandate:"))
-            except (ValueError, TypeError):
-                raise NotFound() from None
+                UUID(responsibility_key.removeprefix("mandate:"))
+            except ValueError as exc:
+                raise NotFound() from exc
         payload = build_space_history_projection(
             profile=request.user, space=space, query=query,
-            responsibility_key=responsibility,
+            responsibility_key=responsibility_key,
             offset=offset, limit=limit,
         )
         if payload is None:
