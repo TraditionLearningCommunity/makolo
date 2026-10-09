@@ -142,7 +142,7 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                 "lower_bound" if relations_partial or unavailable_sources else "exact"
             ),
             "offset": offset, "limit": limit,
-            "has_more": offset + len(result) < total or relations_partial,
+            "has_more": offset + len(result) < total,
         },
         "coverage": {
             "state": "partial",
