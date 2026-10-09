@@ -200,7 +200,7 @@ class NowWebPresentationTests(SimpleTestCase):
         view = _now_web_context(_response(items=[item])).primary_attention
         self.assertEqual(
             view.inline_media,
-            ({"url": safe, "kind": "pdf", "label": "Document autorisé"},),
+            ({"url": safe, "download_url": safe, "kind": "pdf", "label": "Document autorisé"},),
         )
 
     def test_inline_document_only_accepts_bounded_text_preview(self):
@@ -213,7 +213,8 @@ class NowWebPresentationTests(SimpleTestCase):
             "title": "Document",
             "media_bindings": [
                 {"resource_ref": "file:document", "authorized": True,
-                 "kind": "document", "url": path + "?view=text"},
+                 "kind": "document", "url": path + "?view=text",
+                 "download_url": path},
                 {"resource_ref": "file:unsafe", "authorized": True,
                  "kind": "document", "url": path + "?view=admin"},
             ],
@@ -221,6 +222,7 @@ class NowWebPresentationTests(SimpleTestCase):
         view = _now_web_context(_response(items=[item])).primary_attention
         self.assertEqual(len(view.inline_media), 1)
         self.assertEqual(view.inline_media[0]["url"], path + "?view=text")
+        self.assertEqual(view.inline_media[0]["download_url"], path)
 
     def test_missing_selection_is_unavailable_instead_of_calm(self):
         home = _now_web_context({"items": []})
