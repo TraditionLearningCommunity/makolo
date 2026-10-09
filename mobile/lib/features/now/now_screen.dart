@@ -438,11 +438,13 @@ class _NowSemanticContent extends StatelessWidget {
     required this.situation,
     required this.api,
     required this.profileId,
+    required this.onOpenOwner,
   });
 
   final NowSituationPresentation situation;
   final MakoloApiClient? api;
   final String? profileId;
+  final ValueChanged<StructuredDestination>? onOpenOwner;
 
   @override
   Widget build(BuildContext context) {
@@ -515,13 +517,30 @@ class _NowSemanticContent extends StatelessWidget {
               ),
             ],
           ),
-        if (topology == NowTopology.action)
-          Text(
-            situation.businessActions
-                .firstWhere((action) => action.canDominate)
-                .label,
-            style: theme.textTheme.titleMedium,
+        if (topology == NowTopology.action) ...[
+          const SizedBox(height: MakoloSpacing.md),
+          Builder(
+            builder: (context) {
+              final action = situation.businessActions.firstWhere(
+                (candidate) => candidate.canDominate,
+              );
+              final owner = situation.ownerDestination;
+              final canHandoff = owner != null &&
+                  onOpenOwner != null &&
+                  NowScreen.ownerPathFor(owner) != null;
+              if (!canHandoff) {
+                // A capability label does not confer authority; never
+                // fabricate a direct mutation when no owner route exists.
+                return Text(action.label, style: theme.textTheme.titleMedium);
+              }
+              return FilledButton.icon(
+                onPressed: () => onOpenOwner!(owner),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: Text(action.label),
+              );
+            },
           ),
+        ],
         for (final media in readable)
           if (media != dominantMedia)
             TextButton.icon(
@@ -634,6 +653,7 @@ class _NowPrimarySituation extends StatelessWidget {
                 situation: situation,
                 api: api,
                 profileId: profileId,
+                onOpenOwner: onOpenOwner,
               ),
               if (situation.metadata.isNotEmpty) ...[
                 const SizedBox(height: MakoloSpacing.md),
@@ -644,7 +664,7 @@ class _NowPrimarySituation extends StatelessWidget {
                   ],
                 ),
               ],
-              if (canOpenOwner) ...[
+              if (canOpenOwner && topologyFor(situation) != NowTopology.action) ...[
                 const SizedBox(height: MakoloSpacing.lg),
                 FilledButton(
                   onPressed: () => onOpenOwner!(ownerDestination!),
@@ -788,6 +808,7 @@ class _NowDepth extends StatelessWidget {
               situation: situation,
               api: api,
               profileId: profileId,
+              onOpenOwner: onOpenOwner,
             ),
             if (situation.horizon != null &&
                 topologyFor(situation) == NowTopology.waiting) ...[
@@ -816,7 +837,7 @@ class _NowDepth extends StatelessWidget {
                 ],
               ),
             ],
-            if (canOpenOwner) ...[
+            if (canOpenOwner && topologyFor(situation) != NowTopology.action) ...[
               const SizedBox(height: MakoloSpacing.xl),
               OutlinedButton(
                 onPressed: () => onOpenOwner!(ownerDestination),
