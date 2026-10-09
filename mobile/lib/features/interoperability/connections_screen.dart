@@ -21,14 +21,6 @@ class ProfileConnectionsScreen extends StatefulWidget {
 class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   bool _requestedInitialRefresh = false;
 
-  static const _capabilityLabels = <String, String>{
-    'text_generate': 'Génération de texte',
-    'structured_generate': 'Données structurées',
-    'embed': 'Représentation sémantique',
-    'rerank': 'Classement de résultats',
-    'web_research': 'Recherche sur le Web',
-  };
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -51,21 +43,27 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     }
   }
 
-  String _humanize(String value, {String fallback = 'Service'}) {
-    if (value.trim().isEmpty) return fallback;
+  String _humanize(String value) {
+    if (value.trim().isEmpty) return 'Service';
     final text = value
         .replaceAll('.', ' ')
         .replaceAll('_', ' ')
         .replaceAll('-', ' ')
-        .trim()
-        .replaceAll(RegExp(r'\s+'), ' ');
-    if (text.isEmpty) return fallback;
+        .trim();
+    if (text.isEmpty) return 'Service';
     return text[0].toUpperCase() + text.substring(1);
   }
 
-  String _capabilityLabel(String value) =>
-      _capabilityLabels[value] ??
-      _humanize(value, fallback: 'Capacité disponible');
+  String _capabilityLabel(String value) {
+    return switch (value) {
+      'text_generate' => 'Génération de texte',
+      'structured_generate' => 'Données structurées',
+      'embed' => 'Représentation sémantique',
+      'rerank' => 'Classement de résultats',
+      'web_research' => 'Recherche sur le Web',
+      _ => _humanize(value),
+    };
+  }
 
   String _connectionState(InteroperabilityConnectionProjection connection) {
     if (!connection.enabled || connection.status == 'disabled') {
@@ -84,98 +82,71 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           ? 'Connecté · état à vérifier'
           : 'État à vérifier';
     }
-    if (connection.connected && connection.usable) {
-      return 'Connecté et disponible';
-    }
+    if (connection.usable) return 'Connecté et disponible';
     if (connection.connected) return 'Connecté';
     return connection.available ? 'Disponible' : 'État à vérifier';
   }
 
-  Widget _sectionTitle(BuildContext context, String label) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        top: MakoloSpacing.lg,
-        bottom: MakoloSpacing.sm,
+  Widget _connectionCard(InteroperabilityConnectionProjection connection) {
+    final capabilities = connection.capabilities
+        .map(_capabilityLabel)
+        .join(' · ');
+    return Card(
+      child: ListTile(
+        key: Key('connection-${connection.id}'),
+        leading: const Icon(Icons.link_outlined),
+        title: Text(connection.displayName),
+        subtitle: capabilities.isEmpty
+            ? Text(_connectionState(connection))
+            : Text('${_connectionState(connection)}\n$capabilities'),
+        isThreeLine: capabilities.isNotEmpty,
       ),
-      child: Text(label, style: Theme.of(context).textTheme.titleMedium),
     );
   }
 
-  Widget _connectionRow(InteroperabilityConnectionProjection connection) {
-    final capabilities = connection.capabilities.map(_capabilityLabel).toList();
-    return Column(
-      children: [
-        ListTile(
-          key: Key('connection-${connection.id}'),
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.link_outlined),
-          title: Text(connection.displayName),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_connectionState(connection)),
-              if (capabilities.isNotEmpty) Text(capabilities.join(' · ')),
-            ],
-          ),
+  Widget _providerCard(InteroperabilityProviderProjection provider) {
+    final capabilities = provider.capabilities
+        .map(_capabilityLabel)
+        .join(' · ');
+    return Card(
+      child: ListTile(
+        key: Key('provider-${provider.code}'),
+        leading: const Icon(Icons.extension_outlined),
+        title: const Text('Service disponible'),
+        subtitle: Text(
+          capabilities.isEmpty ? 'Disponible' : 'Disponible · $capabilities',
         ),
-        const Divider(height: 1),
-      ],
+      ),
     );
   }
 
-  Widget _providerRow(InteroperabilityProviderProjection provider) {
-    final capabilities = provider.capabilities.map(_capabilityLabel).toList();
-    return Column(
-      children: [
-        ListTile(
-          key: Key('provider-${provider.code}'),
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.extension_outlined),
-          title: const Text('Service disponible'),
-          subtitle: Text(
-            capabilities.isEmpty
-                ? 'Disponible'
-                : 'Disponible · ${capabilities.join(' · ')}',
-          ),
-        ),
-        const Divider(height: 1),
-      ],
+  Widget _extensionCard(InteroperabilityExtensionProjection extension) {
+    return Card(
+      child: ListTile(
+        key: Key('extension-${extension.code}'),
+        leading: const Icon(Icons.widgets_outlined),
+        title: Text(_humanize(extension.code)),
+        subtitle: const Text('Extension disponible pour votre Profil'),
+      ),
     );
   }
 
-  Widget _extensionRow(InteroperabilityExtensionProjection extension) {
-    return Column(
-      children: [
-        ListTile(
-          key: Key('extension-${extension.code}'),
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.widgets_outlined),
-          title: Text(_humanize(extension.code, fallback: 'Extension')),
-          subtitle: const Text('Disponible'),
+  Widget _actionCard(InteroperabilityActionProjection action) {
+    final available = action.available;
+    return Card(
+      child: ListTile(
+        key: Key('action-${action.code}'),
+        leading: const Icon(Icons.bolt_outlined),
+        title: Text(_humanize(action.code)),
+        subtitle: Text(
+          available
+              ? 'Disponible'
+              : action.requiresConnection
+              ? 'Connexion requise'
+              : 'Indisponible pour le moment',
         ),
-        const Divider(height: 1),
-      ],
-    );
-  }
-
-  Widget _actionRow(InteroperabilityActionProjection action) {
-    final status = action.available
-        ? 'Disponible'
-        : action.requiresConnection
-        ? 'Connexion requise'
-        : 'Indisponible pour le moment';
-    return Column(
-      children: [
-        ListTile(
-          key: Key('action-${action.code}'),
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.bolt_outlined),
-          title: Text(_humanize(action.code, fallback: 'Action')),
-          subtitle: Text(status),
-          enabled: action.available,
-        ),
-        const Divider(height: 1),
-      ],
+        enabled: available,
+      ),
     );
   }
 
@@ -211,12 +182,14 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       return ListView(
         key: const Key('profile-connections-empty'),
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(MakoloSpacing.lg),
         children: [
           _freshnessNotice(context, syncStatus),
-          const MakoloEmptyState(
-            title: 'Aucune connexion pour le moment',
-            body: 'Aucun service n’est encore disponible pour votre Profil.',
+          const SizedBox(
+            height: 520,
+            child: MakoloEmptyState(
+              title: 'Aucune connexion pour le moment',
+              body: 'Aucun service n’est encore disponible pour votre Profil.',
+            ),
           ),
         ],
       );
@@ -237,27 +210,42 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         if (projection.connections.isNotEmpty) ...[
-          _sectionTitle(context, 'Mes connexions'),
-          for (final connection in projection.connections)
-            _connectionRow(connection),
-        ],
-        if (projection.providers.isNotEmpty) ...[
-          _sectionTitle(context, 'Services disponibles'),
+          const SizedBox(height: MakoloSpacing.lg),
           Text(
-            'La disponibilité d’un service ne signifie pas qu’un parcours de connexion est fourni ici.',
-            style: Theme.of(context).textTheme.bodySmall,
+            'Mes connexions',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: MakoloSpacing.sm),
-          for (final provider in projection.providers) _providerRow(provider),
+          for (final connection in projection.connections)
+            _connectionCard(connection),
+        ],
+        if (projection.providers.isNotEmpty) ...[
+          const SizedBox(height: MakoloSpacing.lg),
+          Text(
+            'Services disponibles',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: MakoloSpacing.sm),
+          for (final provider in projection.providers) _providerCard(provider),
         ],
         if (projection.actions.isNotEmpty) ...[
-          _sectionTitle(context, 'Capacités et actions'),
-          for (final action in projection.actions) _actionRow(action),
+          const SizedBox(height: MakoloSpacing.lg),
+          Text(
+            'Capacités et actions',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: MakoloSpacing.sm),
+          for (final action in projection.actions) _actionCard(action),
         ],
         if (projection.extensions.isNotEmpty) ...[
-          _sectionTitle(context, 'Extensions'),
+          const SizedBox(height: MakoloSpacing.lg),
+          Text(
+            'Extensions',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: MakoloSpacing.sm),
           for (final extension in projection.extensions)
-            _extensionRow(extension),
+            _extensionCard(extension),
         ],
       ],
     );
@@ -299,12 +287,13 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             return ListView(
               key: const Key('profile-connections-offline-empty'),
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(MakoloSpacing.lg),
               children: const [
-                MakoloEmptyState(
-                  title: 'Connexions indisponibles hors ligne',
-                  body:
-                      'Aucune copie locale n’est encore disponible. Le reste de Makolo continue de fonctionner.',
+                SizedBox(
+                  height: 520,
+                  child: MakoloEmptyState(
+                    title: 'Connexions indisponibles hors ligne',
+                    body: 'Aucune copie locale n’est encore disponible. Le reste de Makolo continue de fonctionner.',
+                  ),
                 ),
               ],
             );
