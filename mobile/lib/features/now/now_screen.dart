@@ -534,7 +534,7 @@ class _NowSemanticContent extends StatelessWidget {
                 return Text(action.label, style: theme.textTheme.titleMedium);
               }
               return FilledButton.icon(
-                onPressed: () => onOpenOwner!(owner),
+                onPressed: () => onOpenOwner!(owner!),
                 icon: const Icon(Icons.arrow_forward_rounded),
                 label: Text(action.label),
               );
