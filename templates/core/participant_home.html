@@ -75,7 +75,19 @@
           {% for preparation in home.primary_attention.preparation %}<p>{{ preparation }}</p>{% endfor %}
         </div>
       {% endif %}
-      {% if home.primary_attention.url %}<a href="{{ home.primary_attention.url }}" class="mk-now-cta">{{ home.primary_attention.action_label }}</a>{% endif %}
+      {% if home.primary_attention.direct_actions %}
+        <div class="mk-now-business-actions" aria-label="Décision de la situation">
+          {% for action in home.primary_attention.direct_actions %}
+            <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}">
+              {% csrf_token %}
+              <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
+              <output aria-live="polite" role="status"></output>
+            </form>
+          {% endfor %}
+        </div>
+      {% elif home.primary_attention.url %}
+        <a href="{{ home.primary_attention.url }}" class="mk-now-cta">{{ home.primary_attention.action_label }}</a>
+      {% endif %}
     </section>
     {% endif %}
 
@@ -116,7 +128,19 @@
               {% endfor %}
             </div>
           {% endif %}
-          {% if item.url %}<a href="{{ item.url }}">{{ item.action_label }}</a>{% endif %}
+          {% if item.direct_actions %}
+            <div class="mk-now-business-actions" aria-label="Décision de la situation">
+              {% for action in item.direct_actions %}
+                <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}">
+                  {% csrf_token %}
+                  <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
+                  <output aria-live="polite" role="status"></output>
+                </form>
+              {% endfor %}
+            </div>
+          {% elif item.url %}
+            <a href="{{ item.url }}">{{ item.action_label }}</a>
+          {% endif %}
         </article>
       {% endfor %}
     </section>
@@ -128,4 +152,9 @@
     {% endif %}
   {% endif %}
 </div>
+{% endblock %}
+{% block extra_js %}
+  {{ block.super }}
+  {% load static %}
+  <script defer src="{% static 'js/now-owner-actions.js' %}"></script>
 {% endblock %}
