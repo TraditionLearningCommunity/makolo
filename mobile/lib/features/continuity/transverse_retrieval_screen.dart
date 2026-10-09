@@ -367,7 +367,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     } on MakoloApiError catch (error) {
       if (!mounted || version != _version) return;
       final denied = {401, 403, 404}.contains(error.statusCode);
-      if (denied && widget.history && _isSpace) {
+      if (denied && _isSpace) {
         final store = widget.runtime.store;
         if (store != null) {
           final cached = await store.readProjections('space.history');
@@ -380,6 +380,18 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
               );
             }
           }
+          final actor = widget.spaceActor!;
+          await store.deleteProjection(
+            SpaceProjectionKind.work.wireValue,
+            resourceKey: SpaceSyncKeys.resourceKey(
+              actor.space.id,
+              perspective: actor.perspective,
+            ),
+          );
+          await store.deleteProjection(
+            SpaceProjectionKind.relationships.wireValue,
+            resourceKey: SpaceSyncKeys.resourceKey(actor.space.id),
+          );
         }
       }
       setState(() {
