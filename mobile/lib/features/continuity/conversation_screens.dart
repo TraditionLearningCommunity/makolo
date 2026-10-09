@@ -700,6 +700,167 @@ class _PointCardState extends State<_PointCard> {
   }
 }
 
+
+final Object _cancelledResponse = Object();
+
+Future<Object?> _collectResponseValue(
+  BuildContext context,
+  _ConversationPoint point,
+) async {
+  switch (point.responseMode) {
+    case 'boolean':
+      return await showDialog<Object?>(
+            context: context,
+            builder: (context) => SimpleDialog(
+              title: Text(point.title),
+              children: [
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Oui'),
+                ),
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Non'),
+                ),
+              ],
+            ),
+          ) ??
+          _cancelledResponse;
+    case 'single_choice':
+      return await showDialog<Object?>(
+            context: context,
+            builder: (context) => SimpleDialog(
+              title: Text(point.title),
+              children: [
+                for (final option in point.options)
+                  SimpleDialogOption(
+                    onPressed: () => Navigator.pop(context, option.id),
+                    child: Text(option.label),
+                  ),
+              ],
+            ),
+          ) ??
+          _cancelledResponse;
+    case 'multiple_choice':
+      final selected = <String>{};
+      return await showDialog<Object?>(
+            context: context,
+            builder: (context) => StatefulBuilder(
+              builder: (context, setDialogState) => AlertDialog(
+                title: Text(point.title),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final option in point.options)
+                        CheckboxListTile(
+                          value: selected.contains(option.id),
+                          title: Text(option.label),
+                          onChanged: (checked) {
+                            setDialogState(() {
+                              if (checked == true) {
+                                selected.add(option.id);
+                              } else {
+                                selected.remove(option.id);
+                              }
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pop(context, _cancelledResponse),
+                    child: const Text('Annuler'),
+                  ),
+                  FilledButton(
+                    onPressed: selected.isEmpty
+                        ? null
+                        : () => Navigator.pop(
+                              context,
+                              selected.toList(growable: false),
+                            ),
+                    child: const Text('Continuer'),
+                  ),
+                ],
+              ),
+            ),
+          ) ??
+          _cancelledResponse;
+    case 'date':
+      final date = await showDatePicker(
+        context: context,
+        firstDate: DateTime(1900),
+        lastDate: DateTime(2200),
+        initialDate: DateTime.now(),
+      );
+      if (date == null) return _cancelledResponse;
+      return date.toIso8601String().split('T').first;
+    case 'datetime':
+      final date = await showDatePicker(
+        context: context,
+        firstDate: DateTime(1900),
+        lastDate: DateTime(2200),
+        initialDate: DateTime.now(),
+      );
+      if (date == null || !context.mounted) return _cancelledResponse;
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+      );
+      if (time == null) return _cancelledResponse;
+      return DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      ).toUtc().toIso8601String();
+    case 'free_text':
+    case 'number':
+      final controller = TextEditingController();
+      final result = await showDialog<Object?>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(point.title),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: point.responseMode == 'number'
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : TextInputType.multiline,
+            minLines: 1,
+            maxLines: point.responseMode == 'number' ? 1 : 5,
+            decoration: InputDecoration(
+              labelText:
+                  point.responseMode == 'number' ? 'Valeur' : 'Votre réponse',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, _cancelledResponse),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) Navigator.pop(context, value);
+              },
+              child: const Text('Envoyer'),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      return result ?? _cancelledResponse;
+    default:
+      return _cancelledResponse;
+  }
+}
+
+
 class _ConversationSummary {
   const _ConversationSummary({
     required this.id,
@@ -744,10 +905,12 @@ class _ConversationSummary {
   }
 }
 
+
 class _ConversationDetail {
   const _ConversationDetail({
     required this.title,
     required this.points,
+    required this.essential,
     this.purpose,
     this.lifecycle,
     this.contextLabel,
@@ -758,10 +921,15 @@ class _ConversationDetail {
   final String? lifecycle;
   final String? contextLabel;
   final List<_ConversationPoint> points;
+  final List<_ConversationPoint> essential;
 
   factory _ConversationDetail.fromProjection(StoredProjection? projection) {
     if (projection == null) {
-      return const _ConversationDetail(title: 'Conversation', points: []);
+      return const _ConversationDetail(
+        title: 'Conversation',
+        points: [],
+        essential: [],
+      );
     }
     final payload = projection.payload;
     final context = _map(payload['context']);
@@ -775,43 +943,129 @@ class _ConversationDetail {
       points: _maps(payload['points'])
           .map(_ConversationPoint.fromMap)
           .toList(growable: false),
+      essential: _maps(payload['essential'])
+          .map(_ConversationPoint.fromMap)
+          .toList(growable: false),
     );
   }
 }
 
+class _ConversationOption {
+  const _ConversationOption({required this.id, required this.label});
+
+  final String id;
+  final String label;
+
+  factory _ConversationOption.fromMap(Map<String, dynamic> row) =>
+      _ConversationOption(
+        id: _string(row['id']) ?? '',
+        label: _string(row['label']) ?? '',
+      );
+}
+
 class _ConversationPoint {
   const _ConversationPoint({
+    required this.id,
     required this.title,
+    required this.responseMode,
     required this.lifecycle,
     required this.requiresAcknowledgement,
     required this.canRespond,
+    required this.options,
     this.body,
     this.attentionReason,
     this.section,
+    this.resolutionSummary,
   });
 
+  final String id;
   final String title;
+  final String responseMode;
   final String? body;
   final String? lifecycle;
   final bool requiresAcknowledgement;
   final bool canRespond;
+  final List<_ConversationOption> options;
   final String? attentionReason;
   final String? section;
+  final String? resolutionSummary;
+
+  bool get supportsInteractiveResponse => switch (responseMode) {
+        'free_text' ||
+        'boolean' ||
+        'single_choice' ||
+        'multiple_choice' ||
+        'number' ||
+        'date' ||
+        'datetime' =>
+          true,
+        _ => false,
+      };
+
+  String get responseActionLabel => switch (responseMode) {
+        'boolean' => 'Confirmer',
+        'single_choice' || 'multiple_choice' => 'Choisir',
+        'date' || 'datetime' => 'Indiquer',
+        _ => 'Répondre',
+      };
 
   factory _ConversationPoint.fromMap(Map<String, dynamic> row) {
     return _ConversationPoint(
+      id: _string(row['id']) ?? '',
       title: _string(row['title']) ?? 'Point',
+      responseMode: _string(row['response_mode']) ?? 'none',
       body: _string(row['body']),
       lifecycle: MakoloHumanization.presentationLabel(
         _string(row['lifecycle']),
       ),
       requiresAcknowledgement: row['requires_acknowledgement'] == true,
       canRespond: row['can_respond'] == true,
+      options: _maps(row['options'])
+          .map(_ConversationOption.fromMap)
+          .where((option) => option.id.isNotEmpty)
+          .toList(growable: false),
       attentionReason: _string(row['attention_reason']),
       section: _string(row['section']),
+      resolutionSummary: _string(row['resolution_summary']),
     );
   }
 }
+
+class _ConversationInvitation {
+  const _ConversationInvitation({
+    required this.id,
+    required this.conversationId,
+    required this.status,
+    this.expiresAt,
+  });
+
+  final String id;
+  final String conversationId;
+  final String status;
+  final DateTime? expiresAt;
+
+  bool get expired {
+    final value = expiresAt;
+    return status == 'expired' ||
+        (value != null && !DateTime.now().isBefore(value));
+  }
+
+  static List<_ConversationInvitation> fromProjection(
+    StoredProjection? projection,
+  ) =>
+      _maps(projection?.payload['results'])
+          .map(
+            (row) => _ConversationInvitation(
+              id: _string(row['id']) ?? '',
+              conversationId: _string(row['conversation_id']) ?? '',
+              status: _string(row['status']) ?? '',
+              expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
+            ),
+          )
+          .where((item) => item.id.isNotEmpty)
+          .toList(growable: false);
+}
+
 
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) return value;
