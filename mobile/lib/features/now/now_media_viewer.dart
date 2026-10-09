@@ -86,11 +86,12 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
   Future<void> _load() async {
     final path = nowAuthorizedMediaPath(widget.media);
     if (path == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _error = 'Ce média ne dispose pas d’un accès autorisé.';
         });
+      }
       return;
     }
     File? file;
@@ -138,11 +139,12 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       });
     } on Object {
       if (file != null && await file.exists()) await file.delete();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = 'Impossible de charger ce média. Vérifiez votre connexion et vos droits.';
           _loading = false;
         });
+      }
     }
   }
 
