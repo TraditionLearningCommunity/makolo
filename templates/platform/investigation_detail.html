@@ -2,7 +2,7 @@
 {% block platform_content %}
 <a class="link secondary" href="{% url 'platform_web:investigate' %}">Retour à la recherche</a>
 <section class="section"><p class="kicker">{{ target_kind }} · {{ target.pk }}</p>
-<h2>{{ target.name|default:target.title }}</h2>
+<h2>{{ target }}</h2>
 <p>État actuel canonique : <strong>{{ target_state }}</strong></p>
 <p class="muted">Investigation limitée à vos Permissions Platform. Aucun accès implicite aux paiements, pièces Evidence ou secrets.</p>
 {% if target_kind == 'space' %}<a class="link" href="{% url 'platform_web:space-decision' target.pk %}">Examiner une décision sur le Space</a>
