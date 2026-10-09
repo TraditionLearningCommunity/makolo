@@ -1,5 +1,6 @@
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
+import '../../network/makolo_api_client.dart';
 import '../../sync/sync_engine.dart';
 import 'preparation_repository.dart';
 
@@ -17,6 +18,7 @@ PreparationAssembly buildPreparationAssembly({
   required MakoloDatabase database,
   required ProfileStore store,
   required String profileId,
+  required MakoloApiClient? api,
   required SyncEngine? sync,
 }) => PreparationAssembly(
   requirements: RequirementRepository(
@@ -29,6 +31,7 @@ PreparationAssembly buildPreparationAssembly({
     database: database,
     store: store,
     profileId: profileId,
+    api: api,
     sync: sync,
   ),
 );
