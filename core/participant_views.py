@@ -117,6 +117,14 @@ def _history_access_item(access):
     return {
         "kind": "access",
         "history_at": getattr(access, "history_at", access.updated_at),
+        "historical_date_known": bool(
+            (access.status == AccessStatus.USED
+             and getattr(access, "latest_accepted_use_at", None))
+            or (access.status == AccessStatus.VALID and (
+                access.occurrence and access.occurrence.end_at
+                or access.valid_until
+            ))
+        ),
         "label": history_access_label(access),
         "access_card": _access_card(access),
         "journey_card": _journey_card(access.journey) if access.journey_id else None,
@@ -128,6 +136,12 @@ def _history_journey_item(journey):
     return {
         "kind": "journey",
         "history_at": getattr(journey, "history_at", journey.updated_at),
+        "historical_date_known": bool(
+            (journey.status == JourneyStatus.FULFILLED and journey.fulfilled_at)
+            or (journey.status == JourneyStatus.CANCELLED and journey.cancelled_at)
+            or (journey.status == JourneyStatus.EXPIRED and journey.expires_at)
+            or getattr(journey, "latest_history_transition_at", None)
+        ),
         "label": history_journey_label(journey),
         "access_card": None,
         "journey_card": _journey_card(journey),
@@ -294,7 +308,9 @@ class ParticipantHistoryView(LoginRequiredMixin, TemplateView):
         requested_filter = (self.request.GET.get("type") or "all").strip().lower()
         page_number = self.request.GET.get("page") or 1
 
-        access_qs = participant_access_search(participant_unified_history_accesses(profile), q)
+        access_qs = participant_access_search(
+            participant_unified_history_unique_accesses(profile), q
+        )
         journey_qs = participant_journey_search(participant_unified_history_journeys(profile), q)
         if requested_filter == "accesses":
             total_count = access_qs.count()

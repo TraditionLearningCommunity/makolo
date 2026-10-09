@@ -5,6 +5,8 @@ Other owners are deliberately not represented as absent from the Space's past.
 """
 from __future__ import annotations
 
+from datetime import date
+
 from django.db.models import Q
 from django.utils import timezone
 from django.urls import reverse
@@ -50,6 +52,7 @@ def visible_history_activity_ids(*, profile, space, responsibility_key=None):
 def build_space_history_projection(
     *, profile, space, query="", responsibility_key=None,
     offset=0, limit=DEFAULT_LIMIT, observed_at=None,
+    start_date=None, end_date=None, history_kind="all",
 ):
     ids = visible_history_activity_ids(
         profile=profile, space=space, responsibility_key=responsibility_key
@@ -75,6 +78,10 @@ def build_space_history_projection(
             | Q(place_links__place__name__icontains=query)
             | Q(place_links__place__locality__icontains=query)
         ).distinct()
+    if start_date is not None:
+        occurrences = occurrences.filter(end_at__date__gte=start_date)
+    if end_date is not None:
+        occurrences = occurrences.filter(end_at__date__lte=end_date)
     occurrences = occurrences.order_by("-end_at", "pk")
 
     # Orders may be historical when their actual cancellation time exists.
@@ -96,10 +103,18 @@ def build_space_history_projection(
                 Q(reference__icontains=query)
                 | Q(journey__activity__title__icontains=query)
             )
+        if start_date is not None:
+            orders = orders.filter(cancelled_at__date__gte=start_date)
+        if end_date is not None:
+            orders = orders.filter(cancelled_at__date__lte=end_date)
         orders = orders.order_by("-cancelled_at", "pk")
 
     window_end = offset + limit
     candidates = []
+    if history_kind == "commerce_order":
+        occurrences = occurrences.none()
+    if history_kind == "occurrence":
+        orders = orders.none()
     for occurrence in occurrences[:window_end]:
         outcome = (
             "Départ passé" if space.archetype == "transport_operator"
@@ -162,6 +177,11 @@ def build_space_history_projection(
         "actor_context": {"kind": "space", "id": str(space.pk), "name": space.name},
         "responsibility": responsibility_key or "all",
         "query": query or None,
+        "filters": {
+            "kind": history_kind,
+            "from": start_date.isoformat() if start_date else None,
+            "to": end_date.isoformat() if end_date else None,
+        },
         "items": items,
         "page": {
             "count": total,

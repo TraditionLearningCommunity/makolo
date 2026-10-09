@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.http import Http404
 from django.views.generic import TemplateView
 
@@ -18,8 +20,29 @@ class _SpaceRetrievalWebView(SpaceWebMixin):
             page = max(1, int(self.request.GET.get("page", "1")))
         except ValueError:
             page = 1
+        history_kind = (self.request.GET.get("kind") or "all").strip()
+        if history_kind not in {"all", "occurrence", "commerce_order"}:
+            history_kind = "all"
+
+        def date_filter(key):
+            raw = (self.request.GET.get(key) or "").strip()
+            try:
+                return date.fromisoformat(raw) if raw else None
+            except ValueError:
+                return None
+
+        start_date = date_filter("from")
+        end_date = date_filter("to")
+        if start_date and end_date and start_date > end_date:
+            start_date, end_date = None, None
+        extra = (
+            {"history_kind": history_kind, "start_date": start_date,
+             "end_date": end_date}
+            if self.space_page_title == "Historique" else {}
+        )
         projection = self.builder(
             profile=self.request.user, space=self.space, query=query,
+            **extra,
             responsibility_key=self.selected_responsibility["key"],
             offset=(page - 1) * 24, limit=24,
         )
@@ -36,6 +59,9 @@ class _SpaceRetrievalWebView(SpaceWebMixin):
         context.update(
             selected_item=selected, selected_ref=selected_ref,
             retrieval=projection, q=query, page=page,
+            history_kind=history_kind,
+            history_from=start_date.isoformat() if start_date else "",
+            history_to=end_date.isoformat() if end_date else "",
             is_history=self.space_page_title == "Historique",
             route_name=self.route_name,
         )
