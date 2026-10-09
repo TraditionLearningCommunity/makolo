@@ -75,10 +75,9 @@ class NowActionRefreshScope extends InheritedWidget {
 
   final Future<void> Function() onRefresh;
 
-  static Future<void> Function()? maybeOf(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<NowActionRefreshScope>()
-          ?.onRefresh;
+  static Future<void> Function()? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<NowActionRefreshScope>()
+      ?.onRefresh;
 
   @override
   bool updateShouldNotify(NowActionRefreshScope oldWidget) =>
@@ -110,7 +109,8 @@ class _NowActionGroupState extends State<NowActionGroup> {
   void didUpdateWidget(covariant NowActionGroup oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.situation.identity != widget.situation.identity ||
-        oldWidget.situation.businessActions != widget.situation.businessActions) {
+        oldWidget.situation.businessActions !=
+            widget.situation.businessActions) {
       _error = null;
       _confirmedByOwner = false;
     }
@@ -199,7 +199,8 @@ class _NowActionGroupState extends State<NowActionGroup> {
               final action = actions[index];
               final direct =
                   widget.api != null &&
-                  NowOwnerAction.authorizedPath(widget.situation, action) != null;
+                  NowOwnerAction.authorizedPath(widget.situation, action) !=
+                      null;
               final canHandoff = widget.onOpenOwner != null;
               final active =
                   !_sending && !_confirmedByOwner && (direct || canHandoff);
@@ -210,9 +211,7 @@ class _NowActionGroupState extends State<NowActionGroup> {
                 );
               }
               final callback = active
-                  ? (direct
-                        ? () => _execute(action)
-                        : widget.onOpenOwner)
+                  ? (direct ? () => _execute(action) : widget.onOpenOwner)
                   : null;
               if (index == 0) {
                 return FilledButton.icon(
@@ -239,7 +238,10 @@ class _NowActionGroupState extends State<NowActionGroup> {
         ],
         if (_error != null) ...[
           const SizedBox(height: 8),
-          Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          Text(
+            _error!,
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         ],
       ],
     );

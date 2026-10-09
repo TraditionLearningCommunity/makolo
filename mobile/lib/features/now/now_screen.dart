@@ -551,7 +551,8 @@ class _NowSemanticContent extends StatelessWidget {
             key: ValueKey('now-actions-${situation.identity}'),
             situation: situation,
             api: api,
-            onOpenOwner: situation.ownerDestination != null &&
+            onOpenOwner:
+                situation.ownerDestination != null &&
                     onOpenOwner != null &&
                     NowScreen.ownerPathFor(situation.ownerDestination!) != null
                 ? () => onOpenOwner!(situation.ownerDestination!)
