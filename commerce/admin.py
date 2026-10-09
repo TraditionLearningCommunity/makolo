@@ -1,12 +1,14 @@
 from django.contrib import admin
 
+from core.admin_boundaries import TechnicalReadOnlyAdmin
+
 from authorization.services import has_platform_authority
 
 from .models import CommerceOrder, CommerceOrderItem, Offer
 
 
 @admin.register(Offer)
-class OfferAdmin(admin.ModelAdmin):
+class OfferAdmin(TechnicalReadOnlyAdmin):
     list_display = ("name", "activity", "occurrence", "unit_price", "currency", "payment_mode", "capacity_pool", "status")
     list_filter = ("status", "payment_mode", "currency", "activity")
     search_fields = ("name", "activity__title", "source_key")
