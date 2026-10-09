@@ -62,7 +62,10 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshList();
+      await Future.wait([
+        widget.repository.refreshList(),
+        widget.repository.refreshInvitations(),
+      ]);
     } on Object {
       // Preserve the local collection.
     } finally {
@@ -133,35 +136,10 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                   label: 'Chargement des conversations…',
                 ),
                 onRetry: _refresh,
-                content: ListView.separated(
-                  key: const Key('conversation-list-content'),
-                  padding: const EdgeInsets.all(MakoloSpacing.inner),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: MakoloSpacing.sm),
-                  itemBuilder: (context, index) => MakoloCard(
-                    onTap: () => widget.onOpen(items[index].id),
-                    child: MakoloStatusMetadataAction(
-                      title: items[index].title,
-                      subtitle: items[index].contextLabel,
-                      status: items[index].lifecycle == null
-                          ? null
-                          : MakoloStatus(label: items[index].lifecycle!),
-                      metadata: [
-                        if (items[index].attentionCount > 0)
-                          MakoloMetadataItem(
-                            '${items[index].attentionCount} élément(s) à voir',
-                            icon: Icons.notifications_active_outlined,
-                          ),
-                        if (items[index].allClear)
-                          const MakoloMetadataItem(
-                            'Tout est en ordre',
-                            icon: Icons.check_circle_outline_rounded,
-                          ),
-                      ],
-                      action: const Icon(Icons.chevron_right_rounded),
-                    ),
-                  ),
+                content: _ConversationListBody(
+                  repository: widget.repository,
+                  items: items,
+                  onOpen: widget.onOpen,
                 ),
               ),
             );
@@ -171,6 +149,203 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     );
   }
 }
+
+
+class _ConversationListBody extends StatefulWidget {
+  const _ConversationListBody({
+    required this.repository,
+    required this.items,
+    required this.onOpen,
+  });
+
+  final ConversationRepository repository;
+  final List<_ConversationSummary> items;
+  final void Function(String id) onOpen;
+
+  @override
+  State<_ConversationListBody> createState() => _ConversationListBodyState();
+}
+
+class _ConversationListBodyState extends State<_ConversationListBody> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = _query.trim().toLowerCase();
+    final filtered = normalized.isEmpty
+        ? widget.items
+        : widget.items
+            .where(
+              (item) =>
+                  item.title.toLowerCase().contains(normalized) ||
+                  (item.contextLabel ?? '').toLowerCase().contains(normalized),
+            )
+            .toList(growable: false);
+
+    return StreamBuilder<StoredProjection?>(
+      stream: widget.repository.watchInvitations(),
+      builder: (context, invitationsSnapshot) {
+        final invitations = _ConversationInvitation.fromProjection(
+          invitationsSnapshot.data,
+        );
+        return ListView(
+          key: const Key('conversation-list-content'),
+          padding: const EdgeInsets.all(MakoloSpacing.inner),
+          children: [
+            TextField(
+              key: const Key('conversation-search-field'),
+              onChanged: (value) => setState(() => _query = value),
+              decoration: const InputDecoration(
+                labelText: 'Rechercher dans mes conversations',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+            ),
+            if (invitations.isNotEmpty) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                'Invitations',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: MakoloSpacing.sm),
+              for (final invitation in invitations) ...[
+                _ConversationInvitationCard(
+                  invitation: invitation,
+                  repository: widget.repository,
+                  onOpen: widget.onOpen,
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
+            ],
+            const SizedBox(height: MakoloSpacing.md),
+            if (filtered.isEmpty)
+              const MakoloCard(
+                child: Text('Aucune coordination ne correspond à cette recherche.'),
+              )
+            else
+              for (var index = 0; index < filtered.length; index++) ...[
+                MakoloCard(
+                  onTap: () => widget.onOpen(filtered[index].id),
+                  child: MakoloStatusMetadataAction(
+                    title: filtered[index].title,
+                    subtitle: filtered[index].contextLabel,
+                    status: filtered[index].lifecycle == null
+                        ? null
+                        : MakoloStatus(label: filtered[index].lifecycle!),
+                    metadata: [
+                      if (filtered[index].attentionCount > 0)
+                        MakoloMetadataItem(
+                          filtered[index].attentionCount.toString() +
+                              ' élément(s) à voir',
+                          icon: Icons.notifications_active_outlined,
+                        ),
+                      if (filtered[index].allClear)
+                        const MakoloMetadataItem(
+                          'Tout est en ordre',
+                          icon: Icons.check_circle_outline_rounded,
+                        ),
+                    ],
+                    action: const Icon(Icons.chevron_right_rounded),
+                  ),
+                ),
+                if (index < filtered.length - 1)
+                  const SizedBox(height: MakoloSpacing.sm),
+              ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ConversationInvitationCard extends StatefulWidget {
+  const _ConversationInvitationCard({
+    required this.invitation,
+    required this.repository,
+    required this.onOpen,
+  });
+
+  final _ConversationInvitation invitation;
+  final ConversationRepository repository;
+  final void Function(String id) onOpen;
+
+  @override
+  State<_ConversationInvitationCard> createState() =>
+      _ConversationInvitationCardState();
+}
+
+class _ConversationInvitationCardState
+    extends State<_ConversationInvitationCard> {
+  bool _busy = false;
+  String? _error;
+
+  Future<void> _respond(bool accept) async {
+    if (_busy || widget.invitation.expired) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final conversationId = await widget.repository.respondToInvitation(
+        invitationId: widget.invitation.id,
+        accept: accept,
+      );
+      if (!mounted) return;
+      if (accept && conversationId != null) widget.onOpen(conversationId);
+    } on Object {
+      if (!mounted) return;
+      setState(
+        () => _error =
+            'Cette invitation a changé. Actualisez pour voir son état actuel.',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MakoloCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Invitation à rejoindre une coordination',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          if (widget.invitation.expired)
+            const Padding(
+              padding: EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Text('Cette invitation a expiré.'),
+            ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Text(_error!),
+            ),
+          const SizedBox(height: MakoloSpacing.sm),
+          Wrap(
+            spacing: MakoloSpacing.sm,
+            children: [
+              OutlinedButton(
+                onPressed: _busy || widget.invitation.expired
+                    ? null
+                    : () => _respond(false),
+                child: const Text('Refuser'),
+              ),
+              FilledButton(
+                onPressed: _busy || widget.invitation.expired
+                    ? null
+                    : () => _respond(true),
+                child: Text(_busy ? 'En cours…' : 'Accepter'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class ConversationDetailScreen extends StatefulWidget {
   const ConversationDetailScreen({
