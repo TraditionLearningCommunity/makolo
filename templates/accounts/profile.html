@@ -6,7 +6,7 @@
 <div class="mx-auto max-w-6xl space-y-8 lg:space-y-10">
     <section class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div class="max-w-3xl">
-            <span class="mk-kicker">Compte</span>
+            <span class="mk-kicker">Profil</span>
             <h1 class="mk-page-title">Mon profil</h1>
             <p class="mk-page-copy mt-4 text-[15px]">Ajoutez vos informations progressivement, au moment où elles vous sont utiles.</p>
         </div>
@@ -26,7 +26,6 @@
                 {% endif %}
                 <div class="min-w-0">
                     <p class="truncate text-lg font-extrabold">{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</p>
-                    {% if request.user.email %}<p class="mt-1 truncate text-sm" style="color:var(--mk-muted)">{{ request.user.email }}</p>{% endif %}
                     <p class="mt-1 text-xs" style="color:var(--mk-subtle)">@{{ request.user.username }}</p>
                 </div>
             </div>
