@@ -27,8 +27,11 @@ test('WS3 Métier stays usable across Compact Adaptive and Expanded regimes @mob
     const work = page.locator('[data-ws3-work]');
     await expect(work).toBeVisible();
     await expect(work.getByRole('heading', { name: 'Activités', exact: true })).toBeVisible();
-    for (const label of ['À préparer', 'À venir', 'En cours', 'Bloqués', 'Terminés']) {
-      await expect(work.getByRole('heading', { name: label, exact: true })).toBeVisible();
+    const ownerBackedItem = work.locator('[data-work-item]').first();
+    const honestEmpty = work.locator('#work-empty-title');
+    expect((await ownerBackedItem.count()) + (await honestEmpty.count())).toBeGreaterThan(0);
+    if (await honestEmpty.count()) {
+      await expect(honestEmpty).toContainText('Aucune activité visible');
     }
   }
 });

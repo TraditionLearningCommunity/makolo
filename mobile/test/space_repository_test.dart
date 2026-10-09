@@ -185,6 +185,17 @@ Map<String, dynamic> _work({
   String marker = 'valid',
 }) => {
   ..._contextPayload(responsibility: responsibility),
+  'presentation': {
+    'empty_message': 'Aucune activité visible pour le moment.',
+    'section_order': [
+      'preparation',
+      'upcoming',
+      'active',
+      'blocked',
+      'activities',
+      'completed',
+    ],
+  },
   'operational_footprint': {'signals': <Object>[]},
   'sections': {
     for (final key in const [
@@ -192,9 +203,13 @@ Map<String, dynamic> _work({
       'upcoming',
       'active',
       'blocked',
+      'activities',
       'completed',
     ])
       key: {
+        'representation': key == 'activities' ? 'Toutes les activités' : key,
+        'role': key == 'activities' ? 'structure' : 'continuity',
+        'empty_message': 'Aucun élément visible.',
         'items': <Object>[],
         'has_more': false,
         'links': <String, Object?>{},

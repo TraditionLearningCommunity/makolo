@@ -104,12 +104,13 @@ class WS3SpaceWorkWebTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["work_has_items"])
+        self.assertContains(response, "Aucun programme ou session visible pour le moment.")
         self.assertContains(response, "Makolo n’invente pas d’activité")
-        self.assertContains(response, "À préparer")
-        self.assertContains(response, "À venir")
-        self.assertContains(response, "En cours")
-        self.assertContains(response, "Bloqués")
-        self.assertContains(response, "Terminés")
+        self.assertNotContains(response, 'id="work-preparation"')
+        self.assertNotContains(response, 'id="work-upcoming"')
+        self.assertNotContains(response, 'id="work-active"')
+        self.assertNotContains(response, 'id="work-blocked"')
+        self.assertNotContains(response, 'id="work-completed"')
 
     def test_activity_and_occurrence_render_in_server_selected_sections(self):
         draft = self._activity("Programme à préparer", ActivityStatus.DRAFT)

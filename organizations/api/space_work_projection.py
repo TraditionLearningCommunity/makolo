@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.utils import timezone
 
@@ -15,6 +16,10 @@ from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStat
 from journeys.collaboration_models import JourneyBlockerStatus
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.space_product import operating_preset_for_space, operational_footprint_for_space
+from organizations.space_work_presentation import (
+    ordered_work_section_keys,
+    work_presentation_for_space,
+)
 from services.selectors import service_journeys_visible_to
 from transport.models import TransportRoute, Vehicle
 
@@ -258,7 +263,7 @@ def _vehicle_item(vehicle):
     }
 
 
-def _empty_section(*, identity, role, representation):
+def _empty_section(*, identity, role, representation, empty_message):
     return {
         "identity": identity,
         "representation": representation,
@@ -267,33 +272,52 @@ def _empty_section(*, identity, role, representation):
         "items": [],
         "has_more": False,
         "links": {},
+        "empty_message": empty_message,
     }
 
 
-def _empty_sections(*, activity_representation, include_offers=False, include_transport=False):
-    sections = {
-        "preparation": _empty_section(identity="preparation", role="continuity", representation="À préparer"),
-        "upcoming": _empty_section(identity="upcoming", role="continuity", representation="À venir"),
-        "active": _empty_section(identity="active", role="continuity", representation="En cours"),
-        "blocked": _empty_section(identity="blocked", role="continuity", representation="Bloqués"),
-        "completed": _empty_section(identity="completed", role="history", representation="Terminés"),
+def _empty_sections(*, space, include_offers=False, include_transport=False, include_requests=False):
+    grammar = work_presentation_for_space(space)
+    roles = {
+        "preparation": "continuity",
+        "upcoming": "continuity",
+        "active": "continuity",
+        "blocked": "continuity",
+        "completed": "history",
+        "activities": "structure",
+        "offers": "structure",
+        "routes": "structure",
+        "vehicles": "structure",
+        "requests": "continuity",
     }
-    # These are structural owner collections, deliberately separate from
-    # continuity sections.  They are added only when the scoped composition
-    # can establish the corresponding owner world.
-    sections["activities"] = _empty_section(
-        identity="activities", role="structure", representation=activity_representation
-    )
+    fallback_labels = {
+        "preparation": "À préparer",
+        "upcoming": "À venir",
+        "active": "En cours",
+        "blocked": "Bloqués",
+        "completed": "Terminés",
+        "activities": operating_preset_for_space(space).primary_business_label,
+        "offers": "Offres",
+        "routes": "Routes",
+        "vehicles": "Véhicules",
+        "requests": "Demandes",
+    }
+    keys = ["preparation", "upcoming", "active", "blocked", "completed", "activities"]
+    if include_requests:
+        keys.append("requests")
     if include_offers:
-        sections["offers"] = _empty_section(
-            identity="offers", role="structure", representation="Offres"
-        )
+        keys.append("offers")
     if include_transport:
-        sections["routes"] = _empty_section(
-            identity="routes", role="structure", representation="Routes"
-        )
-        sections["vehicles"] = _empty_section(
-            identity="vehicles", role="structure", representation="Véhicules"
+        keys.extend(("routes", "vehicles"))
+
+    sections = {}
+    for key in ordered_work_section_keys(space, keys):
+        label = grammar.label_for(key, fallback_labels[key])
+        sections[key] = _empty_section(
+            identity=key,
+            role=roles[key],
+            representation=label,
+            empty_message=grammar.empty_message_for(key, label),
         )
     return sections
 
@@ -312,15 +336,18 @@ def _activity_scope_from_responsibility(profile, space, responsibility_key):
     if not responsibility_key.startswith(prefix):
         return set()
     mandate_id = responsibility_key[len(prefix) :]
-    mandate = (
-        current_mandates()
-        .filter(profile=profile, pk=mandate_id)
-        .filter(
-            Q(scope_type=AuthorityScope.SPACE, space=space)
-            | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
+    try:
+        mandate = (
+            current_mandates()
+            .filter(profile=profile, pk=mandate_id)
+            .filter(
+                Q(scope_type=AuthorityScope.SPACE, space=space)
+                | Q(scope_type=AuthorityScope.ACTIVITY, activity__space=space)
+            )
+            .first()
         )
-        .first()
-    )
+    except (DjangoValidationError, ValueError):
+        return set()
     if mandate is None:
         return set()
     if mandate.scope_type == AuthorityScope.ACTIVITY:
@@ -372,10 +399,15 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         and "transport" in operational_footprint_for_space(space).signals
     )
     commerce_visible = bool(visible_ids & caps["commerce"])
+    education_ids = visible_ids & caps["requests"]
+    education_visible = space.archetype == "education" and bool(education_ids)
+    service_ids = visible_ids & caps["service_cases"]
+    service_visible = space.archetype == "service_provider" and bool(service_ids)
     sections = _empty_sections(
-        activity_representation=preset.primary_business_label,
+        space=space,
         include_offers=commerce_visible,
         include_transport=transport_visible,
+        include_requests=education_visible or service_visible,
     )
     now = timezone.now()
     today = timezone.localdate()
@@ -455,7 +487,6 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
                 continue
             _append(sections[target], _order_item(order, caps))
 
-    education_ids = visible_ids & caps["requests"]
     if education_ids:
         for journey in (
             Journey.objects.filter(
@@ -466,11 +497,19 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             .prefetch_related("blockers")
             .order_by("-created_at", "pk")
         ):
-            target = _journey_section(journey)
+            if (
+                education_visible
+                and journey.status in {
+                    JourneyStatus.SUBMITTED,
+                    JourneyStatus.PENDING_APPROVAL,
+                }
+            ):
+                target = "requests"
+            else:
+                target = _journey_section(journey)
             if target:
                 _append(sections[target], _journey_item(journey, caps))
 
-    service_ids = visible_ids & caps["service_cases"]
     if service_ids:
         for journey in (
             service_journeys_visible_to(profile)
@@ -478,7 +517,16 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             .select_related("activity")
             .prefetch_related("blockers")
         ):
-            target = _journey_section(journey)
+            if (
+                service_visible
+                and journey.status in {
+                    JourneyStatus.SUBMITTED,
+                    JourneyStatus.PENDING_APPROVAL,
+                }
+            ):
+                target = "requests"
+            else:
+                target = _journey_section(journey)
             if target:
                 _append(sections[target], _journey_item(journey, caps))
 
@@ -501,6 +549,10 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         },
         "archetype": space.archetype,
         "primary_business_label": preset.primary_business_label,
+        "presentation": {
+            "empty_message": work_presentation_for_space(space).surface_empty_message,
+            "section_order": list(sections.keys()),
+        },
         "authority": {
             "scope": "space" if direct_portfolio else "activity_limited",
             "limited_to_activities": not direct_portfolio,

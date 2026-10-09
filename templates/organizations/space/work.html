@@ -15,15 +15,17 @@
     </div>
   </header>
 
+  {% if work_sections %}
   <nav class="flex gap-2 overflow-x-auto" aria-label="Sections de {{ projection.primary_business_label }}">
     {% for section in work_sections %}
-    <a class="mk-btn mk-btn-secondary shrink-0" href="#work-{{ section.key }}">{{ section.label }}{% if section.items %} · {{ section.items|length }}{% endif %}</a>
+    <a class="mk-btn mk-btn-secondary shrink-0" href="#work-{{ section.key }}">{{ section.label }} · {{ section.items|length }}</a>
     {% endfor %}
   </nav>
+  {% endif %}
 
   {% if not work_has_items %}
   <section class="mk-panel p-6" role="status" aria-labelledby="work-empty-title">
-    <h3 id="work-empty-title" class="text-xl font-extrabold">Rien à afficher dans {{ projection.primary_business_label|lower }} pour le moment.</h3>
+    <h3 id="work-empty-title" class="text-xl font-extrabold">{{ projection.presentation.empty_message }}</h3>
     <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Cette vue reste vide tant que les propriétaires métier ne projettent aucun travail accessible. Makolo n’invente pas d’activité pour remplir l’écran.</p>
   </section>
   {% endif %}
@@ -33,7 +35,7 @@
     <section id="work-{{ section.key }}" class="mk-panel p-5 sm:p-6" aria-labelledby="work-{{ section.key }}-title">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <span class="mk-kicker">{{ projection.primary_business_label }}</span>
+          <span class="mk-kicker">{% if section.role == "structure" %}Structure{% else %}{{ projection.primary_business_label }}{% endif %}</span>
           <h3 id="work-{{ section.key }}-title" class="mt-1 text-xl font-extrabold">{{ section.label }}</h3>
         </div>
         {% if section.has_more %}<span class="mk-badge">Aperçu borné</span>{% endif %}
@@ -63,8 +65,6 @@
         </li>
         {% endfor %}
       </ul>
-      {% else %}
-      <p class="mt-4 text-sm" style="color:var(--mk-muted)">{{ section.empty_message }}</p>
       {% endif %}
 
       {% if section.has_more %}

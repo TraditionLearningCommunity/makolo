@@ -624,6 +624,9 @@ final class WorkspaceContextRepository {
       expectedSpaceId: expectedSpaceId,
       expectedResponsibility: expectedResponsibility,
     );
+    _requiredString(payload, 'primary_business_label');
+    final presentation = _requiredMap(payload, 'presentation');
+    _requiredString(presentation, 'empty_message');
     final sections = _requiredMap(payload, 'sections');
     for (final key in const [
       'preparation',
@@ -632,7 +635,13 @@ final class WorkspaceContextRepository {
       'blocked',
       'completed',
     ]) {
-      final section = _requiredMap(sections, key);
+      _requiredMap(sections, key);
+    }
+    for (final entry in sections.entries) {
+      final section = _mapValue(entry.value, 'work section');
+      _requiredString(section, 'representation');
+      _requiredString(section, 'role');
+      _requiredString(section, 'empty_message');
       _requiredList(section, 'items');
       _requiredBool(section, 'has_more');
     }
