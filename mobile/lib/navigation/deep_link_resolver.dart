@@ -13,6 +13,8 @@ class DeepLinkResolver {
         return '/space/occurrences/${target.id}/day-of';
       case 'space_occurrence_live':
         return '/space/occurrences/${target.id}/live';
+      case 'conversation':
+        return '/conversations/${target.id}';
       case 'journey':
         return '/journeys/${target.id}';
       case 'activity':
