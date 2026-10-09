@@ -1,6 +1,8 @@
 from django.test import SimpleTestCase
 
 from core.home_views import _now_web_context
+from core.api.personal_projections import _now_dimension, _now_response_type
+from preparation.contextual_actions import ContextualActionability, ContextualDeadlineState
 
 
 def _response(**overrides):
@@ -33,6 +35,25 @@ class NowWebPresentationTests(SimpleTestCase):
             for item in fixture["items"]
         )
         self.assertEqual(actual, expected)
+
+    def test_s4_only_admits_current_owner_waiting(self):
+        from types import SimpleNamespace
+
+        def action(kind, context, deadline):
+            return SimpleNamespace(
+                kind=kind,
+                identity=SimpleNamespace(context_type=context),
+                actionability=ContextualActionability.WAITING,
+                deadline_state=deadline,
+            )
+
+        due = action("readiness.waiting", "journey", ContextualDeadlineState.DUE_TODAY)
+        future = action("readiness.waiting", "journey", ContextualDeadlineState.FUTURE)
+        unrelated = action("readiness.waiting", "dossier", ContextualDeadlineState.DUE_TODAY)
+        self.assertEqual(_now_dimension(due), "waiting")
+        self.assertEqual(_now_response_type("waiting"), "wait")
+        self.assertIsNone(_now_dimension(future))
+        self.assertIsNone(_now_dimension(unrelated))
 
     def test_empty_items_do_not_create_a_calm_claim(self):
         home = _now_web_context(_response())
