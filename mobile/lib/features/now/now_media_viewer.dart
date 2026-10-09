@@ -37,6 +37,30 @@ String? nowAuthorizedMediaPath(NowMediaBindingPresentation binding) {
   return uri.toString().substring(1);
 }
 
+/// A separate owner-issued route allows saving the original DOCX instead of
+/// exporting the plain-text reading projection. No arbitrary URL is trusted.
+String? nowAuthorizedOriginalDownloadPath(NowMediaBindingPresentation binding) {
+  final preview = nowAuthorizedMediaPath(binding);
+  final original = binding.downloadUrl;
+  if (preview == null || original == null || !original.startsWith('/')) {
+    return null;
+  }
+  final uri = Uri.tryParse(original);
+  if (uri == null || uri.hasScheme || uri.hasAuthority || uri.hasQuery) {
+    return null;
+  }
+  final source = binding.url?.split('?').first;
+  if (source != original) return null;
+  return original.substring(1);
+}
+
+String nowOriginalDocumentExtension(NowMediaBindingPresentation media) {
+  return media.mimeType ==
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ? 'docx'
+      : 'txt';
+}
+
 String nowMediaExtension(NowMediaBindingPresentation media) {
   return switch (media.kind) {
     NowMediaKind.image => switch (media.mimeType) {
@@ -158,10 +182,27 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
     final file = _file;
     if (file == null || _sharing) return;
     setState(() => _sharing = true);
+    File? original;
     try {
-      // Native share sheet allows the person to choose Save to Files or
-      // another destination; Makolo never silently exports private media.
-      await widget.sharing.shareFiles(paths: [file.path]);
+      // For text-rendered documents, allow the person to export the original
+      // bytes, not only the safe plain-text projection used for reading.
+      final originalPath = widget.media.kind == NowMediaKind.document
+          ? nowAuthorizedOriginalDownloadPath(widget.media)
+          : null;
+      if (originalPath != null) {
+        original = File(
+          '${file.parent.path}/original-${DateTime.now().microsecondsSinceEpoch}.'
+          '${nowOriginalDocumentExtension(widget.media)}',
+        );
+        await widget.api.download(
+          originalPath,
+          destinationPath: original.path,
+          cancel: _cancel,
+        );
+      }
+      // Native share sheet lets the person choose Save to Files;
+      // Makolo never silently exports private media.
+      await widget.sharing.shareFiles(paths: [original?.path ?? file.path]);
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -171,6 +212,13 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
         );
       }
     } finally {
+      if (original != null) {
+        try {
+          if (await original.exists()) await original.delete();
+        } on FileSystemException {
+          // The original copy is transient even if the share sheet fails.
+        }
+      }
       if (mounted) setState(() => _sharing = false);
     }
   }
