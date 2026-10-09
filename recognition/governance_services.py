@@ -102,3 +102,41 @@ def publish_policy_for_actor(*, actor, policy_id, expected_status, reason):
         metadata={"reason": reason},
     )
     return {"status": next_status, "effective_from": effective_from}
+
+
+@transaction.atomic
+def change_recognition_definition_availability(
+    *, actor, kind, definition_id, expected_version, activate, reason,
+):
+    """Safely pause/resume a governed definition, never edit ledger or fulfillment.
+
+    Recognition remains the domain owner; publishing a policy and changing
+    Reward/Achievement availability are different workflows.
+    """
+    from .models import AchievementDefinition, RewardDefinition
+    options = {
+        "reward": (RewardDefinition, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE),
+        "achievement": (AchievementDefinition, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE),
+    }
+    if kind not in options:
+        raise ValidationError("Type de gouvernance Recognition non disponible.")
+    model, permission = options[kind]
+    _require(actor, permission)
+    reason = _reason(reason)
+    obj = model.objects.select_for_update().get(pk=definition_id)
+    if obj.updated_at.isoformat() != expected_version:
+        raise ValidationError("Cette définition a changé depuis son ouverture.")
+    if obj.is_active == activate:
+        raise ValidationError("La définition possède déjà cette disponibilité.")
+    before = obj.is_active
+    obj.is_active = activate
+    obj.save(update_fields=["is_active", "updated_at"])
+    audit_action(
+        actor=actor,
+        action=f"recognition.{kind}.{'activate' if activate else 'pause'}",
+        target_type=f"recognition_{kind}", target_id=obj.pk,
+        summary=f"Disponibilité Recognition {kind} modifiée",
+        before={"active": before}, after={"active": obj.is_active},
+        metadata={"reason": reason},
+    )
+    return obj
