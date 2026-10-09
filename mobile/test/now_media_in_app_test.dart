@@ -56,7 +56,9 @@ void main() {
   testWidgets('unauthorized photo preview makes no authenticated request', (
     tester,
   ) async {
-    final root = await Directory.systemTemp.createTemp('now-preview-test-');
+    final root = await tester.runAsync(
+      () => Directory.systemTemp.createTemp('now-preview-test-'),
+    );
     final api = FakeNowMediaApi();
     addTearDown(() async {
       api.close();
@@ -96,7 +98,9 @@ void main() {
   testWidgets('in-app media requires an explicit native export action', (
     tester,
   ) async {
-    final root = await Directory.systemTemp.createTemp('now-viewer-test-');
+    final root = await tester.runAsync(
+      () => Directory.systemTemp.createTemp('now-viewer-test-'),
+    );
     final api = FakeNowMediaApi();
     final sharing = FakeNowMediaSharing();
     addTearDown(() async {
