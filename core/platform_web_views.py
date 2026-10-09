@@ -631,6 +631,19 @@ class PlatformRecognitionActionView(PlatformRecognitionView):
         context = super().get_context_data(**kwargs)
         from recognition.models import RecognitionPolicy
         policy = get_object_or_404(RecognitionPolicy, pk=self.kwargs["pk"])
+        from recognition.models import PolicyStatus, RecognitionCursor
+        from recognition.governance_services import _boundary
+        current = RecognitionPolicy.objects.filter(status=PolicyStatus.ACTIVE).exclude(
+            pk=policy.pk
+        ).order_by("-effective_from").first()
+        cursor = RecognitionCursor.objects.filter(pk="recognition-v1").first()
+        now = timezone.now()
+        proposed = max(now, policy.effective_from or now)
+        context["active_policy"] = current
+        context["publication_boundary"] = (
+            _boundary(cursor=cursor, target=proposed) if cursor else proposed
+        )
+        context["publication_requires_schedule"] = bool(cursor or policy.effective_from and policy.effective_from > now)
         context.update(
             policy=policy,
             recognition_action=self.action,
