@@ -10,9 +10,15 @@ import '../../presentation/contracts/now_presentation.dart';
 abstract final class NowGalleryScenarios {
   static NowSelection select(String id) {
     final isCalm = id == 'now-calm';
-    final isWait = id == 'now-legitimate-waiting';
-    final isMedia = id == 'now-media';
-    final isCompose = id == 'now-multiple';
+    final isWait = id == 'now-legitimate-waiting' ||
+        id.startsWith('now-g01-s4-');
+    final isMedia = id == 'now-media' || id.startsWith('now-g01-s2-');
+    final isCompose = id == 'now-multiple' || id.startsWith('now-g01-s5-');
+    final isAction = id == 'now-current-action' ||
+        id == 'now-n2' ||
+        id.startsWith('now-g01-s3-');
+    final rich = id.endsWith('-rich');
+    final isMeaning = id.startsWith('now-g01-s1-');
     final pending = id == 'now-pending-local';
     final offline = id == 'now-offline-known';
     final stale = id == 'now-stale';
@@ -27,6 +33,8 @@ abstract final class NowGalleryScenarios {
           ? 'La demande a été envoyée.'
           : isMedia
           ? 'Ce document éclaire la situation.'
+          : isMeaning
+          ? 'La demande de visa est en cours de préparation.'
           : 'Votre certificat doit être transmis aujourd’hui.',
       emphasis: NowPresentationEmphasis.primary,
       whyNow: isCompose
@@ -39,10 +47,16 @@ abstract final class NowGalleryScenarios {
           ? 'wait'
           : isCompose
           ? 'decide'
-          : 'act',
+          : isAction
+          ? 'act'
+          : 'understand',
       turnLabel: isWait ? 'L’organisme doit répondre.' : null,
       horizon: isWait ? 'En attente de sa réponse.' : null,
-      businessActions: !isWait && !isMedia && !isCompose
+      metadata: rich ? const ['Situation observée', 'Source connue'] : const [],
+      makoloPreparation: rich
+          ? const ['Un élément est préparé pour la prochaine étape.']
+          : const [],
+      businessActions: isAction
           ? const [
               NowBusinessActionPresentation(
                 capability: 'open_detail',
@@ -52,15 +66,15 @@ abstract final class NowGalleryScenarios {
             ]
           : const [],
       mediaBindings: isMedia
-          ? const [
+          ? [
               NowMediaBindingPresentation(
-                resourceRef: 'gallery:document',
+                resourceRef: rich ? 'gallery:video' : 'gallery:document',
                 target: NowMediaTarget.state,
                 purpose: NowMediaPurpose.understand,
-                kind: NowMediaKind.pdf,
-                mimeType: 'application/pdf',
+                kind: rich ? NowMediaKind.video : NowMediaKind.pdf,
+                mimeType: rich ? 'video/mp4' : 'application/pdf',
                 authorized: true,
-                label: 'Document de démonstration',
+                label: rich ? 'Vidéo de démonstration' : 'Document de démonstration',
               ),
             ]
           : const [],
