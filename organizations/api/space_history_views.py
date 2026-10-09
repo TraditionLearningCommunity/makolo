@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -36,9 +38,17 @@ class SpaceHistoryAPIView(APIView):
         limit = _bounded_integer(
             request, "limit", default=DEFAULT_LIMIT, minimum=1, maximum=MAX_LIMIT,
         )
+        responsibility = (request.query_params.get("responsibility") or "").strip() or None
+        if responsibility and responsibility != "all":
+            if not responsibility.startswith("mandate:"):
+                raise NotFound()
+            try:
+                UUID(responsibility.removeprefix("mandate:"))
+            except (ValueError, TypeError):
+                raise NotFound() from None
         payload = build_space_history_projection(
             profile=request.user, space=space, query=query,
-            responsibility_key=(request.query_params.get("responsibility") or "").strip() or None,
+            responsibility_key=responsibility,
             offset=offset, limit=limit,
         )
         if payload is None:
