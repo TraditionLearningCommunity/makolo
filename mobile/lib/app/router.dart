@@ -129,7 +129,7 @@ GoRouter createMakoloRouter(
     },
     errorBuilder: (context, state) => const MakoloSecondaryScreen(
       title: 'Makolo',
-      message: 'Cette page nÔÇÖest pas disponible.',
+      message: 'Cette page n’est pas disponible.',
     ),
     routes: [
       if (runtime.isAuthenticated)
@@ -233,7 +233,7 @@ GoRouter createMakoloRouter(
           if (actor is! SpaceActorContext) {
             return const MakoloSecondaryScreen(
               title: 'Recherche',
-              message: 'Choisissez un Espace autoris├®.',
+              message: 'Choisissez un Espace autorisé.',
             );
           }
           return TransverseRetrievalScreen(
@@ -250,7 +250,7 @@ GoRouter createMakoloRouter(
           if (actor is! SpaceActorContext) {
             return const MakoloSecondaryScreen(
               title: 'Historique',
-              message: 'Choisissez un Espace autoris├®.',
+              message: 'Choisissez un Espace autorisé.',
             );
           }
           return TransverseRetrievalScreen(
@@ -276,7 +276,7 @@ GoRouter createMakoloRouter(
           if (actor is! SpaceActorContext || repository == null) {
             return const MakoloSecondaryScreen(
               title: 'Jour J Space',
-              message: 'Cette Occurrence nÔÇÖest pas disponible dans le contexte Space actuel.',
+              message: 'Cette Occurrence n’est pas disponible dans le contexte Space actuel.',
             );
           }
           return SpaceOccurrenceScreen(
@@ -299,7 +299,7 @@ GoRouter createMakoloRouter(
             return const MakoloSecondaryScreen(
               title: 'Live Space',
               message:
-                  'Le Live op├®rateur nÔÇÖest pas disponible dans ce contexte.',
+                  'Le Live opérateur n’est pas disponible dans ce contexte.',
             );
           }
           return SpaceOccurrenceScreen(
@@ -322,7 +322,7 @@ GoRouter createMakoloRouter(
               actor.space.slug != state.pathParameters['slug']) {
             return const MakoloSecondaryScreen(
               title: 'Personnes & relations',
-              message: 'S├®lectionnez le Space autoris├® pour cette relation.',
+              message: 'Sélectionnez le Space autorisé pour cette relation.',
             );
           }
           return SpaceInsightScreen(
@@ -339,7 +339,7 @@ GoRouter createMakoloRouter(
               actor.space.slug != state.pathParameters['slug']) {
             return const MakoloSecondaryScreen(
               title: 'Piloter',
-              message: 'S├®lectionnez le Space autoris├® pour cette analyse.',
+              message: 'Sélectionnez le Space autorisé pour cette analyse.',
             );
           }
           return SpaceInsightScreen(
@@ -377,7 +377,7 @@ GoRouter createMakoloRouter(
           return const MakoloSecondaryScreen(
             title: 'Makolo',
             message:
-                'Aucun d├®tail suppl├®mentaire ├á afficher pour le moment.',
+                'Aucun détail supplémentaire à afficher pour le moment.',
           );
         },
       ),
