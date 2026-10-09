@@ -1,7 +1,10 @@
 from datetime import timedelta
 from math import ceil
 
+from django import forms
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.template.response import TemplateResponse
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
@@ -13,7 +16,7 @@ from .models import (
     RecognitionLedgerEntry, RecognitionObjectEvaluation, RecognitionPolicy,
     RecognitionRedemption, RecognitionRule, RecognitionSignal, RewardDefinition,
 )
-from .simulation import simulate_policy
+from .governance_services import record_policy_simulation, publish_policy_for_actor
 
 
 def _allowed(request, permission):
@@ -46,6 +49,15 @@ class RecognitionRuleInline(admin.StackedInline):
         return self.has_change_permission(request, obj)
 
 
+class RecognitionPolicyDecisionForm(forms.Form):
+    reason = forms.CharField(
+        min_length=5, max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Justification obligatoire",
+    )
+    expected_status = forms.CharField(widget=forms.HiddenInput)
+
+
 @admin.register(RecognitionPolicy)
 class RecognitionPolicyAdmin(admin.ModelAdmin):
     list_display = ("code", "version", "name", "status", "effective_from", "effective_until")
@@ -73,61 +85,63 @@ class RecognitionPolicyAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return bool(obj and obj.status in {PolicyStatus.DRAFT, PolicyStatus.SIMULATED} and _allowed(request, PermissionCode.PLATFORM_RECOGNITION_POLICY_MANAGE))
 
-    @admin.action(description="Simuler les Policies sur les 30 derniers jours")
+    def _confirm_policy_action(self, request, queryset, *, action, title, service, permission):
+        if not _allowed(request, permission):
+            raise PermissionDenied("Autorité Recognition insuffisante.")
+        policy_ids = list(queryset.values_list("pk", flat=True)[:2])
+        if len(policy_ids) != 1:
+            self.message_user(request, "Sélectionnez une seule Policy.", level=messages.ERROR)
+            return
+        policy = queryset.get(pk=policy_ids[0])
+        if request.POST.get("confirm_governance") == "1":
+            form = RecognitionPolicyDecisionForm(request.POST)
+            if form.is_valid():
+                try:
+                    service(
+                        actor=request.user, policy_id=policy.pk,
+                        expected_status=form.cleaned_data["expected_status"],
+                        reason=form.cleaned_data["reason"],
+                    )
+                except ValidationError as error:
+                    form.add_error(None, error)
+                else:
+                    self.message_user(request, "Décision Recognition enregistrée et auditée.", level=messages.SUCCESS)
+                    return
+        else:
+            form = RecognitionPolicyDecisionForm(initial={"expected_status": policy.status})
+        return TemplateResponse(
+            request,
+            "admin/recognition/recognitionpolicy/confirm_action.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": title,
+                "opts": self.model._meta,
+                "policy": policy,
+                "form": form,
+                "action": action,
+                "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,
+            },
+        )
+
+    @admin.action(description="Simuler la Policy (confirmation et justification)")
     def simulate_last_30_days(self, request, queryset):
-        if not _allowed(request, PermissionCode.PLATFORM_RECOGNITION_POLICY_MANAGE):
-            self.message_user(request, "Permission Recognition insuffisante.", level=messages.ERROR)
-            return
-        now = timezone.now()
-        for policy in queryset.filter(status__in=[PolicyStatus.DRAFT, PolicyStatus.SIMULATED]):
-            result = simulate_policy(policy=policy, starts_at=now - timedelta(days=30), ends_at=now)
-            RecognitionPolicy.objects.filter(pk=policy.pk).update(status=PolicyStatus.SIMULATED)
-            self.message_user(request, f"{policy}: {result['projected_credits']} crédits projetés sur {result['signals']} Signals ({result['matches']} matches).", level=messages.INFO)
+        return self._confirm_policy_action(
+            request, queryset,
+            action="simulate_last_30_days",
+            title="Simulation Recognition — action auditée",
+            service=record_policy_simulation,
+            permission=PermissionCode.PLATFORM_RECOGNITION_POLICY_MANAGE,
+        )
 
-    @admin.action(description="Publier ou planifier la Policy simulée")
+    @admin.action(description="Publier ou planifier la Policy (confirmation et justification)")
     def publish_or_schedule(self, request, queryset):
-        if not _allowed(request, PermissionCode.PLATFORM_RECOGNITION_POLICY_PUBLISH):
-            self.message_user(request, "Permission de publication Recognition insuffisante.", level=messages.ERROR)
-            return
-        policies = list(queryset)
-        if len(policies) != 1:
-            self.message_user(request, "Publiez une seule Policy à la fois.", level=messages.ERROR)
-            return
-        policy = policies[0]
-        if policy.status not in {PolicyStatus.SIMULATED, PolicyStatus.SCHEDULED}:
-            self.message_user(request, "La Policy doit être simulée avant publication.", level=messages.ERROR)
-            return
-
-        now = timezone.now()
-        cursor = RecognitionCursor.objects.filter(pk="recognition-v1").first()
-        desired = policy.effective_from or now
-        if cursor is not None:
-            effective_from = _next_policy_boundary(cursor=cursor, target=max(desired, now))
-            RecognitionPolicy.objects.filter(pk=policy.pk).update(
-                status=PolicyStatus.SCHEDULED,
-                effective_from=effective_from,
-            )
-            self.message_user(
-                request,
-                f"Policy planifiée pour la frontière Recognition {effective_from.isoformat()}.",
-                level=messages.SUCCESS,
-            )
-            return
-
-        if desired > now:
-            RecognitionPolicy.objects.filter(pk=policy.pk).update(status=PolicyStatus.SCHEDULED, effective_from=desired)
-            self.message_user(request, "Policy planifiée. Automation l'activera avant sa première fenêtre applicable.", level=messages.SUCCESS)
-            return
-
-        RecognitionPolicy.objects.filter(status=PolicyStatus.ACTIVE).exclude(pk=policy.pk).update(
-            status=PolicyStatus.SUPERSEDED,
-            effective_until=now,
+        return self._confirm_policy_action(
+            request, queryset,
+            action="publish_or_schedule",
+            title="Publication Recognition — action auditée",
+            service=publish_policy_for_actor,
+            permission=PermissionCode.PLATFORM_RECOGNITION_POLICY_PUBLISH,
         )
-        RecognitionPolicy.objects.filter(pk=policy.pk).update(
-            status=PolicyStatus.ACTIVE,
-            effective_from=now,
-        )
-        self.message_user(request, "Policy Recognition publiée avant ouverture du premier watermark.", level=messages.SUCCESS)
 
 
 class ReadOnlyRecognitionAdmin(admin.ModelAdmin):
