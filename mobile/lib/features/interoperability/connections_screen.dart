@@ -64,7 +64,8 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   }
 
   String _capabilityLabel(String value) =>
-      _capabilityLabels[value] ?? _humanize(value, fallback: 'Capacité disponible');
+      _capabilityLabels[value] ??
+      _humanize(value, fallback: 'Capacité disponible');
 
   String _connectionState(InteroperabilityConnectionProjection connection) {
     if (!connection.enabled || connection.status == 'disabled') {
@@ -92,7 +93,10 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
 
   Widget _sectionTitle(BuildContext context, String label) {
     return Padding(
-      padding: const EdgeInsets.only(top: MakoloSpacing.lg, bottom: MakoloSpacing.sm),
+      padding: const EdgeInsets.only(
+        top: MakoloSpacing.lg,
+        bottom: MakoloSpacing.sm,
+      ),
       child: Text(label, style: Theme.of(context).textTheme.titleMedium),
     );
   }
@@ -110,8 +114,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(_connectionState(connection)),
-              if (capabilities.isNotEmpty)
-                Text(capabilities.join(' · ')),
+              if (capabilities.isNotEmpty) Text(capabilities.join(' · ')),
             ],
           ),
         ),
@@ -130,7 +133,9 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           leading: const Icon(Icons.extension_outlined),
           title: const Text('Service disponible'),
           subtitle: Text(
-            capabilities.isEmpty ? 'Disponible' : 'Disponible · ${capabilities.join(' · ')}',
+            capabilities.isEmpty
+                ? 'Disponible'
+                : 'Disponible · ${capabilities.join(' · ')}',
           ),
         ),
         const Divider(height: 1),
