@@ -41,7 +41,8 @@
           <div class="my-1 border-t" style="border-color:var(--mk-border)"></div>
           {% if space_context or space_console %}<a href="{% url 'core:participant-home' %}" class="mk-nav-item" role="menuitem"><i data-lucide="user-round"></i><span>Agir comme moi</span></a>{% endif %}
           <a href="{% url 'organizations:list' %}" class="mk-nav-item" role="menuitem"><i data-lucide="repeat-2"></i><span>Agir comme</span></a>
-          <a href="{% url 'account:profile' %}" class="mk-nav-item" role="menuitem"><i data-lucide="circle-user-round"></i><span>Compte et paramètres</span></a>
+          <a href="{% url 'account:home' %}" class="mk-nav-item" role="menuitem"><i data-lucide="shield-check"></i><span>Compte</span></a>
+          <a href="{% url 'account:settings' %}" class="mk-nav-item" role="menuitem"><i data-lucide="settings-2"></i><span>Paramètres</span></a>
           {% if not space_console and not space_context %}<a href="{% url 'core:participant-connections' %}" class="mk-nav-item" role="menuitem"><i data-lucide="workflow"></i><span>Connexions</span></a>{% endif %}
           {% if not space_console and not space_context %}<a href="{% url 'subscriptions:home' %}" class="mk-nav-item" role="menuitem"><i data-lucide="credit-card"></i><span>Abonnement et facturation</span></a>{% endif %}
           <div class="my-1 border-t" style="border-color:var(--mk-border)"></div>

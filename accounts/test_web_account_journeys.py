@@ -202,6 +202,38 @@ class WebAccountJourneyTests(TestCase):
         self.assertContains(response_unknown, "Vérifiez votre boîte e-mail")
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_forgot_password_preserves_identifier_and_safe_destination(self):
+        forgot_url = reverse("account:password-forgot")
+        response = self.client.get(
+            forgot_url,
+            {"email": "amina@example.com", "next": "/tickets/"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'value="amina@example.com"')
+        self.assertContains(response, 'name="next" value="/tickets/"')
+
+        completed = self.client.post(
+            forgot_url,
+            {"email": "amina@example.com", "next": "/tickets/"},
+        )
+        self.assertEqual(completed.status_code, 200)
+        self.assertContains(completed, "login=amina%40example.com")
+        self.assertContains(completed, "next=%2Ftickets%2F")
+
+    def test_forgot_password_drops_unsafe_destination(self):
+        response = self.client.post(
+            reverse("account:password-forgot"),
+            {
+                "email": "amina@example.com",
+                "next": "https://evil.example/steal",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "login=amina%40example.com")
+        self.assertNotContains(response, "evil.example")
+
     def test_password_reset_accepts_valid_token_and_rejects_invalid_token(self):
         user = User.objects.create_user(
             username="reset-web",
@@ -238,6 +270,51 @@ class WebAccountJourneyTests(TestCase):
         )
         self.assertEqual(invalid_response.status_code, 200)
         self.assertContains(invalid_response, "invalide ou expiré")
+
+    def test_account_settings_and_profile_are_distinct_surfaces(self):
+        user = User.objects.create_user(
+            username="separate-surfaces",
+            email="separate@example.com",
+            password=self.password,
+        )
+        self.client.force_login(user)
+
+        account = self.client.get(reverse("account:home"))
+        self.assertEqual(account.status_code, 200)
+        self.assertContains(account, "Accès au compte")
+        self.assertContains(account, "Comptes mémorisés")
+        self.assertNotContains(account, "Centres d’intérêt")
+
+        settings = self.client.get(reverse("account:settings"))
+        self.assertEqual(settings.status_code, 200)
+        self.assertContains(settings, "Apparence")
+        self.assertContains(settings, "Notifications")
+        self.assertContains(settings, "Langue et fuseau horaire")
+        self.assertNotContains(settings, "Présentation")
+
+        profile = self.client.get(reverse("account:profile"))
+        self.assertEqual(profile.status_code, 200)
+        self.assertContains(profile, "Présentez-vous à votre rythme")
+        self.assertNotContains(profile, "Sécurité du compte")
+        self.assertNotContains(profile, "Enregistrer l’apparence")
+        self.assertNotContains(profile, "Enregistrer les notifications")
+
+    def test_settings_updates_supported_appearance_without_profile_rewrite(self):
+        user = User.objects.create_user(
+            username="settings-owner",
+            email="settings-owner@example.com",
+            password=self.password,
+        )
+        self.client.force_login(user)
+
+        response = self.client.post(
+            reverse("account:settings"),
+            {"section": "appearance", "appearance": "dark"},
+        )
+
+        self.assertRedirects(response, f"{reverse('account:settings')}#appearance")
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.theme, "dark")
 
     def test_account_deletion_requires_explicit_confirmation_and_anonymizes(self):
         user = User.objects.create_user(

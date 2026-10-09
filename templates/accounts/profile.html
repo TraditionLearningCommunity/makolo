@@ -6,13 +6,11 @@
 <div class="mx-auto max-w-6xl space-y-8 lg:space-y-10">
     <section class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div class="max-w-3xl">
-            <span class="mk-kicker">Compte</span>
+            <span class="mk-kicker">Profil</span>
             <h1 class="mk-page-title">Mon profil</h1>
             <p class="mk-page-copy mt-4 text-[15px]">Ajoutez vos informations progressivement, au moment où elles vous sont utiles.</p>
         </div>
         <div class="flex flex-wrap gap-2">
-            <a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary"><i data-lucide="key-round" class="h-4 w-4"></i>Mot de passe</a>
-            <a href="{% url 'notifications:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="bell" class="h-4 w-4"></i>Notifications</a>
             <a href="{% url 'account:interests' %}" class="mk-btn mk-btn-secondary"><i data-lucide="sparkles" class="h-4 w-4"></i>Centres d’intérêt</a>
             {% if caps.has_organizer_tools %}<a href="{% url 'organizations:list' %}" class="mk-btn mk-btn-secondary"><i data-lucide="building-2" class="h-4 w-4"></i>Mes Espaces</a>{% endif %}
         </div>
@@ -28,7 +26,6 @@
                 {% endif %}
                 <div class="min-w-0">
                     <p class="truncate text-lg font-extrabold">{% if request.user.full_name %}{{ request.user.full_name }}{% else %}{{ request.user.username }}{% endif %}</p>
-                    {% if request.user.email %}<p class="mt-1 truncate text-sm" style="color:var(--mk-muted)">{{ request.user.email }}</p>{% endif %}
                     <p class="mt-1 text-xs" style="color:var(--mk-subtle)">@{{ request.user.username }}</p>
                 </div>
             </div>
@@ -45,14 +42,6 @@
 
     <section class="mk-panel p-5 sm:p-6">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex items-start gap-3"><div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="shield-check" class="h-5 w-5"></i></div><div><h2 class="text-base font-extrabold">Sécurité du compte</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Connexion : @{{ request.user.username }}{% if request.user.email %} ou {{ request.user.email }}{% endif %}</p></div></div>
-            <div class="flex flex-wrap gap-2"><a href="{% url 'account:password-change' %}" class="mk-btn mk-btn-secondary">Changer le mot de passe</a><a href="{% url 'account:delete' %}" class="mk-btn mk-btn-ghost" style="color:var(--mk-danger)">Supprimer le compte</a></div>
-        </div>
-        {% if deletion_blockers %}<div class="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/[.07] p-4 text-sm"><p class="font-bold">Suppression indisponible</p><p class="mt-1 leading-6" style="color:var(--mk-muted)">Transférez d’abord la propriété des Espaces dont vous êtes le dernier propriétaire actif.</p></div>{% endif %}
-    </section>
-
-    <section class="mk-panel p-5 sm:p-6">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div class="flex items-start gap-3"><div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="sparkles" class="h-5 w-5"></i></div><div><h2 class="text-base font-extrabold">Centres d’intérêt</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Déclarez ce qui vous intéresse pour personnaliser Discover. Vos choix restent privés par défaut.</p></div></div>
             <a href="{% url 'account:interests' %}" class="mk-btn mk-btn-primary">Gérer mes centres d’intérêt</a>
         </div>
@@ -63,6 +52,8 @@
     <form id="profile-master" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="section" value="profile">
+        <input type="hidden" name="language" value="{{ profile_forms.preferences.language.value|default:'' }}">
+        <input type="hidden" name="timezone" value="{{ profile_forms.preferences.timezone.value|default:'' }}">
     </form>
 
     <section id="presentation" class="mk-panel p-5 sm:p-6 lg:p-7">
@@ -111,56 +102,6 @@
         </div>
         {% if profile_forms.links.non_field_errors %}<div class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">{{ profile_forms.links.non_field_errors }}</div>{% endif %}
         <div class="mt-6 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.links %}</div>
-    </section>
-
-    <section id="preferences" class="mk-panel p-5 sm:p-6 lg:p-7">
-        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
-            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="sliders-horizontal" class="h-5 w-5"></i></div>
-            <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">5 · Préférences</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Personnaliser mon expérience</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Langue, fuseau horaire, apparence et notifications peuvent évoluer indépendamment du reste du profil.</p></div>
-        </div>
-
-        <div class="mt-6 rounded-2xl border p-5" style="border-color:var(--mk-border)">
-            <h3 class="text-base font-extrabold">Langue et fuseau horaire</h3>
-            <div class="mt-4 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.preferences %}</div>
-        </div>
-
-        <form id="appearance" method="post" class="mt-4 rounded-2xl border p-5" style="border-color:var(--mk-border)">
-            {% csrf_token %}
-            <input type="hidden" name="section" value="appearance">
-            <h3 class="flex items-center gap-2 text-base font-extrabold"><i data-lucide="sun" class="h-5 w-5"></i>Apparence</h3>
-            <p class="mt-1 text-sm" style="color:var(--mk-muted)">« Système » suit le réglage de cet appareil.</p>
-            {% with current=appearance_form.appearance.value %}
-            <div class="mt-4 grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="Apparence">
-                {% for value, label in appearance_form.fields.appearance.choices %}
-                <div class="flex items-start gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
-                    <input id="appearance-{{ value }}" type="radio" name="appearance" value="{{ value }}" aria-describedby="appearance-{{ value }}-help" {% if current == value %}checked{% endif %}>
-                    <div class="min-w-0 flex-1"><label for="appearance-{{ value }}" class="flex cursor-pointer items-center text-sm font-bold" style="min-height:44px">{{ label }}</label><p id="appearance-{{ value }}-help" class="text-xs" style="color:var(--mk-muted)">{% if value == 'system' %}Suit le réglage de l’appareil.{% elif value == 'light' %}Toujours en thème clair.{% else %}Toujours en thème sombre.{% endif %}</p></div>
-                </div>
-                {% endfor %}
-            </div>
-            {% endwith %}
-            {% for error in appearance_form.appearance.errors %}<p class="mt-3 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
-            <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer l’apparence</button></div>
-        </form>
-
-        <form method="post" class="mt-4 rounded-2xl border p-5" style="border-color:var(--mk-border)">
-            {% csrf_token %}
-            <input type="hidden" name="section" value="notifications">
-            <h3 class="flex items-center gap-2 text-base font-extrabold"><i data-lucide="bell-ring" class="h-5 w-5"></i>Notifications</h3>
-            <div class="mt-4 grid gap-4 md:grid-cols-2">
-                {% for field in preferences_form %}
-                <div>
-                    {% if field.field.widget.input_type == 'checkbox' %}
-                    <label class="flex items-center gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">{{ field }}<span class="text-sm font-bold">{{ field.label }}</span></label>
-                    {% else %}
-                    <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>{{ field }}
-                    {% endif %}
-                    {% for error in field.errors %}<p class="mt-1 text-xs font-semibold text-red-600">{{ error }}</p>{% endfor %}
-                </div>
-                {% endfor %}
-            </div>
-            <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer les notifications</button></div>
-        </form>
     </section>
 
     <section id="privacy" class="mk-panel p-5 sm:p-6 lg:p-7">

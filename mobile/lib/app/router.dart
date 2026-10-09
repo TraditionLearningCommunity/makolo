@@ -20,7 +20,9 @@ import '../features/now/now_routes.dart';
 import '../features/ongoing/ongoing_routes.dart';
 import '../features/preparation/preparation_routes.dart';
 import '../features/questionnaires/questionnaire_routes.dart';
+import '../features/settings/account_screen.dart';
 import '../features/settings/billing_screen.dart';
+import '../features/settings/change_password_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
 import '../features/space/space_insight_screen.dart';
@@ -62,6 +64,8 @@ GoRouter createMakoloRouter(
       '/notifications',
       '/ongoing/calendar',
       '/billing',
+      '/account',
+      '/account/password',
       '/settings',
     }.contains(path)) {
       return true;
@@ -186,6 +190,23 @@ GoRouter createMakoloRouter(
       GoRoute(
         path: '/billing',
         builder: (context, state) => const BillingScreen(),
+      ),
+      GoRoute(
+        path: '/account',
+        builder: (context, state) => AccountScreen(
+          runtime: runtime,
+          onChangePassword: () => context.push('/account/password'),
+          onRememberedAccounts: () => context.push('/accounts'),
+          onConnections: () => context.push('/connections'),
+          onBilling: () => context.push('/billing'),
+        ),
+      ),
+      GoRoute(
+        path: '/account/password',
+        builder: (context, state) => ChangePasswordScreen(
+          runtime: runtime,
+          onPasswordChanged: onAuthenticationChanged,
+        ),
       ),
       GoRoute(
         path: '/settings',

@@ -31,8 +31,8 @@ class AccountProfileWebTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mon profil")
-        self.assertContains(response, "Apparence")
-        self.assertContains(response, self.user.email)
+        self.assertNotContains(response, "Apparence")
+        self.assertNotContains(response, self.user.email)
         self.assertContains(response, "js/theme-preference.js")
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
         self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
@@ -89,27 +89,27 @@ class AccountProfileWebTests(TestCase):
         profile = UserProfile.objects.create(user=self.user, theme="system")
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse("account:profile"),
+            reverse("account:settings"),
             {"section": "appearance", "appearance": "dark"},
         )
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, f"{reverse('account:profile')}#appearance")
+        self.assertEqual(response.url, f"{reverse('account:settings')}#appearance")
 
         profile.refresh_from_db()
         self.assertEqual(profile.theme, "dark")
         self.user.refresh_from_db()
         self.assertNotIn("appearance", self.user.preferences)
 
-        response = self.client.get(reverse("account:profile"))
+        response = self.client.get(reverse("account:settings"))
         self.assertContains(response, 'data-theme-preference="dark"')
-        self.assertContains(response, 'id="appearance-dark"')
-        self.assertContains(response, 'aria-describedby="appearance-dark-help" checked')
+        self.assertContains(response, 'value="dark"')
+        self.assertContains(response, 'checked')
 
     def test_invalid_appearance_is_rejected_without_overwriting_profile_theme(self):
         profile = UserProfile.objects.create(user=self.user, theme="light")
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse("account:profile"),
+            reverse("account:settings"),
             {"section": "appearance", "appearance": "sepia"},
         )
         self.assertEqual(response.status_code, 400)
@@ -125,7 +125,7 @@ class AccountProfileWebTests(TestCase):
         )
         self.client.force_login(self.user)
         response = self.client.post(
-            reverse("account:profile"),
+            reverse("account:settings"),
             {
                 "section": "notifications",
                 "email_notifications": "on",
@@ -136,7 +136,7 @@ class AccountProfileWebTests(TestCase):
                 "quiet_hours_end": "07:00",
             },
         )
-        self.assertRedirects(response, reverse("account:profile"))
+        self.assertRedirects(response, f"{reverse('account:settings')}#notifications")
         preference.refresh_from_db()
         self.assertTrue(preference.email_notifications)
         self.assertFalse(preference.sms_notifications)
@@ -144,7 +144,7 @@ class AccountProfileWebTests(TestCase):
         self.assertTrue(preference.quiet_hours_enabled)
         self.assertEqual(preference.quiet_hours_start.strftime("%H:%M"), "22:00")
 
-    def test_password_change_is_reachable_from_profile(self):
+    def test_password_change_is_reachable_from_account(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("account:password-change"))
         self.assertEqual(response.status_code, 200)

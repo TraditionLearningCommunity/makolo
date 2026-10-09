@@ -231,7 +231,7 @@ class WebReadPathRegressionTests(TestCase):
     def test_account_settings_get_does_not_bootstrap_profile_or_preferences(self):
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
         self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
-        response = self.client.get("/account/profile/")
+        response = self.client.get("/account/settings/")
         self.assertEqual(response.status_code, 200)
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
         self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
@@ -247,7 +247,7 @@ class WebReadPathRegressionTests(TestCase):
     def test_missing_account_extensions_are_created_only_by_valid_mutations(self):
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
         appearance = self.client.post(
-            "/account/profile/",
+            "/account/settings/",
             {"section": "appearance", "appearance": "dark"},
         )
         self.assertEqual(appearance.status_code, 302)

@@ -137,6 +137,36 @@ class PasswordForgotView(FormView):
     template_name = "accounts/password_forgot.html"
     form_class = PasswordForgotForm
 
+    def get_initial(self):
+        initial = super().get_initial()
+        email = (self.request.GET.get("email") or "").strip()
+        if "@" in email and not email.startswith("@"):
+            initial["email"] = email
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        next_url = _safe_next_url(
+            self.request,
+            self.request.POST.get("next") or self.request.GET.get("next"),
+        )
+        identifier = (
+            self.request.POST.get("email")
+            or self.request.GET.get("email")
+            or ""
+        ).strip()
+        query = {}
+        if identifier:
+            query["login"] = identifier
+        if next_url:
+            query["next"] = next_url
+        login_url = reverse("core:login")
+        context["login_url"] = (
+            f"{login_url}?{urlencode(query)}" if query else login_url
+        )
+        context["next_url"] = next_url
+        return context
+
     def post(self, request, *args, **kwargs):
         email = request.POST.get("email", "")
         if not allow_web_request(
@@ -151,7 +181,11 @@ class PasswordForgotView(FormView):
 
     def form_valid(self, form):
         request_password_reset(email=form.cleaned_data["email"])
-        return render(self.request, "accounts/password_forgot_done.html")
+        return render(
+            self.request,
+            "accounts/password_forgot_done.html",
+            self.get_context_data(form=form),
+        )
 
 
 class PasswordResetConfirmView(FormView):
@@ -294,10 +328,105 @@ class AccountProfileView(LoginRequiredMixin, View):
         )
 
 
+class AccountHomeView(LoginRequiredMixin, TemplateView):
+    login_url = "core:login"
+    template_name = "accounts/account.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["deletion_blockers"] = get_account_deletion_blockers(self.request.user)
+        context["remembered_accounts"] = [
+            row.user for row in remembered_accounts_for_request(self.request)
+        ]
+        return context
+
+
+class AccountSettingsView(AccountProfileView):
+    template_name = "accounts/settings.html"
+
+    def _settings_profile_forms(self, request, profile, *, bound=False):
+        profile_forms = self._profile_forms(
+            request,
+            profile,
+            bound_section="preferences" if bound else None,
+        )
+        for field in profile_forms["preferences"].fields.values():
+            field.widget.attrs.pop("form", None)
+        return profile_forms
+
+    def get(self, request):
+        profile, preferences = self._objects(request)
+        profile_forms = self._settings_profile_forms(request, profile)
+        return render(
+            request,
+            self.template_name,
+            self._context(
+                request,
+                profile,
+                NotificationPreferencesForm(instance=preferences),
+                profile_forms=profile_forms,
+            ),
+        )
+
+    def post(self, request):
+        profile, preferences = self._objects(request)
+        section = request.POST.get("section", "")
+        appearance_form = AppearancePreferencesForm(profile=profile)
+        preferences_form = NotificationPreferencesForm(instance=preferences)
+        profile_forms = self._settings_profile_forms(request, profile)
+
+        if section == "appearance":
+            appearance_form = AppearancePreferencesForm(request.POST, profile=profile)
+            if appearance_form.is_valid():
+                appearance_form.save()
+                messages.success(request, "Apparence mise à jour.")
+                return redirect(f"{reverse('account:settings')}#appearance")
+        elif section == "notifications":
+            preferences_form = NotificationPreferencesForm(request.POST, instance=preferences)
+            if preferences_form.is_valid():
+                preferences_form.save()
+                messages.success(request, "Préférences de notification mises à jour.")
+                return redirect(f"{reverse('account:settings')}#notifications")
+        elif section == "preferences":
+            profile_forms = self._settings_profile_forms(request, profile, bound=True)
+            form = profile_forms["preferences"]
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Langue et fuseau horaire mis à jour.")
+                return redirect(f"{reverse('account:settings')}#regional")
+        else:
+            return render(
+                request,
+                self.template_name,
+                self._context(
+                    request,
+                    profile,
+                    preferences_form,
+                    appearance_form,
+                    profile_forms=profile_forms,
+                    profile_error="Section de paramètres inconnue.",
+                ),
+                status=400,
+            )
+
+        return render(
+            request,
+            self.template_name,
+            self._context(
+                request,
+                profile,
+                preferences_form,
+                appearance_form,
+                profile_forms=profile_forms,
+            ),
+            status=400,
+        )
+
+
 class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     login_url = "core:login"
     template_name = "accounts/password_change.html"
-    success_url = reverse_lazy("account:profile")
+    success_url = reverse_lazy("account:home")
 
     def form_valid(self, form):
         messages.success(self.request, "Mot de passe modifié avec succès.")
