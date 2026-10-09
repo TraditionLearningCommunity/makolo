@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
 import '../../presentation/contracts/now_presentation.dart';
+import 'now_proposal_decision.dart';
 
 /// Only the existing owner service may authorize and confirm a mutation.
 /// Presentation never turns a capability or a URL into a generic HTTP action.
@@ -220,6 +221,19 @@ class _NowActionGroupState extends State<NowActionGroup> {
                   NowOwnerAction.authorizedPath(widget.situation, action) !=
                       null;
               final canHandoff = widget.onOpenOwner != null;
+              final proposal =
+                  widget.api != null &&
+                  NowProposalDecision.authorizedPath(widget.situation, action) !=
+                      null;
+              if (proposal) {
+                return NowProposalDecision(
+                  key: ValueKey('now-proposal-${widget.situation.identity}'),
+                  situation: widget.situation,
+                  action: action,
+                  api: widget.api!,
+                  onRefresh: NowActionRefreshScope.maybeOf(context),
+                );
+              }
               final active =
                   !_sending && !_confirmedByOwner && (direct || canHandoff);
               if (!direct && !canHandoff) {
