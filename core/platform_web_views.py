@@ -85,6 +85,8 @@ class PlatformSystemView(PlatformView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["overview"] = build_product_operations_overview(self.request.user)
+        from core.platform_system_projection import operator_event_status
+        context["domain_events"] = operator_event_status(self.request.user)
         return context
 
 
