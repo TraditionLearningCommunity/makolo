@@ -35,6 +35,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _refreshing = false;
   String _query = '';
   String _filter = 'all';
+  _HistoryView? _remoteHistory;
+  bool _searching = false;
+  bool _searchFailed = false;
   bool _loadingMore = false;
   bool _requestedInitialRefresh = false;
 
@@ -86,6 +89,44 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  Future<void> _remoteSearch() async {
+    final query = _query;
+    final filter = _filter;
+    setState(() {
+      _searching = true;
+      _searchFailed = false;
+    });
+    try {
+      final payload = await widget.repository.searchPage(
+        query: query,
+        type: filter == 'access'
+            ? 'accesses'
+            : filter == 'journey'
+                ? 'journeys'
+                : 'all',
+      );
+      if (!mounted || _query != query || _filter != filter) return;
+      final snapshot = StoredProjection(
+        kind: HistoryRepository.projectionKind,
+        resourceKey: 'offset:0:limit:24',
+        schemaVersion: 1,
+        payload: payload,
+        receivedAt: DateTime.now(),
+      );
+      setState(() {
+        _remoteHistory = _HistoryView.fromPages([snapshot]);
+      });
+    } on Object {
+      if (mounted && _query == query && _filter == filter) {
+        setState(() => _searchFailed = true);
+      }
+    } finally {
+      if (mounted && _query == query && _filter == filter) {
+        setState(() => _searching = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<StoredProjection>>(
@@ -112,7 +153,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             final view = source.invalidated
                 ? _HistoryView.fromPages(const [])
                 : _HistoryView.fromPages(pages);
-            final visible = view.items.where((item) {
+            final visible = (_remoteHistory ?? view).items.where((item) {
               if (_filter != 'all' && item.kind != _filter) return false;
               return _query.isEmpty ||
                   item.title.toLowerCase().contains(_query.toLowerCase());
@@ -183,7 +224,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         labelText: 'Rechercher dans l’historique synchronisé',
                         prefixIcon: Icon(Icons.search),
                       ),
-                      onChanged: (value) => setState(() => _query = value.trim()),
+                      onChanged: (value) => setState(() {
+                        _query = value.trim();
+                        _remoteHistory = null;
+                      }),
+                      onSubmitted: (_) => _remoteSearch(),
                     ),
                     const SizedBox(height: 12),
                     Wrap(
@@ -197,15 +242,38 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     ? 'Accès'
                                     : 'Démarches'),
                             selected: _filter == filter,
-                            onSelected: (_) => setState(() => _filter = filter),
+                            onSelected: (_) {
+                              setState(() {
+                                _filter = filter;
+                                _remoteHistory = null;
+                              });
+                              unawaited(_remoteSearch());
+                            },
                           ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Historique partiel. Recherche locale dans les '
-                      'pages déjà synchronisées.',
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Historique partiel. Résultats locaux puis '
+                            'actualisation chez les propriétaires.',
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Rechercher dans tout l’historique visible',
+                          onPressed: _searching ? null : _remoteSearch,
+                          icon: const Icon(Icons.search),
+                        ),
+                      ],
                     ),
+                    if (_searching) const LinearProgressIndicator(),
+                    if (_searchFailed)
+                      const Text(
+                        'Recherche distante indisponible. '
+                        'Les pages locales restent consultables.',
+                      ),
                     if (visible.isEmpty)
                       const Text('Aucun élément correspondant parmi les '
                           'pages synchronisées.'),
