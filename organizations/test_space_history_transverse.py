@@ -1,12 +1,11 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.test import TestCase
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from activities.models import Activity, Occurrence, OccurrenceStatus
+from activities.models import Activity, Occurrence, OccurrenceStatus, OccurrenceTimingKind
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
 from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
@@ -54,9 +53,10 @@ class SpaceHistoryPermissionTests(TestCase):
             status=OccurrenceStatus.COMPLETED,
         )
         self.undated = Occurrence.objects.create(
-            activity=self.activity, label="Sans date historique",
-            start_date=(now + timedelta(days=8)).date(),
-            timing_kind="date_only", status=OccurrenceStatus.SCHEDULED,
+            activity=self.activity, label="Sans heure de fin historique",
+            start_date=(now - timedelta(days=2)).date(),
+            timing_kind=OccurrenceTimingKind.DATE_ONLY,
+            status=OccurrenceStatus.COMPLETED,
         )
         self.client = APIClient()
         self.url = "/api/v1/organizations/workspaces/history-space/history/"
@@ -85,7 +85,7 @@ class SpaceHistoryPermissionTests(TestCase):
         self.assertIn(str(self.past.pk), ids)
         self.assertNotIn(str(self.undated.pk), ids)
         row = next(row for row in response.data["items"] if row["source"]["id"] == str(self.past.pk))
-        self.assertEqual(parse_datetime(row["occurred_at"]), self.past.end_at)
+        self.assertEqual(datetime.fromisoformat(row["occurred_at"]), self.past.end_at)
 
     def test_search_pagination_and_invalid_responsibility(self):
         self.client.force_authenticate(self.owner)
