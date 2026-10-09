@@ -124,7 +124,7 @@ class PlacementUnitAdmin(admin.ModelAdmin):
 
 
 @admin.register(PlacementAssignment)
-class PlacementAssignmentAdmin(admin.ModelAdmin):
+class PlacementAssignmentAdmin(TechnicalReadOnlyAdmin):
     list_display = ("plan", "unit", "beneficiary_display_name", "assigned_by", "assigned_at", "ended_at")
     list_filter = ("plan", "ended_at")
     search_fields = (
