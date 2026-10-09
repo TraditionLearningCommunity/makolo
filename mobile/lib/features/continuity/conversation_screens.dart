@@ -45,7 +45,18 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     _requestedInitialRefresh = true;
     final local = await widget.repository.readList();
     final source = await widget.repository.readListSource();
+    final invitations = await widget.repository.readInvitations();
+    final invitationSource = await widget.repository.readInvitationsSource();
     if (!mounted) return;
+    if (invitations == null ||
+        ConversationRepository.invitationsFreshness.evaluate(
+              invitations,
+              now: DateTime.now(),
+              invalidated: invitationSource.invalidated,
+            ) !=
+            FreshnessState.fresh) {
+      unawaited(widget.repository.refreshInvitations());
+    }
     if (local == null) {
       await _refresh();
       return;
