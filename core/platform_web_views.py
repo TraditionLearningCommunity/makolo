@@ -143,6 +143,70 @@ class PlatformInvestigateView(PlatformView):
         return context
 
 
+
+class PlatformSpaceInvestigationView(PlatformView):
+    module = "operations"
+    page = "investigation_detail"
+    heading = "Investigation Space"
+    template_name = "platform/investigation_detail.html"
+
+    def get_context_data(self, **kwargs):
+        from operations.selectors import get_moderation_cases
+        from activities.models import Activity
+        context = super().get_context_data(**kwargs)
+        space = get_object_or_404(get_operations_organizations(self.request.user), pk=self.kwargs["pk"])
+        context.update(
+            target_kind="space",
+            target=space,
+            target_state=space.get_lifecycle_display(),
+            activity_rows=Activity.objects.filter(space=space).only("id", "title", "status")[:30],
+            event_rows=get_operations_events(self.request.user).filter(organization=space)[:30],
+            incident_rows=get_operations_incidents(self.request.user).filter(organization=space)[:30],
+            moderation_rows=get_moderation_cases(self.request.user).filter(organization=space)[:30],
+            audit_rows=get_operations_audit_logs(self.request.user).filter(
+                target_type="organization", target_id=str(space.pk)
+            ).order_by("-created_at")[:30],
+        )
+        if can(self.request.user, PermissionCode.PLATFORM_TRUST_REVIEW):
+            from trust.models import VerificationClaim, Report
+            context["trust_claims"] = VerificationClaim.objects.filter(subject_space=space)[:20]
+            context["trust_reports"] = Report.objects.filter(space=space)[:20]
+        if can(self.request.user, PermissionCode.PLATFORM_SUBSCRIPTIONS_VIEW):
+            from subscriptions.runtime_models import Subscription
+            context["space_subscription"] = Subscription.objects.filter(space=space).first()
+        return context
+
+
+class PlatformEventInvestigationView(PlatformView):
+    module = "operations"
+    page = "investigation_detail"
+    heading = "Investigation Event"
+
+    template_name = "platform/investigation_detail.html"
+
+    def get_context_data(self, **kwargs):
+        from operations.selectors import get_moderation_cases
+        from activities.models import Occurrence
+        context = super().get_context_data(**kwargs)
+        event = get_object_or_404(get_operations_events(self.request.user), pk=self.kwargs["pk"])
+        context.update(
+            target_kind="event",
+            target=event,
+            target_state=f"{event.status} · {event.visibility}",
+            occurrence_rows=Occurrence.objects.filter(
+                activity_id=event.activity_id
+            ).order_by("-start_date", "-start_time")[:30],
+            incident_rows=get_operations_incidents(self.request.user).filter(
+                event=event
+            )[:30],
+            moderation_rows=get_moderation_cases(self.request.user).filter(event=event)[:30],
+            audit_rows=get_operations_audit_logs(self.request.user).filter(
+                target_type="event", target_id=str(event.pk)
+            ).order_by("-created_at")[:30],
+        )
+        return context
+
+
 class PlatformInteroperabilityView(PlatformView):
     module = "interoperability"
     page = "interoperability"
