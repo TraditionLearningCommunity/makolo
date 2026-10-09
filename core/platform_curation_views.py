@@ -167,3 +167,93 @@ class PlatformCurationDecisionView(PlatformCurationDetailView):
             )
         messages.success(request, "Décision enregistrée par le domaine Opportunity et auditée.")
         return redirect("platform_web:curation-detail", pk=op.pk)
+
+
+class PlatformSubmissionReviewView(LoginRequiredMixin, TemplateView):
+    login_url = "core:login"
+    template_name = "platform/submission_review.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        if not can(request.user, PermissionCode.OPPORTUNITIES_REVIEW_SUBMISSIONS):
+            raise PermissionDenied("Permission de revue des propositions Opportunity requise.")
+        response = super().dispatch(request, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    def get_context_data(self, **kwargs):
+        from opportunities.models import OpportunitySubmission
+        from opportunities.staff_forms import OpportunitySubmissionDecisionForm
+        context = super().get_context_data(**kwargs)
+        obj = get_object_or_404(OpportunitySubmission, pk=self.kwargs["pk"])
+        context.update(
+            platform_modules=platform_modules_for(self.request.user),
+            platform_page="curation",
+            platform_heading="Revue de proposition",
+            submission=obj,
+            version_token=obj.updated_at.isoformat(),
+            decision_form=kwargs.get("decision_form", OpportunitySubmissionDecisionForm()),
+            error_message=kwargs.get("error_message", ""),
+        )
+        return context
+
+    def post(self, request, *args, **kwargs):
+        from opportunities.models import OpportunitySubmission, OpportunitySubmissionStatus
+        from opportunities.staff_forms import OpportunitySubmissionDecisionForm
+        from opportunities.services import start_submission_review, decide_opportunity_submission
+        reason = (request.POST.get("reason") or "").strip()
+        step = request.POST.get("step")
+        if (request.POST.get("confirm") != "1" or not 5 <= len(reason) <= 2000
+                or step not in {"review", "decide"}):
+            return self.render_to_response(self.get_context_data(
+                error_message="L'action, la confirmation et une justification explicite sont requises."
+            ), status=400)
+        form = OpportunitySubmissionDecisionForm(request.POST) if step == "decide" else None
+        if form and not form.is_valid():
+            return self.render_to_response(self.get_context_data(
+                error_message="Décision ou Opportunity canonique invalide.", decision_form=form,
+            ), status=400)
+        with transaction.atomic():
+            obj = get_object_or_404(
+                OpportunitySubmission.objects.select_for_update(), pk=self.kwargs["pk"]
+            )
+            if not can(request.user, PermissionCode.OPPORTUNITIES_REVIEW_SUBMISSIONS):
+                raise PermissionDenied("Autorité de revue révoquée.")
+            if obj.updated_at.isoformat() != request.POST.get("version_token", ""):
+                return self.render_to_response(self.get_context_data(
+                    error_message="La proposition a changé ; actualisez avant de décider."
+                ), status=409)
+            before = obj.status
+            if ((step == "review" and before != OpportunitySubmissionStatus.PENDING)
+                    or (step == "decide" and before != OpportunitySubmissionStatus.UNDER_REVIEW)):
+                return self.render_to_response(self.get_context_data(
+                    error_message="Cette transition est déjà traitée ou non autorisée."
+                ), status=409)
+            try:
+                if step == "review":
+                    result = start_submission_review(submission=obj, actor=request.user)
+                else:
+                    data = form.cleaned_data
+                    result = decide_opportunity_submission(
+                        submission=obj, actor=request.user,
+                        decision=data["decision"],
+                        resolved_opportunity=data["resolved_opportunity"],
+                        review_note=reason,
+                    )
+            except ValidationError as exc:
+                return self.render_to_response(self.get_context_data(
+                    error_message="; ".join(exc.messages),
+                ), status=409)
+            audit_action(
+                actor=request.user,
+                action=f"platform.opportunity.submission.{step}",
+                target_type="opportunity_submission", target_id=obj.pk,
+                summary="Revue humaine de proposition Opportunity",
+                before={"status": before},
+                after={"status": result.status,
+                       "resolved_opportunity_id": str(result.resolved_opportunity_id) if result.resolved_opportunity_id else None},
+                metadata={"reason": reason},
+            )
+        messages.success(request, "Proposition traitée par le service Opportunity ; décision auditée.")
+        return redirect("platform_web:submission-review", pk=obj.pk)
