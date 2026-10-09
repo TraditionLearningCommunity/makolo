@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -32,24 +33,44 @@ def _latest_version(asset):
     return versions[0] if versions else None
 
 
-def _asset_for_request(request, asset_id):
-    return get_object_or_404(PersonalAsset.objects.filter(controller=request.user, archived_at__isnull=True), pk=asset_id)
+def _asset_for_request(request, asset_id, *, include_archived=False):
+    assets = PersonalAsset.objects.filter(controller=request.user)
+    if not include_archived:
+        assets = assets.filter(archived_at__isnull=True)
+    return get_object_or_404(assets, pk=asset_id)
 
 
 @login_required
 def library_list(request):
     assets = personal_assets_for_controller(request.user)
+    query = (request.GET.get("q") or "").strip()[:120]
     active_filter = request.GET.get("filter", "all")
+    if query:
+        assets = assets.filter(title__icontains=query)
     if active_filter == "expiring":
         today = timezone.localdate()
-        assets = assets.filter(versions__expires_at__gte=today, versions__expires_at__lte=today + timedelta(days=30)).distinct()
-    items = [{"asset": asset, "latest": _latest_version(asset)} for asset in assets]
-    return render(request, "personal_assets/list.html", {"items": items, "active_filter": active_filter})
+        assets = assets.filter(
+            versions__expires_at__gte=today,
+            versions__expires_at__lte=today + timedelta(days=30),
+        ).distinct()
+    assets = assets.order_by("-updated_at", "id")
+    page = Paginator(assets, 24).get_page(request.GET.get("page"))
+    items = [{"asset": asset, "latest": _latest_version(asset)} for asset in page.object_list]
+    return render(
+        request,
+        "personal_assets/list.html",
+        {
+            "items": items,
+            "page": page,
+            "query": query,
+            "active_filter": active_filter,
+        },
+    )
 
 
 @login_required
 def library_detail(request, asset_id):
-    asset = _asset_for_request(request, asset_id)
+    asset = _asset_for_request(request, asset_id, include_archived=True)
     versions = list(personal_asset_versions_for_controller(request.user, asset).order_by("-version"))
     latest = versions[0] if versions else None
     return render(request, "personal_assets/detail.html", {"asset": asset, "versions": versions, "latest": latest, "today": timezone.localdate()})
