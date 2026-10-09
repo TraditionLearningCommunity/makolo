@@ -76,9 +76,23 @@ def _now_topology(item):
     members = item.get("relation_members") or ()
     relations = item.get("relations") or ()
     response = item.get("response") or {}
+    member_ids = {
+        member.get("id")
+        for member in members
+        if isinstance(member, dict) and isinstance(member.get("id"), str)
+    }
+    linked = any(
+        isinstance(relation, dict)
+        and isinstance(relation.get("kind"), str)
+        and relation["kind"].strip()
+        and len(set(relation.get("member_ids") or ()) & member_ids) >= 2
+        for relation in relations
+        if isinstance(relation, dict)
+        and isinstance(relation.get("member_ids"), (list, tuple))
+    )
     if (
-        len(members) >= 2
-        and relations
+        len(member_ids) >= 2
+        and linked
         and _display_value(item.get("why_now"), "meaning")
         and _consequence_text(item.get("consequence"))
         and response.get("type")
