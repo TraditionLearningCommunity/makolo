@@ -275,6 +275,7 @@ class NowSelector {
             },
             mimeType: _string(item['mime_type']),
             url: _string(item['url']),
+            downloadUrl: _string(item['download_url']),
             localPath: _string(item['local_path']),
             label: _string(item['label']),
             aspect: _string(item['aspect']),
