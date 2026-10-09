@@ -55,8 +55,7 @@ String? nowAuthorizedOriginalDownloadPath(NowMediaBindingPresentation binding) {
 }
 
 String nowOriginalDocumentExtension(NowMediaBindingPresentation media) {
-  return media.mimeType ==
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  return media.mimeType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       ? 'docx'
       : 'txt';
 }

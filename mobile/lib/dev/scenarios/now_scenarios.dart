@@ -10,11 +10,12 @@ import '../../presentation/contracts/now_presentation.dart';
 abstract final class NowGalleryScenarios {
   static NowSelection select(String id) {
     final isCalm = id == 'now-calm';
-    final isWait = id == 'now-legitimate-waiting' ||
-        id.startsWith('now-g01-s4-');
+    final isWait =
+        id == 'now-legitimate-waiting' || id.startsWith('now-g01-s4-');
     final isMedia = id == 'now-media' || id.startsWith('now-g01-s2-');
     final isCompose = id == 'now-multiple' || id.startsWith('now-g01-s5-');
-    final isAction = id == 'now-current-action' ||
+    final isAction =
+        id == 'now-current-action' ||
         id == 'now-n2' ||
         id.startsWith('now-g01-s3-');
     final rich = id.endsWith('-rich');
@@ -77,7 +78,9 @@ abstract final class NowGalleryScenarios {
                 kind: rich ? NowMediaKind.video : NowMediaKind.pdf,
                 mimeType: rich ? 'video/mp4' : 'application/pdf',
                 authorized: true,
-                label: rich ? 'Vidéo de démonstration' : 'Document de démonstration',
+                label: rich
+                    ? 'Vidéo de démonstration'
+                    : 'Document de démonstration',
               ),
             ]
           : const [],

@@ -485,7 +485,8 @@ class _NowSemanticContent extends StatelessWidget {
                 },
                 semanticLabel:
                     dominantMedia.label ?? 'Média lié à la situation',
-                child: dominantMedia.kind == NowMediaKind.image &&
+                child:
+                    dominantMedia.kind == NowMediaKind.image &&
                         api != null &&
                         profileId != null &&
                         nowAuthorizedMediaPath(dominantMedia) != null
@@ -541,7 +542,8 @@ class _NowSemanticContent extends StatelessWidget {
                 (candidate) => candidate.canDominate,
               );
               final owner = situation.ownerDestination;
-              final canHandoff = owner != null &&
+              final canHandoff =
+                  owner != null &&
                   onOpenOwner != null &&
                   NowScreen.ownerPathFor(owner) != null;
               if (!canHandoff) {
@@ -680,7 +682,8 @@ class _NowPrimarySituation extends StatelessWidget {
                   ],
                 ),
               ],
-              if (canOpenOwner && topologyFor(situation) != NowTopology.action) ...[
+              if (canOpenOwner &&
+                  topologyFor(situation) != NowTopology.action) ...[
                 const SizedBox(height: MakoloSpacing.lg),
                 FilledButton(
                   onPressed: () => onOpenOwner!(ownerDestination!),
@@ -853,7 +856,8 @@ class _NowDepth extends StatelessWidget {
                 ],
               ),
             ],
-            if (canOpenOwner && topologyFor(situation) != NowTopology.action) ...[
+            if (canOpenOwner &&
+                topologyFor(situation) != NowTopology.action) ...[
               const SizedBox(height: MakoloSpacing.xl),
               OutlinedButton(
                 onPressed: () => onOpenOwner!(ownerDestination),

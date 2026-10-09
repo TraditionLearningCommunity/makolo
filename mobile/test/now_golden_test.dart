@@ -41,14 +41,8 @@ void main() {
   for (final architecture in architectures) {
     for (final variant in variants) {
       final id = 'now-g01-$architecture-$variant';
-      testWidgets('G01 $architecture $variant golden at 360px', (
-        tester,
-      ) async {
-        await pumpNowGolden(
-          tester,
-          scenario: id,
-          textScale: 1,
-        );
+      testWidgets('G01 $architecture $variant golden at 360px', (tester) async {
+        await pumpNowGolden(tester, scenario: id, textScale: 1);
         await expectLater(
           find.byKey(const Key('now-golden-root')),
           matchesGoldenFile('goldens/now/$architecture-$variant-100.png'),
@@ -62,11 +56,7 @@ void main() {
       testWidgets('G01 $architecture minimum at text scale $scale', (
         tester,
       ) async {
-        await pumpNowGolden(
-          tester,
-          scenario: id,
-          textScale: scale,
-        );
+        await pumpNowGolden(tester, scenario: id, textScale: scale);
         await expectLater(
           find.byKey(const Key('now-golden-root')),
           matchesGoldenFile('goldens/now/$architecture-min-$name.png'),

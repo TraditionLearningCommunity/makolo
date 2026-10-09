@@ -32,13 +32,17 @@ void main() {
     expect(nowAuthorizedMediaPath(binding(url: '/api/v1/x//file')), isNull);
     expect(
       nowAuthorizedMediaPath(
-        binding(url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=admin'),
+        binding(
+          url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=admin',
+        ),
       ),
       isNull,
     );
     expect(
       nowAuthorizedMediaPath(
-        binding(url: '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/'),
+        binding(
+          url: '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/',
+        ),
       ),
       isNull,
     );
@@ -58,7 +62,8 @@ void main() {
   });
 
   test('document reading and original DOCX export use separate owner URLs', () {
-    const original = '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/';
+    const original =
+        '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/';
     const source = NowMediaBindingPresentation(
       resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',
       target: NowMediaTarget.situation,
@@ -69,8 +74,14 @@ void main() {
       url: original + '?view=text',
       downloadUrl: original,
     );
-    expect(nowAuthorizedMediaPath(source), 'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=text');
-    expect(nowAuthorizedOriginalDownloadPath(source), 'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/');
+    expect(
+      nowAuthorizedMediaPath(source),
+      'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=text',
+    );
+    expect(
+      nowAuthorizedOriginalDownloadPath(source),
+      'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
+    );
     expect(nowOriginalDocumentExtension(source), 'docx');
     const hostile = NowMediaBindingPresentation(
       resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',

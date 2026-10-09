@@ -74,7 +74,8 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
 
     File? downloaded;
     try {
-      final base = widget.temporaryDirectory ??
+      final base =
+          widget.temporaryDirectory ??
           await ProfilePaths.reconstructibleCache(widget.profileId);
       final directory = Directory('${base.path}/now-previews');
       await directory.create(recursive: true);

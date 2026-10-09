@@ -41,9 +41,7 @@ void main() {
           tester,
           viewport: const Size(360, 800),
           textScale: scale,
-          child: NowGalleryScenarioPreview(
-            id: 'now-g01-$architecture-min',
-          ),
+          child: NowGalleryScenarioPreview(id: 'now-g01-$architecture-min'),
         );
         expect(tester.takeException(), isNull);
         expect(find.byType(NowView), findsOneWidget);
@@ -77,7 +75,10 @@ void main() {
       tester,
       child: const NowGalleryScenarioPreview(id: 'now-g01-s3-min'),
     );
-    expect(find.widgetWithText(FilledButton, 'Vérifier le dossier'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, 'Vérifier le dossier'),
+      findsOneWidget,
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Vérifier le dossier'));
     await tester.pump();
     expect(
