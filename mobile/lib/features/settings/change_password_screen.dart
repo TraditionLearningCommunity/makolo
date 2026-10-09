@@ -41,7 +41,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   String? _confirmPassword(String? value) {
     final required = _required(value);
     if (required != null) return required;
-    if (value != _next.text) return 'Les deux mots de passe doivent être identiques.';
+    if (value != _next.text)\n      return 'Les deux mots de passe doivent être identiques.';
     return null;
   }
 
@@ -91,7 +91,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 obscureText: true,
                 autofillHints: const [AutofillHints.password],
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Mot de passe actuel'),
+                decoration: const InputDecoration(\n                  labelText: 'Mot de passe actuel',\n                ),
                 validator: _required,
               ),
               const SizedBox(height: MakoloSpacing.md),
@@ -101,7 +101,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 obscureText: true,
                 autofillHints: const [AutofillHints.newPassword],
                 textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Nouveau mot de passe'),
+                decoration: const InputDecoration(\n                  labelText: 'Nouveau mot de passe',\n                ),
                 validator: _required,
               ),
               const SizedBox(height: MakoloSpacing.md),
@@ -111,7 +111,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 obscureText: true,
                 autofillHints: const [AutofillHints.newPassword],
                 textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(labelText: 'Confirmer le mot de passe'),
+                decoration: const InputDecoration(\n                  labelText: 'Confirmer le mot de passe',\n                ),
                 validator: _confirmPassword,
                 onFieldSubmitted: (_) => _submit(),
               ),
@@ -130,7 +130,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               FilledButton(
                 key: const Key('change-password-submit'),
                 onPressed: _busy ? null : _submit,
-                child: Text(_busy ? 'Modification…' : 'Modifier le mot de passe'),
+                child: Text(\n                  _busy ? 'Modification…' : 'Modifier le mot de passe',\n                ),
               ),
             ],
           ),
