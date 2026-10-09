@@ -21,3 +21,14 @@ class TechnicalReadOnlyAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+class TechnicalSuperuserReadOnlyAdmin(TechnicalReadOnlyAdmin):
+    """Exceptional forensic access to private data, never generic staff access."""
+
+    def has_module_permission(self, request):
+        user = request.user
+        return bool(user.is_authenticated and user.is_active and user.is_staff and user.is_superuser)
+
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request)
