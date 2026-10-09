@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../network/makolo_api_client.dart';
@@ -96,11 +95,11 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
     }
     File? file;
     try {
-      final temporary =
-          widget.temporaryDirectory ??
-          (widget.profileId != null
-              ? await ProfilePaths.reconstructibleCache(widget.profileId!)
-              : await getTemporaryDirectory());
+      final temporary = widget.temporaryDirectory ??
+          await ProfilePaths.reconstructibleCache(
+            widget.profileId ??
+                (throw StateError('Authenticated profile required for private media.')),
+          );
       final dir = Directory('${temporary.path}/makolo-now-media');
       await dir.create(recursive: true);
       file = File(
