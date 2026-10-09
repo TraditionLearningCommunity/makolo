@@ -5,7 +5,7 @@ from .platform_curation_views import PlatformCurationDecisionView, PlatformCurat
 from .platform_web_views import (
     PlatformAuditView, PlatformHomeView, PlatformInteroperabilityView,
     PlatformInvestigateView, PlatformSpaceInvestigationView, PlatformEventInvestigationView, PlatformOperationsView, PlatformTrustView, PlatformCurationView, PlatformOpportunityMergeView, PlatformSubscriptionsView, PlatformRecognitionSimulationView,
-    PlatformRecognitionView, PlatformRecognitionActionView, PlatformSystemView, PlatformSpaceDecisionView, PlatformEventDecisionView,
+    PlatformRecognitionView, PlatformRecognitionAvailabilityView, PlatformRecognitionActionView, PlatformSystemView, PlatformSpaceDecisionView, PlatformEventDecisionView,
 )
 
 app_name = "platform_web"
@@ -29,6 +29,7 @@ urlpatterns = [
     path("subscriptions/", PlatformSubscriptionsView.as_view(), name="subscriptions"),
     path("interoperability/", PlatformInteroperabilityView.as_view(), name="interoperability"),
     path("recognition/", PlatformRecognitionView.as_view(), name="recognition"),
+    path("recognition/definitions/<str:kind>/<uuid:pk>/", PlatformRecognitionAvailabilityView.as_view(), name="recognition-availability"),
     path("recognition/<uuid:pk>/simulation/", PlatformRecognitionSimulationView.as_view(), name="recognition-simulation"),
     path("recognition/<uuid:pk>/<str:action>/", PlatformRecognitionActionView.as_view(), name="recognition-action"),
 ]
