@@ -117,7 +117,7 @@ class ResourceRepository {
             versionLimit.toString(),
         projectionKind: detailProjectionKind,
         resourceKey: assetId,
-        category: SyncSourceCategory.detail,
+        category: SyncSourceCategory.keyedDetail,
         freshnessPolicy: freshnessPolicy,
       );
 
