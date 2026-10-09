@@ -683,3 +683,62 @@ class PlatformRecognitionActionView(PlatformRecognitionView):
                 status=409,
             )
         return redirect("platform_web:recognition")
+
+
+class PlatformRecognitionAvailabilityView(PlatformView):
+    """Govern only availability of Recognition definitions, via owner service."""
+    module = "recognition_governance"
+    page = "recognition_availability"
+    heading = "Disponibilité Recognition"
+    template_name = "platform/recognition_availability.html"
+
+    def _definition(self):
+        from recognition.models import AchievementDefinition, RewardDefinition
+        classes = {
+            "reward": (RewardDefinition, PermissionCode.PLATFORM_RECOGNITION_ECONOMY_MANAGE),
+            "achievement": (AchievementDefinition, PermissionCode.PLATFORM_RECOGNITION_ACHIEVEMENTS_MANAGE),
+        }
+        if self.kwargs["kind"] not in classes:
+            raise Http404
+        model, permission = classes[self.kwargs["kind"]]
+        if not can(self.request.user, permission):
+            raise PermissionDenied("Permission Recognition spécialisée requise.")
+        return get_object_or_404(model, pk=self.kwargs["pk"])
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
+        self._definition()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        obj = self._definition()
+        context.update(
+            definition=obj, kind=self.kwargs["kind"],
+            expected_version=obj.updated_at.isoformat(),
+            error_message=kwargs.get("error_message", ""),
+        )
+        return context
+
+    def post(self, request, *args, **kwargs):
+        reason = (request.POST.get("reason") or "").strip()
+        if request.POST.get("confirm") != "1" or request.POST.get("activate") not in {"0", "1"}:
+            return self.render_to_response(self.get_context_data(
+                error_message="Confirmation explicite et disponibilité cible requises."
+            ), status=400)
+        from recognition.governance_services import change_recognition_definition_availability
+        try:
+            obj = change_recognition_definition_availability(
+                actor=request.user, kind=self.kwargs["kind"],
+                definition_id=self.kwargs["pk"],
+                expected_version=request.POST.get("expected_version", ""),
+                activate=request.POST["activate"] == "1",
+                reason=reason,
+            )
+        except ValidationError as exc:
+            return self.render_to_response(self.get_context_data(
+                error_message="; ".join(exc.messages)
+            ), status=409)
+        messages.success(request, f"Disponibilité mise à jour pour {obj.name}. Motif enregistré.")
+        return redirect("platform_web:recognition")
