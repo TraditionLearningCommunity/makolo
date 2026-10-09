@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
+import '../../platform/sharing/share_gateway.dart';
 import '../journey/journey_selector.dart';
 import 'preparation_resources_screen.dart';
 import 'requirement_detail_screen.dart';
@@ -44,6 +45,11 @@ List<RouteBase> preparationRoutes(AppRuntime runtime) => [
         journeyId: state.pathParameters['journeyId']!,
         resourcesPath: state.extra is String ? state.extra! as String : null,
         repository: repository,
+        onOpenExternal: (url) {
+          final uri = Uri.tryParse(url);
+          if (uri == null || !uri.hasScheme) return Future.value(false);
+          return const SystemShareGateway().openExternal(uri);
+        },
       );
     },
   ),
