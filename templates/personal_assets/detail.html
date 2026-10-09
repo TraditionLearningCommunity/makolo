@@ -24,7 +24,7 @@
     {% else %}
       <div class="mt-6 flex flex-wrap gap-2">
         <a href="{% url 'personal_assets:download' latest.pk %}" class="mk-btn mk-btn-primary">Télécharger</a>
-        <a href="{% url 'personal_assets:add-version' asset.pk %}" class="mk-btn mk-btn-secondary">Ajouter une nouvelle version</a>
+        <a href="{% url 'personal_assets:reuse' asset.pk %}" class="mk-btn mk-btn-secondary">Réutiliser dans une démarche</a><a href="{% url 'personal_assets:add-version' asset.pk %}" class="mk-btn mk-btn-secondary">Ajouter une nouvelle version</a>
         <form method="post" action="{% url 'personal_assets:archive' asset.pk %}">{% csrf_token %}<button type="submit" class="mk-btn mk-btn-ghost">Archiver</button></form>
       </div>
     {% endif %}
