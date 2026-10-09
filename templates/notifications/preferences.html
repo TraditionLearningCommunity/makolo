@@ -8,7 +8,7 @@
         <div>
             <p class="text-xs font-black uppercase tracking-[0.22em] text-indigo-500">Notifications</p>
             <h1 class="mt-2 text-4xl font-black tracking-tight">Préférences</h1>
-            <p class="mt-2 text-zinc-500 dark:text-zinc-400">Choisissez comment Makolo vous informe sans désactiver les informations visibles dans votre centre de notifications.</p>
+            <p class="mt-2 text-zinc-500 dark:text-zinc-400">Choisissez comment Makolo vous porte les signaux utiles. Ces préférences ne suppriment jamais les vérités métier auxquelles ils renvoient.</p>
         </div>
         <a href="{% url 'notifications:list' %}" class="rounded-2xl border border-zinc-300 px-4 py-2 font-semibold dark:border-zinc-700">Retour</a>
     </div>
@@ -18,9 +18,9 @@
         {% if form.non_field_errors %}<div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{{ form.non_field_errors }}</div>{% endif %}
 
         <section class="space-y-4">
-            <div><h2 class="text-xl font-black">Canaux et catégories</h2><p class="mt-1 text-sm text-zinc-500">Les notifications importantes restent visibles dans Makolo. Ces options contrôlent surtout les e-mails sortants.</p></div>
+            <div><h2 class="text-xl font-black">Canaux et catégories</h2><p class="mt-1 text-sm text-zinc-500">Push et e-mail sont des canaux de livraison. Les catégories règlent les signaux, pas les obligations ni les droits métier.</p></div>
             {% for field in form %}
-                {% if field.name == 'email_notifications' or field.name == 'event_notifications' or field.name == 'security_notifications' or field.name == 'marketing_notifications' %}
+                {% if field.name == 'push_notifications' or field.name == 'email_notifications' or field.name == 'security_notifications' or field.name == 'event_notifications' or field.name == 'service_notifications' or field.name == 'opportunity_notifications' or field.name == 'marketing_notifications' %}
                 <label for="{{ field.id_for_label }}" class="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
                     <div><span class="font-bold">{{ field.label }}</span>{% for error in field.errors %}<p class="mt-1 text-sm text-red-500">{{ error }}</p>{% endfor %}</div>
                     {{ field }}
@@ -30,7 +30,7 @@
         </section>
 
         <section class="space-y-4 border-t border-zinc-200 pt-7 dark:border-zinc-800">
-            <div><h2 class="text-xl font-black">Heures silencieuses</h2><p class="mt-1 text-sm text-zinc-500">Les e-mails non urgents sont conservés dans la file puis envoyés après la période silencieuse.</p></div>
+            <div><h2 class="text-xl font-black">Heures silencieuses</h2><p class="mt-1 text-sm text-zinc-500">Les livraisons non urgentes attendent la fin de cette période ; le signal et sa vérité propriétaire ne sont pas supprimés.</p></div>
             {% for field in form %}{% if field.name == 'quiet_hours_enabled' %}<label for="{{ field.id_for_label }}" class="flex items-center justify-between rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800"><span class="font-bold">{{ field.label }}</span>{{ field }}</label>{% endif %}{% endfor %}
             <div class="grid gap-5 md:grid-cols-2">
                 {% for field in form %}
