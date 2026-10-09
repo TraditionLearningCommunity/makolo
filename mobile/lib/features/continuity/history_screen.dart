@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
@@ -97,6 +98,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
           builder: (context, sourceSnapshot) {
             final pages = pagesSnapshot.data ?? const [];
             final source = sourceSnapshot.data ?? OwnerSourceState.unknown;
+            if (source.invalidated) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('Historique')),
+                body: const Center(
+                  child: Text(
+                    'Cet historique n’est plus disponible avec '
+                    'l’autorité actuelle.',
+                  ),
+                ),
+              );
+            }
             final view = source.invalidated
                 ? _HistoryView.fromPages(const [])
                 : _HistoryView.fromPages(pages);
@@ -140,6 +152,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               appBar: AppBar(
                 title: const Text('Historique'),
                 actions: [
+                  IconButton(
+                    tooltip: 'Recherche transverse',
+                    onPressed: () => context.push('/search'),
+                    icon: const Icon(Icons.search),
+                  ),
                   IconButton(
                     tooltip: 'Actualiser',
                     onPressed: _refreshing ? null : _refreshFirst,

@@ -243,13 +243,31 @@ class _SpaceProjectionBody extends StatelessWidget {
         }
       }
     }
-    if (rows.isEmpty) {
-      return _message('Aucune activité à afficher pour le moment.');
-    }
     return ListView(
       key: const Key('space-work-projection'),
       padding: const EdgeInsets.all(MakoloSpacing.lg),
       children: [
+        Wrap(
+          spacing: MakoloSpacing.sm,
+          runSpacing: MakoloSpacing.sm,
+          children: [
+            OutlinedButton.icon(
+              icon: const Icon(Icons.search),
+              label: const Text('Rechercher'),
+              onPressed: () => context.push('/space/search'),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.history),
+              label: const Text('Historique'),
+              onPressed: () => context.push('/space/history'),
+            ),
+          ],
+        ),
+        if (rows.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: MakoloSpacing.md),
+            child: Text('Aucune activité à afficher pour le moment.'),
+          ),
         for (final row in rows)
           ListTile(
             contentPadding: EdgeInsets.zero,
