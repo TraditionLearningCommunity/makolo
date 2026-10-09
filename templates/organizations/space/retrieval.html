@@ -1,0 +1,21 @@
+{% extends "organizations/space/base.html" %}
+{% block space_content %}
+<section class="space-y-5" aria-label="{{ space_page_title }}">
+  <header class="space-y-2"><p class="mk-kicker">Espace · {{ space.name }}</p><h2 class="mk-page-title">{{ space_page_title }}</h2><p class="mk-page-copy">{% if is_history %}Retrouvez les séances terminées et datées visibles avec votre autorité actuelle.{% else %}Retrouvez les activités et séances connues dans cet Espace.{% endif %}</p></header>
+  <nav class="flex flex-wrap gap-2" aria-label="Retrouver dans cet Espace"><a class="mk-btn mk-btn-secondary" href="{% url 'organizations:space-search' space.slug %}?responsibility={{ selected_responsibility.key|urlencode }}">Recherche</a><a class="mk-btn mk-btn-secondary" href="{% url 'organizations:space-history' space.slug %}?responsibility={{ selected_responsibility.key|urlencode }}">Historique</a></nav>
+  <form class="mk-panel p-5 flex flex-col gap-3 sm:flex-row sm:items-end" method="get" role="search">
+    <input type="hidden" name="responsibility" value="{{ selected_responsibility.key }}">
+    <div class="flex-1"><label class="block font-semibold mb-2" for="space-retrieval-query">Rechercher dans cet Espace</label><input class="mk-input" name="q" id="space-retrieval-query" value="{{ q }}" maxlength="120" placeholder="Activité, séance"></div>
+    <button class="mk-btn mk-btn-primary" type="submit">Rechercher</button>
+  </form>
+  <section class="mk-panel p-5" aria-live="polite" aria-atomic="false">
+    {% if not is_history and not q %}<p>Saisissez une recherche. Aucun annuaire global n'est affiché par défaut.</p>
+    {% elif retrieval.items %}
+    <h3 class="font-bold mb-3">Résultats visibles</h3>
+    <ul class="space-y-3">{% for item in retrieval.items %}<li class="border-b pb-3" style="border-color:var(--mk-border)"><strong>{{ item.title }}</strong><p class="text-sm">{% if is_history %}Séance passée{% else %}{{ item.human_type }}{% if item.historical %} · Historique{% endif %}{% endif %}</p>{% if item.links.detail %}<a class="underline" href="{{ item.links.detail }}">Voir le détail</a>{% elif item.destination %}<a class="underline" href="{{ item.destination }}">Ouvrir</a>{% endif %}</li>{% endfor %}</ul>
+    {% else %}<p>Aucun résultat visible dans ce contexte{% if q %} pour cette recherche{% endif %}.</p>{% endif %}
+    <p class="text-sm mt-4" style="color:var(--mk-muted)">Couverture partielle : {% if is_history %}séances terminées datées{% else %}activités et séances{% endif %}. Les autres sources ne sont pas présentées comme vides.</p>
+  </section>
+  <nav class="flex gap-3" aria-label="Pagination">{% if page > 1 %}<a class="mk-btn mk-btn-ghost" href="?q={{ q|urlencode }}&amp;responsibility={{ selected_responsibility.key|urlencode }}&amp;page={{ page|add:-1 }}">Précédent</a>{% endif %}{% if retrieval.page.has_more %}<a class="mk-btn mk-btn-secondary" href="?q={{ q|urlencode }}&amp;responsibility={{ selected_responsibility.key|urlencode }}&amp;page={{ page|add:1 }}">Afficher la suite</a>{% endif %}</nav>
+</section>
+{% endblock %}
