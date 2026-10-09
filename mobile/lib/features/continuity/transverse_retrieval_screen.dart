@@ -46,8 +46,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   DateTime? _endDate;
 
   bool get _isSpace => widget.spaceActor != null;
-  bool get _actorValid =>
-      !_isSpace || widget.runtime.actorContext?.value == widget.spaceActor;
+  bool get _actorValid {
+    final current = widget.runtime.actorContext?.value;
+    if (_isSpace) return current == widget.spaceActor;
+    return current == null || current is PersonalActorContext;
+  }
   String get _title => widget.history ? 'Historique' : 'Recherche';
 
   @override
@@ -506,6 +509,17 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         controller: _query,
                         maxLength: 120,
                         textInputAction: TextInputAction.search,
+                        onChanged: (_) {
+                          _version++;
+                          setState(() {
+                            _remote = [];
+                            _local = [];
+                            _more = false;
+                            _offset = 0;
+                            _failed = false;
+                            _selected = null;
+                          });
+                        },
                         decoration: InputDecoration(
                           labelText: widget.history
                               ? 'Rechercher dans le passé'
