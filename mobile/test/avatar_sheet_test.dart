@@ -36,6 +36,7 @@ void main() {
   testWidgets(
     'Avatar exposes global app actions without Compte et paramètres',
     (tester) async {
+      var accountOpened = false;
       var settingsOpened = false;
       final runtime = await _runtimeWithIdentity();
       addTearDown(runtime.close);
@@ -51,6 +52,7 @@ void main() {
                   runtime: runtime,
                   onConnections: () {},
                   onBilling: () {},
+                  onAccount: () => accountOpened = true,
                   onSettings: () => settingsOpened = true,
                   onSwitchAccount: () {},
                   onLogout: () {},
@@ -70,11 +72,18 @@ void main() {
       expect(find.text('Agir comme'), findsOneWidget);
       expect(find.text('Connexions'), findsOneWidget);
       expect(find.text('Abonnement & facturation'), findsOneWidget);
+      expect(find.text('Compte'), findsOneWidget);
       expect(find.text('Paramètres'), findsOneWidget);
       expect(find.text('Changer de compte'), findsOneWidget);
       expect(find.text('Se déconnecter'), findsOneWidget);
       expect(find.text('Compte et paramètres'), findsNothing);
 
+      await tester.tap(find.text('Compte'));
+      await tester.pumpAndSettle();
+      expect(accountOpened, isTrue);
+
+      await tester.tap(find.text('Avatar'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Paramètres'));
       await tester.pumpAndSettle();
       expect(settingsOpened, isTrue);
