@@ -41,6 +41,9 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   bool _more = false;
   int _version = 0;
   int? _selected;
+  String _historyKind = 'all';
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   bool get _isSpace => widget.spaceActor != null;
   bool get _actorValid =>
@@ -112,6 +115,11 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       path: base,
       queryParameters: {
         if (query.isNotEmpty) 'q': query,
+        if (widget.history && _isSpace) 'kind': _historyKind,
+        if (widget.history && _startDate != null)
+          'from': _dateString(_startDate!),
+        if (widget.history && _endDate != null)
+          'to': _dateString(_endDate!),
         'limit': '24',
         'offset': '$offset',
         if (actor != null && !actor.perspective.isAll)
@@ -120,11 +128,22 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     ).toString();
   }
 
+  String _dateString(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+
   String _spaceCachePrefix(SpaceActorContext actor) =>
       '${actor.space.id}:${SpaceSyncKeys.perspectiveKey(actor.perspective)}:';
 
+  String _spaceCacheQueryPrefix(SpaceActorContext actor, String query) =>
+      '${_spaceCachePrefix(actor)}${Uri.encodeComponent(query)}:'
+      '${_historyKind}:'
+      '${_startDate == null ? '-' : _dateString(_startDate!)}:'
+      '${_endDate == null ? '-' : _dateString(_endDate!)}:';
+
   String _spaceCacheKey(SpaceActorContext actor, String query, int offset) =>
-      '${_spaceCachePrefix(actor)}${Uri.encodeComponent(query)}:$offset';
+      '${_spaceCacheQueryPrefix(actor, query)}$offset';
 
   Future<List<Map<String, dynamic>>> _cachedRows(String query) async {
     final store = widget.runtime.store;
@@ -174,7 +193,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       final actor = widget.spaceActor!;
       if (widget.history) {
         final snapshots = await store.readProjections('space.history');
-        final prefix = _spaceCachePrefix(actor);
+        final prefix = _spaceCacheQueryPrefix(actor, query);
         for (final page in snapshots) {
           if (!page.resourceKey.startsWith(prefix)) continue;
           final values = page.payload['items'];
@@ -197,6 +216,15 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       }
       final repository = widget.runtime.space;
       if (repository == null) return [];
+      if (widget.history) {
+        // Only the explicit Space History owner projection has defensible
+        // historical dates. Work's completed items are not another History.
+        final normalized = query.toLowerCase();
+        return _deduplicate(rows.where((row) =>
+          normalized.isEmpty ||
+          (row['title']?.toString().toLowerCase() ?? '')
+              .contains(normalized)).toList());
+      }
       final source = repository.workSource(actor.space, actor.perspective);
       final state = await repository.readSource(source);
       if (state.invalidated) return [];
@@ -501,6 +529,81 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           'Contexte : ${widget.spaceActor!.space.slug}. '
                           'Seules les sources autorisées et couvertes sont consultées.',
                         ),
+                      if (widget.history && _isSpace) ...[
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: _historyKind,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Type de passé',
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'all', child: Text('Tout')),
+                            DropdownMenuItem(
+                              value: 'occurrence', child: Text('Séances passées'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'commerce_order',
+                              child: Text('Commandes annulées'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _historyKind = value);
+                            unawaited(_submit());
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton(
+                              onPressed: () async {
+                                final date = await showDatePicker(
+                                  context: context,
+                                  initialDate: _startDate ?? DateTime.now(),
+                                  firstDate: DateTime(2000),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (!mounted || date == null) return;
+                                setState(() => _startDate = date);
+                                unawaited(_submit());
+                              },
+                              child: Text(_startDate == null
+                                  ? 'Depuis'
+                                  : 'Depuis ${_dateString(_startDate!)}'),
+                            ),
+                            OutlinedButton(
+                              onPressed: () async {
+                                final date = await showDatePicker(
+                                  context: context,
+                                  initialDate: _endDate ?? DateTime.now(),
+                                  firstDate: DateTime(2000),
+                                  lastDate: DateTime.now(),
+                                );
+                                if (!mounted || date == null) return;
+                                setState(() => _endDate = date);
+                                unawaited(_submit());
+                              },
+                              child: Text(_endDate == null
+                                  ? 'Jusqu’au'
+                                  : 'Jusqu’au ${_dateString(_endDate!)}'),
+                            ),
+                            if (_startDate != null || _endDate != null)
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _startDate = null;
+                                    _endDate = null;
+                                  });
+                                  unawaited(_submit());
+                                },
+                                child: const Text('Effacer la période'),
+                              ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       if (rows.isEmpty && !_loading)
                         Text(_query.text.trim().isEmpty && !widget.history
