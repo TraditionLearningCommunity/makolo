@@ -36,10 +36,7 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": [
-                "activity", "occurrence",
-                *(['visible_space_relationships', 'commerce_order'] if unrestricted_lens else []),
-            ]},
+            "coverage": {"state": "partial", "owners": ["activity", "occurrence"]},
         }
     preset = operating_preset_for_space(space)
     can_open_activity_console = _space_has_activity_portfolio_access(profile, space)
