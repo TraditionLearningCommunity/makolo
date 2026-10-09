@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 import '../../data/local/profile_store.dart';
 import '../../design/surface_states.dart';
 import '../../navigation/destination.dart';
@@ -335,9 +337,7 @@ class NowSelector {
       consequenceState: _semanticString(raw['consequence'], 'state'),
       turn: _semanticString(raw['turn'], 'type'),
       responseType: responseType,
-      horizon:
-          _semanticString(raw['horizon'], 'label') ??
-          _semanticString(raw['horizon'], 'text'),
+      horizon: _horizonLabel(raw['horizon']),
       turnLabel: _semanticString(raw['turn'], 'label'),
       mediaBindings: List.unmodifiable(parsedMedia),
       businessActions: List.unmodifiable(parsedActions),
@@ -363,6 +363,20 @@ class NowSelector {
       if (item is Map && _string(item['type']) == 'owner') return item;
     }
     return null;
+  }
+
+  String? _horizonLabel(Object? value) {
+    final display = _semanticString(value, 'label');
+    if (display != null) return display;
+    final text = _semanticString(value, 'text');
+    if (text != null) return text;
+    if (value is! Map || value['type'] != 'temporal') return null;
+    final at = DateTime.tryParse(_string(value['at']) ?? '');
+    if (at == null) return null;
+    final formatted = DateFormat('dd/MM/yyyy · HH:mm').format(at.toLocal());
+    return value['state'] == 'overdue'
+        ? 'Échéance dépassée : $formatted'
+        : 'Échéance : $formatted';
   }
 
   String? _nestedString(Map payload, String parent, String child) {
