@@ -50,8 +50,10 @@ class AccessRepository {
     this.api,
   });
 
+  static const collectionProjectionKind = 'personal.accesses';
   static const projectionKind = 'personal.access.detail';
   static const credentialProjectionKind = 'personal.access.credential';
+  static const defaultCollectionLimit = 24;
 
   static const freshnessPolicy = FreshnessPolicy(id: 'access-owner');
 
@@ -60,6 +62,105 @@ class AccessRepository {
   final String profileId;
   final SyncEngine? sync;
   final MakoloApiClient? api;
+
+  String collectionResourceKey({
+    required String relationship,
+    required int offset,
+    int limit = defaultCollectionLimit,
+  }) => '$relationship:$offset:$limit';
+
+  String collectionSourceKey({
+    required String relationship,
+    required int offset,
+    int limit = defaultCollectionLimit,
+  }) => 'accesses:$relationship:$offset:$limit';
+
+  SyncSourceDefinition collectionSourceFor({
+    required String relationship,
+    required int offset,
+    int limit = defaultCollectionLimit,
+  }) {
+    final encodedRelationship = Uri.encodeQueryComponent(relationship);
+    return SyncSourceDefinition.projectionEnvelope(
+      sourceKey: collectionSourceKey(
+        relationship: relationship,
+        offset: offset,
+        limit: limit,
+      ),
+      owner: 'Access',
+      path:
+          'api/v1/me/accesses/?relationship=$encodedRelationship'
+          '&limit=$limit&offset=$offset',
+      projectionKind: collectionProjectionKind,
+      resourceKey: collectionResourceKey(
+        relationship: relationship,
+        offset: offset,
+        limit: limit,
+      ),
+      category: SyncSourceCategory.collection,
+      freshnessPolicy: freshnessPolicy,
+    );
+  }
+
+  Stream<List<StoredProjection>> watchCollectionPages() =>
+      store.watchProjections(collectionProjectionKind);
+
+  Future<StoredProjection?> readCollectionPage({
+    required String relationship,
+    required int offset,
+    int limit = defaultCollectionLimit,
+  }) => store.readProjection(
+    collectionProjectionKind,
+    resourceKey: collectionResourceKey(
+      relationship: relationship,
+      offset: offset,
+      limit: limit,
+    ),
+  );
+
+  Stream<AccessSourceState> watchCollectionSource({
+    required String relationship,
+    int offset = 0,
+    int limit = defaultCollectionLimit,
+  }) {
+    final sourceKey = collectionSourceKey(
+      relationship: relationship,
+      offset: offset,
+      limit: limit,
+    );
+    final query = database.select(database.syncSources)
+      ..where(
+        (row) =>
+            row.profileId.equals(profileId) & row.sourceKey.equals(sourceKey),
+      );
+    return query.watchSingleOrNull().map(
+      (row) => row == null
+          ? AccessSourceState.unknown
+          : AccessSourceState(
+              lastSuccessAt: row.lastSuccessAt,
+              invalidated: row.invalidated,
+              lastErrorCode: row.lastErrorCode,
+            ),
+    );
+  }
+
+  Future<void> refreshCollectionPage({
+    required String relationship,
+    required int offset,
+    int limit = defaultCollectionLimit,
+  }) async {
+    final engine = sync;
+    if (engine == null) {
+      throw StateError('Remote Access owner is not configured.');
+    }
+    await engine.refreshSource(
+      collectionSourceFor(
+        relationship: relationship,
+        offset: offset,
+        limit: limit,
+      ),
+    );
+  }
 
   SyncSourceDefinition sourceFor(String accessId) {
     return SyncSourceDefinition.projectionEnvelope(
