@@ -2,9 +2,9 @@
 {% block title %}Recherche · Makolo{% endblock %}
 {% block content %}
 <main class="mx-auto max-w-4xl space-y-5 pb-10">
-  <header><span class="mk-kicker">Mon contexte personnel</span><h1 class="mk-page-title mt-2">Recherche</h1><p class="mk-page-copy">Retrouvez vos démarches, accès, documents et collectifs visibles. D'autres sources ne sont pas encore couvertes.</p></header>
+  <header><span class="mk-kicker">Mon contexte personnel</span><h1 class="mk-page-title mt-2">Recherche</h1><p class="mk-page-copy">Retrouvez vos démarches, accès, documents, collectifs et commandes visibles. D'autres sources ne sont pas encore couvertes.</p></header>
   <form method="get" role="search" class="mk-panel p-5 flex flex-col gap-3 sm:flex-row sm:items-end">
-    <div class="flex-1"><label for="personal-search-query" class="block font-semibold mb-2">Que recherchez-vous dans Makolo ?</label><input id="personal-search-query" class="mk-input" name="q" maxlength="120" value="{{ q }}" autocomplete="off" placeholder="Activité, lieu, organisateur"></div>
+    <div class="flex-1"><label for="personal-search-query" class="block font-semibold mb-2">Que recherchez-vous dans Makolo ?</label><input id="personal-search-query" class="mk-input" name="q" maxlength="120" value="{{ q }}" autocomplete="off" placeholder="Activité, référence de commande, lieu, organisateur"></div>
     <button class="mk-btn mk-btn-primary" type="submit">Rechercher</button>
   </form>
   <section class="mk-panel p-5" aria-live="polite" aria-atomic="false">
@@ -13,7 +13,7 @@
       <h2 class="font-bold mb-4">Résultats visibles dans mon contexte</h2>
       <div class="lg:grid lg:grid-cols-5 lg:gap-5"><ul class="space-y-3 {% if selected_item %}lg:col-span-3{% else %}lg:col-span-5{% endif %}">{% for item in search.items %}<li class="border-b pb-3" style="border-color:var(--mk-border)"><a class="font-bold underline" href="?q={{ q|urlencode }}&amp;page={{ page }}&amp;selected={{ item.source.kind }}:{{ item.source.id }}">{{ item.title }}</a><p class="text-sm">{{ item.human_type }} · {{ item.relation }}{% if item.historical %} · Historique{% endif %}</p><a class="text-sm underline" href="{{ item.destination }}">Ouvrir</a></li>{% endfor %}</ul>{% if selected_item %}<aside class="hidden lg:block lg:col-span-2 border-l pl-4" style="border-color:var(--mk-border)" aria-label="Aperçu du résultat sélectionné"><h3 class="font-bold">{{ selected_item.title }}</h3><p>{{ selected_item.human_type }} · {{ selected_item.relation }}</p><a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_item.destination }}">Voir dans son domaine</a></aside>{% endif %}</div>
     {% else %}<p>Aucun résultat visible pour cette recherche dans mon contexte.</p>{% endif %}
-    <p class="text-sm mt-4" style="color:var(--mk-muted)">Couverture partielle : démarches, accès, documents et collectifs seulement.</p>
+    <p class="text-sm mt-4" style="color:var(--mk-muted)">Couverture partielle : démarches, accès, documents, groupes personnels et commandes.</p>
   </section>
   {% if search.page.has_more %}<a class="mk-btn mk-btn-secondary" href="?q={{ q|urlencode }}&amp;page={{ page|add:1 }}">Afficher la suite</a>{% endif %}
   {% if page > 1 %}<a class="mk-btn mk-btn-ghost" href="?q={{ q|urlencode }}&amp;page={{ page|add:-1 }}">Précédent</a>{% endif %}
