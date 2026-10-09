@@ -1,0 +1,66 @@
+{% extends 'organizations/space/ws4_base.html' %}
+{% block space_content %}
+<section class="mk-ws4-stack" aria-labelledby="space-interoperability-heading">
+  <header class="mk-ws4-heading">
+    <span class="mk-kicker">Nous · Connexions</span>
+    <h2 id="space-interoperability-heading">À quels systèmes ce Space est-il relié pour fonctionner ?</h2>
+    <p>Uniquement les connexions de {{ space.name }} que votre autorité actuelle permet d’administrer.</p>
+  </header>
+
+  {% if connections %}
+  <section class="mk-ws4-card" aria-labelledby="space-connections-list">
+    <div class="mk-ws4-card-head">
+      <div>
+        <span class="mk-ws4-eyebrow">Interopérabilité</span>
+        <h3 id="space-connections-list">Connexions du Space</h3>
+      </div>
+    </div>
+    <ul class="mk-ws4-list">
+      {% for connection in connections %}
+      <li>
+        <span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="workflow"></i></span>
+        <div>
+          <strong>{{ connection.display_name }}</strong>
+          <small>
+            {% if not connection.enabled or connection.status == 'disabled' %}
+              Désactivé
+            {% elif connection.health == 'unavailable' %}
+              Momentanément indisponible
+            {% elif connection.health == 'degraded' %}
+              Connecté · disponibilité réduite
+            {% elif connection.health == 'unknown' %}
+              Connecté · état à vérifier
+            {% elif connection.usable %}
+              Connecté et disponible
+            {% elif connection.connected %}
+              Connecté
+            {% elif connection.available %}
+              Disponible
+            {% else %}
+              État à vérifier
+            {% endif %}
+          </small>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="mk-ws4-note">Les détails techniques, credentials et secrets ne sont jamais affichés ici.</p>
+  </section>
+  {% else %}
+  <div class="mk-ws4-state mk-ws4-state--wide" role="status">
+    <i data-lucide="workflow" aria-hidden="true"></i>
+    <div>
+      <strong>Aucune connexion configurée pour ce Space.</strong>
+      <p>Cet état est valide. Makolo n’invente aucun service pour remplir cette surface.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <nav class="mk-ws4-actions" aria-label="Navigation Connexions">
+    <a class="mk-ws4-action mk-ws4-action--quiet" href="{{ space_us_url }}">
+      <i data-lucide="arrow-left" aria-hidden="true"></i>
+      <span><strong>Retour à Nous</strong><small>Identité et organisation du Space.</small></span>
+    </a>
+  </nav>
+</section>
+{% endblock %}
