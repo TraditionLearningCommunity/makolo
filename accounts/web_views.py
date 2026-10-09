@@ -328,6 +328,89 @@ class AccountProfileView(LoginRequiredMixin, View):
         )
 
 
+class AccountHomeView(LoginRequiredMixin, TemplateView):
+    login_url = "core:login"
+    template_name = "accounts/account.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["deletion_blockers"] = get_account_deletion_blockers(self.request.user)
+        context["remembered_accounts"] = [
+            row.user for row in remembered_accounts_for_request(self.request)
+        ]
+        return context
+
+
+class AccountSettingsView(AccountProfileView):
+    template_name = "accounts/settings.html"
+
+    def get(self, request):
+        profile, preferences = self._objects(request)
+        return render(
+            request,
+            self.template_name,
+            self._context(
+                request,
+                profile,
+                NotificationPreferencesForm(instance=preferences),
+            ),
+        )
+
+    def post(self, request):
+        profile, preferences = self._objects(request)
+        section = request.POST.get("section", "")
+        appearance_form = AppearancePreferencesForm(profile=profile)
+        preferences_form = NotificationPreferencesForm(instance=preferences)
+        profile_forms = self._profile_forms(request, profile)
+
+        if section == "appearance":
+            appearance_form = AppearancePreferencesForm(request.POST, profile=profile)
+            if appearance_form.is_valid():
+                appearance_form.save()
+                messages.success(request, "Apparence mise à jour.")
+                return redirect(f"{reverse('account:settings')}#appearance")
+        elif section == "notifications":
+            preferences_form = NotificationPreferencesForm(request.POST, instance=preferences)
+            if preferences_form.is_valid():
+                preferences_form.save()
+                messages.success(request, "Préférences de notification mises à jour.")
+                return redirect(f"{reverse('account:settings')}#notifications")
+        elif section == "preferences":
+            profile_forms = self._profile_forms(request, profile, bound_section="preferences")
+            form = profile_forms["preferences"]
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Langue et fuseau horaire mis à jour.")
+                return redirect(f"{reverse('account:settings')}#regional")
+        else:
+            return render(
+                request,
+                self.template_name,
+                self._context(
+                    request,
+                    profile,
+                    preferences_form,
+                    appearance_form,
+                    profile_forms=profile_forms,
+                    profile_error="Section de paramètres inconnue.",
+                ),
+                status=400,
+            )
+
+        return render(
+            request,
+            self.template_name,
+            self._context(
+                request,
+                profile,
+                preferences_form,
+                appearance_form,
+                profile_forms=profile_forms,
+            ),
+            status=400,
+        )
+
+
 class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     login_url = "core:login"
     template_name = "accounts/password_change.html"
