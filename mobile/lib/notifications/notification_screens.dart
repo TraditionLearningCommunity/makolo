@@ -7,6 +7,7 @@ import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
 import '../design/surface_states.dart';
 import '../navigation/structured_destination_codec.dart';
+import '../presentation/projection_surface_adapter.dart';
 import '../sync/freshness.dart';
 import '../sync/owner_source_state.dart';
 import 'notification_repository.dart';
@@ -27,6 +28,7 @@ class NotificationInboxScreen extends StatefulWidget {
 }
 
 class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
+  static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
   bool _onlyUnread = false;
 
@@ -123,9 +125,15 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                     invalidated: source.invalidated,
                   );
             final available = projection != null;
-            final state = ProjectionSurfaceState(
-              projectionAvailable: available,
-              freshness: freshness,
+            final state = _surfaceAdapter.adapt(
+              projection: ProjectionPresentationModel(
+                available: available,
+                payload: projection?.payload,
+                freshness: freshness,
+                resources: const [],
+                drafts: const [],
+                pendingOperations: const [],
+              ),
               availability: available
                   ? visible.isEmpty
                         ? MakoloAvailabilityCue.empty
