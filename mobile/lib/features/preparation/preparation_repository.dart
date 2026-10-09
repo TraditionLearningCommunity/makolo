@@ -1,7 +1,10 @@
 import 'dart:convert';
 
 import '../../data/local/makolo_database.dart';
+import '../../data/files/file_download_coordinator.dart';
+import '../../data/files/profile_file_store.dart';
 import '../../data/local/profile_store.dart';
+import '../../network/makolo_api_client.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_engine.dart';
@@ -90,6 +93,7 @@ class PreparationResourcesRepository {
     required this.database,
     required this.store,
     required this.profileId,
+    this.api,
     this.sync,
   });
 
@@ -103,6 +107,7 @@ class PreparationResourcesRepository {
   final MakoloDatabase database;
   final ProfileStore store;
   final String profileId;
+  final MakoloApiClient? api;
   final SyncEngine? sync;
 
   SyncSourceDefinition sourceFor({
@@ -174,10 +179,66 @@ class PreparationResourcesRepository {
       sourceFor(journeyId: journeyId, resourcesPath: resourcesPath),
     );
   }
+
+  Future<StoredLocalFile> downloadResource({
+    required String resourceId,
+    required String downloadPath,
+    required String title,
+    String? mimeType,
+  }) async {
+    final client = api;
+    if (client == null) {
+      throw StateError('Remote Preparation owner is not configured.');
+    }
+    final fileStore = await ProfileFileStore.open(
+      database: database,
+      profileId: profileId,
+    );
+    final coordinator = FileDownloadCoordinator(fileStore);
+    return coordinator.download(
+      fileId: 'preparation-resource:$resourceId',
+      owner: 'Preparation',
+      sourceFilename: _resourceFilename(
+        resourceId: resourceId,
+        title: title,
+        mimeType: mimeType,
+      ),
+      purpose: 'journey_preparation',
+      sensitivity: 'private',
+      downloadTo: (destinationPath) async {
+        await client.download(
+          _relativeApiPath(downloadPath),
+          destinationPath: destinationPath,
+        );
+      },
+    );
+  }
 }
 
 String _relativeApiPath(String value) {
   final trimmed = value.trim();
   if (trimmed.startsWith('/')) return trimmed.substring(1);
   return trimmed;
+}
+
+
+String _resourceFilename({
+  required String resourceId,
+  required String title,
+  required String? mimeType,
+}) {
+  final extension = switch ((mimeType ?? '').toLowerCase()) {
+    'application/pdf' => '.pdf',
+    'image/jpeg' => '.jpg',
+    'image/png' => '.png',
+    'image/webp' => '.webp',
+    'text/plain' => '.txt',
+    _ => '',
+  };
+  final safeTitle = title
+      .trim()
+      .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')
+      .replaceAll(RegExp(r'_+'), '_');
+  final stem = safeTitle.isEmpty ? resourceId : safeTitle;
+  return '$stem$extension';
 }

@@ -4,8 +4,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse
 
 from journeys.models import RequestStatus
+from payments.models import PaymentObligationProcessingMode, PaymentObligationStatus
 from readiness import ReadinessCheckState
 from services.requirement_services import derive_requirement_consequence
+from services.trusted_reuse_ui import trusted_reuse_options_for_assessment
 
 from core.product_language import vocabulary_for
 
@@ -355,7 +357,7 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
     }
 
 
-def build_requirement_detail(*, journey, assessment):
+def build_requirement_detail(*, journey, assessment, profile):
     requirement = assessment.requirement
     consequence = derive_requirement_consequence(assessment)
     ways = []
@@ -364,11 +366,48 @@ def build_requirement_detail(*, journey, assessment):
     }
 
     payment_links = list(assessment.payment_obligation_links.all())
-    if payment_links:
+    terminal_payment_states = {
+        PaymentObligationStatus.SATISFIED,
+        PaymentObligationStatus.WAIVED,
+        PaymentObligationStatus.EXPIRED,
+        PaymentObligationStatus.CANCELLED,
+        PaymentObligationStatus.REFUNDED,
+    }
+    for payment_link in payment_links:
+        obligation = payment_link.obligation
+        way = {
+            "kind": "payment",
+            "id": str(obligation.pk),
+            "label": obligation.label or "Paiement",
+            "state": obligation.status,
+        }
+        if obligation.status not in terminal_payment_states:
+            if obligation.processing_mode == PaymentObligationProcessingMode.MAKOLO_PROVIDER:
+                way["link"] = reverse(
+                    "payments:obligation-start",
+                    kwargs={"obligation_pk": obligation.pk},
+                )
+            elif obligation.processing_mode == PaymentObligationProcessingMode.EXTERNAL:
+                way["link"] = reverse(
+                    "services:participant-payment-evidence",
+                    kwargs={"pk": journey.pk, "obligation_pk": obligation.pk},
+                )
+        ways.append(way)
+
+    reuse_options = trusted_reuse_options_for_assessment(
+        assessment=assessment,
+        actor=profile,
+    )
+    if any(option.can_apply for option in reuse_options):
         ways.append(
             {
-                "kind": "payment",
-                "state": payment_links[0].obligation.status,
+                "kind": "trusted_reuse",
+                "label": "Utiliser un document existant",
+                "state": assessment.status,
+                "link": reverse(
+                    "services:participant-trusted-reuse",
+                    kwargs={"pk": journey.pk, "assessment_pk": assessment.pk},
+                ),
             }
         )
 

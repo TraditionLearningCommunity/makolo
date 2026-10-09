@@ -77,6 +77,9 @@ class JourneyDetailPresentation {
     this.resourcesLink,
     this.activity,
     this.occurrence,
+    this.access,
+    this.dayOfLink,
+    this.liveLink,
   });
 
   final bool available;
@@ -96,6 +99,9 @@ class JourneyDetailPresentation {
   final List<JourneyReference> requirements;
   final JourneyReference? activity;
   final JourneyReference? occurrence;
+  final JourneyReference? access;
+  final String? dayOfLink;
+  final String? liveLink;
   final Set<String> capabilities;
   final FreshnessState? freshness;
   final bool sourceInvalidated;
@@ -142,8 +148,10 @@ class JourneyDetailSelector {
     final readiness = _map(payload['readiness']);
     final activity = _map(payload['activity']);
     final occurrence = _map(payload['occurrence']);
+    final access = _map(payload['access']);
     final resources = _map(payload['resources']);
     final links = _map(payload['links']);
+    final capabilities = _strings(payload['capabilities']).toSet();
 
     return JourneyDetailPresentation(
       available: true,
@@ -165,7 +173,8 @@ class JourneyDetailSelector {
           ? null
           : JourneyReference(
               id: _string(activity['id']) ?? '',
-              label: _string(activity['title']) ?? 'Activity',
+              label: _string(activity['title']) ?? 'Activité',
+              link: _string(links['activity']),
             ),
       occurrence: occurrence.isEmpty
           ? null
@@ -173,8 +182,23 @@ class JourneyDetailSelector {
               id: _string(occurrence['id']) ?? '',
               label: _string(occurrence['label']) ?? 'Occurrence',
               state: _string(occurrence['state']),
+              link: _string(links['occurrence']),
             ),
-      capabilities: _strings(payload['capabilities']).toSet(),
+      access: access.isEmpty
+          ? null
+          : JourneyReference(
+              id: _string(access['id']) ?? '',
+              label: 'Accès',
+              state: _string(access['state']),
+              link: _string(access['link']),
+            ),
+      dayOfLink: capabilities.contains('open_day_of') && occurrence.isNotEmpty
+          ? _string(links['day_of'])
+          : null,
+      liveLink: capabilities.contains('open_live') && occurrence.isNotEmpty
+          ? _string(links['live'])
+          : null,
+      capabilities: capabilities,
       freshness: base.freshness,
       sourceInvalidated: source.invalidated,
     );

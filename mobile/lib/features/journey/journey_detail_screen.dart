@@ -23,6 +23,11 @@ class JourneyDetailScreen extends StatefulWidget {
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
+    required this.onOpenActivity,
+    required this.onOpenOccurrence,
+    required this.onOpenAccess,
+    required this.onOpenDayOf,
+    required this.onOpenLive,
   });
 
   final String journeyId;
@@ -30,6 +35,11 @@ class JourneyDetailScreen extends StatefulWidget {
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
   final void Function(String resourcesLink) onOpenResources;
+  final void Function(JourneyReference activity) onOpenActivity;
+  final void Function(JourneyReference occurrence) onOpenOccurrence;
+  final void Function(JourneyReference access) onOpenAccess;
+  final void Function(String dayOfLink) onOpenDayOf;
+  final void Function(String liveLink) onOpenLive;
 
   @override
   State<JourneyDetailScreen> createState() => _JourneyDetailScreenState();
@@ -163,6 +173,11 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     onOpenForm: widget.onOpenForm,
                     onOpenRequirement: widget.onOpenRequirement,
                     onOpenResources: widget.onOpenResources,
+                    onOpenActivity: widget.onOpenActivity,
+                    onOpenOccurrence: widget.onOpenOccurrence,
+                    onOpenAccess: widget.onOpenAccess,
+                    onOpenDayOf: widget.onOpenDayOf,
+                    onOpenLive: widget.onOpenLive,
                   ),
                 ),
               ),
@@ -180,12 +195,22 @@ class _JourneyContent extends StatelessWidget {
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
+    required this.onOpenActivity,
+    required this.onOpenOccurrence,
+    required this.onOpenAccess,
+    required this.onOpenDayOf,
+    required this.onOpenLive,
   });
 
   final JourneyDetailPresentation presentation;
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
   final void Function(String resourcesLink) onOpenResources;
+  final void Function(JourneyReference activity) onOpenActivity;
+  final void Function(JourneyReference occurrence) onOpenOccurrence;
+  final void Function(JourneyReference access) onOpenAccess;
+  final void Function(String dayOfLink) onOpenDayOf;
+  final void Function(String liveLink) onOpenLive;
 
   @override
   Widget build(BuildContext context) {
@@ -215,6 +240,42 @@ class _JourneyContent extends StatelessWidget {
             child: MakoloAttentionBlock(
               title: 'À faire maintenant',
               body: presentation.nextActionLabel!,
+              action: _nextActionButton(),
+            ),
+          ),
+          const SizedBox(height: MakoloSpacing.xl),
+        ],
+        if (presentation.liveLink != null ||
+            presentation.dayOfLink != null) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: MakoloAttentionBlock(
+              title: presentation.liveLink != null
+                  ? 'Ce qui se passe maintenant'
+                  : 'Jour J',
+              body: presentation.liveLink != null
+                  ? 'Cette occurrence est en cours. Retrouvez uniquement ce qui aide à agir maintenant.'
+                  : 'Les informations utiles pour vivre cette occurrence sont disponibles.',
+              icon: presentation.liveLink != null
+                  ? Icons.bolt_rounded
+                  : Icons.today_rounded,
+              action: FilledButton.icon(
+                onPressed: presentation.liveLink != null
+                    ? () => onOpenLive(presentation.liveLink!)
+                    : () => onOpenDayOf(presentation.dayOfLink!),
+                icon: Icon(
+                  presentation.liveLink != null
+                      ? Icons.play_arrow_rounded
+                      : Icons.arrow_forward_rounded,
+                ),
+                label: Text(
+                  presentation.liveLink != null
+                      ? 'Ouvrir Makolo Live'
+                      : 'Ouvrir Jour J',
+                ),
+              ),
             ),
           ),
           const SizedBox(height: MakoloSpacing.xl),
@@ -291,18 +352,119 @@ class _JourneyContent extends StatelessWidget {
             child: Column(
               children: [
                 if (presentation.activity != null)
-                  _ReferenceCard(reference: presentation.activity!),
+                  _ReferenceCard(
+                    reference: presentation.activity!,
+                    onTap: presentation.activity!.link == null
+                        ? null
+                        : () => onOpenActivity(presentation.activity!),
+                  ),
                 if (presentation.activity != null &&
                     presentation.occurrence != null)
                   const SizedBox(height: MakoloSpacing.sm),
                 if (presentation.occurrence != null)
-                  _ReferenceCard(reference: presentation.occurrence!),
+                  _ReferenceCard(
+                    reference: presentation.occurrence!,
+                    onTap: presentation.occurrence!.link == null
+                        ? null
+                        : () => onOpenOccurrence(presentation.occurrence!),
+                  ),
               ],
+            ),
+          ),
+        ],
+        if (presentation.access != null) ...[
+          const SizedBox(height: MakoloSpacing.xl),
+          MakoloSection(
+            title: 'Accès',
+            child: _ReferenceCard(
+              reference: presentation.access!,
+              onTap: presentation.access!.link == null
+                  ? null
+                  : () => onOpenAccess(presentation.access!),
             ),
           ),
         ],
       ],
     );
+  }
+
+  Widget? _nextActionButton() {
+    final link = presentation.nextActionLink;
+    if (link == null || link.isEmpty) return null;
+
+    JourneyFormSummary? form;
+    for (final item in presentation.forms) {
+      if (item.detailLink == link) {
+        form = item;
+        break;
+      }
+    }
+    final matchedForm = form;
+    if (matchedForm != null) {
+      return FilledButton(
+        onPressed: () => onOpenForm(matchedForm),
+        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+      );
+    }
+
+    JourneyReference? requirement;
+    for (final item in presentation.requirements) {
+      if (item.link == link) {
+        requirement = item;
+        break;
+      }
+    }
+    final matchedRequirement = requirement;
+    if (matchedRequirement != null) {
+      return FilledButton(
+        onPressed: () => onOpenRequirement(matchedRequirement),
+        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+      );
+    }
+
+    if (presentation.resourcesLink == link) {
+      return FilledButton(
+        onPressed: () => onOpenResources(link),
+        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+      );
+    }
+
+    if (presentation.activity?.link == link) {
+      return FilledButton(
+        onPressed: () => onOpenActivity(presentation.activity!),
+        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+      );
+    }
+
+    if (presentation.occurrence?.link == link) {
+      return FilledButton(
+        onPressed: () => onOpenOccurrence(presentation.occurrence!),
+        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+      );
+    }
+
+    if (presentation.access?.link == link) {
+      return FilledButton(
+        onPressed: () => onOpenAccess(presentation.access!),
+        child: Text(presentation.nextActionLabel ?? 'Continuer'),
+      );
+    }
+
+    if (presentation.liveLink == link) {
+      return FilledButton(
+        onPressed: () => onOpenLive(link),
+        child: Text(presentation.nextActionLabel ?? 'Ouvrir Makolo Live'),
+      );
+    }
+
+    if (presentation.dayOfLink == link) {
+      return FilledButton(
+        onPressed: () => onOpenDayOf(link),
+        child: Text(presentation.nextActionLabel ?? 'Ouvrir Jour J'),
+      );
+    }
+
+    return null;
   }
 }
 
@@ -327,8 +489,16 @@ class _ReadinessGroups extends StatelessWidget {
     final visible = groups.where((group) => group.$2.isNotEmpty).toList();
 
     if (visible.isEmpty) {
-      return const MakoloCard(
-        child: Text('Aucun détail de préparation supplémentaire.'),
+      final isCalm =
+          (presentation.readinessState == 'ready' ||
+              presentation.readinessState == 'complete') &&
+          presentation.freshness == FreshnessState.fresh;
+      return MakoloCard(
+        child: Text(
+          isCalm
+              ? 'Tout est en ordre pour le moment. ✓'
+              : 'Aucun détail de préparation supplémentaire.',
+        ),
       );
     }
 
