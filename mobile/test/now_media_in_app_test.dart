@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/features/now/now_media_viewer.dart';
+import 'package:makolo_mobile/features/now/now_inline_media_preview.dart';
 import 'package:makolo_mobile/platform/sharing/share_gateway.dart';
 import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
 
@@ -49,6 +50,45 @@ class FakeNowMediaSharing implements ShareGateway {
 }
 
 void main() {
+  testWidgets('unauthorized photo preview makes no authenticated request', (
+    tester,
+  ) async {
+    final root = await Directory.systemTemp.createTemp('now-preview-test-');
+    final api = FakeNowMediaApi();
+    addTearDown(() async {
+      api.close();
+      if (await root.exists()) await root.delete(recursive: true);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 240,
+            child: NowInlineMediaPreview(
+              api: api,
+              profileId: 'profile-a',
+              temporaryDirectory: root,
+              placeholder: const Text('Accès non disponible'),
+              media: const NowMediaBindingPresentation(
+                resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',
+                target: NowMediaTarget.situation,
+                purpose: NowMediaPurpose.understand,
+                kind: NowMediaKind.image,
+                authorized: false,
+                url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(api.downloadedPath, isNull);
+    expect(find.text('Accès non disponible'), findsOneWidget);
+  });
+
   testWidgets('in-app media requires an explicit native export action', (
     tester,
   ) async {
