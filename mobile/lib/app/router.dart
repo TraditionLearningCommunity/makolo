@@ -117,6 +117,16 @@ GoRouter createMakoloRouter(
         return '/discover';
       }
 
+      if (runtime.isAuthenticated && actor is SpaceActorContext) {
+        if (path == '/history') return '/space/history';
+        if (path == '/search') {
+          final q = state.uri.queryParameters['q'];
+          return q == null || q.isEmpty
+              ? '/space/search'
+              : '/space/search?q=${Uri.encodeQueryComponent(q)}';
+        }
+      }
+
       if (runtime.isAuthenticated) {
         final shellDestination = MakoloDestination.forPath(path);
         if (shellDestination != null) {
