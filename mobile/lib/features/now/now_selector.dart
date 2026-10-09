@@ -224,6 +224,7 @@ class NowSelector {
             label: label,
             href: _string(item['href']),
             presentationRank: _string(item['presentation_rank']),
+            confirmationRequired: item['confirmation_required'] == true,
             interactionDepth: switch (_string(item['interaction_depth'])) {
               'direct_now' => NowInteractionDepth.directNow,
               'focused' => NowInteractionDepth.focused,
