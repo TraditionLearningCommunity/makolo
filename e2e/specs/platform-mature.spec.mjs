@@ -38,7 +38,6 @@ for (const viewport of viewports) {
     const response = await page.goto('/platform/');
     expect(response.status()).toBe(200);
     await expect(page.getByRole('heading', { name: 'Vue d’ensemble' })).toBeVisible();
-    await expect(page.locator('body')).toHaveJSProperty('scrollWidth', await page.evaluate(() => document.body.scrollWidth));
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(2);
     await expectNoSeriousAxeViolations(page);
