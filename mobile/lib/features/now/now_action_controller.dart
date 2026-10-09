@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
@@ -126,9 +128,7 @@ class _NowActionGroupState extends State<NowActionGroup> {
   @override
   void didUpdateWidget(covariant NowActionGroup oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.situation.identity != widget.situation.identity ||
-        oldWidget.situation.businessActions !=
-            widget.situation.businessActions) {
+    if (oldWidget.situation.identity != widget.situation.identity) {
       _error = null;
       _confirmedByOwner = false;
     }
@@ -228,9 +228,11 @@ class _NowActionGroupState extends State<NowActionGroup> {
                   style: Theme.of(context).textTheme.titleMedium,
                 );
               }
-              final callback = active
-                  ? (direct ? () => _execute(action) : widget.onOpenOwner)
-                  : null;
+              final VoidCallback? callback = !active
+                  ? null
+                  : direct
+                  ? () => unawaited(_execute(action))
+                  : widget.onOpenOwner;
               if (index == 0) {
                 return FilledButton.icon(
                   onPressed: callback,
