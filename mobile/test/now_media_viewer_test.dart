@@ -30,6 +30,31 @@ void main() {
       isNull,
     );
     expect(nowAuthorizedMediaPath(binding(url: '/api/v1/x//file')), isNull);
+    expect(
+      nowAuthorizedMediaPath(
+        binding(url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=admin'),
+      ),
+      isNull,
+    );
+    expect(
+      nowAuthorizedMediaPath(
+        binding(url: '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/'),
+      ),
+      isNull,
+    );
+    expect(
+      nowAuthorizedMediaPath(
+        NowMediaBindingPresentation(
+          resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',
+          target: NowMediaTarget.situation,
+          purpose: NowMediaPurpose.prepare,
+          kind: NowMediaKind.document,
+          authorized: true,
+          url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=text',
+        ),
+      ),
+      'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=text',
+    );
   });
 
   test(
