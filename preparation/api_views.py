@@ -29,6 +29,8 @@ class JourneyResourceListAPIView(APIView):
                     "text": resource.text_content if resource.kind == ResourceKind.TEXT else None,
                     "external_url": resource.external_url if resource.kind == ResourceKind.URL else None,
                     "download_url": reverse("preparation:resource-download", kwargs={"resource_id": resource.pk}) if resource.kind == ResourceKind.FILE else None,
+                    "mime_type": resource.mime_type or None if resource.kind == ResourceKind.FILE else None,
+                    "size": resource.size if resource.kind == ResourceKind.FILE else None,
                 }
                 for resource in resources
             ]
