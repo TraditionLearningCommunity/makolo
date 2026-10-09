@@ -31,11 +31,26 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   bool _refreshing = false;
   bool _downloading = false;
   double? _downloadProgress;
+  late Stream<StoredProjection?> _detail;
+  late Stream<ResourceSourceState> _source;
 
   @override
   void initState() {
     super.initState();
+    _detail = widget.repository.watchDetail(widget.assetId);
+    _source = widget.repository.watchDetailSource(widget.assetId);
     unawaited(_refresh());
+  }
+
+  @override
+  void didUpdateWidget(covariant ResourceDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.assetId != widget.assetId) {
+      _detail = widget.repository.watchDetail(widget.assetId);
+      _source = widget.repository.watchDetailSource(widget.assetId);
+      unawaited(_refresh());
+    }
   }
 
   Future<void> _refresh() async {
@@ -155,7 +170,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         ],
       ),
       body: StreamBuilder<StoredProjection?>(
-        stream: widget.repository.watchDetail(widget.assetId),
+        stream: _detail,
         builder: (context, snapshot) {
           final projection = snapshot.data;
           if (projection == null) {
@@ -167,7 +182,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
           }
           final detail = _ResourceDetail.fromPayload(projection.payload);
           return StreamBuilder<ResourceSourceState>(
-            stream: widget.repository.watchDetailSource(widget.assetId),
+            stream: _source,
             initialData: ResourceSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? ResourceSourceState.unknown;
