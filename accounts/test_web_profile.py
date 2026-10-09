@@ -66,7 +66,7 @@ class AccountProfileWebTests(TestCase):
                 "searchable": "on",
             },
         )
-        self.assertRedirects(response, f"{reverse('account:settings')}#notifications")
+        self.assertRedirects(response, reverse("account:profile"))
         self.user.refresh_from_db()
         profile = self.user.profile
         self.assertEqual(self.user.first_name, "Gilbert")
@@ -136,7 +136,7 @@ class AccountProfileWebTests(TestCase):
                 "quiet_hours_end": "07:00",
             },
         )
-        self.assertRedirects(response, reverse("account:profile"))
+        self.assertRedirects(response, f"{reverse('account:settings')}#notifications")
         preference.refresh_from_db()
         self.assertTrue(preference.email_notifications)
         self.assertFalse(preference.sms_notifications)
