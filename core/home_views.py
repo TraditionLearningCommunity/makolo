@@ -1,6 +1,8 @@
 from types import SimpleNamespace
+from uuid import UUID
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -147,6 +149,44 @@ def _now_inline_media(item):
     return tuple(result)
 
 
+def _now_web_direct_actions(item):
+    """Expose exact owner-issued form targets, never arbitrary POST links."""
+    source = item.get("source") or {}
+    if source.get("kind") != "recognition_redemption":
+        return ()
+    try:
+        owner_id = UUID(str(source.get("id")))
+    except (ValueError, AttributeError, TypeError):
+        return ()
+
+    forms = []
+    for action in item.get("business_actions") or ():
+        if not isinstance(action, dict):
+            continue
+        capability = action.get("capability")
+        if (
+            capability not in {"accept", "decline"}
+            or action.get("interaction_depth") != "direct_now"
+            or action.get("confirmation_required") is not True
+        ):
+            continue
+        try:
+            expected = reverse(
+                "recognition_api:redemption-decision",
+                kwargs={"redemption_id": owner_id, "decision": capability},
+            )
+        except NoReverseMatch:
+            continue
+        if action.get("href") != expected:
+            continue
+        forms.append({
+            "url": expected,
+            "label": "Accepter" if capability == "accept" else "Refuser",
+            "owner_id": str(owner_id),
+        })
+    return tuple(forms)
+
+
 def _web_now_item(item):
     response = item.get("response") or {}
     return SimpleNamespace(
@@ -170,6 +210,7 @@ def _web_now_item(item):
         horizon=_display_value(item.get("horizon"), "label", "text"),
         preparation=tuple(x for x in (item.get("makolo_preparation") or ()) if isinstance(x, str) and x.strip()),
         inline_media=_now_inline_media(item),
+        direct_actions=_now_web_direct_actions(item),
         media_labels=tuple(
             binding.get("label") or "Média lié à la situation"
             for binding in (item.get("media_bindings") or ())
