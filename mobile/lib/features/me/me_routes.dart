@@ -7,7 +7,16 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
     GoRoute(
       path: '/me',
-      builder: (context, state) => MeScreen(repository: runtime.personal!),
+      builder: (context, state) => MeScreen(
+        repository: runtime.personal!,
+        onOpenDestination: (destination) {
+          if (destination.kind == 'access_collection') {
+            context.push('/accesses');
+            return true;
+          }
+          return false;
+        },
+      ),
     ),
   ],
 );
