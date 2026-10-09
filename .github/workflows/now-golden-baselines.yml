@@ -5,10 +5,7 @@ on:
     branches:
       - feat/now-presentation-media-mature
     paths:
-      - "mobile/lib/features/now/**"
-      - "mobile/lib/dev/scenarios/now_scenarios.dart"
-      - "mobile/lib/dev/scenarios/presentation_scenarios.dart"
-      - "mobile/test/now_golden_test.dart"
+      - "mobile/**"
       - ".github/workflows/now-golden-baselines.yml"
 
 permissions:
@@ -62,4 +59,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Format Now and establish G01 S1-S5 reference goldens"
+          # Preserve newer reviewed feature commits; never force-push them away.
+          git fetch origin feat/now-presentation-media-mature
+          git rebase origin/feat/now-presentation-media-mature
           git push origin HEAD:feat/now-presentation-media-mature
