@@ -1,6 +1,6 @@
 from django import template
 
-from conversations.attention import attention_points_for_profile, conversation_attention_badge_count
+from conversations.attention import attention_points_for_profile, conversation_attention_badge_count, has_conversation_attention
 from conversations.form_services import form_request_for_profile
 from conversations.point_models import ConversationPoint
 from conversations.presentation import conversation_context_label
@@ -8,6 +8,22 @@ from core.web.request_context import get_request_context
 
 
 register = template.Library()
+
+
+@register.simple_tag(takes_context=True)
+def conversation_attention_signal(context, profile):
+    if not getattr(profile, "is_authenticated", False):
+        return False
+    request = context.get("request")
+    if request is None:
+        return has_conversation_attention(profile)
+    request_context = get_request_context(request)
+    if not request_context.surface.needs_capability("conversation_attention"):
+        return False
+    return request_context.memoize(
+        ("conversation_attention", "presence", profile.pk),
+        lambda: has_conversation_attention(profile, at=request_context.observed_at),
+    )
 
 
 @register.simple_tag(takes_context=True)
