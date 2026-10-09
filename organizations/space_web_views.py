@@ -11,6 +11,7 @@ from django.views.generic import TemplateView
 from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
 from intelligence.interoperability import project_provider_connection, provider_connections_for_space
+from interoperability.presentation import present_connection
 from interoperability.projections import build_interoperability_payload
 
 from .api.space_attention_projection import (
@@ -276,7 +277,7 @@ class SpaceInteroperabilityView(SpaceWebMixin):
             actor=self.request.user,
             authority_context=self.space,
         )
-        context["connections"] = connections
+        context["connections"] = [present_connection(row) for row in connections]
         return context
 
     def render_to_response(self, context, **response_kwargs):
