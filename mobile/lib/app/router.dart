@@ -23,6 +23,8 @@ import '../features/questionnaires/questionnaire_routes.dart';
 import '../features/settings/billing_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
+import '../features/space/space_insight_screen.dart';
+import '../features/space/space_repository.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
@@ -70,6 +72,8 @@ GoRouter createMakoloRouter(
       '/activities/',
       '/occurrences/',
       '/space/occurrences/',
+      '/space/relationships',
+      '/space/pilot',
       '/accesses/',
       '/conversations/',
       '/dossiers/',
@@ -250,6 +254,54 @@ GoRouter createMakoloRouter(
         },
       ),
       ...accessRoutes(runtime),
+      GoRoute(
+        path: '/space/:slug/us/relationships',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Personnes & relations',
+              message: 'Sélectionnez le Space autorisé pour cette relation.',
+            );
+          }
+          return SpaceInsightScreen(
+            runtime: runtime,
+            surface: SpaceProjectionKind.relationships,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/us/pilot',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Piloter',
+              message: 'Sélectionnez le Space autorisé pour cette analyse.',
+            );
+          }
+          return SpaceInsightScreen(
+            runtime: runtime,
+            surface: SpaceProjectionKind.pilot,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/relationships',
+        builder: (context, state) => SpaceInsightScreen(
+          runtime: runtime,
+          surface: SpaceProjectionKind.relationships,
+        ),
+      ),
+      GoRoute(
+        path: '/space/pilot',
+        builder: (context, state) => SpaceInsightScreen(
+          runtime: runtime,
+          surface: SpaceProjectionKind.pilot,
+        ),
+      ),
       GoRoute(
         path: '/space/:slug/us/:depth',
         builder: (context, state) => SpaceNousDepthScreen(
