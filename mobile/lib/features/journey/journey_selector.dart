@@ -192,12 +192,10 @@ class JourneyDetailSelector {
               state: _string(access['state']),
               link: _string(access['link']),
             ),
-      dayOfLink:
-          capabilities.contains('open_day_of') && occurrence.isNotEmpty
+      dayOfLink: capabilities.contains('open_day_of') && occurrence.isNotEmpty
           ? _string(links['day_of'])
           : null,
-      liveLink:
-          capabilities.contains('open_live') && occurrence.isNotEmpty
+      liveLink: capabilities.contains('open_live') && occurrence.isNotEmpty
           ? _string(links['live'])
           : null,
       capabilities: capabilities,
