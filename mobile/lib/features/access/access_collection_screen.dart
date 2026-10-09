@@ -39,8 +39,8 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     super.initState();
     _pages = widget.repository.watchCollectionPages();
     _source = widget.repository.watchCollectionSource(
-        relationship: _relationship,
-      );
+      relationship: _relationship,
+    );
     unawaited(_ensureFirstPage());
   }
 
