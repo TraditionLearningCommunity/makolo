@@ -38,7 +38,9 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
   void initState() {
     super.initState();
     _pages = widget.repository.watchCollectionPages();
-    _source = widget.repository.watchCollectionSource(relationship: _relationship);
+    _source = widget.repository.watchCollectionSource(
+        relationship: _relationship,
+      );
     unawaited(_ensureFirstPage());
   }
 
@@ -47,7 +49,9 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
       _pages = widget.repository.watchCollectionPages();
-      _source = widget.repository.watchCollectionSource(relationship: _relationship);
+      _source = widget.repository.watchCollectionSource(
+        relationship: _relationship,
+      );
       unawaited(_ensureFirstPage());
     }
   }
@@ -96,7 +100,9 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
     if (_relationship == relationship) return;
     setState(() {
       _relationship = relationship;
-      _source = widget.repository.watchCollectionSource(relationship: _relationship);
+      _source = widget.repository.watchCollectionSource(
+        relationship: _relationship,
+      );
     });
     unawaited(_ensureFirstPage());
   }
