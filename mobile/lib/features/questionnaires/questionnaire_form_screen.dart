@@ -314,48 +314,48 @@ class _FormContent extends StatelessWidget {
         padding: const EdgeInsets.all(MakoloSpacing.inner),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         children: [
-        if (detail.description != null) ...[
-          Text(
-            detail.description!,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
+          if (detail.description != null) ...[
+            Text(
+              detail.description!,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: MakoloSpacing.lg),
+          ],
+          if (refreshing) ...[
+            const MakoloRefreshIndicator(label: 'Vérification du formulaire…'),
+            const SizedBox(height: MakoloSpacing.md),
+          ],
+          MakoloCommitIndicator(commit: commit),
+          if (errors['_form'] != null) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            InlineMessage(message: errors['_form'].toString()),
+          ],
           const SizedBox(height: MakoloSpacing.lg),
-        ],
-        if (refreshing) ...[
-          const MakoloRefreshIndicator(label: 'Vérification du formulaire…'),
-          const SizedBox(height: MakoloSpacing.md),
-        ],
-        MakoloCommitIndicator(commit: commit),
-        if (errors['_form'] != null) ...[
-          const SizedBox(height: MakoloSpacing.md),
-          InlineMessage(message: errors['_form'].toString()),
-        ],
-        const SizedBox(height: MakoloSpacing.lg),
-        for (final question in detail.questions) ...[
-          _QuestionField(
-            question: question,
-            value: answers[question.key],
-            error: errors[question.key]?.toString(),
-            onChanged: (value) => onChanged(question.key, value),
+          for (final question in detail.questions) ...[
+            _QuestionField(
+              question: question,
+              value: answers[question.key],
+              error: errors[question.key]?.toString(),
+              onChanged: (value) => onChanged(question.key, value),
+            ),
+            const SizedBox(height: MakoloSpacing.inner),
+          ],
+          FilledButton.icon(
+            onPressed: canSubmit ? onSubmit : null,
+            icon: const Icon(Icons.check_rounded),
+            label: Text(detail.isSubmitted ? 'Déjà soumis' : 'Soumettre'),
           ),
-          const SizedBox(height: MakoloSpacing.inner),
+          if (!canSubmit && !detail.isSubmitted) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(
+              'La soumission reste sous l’autorité du serveur et sera confirmée à distance.',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ],
-        FilledButton.icon(
-          onPressed: canSubmit ? onSubmit : null,
-          icon: const Icon(Icons.check_rounded),
-          label: Text(detail.isSubmitted ? 'Déjà soumis' : 'Soumettre'),
-        ),
-        if (!canSubmit && !detail.isSubmitted) ...[
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(
-            'La soumission reste sous l’autorité du serveur et sera confirmée à distance.',
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ],
-    ),
-  );
+      ),
+    );
   }
 }
 
