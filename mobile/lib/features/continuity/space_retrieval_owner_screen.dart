@@ -33,12 +33,31 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
   @override
   void initState() {
     super.initState();
+    widget.runtime.actorContext?.addListener(_onActorChanged);
     _result = _readOwner();
+  }
+
+  void _onActorChanged() {
+    if (!mounted) return;
+    setState(() {
+      // A return to this Space also forces owner revalidation.
+      _result = _readOwner();
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.runtime.actorContext?.removeListener(_onActorChanged);
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(covariant SpaceRetrievalOwnerScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime.actorContext != widget.runtime.actorContext) {
+      oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
+      widget.runtime.actorContext?.addListener(_onActorChanged);
+    }
     if (oldWidget.runtime != widget.runtime ||
         oldWidget.spaceActor != widget.spaceActor ||
         oldWidget.kind != widget.kind ||
