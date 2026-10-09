@@ -118,7 +118,9 @@ void main() {
     },
   );
 
-  test('Journey exposes occurrence depths only from owner links and capabilities', () {
+  test(
+    'Journey exposes occurrence depths only from owner links and capabilities',
+    () {
     final now = DateTime.utc(2026, 10, 9, 10);
     final projection = StoredProjection(
       kind: JourneyRepository.projectionKind,
@@ -176,9 +178,12 @@ void main() {
       result.liveLink,
       '/api/v1/me/occurrences/occurrence-1/live/',
     );
-  });
+    },
+  );
 
-  test('Journey never grants Jour J or Live from links without capabilities', () {
+  test(
+    'Journey never grants Jour J or Live from links without capabilities',
+    () {
     final now = DateTime.utc(2026, 10, 9, 10);
     final projection = StoredProjection(
       kind: JourneyRepository.projectionKind,
@@ -214,7 +219,8 @@ void main() {
 
     expect(result.dayOfLink, isNull);
     expect(result.liveLink, isNull);
-  });
+    },
+  );
 
   test('Journey capability absence never grants complete_form locally', () {
     final now = DateTime.utc(2026, 9, 30, 12);
