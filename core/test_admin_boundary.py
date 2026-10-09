@@ -282,3 +282,33 @@ class TechnicalDomainHardeningTests(TestCase):
                 self.assertFalse(model_admin.has_change_permission(self.as_user(self.staff)))
                 self.assertTrue(model_admin.has_change_permission(self.as_user(self.technical)))
                 self.assertFalse(model_admin.has_delete_permission(self.as_user(self.technical)))
+
+
+    def test_allauth_framework_credentials_are_not_rendered_as_plaintext(self):
+        from django import forms
+        from django.contrib import admin
+        from allauth.socialaccount.models import SocialAccount, SocialApp, SocialToken
+        app_admin = admin.site._registry[SocialApp]
+        token_admin = admin.site._registry[SocialToken]
+        account_admin = admin.site._registry[SocialAccount]
+        self.assertFalse(app_admin.has_view_permission(self.as_user(self.staff)))
+        self.assertTrue(app_admin.has_change_permission(self.as_user(self.technical)))
+        self.assertFalse(app_admin.has_delete_permission(self.as_user(self.technical)))
+        self.assertFalse(token_admin.has_view_permission(self.as_user(self.staff)))
+        self.assertFalse(token_admin.has_change_permission(self.as_user(self.technical)))
+        self.assertFalse(account_admin.has_change_permission(self.as_user(self.technical)))
+        self.assertNotIn("truncated_token", token_admin.list_display)
+        self.assertFalse({"token", "token_secret"} & set(token_admin.get_fields(self.as_user(self.technical))))
+
+        form = app_admin.form(instance=SocialApp(
+            provider="google", name="Technical OAuth", client_id="placeholder",
+            secret="never-render-the-existing-secret", key="never-render-existing-key",
+            settings={"opaque": "private-config"},
+        ))
+        self.assertNotIn("secret", form.fields)
+        self.assertNotIn("key", form.fields)
+        self.assertNotIn("settings", form.fields)
+        self.assertIsInstance(form.fields["new_secret"].widget, forms.PasswordInput)
+        self.assertIsInstance(form.fields["new_key"].widget, forms.PasswordInput)
+        self.assertIsNone(form.fields["new_secret"].initial)
+        self.assertIsNone(form.fields["settings_payload"].initial)
