@@ -152,6 +152,24 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
           });
         }
       }
+      final resources = await store.readProjections('personal.me.resources');
+      for (final snapshot in resources) {
+        final documents = snapshot.payload['documents'];
+        if (documents is! Map || documents['items'] is! List) continue;
+        for (final value in documents['items'] as List) {
+          if (value is! Map) continue;
+          final item = Map<String, dynamic>.from(value);
+          final id = item['id']?.toString();
+          if (id == null) continue;
+          rows.add({
+            'source': {'kind': 'personal_asset', 'id': id},
+            'title': item['title'],
+            'human_type': 'Document',
+            'relation': 'Ma ressource',
+            'historical': false,
+          });
+        }
+      }
     } else {
       final actor = widget.spaceActor!;
       if (widget.history) {
@@ -213,6 +231,38 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
               'relation': 'Données synchronisées',
               'historical': widget.history,
             });
+          }
+        }
+      }
+      if (!widget.history && actor.perspective.isAll) {
+        final source = repository.relationshipsSource(actor.space);
+        final status = await repository.readSource(source);
+        if (!status.invalidated) {
+          final cached = await store.readProjection(
+            SpaceProjectionKind.relationships.wireValue,
+            resourceKey: SpaceSyncKeys.resourceKey(actor.space.id),
+          );
+          final sections = cached?.payload['sections'];
+          if (sections is Map) {
+            for (final section in sections.values) {
+              if (section is! Map || section['items'] is! List) continue;
+              for (final value in section['items'] as List) {
+                if (value is! Map) continue;
+                final item = Map<String, dynamic>.from(value);
+                final profile = item['profile'];
+                final label = profile is Map ? profile['name'] : null;
+                final id = item['id']?.toString();
+                if (id == null) continue;
+                rows.add({
+                  'source': {'kind': item['kind'], 'id': id},
+                  'title': label ?? item['name'] ??
+                      item['label'] ?? item['owner_identity'],
+                  'human_type': item['relation_type'] ?? 'Relation',
+                  'relation': item['relation_type'] ?? 'Relation',
+                  'historical': false,
+                });
+              }
+            }
           }
         }
       }
