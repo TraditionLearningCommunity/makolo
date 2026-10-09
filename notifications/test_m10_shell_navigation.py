@@ -111,6 +111,28 @@ class M100ShellPrivacyContractTests(APITestCase):
                 self.assertEqual(response.status_code, 200, response.data)
                 self.assertEqual(response["Cache-Control"], "private, no-store")
 
+    def test_unread_presence_is_boolean_self_scoped_and_no_store(self):
+        presence = self.client.get("/api/v1/notifications/unread-presence/")
+        self.assertEqual(presence.status_code, 200)
+        self.assertEqual(presence.json(), {"has_unread": True})
+        self.assertEqual(presence["Cache-Control"], "private, no-store")
+
+        read = self.client.post(f"/api/v1/notifications/{self.mine.pk}/read/")
+        self.assertEqual(read.status_code, 200)
+
+        presence = self.client.get("/api/v1/notifications/unread-presence/")
+        self.assertEqual(presence.status_code, 200)
+        self.assertEqual(
+            presence.json(),
+            {"has_unread": False},
+            "another Profile's unread notification must never leak into the marker",
+        )
+
+    def test_unread_count_contract_remains_available_but_is_not_shell_presence(self):
+        response = self.client.get("/api/v1/notifications/unread-count/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["unread_count"], 1)
+
     def test_notification_detail_is_self_scoped_and_navigation_is_structured(self):
         mine = self.client.get(f"/api/v1/notifications/{self.mine.pk}/")
         self.assertEqual(mine.status_code, 200)
