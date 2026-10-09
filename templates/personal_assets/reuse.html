@@ -1,0 +1,30 @@
+{% extends 'base/app.html' %}
+{% block title %}Réutiliser {{ asset.title }} | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-2xl space-y-5">
+  <a href="{% url 'personal_assets:detail' asset.pk %}" class="mk-btn mk-btn-ghost">← {{ asset.title }}</a>
+  <section class="mk-panel p-5 sm:p-7">
+    <span class="mk-kicker">Réutiliser une ressource</span>
+    <h1 class="mt-2 text-2xl font-extrabold">{{ asset.title }}</h1>
+    <p class="mt-2 text-sm" style="color:var(--mk-muted)">La version {{ version.version }} sera copiée comme snapshot dans la démarche choisie. L’original reste dans votre Bibliothèque et aucune exigence n’est déclarée satisfaite par cette seule action.</p>
+  </section>
+  <section class="mk-panel p-5 sm:p-7">
+    <h2 class="text-lg font-extrabold">Choisir une démarche</h2>
+    {% if journeys %}
+      <form method="post" class="mt-4 space-y-3">
+        {% csrf_token %}
+        {% for journey in journeys %}
+          <label class="block rounded-2xl border p-4" style="border-color:var(--mk-border)">
+            <input type="radio" name="journey_id" value="{{ journey.pk }}" required>
+            <strong class="ml-2">{{ journey.activity.title }}</strong>
+            <span class="block ml-6 text-sm" style="color:var(--mk-muted)">{{ journey.get_status_display }}</span>
+          </label>
+        {% endfor %}
+        <button type="submit" class="mk-btn mk-btn-primary">Ajouter à la démarche</button>
+      </form>
+    {% else %}
+      <p class="mt-4">Aucune démarche admissible n’est disponible pour le moment.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
