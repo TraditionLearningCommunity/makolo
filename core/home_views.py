@@ -271,6 +271,16 @@ def _web_now_item(item):
             rel["summary"] for rel in (item.get("relations") or ())
             if isinstance(rel, dict) and isinstance(rel.get("summary"), str) and rel["summary"].strip()
         ),
+        relation_members=tuple(
+            {
+                "label": member["label"],
+                "subtext": member.get("subtext") or "",
+            }
+            for member in (item.get("relation_members") or ())
+            if isinstance(member, dict)
+            and isinstance(member.get("label"), str)
+            and member["label"].strip()
+        ),
     )
 
 
