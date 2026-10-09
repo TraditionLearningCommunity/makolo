@@ -37,6 +37,7 @@ class NowBusinessActionPresentation {
     required this.interactionDepth,
     this.href,
     this.presentationRank,
+    this.confirmationRequired = false,
   });
 
   final String capability;
@@ -44,6 +45,7 @@ class NowBusinessActionPresentation {
   final NowInteractionDepth interactionDepth;
   final String? href;
   final String? presentationRank;
+  final bool confirmationRequired;
 
   bool get isPresentationAction =>
       capability.trim().isNotEmpty && label.trim().isNotEmpty;
