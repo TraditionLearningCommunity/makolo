@@ -35,7 +35,14 @@ def _docx_readable_text(file):
             if info.file_size > MAX_DOCUMENT_TEXT:
                 raise Http404
             with document.open(info) as stream:
-                root = ElementTree.fromstring(stream.read(MAX_DOCUMENT_TEXT + 1))
+                xml_bytes = stream.read(MAX_DOCUMENT_TEXT + 1)
+            if len(xml_bytes) > MAX_DOCUMENT_TEXT:
+                raise Http404
+            # A document is user data: reject active XML constructs rather
+            # than relying on parser-specific entity expansion limits.
+            if b"<!DOCTYPE" in xml_bytes.upper() or b"<!ENTITY" in xml_bytes.upper():
+                raise Http404
+            root = ElementTree.fromstring(xml_bytes)
         namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
         paragraphs = []
         for paragraph in root.findall(".//w:p", namespace):
