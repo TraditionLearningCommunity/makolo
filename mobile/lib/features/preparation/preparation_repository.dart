@@ -28,7 +28,6 @@ class RequirementRepository {
   final MakoloDatabase database;
   final ProfileStore store;
   final String profileId;
-  final MakoloApiClient? api;
   final SyncEngine? sync;
 
   SyncSourceDefinition sourceFor({
@@ -108,6 +107,7 @@ class PreparationResourcesRepository {
   final MakoloDatabase database;
   final ProfileStore store;
   final String profileId;
+  final MakoloApiClient? api;
   final SyncEngine? sync;
 
   SyncSourceDefinition sourceFor({
