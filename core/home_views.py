@@ -173,39 +173,65 @@ def _now_horizon(item):
 
 
 def _now_web_direct_actions(item):
-    """Expose exact owner-issued form targets, never arbitrary POST links."""
+    """Exact bearer/session owner API URLs only, never arbitrary POST links."""
     source = item.get("source") or {}
-    if source.get("kind") != "recognition_redemption":
+    owner_kind = source.get("kind")
+    if owner_kind not in {"recognition_redemption", "waitlist", "ticket_transfer"}:
         return ()
     try:
         owner_id = UUID(str(source.get("id")))
     except (ValueError, AttributeError, TypeError):
         return ()
 
+    capabilities = {
+        "recognition_redemption": {
+            "accept": "recognition_api:redemption-decision",
+            "decline": "recognition_api:redemption-decision",
+        },
+        "waitlist": {
+            "accept": "ticket-waitlist-accept",
+            "leave": "ticket-waitlist-leave",
+        },
+        "ticket_transfer": {
+            "accept": "ticket-transfers-accept",
+            "decline": "ticket-transfers-decline",
+        },
+    }[owner_kind]
+    labels = {
+        "accept": "Accepter",
+        "decline": "Refuser",
+        "leave": "Laisser passer",
+    }
     forms = []
     for action in item.get("business_actions") or ():
         if not isinstance(action, dict):
             continue
         capability = action.get("capability")
         if (
-            capability not in {"accept", "decline"}
+            capability not in capabilities
             or action.get("interaction_depth") != "direct_now"
             or action.get("confirmation_required") is not True
         ):
             continue
         try:
-            expected = reverse(
-                "recognition_api:redemption-decision",
-                kwargs={"redemption_id": owner_id, "decision": capability},
-            )
+            name = capabilities[capability]
+            if owner_kind == "recognition_redemption":
+                expected = reverse(
+                    name,
+                    kwargs={"redemption_id": owner_id, "decision": capability},
+                )
+            else:
+                expected = reverse(name, kwargs={"pk": owner_id})
         except NoReverseMatch:
             continue
         if action.get("href") != expected:
             continue
         forms.append({
             "url": expected,
-            "label": "Accepter" if capability == "accept" else "Refuser",
+            "label": labels[capability],
             "owner_id": str(owner_id),
+            "owner_kind": owner_kind,
+            "capability": capability,
         })
     return tuple(forms)
 
