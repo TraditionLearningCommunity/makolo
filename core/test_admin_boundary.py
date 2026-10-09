@@ -217,3 +217,68 @@ class CanonicalAdminMatrixTests(TestCase):
                 expected_status=PolicyStatus.SIMULATED,
                 reason="Repeat publication blocked",
             )
+
+
+class TechnicalDomainHardeningTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        self.technical = get_user_model().objects.create_superuser(
+            username="technical-domain-matrix", email="domain-matrix@example.test",
+            password="technical-test-password",
+        )
+        self.staff = get_user_model().objects.create_user(
+            username="technical-domain-staff", is_staff=True,
+        )
+        self.factory = RequestFactory()
+
+    def as_user(self, user):
+        request = self.factory.get("/admin/")
+        request.user = user
+        return request
+
+    def test_sensitive_domain_owner_flows_are_not_generic_admin_mutations(self):
+        from django.contrib import admin
+        from activities.models import Activity, Occurrence, OccurrencePlace
+        from events.models import Event
+        from capacity.models import CapacityPool
+        from commerce.models import Offer
+        from tickets.models import Ticket, TicketType, TicketOrder, TicketWaitlistEntry, TicketTransfer
+        from journeys.models import Journey, JourneyRequest, JourneyTransition, JourneyStep, JourneyAssignment, JourneyArtifact
+        from scanner.models import ScannerAssignment, ScanLog
+        from sharing.models import ShareLink, ShareEnvelope
+        models = (
+            Activity, Occurrence, OccurrencePlace, Event, CapacityPool, Offer,
+            Ticket, TicketType, TicketOrder, TicketWaitlistEntry, TicketTransfer,
+            Journey, JourneyRequest, JourneyTransition, JourneyStep, JourneyAssignment,
+            JourneyArtifact, ScannerAssignment, ScanLog, ShareLink, ShareEnvelope,
+        )
+        request = self.as_user(self.technical)
+        for model in models:
+            with self.subTest(model=model.__name__):
+                model_admin = admin.site._registry[model]
+                self.assertFalse(model_admin.has_add_permission(request))
+                self.assertFalse(model_admin.has_change_permission(request))
+                self.assertFalse(model_admin.has_delete_permission(request))
+
+    def test_private_artifact_is_hidden_and_not_staff_browseable(self):
+        from django.contrib import admin
+        from journeys.models import JourneyArtifact, JourneyNote
+        from sharing.models import ShareEnvelope
+        for model in (JourneyArtifact, JourneyNote, ShareEnvelope):
+            with self.subTest(model=model.__name__):
+                model_admin = admin.site._registry[model]
+                self.assertFalse(model_admin.has_view_permission(self.as_user(self.staff)))
+                self.assertTrue(model_admin.has_view_permission(self.as_user(self.technical)))
+        artifact_admin = admin.site._registry[JourneyArtifact]
+        self.assertNotIn("file", artifact_admin.get_fields(self.as_user(self.technical)))
+
+    def test_provider_configuration_requires_technical_superuser(self):
+        from django.contrib import admin
+        from intelligence.models import ProviderConnection, IntelligenceRoute
+        for model in (ProviderConnection, IntelligenceRoute):
+            with self.subTest(model=model.__name__):
+                model_admin = admin.site._registry[model]
+                self.assertFalse(model_admin.has_view_permission(self.as_user(self.staff)))
+                self.assertFalse(model_admin.has_change_permission(self.as_user(self.staff)))
+                self.assertTrue(model_admin.has_change_permission(self.as_user(self.technical)))
+                self.assertFalse(model_admin.has_delete_permission(self.as_user(self.technical)))
