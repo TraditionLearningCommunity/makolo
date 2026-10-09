@@ -6,7 +6,7 @@ from core.history_presentation import history_access_label, history_journey_labe
 from core.participant_selectors import (
     participant_access_search,
     participant_journey_search,
-    participant_unified_history_accesses,
+    participant_unified_history_unique_accesses,
     participant_unified_history_journeys,
 )
 from core.product_language import vocabulary_for
@@ -137,7 +137,7 @@ def build_personal_history_data(
         raise ValueError("Filtre Historique inconnu.")
 
     access_qs = participant_access_search(
-        participant_unified_history_accesses(profile, at=observed_at),
+        participant_unified_history_unique_accesses(profile, at=observed_at),
         query,
     )
     access_qs = _projection_relations(access_qs)

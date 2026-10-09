@@ -49,6 +49,7 @@ from .participant_selectors import (
     participant_journeys,
     participant_purchased_accesses_for_others,
     participant_unified_history_accesses,
+    participant_unified_history_unique_accesses,
     participant_unified_history_journeys,
     participant_upcoming_engagements,
 )
@@ -138,7 +139,7 @@ def _history_items(*, profile, q="", history_filter="all", offset=0, limit=PERSO
     """Compose a bounded unified history window from canonical personal querysets."""
     at = at or timezone.now()
     history_filter = history_filter if history_filter in {"all", "accesses", "journeys"} else "all"
-    access_qs = participant_access_search(participant_unified_history_accesses(profile, at=at), q)
+    access_qs = participant_access_search(participant_unified_history_unique_accesses(profile, at=at), q)
     journey_qs = participant_journey_search(participant_unified_history_journeys(profile), q)
 
     access_count = access_qs.count() if history_filter in {"all", "accesses"} else 0
@@ -162,7 +163,7 @@ def _recent_history_items(profile, *, at=None, limit=HOME_SECTION_LIMIT):
     """
     at = at or timezone.now()
     accesses = list(
-        participant_unified_history_accesses(profile, at=at)
+        participant_unified_history_unique_accesses(profile, at=at)
         .prefetch_related(None)[:limit]
     )
     journeys = list(
