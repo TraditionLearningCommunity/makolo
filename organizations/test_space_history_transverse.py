@@ -110,3 +110,37 @@ class SpaceHistoryPermissionTests(TestCase):
         self.assertEqual(self.client.get(self.url).status_code, 200)
         revoke_mandate(mandate=self.grant, actor=self.owner)
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_cancelled_commerce_order_is_visible_only_with_owner_permission(self):
+        from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
+        from journeys.models import Journey, JourneyStatus, WorkflowKind
+        cancelled_at = timezone.now() - timedelta(hours=2)
+        buyer = self.member
+        journey = Journey.objects.create(
+            initiated_by=buyer, beneficiary=buyer, activity=self.activity,
+            workflow=WorkflowKind.PURCHASE, status=JourneyStatus.CANCELLED,
+        )
+        order = CommerceOrder.objects.create(
+            journey=journey,
+            buyer=buyer,
+            payee_space=self.space,
+            payment_mode=PaymentMode.NONE,
+            status=CommerceOrderStatus.CANCELLED,
+            cancelled_at=cancelled_at,
+        )
+        self.client.force_authenticate(self.owner)
+        owner_history = self.client.get(self.url)
+        self.assertEqual(owner_history.status_code, 200)
+        matching = [
+            item for item in owner_history.data["items"]
+            if item["source"]["kind"] == "commerce_order"
+        ]
+        self.assertEqual(len(matching), 1)
+        self.assertEqual(matching[0]["source"]["id"], str(order.pk))
+        self.assertEqual(matching[0]["occurred_at"], cancelled_at.isoformat())
+        self.assertNotIn(buyer.username, str(owner_history.data))
+        self.client.force_authenticate(self.scoped)
+        scoped = self.client.get(self.url)
+        self.assertEqual(scoped.status_code, 200)
+        self.assertNotIn(str(order.pk), str(scoped.data))
+        self.assertNotIn("commerce_order", scoped.data["coverage"]["owners"])
