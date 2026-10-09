@@ -1,10 +1,12 @@
 from django.contrib import admin
 
+from core.admin_boundaries import TechnicalReadOnlyAdmin
+
 from .models import Activity, Occurrence, OccurrencePlace
 
 
 @admin.register(Activity)
-class ActivityAdmin(admin.ModelAdmin):
+class ActivityAdmin(TechnicalReadOnlyAdmin):
     list_display = ("title", "space", "status", "visibility", "created_by", "created_at", "updated_at")
     list_filter = ("status", "visibility", "space")
     search_fields = ("title", "slug", "space__name", "created_by__email")
@@ -21,7 +23,7 @@ class ActivityAdmin(admin.ModelAdmin):
 
 
 @admin.register(Occurrence)
-class OccurrenceAdmin(admin.ModelAdmin):
+class OccurrenceAdmin(TechnicalReadOnlyAdmin):
     list_display = ("activity", "start_at", "end_at", "timezone", "status")
     list_filter = ("status", "timezone")
     search_fields = ("activity__title", "label", "activity__space__name")
@@ -38,7 +40,7 @@ class OccurrenceAdmin(admin.ModelAdmin):
 
 
 @admin.register(OccurrencePlace)
-class OccurrencePlaceAdmin(admin.ModelAdmin):
+class OccurrencePlaceAdmin(TechnicalReadOnlyAdmin):
     list_display = ("occurrence", "place", "role", "position")
     list_filter = ("role",)
     search_fields = ("occurrence__activity__title", "place__name", "place__locality")
