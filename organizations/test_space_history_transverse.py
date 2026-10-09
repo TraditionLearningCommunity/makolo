@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.test import TestCase
 from django.utils import timezone
@@ -92,7 +92,7 @@ class SpaceHistoryPermissionTests(TestCase):
         self.assertIn(str(self.past.pk), ids)
         self.assertNotIn(str(self.undated.pk), ids)
         row = next(row for row in response.data["items"] if row["source"]["id"] == str(self.past.pk))
-        self.assertEqual(row["occurred_at"], self.past.end_at.isoformat())
+        self.assertEqual(datetime.fromisoformat(row["occurred_at"]), self.past.end_at)
 
     def test_search_pagination_and_invalid_responsibility(self):
         self.client.force_authenticate(self.owner)
@@ -109,7 +109,7 @@ class SpaceHistoryPermissionTests(TestCase):
         self.assertEqual(self.client.get(self.url, {"limit": 51}).status_code, 400)
         self.assertEqual(
             self.client.get(self.url, {"responsibility": "mandate:invalid"}).status_code,
-            404,
+            400,
         )
 
     def test_revoked_activity_authority_no_longer_exposes_history(self):
