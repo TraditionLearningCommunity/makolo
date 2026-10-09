@@ -341,3 +341,153 @@ class ZS4SpaceProjectionTests(TestCase):
             format="json",
         )
         self.assertEqual(mutation.status_code, 404)
+
+    def test_search_finds_owner_results_beyond_preview_and_preserves_relations(self):
+        for index in range(14):
+            CRMContact.objects.create(
+                organization=self.space,
+                name=f"Contact {index:02d}",
+                email=f"search-{index}@test.local",
+            )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"q": "Contact 13"},
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["search"]["state"], "results")
+        self.assertEqual(len(response.data["search"]["items"]), 1)
+        self.assertEqual(response.data["search"]["items"][0]["identity"], "Contact 13")
+        self.assertEqual(response.data["search"]["items"][0]["owner"], "crm")
+        self.assertEqual(len(response.data["sections"]["crm_contacts"]["items"]), 12)
+
+    def test_search_is_permission_first_and_no_match_is_not_nonexistence(self):
+        CRMContact.objects.create(
+            organization=self.space,
+            name="Contact Secret",
+            email="search-secret@test.local",
+        )
+        activity = Activity.objects.create(
+            title="Only Activity",
+            slug="search-only-activity",
+            created_by=self.owner,
+            space=self.space,
+        )
+        scoped = User.objects.create_user(
+            username="scoped-search", email="scoped-search@test.local", password="x"
+        )
+        grant_activity_role(
+            profile=scoped,
+            activity=activity,
+            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(scoped)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"q": "Secret"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["sections"], {})
+        self.assertEqual(response.data["search"]["state"], "no_match")
+        self.assertEqual(response.data["search"]["items"], [])
+        self.assertIsNone(response.data["selection"])
+
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"q": "nobody"},
+        )
+        self.assertEqual(response.data["search"]["state"], "no_match")
+
+    def test_relation_selection_revalidates_space_and_owner(self):
+        contact = CRMContact.objects.create(
+            organization=self.space,
+            name="Contact choisi",
+            email="chosen@test.local",
+        )
+        foreign = Organization.objects.create(
+            name="Autre Space",
+            slug="other-zs4-selection",
+            created_by=self.owner,
+        )
+        CRMContact.objects.create(
+            organization=foreign,
+            name="Contact ailleurs",
+            email="chosen-foreign@test.local",
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"kind": "crm_contact", "id": str(contact.pk)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["selection"]["id"], str(contact.pk))
+        self.assertNotIn("email", response.data["selection"])
+        self.assertNotIn("phone", response.data["selection"])
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"kind": "crm_contact", "id": "00000000-0000-0000-0000-000000000000"},
+        )
+        self.assertIsNone(response.data["selection"])
+
+    def test_pilot_observed_waitlist_signal_preserves_provenance(self):
+        from unittest.mock import patch
+
+        analytics = {
+            "events_count": 2,
+            "published_count": 2,
+            "upcoming_count": 1,
+            "active_tickets": 0,
+            "used_tickets": 0,
+            "confirmed_orders": 0,
+            "waitlist_waiting": 3,
+            "attendance_percent": None,
+            "money_totals": [],
+            "generated_at": "2026-10-08T00:00:00Z",
+        }
+        self.client.force_authenticate(self.owner)
+        with patch(
+            "organizations.api.space_pilot_projection.build_portfolio_analytics",
+            return_value=analytics,
+        ):
+            response = self.client.get(
+                f"/api/v1/organizations/workspaces/{self.space.slug}/pilot/"
+            )
+        self.assertEqual(response.status_code, 200, response.data)
+        signals = response.data["signals"]
+        self.assertEqual(len(signals), 1)
+        self.assertEqual(signals[0]["kind"], "observed")
+        self.assertEqual(signals[0]["evidence"]["metric_key"], "waitlist_waiting")
+        self.assertEqual(signals[0]["evidence"]["value"], 3)
+        self.assertEqual(signals[0]["owner"], "Analytics")
+        self.assertEqual(signals[0]["coverage"]["limit"], 40)
+        self.assertNotIn("forecast", signals[0])
+        self.assertNotIn("trend", signals[0])
+        self.assertNotIn("score", response.data)
+
+    def test_team_search_does_not_return_other_members_from_same_team(self):
+        self.owner.first_name = "Alice"
+        self.owner.save(update_fields=["first_name"])
+        self.member.first_name = "Bob"
+        self.member.save(update_fields=["first_name"])
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"q": "Alice"},
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        members = [
+            row for row in response.data["search"]["items"]
+            if row["kind"] == "team_member"
+        ]
+        self.assertEqual(len(members), 1)
+        self.assertEqual(members[0]["profile"]["id"], str(self.owner.pk))
+        selected = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/relationships/",
+            {"kind": "team_member", "id": str(self.member_membership.pk)},
+        )
+        self.assertEqual(selected.status_code, 200, selected.data)
+        self.assertEqual(
+            selected.data["selection"]["profile"]["id"], str(self.member.pk)
+        )
