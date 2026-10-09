@@ -53,8 +53,8 @@
     <form id="profile-master" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="section" value="profile">
-        <input type="hidden" name="language" value="{{ profile_forms.preferences.language.value|default:'fr' }}">
-        <input type="hidden" name="timezone" value="{{ profile_forms.preferences.timezone.value|default:'Africa/Kinshasa' }}">
+        <input type="hidden" name="language" value="{{ profile_forms.preferences.language.value|default:'' }}">
+        <input type="hidden" name="timezone" value="{{ profile_forms.preferences.timezone.value|default:'' }}">
     </form>
 
     <section id="presentation" class="mk-panel p-5 sm:p-6 lg:p-7">
