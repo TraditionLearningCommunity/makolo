@@ -9,7 +9,7 @@ def notifications_summary(request):
 
     request_context = get_request_context(request)
     if not request_context.surface.needs_capability("notifications"):
-        return {"notifications_unread_count": 0}
+        return {"notifications_has_unread": False}
 
     has_unread = request_context.memoize(
         ("notifications", "has_unread", request.user.pk),
