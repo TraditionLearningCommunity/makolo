@@ -1,0 +1,80 @@
+{% extends "platform/page.html" %}
+{% block platform_content %}
+<a class="link secondary" href="{% url 'platform_web:curation' %}">Retour aux files Curation</a>
+<section class="section">
+<p class="kicker">Opportunity · {{ opportunity.pk }}</p>
+<h2>{{ opportunity.current_revision.title|default:'Opportunity sans révision courante' }}</h2>
+<p>Statut owner : <strong>{{ opportunity.get_publication_status_display }}</strong> · {{ opportunity.get_kind_display }}</p>
+<p class="subtle">Source ≠ vérité publiée. Chaque révision est immuable après publication. Les actions ci-dessous utilisent les services Opportunity existants.</p>
+{% if opportunity.merged_into %}<p class="notice">Fusionnée vers {{ opportunity.merged_into }} — historique conservé.</p>{% endif %}
+<a class="link secondary" href="{% url 'opportunities:staff-detail' opportunity.pk %}">Ouvrir l'éditeur owner des révisions et sources</a>
+{% if can_merge %}<a class="link secondary" href="{% url 'platform_web:opportunity-merge' opportunity.pk %}">Examiner une fusion</a>{% endif %}
+{% if error_message %}<p role="alert" class="notice">{{ error_message }}</p>{% endif %}
+</section>
+<section class="section" aria-labelledby="revisions">
+<h2 id="revisions">Versions et publication</h2>
+{% for row in revision_rows %}
+<div class="module"><div><strong>{{ row.item.title }} — v{{ row.item.version }}</strong>
+<p class="muted">{{ row.item.issuer_name }} · {% if row.item.published_at %}Publiée le {{ row.item.published_at|date:'d/m/Y H:i' }}{% else %}Brouillon{% endif %}</p>
+{% if row.item.change_summary %}<p>{{ row.item.change_summary }}</p>{% endif %}</div>
+{% if can_manage and not row.item.published_at and opportunity.publication_status != 'merged' %}
+<form method="post" action="{% url 'platform_web:curation-decision' opportunity.pk %}">
+{% csrf_token %}
+<input type="hidden" name="action" value="publish_revision">
+<input type="hidden" name="expected_state" value="{{ opportunity.publication_status }}">
+<input type="hidden" name="expected_version" value="{{ version_token }}">
+<input type="hidden" name="target_id" value="{{ row.item.pk }}">
+<input type="hidden" name="target_version" value="{{ row.version }}">
+<p class="muted">Publier cette version remplace la version publique actuelle. Une source primaire active est obligatoire.</p>
+<p><label>Motif <input name="reason" required minlength="5" maxlength="2000"></label></p>
+<p><label><input type="checkbox" name="confirm" value="1" required style="width:auto;min-width:auto"> Je confirme la publication et ses conséquences.</label></p>
+<button type="submit">Publier la révision v{{ row.item.version }}</button>
+</form>
+{% endif %}</div>
+{% empty %}<p>Aucune révision. Utiliser le workflow propriétaire de création.</p>{% endfor %}
+</section>
+<section class="section" aria-labelledby="sources">
+<h2 id="sources">Sources et contrôle</h2>
+{% for row in source_rows %}<div class="module"><div>
+<strong>{{ row.item.source_name }}</strong>
+<p class="muted">{{ row.item.get_source_type_display }} · {{ row.item.get_status_display }} · {% if row.item.is_primary %}Principale{% else %}Secondaire{% endif %}</p>
+<p class="muted">Dernier contrôle : {{ row.item.last_checked_at|date:'d/m/Y H:i'|default:'Aucun contrôle' }}</p>
+</div>
+{% if can_check_source %}
+<form method="post" action="{% url 'platform_web:curation-decision' opportunity.pk %}">
+{% csrf_token %}
+<input type="hidden" name="action" value="check_source">
+<input type="hidden" name="expected_state" value="{{ opportunity.publication_status }}">
+<input type="hidden" name="expected_version" value="{{ version_token }}">
+<input type="hidden" name="target_id" value="{{ row.item.pk }}">
+<input type="hidden" name="target_version" value="{{ row.version }}">
+<label>Résultat du contrôle
+<select name="source_result" required>{% for value, title in source_check_choices %}<option value="{{ value }}">{{ title }}</option>{% endfor %}</select></label>
+<p><label>Constat et motif <input name="reason" required minlength="5" maxlength="2000"></label></p>
+<p class="muted">Un contrôle met à jour l'état de la source. Il ne publie pas automatiquement l'Opportunity.</p>
+<p><label><input type="checkbox" name="confirm" value="1" required style="width:auto;min-width:auto"> Je confirme le constat de cette source.</label></p>
+<button type="submit">Enregistrer le contrôle</button>
+</form>
+{% endif %}</div>{% empty %}<p>Pas de source enregistrée ; publication indisponible tant qu'une source primaire active manque.</p>{% endfor %}
+</section>
+{% if can_manage and opportunity.publication_status != 'merged' %}
+<section class="section">
+<h2>Lifecycle et conséquences</h2>
+<p class="notice">Retirer masque l'Opportunity publiée. Archiver la retire des parcours courants. Les Journeys et historiques propriétaires ne sont pas supprimés.</p>
+{% if opportunity.publication_status == 'published' %}
+<form method="post" action="{% url 'platform_web:curation-decision' opportunity.pk %}">
+{% csrf_token %}<input type="hidden" name="action" value="withdraw"><input type="hidden" name="expected_state" value="{{ opportunity.publication_status }}"><input type="hidden" name="expected_version" value="{{ version_token }}">
+<p><label>Motif du retrait <input name="reason" minlength="5" maxlength="2000" required></label></p>
+<label><input type="checkbox" name="confirm" value="1" required style="min-width:auto;width:auto"> Je confirme le retrait.</label>
+<button type="submit">Retirer l'Opportunity</button></form>
+{% endif %}
+{% if opportunity.publication_status != 'archived' %}
+<form method="post" action="{% url 'platform_web:curation-decision' opportunity.pk %}">
+{% csrf_token %}<input type="hidden" name="action" value="archive"><input type="hidden" name="expected_state" value="{{ opportunity.publication_status }}"><input type="hidden" name="expected_version" value="{{ version_token }}">
+<p><label>Motif de l'archivage <input name="reason" minlength="5" maxlength="2000" required></label></p>
+<label><input type="checkbox" name="confirm" value="1" required style="min-width:auto;width:auto"> Je confirme l'archivage et sa conséquence.</label>
+<button type="submit">Archiver l'Opportunity</button></form>
+{% endif %}
+</section>
+{% endif %}
+{% endblock %}

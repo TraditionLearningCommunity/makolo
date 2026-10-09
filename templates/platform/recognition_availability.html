@@ -1,0 +1,26 @@
+{% extends "platform/page.html" %}
+{% block platform_content %}
+<a class="link secondary" href="{% url 'platform_web:recognition' %}">Retour à Recognition</a>
+<section class="section">
+<p class="kicker">{{ kind }} · {{ definition.pk }}</p>
+<h2>{{ definition.name }}</h2>
+<p>État canonique : <strong>{% if definition.is_active %}Active{% else %}Inactive{% endif %}</strong></p>
+<p class="notice">Mettre en pause retire cette définition des nouvelles utilisations selon les règles Recognition. Cela ne rembourse aucun Payment, n'annule aucun Ledger historique et ne supprime aucune attribution passée.</p>
+{% if kind == 'reward' %}
+<p>Coût Recognition : {{ definition.points_cost }} crédits ; une Reward n'est pas un remboursement.</p>
+{% else %}
+<p>Un Achievement est distinct du solde de crédits et de son historique de Grants.</p>
+{% endif %}
+{% if error_message %}<p role="alert" class="notice">{{ error_message }}</p>{% endif %}
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="expected_version" value="{{ expected_version }}">
+<input type="hidden" name="activate" value="{% if definition.is_active %}0{% else %}1{% endif %}">
+<p><label for="reason">Motif de la gouvernance</label></p>
+<textarea id="reason" name="reason" required minlength="5" maxlength="2000" rows="4" style="width:100%;max-width:44rem;padding:.75rem;border:1px solid #8a8db4;border-radius:.5rem;background:#1f2937;color:white">{{ request.POST.reason }}</textarea>
+<p><label><input type="checkbox" name="confirm" value="1" required style="width:auto;min-width:auto"> Je confirme la conséquence sur cette définition et les utilisations futures.</label></p>
+<a class="link secondary" href="{% url 'platform_web:recognition' %}">Annuler</a>
+<button type="submit">{% if definition.is_active %}Mettre en pause{% else %}Réactiver{% endif %} {{ kind }}</button>
+</form>
+</section>
+{% endblock %}

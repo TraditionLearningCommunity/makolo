@@ -145,6 +145,11 @@ def change_organization_lifecycle(*, organization, status, actor, reason):
 
 @transaction.atomic
 def moderate_event(*, event, action, actor, reason):
+    """Moderate the Event vertical via canonical Activity/Occurrence owners.
+
+    Event.status and Event.visibility are read-only Activity projections since
+    the canonical cutover; never assign them or save fictitious Event columns.
+    """
     _require_staff(actor)
     reason = (reason or "").strip()
     if not reason:
@@ -153,29 +158,18 @@ def moderate_event(*, event, action, actor, reason):
     if action not in allowed:
         raise ValidationError({"action": "Action de modération invalide."})
 
-    event = type(event).objects.select_for_update().get(pk=event.pk)
+    from events.services import moderate_event_for_platform
+
     before = _snapshot_event(event)
     now = timezone.now()
-    if action == "unlist":
-        event.visibility = EventVisibility.UNLISTED
-        fields = ["visibility", "updated_at"]
-        outcome = "Événement retiré de la découverte publique."
-    elif action == "private":
-        event.visibility = EventVisibility.PRIVATE
-        fields = ["visibility", "updated_at"]
-        outcome = "Événement rendu privé."
-    elif action == "cancel":
-        event.status = EventStatus.CANCELLED
-        event.cancelled_at = event.cancelled_at or now
-        fields = ["status", "cancelled_at", "updated_at"]
-        outcome = "Événement annulé par Operations."
-    else:
-        event.visibility = EventVisibility.PUBLIC
-        fields = ["visibility", "updated_at"]
-        outcome = "Visibilité publique restaurée sans changer le statut métier."
-    event.save(update_fields=fields)
+    event = moderate_event_for_platform(event=event, actor=actor, action=action)
+    outcome = {
+        "unlist": "Événement retiré de la découverte publique.",
+        "private": "Événement rendu privé.",
+        "cancel": "Événement annulé par Operations.",
+        "restore_public": "Visibilité publique restaurée sans changer le statut métier.",
+    }[action]
     after = _snapshot_event(event)
-
     ModerationCase.objects.create(
         target_type=ModerationTarget.EVENT,
         organization=event.organization,
@@ -199,7 +193,6 @@ def moderate_event(*, event, action, actor, reason):
         metadata={"reason": reason},
     )
     return event
-
 
 @transaction.atomic
 def create_incident(*, actor, **data):

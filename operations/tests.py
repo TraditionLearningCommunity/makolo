@@ -134,6 +134,46 @@ class OperationsCenterTests(TestCase):
         self.assertTrue(ModerationCase.objects.filter(event=self.event, status="actioned").exists())
         self.assertTrue(OperationsAuditLog.objects.filter(action="event.moderation.unlist").exists())
 
+    def test_platform_moderates_third_party_event_without_activity_mandate(self):
+        """Platform authority is not a disguised Event organizer Mandate."""
+        third_party = Event.objects.create(
+            organizer=self.regular,
+            title="External organizer moderated safely",
+            status=EventStatus.PUBLISHED,
+            visibility=EventVisibility.PUBLIC,
+            start_at=self.now + timedelta(days=6),
+            end_at=self.now + timedelta(days=6, hours=2),
+        )
+        from events.permissions import user_can_manage_event
+        self.assertFalse(user_can_manage_event(self.staff, third_party))
+        result = moderate_event(
+            event=third_party, action="unlist", actor=self.staff,
+            reason="Specific compliance report reviewed by human operator.",
+        )
+        result.refresh_from_db()
+        self.assertEqual(result.visibility, EventVisibility.UNLISTED)
+        self.assertTrue(OperationsAuditLog.objects.filter(
+            actor=self.staff, action="event.moderation.unlist",
+            target_id=str(third_party.pk),
+        ).exists())
+
+    def test_non_platform_actor_cannot_moderate_third_party_event(self):
+        third_party = Event.objects.create(
+            organizer=self.regular, title="No unauthorized moderation",
+            status=EventStatus.PUBLISHED,
+            visibility=EventVisibility.PUBLIC,
+            start_at=self.now + timedelta(days=7),
+            end_at=self.now + timedelta(days=7, hours=2),
+        )
+        from django.core.exceptions import PermissionDenied
+        with self.assertRaises(PermissionDenied):
+            moderate_event(
+                event=third_party, action="private", actor=self.regular,
+                reason="An unauthorized decision must fail.",
+            )
+        third_party.refresh_from_db()
+        self.assertEqual(third_party.visibility, EventVisibility.PUBLIC)
+
     def test_event_cancellation_records_timestamp(self):
         moderate_event(
             event=self.event,

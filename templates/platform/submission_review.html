@@ -1,0 +1,32 @@
+{% extends "platform/page.html" %}
+{% block platform_content %}
+<a class="link secondary" href="{% url 'platform_web:curation' %}">Retour aux propositions</a>
+<section class="section">
+<p class="kicker">Soumission · {{ submission.pk }}</p>
+<h2>{{ submission.title|default:'Proposition sans titre' }}</h2>
+<p>État owner : <strong>{{ submission.get_status_display }}</strong> · soumise {{ submission.created_at|date:'d/m/Y H:i' }}</p>
+<p class="notice">Cette proposition est une source candidate, pas une Opportunity admise ni une vérité publiée. La revue confirme uniquement son traitement par Curation.</p>
+<details><summary>Contexte fourni par le demandeur</summary><p>{{ submission.url }}</p><p>{{ submission.comment }}</p></details>
+{% if submission.resolved_opportunity %}<p>Opportunity canonique liée : <a href="{% url 'platform_web:curation-detail' submission.resolved_opportunity.pk %}">{{ submission.resolved_opportunity }}</a></p>{% endif %}
+{% if error_message %}<p role="alert" class="notice">{{ error_message }}</p>{% endif %}
+</section>
+{% if submission.status == 'pending' %}
+<section class="section"><h2>Passer en revue</h2>
+<p>Une mise en revue signale un examen humain. Elle ne crée aucune Opportunity et ne publie rien.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="step" value="review"><input type="hidden" name="version_token" value="{{ version_token }}">
+<p><label>Motif de revue <input name="reason" required minlength="5" maxlength="2000"></label></p>
+<p><label><input type="checkbox" name="confirm" value="1" required style="width:auto;min-width:auto"> Je confirme l'ouverture de la revue.</label></p>
+<button type="submit">Commencer la revue</button></form></section>
+{% elif submission.status == 'under_review' %}
+<section class="section"><h2>Décision sur la proposition</h2>
+<p>Accepter ou qualifier un doublon nécessite de choisir une Opportunity canonique existante. Rejeter ne publie rien. Cette décision ne remplace pas le workflow de publication des révisions.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="step" value="decide"><input type="hidden" name="version_token" value="{{ version_token }}">
+{{ decision_form.as_p }}
+<p><label for="reason">Raison de la décision</label></p>
+<textarea id="reason" name="reason" rows="4" minlength="5" maxlength="2000" required style="width:100%;max-width:42rem;padding:.75rem;border:1px solid #9097b1;background:#1f2937;color:white">{{ request.POST.reason }}</textarea>
+<p><label><input type="checkbox" name="confirm" value="1" required style="width:auto;min-width:auto"> Je confirme la décision et l'Opportunity canonique éventuelle.</label></p>
+<button type="submit">Enregistrer la décision Curation</button></form></section>
+{% else %}
+<p class="notice">Cette proposition a reçu une décision finale ; aucune nouvelle mutation n'est disponible depuis ce dossier.</p>
+{% endif %}
+{% endblock %}

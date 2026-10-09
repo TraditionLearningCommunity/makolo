@@ -427,6 +427,43 @@ def cancel_event_occurrence(*, event: Event, occurrence, actor):
 
 
 @transaction.atomic
+def moderate_event_for_platform(*, event: Event, actor, action: str) -> Event:
+    """Narrow owner-backed moderation, not broad Event editing authority.
+
+    Platform operators may moderate third-party Events without acquiring their
+    Activity Mandates; all state changes still use canonical Activity and
+    Occurrence services. Operations owns the reason, case and audit.
+    """
+    if not getattr(actor, "is_authenticated", False) or not can(actor, PermissionCode.PLATFORM_MANAGE):
+        raise PermissionDenied("Autorité de modération Platform requise.")
+    if action not in {"unlist", "private", "cancel", "restore_public"}:
+        raise ValidationError({"action": "Action de modération invalide."})
+    locked = Event.objects.select_for_update().get(pk=event.pk)
+    from activities.models import Activity
+    locked.activity = Activity.objects.select_for_update().get(pk=locked.activity_id)
+    if action == "cancel":
+        if locked.status not in {EventStatus.DRAFT, EventStatus.PUBLISHED}:
+            raise ValidationError("Seul un Event actif ou brouillon peut être annulé.")
+        update_activity_common(activity=locked.activity, status=ActivityStatus.CANCELLED)
+        for occurrence in _event_occurrences(locked, for_update=True):
+            if occurrence.status in {OccurrenceStatus.DRAFT, OccurrenceStatus.SCHEDULED}:
+                set_occurrence_status(occurrence=occurrence, status=OccurrenceStatus.CANCELLED)
+        locked.cancelled_at = timezone.now()
+        locked.save(update_fields=["cancelled_at", "updated_at"])
+        return locked
+    from .models import EventVisibility
+    visibility = {
+        "unlist": EventVisibility.UNLISTED,
+        "private": EventVisibility.PRIVATE,
+        "restore_public": EventVisibility.PUBLIC,
+    }[action]
+    if locked.visibility == visibility:
+        raise ValidationError("Cette visibilité est déjà appliquée.")
+    update_activity_common(activity=locked.activity, visibility=visibility)
+    return locked
+
+
+@transaction.atomic
 def cancel_event(*, event: Event, actor) -> Event:
     _ensure_can_manage(actor, event)
     if event.status not in {EventStatus.DRAFT, EventStatus.PUBLISHED}:
