@@ -308,9 +308,21 @@ def _now_business_action_payloads(action: ContextualAction, item: dict) -> list[
         # supported bearer-authenticated one-step owner mutation. All other
         # operations remain focused owner handoffs.
         direct = (
-            owner["kind"] == "recognition_redemption"
-            and action.kind == "recognition.beneficiary_decision"
-            and capability in {"accept", "decline"}
+            (
+                owner["kind"] == "recognition_redemption"
+                and action.kind == "recognition.beneficiary_decision"
+                and capability in {"accept", "decline"}
+            )
+            or (
+                owner["kind"] == "waitlist"
+                and action.kind == "waitlist.offer_decision"
+                and capability in {"accept", "leave"}
+            )
+            or (
+                owner["kind"] == "ticket_transfer"
+                and action.kind == "transfer.recipient_decision"
+                and capability in {"accept", "decline"}
+            )
         )
         result.append({
             "capability": capability,
