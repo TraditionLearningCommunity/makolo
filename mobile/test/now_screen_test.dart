@@ -95,6 +95,30 @@ void main() {
     expect(topologyFor(composed), NowTopology.composition);
   });
 
+  test('S5 rejects unrelated or repeated member references', () {
+    NowSituationPresentation value(List<String> links) =>
+        NowSituationPresentation(
+          identity: 'now:relations',
+          reference: const StructuredDestination(kind: 'now', id: 'relations'),
+          humanContext: 'Deux démarches',
+          meaning: 'Une interaction est annoncée.',
+          emphasis: NowPresentationEmphasis.primary,
+          whyNow: 'Une décision doit être prise.',
+          consequence: 'Les horaires sont incompatibles.',
+          responseType: 'decide',
+          relationMembers: const [
+            NowRelationMemberPresentation(id: 'a', label: 'A'),
+            NowRelationMemberPresentation(id: 'b', label: 'B'),
+          ],
+          relations: [
+            NowRelationPresentation(kind: 'conflict', memberIds: links),
+          ],
+        );
+    expect(topologyFor(value(['a', 'not-a-member'])), NowTopology.meaning);
+    expect(topologyFor(value(['a', 'a'])), NowTopology.meaning);
+    expect(topologyFor(value(['a', 'b'])), NowTopology.composition);
+  });
+
   test('S4 is based on explicit response, never a waiting status', () {
     NowSituationPresentation item(String? responseType, String? serverState) {
       return NowSituationPresentation(
