@@ -32,7 +32,7 @@ class AccountProfileWebTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mon profil")
         self.assertNotContains(response, "Apparence")
-        self.assertContains(response, self.user.email)
+        self.assertNotContains(response, self.user.email)
         self.assertContains(response, "js/theme-preference.js")
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
         self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())
