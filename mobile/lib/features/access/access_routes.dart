@@ -3,10 +3,29 @@ import 'package:go_router/go_router.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../navigation/secondary_screen.dart';
 import '../../presentation/mps/mps_access_presentation_screen.dart';
+import 'access_collection_screen.dart';
 import 'access_credential_screen.dart';
 import 'access_detail_screen.dart';
 
 List<RouteBase> accessRoutes(AppRuntime runtime) => [
+  GoRoute(
+    path: '/accesses',
+    builder: (context, state) {
+      runtime.recovery.rememberLocation(state.uri.toString());
+      final repository = runtime.accesses;
+      if (repository == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Mes accès',
+          message: 'Vos accès ne sont pas disponibles sur cet appareil.',
+        );
+      }
+      return AccessCollectionScreen(
+        repository: repository,
+        onOpenAccess: (id) => context.push('/accesses/' + id),
+        onOpenHistory: () => context.push('/history'),
+      );
+    },
+  ),
   GoRoute(
     path: '/accesses/:id',
     builder: (context, state) {

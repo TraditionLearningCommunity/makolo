@@ -103,6 +103,7 @@ class MeSelector {
           : MakoloFailureCue.none,
     );
 
+    final links = _map(projection.payload['links']);
     final territories = <MeTerritorySelection>[
       _passport(projection.payload['passport'], freshness, reachability),
       _considerations(
@@ -111,7 +112,14 @@ class MeSelector {
         reachability,
       ),
       _collectives(projection.payload['collectives'], freshness, reachability),
-      _resources(projection.payload['resources'], freshness, reachability),
+      if (_string(links?['accesses']) != null)
+        _accesses(freshness, reachability),
+      _resources(
+        projection.payload['resources'],
+        freshness,
+        reachability,
+        ownerAvailable: _string(links?['resources']) != null,
+      ),
     ];
 
     final support = _support(
@@ -237,14 +245,49 @@ class MeSelector {
     );
   }
 
-  MeTerritorySelection _resources(
-    Object? raw,
+  MeTerritorySelection _accesses(
     MakoloFreshnessCue freshness,
     MakoloReachabilityCue reachability,
   ) {
+    return _territory(
+      key: 'accesses',
+      label: 'Mes accès',
+      summary: 'Les droits déjà accordés et leur prochain usage réel.',
+      items: const [
+        MeItemPresentation(
+          destination: StructuredDestination(
+            kind: 'access_collection',
+            id: 'mine',
+          ),
+          title: 'Voir mes droits disponibles',
+          subtitle: 'Access reste la source de vérité',
+        ),
+      ],
+      malformed: false,
+      freshness: freshness,
+      reachability: reachability,
+    );
+  }
+
+  MeTerritorySelection _resources(
+    Object? raw,
+    MakoloFreshnessCue freshness,
+    MakoloReachabilityCue reachability, {
+    required bool ownerAvailable,
+  }) {
     final section = _map(raw);
     var malformed = raw != null && section == null;
-    final items = <MeItemPresentation>[];
+    final items = <MeItemPresentation>[
+      if (ownerAvailable)
+        const MeItemPresentation(
+          destination: StructuredDestination(
+            kind: 'resource_collection',
+            id: 'mine',
+          ),
+          title: 'Ouvrir Mes ressources',
+          subtitle: 'Bibliothèque, Proofs et Credentials',
+        ),
+    ];
 
     if (section != null) {
       malformed =
