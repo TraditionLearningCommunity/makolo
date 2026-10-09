@@ -6,8 +6,8 @@ import '../../presentation/contracts/now_presentation.dart';
 /// Only the existing owner service may authorize and confirm a mutation.
 /// Presentation never turns a capability or a URL into a generic HTTP action.
 abstract final class NowOwnerAction {
-  static final RegExp _recognition = RegExp(
-    r'^/api/v1/recognition/redemptions/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/(accept|decline)/$',
+  static final RegExp _uuid = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   );
 
   static String? authorizedPath(
@@ -15,33 +15,37 @@ abstract final class NowOwnerAction {
     NowBusinessActionPresentation action,
   ) {
     if (action.interactionDepth != NowInteractionDepth.directNow ||
-        !action.confirmationRequired ||
-        (action.capability != 'accept' && action.capability != 'decline')) {
+        !action.confirmationRequired) {
       return null;
     }
     final owner = situation.ownerDestination;
     final raw = action.href;
-    if (owner == null ||
-        owner.kind.toLowerCase() != 'recognition_redemption' ||
-        raw == null ||
-        !raw.startsWith('/')) {
-      return null;
-    }
+    if (owner == null || raw == null || !_uuid.hasMatch(owner.id)) return null;
+
+    final capability = action.capability;
+    final prefix = switch (owner.kind.toLowerCase()) {
+      'recognition_redemption'
+          when capability == 'accept' || capability == 'decline' =>
+        '/api/v1/recognition/redemptions/',
+      'waitlist' when capability == 'accept' || capability == 'leave' =>
+        '/api/v1/tickets/waitlist/',
+      'ticket_transfer'
+          when capability == 'accept' || capability == 'decline' =>
+        '/api/v1/tickets/transfers/',
+      _ => null,
+    };
+    if (prefix == null) return null;
+    final expected = '$prefix${owner.id}/$capability/';
     final url = Uri.tryParse(raw);
     if (url == null ||
         url.hasScheme ||
         url.hasAuthority ||
         url.hasQuery ||
-        url.hasFragment) {
+        url.hasFragment ||
+        raw != expected) {
       return null;
     }
-    final match = _recognition.firstMatch(url.path);
-    if (match == null ||
-        match.group(1)!.toLowerCase() != owner.id.toLowerCase() ||
-        match.group(2) != action.capability) {
-      return null;
-    }
-    return raw.substring(1);
+    return expected.substring(1);
   }
 
   static Future<void> commit({
@@ -53,13 +57,27 @@ abstract final class NowOwnerAction {
     if (path == null) {
       throw StateError('Owner mutation contract is unavailable.');
     }
-    // No outbox or automatic replay for this non-idempotent one-shot decision.
-    // A fresh permission and lifecycle check happens inside the owner API.
+    // A one-shot command, never silently queued or blindly replayed. Every
+    // destination is a concrete existing owner endpoint with a server-side
+    // permission and lifecycle check.
     final response = await api.post(path);
-    if (response.statusCode != 200 ||
-        response.jsonObject()['id']?.toString().toLowerCase() !=
-            situation.ownerDestination!.id.toLowerCase()) {
+    if (response.statusCode != 200) {
       throw StateError('Owner did not confirm the requested decision.');
+    }
+    final data = response.jsonObject();
+    final id = data['id']?.toString();
+    final owner = situation.ownerDestination!;
+    if (owner.kind.toLowerCase() == 'waitlist' &&
+        action.capability == 'accept') {
+      // The ticket owner returns the newly reserved Order, not the Waitlist
+      // entry. Payment may still be due: do not claim that it was completed.
+      if (id == null ||
+          !_uuid.hasMatch(id) ||
+          data['status'] is! String) {
+        throw StateError('Owner did not return a reserved Order.');
+      }
+    } else if (id?.toLowerCase() != owner.id.toLowerCase()) {
+      throw StateError('Owner did not confirm this resource.');
     }
   }
 }
