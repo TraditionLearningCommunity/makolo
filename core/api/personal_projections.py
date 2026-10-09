@@ -337,8 +337,12 @@ def _decorate_now_semantics(
             "business_actions": [
                 {
                     "capability": capability,
+                    "label": action.label,
                     "href": links[capability],
-                    "interaction_depth": "direct_now",
+                    # No generic mutation is executed from Now. The owner
+                    # performs the action with its own permissions and
+                    # confirmation; this is a focused owner handoff.
+                    "interaction_depth": "focused",
                 }
                 for capability in item["capabilities"]
                 if capability in links
