@@ -20,7 +20,7 @@ void main() {
         lastUsedAt: DateTime.utc(2026, 10, 9),
       ),
     );
-    await tokens.saveSession(
+    await tokens.writeSession(
       const AuthSession(
         profileId: 'profile-a',
         accessToken: 'access',
