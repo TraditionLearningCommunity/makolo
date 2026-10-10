@@ -113,4 +113,48 @@ void main() {
     expect(find.byTooltip('Lancer la recherche'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('offline Search reuses Moi documents but excludes Space groups', (
+    tester,
+  ) async {
+    final db = MakoloDatabase.memory();
+    addTearDown(db.close);
+    final store = ProfileStore(db, 'alice');
+    await store.putProjection(
+      kind: 'personal.me',
+      resourceKey: 'root',
+      schemaVersion: 1,
+      payload: {
+        'resources': {
+          'documents': {
+            'items': [
+              {'id': 'asset-1', 'title': 'Dossier personnel'},
+            ],
+          },
+        },
+        'collectives': {
+          'groups': {
+            'items': [
+              {
+                'id': 'space-group',
+                'name': 'Dossier du Space',
+                'owner': {'kind': 'space', 'id': 's'},
+              },
+            ],
+          },
+        },
+      },
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: TransverseRetrievalScreen(
+        runtime: _runtime(store),
+        initialQuery: 'Dossier',
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Dossier personnel'), findsOneWidget);
+    expect(find.text('Dossier du Space'), findsNothing);
+    expect(find.text('Document'), findsWidgets);
+  });
+
+
 }
