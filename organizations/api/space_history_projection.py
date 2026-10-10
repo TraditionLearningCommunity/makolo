@@ -6,6 +6,7 @@ Other owners are deliberately not represented as absent from the Space's past.
 from __future__ import annotations
 
 from datetime import date
+from urllib.parse import urlencode
 
 from django.db.models import Q
 from django.utils import timezone
@@ -135,7 +136,11 @@ def build_space_history_projection(
                 "time_basis": "scheduled_end_of_completed_occurrence",
                 "outcome": {"code": occurrence.status, "label": outcome},
                 "links": {
-                    "detail": f"/api/v1/occurrences/{occurrence.pk}/"
+                    "detail": reverse(
+                        "organizations:space-retrieval-occurrence-detail",
+                        kwargs={"slug": space.slug, "occurrence_id": occurrence.pk},
+                    ) + "?" + urlencode({"responsibility": responsibility_key or "all", "history": "1", "q": query}),
+                    "owner_api": f"/api/v1/occurrences/{occurrence.pk}/"
                 },
                 "capabilities": ["view_detail"],
             },
@@ -158,10 +163,10 @@ def build_space_history_projection(
                         "label": "Commande annulée",
                     },
                     "links": {
-                        "detail": (
-                            reverse("organizations:console-orders", kwargs={"slug": space.slug})
-                            + "?q=" + order.reference
-                        ),
+                        "detail": reverse(
+                            "organizations:space-retrieval-order-detail",
+                            kwargs={"slug": space.slug, "order_id": order.pk},
+                        ) + "?" + urlencode({"responsibility": responsibility_key or "all", "history": "1", "q": query}),
                         "owner_api": reverse(
                             "organizations_api:workspace-commerce-order-detail",
                             kwargs={"slug": space.slug, "order_id": order.pk},
