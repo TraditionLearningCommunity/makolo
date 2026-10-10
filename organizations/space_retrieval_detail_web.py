@@ -40,7 +40,19 @@ class _SpaceRetrievalDetailView(SpaceWebMixin):
             value = (self.request.GET.get(key) or "").strip()[:120]
             if value:
                 params[key] = value
-        return reverse(name, kwargs={"slug": self.space.slug}) + "?" + urlencode(params)
+        if "selected" not in params:
+            source_id = (
+                self.kwargs.get("activity_id")
+                or self.kwargs.get("occurrence_id")
+                or self.kwargs.get("order_id")
+            )
+            params["selected"] = f"{self.detail_kind}:{source_id}"
+        anchor = "result-" + params["selected"].replace(":", "-")
+        return (
+            reverse(name, kwargs={"slug": self.space.slug})
+            + "?" + urlencode(params)
+            + "#" + anchor
+        )
 
     def _owner_data(self):
         raise NotImplementedError

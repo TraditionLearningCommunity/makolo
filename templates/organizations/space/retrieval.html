@@ -17,7 +17,35 @@
     {% if not is_history and not q %}<p>Saisissez une recherche. Aucun annuaire global n'est affiché par défaut.</p>
     {% elif retrieval.items %}
     <h3 class="font-bold mb-3">Résultats visibles</h3>
-    <div class="lg:grid lg:grid-cols-5 lg:gap-5"><ul class="space-y-3 {% if selected_item %}lg:col-span-3{% else %}lg:col-span-5{% endif %}">{% for item in retrieval.items %}<li class="border-b pb-3" style="border-color:var(--mk-border)"><a class="font-bold underline" href="?q={{ q|urlencode }}&amp;responsibility={{ selected_responsibility.key|urlencode }}&amp;page={{ page }}{% if is_history %}&amp;kind={{ history_kind }}&amp;from={{ history_from }}&amp;to={{ history_to }}{% endif %}&amp;selected={{ item.source.kind }}:{{ item.source.id }}">{{ item.title }}</a><p class="text-sm">{% if is_history %}{{ item.outcome.label }} · {% if item.occurred_at %}{{ item.occurred_at|slice:":10" }}{% else %}Date non précisée{% endif %}{% else %}{{ item.human_type }}{% if item.historical %} · Historique{% endif %}{% endif %}</p>{% if item.links.detail %}<a class="underline" href="{{ item.links.detail }}">Voir le détail</a>{% elif item.destination %}<a class="underline" href="{{ item.destination }}">Ouvrir chez le propriétaire</a>{% endif %}</li>{% endfor %}</ul>{% if selected_item %}<aside class="hidden lg:block lg:col-span-2 border-l pl-4" style="border-color:var(--mk-border)" aria-label="Aperçu du résultat sélectionné"><h3 class="font-bold">{{ selected_item.title }}</h3><p>{% if is_history %}{{ selected_item.outcome.label }}{% else %}{{ selected_item.human_type }} · {{ selected_item.relation }}{% endif %}</p>{% if selected_item.links.detail %}<a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_item.links.detail }}">Voir chez le propriétaire</a>{% elif selected_item.destination %}<a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_item.destination }}">Voir chez le propriétaire</a>{% else %}<p class="mt-3 text-sm">Le détail reste accessible dans sa source propriétaire autorisée.</p>{% endif %}</aside>{% endif %}</div>
+    <div class="lg:grid lg:grid-cols-5 lg:gap-5">
+      <div class="{% if selected_item %}lg:col-span-3{% else %}lg:col-span-5{% endif %}">
+        {% for group in retrieval_groups %}
+        <section class="mb-5" aria-label="{{ group.label }}">
+          <h4 class="font-bold mb-3">{{ group.label }}</h4>
+          <ul class="space-y-3">
+            {% for item in group.items %}
+            <li id="{{ item.anchor }}" tabindex="-1" class="border-b pb-3 scroll-mt-20" style="border-color:var(--mk-border)">
+              <a class="font-bold underline" href="?q={{ q|urlencode }}&amp;responsibility={{ selected_responsibility.key|urlencode }}&amp;page={{ page }}{% if is_history %}&amp;kind={{ history_kind }}&amp;from={{ history_from }}&amp;to={{ history_to }}{% endif %}&amp;selected={{ item.selection_key|urlencode }}#{{ item.anchor }}">{{ item.title }}</a>
+              <p class="text-sm">{% if is_history %}{{ item.outcome.label }} · {% if item.occurred_at %}{{ item.occurred_at|slice:":10" }}{% else %}Date non précisée{% endif %}{% else %}{{ item.relation }}{% if item.historical %} · Historique{% endif %}{% endif %}</p>
+              {% if item.web_destination %}<a class="text-sm underline" href="{{ item.web_destination }}">Ouvrir chez le propriétaire</a>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </section>
+        {% endfor %}
+      </div>
+      {% if selected_item %}
+      <aside class="hidden lg:block lg:col-span-2 border-l pl-4" style="border-color:var(--mk-border)" aria-label="Aperçu du résultat sélectionné">
+        <h4 class="font-bold">{{ selected_item.title }}</h4>
+        <p>{% if is_history %}{{ selected_item.outcome.label }}{% else %}{{ selected_item.human_type }} · {{ selected_item.relation }}{% endif %}</p>
+        {% if selected_item.links.detail %}
+        <a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_item.links.detail }}">Voir chez le propriétaire</a>
+        {% elif selected_item.destination %}
+        <a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_item.destination }}">Voir chez le propriétaire</a>
+        {% endif %}
+      </aside>
+      {% endif %}
+    </div>
     {% else %}<p>Aucun résultat visible dans ce contexte{% if q %} pour cette recherche{% endif %}.</p>{% endif %}
     {% if retrieval.coverage.unavailable_sources %}
     <p role="status">Certaines sources n’ont pas pu être actualisées. Les autres résultats restent consultables.</p>

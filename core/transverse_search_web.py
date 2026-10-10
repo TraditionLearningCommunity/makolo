@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 
 from .api.history_projection import build_personal_history_data
 from .api.transverse_search_projection import build_profile_search
+from .retrieval_presentation import group_retrieval_rows
 
 
 class PersonalSearchWebView(LoginRequiredMixin, TemplateView):
@@ -31,6 +32,9 @@ class PersonalSearchWebView(LoginRequiredMixin, TemplateView):
         )
         context.update(
             search=data, q=query, page=page,
+            search_groups=group_retrieval_rows(
+                data["items"], context={"q": query, "page": page},
+            ),
             selected_item=selected, selected_ref=selected_ref,
         )
         return context
