@@ -4,9 +4,9 @@ import { login } from '../helpers/auth.mjs';
 
 async function setAppearance(page, value) {
   const labels = { system: 'Système', light: 'Clair', dark: 'Sombre' };
-  await page.goto('/account/profile/#appearance');
+  await page.goto('/account/settings/#appearance');
   await page.getByLabel(labels[value], { exact: true }).check();
-  await page.getByRole('button', { name: 'Enregistrer l’apparence' }).click();
+  await page.getByRole('button', { name: 'Appliquer l’apparence' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme-preference', value);
   if (value === 'dark') {
     await expect(page.locator('html')).toHaveClass(/dark/);
@@ -69,8 +69,13 @@ test('keyboard supports Tab, Shift+Tab, Enter and Escape on the mature app shell
   await expect(page.getByRole('menu')).toBeHidden();
 
   await userMenuButton.click();
-  await page.getByRole('menuitem', { name: 'Compte et paramètres' }).click();
-  await expect(page).toHaveURL(/\/account\/profile\/$/);
+  await page.getByRole('menuitem', { name: 'Compte', exact: true }).click();
+  await expect(page).toHaveURL(/\/account\/$/);
+  await expect(page.getByText('Accès au compte', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Menu utilisateur' }).click();
+  await page.getByRole('menuitem', { name: 'Paramètres', exact: true }).click();
+  await expect(page).toHaveURL(/\/account\/settings\/$/);
   await expect(page.getByText('Apparence', { exact: true }).first()).toBeVisible();
 });
 

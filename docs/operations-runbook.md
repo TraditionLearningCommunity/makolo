@@ -1343,3 +1343,15 @@ Les logs Actor 7 peuvent contenir des refs techniques, compteurs, stratégie,
 fingerprints et classes d'erreurs. Ils ne doivent pas journaliser les snapshots
 complets, credentials, QR/tokens, documents, notes privées ou PII non
 nécessaires.
+
+
+## Django Admin — frontière technique et procédures de secours
+
+La matrice actuelle Django Admin / Makolo Platform, les permissions distinctes, le
+requeue exceptionnel de Domain Events, la gouvernance Recognition, la protection
+des données privées et les étapes de rollback sont décrits dans
+[le runbook Django Admin technique](operations/django-admin-technical-boundary.md).
+
+Django Admin reste réservé à l'inspection et la maintenance technique. Les
+mutations métier ordinaires doivent utiliser les services owner et les écrans
+autorisés, et non l'édition brute d'une ligne de modèle.

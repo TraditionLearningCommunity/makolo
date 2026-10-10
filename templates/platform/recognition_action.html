@@ -1,0 +1,28 @@
+{% extends "platform/page.html" %}
+{% block platform_content %}
+<a class="link secondary" href="{% url 'platform_web:recognition' %}">Retour aux policies</a>
+<section class="section">
+<p class="kicker">Policy / {{ policy.version_key }}</p>
+<h2>{{ policy.name }}</h2>
+<p>État actuel : <strong>{{ policy.get_status_display }}</strong></p>
+<p class="notice">{{ impact }}</p>
+{% if recognition_action == 'publish' %}
+<div class="section"><h2>Impact de la publication</h2>
+<p>Policy active actuelle : <strong>{% if active_policy %}{{ active_policy.name }} · {{ active_policy.version_key }}{% else %}Aucune Policy active connue{% endif %}</strong></p>
+<p>Frontière estimée : <strong>{{ publication_boundary|date:'d/m/Y H:i:s' }}</strong>. Le serveur la recalculera pendant la confirmation.</p>
+<p>{% if publication_requires_schedule %}Cette décision planifiera la Policy à une frontière Recognition.{% else %}Cette décision peut activer la Policy et supplanter la Policy courante.{% endif %}</p>
+<p class="muted">Le résultat exact de la dernière simulation n'est pas persisté comme preuve de publication ; il n'est pas inventé ici. La prévisualisation reste distincte de cette décision.</p>
+</div>
+{% endif %}
+{% if error_message %}<p role="alert" class="notice">{{ error_message }}</p>{% endif %}
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="expected_status" value="{{ policy.status }}">
+<div><label for="reason">Motif de la décision (obligatoire)</label></div>
+<textarea id="reason" name="reason" minlength="5" maxlength="2000" required rows="4" style="display:block;max-width:44rem;width:100%;background:#1f2937;color:white;border:1px solid #9097b1;border-radius:.5rem;padding:.75rem;margin:.7rem 0 1.5rem">{{ request.POST.reason }}</textarea>
+<label style="display:flex;align-items:start;gap:.7rem;margin:1rem 0"><input type="checkbox" name="confirm" value="1" required style="width:auto;min-width:auto;margin-top:.25rem">Je confirme la cible, l’état et les conséquences de cette action Recognition.</label>
+<a class="link secondary" href="{% url 'platform_web:recognition' %}">Annuler</a>
+<button type="submit">{% if recognition_action == 'simulate' %}Enregistrer la simulation{% else %}Confirmer la publication ou planification{% endif %}</button>
+</form>
+</section>
+{% endblock %}

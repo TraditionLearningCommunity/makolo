@@ -1,0 +1,15 @@
+Makolo convergence manifest
+Base branch: integration/mature-convergence-2026-10-09
+Base HEAD: c52116c7 Merge pull request #504 from TraditionLearningCommunity/feat/space-relations-pilot-mature
+Date: 2026-10-09
+
+origin/pr/503  c9d45797cb569fa03879c1ac259b69a0694b892e
+origin/pr/505  118f47ed7efe0196f05b740b616cebb3a07bd5ec
+origin/pr/507  1fb9d6eecf2b975cd15c31a1e16e5a118d8cd20d
+origin/pr/508  f03f58e82039921ac76d83081c73583ac63b80cd
+origin/pr/509  d42d28f8de4137d6b34c51ea997db6960316d7bd
+origin/pr/510  733b55f3ba29cd4eded37505a0b564109ceb3cbd
+origin/pr/511  cc8484a5841665f22456dc944dc5e39b0b81bf0a
+origin/pr/512  0e321c5731e1fdeabbcb6ab7fcea10dc563c7b32
+origin/pr/513  37916196c882fd6a7e44d74bfd3d2bae50962f00
+origin/pr/514  8cbcb0fbb9fac367c3392b1680b28fa0e21019d5

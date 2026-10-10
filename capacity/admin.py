@@ -1,11 +1,13 @@
 from django.contrib import admin
 
+from core.admin_boundaries import TechnicalReadOnlyAdmin
+
 from .models import CapacityPool, CapacityReservation
 from .selectors import capacity_availability
 
 
 @admin.register(CapacityPool)
-class CapacityPoolAdmin(admin.ModelAdmin):
+class CapacityPoolAdmin(TechnicalReadOnlyAdmin):
     list_display = ("label", "activity", "occurrence", "total_quantity", "available_display", "is_active")
     list_filter = ("is_active", "activity")
     search_fields = ("label", "activity__title", "source_key")

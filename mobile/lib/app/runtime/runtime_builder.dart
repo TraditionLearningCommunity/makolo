@@ -9,6 +9,7 @@ import '../../features/discovery/discovery_assembly.dart';
 import '../../features/journey/journey_assembly.dart';
 import '../../features/preparation/preparation_assembly.dart';
 import '../../features/questionnaires/questionnaire_assembly.dart';
+import '../../features/resources/resource_repository.dart';
 import '../../features/space/space_assembly.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
@@ -105,6 +106,7 @@ Future<AppRuntime> buildAppRuntime({
     database: database,
     store: store,
     profileId: profileId,
+    api: api,
     sync: sync,
   );
   final questionnaires = buildQuestionnaireAssembly(
@@ -165,6 +167,13 @@ Future<AppRuntime> buildAppRuntime({
     conversations: continuity.conversations,
     requirements: preparation.requirements,
     preparationResources: preparation.resources,
+    resources: ResourceRepository(
+      database: database,
+      store: store,
+      profileId: profileId,
+      sync: sync,
+      api: api,
+    ),
     questionnaires: questionnaires.repository,
     drafts: drafts,
     questionnaireSubmit: questionnaires.submit,

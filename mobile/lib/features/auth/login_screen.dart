@@ -62,7 +62,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (widget.runtime.recovery.entryReason == EntryReason.sessionExpired) {
       _notice = 'Reconnectez-vous pour continuer.';
     } else if (widget.runtime.recovery.entryReason ==
-        EntryReason.protectedAction) {
+            EntryReason.protectedIntent ||
+        widget.runtime.recovery.entryReason == EntryReason.protectedAction) {
       _notice = 'Connectez-vous pour continuer.';
     }
   }

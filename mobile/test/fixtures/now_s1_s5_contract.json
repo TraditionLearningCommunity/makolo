@@ -1,0 +1,121 @@
+{
+  "surface": "now_me",
+  "freshness": {
+    "state": "fresh"
+  },
+  "selection": {
+    "state": "ready"
+  },
+  "actor_attention_state": "active",
+  "terminal": {
+    "state": "ok"
+  },
+  "items": [
+    {
+      "id": "now:s1",
+      "human_context": "Dossier",
+      "state_meaning": "Un élément reste à comprendre.",
+      "response": {
+        "type": "understand"
+      },
+      "why_now": {
+        "meaning": "La situation vient d’évoluer."
+      }
+    },
+    {
+      "id": "now:s2",
+      "human_context": "Dossier",
+      "state_meaning": "Un document explique le changement.",
+      "response": {
+        "type": "understand"
+      },
+      "media_bindings": [
+        {
+          "resource_ref": "journey_artifact:11111111-2222-4333-8444-555555555555",
+          "kind": "pdf",
+          "purpose": "understand",
+          "target": "state",
+          "authorized": true,
+          "label": "Pièce autorisée",
+          "url": "/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/"
+        }
+      ]
+    },
+    {
+      "id": "now:s3",
+      "human_context": "Dossier",
+      "state_meaning": "Une intervention est nécessaire.",
+      "response": {
+        "type": "act",
+        "label": "Vérifier le dossier"
+      },
+      "business_actions": [
+        {
+          "capability": "open_detail",
+          "label": "Vérifier le dossier",
+          "interaction_depth": "focused"
+        }
+      ],
+      "handoffs": [
+        {
+          "type": "owner",
+          "target": "journey",
+          "id": "11111111-2222-4333-8444-555555555555"
+        }
+      ]
+    },
+    {
+      "id": "now:s4",
+      "human_context": "Demande",
+      "state_meaning": "La demande a été transmise.",
+      "response": {
+        "type": "wait"
+      },
+      "turn": {
+        "type": "third_party",
+        "label": "L’organisme doit répondre."
+      },
+      "horizon": {
+        "text": "En attente de sa réponse."
+      }
+    },
+    {
+      "id": "now:s5",
+      "human_context": "Deux rendez-vous",
+      "state_meaning": "Les horaires sont incompatibles.",
+      "response": {
+        "type": "decide"
+      },
+      "why_now": {
+        "meaning": "Les deux ont lieu en même temps."
+      },
+      "consequence": {
+        "state": "known",
+        "effect": "La présence simultanée est impossible."
+      },
+      "relation_members": [
+        {
+          "id": "a",
+          "label": "Rendez-vous A"
+        },
+        {
+          "id": "b",
+          "label": "Rendez-vous B"
+        }
+      ],
+      "relations": [
+        {
+          "kind": "conflict",
+          "member_ids": [
+            "a",
+            "b"
+          ],
+          "summary": "Même heure."
+        }
+      ]
+    }
+  ],
+  "continuation": {
+    "state": "end"
+  }
+}

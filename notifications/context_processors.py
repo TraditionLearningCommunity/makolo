@@ -1,18 +1,18 @@
 from core.web.request_context import get_request_context
 
-from .selectors import get_unread_notifications_count
+from .selectors import has_unread_notifications
 
 
 def notifications_summary(request):
     if not getattr(request.user, "is_authenticated", False):
-        return {"notifications_unread_count": 0}
+        return {"notifications_has_unread": False}
 
     request_context = get_request_context(request)
     if not request_context.surface.needs_capability("notifications"):
-        return {"notifications_unread_count": 0}
+        return {"notifications_has_unread": False}
 
-    count = request_context.memoize(
-        ("notifications", "unread_count", request.user.pk),
-        lambda: get_unread_notifications_count(request.user),
+    has_unread = request_context.memoize(
+        ("notifications", "has_unread", request.user.pk),
+        lambda: has_unread_notifications(request.user),
     )
-    return {"notifications_unread_count": count}
+    return {"notifications_has_unread": has_unread}

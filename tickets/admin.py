@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from core.admin_boundaries import TechnicalReadOnlyAdmin
+
 from .models import (
     Ticket,
     TicketOrder,
@@ -13,11 +15,21 @@ from .models import (
 class TicketOrderItemInline(admin.TabularInline):
     model = TicketOrderItem
     extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
     readonly_fields = ("ticket_type", "commerce_item", "quantity", "unit_price")
 
 
 @admin.register(TicketType)
-class TicketTypeAdmin(admin.ModelAdmin):
+class TicketTypeAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "name",
         "event",
@@ -75,7 +87,7 @@ class TicketTypeAdmin(admin.ModelAdmin):
 
 
 @admin.register(TicketOrder)
-class TicketOrderAdmin(admin.ModelAdmin):
+class TicketOrderAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "reference",
         "event",
@@ -120,7 +132,7 @@ class TicketOrderAdmin(admin.ModelAdmin):
 
 
 @admin.register(Ticket)
-class TicketAdmin(admin.ModelAdmin):
+class TicketAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "code",
         "event",
@@ -160,7 +172,7 @@ class TicketAdmin(admin.ModelAdmin):
 
 
 @admin.register(TicketWaitlistEntry)
-class TicketWaitlistEntryAdmin(admin.ModelAdmin):
+class TicketWaitlistEntryAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "user",
         "ticket_type",
@@ -197,7 +209,7 @@ class TicketWaitlistEntryAdmin(admin.ModelAdmin):
 
 
 @admin.register(TicketTransfer)
-class TicketTransferAdmin(admin.ModelAdmin):
+class TicketTransferAdmin(TechnicalReadOnlyAdmin):
     list_display = (
         "ticket",
         "sender",

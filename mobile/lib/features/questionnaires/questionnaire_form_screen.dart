@@ -1,9 +1,13 @@
+import '../../design/makolo_patterns.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import '../../design/behavior_states.dart';
+import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
+import '../../design/presentation_layout.dart';
 import '../../design/surface_states.dart';
 import '../../repositories/draft_repository.dart';
 import '../../sync/outbox/outbox_processor.dart';
@@ -309,50 +313,76 @@ class _FormContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(MakoloSpacing.inner),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      children: [
-        if (detail.description != null) ...[
-          Text(
-            detail.description!,
-            style: Theme.of(context).textTheme.bodyLarge,
+    return MakoloReadingWidth(
+      child: ListView(
+        padding: const EdgeInsets.all(MakoloSpacing.inner),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: [
+          MakoloCard(
+            child: MakoloStatusMetadataAction(
+              title: detail.required
+                  ? 'Formulaire requis'
+                  : 'Formulaire complémentaire',
+              subtitle: detail.description,
+              status: MakoloStatus(label: _requestStateLabel(detail)),
+              metadata: [
+                MakoloMetadataItem('Version ${detail.version}'),
+                if (detail.dueAt != null)
+                  MakoloMetadataItem(
+                    'Échéance ${MaterialLocalizations.of(context).formatMediumDate(detail.dueAt!.toLocal())}',
+                    icon: Icons.event_outlined,
+                  ),
+                if (detail.submittedAt != null)
+                  MakoloMetadataItem(
+                    'Soumis ${MaterialLocalizations.of(context).formatMediumDate(detail.submittedAt!.toLocal())}',
+                    icon: Icons.check_circle_outline_rounded,
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: MakoloSpacing.lg),
-        ],
-        if (refreshing) ...[
-          const MakoloRefreshIndicator(label: 'Vérification du formulaire…'),
-          const SizedBox(height: MakoloSpacing.md),
-        ],
-        MakoloCommitIndicator(commit: commit),
-        if (errors['_form'] != null) ...[
-          const SizedBox(height: MakoloSpacing.md),
-          InlineMessage(message: errors['_form'].toString()),
-        ],
-        const SizedBox(height: MakoloSpacing.lg),
-        for (final question in detail.questions) ...[
-          _QuestionField(
-            question: question,
-            value: answers[question.key],
-            error: errors[question.key]?.toString(),
-            onChanged: (value) => onChanged(question.key, value),
+          if (detail.description != null) ...[
+            Text(
+              detail.description!,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: MakoloSpacing.lg),
+          ],
+          if (refreshing) ...[
+            const MakoloRefreshIndicator(label: 'Vérification du formulaire…'),
+            const SizedBox(height: MakoloSpacing.md),
+          ],
+          MakoloCommitIndicator(commit: commit),
+          if (errors['_form'] != null) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            InlineMessage(message: errors['_form'].toString()),
+          ],
+          const SizedBox(height: MakoloSpacing.lg),
+          for (final question in detail.questions) ...[
+            _QuestionField(
+              question: question,
+              value: answers[question.key],
+              error: errors[question.key]?.toString(),
+              enabled: !detail.isSubmitted,
+              onChanged: (value) => onChanged(question.key, value),
+            ),
+            const SizedBox(height: MakoloSpacing.inner),
+          ],
+          FilledButton.icon(
+            onPressed: canSubmit ? onSubmit : null,
+            icon: const Icon(Icons.check_rounded),
+            label: Text(detail.isSubmitted ? 'Déjà soumis' : 'Soumettre'),
           ),
-          const SizedBox(height: MakoloSpacing.inner),
+          if (!canSubmit && !detail.isSubmitted) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(
+              'La soumission reste sous l’autorité du serveur et sera confirmée à distance.',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ],
-        FilledButton.icon(
-          onPressed: canSubmit ? onSubmit : null,
-          icon: const Icon(Icons.check_rounded),
-          label: Text(detail.isSubmitted ? 'Déjà soumis' : 'Soumettre'),
-        ),
-        if (!canSubmit && !detail.isSubmitted) ...[
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(
-            'La soumission reste sous l’autorité du serveur et sera confirmée à distance.',
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ],
+      ),
     );
   }
 }
@@ -362,12 +392,14 @@ class _QuestionField extends StatelessWidget {
     required this.question,
     required this.value,
     required this.onChanged,
+    required this.enabled,
     this.error,
   });
 
   final QuestionnaireQuestion question;
   final Object? value;
   final ValueChanged<Object?> onChanged;
+  final bool enabled;
   final String? error;
 
   String get _label => question.label + (question.required ? ' *' : '');
@@ -383,6 +415,7 @@ class _QuestionField extends StatelessWidget {
           minLines: question.type == QuestionnaireQuestionType.longText ? 4 : 1,
           maxLines: question.type == QuestionnaireQuestionType.longText ? 8 : 1,
           maxLength: question.maxLength,
+          enabled: enabled,
           textInputAction: question.type == QuestionnaireQuestionType.longText
               ? TextInputAction.newline
               : TextInputAction.next,
@@ -398,6 +431,7 @@ class _QuestionField extends StatelessWidget {
           key: ValueKey(question.key),
           initialValue: value?.toString() ?? '',
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          enabled: enabled,
           textInputAction: TextInputAction.next,
           decoration: InputDecoration(
             labelText: _label,
@@ -407,30 +441,43 @@ class _QuestionField extends StatelessWidget {
           onChanged: onChanged,
         );
       case QuestionnaireQuestionType.boolean:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(_label),
-              subtitle: question.helpText == null
-                  ? null
-                  : Text(question.helpText!),
-              value: value == true,
-              onChanged: onChanged,
-            ),
-            if (error != null)
-              Text(
-                error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+        return Semantics(
+          container: true,
+          label: _label,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(_label, style: Theme.of(context).textTheme.titleLarge),
+              if (question.helpText != null) Text(question.helpText!),
+              const SizedBox(height: MakoloSpacing.sm),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(value: true, label: Text('Oui')),
+                  ButtonSegment<bool>(value: false, label: Text('Non')),
+                ],
+                selected: value is bool
+                    ? <bool>{value as bool}
+                    : const <bool>{},
+                emptySelectionAllowed: true,
+                onSelectionChanged: enabled
+                    ? (selected) =>
+                          onChanged(selected.isEmpty ? null : selected.first)
+                    : null,
               ),
-          ],
+              if (error != null)
+                Text(
+                  error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+            ],
+          ),
         );
       case QuestionnaireQuestionType.singleChoice:
         return _ChoiceField(
           question: question,
           selected: value is String ? <String>{value as String} : const {},
           error: error,
+          enabled: enabled,
           multiple: false,
           onChanged: (selected) =>
               onChanged(selected.isEmpty ? null : selected.first),
@@ -443,6 +490,7 @@ class _QuestionField extends StatelessWidget {
           question: question,
           selected: selected,
           error: error,
+          enabled: enabled,
           multiple: true,
           onChanged: (items) => onChanged(items.toList(growable: false)),
         );
@@ -451,6 +499,7 @@ class _QuestionField extends StatelessWidget {
           question: question,
           value: value?.toString(),
           error: error,
+          enabled: enabled,
           onChanged: onChanged,
         );
     }
@@ -463,6 +512,7 @@ class _ChoiceField extends StatelessWidget {
     required this.selected,
     required this.multiple,
     required this.onChanged,
+    required this.enabled,
     this.error,
   });
 
@@ -470,6 +520,7 @@ class _ChoiceField extends StatelessWidget {
   final Set<String> selected;
   final bool multiple;
   final ValueChanged<Set<String>> onChanged;
+  final bool enabled;
   final String? error;
 
   @override
@@ -492,15 +543,17 @@ class _ChoiceField extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 title: Text(choice),
                 value: selected.contains(choice),
-                onChanged: (checked) {
-                  final next = Set<String>.from(selected);
-                  if (checked == true) {
-                    next.add(choice);
-                  } else {
-                    next.remove(choice);
-                  }
-                  onChanged(next);
-                },
+                onChanged: enabled
+                    ? (checked) {
+                        final next = Set<String>.from(selected);
+                        if (checked == true) {
+                          next.add(choice);
+                        } else {
+                          next.remove(choice);
+                        }
+                        onChanged(next);
+                      }
+                    : null,
               )
             else
               ListTile(
@@ -512,7 +565,8 @@ class _ChoiceField extends StatelessWidget {
                 ),
                 title: Text(choice),
                 selected: selected.contains(choice),
-                onTap: () => onChanged(<String>{choice}),
+                enabled: enabled,
+                onTap: enabled ? () => onChanged(<String>{choice}) : null,
               ),
           if (error != null)
             Text(
@@ -530,12 +584,14 @@ class _DateField extends StatelessWidget {
     required this.question,
     required this.value,
     required this.onChanged,
+    required this.enabled,
     this.error,
   });
 
   final QuestionnaireQuestion question;
   final String? value;
   final ValueChanged<Object?> onChanged;
+  final bool enabled;
   final String? error;
 
   @override
@@ -554,18 +610,20 @@ class _DateField extends StatelessWidget {
         if (question.helpText != null) Text(question.helpText!),
         const SizedBox(height: MakoloSpacing.sm),
         OutlinedButton.icon(
-          onPressed: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: parsed ?? DateTime.now(),
-              firstDate: DateTime(1900),
-              lastDate: DateTime(2200),
-            );
-            if (picked != null) {
-              final iso = picked.toIso8601String().split('T').first;
-              onChanged(iso);
-            }
-          },
+          onPressed: enabled
+              ? () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: parsed ?? DateTime.now(),
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime(2200),
+                  );
+                  if (picked != null) {
+                    final iso = picked.toIso8601String().split('T').first;
+                    onChanged(iso);
+                  }
+                }
+              : null,
           icon: const Icon(Icons.calendar_today_outlined),
           label: Text(label),
         ),
@@ -577,4 +635,14 @@ class _DateField extends StatelessWidget {
       ],
     );
   }
+}
+
+String _requestStateLabel(QuestionnaireRequestDetail detail) {
+  if (detail.isSubmitted) return 'Confirmé';
+  return switch (detail.status) {
+    'requested' => 'À remplir',
+    'cancelled' => 'Annulé',
+    'completed' => 'Confirmé',
+    _ => detail.status.replaceAll('_', ' '),
+  };
 }

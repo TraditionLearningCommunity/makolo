@@ -31,7 +31,16 @@ class W8PersonalConnectionsWebTests(TestCase):
         self.profile = UserProfile.objects.create(user=self.user)
         self.other_profile = UserProfile.objects.create(user=self.other)
 
-    def _connection(self, *, name, scope, profile=None, space=None, enabled=True):
+    def _connection(
+        self,
+        *,
+        name,
+        scope,
+        profile=None,
+        space=None,
+        enabled=True,
+        health=ProviderHealth.HEALTHY,
+    ):
         connection = ProviderConnection.objects.create(
             name=name,
             protocol=ProviderProtocol.OPENAI_COMPATIBLE,
@@ -41,7 +50,7 @@ class W8PersonalConnectionsWebTests(TestCase):
             profile=profile,
             space=space,
             enabled=enabled,
-            health_status=ProviderHealth.HEALTHY,
+            health_status=health,
         )
         IntelligenceRoute.objects.create(
             connection=connection,
@@ -81,20 +90,45 @@ class W8PersonalConnectionsWebTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Cache-Control"], "private, no-store")
-        self.assertContains(response, "Aucun service n’est encore disponible pour votre Profil.")
-        self.assertContains(response, "Aucune extension disponible pour le moment.")
+        self.assertContains(response, "Aucune connexion pour le moment.")
+        self.assertContains(
+            response,
+            "Aucun service n’est encore disponible pour votre Profil.",
+        )
+        self.assertNotContains(response, "Marketplace")
+        self.assertNotContains(response, "Connecter")
         self.assertNotContains(response, "Gmail")
         self.assertNotContains(response, "Google Calendar")
         self.assertNotContains(response, "OpenAI")
 
-    def test_profile_connection_is_rendered_with_z16_state_and_without_secrets(self):
-        own = self._connection(name="Service personnel", scope=ProviderScope.PROFILE, profile=self.profile)
-        other = self._connection(name="Autre service", scope=ProviderScope.PROFILE, profile=self.other_profile)
-        disabled = self._connection(
+    def test_profile_connections_are_humanized_and_secret_free(self):
+        own = self._connection(
+            name="Service personnel",
+            scope=ProviderScope.PROFILE,
+            profile=self.profile,
+        )
+        other = self._connection(
+            name="Autre service",
+            scope=ProviderScope.PROFILE,
+            profile=self.other_profile,
+        )
+        self._connection(
             name="Service désactivé",
             scope=ProviderScope.PROFILE,
             profile=self.profile,
             enabled=False,
+        )
+        self._connection(
+            name="Service dégradé",
+            scope=ProviderScope.PROFILE,
+            profile=self.profile,
+            health=ProviderHealth.DEGRADED,
+        )
+        self._connection(
+            name="Service indisponible",
+            scope=ProviderScope.PROFILE,
+            profile=self.profile,
+            health=ProviderHealth.UNAVAILABLE,
         )
         ProviderCredential.objects.create(
             connection=own,
@@ -107,22 +141,47 @@ class W8PersonalConnectionsWebTests(TestCase):
         html = response.content.decode("utf-8")
 
         self.assertContains(response, "Service personnel")
-        self.assertContains(response, "Connecté")
-        self.assertContains(response, "utilisable par Makolo")
+        self.assertContains(response, "Connecté et disponible")
+        self.assertContains(response, "Génération de texte")
         self.assertContains(response, "Service désactivé")
-        self.assertContains(response, "désactivé")
+        self.assertContains(response, "Désactivé")
+        self.assertContains(response, "Service dégradé")
+        self.assertContains(response, "Connecté · disponibilité réduite")
+        self.assertContains(response, "Service indisponible")
+        self.assertContains(response, "Momentanément indisponible")
+        self.assertNotContains(response, "utilisable par Makolo")
+        self.assertNotContains(response, "Gestion disponible")
+        self.assertNotContains(response, "Déconnecter")
+        self.assertNotContains(response, "Reconnecter")
         self.assertNotContains(response, "Autre service")
         self.assertNotIn(str(other.pk), html)
         self.assertNotIn("w8-secret-ciphertext", html)
         self.assertNotIn("w8-key-hint", html)
         self.assertNotIn("provider.example.test", html)
         self.assertNotIn("test-model", html)
+        self.assertNotIn("openai_compatible", html)
+        self.assertNotIn("text_generate", html)
 
     def test_space_and_platform_connections_never_leak_into_personal_page(self):
-        space = Organization.objects.create(name="W8 Space", slug="w8-space", created_by=self.user)
-        self._connection(name="Connexion Espace privée", scope=ProviderScope.SPACE, space=space)
-        self._connection(name="Connexion Platform privée", scope=ProviderScope.PLATFORM)
-        self._connection(name="Ma connexion", scope=ProviderScope.PROFILE, profile=self.profile)
+        space = Organization.objects.create(
+            name="W8 Space",
+            slug="w8-space",
+            created_by=self.user,
+        )
+        self._connection(
+            name="Connexion Espace privée",
+            scope=ProviderScope.SPACE,
+            space=space,
+        )
+        self._connection(
+            name="Connexion Platform privée",
+            scope=ProviderScope.PLATFORM,
+        )
+        self._connection(
+            name="Ma connexion",
+            scope=ProviderScope.PROFILE,
+            profile=self.profile,
+        )
 
         self.client.force_login(self.user)
         response = self.client.get(reverse("core:participant-connections"))

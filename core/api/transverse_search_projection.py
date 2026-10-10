@@ -1,5 +1,14 @@
-"""Permission-first retrieval of already-known personal Journey/Access realities."""
+"""Permission-first federation of existing personal owner selectors."""
 from django.urls import reverse
+
+from personal_assets.selectors import personal_assets_for_controller
+from groups.selectors import groups_for_profile
+
+from access.models import AccessStatus
+from commerce.models import CommerceOrder, CommerceOrderStatus
+from django.db.models import Q
+from journeys.models import JourneyStatus
+
 
 from core.participant_selectors import (
     participant_access_search,
@@ -20,7 +29,7 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             "query": "",
             "items": [],
             "page": {"count": 0, "offset": offset, "limit": limit, "has_more": False},
-            "coverage": {"state": "partial", "owners": ["journey", "access"]},
+            "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset", "group", "commerce_order"]},
         }
     # Both selectors are beneficiary-scoped BEFORE any free text match.
     journeys = participant_journey_search(
@@ -33,6 +42,12 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
     access_rows = list(accesses[:offset + limit])
     entries = []
     for row in journey_rows:
+        is_past = row.status in {
+            JourneyStatus.FULFILLED, JourneyStatus.REJECTED,
+            JourneyStatus.CANCELLED, JourneyStatus.EXPIRED,
+        }
+        # The owner detail remains the destination; historical classification
+        # does not create another Journey or expose another person's Access.
         entries.append((
             row.created_at, "journey", str(row.pk),
             {
@@ -40,10 +55,17 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "title": row.activity.title,
                 "human_type": "Démarche",
                 "relation": "Ma démarche",
-                "destination": reverse("personal-detail-projections:journey-detail", kwargs={"pk": row.pk}),
+                "historical": is_past,
+                "context": "Historique" if is_past else "En cours",
+                "destination": reverse("core:participant-journey-detail", kwargs={"pk": row.pk}),
+                "owner_api": reverse("personal-detail-projections:journey-detail", kwargs={"pk": row.pk}),
             },
         ))
     for row in access_rows:
+        is_past = row.status in {
+            AccessStatus.USED, AccessStatus.CANCELLED, AccessStatus.REVOKED,
+            AccessStatus.EXPIRED, AccessStatus.TRANSFERRED,
+        }
         entries.append((
             row.created_at, "access", str(row.pk),
             {
@@ -51,11 +73,86 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
                 "title": row.activity.title,
                 "human_type": "Accès",
                 "relation": "Mon accès",
-                "destination": reverse("personal-detail-projections:access-detail", kwargs={"pk": row.pk}),
+                "historical": is_past,
+                "context": "Historique" if is_past else "Accès",
+                "destination": reverse("core:participant-access-detail", kwargs={"pk": row.pk}),
+                "owner_api": reverse("personal-detail-projections:access-detail", kwargs={"pk": row.pk}),
+            },
+        ))
+    # Personal resources are owned by the document controller, never by Search.
+    assets = personal_assets_for_controller(profile).filter(
+        title__icontains=query
+    ).order_by("-created_at", "pk")
+    for row in assets[:offset + limit]:
+        entries.append((
+            row.created_at, "personal_asset", str(row.pk),
+            {
+                "source": {"kind": "personal_asset", "id": str(row.pk)},
+                "title": row.title,
+                "human_type": "Document",
+                "relation": "Ma ressource",
+                "historical": False,
+                "context": "Moi",
+                "destination": reverse(
+                    "personal_assets:detail", kwargs={"asset_id": row.pk}
+                ),
+                "owner_api": reverse(
+                    "personal-projections:resource-detail", kwargs={"pk": row.pk}
+                ),
+            },
+        ))
+    groups = groups_for_profile(profile).filter(
+        space__isnull=True,
+        name__icontains=query
+    ).order_by("-created_at", "pk")
+    for row in groups[:offset + limit]:
+        entries.append((
+            row.created_at, "group", str(row.pk),
+            {
+                "source": {"kind": "group", "id": str(row.pk)},
+                "title": row.name,
+                "human_type": "Groupe",
+                "relation": "Mon collectif",
+                "historical": False,
+                "context": "Moi",
+                "destination": reverse(
+                    "groups:detail", kwargs={"slug": row.slug}
+                ),
+                "owner_api": reverse(
+                    "personal-projections:group-detail", kwargs={"pk": row.pk}
+                ),
+            },
+        ))
+    orders = CommerceOrder.objects.filter(buyer=profile).filter(
+        Q(reference__icontains=query)
+        | Q(journey__activity__title__icontains=query)
+    ).select_related("journey__activity").order_by("-created_at", "pk")
+    for order in orders[:offset + limit]:
+        completed = (
+            order.status == CommerceOrderStatus.CANCELLED
+            and order.cancelled_at is not None
+        )
+        entries.append((
+            order.created_at, "commerce_order", str(order.pk),
+            {
+                "source": {"kind": "commerce_order", "id": str(order.pk)},
+                "title": f"Commande {order.reference}",
+                "human_type": "Commande",
+                "relation": "Mon achat",
+                "context": "Historique" if completed else "Commande",
+                "historical": completed,
+                "destination": reverse(
+                    "core:participant-commerce-order-detail",
+                    kwargs={"pk": order.pk},
+                ),
+                "owner_api": reverse(
+                    "personal-projections:commerce-order-detail",
+                    kwargs={"order_id": order.pk},
+                ),
             },
         ))
     entries.sort(key=lambda row: (row[0], row[1], row[2]), reverse=True)
-    total = journeys.count() + accesses.count()
+    total = journeys.count() + accesses.count() + assets.count() + groups.count() + orders.count()
     selected = [row[3] for row in entries[offset:offset + limit]]
     return {
         "actor_context": {"kind": "profile"},
@@ -65,5 +162,5 @@ def build_profile_search(*, profile, query, offset=0, limit=LIMIT):
             "count": total, "offset": offset, "limit": limit,
             "has_more": offset + len(selected) < total,
         },
-        "coverage": {"state": "partial", "owners": ["journey", "access"]},
+        "coverage": {"state": "partial", "owners": ["journey", "access", "personal_asset", "group"]},
     }

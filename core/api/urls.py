@@ -1,4 +1,5 @@
 from django.urls import path
+from commerce.personal_order_views import PersonalCommerceOrderDetailAPIView
 
 from .access_views import PersonalAccessCredentialAPIView, PersonalAccessesAPIView
 from .history_views import PersonalHistoryAPIView
@@ -14,6 +15,7 @@ from .me_views import (
     PersonalResourcesAPIView,
 )
 from .personal_views import PersonalNowAPIView, PersonalOngoingAPIView
+from .now_media_views import PersonalNowJourneyArtifactMediaAPIView
 from .z9_views import PersonalPartnerDetailAPIView
 from .z8_views import (
     PersonalGroupDetailAPIView,
@@ -28,10 +30,16 @@ app_name = "personal-projections"
 urlpatterns = [
     path("", PersonalMeAPIView.as_view(), name="me"),
     path("now/", PersonalNowAPIView.as_view(), name="now"),
+    path(
+        "now/media/journey-artifacts/<uuid:artifact_id>/",
+        PersonalNowJourneyArtifactMediaAPIView.as_view(),
+        name="now-journey-artifact-media",
+    ),
     path("ongoing/", PersonalOngoingAPIView.as_view(), name="ongoing"),
     path("accesses/", PersonalAccessesAPIView.as_view(), name="accesses"),
     path("history/", PersonalHistoryAPIView.as_view(), name="history"),
     path("search/", PersonalSearchAPIView.as_view(), name="search"),
+    path("orders/<uuid:order_id>/", PersonalCommerceOrderDetailAPIView.as_view(), name="commerce-order-detail"),
     path("interoperability/", PersonalInteroperabilityAPIView.as_view(), name="interoperability"),
     path(
         "occurrences/<uuid:pk>/day-of/",

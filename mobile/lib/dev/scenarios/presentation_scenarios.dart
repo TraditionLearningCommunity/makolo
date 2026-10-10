@@ -286,6 +286,16 @@ abstract final class PresentationFixtureUniverse {
 abstract final class PresentationScenarioCatalog {
   static const Map<String, List<String>> _matrix = {
     'now': [
+      'now-g01-s1-min',
+      'now-g01-s1-rich',
+      'now-g01-s2-min',
+      'now-g01-s2-rich',
+      'now-g01-s3-min',
+      'now-g01-s3-rich',
+      'now-g01-s4-min',
+      'now-g01-s4-rich',
+      'now-g01-s5-min',
+      'now-g01-s5-rich',
       'now-current-action',
       'now-calm',
       'now-pending-local',

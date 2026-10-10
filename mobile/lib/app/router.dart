@@ -1,3 +1,5 @@
+import '../features/continuity/transverse_retrieval_screen.dart';
+
 import 'dart:async';
 
 import 'package:go_router/go_router.dart';
@@ -20,7 +22,9 @@ import '../features/now/now_routes.dart';
 import '../features/ongoing/ongoing_routes.dart';
 import '../features/preparation/preparation_routes.dart';
 import '../features/questionnaires/questionnaire_routes.dart';
+import '../features/settings/account_screen.dart';
 import '../features/settings/billing_screen.dart';
+import '../features/settings/change_password_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
 import '../features/space/space_insight_screen.dart';
@@ -28,6 +32,7 @@ import '../features/space/space_repository.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
+import '../notifications/notification_routes.dart';
 import 'app_shell.dart';
 import 'runtime/actor_context.dart';
 import 'runtime/app_runtime.dart';
@@ -62,6 +67,8 @@ GoRouter createMakoloRouter(
       '/notifications',
       '/ongoing/calendar',
       '/billing',
+      '/account',
+      '/account/password',
       '/settings',
     }.contains(path)) {
       return true;
@@ -188,18 +195,71 @@ GoRouter createMakoloRouter(
         builder: (context, state) => const BillingScreen(),
       ),
       GoRoute(
+        path: '/account',
+        builder: (context, state) => AccountScreen(
+          runtime: runtime,
+          onChangePassword: () => context.push('/account/password'),
+          onRememberedAccounts: () => context.push('/accounts'),
+          onConnections: () => context.push('/connections'),
+          onBilling: () => context.push('/billing'),
+        ),
+      ),
+      GoRoute(
+        path: '/account/password',
+        builder: (context, state) => ChangePasswordScreen(
+          runtime: runtime,
+          onPasswordChanged: onAuthenticationChanged,
+        ),
+      ),
+      GoRoute(
         path: '/settings',
         builder: (context, state) => AppSettingsScreen(runtime: runtime),
       ),
       ...interoperabilityRoutes(runtime),
       ...markRoutes(runtime),
       ...continuityRoutes(runtime),
+      ...notificationRoutes(runtime),
       GoRoute(
-        path: '/notifications',
-        builder: (context, state) => const MakoloSecondaryScreen(
-          title: 'Notifications',
-          message: 'Rien de nouveau pour le moment.',
+        path: '/search',
+        builder: (context, state) => TransverseRetrievalScreen(
+          runtime: runtime,
+          initialQuery: state.uri.queryParameters['q'] ?? '',
         ),
+      ),
+      GoRoute(
+        path: '/space/search',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Recherche',
+              message: 'Choisissez un Espace autorisé.',
+            );
+          }
+          return TransverseRetrievalScreen(
+            runtime: runtime,
+            spaceActor: actor,
+            initialQuery: state.uri.queryParameters['q'] ?? '',
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/history',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Historique',
+              message: 'Choisissez un Espace autorisé.',
+            );
+          }
+          return TransverseRetrievalScreen(
+            runtime: runtime,
+            spaceActor: actor,
+            history: true,
+            initialQuery: state.uri.queryParameters['q'] ?? '',
+          );
+        },
       ),
       ...discoveryRoutes(runtime),
       ...ongoingRoutes(runtime),

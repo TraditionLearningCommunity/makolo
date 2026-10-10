@@ -44,6 +44,10 @@
   </section>
 
   <section class="mk-me-section">
+    <div class="mk-section-heading"><div><h2>Mes accès</h2><p>Les droits déjà accordés restent distincts de leur QR et de leur usage réel.</p></div><a href="{% url 'core:participant-accesses' %}">Voir</a></div>
+  </section>
+
+  <section class="mk-me-section">
     <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Documents, faits établis et attestations restent distincts, mais se retrouvent au même endroit quand ils peuvent vous servir.</p></div><a href="{% url 'personal_assets:list' %}">Bibliothèque</a></div>
     <div class="mk-me-list">
       {% for asset in resources %}<div><strong>{{ asset.title }}</strong><span>Document{% if asset.kind %} · {{ asset.get_kind_display }}{% endif %}</span></div>{% endfor %}
@@ -66,6 +70,7 @@
 
   <div class="mk-secondary-actions">
     <a href="{% url 'core:participant-history' %}">Historique</a>
+    <a href="{% url 'core:participant-search' %}">Rechercher dans Makolo</a>
     <a href="{% url 'discovery:bookmarks' %}">Éléments gardés</a>
     <a href="{% url 'discovery:watch-list' %}">Veilles</a>
   </div>

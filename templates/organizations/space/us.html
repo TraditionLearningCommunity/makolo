@@ -99,6 +99,7 @@
   <nav class="mk-ws4-actions" aria-label="Approfondir Nous">
     <a class="mk-ws4-action" href="{{ us_owner_links.relationships }}"><i data-lucide="users-round" aria-hidden="true"></i><span><strong>Personnes & relations</strong><small>Avec qui avançons-nous ?</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
     {% if us_owner_links.pilot %}<a class="mk-ws4-action" href="{{ us_owner_links.pilot }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Piloter</strong><small>Comprendre ce qui fonctionne et ce qui change.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
+    {% if us_owner_links.connections %}<a class="mk-ws4-action mk-ws4-action--quiet" href="{{ us_owner_links.connections }}"><i data-lucide="workflow" aria-hidden="true"></i><span><strong>Connexions</strong><small>Systèmes externes reliés à ce Space.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
     {% if us_owner_links.settings %}<a class="mk-ws4-action mk-ws4-action--quiet" href="{{ us_owner_links.settings }}"><i data-lucide="settings-2" aria-hidden="true"></i><span><strong>Paramètres de l’Espace</strong><small>Administration institutionnelle.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
   </nav>
   {% endif %}

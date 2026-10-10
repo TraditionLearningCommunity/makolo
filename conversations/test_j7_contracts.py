@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from activities.models import Activity
 from authorization.constants import SystemRoleCode
-from authorization.services import grant_activity_role
+from authorization.services import grant_activity_role, grant_space_role
 from domain_events.contracts import DomainEventType
 from domain_events.models import DomainEventOutbox
 from notifications.models import Notification
@@ -145,6 +145,90 @@ class ConversationJ7ContractsTests(TestCase):
         invitation.refresh_from_db()
         self.assertEqual(invitation.status, ConversationInvitationStatus.ACCEPTED)
         self.assertEqual(self.client.get(detail_url).status_code, 200)
+
+    def test_attention_presence_tracks_real_point_attention_not_unread_activity(self):
+        point = self._question(client_reference="j7-presence-question")
+        self.client.force_login(self.member)
+        presence_url = reverse("conversations-api:attention-presence")
+
+        present = self.client.get(presence_url)
+        self.assertEqual(present.status_code, 200)
+        self.assertEqual(present.json(), {"has_attention": True})
+        self.assertEqual(present["Cache-Control"], "private, no-store")
+
+        response = self.client.post(
+            reverse("conversations-api:point-respond", kwargs={"point_pk": point.pk}),
+            {"value": "Réponse confirmée", "client_reference": "j7-presence-response"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get(presence_url).json(), {"has_attention": False})
+
+    def test_personal_state_api_does_not_change_shared_lifecycle_and_mute_is_reversible(self):
+        self.client.force_login(self.member)
+        url = reverse(
+            "conversations-api:personal-state",
+            kwargs={"pk": self.conversation.pk},
+        )
+        before = self.conversation.lifecycle
+        response = self.client.post(
+            url,
+            {"pinned": True, "archived": True, "revisit": True, "mute": True},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            {key: response.json()[key] for key in ("pinned", "archived", "revisit", "muted")},
+            {"pinned": True, "archived": True, "revisit": True, "muted": True},
+        )
+        self.conversation.refresh_from_db()
+        self.assertEqual(self.conversation.lifecycle, before)
+
+        unmuted = self.client.post(
+            url,
+            {"mute": False},
+            content_type="application/json",
+        )
+        self.assertEqual(unmuted.status_code, 200)
+        self.assertFalse(unmuted.json()["muted"])
+        self.assertTrue(unmuted.json()["pinned"])
+
+    def test_acting_for_space_is_revalidated_server_side(self):
+        point = self._question(client_reference="j7-space-response")
+        self.client.force_login(self.member)
+        url = reverse("conversations-api:point-respond", kwargs={"point_pk": point.pk})
+
+        denied = self.client.post(
+            url,
+            {
+                "value": "Au nom de l’Espace",
+                "client_reference": "j7-space-denied",
+                "represented_space_id": str(self.space.pk),
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(denied.status_code, 403)
+
+        grant_space_role(
+            profile=self.member,
+            space=self.space,
+            role=SystemRoleCode.SPACE_OWNER,
+            granted_by=self.owner,
+            source="j7-space-response",
+        )
+        accepted = self.client.post(
+            url,
+            {
+                "value": "Au nom de l’Espace",
+                "client_reference": "j7-space-accepted",
+                "represented_space_id": str(self.space.pk),
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(accepted.status_code, 200)
+        response = point.responses.get(pk=accepted.json()["id"])
+        self.assertEqual(response.actor, self.member)
+        self.assertEqual(response.represented_space, self.space)
 
     def test_web_invitation_can_be_declined_without_revealing_detail(self):
         invitation = create_conversation_invitation(

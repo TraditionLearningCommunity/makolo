@@ -98,6 +98,40 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.client.force_authenticate(self.platform)
         self.assertEqual(self.client.get(self.url).status_code, 404)
 
+    def test_community_group_membership_never_grants_space_work_authority(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        community_member = User.objects.create_user(
+            username="zs3-community-member",
+            email="community-member@test.local",
+            password="x",
+        )
+        group = Group.objects.create(
+            name="Communauté locale",
+            space=self.space,
+            created_by=self.owner,
+        )
+        GroupMembership.objects.create(group=group, profile=community_member)
+        self.client.force_authenticate(community_member)
+
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_community_presentation_keeps_initiative_as_ux_language_only(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Nettoyage du quartier")
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["activities"]["representation"], "Initiatives")
+        row = next(
+            item for item in response.data["sections"]["preparation"]["items"]
+            if item["source"] == {"kind": "activity", "id": str(activity.pk)}
+        )
+        self.assertEqual(row["kind"], "activity")
+        self.assertNotIn("permission", str(row).lower())
+
     def test_empty_collections_are_valid_and_do_not_invent_work(self):
         self.client.force_authenticate(self.owner)
         response = self.client.get(self.url)
@@ -124,6 +158,21 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             response = self.client.get(self.url)
             self.assertEqual(response.status_code, 200, response.data)
             self.assertEqual(response.data["primary_business_label"], label)
+
+    def test_generic_presentation_exposes_human_grammar_without_inventing_work(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["primary_business_label"], "Activités")
+        self.assertEqual(
+            response.data["presentation"]["empty_message"],
+            "Aucune activité visible pour le moment.",
+        )
+        self.assertEqual(
+            response.data["sections"]["activities"]["representation"],
+            "Toutes les activités",
+        )
+        self.assertEqual(response.data["sections"]["activities"]["role"], "structure")
 
     def test_activity_occurrence_projection_preserves_owner_identity(self):
         activity = self._activity("Atelier")
@@ -181,6 +230,42 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         )
         self.assertEqual(foreign.status_code, 404)
 
+    def test_creative_presentation_contextualizes_activity_without_creating_cms_truth(self):
+        self.space.archetype = SpaceArchetype.CREATIVE
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Album Première")
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["active"]["representation"], "En création")
+        self.assertEqual(response.data["sections"]["upcoming"]["representation"], "À présenter")
+        self.assertEqual(response.data["sections"]["activities"]["representation"], "Créations")
+        row = next(
+            item for item in response.data["sections"]["preparation"]["items"]
+            if item["source"] == {"kind": "activity", "id": str(activity.pk)}
+        )
+        self.assertEqual(row["kind"], "activity")
+        self.assertNotIn("publication", str(row).lower())
+        self.assertNotIn("portfolio", str(response.data).lower())
+
+    def test_media_presentation_uses_activity_owner_without_inventing_feed_or_media(self):
+        self.space.archetype = SpaceArchetype.MEDIA
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Journal du quartier")
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["active"]["representation"], "En production")
+        self.assertEqual(response.data["sections"]["activities"]["representation"], "Productions")
+        row = next(
+            item for item in response.data["sections"]["preparation"]["items"]
+            if item["source"] == {"kind": "activity", "id": str(activity.pk)}
+        )
+        self.assertNotIn("feed", str(response.data).lower())
+        self.assertNotIn("media", str(row).lower())
+
     def test_commerce_offer_requires_activity_commerce_authority(self):
         self.space.archetype = SpaceArchetype.COMMERCE
         self.space.save(update_fields=["archetype", "updated_at"])
@@ -208,7 +293,39 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         ]
         self.assertEqual(len(offers), 1)
         self.assertEqual(offers[0]["title"], "Offre ZS3")
+        self.assertEqual(response.data["sections"]["preparation"]["representation"], "À traiter")
+        self.assertEqual(response.data["sections"]["active"]["representation"], "Commandes actives")
+        self.assertEqual(response.data["sections"]["offers"]["representation"], "Offres")
+        self.assertEqual(response.data["sections"]["completed"]["representation"], "Historique")
         self.assertNotIn("payment", str(offers[0]).lower())
+
+    def test_programmes_presentation_routes_pending_registrations_to_human_queue(self):
+        self.space.archetype = SpaceArchetype.EDUCATION
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Programme Comptabilité")
+        beneficiary = User.objects.create_user(
+            username="zs3-programme-pending",
+            email="private-programme@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=beneficiary,
+            beneficiary=beneficiary,
+            activity=activity,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.PENDING_APPROVAL,
+        )
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["requests"]["representation"], "Inscriptions à traiter")
+        self.assertEqual(response.data["sections"]["upcoming"]["representation"], "Prochaines sessions")
+        row = next(
+            item for item in response.data["sections"]["requests"]["items"]
+            if item["source"] == {"kind": "journey", "id": str(journey.pk)}
+        )
+        self.assertNotIn(beneficiary.email, str(row))
 
     def test_education_journey_is_visible_without_beneficiary_leak(self):
         self.space.archetype = SpaceArchetype.EDUCATION
@@ -234,6 +351,50 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(row["continuity_facet"]["identity"], f"journey:{journey.pk}")
         self.assertNotIn(beneficiary.email, str(row))
         self.assertNotIn(beneficiary.username, str(row))
+
+    def test_service_presentation_separates_requests_from_active_cases(self):
+        self.space.archetype = SpaceArchetype.SERVICE_PROVIDER
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Prestation Visa")
+        ServiceDetails.objects.create(
+            activity=activity,
+            service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
+        )
+        beneficiary = User.objects.create_user(
+            username="zs3-service-pending",
+            email="private-service-pending@test.local",
+            password="x",
+        )
+        pending = Journey.objects.create(
+            initiated_by=beneficiary,
+            beneficiary=beneficiary,
+            activity=activity,
+            workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.SUBMITTED,
+        )
+        operator = User.objects.create_user(
+            username="zs3-service-pending-operator",
+            email="zs3-service-pending-operator@test.local",
+            password="x",
+        )
+        grant_activity_role(
+            profile=operator,
+            activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(operator)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["requests"]["representation"], "Demandes à traiter")
+        self.assertEqual(response.data["sections"]["active"]["representation"], "Dossiers en cours")
+        row = next(
+            item for item in response.data["sections"]["requests"]["items"]
+            if item["source"] == {"kind": "journey", "id": str(pending.pk)}
+        )
+        self.assertNotIn(beneficiary.email, str(row))
+        self.assertNotIn("requirement", str(row).lower())
 
     def test_service_case_uses_service_visibility_and_omits_private_case_data(self):
         self.space.archetype = SpaceArchetype.SERVICE_PROVIDER
@@ -269,6 +430,22 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(row["kind"], "service_case")
         self.assertNotIn(beneficiary.email, str(row))
         self.assertNotIn("requirement", str(row).lower())
+
+    def test_transport_presentation_contextualizes_without_reclassifying_structure(self):
+        self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
+        self.space.save(update_fields=["archetype", "updated_at"])
+        self._activity("Service Lubumbashi Kolwezi")
+        TransportRoute.objects.create(space=self.space, name="Lubumbashi → Kolwezi")
+        Vehicle.objects.create(space=self.space, label="Bus 18", passenger_capacity=50)
+        self.client.force_authenticate(self.owner)
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["sections"]["upcoming"]["representation"], "Prochains départs")
+        self.assertEqual(response.data["sections"]["active"]["representation"], "Départs en cours")
+        self.assertEqual(response.data["sections"]["activities"]["representation"], "Services")
+        self.assertEqual(response.data["sections"]["routes"]["role"], "structure")
+        self.assertEqual(response.data["sections"]["vehicles"]["role"], "structure")
 
     def test_transport_space_projection_uses_real_route_and_vehicle_owners(self):
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR

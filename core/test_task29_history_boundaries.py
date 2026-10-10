@@ -110,3 +110,26 @@ class Task29HistoryBoundaryTests(TestCase):
         organized_ids = {activity.pk for activity in activities_owned_by(self.profile)}
         self.assertIn(personal.pk, organized_ids)
         self.assertEqual(len(organized_ids), 1)
+
+    def test_personal_search_web_uses_only_beneficiary_and_partial_coverage(self):
+        Journey.objects.create(
+            initiated_by=self.profile, beneficiary=self.profile,
+            activity=self.activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.REJECTED,
+        )
+        Journey.objects.create(
+            initiated_by=self.other, beneficiary=self.other,
+            activity=Activity.objects.create(
+                title="Secret privé interdit", created_by=self.other,
+                owner_profile=self.other, status=ActivityStatus.PUBLISHED,
+            ),
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.REJECTED,
+        )
+        search = self.client.get(
+            reverse("core:participant-search"), {"q": "Secret"}
+        )
+        self.assertEqual(search.status_code, 200)
+        self.assertContains(search, "Aucun résultat visible")
+        self.assertNotContains(search, "Secret privé interdit")
+        self.assertContains(search, "Couverture partielle")

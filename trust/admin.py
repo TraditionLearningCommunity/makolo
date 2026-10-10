@@ -46,8 +46,25 @@ class DisputeAdmin(TrustAuditAdmin):
 
 @admin.register(TrustEvidence)
 class TrustEvidenceAdmin(TrustAuditAdmin):
+    # Never render the raw private FileField URL through generic Admin.
     list_display = ("id", "verification_claim", "report", "uploaded_by", "created_at")
     search_fields = ("uploaded_by__email",)
+    exclude = ("file",)
+
+    def get_fields(self, request, obj=None):
+        # Preserve the complete readonly audit contract but never render the
+        # FileField widget or a direct private storage URL.
+        return tuple(field for field in super().get_fields(request, obj) if field != "file")
+
+    def has_module_permission(self, request):
+        return bool(request.user.is_active and request.user.is_staff and request.user.is_superuser)
+
+    def has_view_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_staff and request.user.is_superuser)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset if self.has_view_permission(request) else queryset.none()
 
 
 @admin.register(Proof)

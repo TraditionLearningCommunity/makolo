@@ -49,6 +49,7 @@ from .participant_selectors import (
     participant_journeys,
     participant_purchased_accesses_for_others,
     participant_unified_history_accesses,
+    participant_unified_history_unique_accesses,
     participant_unified_history_journeys,
     participant_upcoming_engagements,
 )
@@ -116,6 +117,14 @@ def _history_access_item(access):
     return {
         "kind": "access",
         "history_at": getattr(access, "history_at", access.updated_at),
+        "historical_date_known": bool(
+            (access.status == AccessStatus.USED
+             and getattr(access, "latest_accepted_use_at", None))
+            or (access.status == AccessStatus.VALID and (
+                access.occurrence and access.occurrence.end_at
+                or access.valid_until
+            ))
+        ),
         "label": history_access_label(access),
         "access_card": _access_card(access),
         "journey_card": _journey_card(access.journey) if access.journey_id else None,
@@ -127,6 +136,12 @@ def _history_journey_item(journey):
     return {
         "kind": "journey",
         "history_at": getattr(journey, "history_at", journey.updated_at),
+        "historical_date_known": bool(
+            (journey.status == JourneyStatus.FULFILLED and journey.fulfilled_at)
+            or (journey.status == JourneyStatus.CANCELLED and journey.cancelled_at)
+            or (journey.status == JourneyStatus.EXPIRED and journey.expires_at)
+            or getattr(journey, "latest_history_transition_at", None)
+        ),
         "label": history_journey_label(journey),
         "access_card": None,
         "journey_card": _journey_card(journey),
@@ -138,7 +153,7 @@ def _history_items(*, profile, q="", history_filter="all", offset=0, limit=PERSO
     """Compose a bounded unified history window from canonical personal querysets."""
     at = at or timezone.now()
     history_filter = history_filter if history_filter in {"all", "accesses", "journeys"} else "all"
-    access_qs = participant_access_search(participant_unified_history_accesses(profile, at=at), q)
+    access_qs = participant_access_search(participant_unified_history_unique_accesses(profile, at=at), q)
     journey_qs = participant_journey_search(participant_unified_history_journeys(profile), q)
 
     access_count = access_qs.count() if history_filter in {"all", "accesses"} else 0
@@ -162,7 +177,7 @@ def _recent_history_items(profile, *, at=None, limit=HOME_SECTION_LIMIT):
     """
     at = at or timezone.now()
     accesses = list(
-        participant_unified_history_accesses(profile, at=at)
+        participant_unified_history_unique_accesses(profile, at=at)
         .prefetch_related(None)[:limit]
     )
     journeys = list(
@@ -293,7 +308,9 @@ class ParticipantHistoryView(LoginRequiredMixin, TemplateView):
         requested_filter = (self.request.GET.get("type") or "all").strip().lower()
         page_number = self.request.GET.get("page") or 1
 
-        access_qs = participant_access_search(participant_unified_history_accesses(profile), q)
+        access_qs = participant_access_search(
+            participant_unified_history_unique_accesses(profile), q
+        )
         journey_qs = participant_journey_search(participant_unified_history_journeys(profile), q)
         if requested_filter == "accesses":
             total_count = access_qs.count()
@@ -314,13 +331,25 @@ class ParticipantHistoryView(LoginRequiredMixin, TemplateView):
             limit=PERSONAL_PAGE_SIZE,
         )
         page_obj.object_list = items
+        selected_ref = (self.request.GET.get("selected") or "")[:120]
+        selected_history = None
+        for item in items:
+            target = (
+                item["access_card"]["access"].pk if item["kind"] == "access"
+                else item["journey_card"]["journey"].pk
+            )
+            if f'{item["kind"]}:{target}' == selected_ref:
+                selected_history = item
+                break
         context.update(
             {
                 "q": q,
                 "history_filter": history_filter,
                 "history_items": items,
                 "page_obj": page_obj,
-                "pagination_query": _pagination_query(self.request, "page"),
+                "pagination_query": _pagination_query(self.request, "page", "selected"),
+                "selected_history": selected_history,
+                "selected_ref": selected_ref,
             }
         )
         return context

@@ -1,0 +1,48 @@
+{% extends "platform/page.html" %}
+{% block platform_content %}
+<a class="link secondary" href="{% url 'platform_web:trust' %}">Retour à la file Confiance</a>
+<section class="section" aria-labelledby="trust-target">
+<h2 id="trust-target">Cible et état owner</h2>
+<p class="kicker">{{ case_type }} · dossier {{ case.pk }}</p>
+<p>État vérifié : <strong>{{ case_status }}</strong></p>
+{% if case_type == 'verification' %}
+<p>Vérification : {{ case.get_claim_type_display }} · demandée {{ case.requested_at|date:'d/m/Y H:i' }}</p>
+<p>Contexte : {% if case.subject_space %}{{ case.subject_space.name }}{% else %}Profil concerné — identité non projetée{% endif %}</p>
+{% elif case_type == 'report' %}
+<p>Catégorie : {{ case.get_category_display }} · créée {{ case.created_at|date:'d/m/Y H:i' }}</p>
+<p>Contexte : {% if case.space %}{{ case.space.name }}{% else %}Contexte Journey ou Activity protégé{% endif %}</p>
+<details><summary>Lire le signalement (autorité Trust)</summary><p>{{ case.description }}</p></details>
+{% elif case_type == 'dispute' %}
+<p>Créé {{ case.created_at|date:'d/m/Y H:i' }} · {% if case.respondent_space %}{{ case.respondent_space.name }}{% else %}Profile privé{% endif %}</p>
+{% if case.decision_summary %}<p>Décision existante : {{ case.decision_summary }}</p>{% endif %}
+<p>Remedy : {{ case.get_remedy_code_display }}. Une demande de remboursement ne réalise pas un Payment.</p>
+{% endif %}
+{% if evidence_ids %}
+<details><summary>Pièces Evidence protégées ({{ evidence_ids|length }})</summary>
+<p class="muted">Chaque ouverture est soumise à la Permission du domaine Trust. Aucun document n'est préchargé dans cette page.</p>
+{% for evidence_id in evidence_ids %}
+<a class="link secondary" href="{% url 'trust:evidence-download' evidence_id %}" rel="noreferrer">Ouvrir la pièce protégée {{ forloop.counter }}</a>
+{% endfor %}
+</details>
+{% endif %}
+</section>
+<section class="section" aria-labelledby="trust-consequence">
+<h2 id="trust-consequence">Conséquences des décisions disponibles</h2>
+{% for code, description in consequences %}<p class="signal"><strong>{{ code }}</strong><span>{{ description }}</span></p>{% endfor %}
+<p class="notice">La décision est revalidée côté serveur. L'état peut avoir changé depuis cette lecture ; dans ce cas aucune action ne sera appliquée.</p>
+</section>
+<section class="section" aria-labelledby="trust-decision">
+<h2 id="trust-decision">Décider sur cette cible</h2>
+{% if error_message %}<p role="alert" class="notice">{{ error_message }}</p>{% endif %}
+<form method="post">
+{% csrf_token %}
+<input type="hidden" name="version_token" value="{{ version_token }}">
+{{ decision_form.as_p }}
+<p><label for="trust-reason">Pourquoi cette intervention ?</label></p>
+<textarea id="trust-reason" name="reason" minlength="5" maxlength="2000" rows="4" required style="display:block;max-width:45rem;width:100%;background:#1f2937;color:white;border:1px solid #9097b1;border-radius:.5rem;padding:.75rem">{{ request.POST.reason }}</textarea>
+<p><label><input type="checkbox" name="confirm" value="1" required style="width:auto;min-width:auto"> Je confirme le dossier, l'état et la conséquence de cette décision.</label></p>
+<a class="link secondary" href="{% url 'platform_web:trust' %}">Annuler</a>
+<button type="submit">Appliquer la décision Trust à ce dossier</button>
+</form>
+</section>
+{% endblock %}

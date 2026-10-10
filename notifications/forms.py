@@ -7,9 +7,12 @@ class NotificationPreferenceForm(forms.ModelForm):
     class Meta:
         model = NotificationPreference
         fields = [
+            "push_notifications",
             "email_notifications",
-            "event_notifications",
             "security_notifications",
+            "event_notifications",
+            "service_notifications",
+            "opportunity_notifications",
             "marketing_notifications",
             "quiet_hours_enabled",
             "quiet_hours_start",
@@ -20,10 +23,13 @@ class NotificationPreferenceForm(forms.ModelForm):
             "quiet_hours_end": forms.TimeInput(attrs={"type": "time"}),
         }
         labels = {
+            "push_notifications": "Recevoir les notifications push",
             "email_notifications": "Recevoir les e-mails Makolo",
-            "event_notifications": "Billets, événements et rappels",
-            "security_notifications": "Alertes de sécurité",
-            "marketing_notifications": "Actualités et communications marketing",
+            "security_notifications": "Sécurité",
+            "event_notifications": "Événements",
+            "service_notifications": "Services",
+            "opportunity_notifications": "Opportunités",
+            "marketing_notifications": "Marketing",
             "quiet_hours_enabled": "Activer les heures silencieuses",
             "quiet_hours_start": "Début des heures silencieuses",
             "quiet_hours_end": "Fin des heures silencieuses",

@@ -16,10 +16,16 @@ import '../../sync/sync_status.dart';
 import 'me_selector.dart';
 
 class MeScreen extends StatefulWidget {
-  const MeScreen({super.key, required this.repository, this.now});
+  const MeScreen({
+    super.key,
+    required this.repository,
+    this.now,
+    this.onOpenDestination,
+  });
 
   final PersonalRepository repository;
   final DateTime Function()? now;
+  final bool Function(StructuredDestination destination)? onOpenDestination;
 
   @override
   State<MeScreen> createState() => _MeScreenState();
@@ -97,7 +103,10 @@ class _MeScreenState extends State<MeScreen> {
       sourceInvalidated: source.invalidated,
     );
 
-    return MeView(selection: selection);
+    return MeView(
+      selection: selection,
+      onOpenDestination: widget.onOpenDestination,
+    );
   }
 
   MakoloReachabilityCue _reachability(
@@ -118,9 +127,10 @@ class _MeScreenState extends State<MeScreen> {
 }
 
 class MeView extends StatefulWidget {
-  const MeView({super.key, required this.selection});
+  const MeView({super.key, required this.selection, this.onOpenDestination});
 
   final MeSelection selection;
+  final bool Function(StructuredDestination destination)? onOpenDestination;
 
   @override
   State<MeView> createState() => _MeViewState();
@@ -209,6 +219,9 @@ class _MeViewState extends State<MeView> {
   }
 
   void _selectItem(MeItemPresentation item) {
+    if (widget.onOpenDestination?.call(item.destination) == true) {
+      return;
+    }
     setState(() => _selectedDestination = item.destination);
   }
 
@@ -268,6 +281,8 @@ class _MeFirstAvailability extends StatelessWidget {
             ),
             const SizedBox(height: MakoloSpacing.lg),
             _MeLoadingSection(title: 'Mes collectifs', loading: loading),
+            const SizedBox(height: MakoloSpacing.lg),
+            _MeLoadingSection(title: 'Mes accès', loading: loading),
             const SizedBox(height: MakoloSpacing.lg),
             _MeLoadingSection(title: 'Mes ressources', loading: loading),
           ],

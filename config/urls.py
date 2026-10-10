@@ -84,6 +84,7 @@ urlpatterns = [
     path("crm/", include("crm.urls")),
     path("promotions/", include("promotions.urls")),
     path("loyalty/", include("loyalty.urls")),
+    path("platform/", include("core.platform_web_urls")),
     path("operations/", include("operations.urls")),
     path("journeys/", include("journeys.urls")),
     path("objectives/", include("objectives.urls")),

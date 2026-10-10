@@ -753,6 +753,28 @@ void main() {
     expect(find.text('Ajouter un compte'), findsOneWidget);
   });
 
+  testWidgets('protected intent explains sign-in and preserves destination', (
+    tester,
+  ) async {
+    final recovery = SessionRecoveryController()
+      ..requireAuthenticationFor('/journeys/123');
+    final tokens = MemoryTokenStore();
+    final client = MockClient(
+      (request) async => MockResponse(jsonEncode({}), 500),
+    );
+    final runtime = _runtime(
+      tokens: tokens,
+      client: client,
+      recovery: recovery,
+    );
+
+    await _pumpLogin(tester, runtime);
+
+    expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
+    expect(recovery.entryReason, EntryReason.protectedIntent);
+    expect(recovery.lastUsefulLocation, '/journeys/123');
+  });
+
   testWidgets('expired session explains reconnect and preserves route once', (
     tester,
   ) async {

@@ -7,18 +7,6 @@ from .api.space_work_projection import build_space_work_projection
 from .space_web_views import SpaceWebMixin
 
 
-SECTION_EMPTY_MESSAGES = {
-    "preparation": "Rien à préparer pour le moment.",
-    "upcoming": "Rien à venir pour le moment.",
-    "active": "Rien en cours pour le moment.",
-    "blocked": "Aucun blocage projeté pour le moment.",
-    "completed": "Rien de terminé dans cette vue pour le moment.",
-    "activities": "Aucun programme visible pour le moment.",
-    "offers": "Aucune offre visible pour le moment.",
-    "routes": "Aucune route visible pour le moment.",
-    "vehicles": "Aucun véhicule visible pour le moment.",
-}
-
 
 def _activity_owner_url(space, item):
     """Return an existing owner-backed Web handoff only when ZS3 exposes an Activity link."""
@@ -45,13 +33,19 @@ def _activity_owner_url(space, item):
 
 def _compose_sections(space, projection):
     sections = projection.get("sections") or {}
+    section_order = (
+        (projection.get("presentation") or {}).get("section_order")
+        or tuple(sections)
+    )
     composed = []
-    for key, section in sections.items():
+    for key in section_order:
+        section = sections.get(key) or {}
+        raw_items = section.get("items") or ()
+        if not raw_items:
+            continue
         label = section.get("representation") or key.replace("_", " ").title()
-        if key == "activities" and section.get("role") == "structure":
-            label = f"Structure · {label}"
         items = []
-        for raw_item in section.get("items") or ():
+        for raw_item in raw_items:
             item = dict(raw_item)
             item["owner_url"] = _activity_owner_url(space, item)
             items.append(item)
@@ -59,15 +53,14 @@ def _compose_sections(space, projection):
             {
                 "key": key,
                 "label": label,
-                "empty_message": SECTION_EMPTY_MESSAGES.get(
-                    key, f"Aucun élément visible dans {label.lower()} pour le moment."
-                ),
+                "role": section.get("role") or "continuity",
                 "items": items,
                 "has_more": bool(section.get("has_more")),
                 "links": section.get("links") or {},
             }
         )
     return tuple(composed)
+
 
 
 class SpaceWorkView(SpaceWebMixin):

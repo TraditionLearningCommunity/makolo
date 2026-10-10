@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+<p>Cette opération exceptionnelle remet uniquement cet événement échoué en attente. Les tentatives et preuves de livraison sont conservées. Aucun consumer déjà traité ne sera réexécuté.</p>
+<p><strong>Événement :</strong> {{ event.pk }} — {{ event.event_type }} ({{ event.attempts }}/{{ event.max_attempts }} tentatives)</p>
+<form method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  {{ form.as_p }}
+  <input type="hidden" name="action" value="{{ action }}">
+  <input type="hidden" name="{{ action_checkbox_name }}" value="{{ event.pk }}">
+  <input type="hidden" name="confirm_requeue" value="1">
+  <input type="hidden" name="index" value="0">
+  <button type="submit" name="confirm" value="yes" class="default">Confirmer la reprise</button>
+  <a href="{% url 'admin:core_domaineventoutbox_changelist' %}">Annuler</a>
+</form>
+{% endblock %}

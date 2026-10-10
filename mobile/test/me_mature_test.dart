@@ -147,6 +147,7 @@ Map<String, dynamic> _fullPayload({bool supportAvailable = false}) {
       'self': '/api/v1/me/',
       'passport': '/api/v1/me/passport/',
       'resources': '/api/v1/me/resources/',
+      'accesses': '/api/v1/me/accesses/',
     },
   };
 }
@@ -203,13 +204,14 @@ void main() {
     expect(selection.identitySubtitle, 'Ingénieur · Lubumbashi, RDC');
     expect(
       selection.territories.map((territory) => territory.presentation.key),
-      ['passport', 'considerations', 'collectives', 'resources'],
+      ['passport', 'considerations', 'collectives', 'accesses', 'resources'],
     );
 
     final resources = selection.territories.singleWhere(
       (territory) => territory.presentation.key == 'resources',
     );
     expect(resources.items.map((item) => item.destination.kind), [
+      'resource_collection',
       'personal_asset',
       'proof',
       'credential',
@@ -341,6 +343,7 @@ void main() {
     expect(find.text('Passeport Makolo'), findsOneWidget);
     expect(find.text('Ce qui compte pour moi'), findsOneWidget);
     expect(find.text('Mes collectifs'), findsOneWidget);
+    expect(find.text('Mes accès'), findsOneWidget);
     expect(find.text('Mes ressources'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });

@@ -1,1 +1,58 @@
-{% extends 'base/app.html' %}{% block title %}Ma Bibliothèque | Makolo{% endblock %}{% block content %}<div class="mx-auto max-w-4xl space-y-5"><section class="mk-panel p-5 sm:p-7"><div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><span class="mk-kicker">Capital personnel</span><h1 class="mt-2 text-2xl font-extrabold">Ma Bibliothèque</h1><p class="mt-2 text-sm" style="color:var(--mk-muted)">Vos documents durables, versionnés et privés.</p></div><a href="{% url 'personal_assets:add' %}" class="mk-btn mk-btn-primary">Ajouter</a></div><div class="mt-5 flex gap-2"><a href="{% url 'personal_assets:list' %}" class="mk-btn {% if active_filter == 'all' %}mk-btn-primary{% else %}mk-btn-ghost{% endif %}">Tous</a><a href="?filter=expiring" class="mk-btn {% if active_filter == 'expiring' %}mk-btn-primary{% else %}mk-btn-ghost{% endif %}">Expirent bientôt</a></div></section><section class="space-y-3">{% for item in items %}<a href="{% url 'personal_assets:detail' item.asset.pk %}" class="mk-panel block p-5 transition hover:-translate-y-0.5"><div class="flex items-start justify-between gap-4"><div><p class="font-extrabold">{{ item.asset.title }}</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ item.asset.get_kind_display }} · {{ item.asset.get_sensitivity_display }}</p>{% if item.latest %}<p class="mt-2 text-xs" style="color:var(--mk-subtle)">Version {{ item.latest.version }} · ajoutée le {{ item.latest.created_at|date:'d/m/Y' }}{% if item.latest.expires_at %} · expire le {{ item.latest.expires_at|date:'d/m/Y' }}{% endif %}</p>{% endif %}</div><span class="mk-badge mk-badge-brand">Ouvrir</span></div></a>{% empty %}<div class="mk-panel p-6 text-center"><p class="font-bold">Aucun document actif.</p><p class="mt-1 text-sm" style="color:var(--mk-muted)">Ajoutez votre premier document pour commencer.</p></div>{% endfor %}</section></div>{% endblock %}
+{% extends 'base/app.html' %}
+{% block title %}Bibliothèque | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-5">
+  <section class="mk-panel p-5 sm:p-7">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <span class="mk-kicker">Mes ressources</span>
+        <h1 class="mt-2 text-2xl font-extrabold">Bibliothèque</h1>
+        <p class="mt-2 text-sm" style="color:var(--mk-muted)">Vos documents personnels, versionnés et privés. Un document présent ici n’est ni une Proof ni une exigence satisfaite.</p>
+      </div>
+      <a href="{% url 'personal_assets:add' %}" class="mk-btn mk-btn-primary">Ajouter un document</a>
+    </div>
+    <form method="get" role="search" class="mt-5 flex flex-col gap-2 sm:flex-row">
+      <label for="library-search" class="sr-only">Rechercher dans mes documents</label>
+      <input id="library-search" type="search" name="q" value="{{ query }}" maxlength="120" placeholder="Rechercher dans mes documents" class="min-w-0 flex-1 rounded-xl border px-4 py-2" style="border-color:var(--mk-border)">
+      {% if active_filter != 'all' %}<input type="hidden" name="filter" value="{{ active_filter }}">{% endif %}
+      <button type="submit" class="mk-btn mk-btn-secondary">Rechercher</button>
+    </form>
+    <div class="mt-4 flex flex-wrap gap-2">
+      <a href="?{% if query %}q={{ query|urlencode }}{% endif %}" class="mk-btn {% if active_filter == 'all' %}mk-btn-primary{% else %}mk-btn-ghost{% endif %}">Tous</a>
+      <a href="?filter=expiring{% if query %}&amp;q={{ query|urlencode }}{% endif %}" class="mk-btn {% if active_filter == 'expiring' %}mk-btn-primary{% else %}mk-btn-ghost{% endif %}">Expirent bientôt</a>
+    </div>
+  </section>
+
+  <section class="space-y-3" aria-label="Bibliothèque">
+    {% for item in items %}
+      <a href="{% url 'personal_assets:detail' item.asset.pk %}" class="mk-panel block p-5 transition hover:-translate-y-0.5">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="font-extrabold">{{ item.asset.title }}</p>
+            <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ item.asset.get_kind_display }}{% if item.latest %} · {% if item.latest.expires_at and item.latest.expires_at < today %}expiré{% elif item.latest.expires_at %}valide jusqu’au {{ item.latest.expires_at|date:'d/m/Y' }}{% else %}validité inconnue{% endif %}{% endif %}</p>
+            {% if item.asset.sensitivity %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">Sensibilité : {{ item.asset.get_sensitivity_display }}</p>{% endif %}
+          </div>
+          <span class="mk-badge mk-badge-brand">Ouvrir</span>
+        </div>
+      </a>
+    {% empty %}
+      <div class="mk-panel p-6 text-center">
+        <p class="font-bold">{% if query %}Aucun document correspondant.{% else %}Aucun document actif.{% endif %}</p>
+        {% if not query %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">Aucune ressource enregistrée pour le moment.</p>{% endif %}
+      </div>
+    {% endfor %}
+  </section>
+
+  {% if page.paginator.num_pages > 1 %}
+  <nav class="flex items-center justify-between gap-3" aria-label="Pagination Bibliothèque">
+    {% if page.has_previous %}
+      <a class="mk-btn mk-btn-ghost" href="?page={{ page.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_filter != 'all' %}&amp;filter={{ active_filter }}{% endif %}">Précédent</a>
+    {% else %}<span></span>{% endif %}
+    <span class="text-sm" style="color:var(--mk-muted)">Page {{ page.number }} sur {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}
+      <a class="mk-btn mk-btn-ghost" href="?page={{ page.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if active_filter != 'all' %}&amp;filter={{ active_filter }}{% endif %}">Suivant</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

@@ -12,6 +12,11 @@ from objectives.readiness import resolve_owned_dossiers_readiness
 from objectives.selectors import owned_dossiers_for_profile, owned_projects_for_profile
 from payments.models import PaymentStatus
 from journeys.models import Journey
+from journeys.collaboration_models import (
+    JourneyArtifact,
+    JourneyArtifactSensitivity,
+    JourneyArtifactStatus,
+)
 from payments.selectors import get_payments_visible_to
 from preparation.contextual_actions import (
     ContextualAction,
@@ -23,6 +28,7 @@ from readiness.selectors import readiness_queryset
 from tickets.models import TransferStatus, WaitlistStatus
 from tickets.selectors import get_ticket_transfers_visible_to, get_waitlist_entries_visible_to
 
+from core.api.now_composition_projection import dossier_dependency_now_situations
 from core.home_presentation import resolve_mature_home_contextual_actions
 from core.participant_selectors import participant_active_accesses, participant_active_journeys
 from core.personal_surface_orchestration import (
@@ -134,6 +140,20 @@ def _now_dimension(action: ContextualAction):
         if suffix in {"access_action", "leave_now"}:
             return "action"
         return None
+
+    # S4 is admitted only for an owner Readiness check whose waiting
+    # consequence is CURRENT (due or overdue). Routine waiting belongs in
+    # En cours and must never populate Now just to fill its root.
+    if (
+        action.actionability == ContextualActionability.WAITING
+        and action.kind == "readiness.waiting"
+        and action.identity.context_type == "journey"
+        and action.deadline_state in {
+            ContextualDeadlineState.OVERDUE,
+            ContextualDeadlineState.DUE_TODAY,
+        }
+    ):
+        return "waiting"
 
     if action.actionability in {
         ContextualActionability.TERMINAL,
@@ -259,11 +279,59 @@ def _serialize_now_action(action: ContextualAction, dimension: str):
 
 
 def _now_response_type(dimension: str) -> str:
+    if dimension == "waiting":
+        return "wait"
     if dimension == "decision":
         return "decide"
     if dimension == "adaptation":
         return "understand"
     return "act"
+
+
+_NOW_CAPABILITY_LABELS = {
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "leave": "Laisser passer",
+    "acknowledge": "Confirmer la lecture",
+    "respond": "Répondre",
+}
+
+def _now_business_action_payloads(action: ContextualAction, item: dict) -> list[dict]:
+    """Interpret existing owner links; Presentation never grants authority."""
+    owner = item["source"]
+    links = item["links"]
+    result = []
+    for capability in item["capabilities"]:
+        if capability not in links:
+            continue
+        # Only a precisely scoped Profile recognition decision has a
+        # supported bearer-authenticated one-step owner mutation. All other
+        # operations remain focused owner handoffs.
+        direct = (
+            (
+                owner["kind"] == "recognition_redemption"
+                and action.kind == "recognition.beneficiary_decision"
+                and capability in {"accept", "decline"}
+            )
+            or (
+                owner["kind"] == "waitlist"
+                and action.kind == "waitlist.offer_decision"
+                and capability in {"accept", "leave"}
+            )
+            or (
+                owner["kind"] == "ticket_transfer"
+                and action.kind == "transfer.recipient_decision"
+                and capability in {"accept", "decline"}
+            )
+        )
+        result.append({
+            "capability": capability,
+            "label": _NOW_CAPABILITY_LABELS.get(capability, action.label),
+            "href": links[capability],
+            "interaction_depth": "direct_now" if direct else "focused",
+            "confirmation_required": direct,
+        })
+    return result
 
 
 def _decorate_now_semantics(
@@ -296,7 +364,7 @@ def _decorate_now_semantics(
             "state_meaning": owner_meaning,
             # When the owner has not established another actor, adaptation does
             # not manufacture a system actor or transfer responsibility.
-            "turn": {"type": "none" if dimension == "adaptation" else "profile"},
+            "turn": {"type": "none" if dimension in {"adaptation", "waiting"} else "profile"},
             "response": {
                 "type": _now_response_type(dimension),
                 "label": action.label,
@@ -329,15 +397,7 @@ def _decorate_now_semantics(
             "attention": {
                 "level": "near" if dimension == "adaptation" else "foreground",
             },
-            "business_actions": [
-                {
-                    "capability": capability,
-                    "href": links[capability],
-                    "interaction_depth": "direct_now",
-                }
-                for capability in item["capabilities"]
-                if capability in links
-            ],
+            "business_actions": _now_business_action_payloads(action, item),
             "handoffs": [
                 {
                     "type": "owner",
@@ -357,11 +417,33 @@ def build_personal_now_projection(profile, *, observed_at=None):
         include_prepared_start=False,
     )
     actions = pass_now_candidates_through_molongo(result.actions)
+    # Current owner-backed waiting must not compete with an intervention
+    # already emitted by the same owner. Keep its calm S4 presence bounded.
+    active_sources = {
+        (source["kind"], source["id"])
+        for action in actions
+        if (dimension := _now_dimension(action)) is not None
+        and dimension != "waiting"
+        if (source := _source_for_action(action)) is not None
+    }
+    waiting_sources = set()
     items = []
     for action in actions:
         dimension = _now_dimension(action)
         if dimension is None:
             continue
+        if dimension == "waiting":
+            source = _source_for_action(action)
+            if source is None:
+                continue
+            key = (source["kind"], source["id"])
+            if (
+                key in active_sources
+                or key in waiting_sources
+                or len(waiting_sources) >= 3
+            ):
+                continue
+            waiting_sources.add(key)
         item = _serialize_now_action(action, dimension)
         if item is not None:
             meta = metadata.get(action.identity)
@@ -385,6 +467,64 @@ def build_personal_now_projection(profile, *, observed_at=None):
         ).values_list("pk", "occurrence_id")
         if occurrence_id is not None
     }
+    # These artifacts belong to their Journeys, not to Presentation.
+    # Only documents already inside a Journey owned by this profile are
+    # exposed. The download endpoint independently rechecks authorization.
+    artifact_media_by_journey = {}
+    if journey_ids:
+        artifacts = (
+            JourneyArtifact.objects.filter(
+                journey_id__in=journey_ids,
+                journey__beneficiary=profile,
+                status__in=[
+                    JourneyArtifactStatus.DRAFT,
+                    JourneyArtifactStatus.SUBMITTED,
+                    JourneyArtifactStatus.IN_REVIEW,
+                    JourneyArtifactStatus.ACCEPTED,
+                    JourneyArtifactStatus.REJECTED,
+                ],
+            )
+            .exclude(sensitivity=JourneyArtifactSensitivity.RESTRICTED)
+            .order_by("journey_id", "-uploaded_at", "-created_at")
+        )
+        for artifact in artifacts:
+            existing = artifact_media_by_journey.setdefault(
+                str(artifact.journey_id), []
+            )
+            if len(existing) >= 3 or not artifact.file:
+                continue
+            mime = (artifact.mime_type or "").lower()
+            kind = (
+                "image" if mime.startswith("image/")
+                else "pdf" if mime == "application/pdf"
+                else "video" if mime.startswith("video/")
+                else "audio" if mime.startswith("audio/")
+                else "document" if mime in {
+                    "text/plain",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                }
+                else "unknown"
+            )
+            url = reverse(
+                "personal-projections:now-journey-artifact-media",
+                kwargs={"artifact_id": artifact.pk},
+            )
+            original_url = url
+            if kind == "document":
+                url += "?view=text"
+            existing.append({
+                "resource_ref": f"journey_artifact:{artifact.pk}",
+                "target": "situation",
+                "purpose": "prepare",
+                "kind": kind,
+                "mime_type": mime,
+                "label": artifact.title,
+                "url": url,
+                "download_url": original_url,
+                "authorized": True,
+                "presentation_rank": "secondary",
+            })
+
     for action, item in items:
         if item["source"]["kind"] != "journey":
             _decorate_now_semantics(action, item, observed_at=observed_at)
@@ -406,8 +546,30 @@ def build_personal_now_projection(profile, *, observed_at=None):
             if "open_day_of" not in item["capabilities"]:
                 item["capabilities"].append("open_day_of")
         _decorate_now_semantics(action, item, observed_at=observed_at)
+        media = artifact_media_by_journey.get(journey_id)
+        if media:
+            item["media_bindings"] = list(media)
 
     serialized_items = [item for _, item in items]
+    for composed in dossier_dependency_now_situations(profile, observed_at=observed_at):
+        # Upgrade an already displayed generic Dossier blocker when the
+        # owner's exact visible dependency explains it more precisely. Never
+        # replace an action or the privacy-safe hidden-influence signal.
+        replace_at = next(
+            (
+                i
+                for i, existing in enumerate(serialized_items)
+                if existing["source"] == composed["source"]
+                and existing.get("dimension") == "adaptation"
+                and existing.get("kind") != "dossier.hidden_influence"
+                and not existing.get("business_actions")
+            ),
+            None,
+        )
+        if replace_at is None:
+            serialized_items.append(composed)
+        else:
+            serialized_items[replace_at] = composed
     is_empty = not serialized_items
     profile_id = str(profile.pk)
     return {

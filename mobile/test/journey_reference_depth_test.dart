@@ -118,6 +118,107 @@ void main() {
     },
   );
 
+  test(
+    'Journey exposes occurrence depths only from owner links and capabilities',
+    () {
+      final now = DateTime.utc(2026, 10, 9, 10);
+      final projection = StoredProjection(
+        kind: JourneyRepository.projectionKind,
+        resourceKey: 'journey-1',
+        schemaVersion: 1,
+        receivedAt: now,
+        payload: const {
+          'representation': {'title': 'Voyage Lubumbashi — Kolwezi'},
+          'state': {'code': 'confirmed', 'label': 'Confirmée'},
+          'readiness': {
+            'state': 'ready',
+            'ready': [],
+            'actor_interventions': [],
+            'waiting': [],
+            'blockers': [],
+          },
+          'forms': [],
+          'requirements': [],
+          'activity': {
+            'id': 'activity-1',
+            'title': 'Voyage Lubumbashi — Kolwezi',
+          },
+          'occurrence': {
+            'id': 'occurrence-1',
+            'label': 'Départ 14 h',
+            'state': 'scheduled',
+          },
+          'access': {
+            'id': 'access-1',
+            'state': 'valid',
+            'link': '/api/v1/me/accesses/access-1/',
+          },
+          'capabilities': ['open_day_of', 'open_live'],
+          'links': {
+            'activity': '/api/v1/activities/activity-1/',
+            'occurrence': '/api/v1/occurrences/occurrence-1/',
+            'day_of': '/api/v1/me/occurrences/occurrence-1/day-of/',
+            'live': '/api/v1/me/occurrences/occurrence-1/live/',
+          },
+        },
+      );
+
+      final result = const JourneyDetailSelector().select(
+        projection: projection,
+        source: JourneySourceState.unknown,
+        now: now,
+      );
+
+      expect(result.activity?.link, '/api/v1/activities/activity-1/');
+      expect(result.occurrence?.link, '/api/v1/occurrences/occurrence-1/');
+      expect(result.access?.id, 'access-1');
+      expect(result.access?.link, '/api/v1/me/accesses/access-1/');
+      expect(result.dayOfLink, '/api/v1/me/occurrences/occurrence-1/day-of/');
+      expect(result.liveLink, '/api/v1/me/occurrences/occurrence-1/live/');
+    },
+  );
+
+  test(
+    'Journey never grants Jour J or Live from links without capabilities',
+    () {
+      final now = DateTime.utc(2026, 10, 9, 10);
+      final projection = StoredProjection(
+        kind: JourneyRepository.projectionKind,
+        resourceKey: 'journey-1',
+        schemaVersion: 1,
+        receivedAt: now,
+        payload: const {
+          'representation': {'title': 'Démarche'},
+          'state': {'code': 'active'},
+          'readiness': {
+            'state': 'waiting',
+            'ready': [],
+            'actor_interventions': [],
+            'waiting': [],
+            'blockers': [],
+          },
+          'forms': [],
+          'requirements': [],
+          'occurrence': {'id': 'occurrence-1', 'label': 'Départ 14 h'},
+          'capabilities': [],
+          'links': {
+            'day_of': '/api/v1/me/occurrences/occurrence-1/day-of/',
+            'live': '/api/v1/me/occurrences/occurrence-1/live/',
+          },
+        },
+      );
+
+      final result = const JourneyDetailSelector().select(
+        projection: projection,
+        source: JourneySourceState.unknown,
+        now: now,
+      );
+
+      expect(result.dayOfLink, isNull);
+      expect(result.liveLink, isNull);
+    },
+  );
+
   test('Journey capability absence never grants complete_form locally', () {
     final now = DateTime.utc(2026, 9, 30, 12);
     final projection = StoredProjection(

@@ -64,6 +64,180 @@ NowSelection contentSelection({
 }
 
 void main() {
+  test('S5 requires consequence and a coherent owner response', () {
+    final base = NowSituationPresentation(
+      identity: 'now:conflict',
+      reference: const StructuredDestination(kind: 'now', id: 'conflict'),
+      humanContext: 'Deux rendez-vous',
+      meaning: 'Les horaires se chevauchent.',
+      emphasis: NowPresentationEmphasis.primary,
+      relationMembers: const [
+        NowRelationMemberPresentation(id: 'a', label: 'Rendez-vous A'),
+        NowRelationMemberPresentation(id: 'b', label: 'Rendez-vous B'),
+      ],
+      relations: const [
+        NowRelationPresentation(kind: 'conflict', memberIds: ['a', 'b']),
+      ],
+    );
+    expect(topologyFor(base), NowTopology.meaning);
+    final composed = NowSituationPresentation(
+      identity: base.identity,
+      reference: base.reference,
+      humanContext: base.humanContext,
+      meaning: base.meaning,
+      emphasis: base.emphasis,
+      relationMembers: base.relationMembers,
+      relations: base.relations,
+      whyNow: 'Les rendez-vous ont lieu au même moment.',
+      consequence: 'Une présence simultanée est impossible.',
+      responseType: 'decide',
+    );
+    expect(topologyFor(composed), NowTopology.composition);
+  });
+
+  test('S5 rejects unrelated or repeated member references', () {
+    NowSituationPresentation value(List<String> links) =>
+        NowSituationPresentation(
+          identity: 'now:relations',
+          reference: const StructuredDestination(kind: 'now', id: 'relations'),
+          humanContext: 'Deux démarches',
+          meaning: 'Une interaction est annoncée.',
+          emphasis: NowPresentationEmphasis.primary,
+          whyNow: 'Une décision doit être prise.',
+          consequence: 'Les horaires sont incompatibles.',
+          responseType: 'decide',
+          relationMembers: const [
+            NowRelationMemberPresentation(id: 'a', label: 'A'),
+            NowRelationMemberPresentation(id: 'b', label: 'B'),
+          ],
+          relations: [
+            NowRelationPresentation(kind: 'conflict', memberIds: links),
+          ],
+        );
+    expect(topologyFor(value(['a', 'not-a-member'])), NowTopology.meaning);
+    expect(topologyFor(value(['a', 'a'])), NowTopology.meaning);
+    expect(topologyFor(value(['a', 'b'])), NowTopology.composition);
+  });
+
+  testWidgets('S3 focused action only hands off to a real owner', (
+    tester,
+  ) async {
+    StructuredDestination? opened;
+    const journey = StructuredDestination(kind: 'journey', id: 'visa');
+    const item = NowSituationPresentation(
+      identity: 'now:action',
+      reference: journey,
+      humanContext: 'Visa Canada',
+      meaning: 'Le dossier attend votre vérification.',
+      emphasis: NowPresentationEmphasis.primary,
+      ownerDestination: journey,
+      responseType: 'act',
+      businessActions: [
+        NowBusinessActionPresentation(
+          capability: 'open_detail',
+          label: 'Vérifier le dossier',
+          interactionDepth: NowInteractionDepth.focused,
+        ),
+      ],
+    );
+    final selection = NowSelection(
+      situations: const [item],
+      state: const MakoloSurfacePresentation(
+        availability: MakoloAvailabilityCue.content,
+      ),
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: NowView(
+        selection: selection,
+        onOpenOwner: (destination) => opened = destination,
+      ),
+    );
+    expect(topologyFor(item), NowTopology.action);
+    expect(find.text('Vérifier le dossier'), findsOneWidget);
+    await tester.tap(find.text('Vérifier le dossier'));
+    await tester.pump();
+    expect(opened?.id, 'visa');
+    expect(find.text('Confirmé'), findsNothing);
+  });
+
+  testWidgets('S3 cannot execute a capability without an owner handoff', (
+    tester,
+  ) async {
+    const item = NowSituationPresentation(
+      identity: 'now:unbound',
+      reference: StructuredDestination(kind: 'now', id: 'unbound'),
+      humanContext: 'Action proposée',
+      meaning: 'Une étape est à vérifier.',
+      emphasis: NowPresentationEmphasis.primary,
+      businessActions: [
+        NowBusinessActionPresentation(
+          capability: 'submit',
+          label: 'Envoyer',
+          interactionDepth: NowInteractionDepth.directNow,
+        ),
+      ],
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: const NowView(
+        selection: NowSelection(
+          situations: [item],
+          state: MakoloSurfacePresentation(
+            availability: MakoloAvailabilityCue.content,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Envoyer'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Envoyer'), findsNothing);
+  });
+
+  test('S4 is based on explicit response, never a waiting status', () {
+    NowSituationPresentation item(String? responseType, String? serverState) {
+      return NowSituationPresentation(
+        identity: 'now:wait',
+        reference: const StructuredDestination(kind: 'now', id: 'wait'),
+        humanContext: 'Demande fournisseur',
+        meaning: 'La demande a été envoyée.',
+        emphasis: NowPresentationEmphasis.primary,
+        responseType: responseType,
+        serverState: serverState,
+      );
+    }
+
+    expect(topologyFor(item(null, 'waiting')), NowTopology.meaning);
+    expect(topologyFor(item('wait', 'submitted')), NowTopology.waiting);
+    expect(topologyFor(item('monitor', null)), NowTopology.waiting);
+  });
+
+  test('S2 and S3 precedence is independent of viewport', () {
+    final situation = NowSituationPresentation(
+      identity: 'now:media-action',
+      reference: const StructuredDestination(kind: 'now', id: 'media-action'),
+      humanContext: 'Certificat',
+      meaning: 'Vérifiez la pièce.',
+      emphasis: NowPresentationEmphasis.primary,
+      mediaBindings: const [
+        NowMediaBindingPresentation(
+          resourceRef: 'resource:1',
+          target: NowMediaTarget.state,
+          purpose: NowMediaPurpose.understand,
+          kind: NowMediaKind.pdf,
+          authorized: true,
+        ),
+      ],
+      businessActions: const [
+        NowBusinessActionPresentation(
+          capability: 'review',
+          label: 'Vérifier',
+          interactionDepth: NowInteractionDepth.focused,
+        ),
+      ],
+    );
+    expect(topologyFor(situation), NowTopology.media);
+  });
+
   testWidgets(
     'G01 compact keeps one dominant consequence and quieter secondary',
     (tester) async {

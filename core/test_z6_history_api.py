@@ -378,3 +378,52 @@ class Z6PersonalHistoryAPIContractTests(TestCase):
         self.assertEqual(response.status_code, 200)
         ids = {row["source"]["id"] for row in response.json()["data"]["items"]}
         self.assertIn(str(journey.pk), ids)
+
+    def test_multiple_historical_accesses_on_same_journey_are_one_memory(self):
+        journey = self._journey(
+            status=JourneyStatus.FULFILLED,
+            fulfilled_at=self.now - timedelta(hours=3),
+        )
+        first = Access.objects.create(
+            beneficiary=self.owner,
+            activity=self.activity,
+            occurrence=self.past_occurrence,
+            journey=journey,
+            status=AccessStatus.USED,
+        )
+        second = Access.objects.create(
+            beneficiary=self.owner,
+            activity=self.activity,
+            occurrence=self.past_occurrence,
+            journey=journey,
+            status=AccessStatus.USED,
+        )
+        AccessUse.objects.create(
+            access=first,
+            result=AccessUseResult.ACCEPTED,
+            used_at=self.now - timedelta(hours=2),
+        )
+        AccessUse.objects.create(
+            access=second,
+            result=AccessUseResult.ACCEPTED,
+            used_at=self.now - timedelta(hours=1),
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get("/api/v1/me/history/")
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["data"]["items"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source"]["id"], str(second.pk))
+        self.assertEqual(response.json()["data"]["page"]["count"], 1)
+
+    def test_legacy_updated_at_is_marked_unknown_without_inventing_event_time(self):
+        row = self._journey(status=JourneyStatus.REJECTED)
+        self.client.force_authenticate(self.owner)
+        result = self.client.get("/api/v1/me/history/?type=journeys")
+        self.assertEqual(result.status_code, 200)
+        matching = next(
+            item for item in result.json()["data"]["items"]
+            if item["source"]["id"] == str(row.pk)
+        )
+        self.assertEqual(matching["time_quality"], "unknown_legacy")
+        self.assertIsNotNone(matching["occurred_at"])

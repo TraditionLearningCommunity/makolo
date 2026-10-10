@@ -1,6 +1,8 @@
 from django.test import SimpleTestCase
 
 from core.home_views import _now_web_context
+from core.api.personal_projections import _now_dimension, _now_response_type
+from preparation.contextual_actions import ContextualActionability, ContextualDeadlineState
 
 
 def _response(**overrides):
@@ -18,6 +20,116 @@ def _response(**overrides):
 
 
 class NowWebPresentationTests(SimpleTestCase):
+    def test_shared_server_fixture_preserves_S1_to_S5_parity(self):
+        import json
+        from pathlib import Path
+
+        fixture_file = (
+            Path(__file__).resolve().parent.parent
+            / "mobile/test/fixtures/now_s1_s5_contract.json"
+        )
+        fixture = json.loads(fixture_file.read_text(encoding="utf-8"))
+        expected = ("meaning", "media", "action", "waiting", "composition")
+        actual = tuple(
+            _now_web_context({**fixture, "items": [item]}).primary_attention.topology
+            for item in fixture["items"]
+        )
+        self.assertEqual(actual, expected)
+
+    def test_s3_web_owner_action_requires_exact_path_and_permission_contract(self):
+        from uuid import uuid4
+        from django.urls import reverse
+
+        owner_id = uuid4()
+        url = reverse(
+            "recognition_api:redemption-decision",
+            kwargs={"redemption_id": owner_id, "decision": "accept"},
+        )
+        item = {
+            "id": "now:consent",
+            "human_context": "Reconnaissance",
+            "source": {"kind": "recognition_redemption", "id": str(owner_id)},
+            "business_actions": [{
+                "capability": "accept",
+                "label": "Accepter",
+                "href": url,
+                "interaction_depth": "direct_now",
+                "confirmation_required": True,
+            }],
+        }
+        home = _now_web_context(_response(items=[item]))
+        self.assertEqual(home.primary_attention.direct_actions[0]["url"], url)
+        item["business_actions"][0]["href"] = "/api/v1/unrelated/"
+        self.assertEqual(_now_web_context(_response(items=[item])).primary_attention.direct_actions, ())
+        item["business_actions"][0]["href"] = url
+        item["business_actions"][0]["confirmation_required"] = False
+        self.assertEqual(_now_web_context(_response(items=[item])).primary_attention.direct_actions, ())
+
+    def test_s3_ticket_actions_use_only_their_exact_owner_api_routes(self):
+        from uuid import uuid4
+        from django.urls import reverse
+
+        owner_id = uuid4()
+        for kind, capability, route in (
+            ("waitlist", "accept", "ticket-waitlist-accept"),
+            ("waitlist", "leave", "ticket-waitlist-leave"),
+            ("ticket_transfer", "accept", "ticket-transfers-accept"),
+            ("ticket_transfer", "decline", "ticket-transfers-decline"),
+        ):
+            with self.subTest(kind=kind, capability=capability):
+                url = reverse(route, kwargs={"pk": owner_id})
+                action = {
+                    "capability": capability,
+                    "href": url,
+                    "interaction_depth": "direct_now",
+                    "confirmation_required": True,
+                }
+                item = {
+                    "id": "decision",
+                    "source": {"kind": kind, "id": str(owner_id)},
+                    "business_actions": [action],
+                }
+                view = _now_web_context(_response(items=[item])).primary_attention
+                self.assertEqual(view.direct_actions[0]["url"], url)
+                action["href"] = url + "?unsafe=1"
+                view = _now_web_context(_response(items=[item])).primary_attention
+                self.assertEqual(view.direct_actions, ())
+
+    def test_s4_web_horizon_only_formats_owner_supplied_datetime(self):
+        item = {
+            "id": "now:wait",
+            "human_context": "Démarche",
+            "response": {"type": "wait"},
+            "horizon": {
+                "type": "temporal",
+                "at": "2026-10-09T09:00:00Z",
+                "state": "due_today",
+            },
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertTrue(view.horizon.startswith("Échéance : "))
+        item["horizon"] = {"type": "temporal", "state": "unknown"}
+        self.assertEqual(_now_web_context(_response(items=[item])).primary_attention.horizon, "")
+
+    def test_s4_only_admits_current_owner_waiting(self):
+        from types import SimpleNamespace
+
+        def action(kind, context, deadline):
+            return SimpleNamespace(
+                kind=kind,
+                identity=SimpleNamespace(context_type=context),
+                actionability=ContextualActionability.WAITING,
+                deadline_state=deadline,
+            )
+
+        due = action("readiness.waiting", "journey", ContextualDeadlineState.DUE_TODAY)
+        future = action("readiness.waiting", "journey", ContextualDeadlineState.FUTURE)
+        unrelated = action("readiness.waiting", "dossier", ContextualDeadlineState.DUE_TODAY)
+        self.assertEqual(_now_dimension(due), "waiting")
+        self.assertEqual(_now_response_type("waiting"), "wait")
+        self.assertIsNone(_now_dimension(future))
+        self.assertIsNone(_now_dimension(unrelated))
+
     def test_empty_items_do_not_create_a_calm_claim(self):
         home = _now_web_context(_response())
 
@@ -110,6 +222,103 @@ class NowWebPresentationTests(SimpleTestCase):
             "Cette préparation est requise maintenant.",
         )
         self.assertEqual(home.primary_attention.consequence, "")
+
+    def test_wait_is_explicit_and_never_inferred_from_state(self):
+        pending = _now_web_context(
+            _response(items=[{
+                "id": "waiting", "title": "Demande", "state": "waiting",
+                "state_meaning": "La demande est en cours.",
+                "response": {"type": "wait"},
+                "turn": {"label": "Fournisseur"},
+                "horizon": {"text": "Jusqu'à sa réponse"},
+            }])
+        ).primary_attention
+        self.assertEqual(pending.topology, "waiting")
+        self.assertEqual(pending.horizon, "Jusqu'à sa réponse")
+        no_contract = _now_web_context(
+            _response(items=[{
+                "id": "not-wait", "title": "Demande", "state": "waiting",
+            }])
+        ).primary_attention
+        self.assertEqual(no_contract.topology, "meaning")
+
+    def test_media_is_access_denied_by_default(self):
+        item = {
+            "id": "media", "title": "Certificat", "state_meaning": "Disponible",
+            "media_bindings": [
+                {"resource_ref": "proof:private", "kind": "pdf", "purpose": "understand"},
+                {"resource_ref": "proof:visible", "kind": "pdf", "purpose": "understand",
+                 "authorized": True, "label": "Document autorisé"},
+            ],
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(view.topology, "media")
+        self.assertEqual(view.media_labels, ("Document autorisé",))
+
+    def test_relation_without_owner_consequence_cannot_dominate(self):
+        item = {
+            "id": "relation", "title": "Conflit",
+            "state_meaning": "Deux engagements",
+            "relation_members": [{"id": "a"}, {"id": "b"}],
+            "relations": [{"summary": "Même heure", "kind": "conflict",
+                           "member_ids": ["a", "b"]}],
+            "response": {"type": "decide"},
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(view.topology, "meaning")
+        item["why_now"] = {"meaning": "Ils commencent ensemble"}
+        item["consequence"] = {"effect": "Une présence simultanée est impossible"}
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(view.topology, "composition")
+        item["relations"][0]["member_ids"] = ["a", "external"]
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(view.topology, "meaning")
+
+    def test_inline_reader_is_first_party_and_owner_authorized_only(self):
+        from uuid import uuid4
+
+        artifact_id = str(uuid4())
+        safe = f"/api/v1/me/now/media/journey-artifacts/{artifact_id}/"
+        item = {
+            "id": "now:media",
+            "title": "Pièce liée à la démarche",
+            "media_bindings": [
+                {"resource_ref": "file:unapproved", "authorized": False,
+                 "kind": "pdf", "url": safe},
+                {"resource_ref": "file:external", "authorized": True,
+                 "kind": "image", "url": "https://external.invalid/private.jpg"},
+                {"resource_ref": "file:traversal", "authorized": True,
+                 "kind": "pdf", "url": "/api/v1/me/now/media/journey-artifacts/../"},
+                {"resource_ref": "file:approved", "authorized": True,
+                 "kind": "pdf", "url": safe, "label": "Document autorisé"},
+            ],
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(
+            view.inline_media,
+            ({"url": safe, "download_url": safe, "kind": "pdf", "label": "Document autorisé"},),
+        )
+
+    def test_inline_document_only_accepts_bounded_text_preview(self):
+        from uuid import uuid4
+
+        identifier = str(uuid4())
+        path = f"/api/v1/me/now/media/journey-artifacts/{identifier}/"
+        item = {
+            "id": "now:doc",
+            "title": "Document",
+            "media_bindings": [
+                {"resource_ref": "file:document", "authorized": True,
+                 "kind": "document", "url": path + "?view=text",
+                 "download_url": path},
+                {"resource_ref": "file:unsafe", "authorized": True,
+                 "kind": "document", "url": path + "?view=admin"},
+            ],
+        }
+        view = _now_web_context(_response(items=[item])).primary_attention
+        self.assertEqual(len(view.inline_media), 1)
+        self.assertEqual(view.inline_media[0]["url"], path + "?view=text")
+        self.assertEqual(view.inline_media[0]["download_url"], path)
 
     def test_missing_selection_is_unavailable_instead_of_calm(self):
         home = _now_web_context({"items": []})

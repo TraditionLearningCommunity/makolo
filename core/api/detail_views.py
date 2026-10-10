@@ -90,6 +90,7 @@ class PersonalJourneyRequirementDetailAPIView(PersonalProjectionAPIView):
             build_requirement_detail(
                 journey=journey,
                 assessment=assessment,
+                profile=request.user,
             ),
             observed_at=observed_at,
         )

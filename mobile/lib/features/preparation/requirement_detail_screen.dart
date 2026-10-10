@@ -23,12 +23,14 @@ class RequirementDetailScreen extends StatefulWidget {
     required this.assessmentId,
     required this.repository,
     this.detailPath,
+    this.onOpenOwnerLink,
   });
 
   final String journeyId;
   final String assessmentId;
   final RequirementRepository repository;
   final String? detailPath;
+  final Future<void> Function(String link)? onOpenOwnerLink;
 
   @override
   State<RequirementDetailScreen> createState() =>
@@ -147,7 +149,10 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
                   ),
                   blockingErrorMessage: 'Cet élément n’est pas disponible dans votre contexte actuel.',
                   onRetry: _refresh,
-                  content: _RequirementContent(presentation: presentation),
+                  content: _RequirementContent(
+                    presentation: presentation,
+                    onOpenOwnerLink: widget.onOpenOwnerLink,
+                  ),
                 ),
               ),
             );
@@ -159,9 +164,10 @@ class _RequirementDetailScreenState extends State<RequirementDetailScreen> {
 }
 
 class _RequirementContent extends StatelessWidget {
-  const _RequirementContent({required this.presentation});
+  const _RequirementContent({required this.presentation, this.onOpenOwnerLink});
 
   final _RequirementPresentation presentation;
+  final Future<void> Function(String link)? onOpenOwnerLink;
 
   @override
   Widget build(BuildContext context) {
@@ -206,8 +212,21 @@ class _RequirementContent extends StatelessWidget {
                       index++
                     ) ...[
                       MakoloCard(
+                        semanticLabel: presentation.ways[index].link == null
+                            ? presentation.ways[index].label
+                            : 'Ouvrir ${presentation.ways[index].label}',
+                        onTap:
+                            presentation.ways[index].link == null ||
+                                onOpenOwnerLink == null
+                            ? null
+                            : () => onOpenOwnerLink!(
+                                presentation.ways[index].link!,
+                              ),
                         child: MakoloStatusMetadataAction(
                           title: presentation.ways[index].label,
+                          subtitle: presentation.ways[index].link == null
+                              ? 'Aucune action personnelle supplémentaire n’est exposée ici.'
+                              : presentation.ways[index].handoffLabel,
                           status:
                               MakoloHumanization.presentationLabel(
                                     presentation.ways[index].state,
@@ -219,6 +238,9 @@ class _RequirementContent extends StatelessWidget {
                                     presentation.ways[index].state,
                                   )!,
                                 ),
+                          action: presentation.ways[index].link == null
+                              ? null
+                              : const Icon(Icons.open_in_new_rounded),
                         ),
                       ),
                       if (index < presentation.ways.length - 1)
@@ -233,10 +255,25 @@ class _RequirementContent extends StatelessWidget {
 }
 
 class _RequirementWay {
-  const _RequirementWay({required this.label, this.state});
+  const _RequirementWay({
+    required this.label,
+    required this.kind,
+    this.state,
+    this.link,
+  });
 
   final String label;
+  final String kind;
   final String? state;
+  final String? link;
+
+  String get handoffLabel => switch (kind) {
+    'payment' => 'Continuer auprès du propriétaire du paiement.',
+    'trusted_reuse' =>
+      'Choisir un élément existant sans le déclarer automatiquement satisfait.',
+    'journey_step' => 'Cette étape reste pilotée par son propriétaire.',
+    _ => 'Continuer auprès du propriétaire de cette action.',
+  };
 }
 
 class _RequirementPresentation {
@@ -271,7 +308,9 @@ class _RequirementPresentation {
         .map(
           (row) => _RequirementWay(
             label: _wayLabel(row),
+            kind: _string(row['kind']) ?? 'unknown',
             state: _string(row['state']),
+            link: _string(row['link']),
           ),
         )
         .toList(growable: false);
@@ -291,6 +330,7 @@ class _RequirementPresentation {
     return switch (_string(row['kind'])) {
       'payment' => 'Paiement',
       'journey_step' => 'Étape de la démarche',
+      'trusted_reuse' => 'Utiliser un document existant',
       _ => 'Possibilité',
     };
   }
