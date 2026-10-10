@@ -150,17 +150,17 @@ void main() {
         },
       },
     );
-    await tester.pumpWidget(MaterialApp(
-      home: TransverseRetrievalScreen(
-        runtime: _runtime(store),
-        initialQuery: 'Dossier',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TransverseRetrievalScreen(
+          runtime: _runtime(store),
+          initialQuery: 'Dossier',
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.text('Dossier personnel'), findsOneWidget);
     expect(find.text('Dossier du Space'), findsNothing);
     expect(find.text('Document'), findsWidgets);
   });
-
-
 }

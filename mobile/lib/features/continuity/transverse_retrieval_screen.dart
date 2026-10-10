@@ -403,8 +403,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   Future<void> _submit({bool more = false}) async {
     if (!_actorValid) return;
-    if (widget.history && _isSpace &&
-        _startDate != null && _endDate != null &&
+    if (widget.history &&
+        _isSpace &&
+        _startDate != null &&
+        _endDate != null &&
         _startDate!.isAfter(_endDate!)) {
       _version++;
       if (mounted) {
@@ -486,9 +488,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
         if (!more) {
           final previous = await store.readProjections('space.history');
           for (final page in previous) {
-            if (page.resourceKey.startsWith(
-              _spaceCachePrefix(actor),
-            )) {
+            if (page.resourceKey.startsWith(_spaceCachePrefix(actor))) {
               await store.deleteProjection(
                 'space.history',
                 resourceKey: page.resourceKey,

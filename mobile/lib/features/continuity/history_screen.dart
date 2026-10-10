@@ -113,8 +113,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ? 'journeys'
             : 'all',
       );
-      if (!mounted || generation != _searchGeneration ||
-          _query != query || _filter != filter) return;
+      if (!mounted ||
+          generation != _searchGeneration ||
+          _query != query ||
+          _filter != filter)
+        return;
       final snapshot = StoredProjection(
         kind: HistoryRepository.projectionKind,
         resourceKey: 'offset:$nextOffset:limit:24',
@@ -127,13 +130,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _remoteHistory = _HistoryView.fromPages(_remotePages);
       });
     } on Object {
-      if (mounted && generation == _searchGeneration &&
-          _query == query && _filter == filter) {
+      if (mounted &&
+          generation == _searchGeneration &&
+          _query == query &&
+          _filter == filter) {
         setState(() => _searchFailed = true);
       }
     } finally {
-      if (mounted && generation == _searchGeneration &&
-          _query == query && _filter == filter) {
+      if (mounted &&
+          generation == _searchGeneration &&
+          _query == query &&
+          _filter == filter) {
         setState(() => _searching = false);
       }
     }
@@ -172,7 +179,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             }).toList();
             final effectiveView = _remoteHistory ?? view;
             final first = effectiveView.firstPage ?? view.firstPage;
-            final wide = MediaQuery.sizeOf(context).width >= 900 &&
+            final wide =
+                MediaQuery.sizeOf(context).width >= 900 &&
                 MediaQuery.textScalerOf(context).scale(16) < 26;
             _HistoryItem? selected;
             for (final item in visible) {
@@ -266,7 +274,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Wrap(
                             spacing: 8,
                             children: [
-                              for (final filter in const ['all', 'access', 'journey'])
+                              for (final filter in const [
+                                'all',
+                                'access',
+                                'journey',
+                              ])
                                 ChoiceChip(
                                   label: Text(
                                     filter == 'all'
@@ -318,7 +330,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               'Aucun élément correspondant parmi les '
                               'pages synchronisées.',
                             ),
-                          for (var index = 0; index < visible.length; index++) ...[
+                          for (
+                            var index = 0;
+                            index < visible.length;
+                            index++
+                          ) ...[
                             _HistoryCard(
                               item: visible[index],
                               onOpen: (kind, id) {
