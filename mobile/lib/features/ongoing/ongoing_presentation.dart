@@ -63,7 +63,8 @@ class OngoingContinuityPresentation {
     if (rawItems is! List) return const [];
     return [
       for (final raw in rawItems)
-        if (raw is Map) _fromMap(Map<String, dynamic>.from(raw)),
+        if (raw is Map && raw.keys.every((key) => key is String))
+          _fromMap(Map<String, dynamic>.from(raw)),
     ];
   }
 
