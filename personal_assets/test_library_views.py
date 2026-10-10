@@ -33,7 +33,7 @@ class PersonalLibraryMatureWebTests(TestCase):
             asset=asset,
             uploaded_file=SimpleUploadedFile(
                 "document.pdf",
-                b"Makolo test document",
+                b"%PDF-1.4\n% Makolo test document\n%%EOF\n",
                 content_type="application/pdf",
             ),
         )
