@@ -67,12 +67,22 @@ class _SpaceRetrievalWebView(SpaceWebMixin):
                 "from": start_date.isoformat() if start_date else "",
                 "to": end_date.isoformat() if end_date else "",
             })
-        context.update(
-            retrieval_groups=group_retrieval_rows(
-                projection["items"],
-                history=self.space_page_title == "Historique",
-                context=result_context,
+        groups = group_retrieval_rows(
+            projection["items"],
+            history=self.space_page_title == "Historique",
+            context=result_context,
+        )
+        selected_destination = next(
+            (
+                item["web_destination"]
+                for group in groups for item in group["items"]
+                if item["selection_key"] == selected_ref
             ),
+            None,
+        )
+        context.update(
+            retrieval_groups=groups,
+            selected_destination=selected_destination,
             selected_item=selected, selected_ref=selected_ref,
             retrieval=projection, q=query, page=page,
             history_kind=history_kind,

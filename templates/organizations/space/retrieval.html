@@ -38,10 +38,8 @@
       <aside class="hidden lg:block lg:col-span-2 border-l pl-4" style="border-color:var(--mk-border)" aria-label="Aperçu du résultat sélectionné">
         <h4 class="font-bold">{{ selected_item.title }}</h4>
         <p>{% if is_history %}{{ selected_item.outcome.label }}{% else %}{{ selected_item.human_type }} · {{ selected_item.relation }}{% endif %}</p>
-        {% if selected_item.links.detail %}
-        <a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_item.links.detail }}">Voir chez le propriétaire</a>
-        {% elif selected_item.destination %}
-        <a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_item.destination }}">Voir chez le propriétaire</a>
+        {% if selected_destination %}
+        <a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_destination }}">Voir chez le propriétaire</a>
         {% endif %}
       </aside>
       {% endif %}
