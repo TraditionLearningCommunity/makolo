@@ -136,7 +136,7 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
         temporary = await ProfilePaths.reconstructibleCache(profile!);
       }
       final dir = Directory('${temporary.path}/makolo-now-media');
-      await dir.create(recursive: true);
+      if (!dir.existsSync()) await dir.create(recursive: true);
       file = File(
         '${dir.path}/now-${DateTime.now().microsecondsSinceEpoch}.${nowMediaExtension(widget.media)}',
       );

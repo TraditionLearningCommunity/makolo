@@ -87,7 +87,7 @@ void main() {
     await tester.pump();
     expect(opened, 'access-1');
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('purchased for other keeps the holder relationship explicit', (
@@ -133,6 +133,6 @@ void main() {
     expect(find.text('Programme Comptabilité'), findsOneWidget);
     expect(find.textContaining('Pour Benoît Mulumba'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
   });
 }

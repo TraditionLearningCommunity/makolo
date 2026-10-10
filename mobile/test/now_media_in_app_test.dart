@@ -32,7 +32,7 @@ class FakeNowMediaApi extends MakoloApiClient {
       'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
     );
     downloadedPath = destinationPath;
-    await File(destinationPath).writeAsBytes([1, 2, 3]);
+    File(destinationPath).writeAsBytesSync([1, 2, 3]);
     return const ApiResponse(200, '', {});
   }
 }
@@ -102,6 +102,7 @@ void main() {
     late final Directory root;
     await tester.runAsync(() async {
       root = await Directory.systemTemp.createTemp('now-viewer-test-');
+      await Directory('${root.path}/makolo-now-media').create();
     });
     final api = FakeNowMediaApi();
     final sharing = FakeNowMediaSharing();
@@ -128,13 +129,15 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(api.downloadedPath, isNotNull);
     expect(sharing.shared, isEmpty);
     expect(find.byTooltip('Enregistrer sur l’appareil'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Enregistrer sur l’appareil'));
-    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.tap(find.byTooltip('Enregistrer sur l’appareil'));
+      await tester.pump();
+    });
     expect(sharing.shared, [api.downloadedPath]);
   });
 }
