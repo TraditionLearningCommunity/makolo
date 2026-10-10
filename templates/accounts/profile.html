@@ -104,6 +104,14 @@
         <div class="mt-6 grid gap-5 md:grid-cols-2">{% include 'accounts/_profile_form_fields.html' with form=profile_forms.links %}</div>
     </section>
 
+    <section id="preferences" class="mk-panel p-5 sm:p-6 lg:p-7">
+        <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="settings-2" class="h-5 w-5"></i></div>
+            <div><p class="text-xs font-bold uppercase tracking-[.1em]" style="color:var(--mk-subtle)">5 · Préférences</p><h2 class="mt-1 text-xl font-extrabold tracking-[-.03em]">Adapter Makolo à mes besoins</h2><p class="mt-1 text-sm" style="color:var(--mk-muted)">Langue, fuseau horaire et apparence sont configurés dans vos paramètres personnels.</p></div>
+        </div>
+        <div class="mt-5"><a href="{% url 'account:settings' %}#regional" class="mk-btn mk-btn-secondary">Gérer mes préférences</a></div>
+    </section>
+
     <section id="privacy" class="mk-panel p-5 sm:p-6 lg:p-7">
         <div class="flex items-start gap-3 border-b pb-5" style="border-color:var(--mk-border)">
             <div class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style="background:var(--mk-brand-soft);color:var(--mk-brand)"><i data-lucide="lock-keyhole" class="h-5 w-5"></i></div>
