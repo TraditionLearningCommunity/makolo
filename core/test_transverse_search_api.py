@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -100,6 +102,8 @@ class TransverseSearchBoundaryTests(TestCase):
     def test_search_marks_completed_space_occurrence_as_historical(self):
         occurrence = Occurrence.objects.create(
             activity=self.visible, label="Route passée",
+            start_date=date.today() - timedelta(days=1),
+            timing_kind="date_only",
             status="completed",
         )
         self.client.force_authenticate(self.owner)
