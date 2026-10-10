@@ -100,15 +100,24 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   void _onActorChanged() {
     _version++;
     if (!mounted) return;
+    final valid = _actorValid;
     setState(() {
       _local = [];
       _remote = [];
       _unavailableSources = [];
       _limitedSources = [];
-      _revoked = !_actorValid;
+      _revoked = !valid;
       _invalidPeriod = false;
       _selected = null;
+      _more = false;
+      _offset = 0;
+      _loading = false;
     });
+    if (valid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _actorValid) unawaited(_submit());
+      });
+    }
   }
 
   @override
@@ -478,7 +487,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
           final previous = await store.readProjections('space.history');
           for (final page in previous) {
             if (page.resourceKey.startsWith(
-              _spaceCacheQueryPrefix(actor, query),
+              _spaceCachePrefix(actor),
             )) {
               await store.deleteProjection(
                 'space.history',
@@ -497,9 +506,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       if (!mounted || !_actorValid || version != _version) return;
       setState(() {
         _remote = _deduplicate(more ? [..._remote, ...items] : items);
-        // A current owner result replaces previously synchronized snippets.
-        // Missing items after a successful fetch must not linger as visible.
-        _local = [];
+        // Full owner refresh supersedes local snippets. Partial owner
+        // failures leave device data intact but do not reassert its authority.
+        // It can be retrieved again only under the active actor's local scope.
+        if (unavailable.isEmpty) _local = [];
         _offset = nextOffset + items.length;
         _more = page['has_more'] == true && items.isNotEmpty;
         _failed = false;
