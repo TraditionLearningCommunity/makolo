@@ -1,0 +1,14 @@
+{% extends "base/app.html" %}
+{% block title %}Commande · Makolo{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-3xl space-y-5">
+  <header><p class="mk-kicker">Mon achat · Commerce</p><h1 class="mk-page-title">Commande {{ order.reference }}</h1></header>
+  <section class="mk-panel p-5 space-y-3" aria-label="Détail de ma commande">
+    <p><strong>Statut :</strong> {{ order.get_status_display }}</p>
+    <p><strong>Activité :</strong> {{ order.journey.activity.title }}</p>
+    {% if order.cancelled_at %}<p><strong>Annulée le :</strong> {{ order.cancelled_at|date:"DATE_FORMAT" }}</p>{% endif %}
+    <p class="text-sm" style="color:var(--mk-muted)">Les preuves de paiement et droits d’accès restent gérés par leurs propriétaires respectifs.</p>
+  </section>
+  <a class="mk-btn mk-btn-secondary" href="{% url 'core:participant-search' %}">Retour à la recherche</a>
+</main>
+{% endblock %}

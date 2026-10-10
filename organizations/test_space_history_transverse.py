@@ -110,3 +110,90 @@ class SpaceHistoryPermissionTests(TestCase):
         self.assertEqual(self.client.get(self.url).status_code, 200)
         revoke_mandate(mandate=self.grant, actor=self.owner)
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_cancelled_commerce_order_is_visible_only_with_owner_permission(self):
+        from commerce.models import CommerceOrder, CommerceOrderStatus, PaymentMode
+        from journeys.models import Journey, JourneyStatus, WorkflowKind
+        cancelled_at = timezone.now() - timedelta(hours=2)
+        buyer = self.member
+        journey = Journey.objects.create(
+            initiated_by=buyer, beneficiary=buyer, activity=self.activity,
+            workflow=WorkflowKind.PURCHASE, status=JourneyStatus.CANCELLED,
+        )
+        order = CommerceOrder.objects.create(
+            journey=journey,
+            buyer=buyer,
+            payee_space=self.space,
+            payment_mode=PaymentMode.NONE,
+            status=CommerceOrderStatus.CANCELLED,
+            cancelled_at=cancelled_at,
+        )
+        self.client.force_authenticate(self.owner)
+        owner_history = self.client.get(self.url)
+        self.assertEqual(owner_history.status_code, 200)
+        matching = [
+            item for item in owner_history.data["items"]
+            if item["source"]["kind"] == "commerce_order"
+        ]
+        self.assertEqual(len(matching), 1)
+        self.assertEqual(matching[0]["source"]["id"], str(order.pk))
+        self.assertEqual(matching[0]["occurred_at"], cancelled_at.isoformat())
+        self.assertNotIn(buyer.username, str(owner_history.data))
+        from django.urls import reverse
+        self.client.force_login(self.owner)
+        web = self.client.get(reverse(
+            "organizations:space-retrieval-order-detail",
+            kwargs={"slug": self.space.slug, "order_id": order.pk},
+        ))
+        self.assertEqual(web.status_code, 200)
+        self.assertContains(web, order.reference)
+        self.client.force_authenticate(self.scoped)
+        scoped = self.client.get(self.url)
+        self.assertEqual(scoped.status_code, 200)
+        self.assertNotIn(str(order.pk), str(scoped.data))
+        self.assertNotIn("commerce_order", scoped.data["coverage"]["owners"])
+
+    def test_space_web_owner_depth_is_checked_before_display(self):
+        from django.urls import reverse
+
+        occurrence_url = reverse(
+            "organizations:space-retrieval-occurrence-detail",
+            kwargs={"slug": self.space.slug, "occurrence_id": self.past.pk},
+        )
+        secret_url = reverse(
+            "organizations:space-retrieval-occurrence-detail",
+            kwargs={"slug": self.space.slug, "occurrence_id": self.secret.pk},
+        )
+        activity_url = reverse(
+            "organizations:space-retrieval-activity-detail",
+            kwargs={"slug": self.space.slug, "activity_id": self.activity.pk},
+        )
+        self.client.force_login(self.scoped)
+        response = self.client.get(occurrence_url, {"responsibility": "all"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Voyage passé")
+        self.assertEqual(self.client.get(secret_url).status_code, 404)
+        self.assertEqual(self.client.get(
+            reverse(
+                "organizations:space-retrieval-activity-detail",
+                kwargs={"slug": self.space.slug, "activity_id": self.other_activity.pk},
+            ),
+        ).status_code, 404)
+        self.assertEqual(self.client.get(activity_url).status_code, 200)
+        self.client.force_login(self.member)
+        self.assertEqual(self.client.get(occurrence_url).status_code, 404)
+
+    def test_space_history_web_grouped_result_restores_period_and_selection(self):
+        from django.urls import reverse
+
+        self.client.force_login(self.owner)
+        response = self.client.get(
+            reverse("organizations:space-history", kwargs={"slug": self.space.slug}),
+            {"q": "Voyage", "kind": "occurrence",
+             "from": "2026-01-01", "to": "2026-12-31"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Voyage passé")
+        self.assertContains(response, "Depuis")
+        self.assertContains(response, "Jusqu’au")
+        self.assertContains(response, "selected=occurrence%3A")

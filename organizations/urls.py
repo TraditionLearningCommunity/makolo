@@ -58,6 +58,12 @@ from .space_web_views import (
     SpaceUsView,
 )
 from .space_work_web import SpaceWorkView
+from .space_retrieval_web import SpaceHistoryWebView, SpaceSearchWebView
+from .space_retrieval_detail_web import (
+    SpaceRetrievalActivityDetailView,
+    SpaceRetrievalOccurrenceDetailView,
+    SpaceRetrievalOrderDetailView,
+)
 from .space_ws5_web import (
     SpaceMarkWS5View,
     SpaceOccurrenceDayOfView,
@@ -91,6 +97,11 @@ urlpatterns = [
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/", SpaceOccurrenceScannerView.as_view(), name="space-occurrence-scanner"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/scan/", SpaceOccurrenceScannerActionView.as_view(), name="space-occurrence-scanner-action"),
     path("<slug:slug>/work/", SpaceWorkView.as_view(), name="space-work"),
+    path("<slug:slug>/history/", SpaceHistoryWebView.as_view(), name="space-history"),
+    path("<slug:slug>/search/", SpaceSearchWebView.as_view(), name="space-search"),
+    path("<slug:slug>/retrieval/activities/<uuid:activity_id>/", SpaceRetrievalActivityDetailView.as_view(), name="space-retrieval-activity-detail"),
+    path("<slug:slug>/retrieval/occurrences/<uuid:occurrence_id>/", SpaceRetrievalOccurrenceDetailView.as_view(), name="space-retrieval-occurrence-detail"),
+    path("<slug:slug>/retrieval/orders/<uuid:order_id>/", SpaceRetrievalOrderDetailView.as_view(), name="space-retrieval-order-detail"),
     path("<slug:slug>/us/", SpaceUsView.as_view(), name="space-us"),
     path("<slug:slug>/relationships/", SpaceRelationshipsView.as_view(), name="space-relationships"),
     path("<slug:slug>/pilot/", SpacePilotView.as_view(), name="space-pilot"),

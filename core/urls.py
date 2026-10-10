@@ -1,7 +1,9 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
+from commerce.order_web_views import PersonalCommerceOrderWebDetailView
 
 from .home_views import MatureParticipantHomeView
+from .transverse_search_web import PersonalSearchWebView
 from .interoperability_views import PersonalConnectionsView
 from .m8c_participant_views import ParticipantJourneyDetailView, ParticipantOccurrenceLiveView
 from .mature_experience_views import MakoloMarkView, MatureParticipantMeView, MatureParticipantOngoingView
@@ -58,6 +60,8 @@ urlpatterns = [
         name="participant-access-detail",
     ),
     path("me/history/", ParticipantHistoryView.as_view(), name="participant-history"),
+    path("me/orders/<uuid:pk>/", PersonalCommerceOrderWebDetailView.as_view(), name="participant-commerce-order-detail"),
+    path("me/search/", PersonalSearchWebView.as_view(), name="participant-search"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("", PublicHomeView.as_view(), name="home"),
 ]

@@ -1,4 +1,5 @@
 from django.urls import path
+from commerce.personal_order_views import PersonalCommerceOrderDetailAPIView
 
 from .access_views import PersonalAccessCredentialAPIView, PersonalAccessesAPIView
 from .history_views import PersonalHistoryAPIView
@@ -32,6 +33,7 @@ urlpatterns = [
     path("accesses/", PersonalAccessesAPIView.as_view(), name="accesses"),
     path("history/", PersonalHistoryAPIView.as_view(), name="history"),
     path("search/", PersonalSearchAPIView.as_view(), name="search"),
+    path("orders/<uuid:order_id>/", PersonalCommerceOrderDetailAPIView.as_view(), name="commerce-order-detail"),
     path("interoperability/", PersonalInteroperabilityAPIView.as_view(), name="interoperability"),
     path(
         "occurrences/<uuid:pk>/day-of/",

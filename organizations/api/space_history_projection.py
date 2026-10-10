@@ -5,8 +5,14 @@ Other owners are deliberately not represented as absent from the Space's past.
 """
 from __future__ import annotations
 
+from datetime import date
+from urllib.parse import urlencode
+
 from django.db.models import Q
 from django.utils import timezone
+from django.urls import reverse
+from commerce.models import CommerceOrder, CommerceOrderStatus
+from authorization.selectors import has_direct_space_permission
 
 from activities.models import Occurrence, OccurrenceStatus
 from authorization.constants import PermissionCode
@@ -47,16 +53,16 @@ def visible_history_activity_ids(*, profile, space, responsibility_key=None):
 def build_space_history_projection(
     *, profile, space, query="", responsibility_key=None,
     offset=0, limit=DEFAULT_LIMIT, observed_at=None,
+    start_date=None, end_date=None, history_kind="all",
 ):
     ids = visible_history_activity_ids(
         profile=profile, space=space, responsibility_key=responsibility_key
     )
     if ids is None:
         return None
+
     observed_at = observed_at or timezone.now()
-    # end_at describes the scheduled end of a completed owner Occurrence,
-    # not a fabricated timestamp for each access, payment or technical update.
-    queryset = (
+    occurrences = (
         Occurrence.objects.filter(
             activity__space=space,
             activity_id__in=ids,
@@ -67,42 +73,136 @@ def build_space_history_projection(
         .select_related("activity")
     )
     if query:
-        queryset = queryset.filter(
+        occurrences = occurrences.filter(
             Q(activity__title__icontains=query)
             | Q(label__icontains=query)
+            | Q(place_links__place__name__icontains=query)
+            | Q(place_links__place__locality__icontains=query)
+        ).distinct()
+    if start_date is not None:
+        occurrences = occurrences.filter(end_at__date__gte=start_date)
+    if end_date is not None:
+        occurrences = occurrences.filter(end_at__date__lte=end_date)
+    occurrences = occurrences.order_by("-end_at", "pk")
+
+    # Orders may be historical when their actual cancellation time exists.
+    # The Space Orders owner controls authority before its rows are queried.
+    orders_visible = (
+        responsibility_key in (None, "", "all")
+        and has_direct_space_permission(
+            profile, space, PermissionCode.ORDERS_VIEW
         )
-    queryset = queryset.order_by("-end_at", "pk")
-    count = queryset.count()
-    rows = list(queryset[offset:offset + limit])
-    items = [
-        {
-            "kind": "occurrence",
-            "source": {"kind": "occurrence", "id": str(row.pk)},
-            "title": row.label or row.activity.title,
-            "context": {"activity": row.activity.title},
-            "occurred_at": row.end_at.isoformat(),
-            "time_basis": "scheduled_end_of_completed_occurrence",
-            "outcome": {"code": row.status, "label": "Séance passée"},
-            "links": {"detail": f"/api/v1/occurrences/{row.pk}/"},
-            "capabilities": ["view_detail"],
-        }
-        for row in rows
-    ]
+    )
+    orders = CommerceOrder.objects.none()
+    if orders_visible:
+        orders = CommerceOrder.objects.filter(
+            payee_space=space,
+            journey__activity_id__in=ids,
+            status=CommerceOrderStatus.CANCELLED,
+            cancelled_at__isnull=False,
+            cancelled_at__lte=observed_at,
+        ).select_related("journey__activity")
+        if query:
+            orders = orders.filter(
+                Q(reference__icontains=query)
+                | Q(journey__activity__title__icontains=query)
+            )
+        if start_date is not None:
+            orders = orders.filter(cancelled_at__date__gte=start_date)
+        if end_date is not None:
+            orders = orders.filter(cancelled_at__date__lte=end_date)
+        orders = orders.order_by("-cancelled_at", "pk")
+
+    window_end = offset + limit
+    candidates = []
+    if history_kind == "commerce_order":
+        occurrences = occurrences.none()
+    if history_kind == "occurrence":
+        orders = orders.none()
+    for occurrence in occurrences[:window_end]:
+        outcome = (
+            "Départ passé" if space.archetype == "transport_operator"
+            else "Session passée" if space.archetype == "education"
+            else "Séance passée"
+        )
+        candidates.append((
+            -occurrence.end_at.timestamp(), "occurrence", str(occurrence.pk),
+            {
+                "kind": "occurrence",
+                "source": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "title": occurrence.label or occurrence.activity.title,
+                "context": {"activity": occurrence.activity.title},
+                "occurred_at": occurrence.end_at.isoformat(),
+                "time_basis": "scheduled_end_of_completed_occurrence",
+                "outcome": {"code": occurrence.status, "label": outcome},
+                "links": {
+                    "detail": reverse(
+                        "organizations:space-retrieval-occurrence-detail",
+                        kwargs={"slug": space.slug, "occurrence_id": occurrence.pk},
+                    ) + "?" + urlencode({"responsibility": responsibility_key or "all", "history": "1", "q": query}),
+                    "owner_api": f"/api/v1/occurrences/{occurrence.pk}/"
+                },
+                "capabilities": ["view_detail"],
+            },
+        ))
+    if orders_visible:
+        for order in orders[:window_end]:
+            candidates.append((
+                -order.cancelled_at.timestamp(), "commerce_order", str(order.pk),
+                {
+                    "kind": "commerce_order",
+                    "source": {"kind": "commerce_order", "id": str(order.pk)},
+                    "title": f"Commande {order.reference}",
+                    "context": {
+                        "activity": order.journey.activity.title,
+                    },
+                    "occurred_at": order.cancelled_at.isoformat(),
+                    "time_basis": "owner_cancelled_at",
+                    "outcome": {
+                        "code": order.status,
+                        "label": "Commande annulée",
+                    },
+                    "links": {
+                        "detail": reverse(
+                            "organizations:space-retrieval-order-detail",
+                            kwargs={"slug": space.slug, "order_id": order.pk},
+                        ) + "?" + urlencode({"responsibility": responsibility_key or "all", "history": "1", "q": query}),
+                        "owner_api": reverse(
+                            "organizations_api:workspace-commerce-order-detail",
+                            kwargs={"slug": space.slug, "order_id": order.pk},
+                        ),
+                    },
+                    "capabilities": ["view_detail"],
+                },
+            ))
+    candidates.sort(key=lambda item: item[:3])
+    items = [candidate[3] for candidate in candidates[offset:window_end]]
+    total = occurrences.count() + (orders.count() if orders_visible else 0)
+    owners = ["occurrence"]
+    if orders_visible:
+        owners.append("commerce_order")
     return {
         "actor_context": {"kind": "space", "id": str(space.pk), "name": space.name},
         "responsibility": responsibility_key or "all",
         "query": query or None,
+        "filters": {
+            "kind": history_kind,
+            "from": start_date.isoformat() if start_date else None,
+            "to": end_date.isoformat() if end_date else None,
+        },
         "items": items,
         "page": {
-            "count": count, "offset": offset, "limit": limit,
-            "has_more": offset + len(items) < count,
+            "count": total,
+            "offset": offset,
+            "limit": limit,
+            "has_more": offset + len(items) < total,
         },
         "coverage": {
             "state": "partial",
-            "owners": ["occurrence"],
+            "owners": owners,
             "message": (
-                "Séances terminées datées et visibles dans ce contexte. "
-                "Ce résultat ne représente pas toute l'histoire de l'Espace."
+                "Expériences terminées et annulations datées visibles. "
+                "D'autres réalités passées peuvent ne pas être couvertes."
             ),
         },
     }
