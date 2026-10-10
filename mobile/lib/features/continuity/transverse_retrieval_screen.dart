@@ -38,6 +38,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
   bool _loading = false;
   bool _failed = false;
   bool _revoked = false;
+  bool _invalidPeriod = false;
   int _offset = 0;
   bool _more = false;
   int _version = 0;
@@ -74,6 +75,8 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     }
     if (oldWidget.runtime.store != widget.runtime.store ||
         oldWidget.spaceActor != widget.spaceActor ||
+        oldWidget.history != widget.history ||
+        oldWidget.initialQuery != widget.initialQuery ||
         oldWidget.runtime.session?.profileId !=
             widget.runtime.session?.profileId) {
       _version++;
@@ -86,6 +89,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       _selected = null;
       _failed = false;
       _revoked = false;
+      _invalidPeriod = false;
       _query.text = widget.initialQuery;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) unawaited(_submit());
@@ -102,6 +106,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
       _unavailableSources = [];
       _limitedSources = [];
       _revoked = !_actorValid;
+      _invalidPeriod = false;
       _selected = null;
     });
   }
@@ -177,6 +182,52 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                 : null,
             'historical': true,
           });
+        }
+      }
+      // Local-first Search reads existing owner snapshots only. The mature
+      // Moi sync root is personal.me; a separately synced resource collection
+      // may enrich it but is not required to exist.
+      final mePages = await store.readProjections('personal.me');
+      for (final snapshot in mePages) {
+        final data = snapshot.payload;
+        final resources = data['resources'];
+        if (resources is Map) {
+          final documents = resources['documents'];
+          if (documents is Map && documents['items'] is List) {
+            for (final value in documents['items'] as List) {
+              if (value is! Map) continue;
+              final id = value['id']?.toString();
+              if (id == null) continue;
+              rows.add({
+                'source': {'kind': 'personal_asset', 'id': id},
+                'title': value['title'],
+                'human_type': 'Document',
+                'relation': 'Ma ressource',
+                'historical': false,
+              });
+            }
+          }
+        }
+        final collectives = data['collectives'];
+        if (collectives is Map) {
+          final groups = collectives['groups'];
+          if (groups is Map && groups['items'] is List) {
+            for (final value in groups['items'] as List) {
+              if (value is! Map) continue;
+              final owner = value['owner'];
+              // Space-owned groups cannot silently cross the Profile scope.
+              if (owner is! Map || owner['kind'] != 'profile') continue;
+              final id = value['id']?.toString();
+              if (id == null) continue;
+              rows.add({
+                'source': {'kind': 'group', 'id': id},
+                'title': value['name'],
+                'human_type': 'Groupe',
+                'relation': 'Mon collectif',
+                'historical': false,
+              });
+            }
+          }
         }
       }
       final resources = await store.readProjections('personal.me.resources');
@@ -343,6 +394,23 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
 
   Future<void> _submit({bool more = false}) async {
     if (!_actorValid) return;
+    if (widget.history && _isSpace &&
+        _startDate != null && _endDate != null &&
+        _startDate!.isAfter(_endDate!)) {
+      _version++;
+      if (mounted) {
+        setState(() {
+          _invalidPeriod = true;
+          _remote = [];
+          _local = [];
+          _selected = null;
+          _more = false;
+          _loading = false;
+        });
+      }
+      return;
+    }
+    _invalidPeriod = false;
     final query = _query.text.trim();
     final version = ++_version;
     if (!more) {
@@ -534,9 +602,22 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
     }
   }
 
+  String _groupLabel(Map<String, dynamic> row) {
+    final outcome = row['outcome'];
+    if (widget.history && outcome is Map && outcome['label'] is String) {
+      return outcome['label'] as String;
+    }
+    final label = row['human_type']?.toString();
+    return label == null || label.isEmpty ? 'Autres résultats' : label;
+  }
+
   @override
   Widget build(BuildContext context) {
     final rows = _remote.isEmpty && (_failed || _loading) ? _local : _remote;
+    final grouped = <String, List<int>>{};
+    for (var i = 0; i < rows.length; i++) {
+      grouped.putIfAbsent(_groupLabel(rows[i]), () => []).add(i);
+    }
     final viewport = MediaQuery.sizeOf(context);
     final large =
         viewport.width >= 900 &&
@@ -561,7 +642,12 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                 Expanded(
                   flex: 3,
                   child: ListView(
-                    key: const PageStorageKey('transverse-retrieval-results'),
+                    key: PageStorageKey(
+                      'retrieval-${widget.runtime.session?.profileId ?? "personal"}'
+                      '-${widget.spaceActor?.space.id ?? "profile"}'
+                      '-${widget.spaceActor?.perspective.id ?? "all"}'
+                      '-${widget.history}-${_query.text.trim()}',
+                    ),
                     padding: const EdgeInsets.all(20),
                     children: [
                       TextField(
@@ -593,6 +679,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         ),
                         onSubmitted: (_) => _submit(),
                       ),
+                      if (_invalidPeriod)
+                        const Text(
+                          'La date de début doit précéder la date de fin.',
+                        ),
                       if (_failed)
                         const Text(
                           'Actualisation indisponible. Les résultats locaux, '
@@ -701,29 +791,39 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                               ? 'Saisissez ce que vous souhaitez retrouver.'
                               : 'Aucun résultat visible dans ce contexte.',
                         ),
-                      for (var index = 0; index < rows.length; index++)
-                        ListTile(
-                          key: ValueKey('retrieval-$index'),
-                          title: Text(
-                            rows[index]['title']?.toString() ?? 'Élément',
+                      for (final group in grouped.entries) ...[
+                        const SizedBox(height: 12),
+                        Semantics(
+                          header: true,
+                          child: Text(
+                            group.key,
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          subtitle: Text(
-                            [
-                              rows[index]['human_type']?.toString() ?? 'Réel',
-                              rows[index]['relation']?.toString() ?? '',
-                              if (rows[index]['historical'] == true)
-                                'Historique',
-                            ].where((label) => label.isNotEmpty).join(' · '),
-                          ),
-                          trailing: _canOpen(rows[index])
-                              ? const Icon(Icons.chevron_right)
-                              : null,
-                          onTap: large
-                              ? () => setState(() => _selected = index)
-                              : _canOpen(rows[index])
-                              ? () => _open(rows[index])
-                              : null,
                         ),
+                        for (final index in group.value)
+                          ListTile(
+                            key: ValueKey('retrieval-$index'),
+                            title: Text(
+                              rows[index]['title']?.toString() ?? 'Élément',
+                            ),
+                            subtitle: Text(
+                              [
+                                rows[index]['human_type']?.toString() ?? 'Réel',
+                                rows[index]['relation']?.toString() ?? '',
+                                if (rows[index]['historical'] == true)
+                                  'Historique',
+                              ].where((label) => label.isNotEmpty).join(' · '),
+                            ),
+                            trailing: _canOpen(rows[index])
+                                ? const Icon(Icons.chevron_right)
+                                : null,
+                            onTap: large
+                                ? () => setState(() => _selected = index)
+                                : _canOpen(rows[index])
+                                ? () => _open(rows[index])
+                                : null,
+                          ),
+                      ],
                       if (_more)
                         OutlinedButton(
                           onPressed: _loading

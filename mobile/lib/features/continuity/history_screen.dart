@@ -40,6 +40,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<StoredProjection> _remotePages = [];
   bool _searching = false;
   bool _searchFailed = false;
+  int _searchGeneration = 0;
   bool _loadingMore = false;
   bool _requestedInitialRefresh = false;
 
@@ -92,6 +93,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _remoteSearch({bool more = false}) async {
+    final generation = ++_searchGeneration;
     final query = _query;
     final filter = _filter;
     setState(() {
@@ -111,7 +113,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ? 'journeys'
             : 'all',
       );
-      if (!mounted || _query != query || _filter != filter) return;
+      if (!mounted || generation != _searchGeneration ||
+          _query != query || _filter != filter) return;
       final snapshot = StoredProjection(
         kind: HistoryRepository.projectionKind,
         resourceKey: 'offset:$nextOffset:limit:24',
@@ -124,11 +127,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _remoteHistory = _HistoryView.fromPages(_remotePages);
       });
     } on Object {
-      if (mounted && _query == query && _filter == filter) {
+      if (mounted && generation == _searchGeneration &&
+          _query == query && _filter == filter) {
         setState(() => _searchFailed = true);
       }
     } finally {
-      if (mounted && _query == query && _filter == filter) {
+      if (mounted && generation == _searchGeneration &&
+          _query == query && _filter == filter) {
         setState(() => _searching = false);
       }
     }
@@ -165,9 +170,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
               return _query.isEmpty ||
                   item.title.toLowerCase().contains(_query.toLowerCase());
             }).toList();
-            final first = view.firstPage ?? _remoteHistory?.firstPage;
-            final wide =
-                MediaQuery.sizeOf(context).width >= 900 &&
+            final effectiveView = _remoteHistory ?? view;
+            final first = effectiveView.firstPage ?? view.firstPage;
+            final wide = MediaQuery.sizeOf(context).width >= 900 &&
                 MediaQuery.textScalerOf(context).scale(16) < 26;
             _HistoryItem? selected;
             for (final item in visible) {
@@ -195,7 +200,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 pendingOperations: const [],
               ),
               availability: available
-                  ? view.items.isEmpty
+                  ? effectiveView.items.isEmpty
                         ? MakoloAvailabilityCue.empty
                         : MakoloAvailabilityCue.content
                   : _refreshing
@@ -248,6 +253,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               prefixIcon: Icon(Icons.search),
                             ),
                             onChanged: (value) => setState(() {
+                              _searchGeneration++;
+                              _searching = false;
                               _query = value.trim();
                               _remoteHistory = null;
                               _remotePages = [];
@@ -259,11 +266,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           Wrap(
                             spacing: 8,
                             children: [
-                              for (final filter in const [
-                                'all',
-                                'access',
-                                'journey',
-                              ])
+                              for (final filter in const ['all', 'access', 'journey'])
                                 ChoiceChip(
                                   label: Text(
                                     filter == 'all'
@@ -275,6 +278,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   selected: _filter == filter,
                                   onSelected: (_) {
                                     setState(() {
+                                      _searchGeneration++;
+                                      _searching = false;
                                       _filter = filter;
                                       _remoteHistory = null;
                                       _remotePages = [];
@@ -313,11 +318,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               'Aucun élément correspondant parmi les '
                               'pages synchronisées.',
                             ),
-                          for (
-                            var index = 0;
-                            index < visible.length;
-                            index++
-                          ) ...[
+                          for (var index = 0; index < visible.length; index++) ...[
                             _HistoryCard(
                               item: visible[index],
                               onOpen: (kind, id) {
