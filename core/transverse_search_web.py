@@ -30,11 +30,21 @@ class PersonalSearchWebView(LoginRequiredMixin, TemplateView):
             ),
             None,
         )
+        groups = group_retrieval_rows(
+            data["items"], context={"q": query, "page": page},
+        )
+        selected_destination = next(
+            (
+                item["web_destination"]
+                for group in groups for item in group["items"]
+                if item["selection_key"] == selected_ref
+            ),
+            None,
+        )
         context.update(
             search=data, q=query, page=page,
-            search_groups=group_retrieval_rows(
-                data["items"], context={"q": query, "page": page},
-            ),
+            search_groups=groups,
+            selected_destination=selected_destination,
             selected_item=selected, selected_ref=selected_ref,
         )
         return context

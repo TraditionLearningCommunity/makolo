@@ -32,7 +32,7 @@
         <aside class="hidden lg:block lg:col-span-2 border-l pl-4" style="border-color:var(--mk-border)" aria-label="Aperçu du résultat sélectionné">
           <h3 class="font-bold">{{ selected_item.title }}</h3>
           <p>{{ selected_item.human_type }} · {{ selected_item.relation }}</p>
-          {% if selected_item.destination %}<a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_item.destination }}">Voir dans son domaine</a>{% endif %}
+          {% if selected_destination %}<a class="mk-btn mk-btn-secondary mt-4" href="{{ selected_destination }}">Voir chez le propriétaire</a>{% endif %}
         </aside>
         {% endif %}
       </div>
