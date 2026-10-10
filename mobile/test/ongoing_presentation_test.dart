@@ -10,6 +10,30 @@ StoredProjection _projection(List<Object> items) => StoredProjection(
 );
 
 void main() {
+  test('malformed ongoing entries do not prevent valid continuities', () {
+    final items = OngoingContinuityPresentation.fromProjection(
+      _projection([
+        42,
+        {1: 'invalid non-string map key'},
+        {
+          'kind': 'journey',
+          'source': {'kind': 'journey', 'id': 'valid'},
+          'title': 'Démarche existante',
+          'state': 'waiting',
+          'continuation': {
+            'state': 'waiting',
+            'summary': 'Une réponse est attendue.',
+          },
+        },
+      ]),
+    );
+
+    expect(items, hasLength(1));
+    expect(items.single.ownerId, 'valid');
+    expect(items.single.waiting, 'Une réponse est attendue.');
+    expect(items.single.blocker, isNull);
+  });
+
   test('adapts the real ongoing shape and preserves owner identity', () {
     final items = OngoingContinuityPresentation.fromProjection(
       _projection([
