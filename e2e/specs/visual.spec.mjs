@@ -31,9 +31,9 @@ async function stabilizePublicHome(page) {
 
 async function setAccountAppearance(page, value) {
   const labels = { light: 'Clair', dark: 'Sombre' };
-  await page.goto('/account/profile/#appearance');
+  await page.goto('/account/settings/#appearance');
   await page.getByLabel(labels[value], { exact: true }).check();
-  await page.getByRole('button', { name: 'Enregistrer l’apparence' }).click();
+  await page.getByRole('button', { name: 'Appliquer l’apparence' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme-preference', value);
   if (value === 'dark') {
     await expect(page.locator('html')).toHaveClass(/dark/);

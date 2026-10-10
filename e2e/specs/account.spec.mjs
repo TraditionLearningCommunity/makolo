@@ -87,13 +87,17 @@ test('profile edits and appearance persist after reload', async ({ page }) => {
   await expect(page.getByLabel('Ville', { exact: true })).toHaveValue('Lubumbashi');
   await expect(page.getByLabel('Profession', { exact: true })).toHaveValue('Ingénieure événementielle');
   await expect(page.getByLabel('Présentation', { exact: true })).toHaveValue('Profil modifié par le parcours Playwright.');
+  // Profile fields remain owned by Profile. Notification and theme settings
+  // have their own account owner; validate that real handoff explicitly.
+  await page.goto('/account/settings/');
+  await expect(page.getByRole('heading', { name: 'Paramètres', exact: true })).toBeVisible();
   await expect(page.getByLabel('SMS', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Notifications push', { exact: true })).toHaveCount(0);
   await expect(page.getByText('E-mails', { exact: true })).toBeVisible();
   await expect(page.getByText('Sécurité du compte', { exact: true }).first()).toBeVisible();
 
   await page.getByLabel('Sombre', { exact: true }).check();
-  await page.getByRole('button', { name: 'Enregistrer l’apparence' }).click();
+  await page.getByRole('button', { name: 'Appliquer l’apparence' }).click();
   await expect(page.getByText('Apparence mise à jour.')).toBeVisible();
   await page.reload();
   await expect(page.getByLabel('Sombre', { exact: true })).toBeChecked();
@@ -138,7 +142,9 @@ test('password change works through the real form', async ({ page }) => {
   await page.locator('[name="new_password1"]').fill('Makolo-Changed-E2E-2026!');
   await page.locator('[name="new_password2"]').fill('Makolo-Changed-E2E-2026!');
   await page.getByRole('button').filter({ hasText: /Modifier|Changer|Enregistrer/ }).click();
-  await expect(page).toHaveURL('/account/profile/');
+  // Password change returns to the account owner, not the editable Profile.
+  await expect(page).toHaveURL('/account/');
+  await expect(page.getByRole('heading', { name: 'Compte', exact: true })).toBeVisible();
   await expect(page.getByText(/Mot de passe modifié/i)).toBeVisible();
 });
 
