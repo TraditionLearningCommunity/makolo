@@ -116,8 +116,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (!mounted ||
           generation != _searchGeneration ||
           _query != query ||
-          _filter != filter)
+          _filter != filter) {
         return;
+      }
       final snapshot = StoredProjection(
         kind: HistoryRepository.projectionKind,
         resourceKey: 'offset:$nextOffset:limit:24',
