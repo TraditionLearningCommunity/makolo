@@ -39,7 +39,10 @@ test('participant Maintenant, Moi, history and Access QR stay usable on mobile @
   await page.goto('/account/profile/');
   await expect(page.getByRole('heading', { name: 'Mon profil' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Enregistrer mon profil/i })).toBeVisible();
-  await expect(page.getByText('Apparence', { exact: true }).first()).toBeVisible();
+  // Settings are an explicit owner depth, reachable from Profile.
+  await page.getByRole('link', { name: 'Gérer mes préférences' }).click();
+  await expect(page).toHaveURL(/\/account\/settings\/#regional$/);
+  await expect(page.getByRole('heading', { name: 'Apparence' })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
 

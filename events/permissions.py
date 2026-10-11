@@ -29,7 +29,12 @@ def user_can_manage_event(user, event) -> bool:
         return False
     if _legacy_unresolved_creator(user, event):
         return True
-    return can(user, PermissionCode.ACTIVITY_MANAGE, activity=event.activity)
+    # A Platform Mandate authorizes moderation through the owner service, not
+    # general Activity edits. Keep explicit Activity/Space Mandates effective.
+    return can(
+        user, PermissionCode.ACTIVITY_MANAGE,
+        activity=event.activity, include_platform=False,
+    )
 
 
 def user_can_manage_event_finance(user, event) -> bool:

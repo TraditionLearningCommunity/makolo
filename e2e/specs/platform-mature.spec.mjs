@@ -59,7 +59,11 @@ test('Platform shows empty search honestly and blocks anonymous deep links', asy
   await expect(page.getByText(/owner-fédérée partielle/)).toBeVisible();
 
   await page.context().clearCookies();
-  const response = await page.goto('/platform/investigate/?q=private-id');
+  // Playwright navigation follows redirects automatically; inspect the raw
+  // response to assert the anonymous security boundary itself.
+  const response = await page.request.get('/platform/investigate/?q=private-id', {
+    maxRedirects: 0,
+  });
   expect([301, 302]).toContain(response.status());
   expect(response.headers().location).toMatch(/login/);
 });

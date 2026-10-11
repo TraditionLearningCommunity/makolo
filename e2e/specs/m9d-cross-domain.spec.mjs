@@ -65,6 +65,9 @@ test('login required validation keeps a coherent keyboard focus path', async ({ 
   await page.keyboard.press('Tab');
   await expect(password).toBeFocused();
   await page.keyboard.press('Tab');
+  const passwordToggle = page.getByRole('button', { name: 'Afficher le mot de passe' });
+  await expect(passwordToggle).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(submit).toBeFocused();
 
   await page.keyboard.press('Enter');
