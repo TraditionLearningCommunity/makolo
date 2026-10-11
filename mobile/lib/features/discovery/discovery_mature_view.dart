@@ -448,6 +448,11 @@ class _DiscoveryUnit extends StatelessWidget {
         MakoloMetadataItem(item.owner!, icon: Icons.business_outlined),
       if (item.place != null)
         MakoloMetadataItem(item.place!, icon: Icons.place_outlined),
+      if (item.distanceKm != null)
+        MakoloMetadataItem(
+          '${item.distanceKm! < 10 ? item.distanceKm!.toStringAsFixed(1) : item.distanceKm!.round()} km',
+          icon: Icons.near_me_outlined,
+        ),
       if (item.timing != null)
         MakoloMetadataItem(item.timing!, icon: Icons.schedule_outlined),
       if (item.price != null)
@@ -619,6 +624,43 @@ class _DiscoveryFocusPane extends StatelessWidget {
           if (item.summary.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.sm),
             Text(item.summary),
+          ],
+          if (item.owner != null ||
+              item.place != null ||
+              item.timing != null ||
+              item.price != null ||
+              item.distanceKm != null) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            MakoloMetadata(
+              items: [
+                if (item.owner != null)
+                  MakoloMetadataItem(
+                    item.owner!,
+                    icon: Icons.business_outlined,
+                  ),
+                if (item.place != null)
+                  MakoloMetadataItem(item.place!, icon: Icons.place_outlined),
+                if (item.distanceKm != null)
+                  MakoloMetadataItem(
+                    '${item.distanceKm! < 10 ? item.distanceKm!.toStringAsFixed(1) : item.distanceKm!.round()} km',
+                    icon: Icons.near_me_outlined,
+                  ),
+                if (item.timing != null)
+                  MakoloMetadataItem(
+                    item.timing!,
+                    icon: Icons.schedule_outlined,
+                  ),
+                if (item.price != null)
+                  MakoloMetadataItem(
+                    item.price!,
+                    icon: Icons.payments_outlined,
+                  ),
+              ],
+            ),
+          ],
+          if (item.availability != null) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            MakoloStatus(label: item.availability!),
           ],
           const SizedBox(height: MakoloSpacing.lg),
           FilledButton.icon(
