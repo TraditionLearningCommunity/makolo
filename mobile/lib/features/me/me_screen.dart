@@ -638,11 +638,20 @@ class _MeIdentityRow extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       minVerticalPadding: MakoloSpacing.sm,
       onTap: onTap,
-      leading: const Icon(Icons.group_outlined),
+      leading: Icon(_identityIcon(item.destination.kind)),
       title: Text(item.title),
       subtitle: item.subtitle == null ? null : Text(item.subtitle!),
       trailing: const Icon(Icons.chevron_right_rounded),
     );
+  }
+
+  IconData _identityIcon(String kind) {
+    return switch (kind) {
+      'space' => Icons.business_outlined,
+      'team' => Icons.badge_outlined,
+      'group' => Icons.groups_outlined,
+      _ => Icons.group_outlined,
+    };
   }
 }
 
@@ -669,6 +678,8 @@ class _MeResourceRow extends StatelessWidget {
     return switch (kind) {
       'proof' => Icons.verified_outlined,
       'credential' => Icons.workspace_premium_outlined,
+      'personal_asset' => Icons.folder_outlined,
+      'resource_collection' => Icons.inventory_2_outlined,
       _ => Icons.description_outlined,
     };
   }
