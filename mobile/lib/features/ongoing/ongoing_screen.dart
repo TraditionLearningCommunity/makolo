@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
+import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
 import '../../design/surface_states.dart';
@@ -240,6 +241,8 @@ class _OngoingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final summary = _ongoingSummary(item.title, item.synthesis);
     final supporting = _supportingLine(item);
+    final hasBlocker = item.blocker != null;
+    final hasMySide = item.mySide.isNotEmpty;
     return Semantics(
       button: true,
       selected: selected,
@@ -260,6 +263,18 @@ class _OngoingRow extends StatelessWidget {
               if (supporting != null) ...[
                 const SizedBox(height: MakoloSpacing.sm),
                 Text(supporting, style: Theme.of(context).textTheme.bodyMedium),
+              ],
+              if (hasBlocker || hasMySide) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                MakoloStatus(
+                  label: hasBlocker ? 'Bloqué' : 'Action de votre côté',
+                  tone: hasBlocker
+                      ? MakoloStatusTone.warning
+                      : MakoloStatusTone.neutral,
+                  icon: hasBlocker
+                      ? Icons.block_outlined
+                      : Icons.person_outline_rounded,
+                ),
               ],
               if (stale) ...[
                 const SizedBox(height: MakoloSpacing.sm),
@@ -302,7 +317,7 @@ class _OngoingFocus extends StatelessWidget {
       item.blocker != null ||
       item.unknown != null;
 
-  List<Widget> _detailSections() {
+  List<Widget> _detailSections(BuildContext context) {
     final seen = <String>{};
     List<String> unique(Iterable<String> values) => [
       for (final value in values)
@@ -316,20 +331,104 @@ class _OngoingFocus extends StatelessWidget {
       ..add(_ongoingKey(item.title))
       ..add(_ongoingKey(item.synthesis));
     final sections = <Widget>[];
-    void add(String title, Iterable<String> values) {
-      final visible = unique(values);
-      if (visible.isNotEmpty) {
-        sections.add(_DimensionSection(title: title, values: visible));
+
+    // Settled — what's already done
+    final settledValues = unique(item.settled);
+    if (settledValues.isNotEmpty) {
+      sections.add(
+        _DimensionSection(title: 'Déjà réglé', values: settledValues),
+      );
+    }
+
+    // My side — explicit action from me
+    final mySideValues = unique(item.mySide);
+    if (mySideValues.isNotEmpty) {
+      sections.add(
+        _DimensionSection(
+          title: 'De votre côté',
+          values: mySideValues,
+          emphasis: true,
+        ),
+      );
+    }
+
+    // Elsewhere — things moving on the other side
+    final elsewhereValues = unique(item.elsewhere);
+    if (elsewhereValues.isNotEmpty) {
+      sections.add(
+        _DimensionSection(title: 'Ailleurs', values: elsewhereValues),
+      );
+    }
+
+    // Next — what follows
+    final nextValues = unique(item.next);
+    if (nextValues.isNotEmpty) {
+      sections.add(_DimensionSection(title: 'Ensuite', values: nextValues));
+    }
+
+    // Waiting — hourglass row
+    if (item.waiting != null) {
+      final waitingText = unique([item.waiting!]);
+      if (waitingText.isNotEmpty) {
+        sections.add(
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.lg),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.hourglass_top_outlined,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: MakoloSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'En attente',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: MakoloSpacing.xs),
+                      Text(waitingText.first),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       }
     }
 
-    add('Déjà réglé', item.settled);
-    add('De votre côté', item.mySide);
-    add('Ailleurs', item.elsewhere);
-    add('Ensuite', item.next);
-    if (item.waiting != null) add('En attente', [item.waiting!]);
-    if (item.blocker != null) add('Ce qui bloque', [item.blocker!]);
-    if (item.unknown != null) add('À vérifier', [item.unknown!]);
+    // Blocker — attention block with warning styling
+    if (item.blocker != null) {
+      final blockerText = unique([item.blocker!]);
+      if (blockerText.isNotEmpty) {
+        sections.add(
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.lg),
+            child: MakoloAttentionBlock(
+              title: 'Ce qui bloque',
+              body: blockerText.first,
+              icon: Icons.block_outlined,
+            ),
+          ),
+        );
+      }
+    }
+
+    // Unknown — to verify
+    if (item.unknown != null) {
+      final unknownText = unique([item.unknown!]);
+      if (unknownText.isNotEmpty) {
+        sections.add(
+          _DimensionSection(title: 'À vérifier', values: unknownText),
+        );
+      }
+    }
+
     return sections;
   }
 
@@ -382,7 +481,7 @@ class _OngoingFocus extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
             ],
-            ..._detailSections(),
+            ..._detailSections(context),
             if (metadata.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: MakoloSpacing.lg),
@@ -396,9 +495,14 @@ class _OngoingFocus extends StatelessWidget {
 }
 
 class _DimensionSection extends StatelessWidget {
-  const _DimensionSection({required this.title, required this.values});
+  const _DimensionSection({
+    required this.title,
+    required this.values,
+    this.emphasis = false,
+  });
   final String title;
   final List<String> values;
+  final bool emphasis;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -406,7 +510,12 @@ class _DimensionSection extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: emphasis ? Theme.of(context).colorScheme.primary : null,
+          ),
+        ),
         const SizedBox(height: MakoloSpacing.sm),
         for (final value in values) ...[
           Text(value, style: Theme.of(context).textTheme.bodyLarge),

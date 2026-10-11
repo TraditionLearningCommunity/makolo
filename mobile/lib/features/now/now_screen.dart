@@ -712,11 +712,24 @@ class _NowSecondarySituation extends StatelessWidget {
     final contextLabel = _distinctPresentationText(situation.humanContext, [
       situation.meaning,
     ]);
+    final whyNow = _distinctPresentationText(situation.whyNow, [
+      situation.meaning,
+      situation.humanContext,
+    ]);
+    final topology = topologyFor(situation);
+    final showTurnCue =
+        topology == NowTopology.waiting && situation.turnLabel != null;
+    final showActionCue =
+        topology == NowTopology.action &&
+        situation.businessActions.isNotEmpty &&
+        situation.responseLabel != null;
+
     return MakoloCard(
       onTap: onSelect,
       semanticLabel: [
         ?contextLabel,
         situation.meaning,
+        if (whyNow != null) whyNow,
         'Ouvrir le détail',
       ].join('. '),
       child: Column(
@@ -730,6 +743,48 @@ class _NowSecondarySituation extends StatelessWidget {
             situation.meaning,
             style: Theme.of(context).textTheme.titleLarge,
           ),
+          if (whyNow != null) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(
+              whyNow,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (showTurnCue) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Row(
+              children: [
+                Icon(
+                  Icons.hourglass_top_outlined,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: MakoloSpacing.xs),
+                Flexible(
+                  child: Text(
+                    situation.turnLabel!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (showActionCue) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            MakoloStatus(
+              label: situation.responseLabel!,
+              tone: MakoloStatusTone.info,
+              icon: Icons.arrow_forward_rounded,
+            ),
+          ],
           if (situation.metadata.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.sm),
             MakoloMetadata(
