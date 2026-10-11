@@ -31,8 +31,13 @@ class AccountProfileWebTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Mon profil")
-        self.assertNotContains(response, "Apparence")
-        self.assertNotContains(response, self.user.email)
+        # Appearance belongs to Settings, not to the Profile edit form.
+        self.assertNotContains(response, 'name="appearance"')
+        self.assertContains(response, reverse("account:settings"))
+        # The authenticated account menu may show its own e-mail; the Profile
+        # presentation must not disclose it in the main personal surface.
+        main_content = response.content.decode().split('<main id="main-content"', 1)[1].split("</main>", 1)[0]
+        self.assertNotIn(self.user.email, main_content)
         self.assertContains(response, "js/theme-preference.js")
         self.assertFalse(UserProfile.objects.filter(user=self.user).exists())
         self.assertFalse(NotificationPreference.objects.filter(user=self.user).exists())

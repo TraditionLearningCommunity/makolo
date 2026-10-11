@@ -39,7 +39,6 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
             "coverage": {"state": "partial", "owners": ["activity", "occurrence"]},
         }
     preset = operating_preset_for_space(space)
-    can_open_activity_console = _space_has_activity_portfolio_access(profile, space)
     activities = Activity.objects.filter(
         space=space, pk__in=ids
     ).filter(title__icontains=query).order_by("-created_at", "pk")
@@ -61,12 +60,9 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                     ActivityStatus.COMPLETED, ActivityStatus.CANCELLED,
                     ActivityStatus.ARCHIVED,
                 },
-                "destination": (
-                    reverse(
-                        "organizations:console-activity-detail",
-                        kwargs={"slug": space.slug, "activity_id": row.pk},
-                    )
-                    if can_open_activity_console else None
+                "destination": reverse(
+                    "organizations:space-retrieval-activity-detail",
+                    kwargs={"slug": space.slug, "activity_id": row.pk},
                 ),
                 "owner_api": f"/api/v1/activities/{row.pk}/",
             },
@@ -88,7 +84,10 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                 },
                 # The server detail owner has the correct visibility checks; the
                 # Space Work screen is not an occurrence-specific handoff.
-                "destination": None,
+                "destination": reverse(
+                    "organizations:space-retrieval-occurrence-detail",
+                    kwargs={"slug": space.slug, "occurrence_id": row.pk},
+                ),
                 "owner_api": f"/api/v1/occurrences/{row.pk}/",
             },
         ))
@@ -135,11 +134,9 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                     "relation": order.journey.activity.title,
                     "historical": historical,
                     "context": "Historique" if historical else "Commerce",
-                    "destination": (
-                        reverse(
-                            "organizations:console-orders",
-                            kwargs={"slug": space.slug},
-                        ) + "?" + urlencode({"q": order.reference})
+                    "destination": reverse(
+                        "organizations:space-retrieval-order-detail",
+                        kwargs={"slug": space.slug, "order_id": order.pk},
                     ),
                     "owner_api": reverse(
                         "organizations_api:workspace-commerce-order-detail",
@@ -172,10 +169,15 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                 relation = row["relation_type"]
                 identity = (owner_ref, row["kind"], row["id"], relation)
                 # Distinct relations to the same person are deliberately preserved.
-                destination = (
-                    row.get("links", {}).get("owner_web")
-                    or row.get("links", {}).get("owner_api")
-                )
+                # Space Relationships owns selection and revalidates the
+                # relationship permission on every detail request.
+                destination = reverse(
+                    "organizations:space-relationships",
+                    kwargs={"slug": space.slug},
+                ) + "?" + urlencode({
+                    "responsibility": "all",
+                    "kind": row["kind"], "id": row["id"],
+                })
                 candidates.append((
                     None, row["kind"], ":".join(identity),
                     {
@@ -185,7 +187,7 @@ def build_space_search(*, profile, space, query, responsibility_key=None, offset
                         "relation": relation,
                         "owner": owner_ref,
                         "historical": False,
-                        "destination": destination if destination and not destination.startswith("/api/") else None,
+                        "destination": destination,
                         "owner_api": row.get("links", {}).get("owner_api"),
                         "relationship_kind": row["kind"],
                     },

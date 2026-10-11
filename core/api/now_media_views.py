@@ -3,8 +3,8 @@
 The Journey owns the file and authorization. Now only references it.
 """
 import zipfile
-from xml.etree import ElementTree
 
+from defusedxml import ElementTree
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, HttpResponse
 from rest_framework.permissions import IsAuthenticated

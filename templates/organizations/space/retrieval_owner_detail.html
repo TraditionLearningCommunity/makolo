@@ -1,0 +1,24 @@
+{% extends "organizations/space/base.html" %}
+{% block space_content %}
+<main class="mx-auto max-w-3xl space-y-5" aria-labelledby="owner-depth-title">
+  <header>
+    <p class="mk-kicker">Espace · {{ space.name }} · {{ retrieval_detail.type }}</p>
+    <h2 class="mk-page-title mt-2" id="owner-depth-title">{{ retrieval_detail.title }}</h2>
+    <p class="mk-page-copy">Détail actualisé depuis {{ retrieval_detail.owner }} dans votre contexte autorisé.</p>
+  </header>
+  <section class="mk-panel p-5 space-y-3" aria-label="Informations du propriétaire">
+    <p><strong>État :</strong> {{ retrieval_detail.status }}</p>
+    {% if retrieval_detail.summary %}<p>{{ retrieval_detail.summary }}</p>{% endif %}
+    {% if retrieval_detail.time_label %}
+      <p><strong>{{ retrieval_detail.time_label }} :</strong>
+        {% if retrieval_detail.time %}{{ retrieval_detail.time|date:"SHORT_DATETIME_FORMAT" }}
+        {% else %}Date non précisée{% endif %}
+      </p>
+    {% endif %}
+    <p class="text-sm" style="color:var(--mk-muted)">
+      La recherche ne possède pas cette réalité et ne lui transfère aucune autorité.
+    </p>
+  </section>
+  <a class="mk-btn mk-btn-secondary" href="{{ retrieval_back_url }}">Retour aux résultats</a>
+</main>
+{% endblock %}

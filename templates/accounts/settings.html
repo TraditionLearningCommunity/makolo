@@ -21,6 +21,7 @@
       {% endfor %}
     </div>
     {% endwith %}
+    {% for error in appearance_form.appearance.errors %}<p role="alert" class="mt-2 text-sm font-semibold text-red-600">{{ error }}</p>{% endfor %}
     <div class="mt-5 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Appliquer l’apparence</button></div>
   </form>
   <form id="regional" method="post" class="mk-panel p-5 sm:p-6">

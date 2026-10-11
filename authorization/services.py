@@ -70,33 +70,39 @@ def _mandates_with_permissions(profile, *, space=None, group=None, activity=None
     return queryset
 
 
-def effective_permission_codes(profile, *, space=None, group=None, activity=None, dossier=None, at=None) -> set[str]:
+def effective_permission_codes(profile, *, space=None, group=None, activity=None, dossier=None, at=None, include_platform=True) -> set[str]:
     if not _authenticated(profile):
         return set()
     if getattr(profile, "is_superuser", False):
         return set(Permission.objects.filter(is_active=True).values_list("code", flat=True))
+    mandates = _mandates_with_permissions(
+        profile, space=space, group=group, activity=activity, dossier=dossier, at=at
+    )
+    if not include_platform:
+        # Platform authority does not implicitly convey owner-scoped authority.
+        mandates = mandates.exclude(scope_type=AuthorityScope.PLATFORM)
     codes = {
         link.permission.code
-        for mandate in _mandates_with_permissions(profile, space=space, group=group, activity=activity, dossier=dossier, at=at)
+        for mandate in mandates
         for link in mandate.role.role_permissions.all()
         if link.permission.is_active
     }
-    if PermissionCode.PLATFORM_MANAGE in codes:
+    if include_platform and PermissionCode.PLATFORM_MANAGE in codes:
         codes.update(Permission.objects.filter(is_active=True).values_list("code", flat=True))
     return codes
 
 
-def can(profile, permission_code: str, space=None, *, group=None, activity=None, dossier=None, at=None) -> bool:
+def can(profile, permission_code: str, space=None, *, group=None, activity=None, dossier=None, at=None, include_platform=True) -> bool:
     if not _authenticated(profile):
         return False
     if getattr(profile, "is_superuser", False):
         return True
-    if permission_code in effective_permission_codes(profile, space=space, group=group, activity=activity, dossier=dossier, at=at):
+    if permission_code in effective_permission_codes(profile, space=space, group=group, activity=activity, dossier=dossier, at=at, include_platform=include_platform):
         return True
     if activity is not None and getattr(activity, "space_id", None):
         inherited = ACTIVITY_PERMISSION_INHERITANCE.get(permission_code)
         if inherited:
-            return inherited in effective_permission_codes(profile, space=activity.space, at=at)
+            return inherited in effective_permission_codes(profile, space=activity.space, at=at, include_platform=include_platform)
     return False
 
 

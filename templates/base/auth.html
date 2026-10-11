@@ -24,7 +24,8 @@
         <section class="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
             <div class="w-full max-w-[460px]">
                 <a href="{% url 'core:home' %}" class="mb-8 flex items-center gap-3" aria-label="Retour à Makolo">
-                    <img src="{% static 'brand/makolo-mark-gradient.svg' %}" alt="" class="mk-brand-symbol" width="44" height="30">
+                    <img src="{% static 'brand/makolo-mark-gradient.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-light" width="44" height="30">
+                    <img src="{% static 'brand/makolo-mark-white.svg' %}" alt="" class="mk-brand-symbol mk-brand-symbol-dark" width="44" height="30">
                     <div><p class="mk-brand-wordmark text-sm">Makolo</p><p class="text-[10px] uppercase tracking-[.12em]" style="color:var(--mk-subtle)">Makolo marche pour vous.</p></div>
                 </a>
                 <div class="mk-auth-card p-6 sm:p-8">{% block content %}{% endblock %}</div>

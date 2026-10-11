@@ -68,7 +68,10 @@ class UnifiedNavigationUxTests(TestCase):
         )
 
         self.assertIn("Agir comme", html)
-        self.assertIn("Compte et paramètres", html)
+        self.assertIn(f'href="{reverse("account:home")}"', html)
+        self.assertIn(f'href="{reverse("account:settings")}"', html)
+        self.assertIn("<span>Compte</span>", html)
+        self.assertIn("<span>Paramètres</span>", html)
         self.assertIn("Abonnement et facturation", html)
         self.assertIn("Changer de compte", html)
         self.assertIn("Se déconnecter", html)

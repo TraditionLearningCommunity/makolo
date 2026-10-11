@@ -31,7 +31,7 @@ class PlatformView(LoginRequiredMixin, TemplateView):
     template_name = "platform/page.html"
     module = None
     page = "overview"
-    heading = "Vue d'ensemble"
+    heading = "Vue d’ensemble"
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
