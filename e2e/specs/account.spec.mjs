@@ -144,7 +144,7 @@ test('password change works through the real form', async ({ page }) => {
   await page.getByRole('button').filter({ hasText: /Modifier|Changer|Enregistrer/ }).click();
   // Password change returns to the account owner, not the editable Profile.
   await expect(page).toHaveURL('/account/');
-  await expect(page.getByRole('heading', { name: 'Compte', exact: true })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('heading', { name: 'Compte', exact: true, level: 1 })).toBeVisible();
   await expect(page.getByText(/Mot de passe modifié/i)).toBeVisible();
 });
 
