@@ -81,3 +81,10 @@ Contrat API additionnel compatible : `work/?kind=<source.kind>&id=<source.id>` r
 Goldens : les références Now ont été rendues et examinées sur Windows avec Flutter 3.47.3. S5 inclut désormais la conséquence déjà implémentée dans le checkpoint Antigravity. Les contrôles visuels généraux présentent un écart de rasterisation avec les hashes Ubuntu approuvés ; leur manifeste n'a pas été modifié. Le workflow Now existant devient un gate PR en lecture seule, avec artifacts de comparaison ; il ne commit/push plus automatiquement sur une ancienne branche. La vérification Ubuntu de la PR reste le gate canonique.
 
 Self-review (`ai-development-guardrails.md`) : propriétaires et permissions réutilisés ; lecture seule pour les nouveaux parcours ; retry explicite ; aucune outbox/pending inventée ; identités/acteurs contrôlés et réponses tardives écartées ; aucun modèle/migration/dependency nouveau ; tests non affaiblis ; absence de secrets dans le diff vérifiée avant publication. La qualité sur appareil et le selector collectif Space attentionnel restent des limites explicites, pas des validations prétendues.
+
+## Validation finale locale et CI
+
+- Suite finale Flutter après rendu média : 487 tests hors Goldens, tous verts ; analyse sans avertissement et formateur Dart 3.13.3 au vert.
+- Django : 113 tests de convergence puis 20 tests Métier après ajout du prix de l’Offer, tous verts ; aucune migration détectée ; contrats OpenAPI/C0 préservés.
+- PR unique : #518, sans merge automatique. Mobile CI, CI générale, API Contract, sécurité, contrôles visuels généraux, Android Build et suites PostgreSQL sont verts sur le premier HEAD publié.
+- Le premier gate Now a révélé une préparation CI manquante (sources générées absentes). La génération build_runner et la vérification de sa politique sont ajoutées comme dans Mobile CI ; les assertions Golden restent strictes.

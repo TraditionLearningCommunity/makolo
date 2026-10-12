@@ -34,6 +34,10 @@ jobs:
           cache: true
       - name: Resolve dependencies
         run: flutter pub get
+      - name: Generate owner DTO and Drift sources
+        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Verify generated-code policy
+        run: git diff --exit-code -- lib test
       - name: Canonical format check
         run: bash tool/dart_format.sh check
       - name: Verify approved G01 S1-S5 references

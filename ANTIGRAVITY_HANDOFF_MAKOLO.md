@@ -1,8 +1,8 @@
 # Makolo Mature Mobile Experience Implementation — Antigravity to Codex Handoff
 
-**Date :** 12 octobre 2026  
-**Document :** `ANTIGRAVITY_HANDOFF_MAKOLO.md`  
-**Contexte de transfert :** Suspension du chantier Antigravity et transfert vers Codex/agent suivant.  
+**Date :** 12 octobre 2026
+**Document :** `ANTIGRAVITY_HANDOFF_MAKOLO.md`
+**Contexte de transfert :** Suspension du chantier Antigravity et transfert vers Codex/agent suivant.
 
 ---
 
