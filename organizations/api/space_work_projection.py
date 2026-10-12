@@ -161,6 +161,10 @@ def _offer_item(offer, caps):
         },
         "state": offer.status,
         "context": {
+            "pricing": {
+                "unit_price": str(offer.unit_price),
+                "currency": offer.currency,
+            },
             "activity": {
                 "id": str(offer.activity_id),
                 "title": offer.activity.title,

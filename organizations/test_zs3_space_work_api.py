@@ -343,6 +343,8 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         ]
         self.assertEqual(len(offers), 1)
         self.assertEqual(offers[0]["title"], "Offre ZS3")
+        self.assertEqual(offers[0]["context"]["pricing"]["unit_price"], "0.00")
+        self.assertEqual(offers[0]["context"]["pricing"]["currency"], "USD")
         self.assertEqual(response.data["sections"]["preparation"]["representation"], "À traiter")
         self.assertEqual(response.data["sections"]["active"]["representation"], "Commandes actives")
         self.assertEqual(response.data["sections"]["offers"]["representation"], "Offres")

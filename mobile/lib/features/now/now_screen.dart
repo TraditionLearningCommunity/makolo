@@ -720,7 +720,7 @@ class _NowSecondarySituation extends StatelessWidget {
       semanticLabel: [
         ?contextLabel,
         situation.meaning,
-        if (whyNow != null) whyNow,
+        ?whyNow,
         'Ouvrir le détail',
       ].join('. '),
       child: Column(

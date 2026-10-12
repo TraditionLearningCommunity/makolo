@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
+import '../../presentation/contracts/space_presentation.dart';
 
 class SpaceWorkSurface extends StatelessWidget {
-  const SpaceWorkSurface({super.key, required this.payload});
+  const SpaceWorkSurface({super.key, required this.payload, this.onLoadMore});
 
   final Map<String, dynamic> payload;
+  final void Function(String section)? onLoadMore;
 
   @override
   Widget build(BuildContext context) {
@@ -29,8 +31,10 @@ class SpaceWorkSurface extends StatelessWidget {
       if (section == null || items is! List || items.isEmpty) continue;
       visible.add(
         _WorkSection(
+          key: entry.key,
           label: _string(section['representation']) ?? entry.key,
           items: items.whereType<Map>().map(_copyMap).toList(growable: false),
+          hasMore: section['has_more'] == true,
         ),
       );
     }
@@ -67,6 +71,24 @@ class SpaceWorkSurface extends StatelessWidget {
           ),
           const SizedBox(height: MakoloSpacing.sm),
           for (final item in section.items) _item(context, item),
+          if (section.hasMore) ...[
+            const Text('Aperçu partiel : d’autres éléments existent.'),
+            if (onLoadMore != null ||
+                _string(_map(payload['space'])?['slug']) != null)
+              TextButton(
+                onPressed: () {
+                  if (onLoadMore != null) {
+                    onLoadMore!(section.key);
+                  } else {
+                    final slug = _string(_map(payload['space'])?['slug'])!;
+                    context.push(
+                      '/space/${Uri.encodeComponent(slug)}/work/${Uri.encodeComponent(section.key)}',
+                    );
+                  }
+                },
+                child: const Text('Afficher la suite'),
+              ),
+          ],
           const SizedBox(height: MakoloSpacing.lg),
         ],
       ],
@@ -118,11 +140,37 @@ class SpaceWorkSurface extends StatelessWidget {
     }
 
     final state = _string(item['state']);
+    final activity = _map(itemContext?['activity']);
+    final activityTitle = _string(activity?['title']);
+    final place = _string(_map(itemContext?['place'])?['name']);
+    if (place != null) {
+      metadataItems.add(MakoloMetadataItem(place, icon: Icons.place_outlined));
+    }
+    final pricing = _map(itemContext?['pricing']);
+    final amount = _string(pricing?['unit_price']);
+    final currency = _string(pricing?['currency']);
+    if (amount != null && currency != null) {
+      metadataItems.add(
+        MakoloMetadataItem(
+          'Prix unitaire : $amount $currency',
+          icon: Icons.payments_outlined,
+        ),
+      );
+    }
+    final route = capabilities is List && capabilities.contains('view')
+        ? spaceOwnerRoute(
+            slug: _string(_map(payload['space'])?['slug']),
+            kind: _string(source?['kind']),
+            id: _string(source?['id']),
+          )
+        : null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
       child: MakoloCard(
-        onTap: canOpenDayOf
+        onTap: route != null
+            ? () => context.push(route)
+            : canOpenDayOf
             ? () => context.push('/space/occurrences/${source!['id']}/day-of')
             : null,
         semanticLabel: title,
@@ -162,12 +210,22 @@ class SpaceWorkSurface extends StatelessWidget {
                   ],
                   if (state != null) ...[
                     const SizedBox(height: MakoloSpacing.xs),
-                    MakoloStatus(label: state),
+                    MakoloStatus(label: spaceStateLabel(state)),
                   ],
+                  if (activityTitle != null && activityTitle != title)
+                    Text(activityTitle),
+                  if (canOpenDayOf)
+                    TextButton.icon(
+                      onPressed: () => context.push(
+                        '/space/occurrences/${Uri.encodeComponent(source!['id'] as String)}/day-of',
+                      ),
+                      icon: const Icon(Icons.play_circle_outline),
+                      label: const Text('Jour J'),
+                    ),
                 ],
               ),
             ),
-            if (canOpenDayOf)
+            if (route != null || canOpenDayOf)
               Padding(
                 padding: const EdgeInsets.only(left: MakoloSpacing.sm, top: 2),
                 child: Icon(
@@ -199,9 +257,16 @@ class SpaceWorkSurface extends StatelessWidget {
 }
 
 class _WorkSection {
-  const _WorkSection({required this.label, required this.items});
+  const _WorkSection({
+    required this.key,
+    required this.label,
+    required this.items,
+    required this.hasMore,
+  });
   final String label;
+  final String key;
   final List<Map<String, dynamic>> items;
+  final bool hasMore;
 }
 
 Map<String, dynamic>? _map(Object? value) {

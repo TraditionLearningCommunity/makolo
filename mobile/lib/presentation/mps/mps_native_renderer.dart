@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
+import '../../design/presentation_media.dart';
 import 'mps_models.dart';
 
 class MpsNativeRenderer extends StatelessWidget {
@@ -9,12 +10,16 @@ class MpsNativeRenderer extends StatelessWidget {
     super.key,
     required this.package,
     this.onOpenCredential,
+    this.mediaBaseUri,
+    this.mediaScopeKey,
   });
 
   static const rendererVersion = 1;
 
   final MpsPresentationPackage package;
   final VoidCallback? onOpenCredential;
+  final Uri? mediaBaseUri;
+  final String? mediaScopeKey;
 
   @override
   Widget build(BuildContext context) {
@@ -168,6 +173,21 @@ class MpsNativeRenderer extends StatelessWidget {
       case 'Hero':
       case 'Image':
       case 'OrganizerMark':
+        final raw = _value(props['image'] ?? props['src']);
+        if (raw.isEmpty) return const SizedBox.shrink();
+        final uri = mpsContextImageUri(raw, mediaBaseUri);
+        final alt = mpsString(props['alt']) ?? 'Image de présentation';
+        if (uri != null && mediaScopeKey != null) {
+          return MakoloMediaFrame(
+            aspect: MakoloMediaAspect.landscape,
+            semanticLabel: alt,
+            child: _MpsContextImage(
+              key: ValueKey('$mediaScopeKey:$uri'),
+              uri: uri,
+              alt: alt,
+            ),
+          );
+        }
         return AspectRatio(
           aspectRatio: 16 / 9,
           child: DecoratedBox(
@@ -211,6 +231,79 @@ class MpsNativeRenderer extends StatelessWidget {
     }
     return result;
   }
+}
+
+/// MPS supplies the authorized binding. Only same-origin HTTP representations
+/// are requested here, without bearer headers or a persistent media cache.
+Uri? mpsContextImageUri(String raw, Uri? base) {
+  if (raw.isEmpty ||
+      base == null ||
+      !const {'http', 'https'}.contains(base.scheme)) {
+    return null;
+  }
+  final candidate = Uri.tryParse(raw);
+  if (candidate == null ||
+      candidate.userInfo.isNotEmpty ||
+      candidate.pathSegments.any((part) => part == '..' || part == '.')) {
+    return null;
+  }
+  final uri = base.resolveUri(candidate);
+  if (!const {'http', 'https'}.contains(uri.scheme) ||
+      uri.origin != base.origin) {
+    return null;
+  }
+  return uri;
+}
+
+class _MpsContextImage extends StatefulWidget {
+  const _MpsContextImage({super.key, required this.uri, required this.alt});
+  final Uri uri;
+  final String alt;
+  @override
+  State<_MpsContextImage> createState() => _MpsContextImageState();
+}
+
+class _MpsContextImageState extends State<_MpsContextImage> {
+  late final NetworkImage image;
+  int attempt = 0;
+  Future<void> retry() async {
+    await image.evict();
+    if (mounted) setState(() => attempt++);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    image = NetworkImage(widget.uri.toString());
+  }
+
+  @override
+  void dispose() {
+    // The owner screen unmounts this representation on actor/source changes.
+    image.evict();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Image(
+    key: ValueKey(attempt),
+    image: image,
+    fit: BoxFit.cover,
+    excludeFromSemantics: true,
+    loadingBuilder: (context, child, progress) => progress == null
+        ? child
+        : const MakoloMediaPlaceholder(label: 'Chargement du média…'),
+    errorBuilder: (context, error, trace) => Stack(
+      fit: StackFit.expand,
+      children: [
+        MakoloMediaPlaceholder(label: '${widget.alt} · Média indisponible'),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: TextButton(onPressed: retry, child: const Text('Réessayer')),
+        ),
+      ],
+    ),
+  );
 }
 
 class _InfoBlock extends StatelessWidget {

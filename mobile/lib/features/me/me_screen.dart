@@ -474,9 +474,7 @@ class _MeTerritory extends StatelessWidget {
         'Une vue de ce qui peut vous représenter selon le contexte.';
 
     return MakoloCard(
-      onTap: firstItem == null || onSelectItem == null
-          ? null
-          : () => onSelectItem!(firstItem),
+      onTap: firstItem == null ? null : () => onSelectItem(firstItem),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -495,8 +493,7 @@ class _MeTerritory extends StatelessWidget {
               ],
             ),
           ),
-          if (firstItem != null && onSelectItem != null)
-            const Icon(Icons.chevron_right_rounded),
+          if (firstItem != null) const Icon(Icons.chevron_right_rounded),
         ],
       ),
     );

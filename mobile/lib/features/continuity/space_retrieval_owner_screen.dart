@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
+import '../../design/makolo_components.dart';
+import '../../design/makolo_patterns.dart';
+import '../../presentation/contracts/space_presentation.dart';
+import '../../presentation/mps/mps_models.dart';
+import '../../presentation/mps/mps_native_renderer.dart';
 
 /// Owner-backed Space N3. A search result is never an authorization grant:
 /// every opening re-reads the source using the current account and actor.
@@ -41,7 +47,9 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     if (!mounted) return;
     setState(() {
       // A return to this Space also forces owner revalidation.
-      _result = _readOwner();
+      _result = _actorValid
+          ? _readOwner()
+          : Future.value(const <String, dynamic>{});
     });
   }
 
@@ -77,7 +85,12 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     final kind = widget.kind;
     final id = Uri.encodeComponent(widget.id);
     final data = switch (kind) {
-      'activity' || 'occurrence' => await _readActivityOwner(api, kind, id),
+      'activity' ||
+      'occurrence' ||
+      'offer' ||
+      'journey' ||
+      'transport_route' ||
+      'vehicle' => await _readWorkOwner(api, kind),
       'commerce_order' => await _readOrderOwner(api, id),
       'team_member' ||
       'group' ||
@@ -90,59 +103,53 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     return data;
   }
 
-  Future<Map<String, dynamic>> _readActivityOwner(
-    dynamic api,
-    String kind,
-    String id,
-  ) async {
-    final path = kind == 'activity'
-        ? 'api/v1/activities/$id/'
-        : 'api/v1/occurrences/$id/';
-    final envelope = (await api.get(path)).jsonObject();
-    final data = envelope['data'];
-    if (data is! Map) throw const FormatException('Missing owner data');
-    final payload = Map<String, dynamic>.from(data);
-    final identity = payload['identity'];
-    if (identity is! Map ||
-        identity['kind'] != kind ||
-        identity['id'] != widget.id) {
-      throw const FormatException('Owner identity mismatch');
+  Future<Map<String, dynamic>> _readWorkOwner(dynamic api, String kind) async {
+    final perspective = widget.spaceActor.perspective;
+    final path = Uri(
+      path: '${_spacePath}work/',
+      queryParameters: {
+        'kind': kind,
+        'id': widget.id,
+        if (!perspective.isAll) 'responsibility': perspective.id!,
+      },
+    ).toString();
+    final payload = (await api.get(path)).jsonObject();
+    final item = spaceMap(payload['selection']);
+    final source = spaceMap(item?['source']);
+    final space = spaceMap(payload['space']);
+    if (space?['id'] != widget.spaceActor.space.id ||
+        source?['kind'] != kind ||
+        source?['id'] != widget.id) {
+      throw const FormatException(
+        'Owner unavailable in current responsibility',
+      );
     }
-    Map ownerData = payload;
-    if (kind == 'occurrence') {
-      final activity = payload['activity'];
-      if (activity is! Map || activity['id'] == null) {
-        throw const FormatException('Occurrence activity is missing');
+    MpsPresentationPackage? presentation;
+    var presentationUnavailable = false;
+    final mps = widget.runtime.mps;
+    if (kind == 'activity' && mps != null) {
+      try {
+        await mps.refreshActivity(widget.id, 'public_page');
+        if (!_actorValid) throw StateError('Actor changed');
+        presentation = await mps.readActivityPackage(widget.id, 'public_page');
+      } on Object {
+        // Do not expose an older artifact after failed owner revalidation.
+        presentationUnavailable = true;
       }
-      final ownerEnvelope = (await api.get(
-        'api/v1/activities/${Uri.encodeComponent(activity['id'].toString())}/',
-      )).jsonObject();
-      if (ownerEnvelope['data'] is! Map) {
-        throw const FormatException('Activity owner unavailable');
-      }
-      ownerData = ownerEnvelope['data'] as Map;
     }
-    final owner = ownerData['owner'];
-    if (owner is! Map ||
-        owner['kind'] != 'space' ||
-        owner['id'] != widget.spaceActor.space.id) {
-      throw const FormatException('Result belongs to another actor');
-    }
-    final representation = payload['representation'];
-    final title = kind == 'activity'
-        ? (representation is Map ? representation['title'] : null)
-        : (payload['activity'] is Map
-              ? (payload['activity'] as Map)['title']
-              : null);
-    final status = payload['state'];
-    final place = payload['place'];
     return {
-      'title': title ?? 'Élément',
-      'type': kind == 'activity' ? 'Activité' : 'Séance',
-      'status': status is Map ? status['code'] : null,
-      'summary': representation is Map ? representation['summary'] : null,
-      'place': place is Map ? (place['name'] ?? place['locality']) : null,
-      'timing': payload['timing'],
+      'title': item!['title'],
+      'type': payload['primary_business_label'],
+      'status': item['state'],
+      'summary': item['summary'],
+      'timing': item['timing'],
+      'context': item['context'],
+      'presentation': presentation,
+      'presentation_unavailable': presentationUnavailable,
+      'continuity_facet': item['continuity_facet'],
+      'day_of':
+          (item['capabilities'] is List &&
+          (item['capabilities'] as List).contains('open_day_of')),
     };
   }
 
@@ -236,24 +243,118 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                   );
                 }
                 final data = snapshot.data!;
+                final itemContext = spaceMap(data['context']);
+                final activity = spaceMap(itemContext?['activity']);
+                final activityRoute = spaceOwnerRoute(
+                  slug: widget.spaceActor.space.slug,
+                  kind: 'activity',
+                  id: spaceText(activity?['id']),
+                );
+                final blockers = spaceMap(
+                  data['continuity_facet'],
+                )?['blockers'];
                 return ListView(
                   padding: const EdgeInsets.all(24),
                   children: [
-                    Text(
-                      data['type']?.toString() ?? 'Élément',
-                      style: Theme.of(context).textTheme.labelLarge,
+                    MakoloDetailHeader(
+                      title: spaceText(data['title']) ?? 'Détail',
+                      eyebrow: spaceText(data['type']),
+                      subtitle: spaceText(data['summary']),
+                      status: spaceText(data['status']) == null
+                          ? null
+                          : MakoloStatus(
+                              label: spaceStateLabel(data['status'] as String),
+                            ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      data['title']?.toString() ?? 'Détail',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    for (final key in ['status', 'summary', 'place', 'timing'])
+                    for (final key in ['place'])
                       if (data[key] != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 14),
                           child: Text(data[key].toString()),
                         ),
+                    for (final line in spaceTimingLines(data['timing']))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(line),
+                      ),
+                    if (itemContext?['passenger_capacity'] is num)
+                      Text(
+                        '${itemContext!['passenger_capacity']} places dans le véhicule',
+                      ),
+                    if (spaceMap(itemContext?['pricing'])
+                        case final Map<String, dynamic> pricing)
+                      if (pricing['unit_price'] is String &&
+                          pricing['currency'] is String)
+                        ListTile(
+                          leading: const Icon(Icons.payments_outlined),
+                          title: Text(
+                            'Prix unitaire : ${pricing['unit_price']} ${pricing['currency']}',
+                          ),
+                        ),
+                    if (spaceText(spaceMap(itemContext?['place'])?['name'])
+                        case final String place)
+                      ListTile(
+                        leading: const Icon(Icons.place_outlined),
+                        title: Text(place),
+                      ),
+                    if (itemContext?['stops'] case final List stops)
+                      for (final stop in stops)
+                        if (spaceMap(stop)
+                            case final Map<String, dynamic> place)
+                          ListTile(
+                            leading: const Icon(Icons.place_outlined),
+                            title: Text(spaceText(place['name']) ?? 'Arrêt'),
+                            subtitle: Text(
+                              [
+                                if (place['boarding_allowed'] == true)
+                                  'Embarquement',
+                                if (place['alighting_allowed'] == true)
+                                  'Descente',
+                              ].join(' · '),
+                            ),
+                          ),
+                    if (blockers is List && blockers.isNotEmpty)
+                      MakoloAttentionBlock(
+                        title: 'Points à examiner',
+                        body:
+                            '${blockers.length} blocage(s) actif(s) dans cette démarche.',
+                      ),
+                    if (activityRoute != null)
+                      ListTile(
+                        title: Text(
+                          spaceText(activity?['title']) ?? 'Activité liée',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push(activityRoute),
+                      ),
+                    if (data['day_of'] == true && widget.kind == 'occurrence')
+                      FilledButton.icon(
+                        onPressed: () => context.push(
+                          '/space/occurrences/${Uri.encodeComponent(widget.id)}/day-of',
+                        ),
+                        icon: const Icon(Icons.play_circle_outline),
+                        label: const Text('Jour J'),
+                      ),
+                    if (data['presentation']
+                        case final MpsPresentationPackage package)
+                      if (spaceMap(package.artifact.context['editorial'])
+                              ?.isNotEmpty ==
+                          true)
+                        ExpansionTile(
+                          title: const Text('Présentation'),
+                          children: [
+                            MpsNativeRenderer(
+                              package: package,
+                              mediaBaseUri: widget.runtime.api?.baseUri,
+                              mediaScopeKey:
+                                  '${widget.runtime.session?.profileId}:${widget.spaceActor.space.id}:${widget.spaceActor.perspective.id ?? 'all'}',
+                            ),
+                          ],
+                        ),
+                    if (data['presentation_unavailable'] == true)
+                      const Text(
+                        'La présentation associée est indisponible. Actualisez pour réessayer.',
+                      ),
                   ],
                 );
               },

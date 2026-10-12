@@ -515,7 +515,7 @@ class _DiscoveryUnit extends StatelessWidget {
                   if (item.availability != null ||
                       item.canSave ||
                       item.canUnsave ||
-                      item.savedState != null) ...[
+                      item.savedState == 'saved') ...[
                     const SizedBox(height: MakoloSpacing.md),
                     Row(
                       children: [
@@ -524,7 +524,7 @@ class _DiscoveryUnit extends StatelessWidget {
                         const Spacer(),
                         if (item.canSave ||
                             item.canUnsave ||
-                            item.savedState != null)
+                            item.savedState == 'saved')
                           Icon(
                             item.savedState == 'saved'
                                 ? Icons.bookmark_rounded
@@ -684,14 +684,16 @@ class _DiscoveryFocusPane extends StatelessWidget {
           if (item.availability != null ||
               item.canSave ||
               item.canUnsave ||
-              item.savedState != null) ...[
+              item.savedState == 'saved') ...[
             const SizedBox(height: MakoloSpacing.md),
             Row(
               children: [
                 if (item.availability != null)
                   MakoloStatus(label: item.availability!),
                 const Spacer(),
-                if (item.canSave || item.canUnsave || item.savedState != null)
+                if (item.canSave ||
+                    item.canUnsave ||
+                    item.savedState == 'saved')
                   Icon(
                     item.savedState == 'saved'
                         ? Icons.bookmark_rounded

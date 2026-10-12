@@ -11,6 +11,9 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../navigation/secondary_screen.dart';
 import '../../sync/owner_source_state.dart';
+import '../../design/surface_states.dart';
+import '../../presentation/projection_surface_adapter.dart';
+import '../../sync/freshness.dart';
 import 'space_repository.dart';
 import 'space_work_surface.dart';
 
@@ -147,17 +150,87 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
       return const SizedBox.shrink();
     }
 
-    return StreamBuilder<StoredProjection?>(
-      key: ValueKey(
-        '${widget.surface.name}:${actor.space.id}:'
-        '${SpaceSyncKeys.perspectiveKey(actor.perspective)}',
+    final source = switch (widget.surface) {
+      SpaceShellSurface.now => repository.nowSource(
+        actor.space,
+        actor.perspective,
       ),
-      stream: _stream(repository, actor),
-      builder: (context, snapshot) => _SpaceProjectionBody(
-        surface: widget.surface,
-        projection: snapshot.data,
-        fallbackSpaceName: actor.space.slug,
+      SpaceShellSurface.discover => repository.discoverSource(actor.space),
+      SpaceShellSurface.work => repository.workSource(
+        actor.space,
+        actor.perspective,
       ),
+      SpaceShellSurface.us => repository.usSource(actor.space),
+    };
+    return StreamBuilder<OwnerSourceState>(
+      key: ValueKey(source.sourceKey),
+      stream: repository.watchSource(source),
+      builder: (context, status) {
+        if (status.data?.invalidated == true) {
+          return const MakoloEmptyState(
+            title: 'Autorité Space révoquée ou indisponible.',
+            icon: Icons.lock_outline,
+          );
+        }
+        return StreamBuilder<StoredProjection?>(
+          key: ValueKey(
+            '${widget.surface.name}:${actor.space.id}:'
+            '${SpaceSyncKeys.perspectiveKey(actor.perspective)}',
+          ),
+          stream: _stream(repository, actor),
+          builder: (context, snapshot) {
+            final projection = snapshot.data;
+            final freshness = projection == null
+                ? null
+                : WorkspaceContextRepository.surfaceFreshness.evaluate(
+                    projection,
+                    now: DateTime.now(),
+                  );
+            if (freshness == FreshnessState.expired) {
+              return MakoloErrorState(
+                message: 'Cette observation a expiré.',
+                onRetry: _refresh,
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                MakoloFreshnessNotice(
+                  freshness: const ProjectionSurfaceAdapter().freshnessCue(
+                    freshness,
+                  ),
+                ),
+                if (status.data?.lastErrorCode != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            projection == null
+                                ? 'Actualisation indisponible.'
+                                : 'Actualisation indisponible. Observation conservée du ${projection.receivedAt.toLocal()}',
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _refresh,
+                          child: const Text('Réessayer'),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: _SpaceProjectionBody(
+                    surface: widget.surface,
+                    projection: snapshot.data,
+                    fallbackSpaceName: actor.space.slug,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -200,11 +273,15 @@ class _SpaceProjectionBody extends StatelessWidget {
   }) {
     final selection = payload['selection'];
     final state = selection is Map ? selection['state'] : null;
-    if (state == 'unavailable') {
+    if (state != 'established' && state != 'available' && state != 'partial') {
       return _message('Cette vue n’est pas disponible pour le moment.');
     }
     final items = payload['items'];
-    if (items is! List || items.isEmpty) return _message(emptyMessage);
+    if (items is! List || items.isEmpty) {
+      return _message(
+        state == 'established' || state == 'available' ? emptyMessage : 'La sélection est partielle. Aucun élément connu dans cet aperçu.',
+      );
+    }
     return _message(
       '${items.length} élément${items.length > 1 ? 's' : ''} à consulter.',
     );
