@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,10 +19,20 @@ class SpaceWorkAPIView(APIView):
 
     def get(self, request, slug):
         space = self._space(request, slug)
+        try:
+            offset = int(request.query_params.get("offset", "0"))
+        except ValueError:
+            raise ValidationError({"offset": "Décalage invalide."})
+        if not 0 <= offset <= 10000:
+            raise ValidationError({"offset": "Décalage hors limites."})
         payload = build_space_work_projection(
             profile=request.user,
             space=space,
             responsibility_key=(request.query_params.get("responsibility") or "").strip() or None,
+            source_kind=(request.query_params.get("kind") or "").strip()[:40] or None,
+            source_id=(request.query_params.get("id") or "").strip()[:80] or None,
+            section_key=(request.query_params.get("section") or "").strip()[:40] or None,
+            offset=offset,
         )
         if payload is None:
             raise NotFound()
