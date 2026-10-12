@@ -603,11 +603,21 @@ class _NowPrimarySituation extends StatelessWidget {
       situation.meaning,
       situation.humanContext,
     ]);
+    final consequence = _distinctPresentationText(situation.consequence, [
+      situation.meaning,
+      situation.humanContext,
+      situation.whyNow,
+    ]);
     return Semantics(
       container: true,
       button: true,
       selected: selected,
-      label: [?contextLabel, situation.meaning, ?whyNow].join('. '),
+      label: [
+        ?contextLabel,
+        situation.meaning,
+        ?consequence,
+        ?whyNow,
+      ].join('. '),
       child: InkWell(
         onTap: onSelect,
         borderRadius: BorderRadius.circular(MakoloRadii.card),
@@ -629,6 +639,16 @@ class _NowPrimarySituation extends StatelessWidget {
                 situation.meaning,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
+              if (consequence != null) ...[
+                const SizedBox(height: MakoloSpacing.xs),
+                Text(
+                  consequence,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
               if (whyNow != null) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 Text(
