@@ -88,3 +88,5 @@ Self-review (`ai-development-guardrails.md`) : propriétaires et permissions ré
 - Django : 113 tests de convergence puis 20 tests Métier après ajout du prix de l’Offer, tous verts ; aucune migration détectée ; contrats OpenAPI/C0 préservés.
 - PR unique : #518, sans merge automatique. Mobile CI, CI générale, API Contract, sécurité, contrôles visuels généraux, Android Build et suites PostgreSQL sont verts sur le premier HEAD publié.
 - Le premier gate Now a révélé une préparation CI manquante (sources générées absentes). La génération build_runner et la vérification de sa politique sont ajoutées comme dans Mobile CI ; les assertions Golden restent strictes.
+
+- Correction Golden canonique : les 20 scénarios ont été rendus avec succès sur Ubuntu/Flutter 3.47.3 dans le run `38243330011`, HEAD `5b536c258174bf1c101d9de9bd19ead1d3a9d8b9`. Les 20 PNG de l’artifact `11743962104` remplacent les références Windows après inspection. Seule la rasterisation diffère entre ces environnements ; la conséquence S5 et les assertions restent conservées. Les références versionnées sont désormais celles du runner canonique, pas celles du poste Windows.
