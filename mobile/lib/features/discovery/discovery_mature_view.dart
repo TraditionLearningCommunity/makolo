@@ -512,9 +512,32 @@ class _DiscoveryUnit extends StatelessWidget {
                     const SizedBox(height: MakoloSpacing.md),
                     MakoloMetadata(items: metadata),
                   ],
-                  if (item.availability != null) ...[
+                  if (item.availability != null ||
+                      item.canSave ||
+                      item.canUnsave ||
+                      item.savedState != null) ...[
                     const SizedBox(height: MakoloSpacing.md),
-                    MakoloStatus(label: item.availability!),
+                    Row(
+                      children: [
+                        if (item.availability != null)
+                          MakoloStatus(label: item.availability!),
+                        const Spacer(),
+                        if (item.canSave ||
+                            item.canUnsave ||
+                            item.savedState != null)
+                          Icon(
+                            item.savedState == 'saved'
+                                ? Icons.bookmark_rounded
+                                : Icons.bookmark_border_rounded,
+                            size: 20,
+                            color: item.savedState == 'saved'
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                          ),
+                      ],
+                    ),
                   ],
                   if (onSelect != null) ...[
                     const SizedBox(height: MakoloSpacing.md),
@@ -658,9 +681,28 @@ class _DiscoveryFocusPane extends StatelessWidget {
               ],
             ),
           ],
-          if (item.availability != null) ...[
+          if (item.availability != null ||
+              item.canSave ||
+              item.canUnsave ||
+              item.savedState != null) ...[
             const SizedBox(height: MakoloSpacing.md),
-            MakoloStatus(label: item.availability!),
+            Row(
+              children: [
+                if (item.availability != null)
+                  MakoloStatus(label: item.availability!),
+                const Spacer(),
+                if (item.canSave || item.canUnsave || item.savedState != null)
+                  Icon(
+                    item.savedState == 'saved'
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    size: 22,
+                    color: item.savedState == 'saved'
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+              ],
+            ),
           ],
           const SizedBox(height: MakoloSpacing.lg),
           FilledButton.icon(
