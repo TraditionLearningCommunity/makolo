@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../design/behavior_states.dart';
+import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 
 class SpaceWorkSurface extends StatelessWidget {
@@ -74,43 +75,121 @@ class SpaceWorkSurface extends StatelessWidget {
 
   Widget _item(BuildContext context, Map<String, dynamic> item) {
     final title = _string(item['title']) ?? 'Élément';
-    final subtitle = _subtitle(item);
+    final summary = _string(item['summary']);
     final source = _map(item['source']);
+    final kind = _string(item['kind']) ?? _string(source?['kind']);
     final capabilities = item['capabilities'];
     final canOpenDayOf =
         source?['kind'] == 'occurrence' &&
         source?['id'] is String &&
         capabilities is List &&
         capabilities.contains('open_day_of');
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(title),
-      subtitle: subtitle == null ? null : Text(subtitle),
-      trailing: canOpenDayOf ? const Icon(Icons.chevron_right_rounded) : null,
-      onTap: canOpenDayOf
-          ? () => context.push('/space/occurrences/${source!['id']}/day-of')
-          : null,
-    );
-  }
 
-  String? _subtitle(Map<String, dynamic> item) {
-    final parts = <String>[];
-    final summary = _string(item['summary']);
-    if (summary != null) parts.add(summary);
+    final metadataItems = <MakoloMetadataItem>[];
     final timing = _map(item['timing']);
     final day = _string(timing?['start_date']);
     final clock = _string(timing?['start_time']);
     if (day != null) {
-      parts.add(clock == null ? day : '$day · $clock');
+      metadataItems.add(
+        MakoloMetadataItem(
+          clock == null ? day : '$day · $clock',
+          icon: Icons.schedule_outlined,
+        ),
+      );
     }
     final until = _string(timing?['available_until']);
-    if (until != null) parts.add('Jusqu’au $until');
+    if (until != null) {
+      metadataItems.add(
+        MakoloMetadataItem(
+          'Jusqu’au $until',
+          icon: Icons.event_available_outlined,
+        ),
+      );
+    }
     final itemContext = _map(item['context']);
     final passengerCapacity = itemContext?['passenger_capacity'];
     if (passengerCapacity is num) {
-      parts.add('${passengerCapacity.toInt()} places');
+      metadataItems.add(
+        MakoloMetadataItem(
+          '${passengerCapacity.toInt()} places',
+          icon: Icons.airline_seat_recline_normal_outlined,
+        ),
+      );
     }
-    return parts.isEmpty ? null : parts.join('\n');
+
+    final state = _string(item['state']);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+      child: MakoloCard(
+        onTap: canOpenDayOf
+            ? () => context.push('/space/occurrences/${source!['id']}/day-of')
+            : null,
+        semanticLabel: title,
+        padding: const EdgeInsets.all(MakoloSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2, right: MakoloSpacing.md),
+              child: Icon(
+                _archetypeIcon(kind),
+                color: Theme.of(context).colorScheme.primary,
+                size: 22,
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  if (summary != null) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
+                    Text(
+                      summary,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (metadataItems.isNotEmpty) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    MakoloMetadata(items: metadataItems),
+                  ],
+                  if (state != null) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
+                    MakoloStatus(label: state),
+                  ],
+                ],
+              ),
+            ),
+            if (canOpenDayOf)
+              Padding(
+                padding: const EdgeInsets.only(left: MakoloSpacing.sm, top: 2),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _archetypeIcon(String? kind) {
+    return switch (kind) {
+      'departure' || 'transport_route' => Icons.directions_bus_outlined,
+      'occurrence' => Icons.schedule_outlined,
+      'activity' => Icons.local_activity_outlined,
+      'offer' || 'order' => Icons.shopping_bag_outlined,
+      'journey' => Icons.timeline_outlined,
+      _ => Icons.work_outline_rounded,
+    };
   }
 
   Widget _message(String message) => ListView(

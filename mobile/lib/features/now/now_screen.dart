@@ -13,6 +13,8 @@ import '../../navigation/deep_link_resolver.dart';
 import '../../navigation/destination.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../presentation/contracts/now_presentation.dart';
+export '../../presentation/contracts/now_presentation.dart'
+    show NowTopology, topologyFor;
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
 import '../../sync/sync_engine.dart';
@@ -412,37 +414,6 @@ String? _distinctPresentationText(String? value, Iterable<String?> others) {
     if (_samePresentationText(text, other)) return null;
   }
   return text;
-}
-
-enum NowTopology { meaning, media, action, waiting, composition }
-
-NowTopology topologyFor(NowSituationPresentation situation) {
-  if (situation.mediaBindings.any((media) => media.canDominate)) {
-    return NowTopology.media;
-  }
-  if (situation.businessActions.any((action) => action.canDominate)) {
-    return NowTopology.action;
-  }
-  // A relation alone is not a composed Now situation: require a present
-  // consequence and an explicit explanation from the owning projection.
-  final memberIds = situation.relationMembers.map((item) => item.id).toSet();
-  final hasRealRelation = situation.relations.any((relation) {
-    final linked = relation.memberIds.toSet().intersection(memberIds);
-    return relation.kind.trim().isNotEmpty && linked.length >= 2;
-  });
-  if (memberIds.length >= 2 &&
-      hasRealRelation &&
-      situation.whyNow?.trim().isNotEmpty == true &&
-      situation.consequence?.trim().isNotEmpty == true &&
-      situation.responseType?.trim().isNotEmpty == true) {
-    return NowTopology.composition;
-  }
-  // Waiting is a response owned by the projection, not an inferred status.
-  final response = situation.responseType?.toLowerCase();
-  if (response == 'wait' || response == 'monitor' || response == 'waiting') {
-    return NowTopology.waiting;
-  }
-  return NowTopology.meaning;
 }
 
 class _NowSemanticContent extends StatelessWidget {
