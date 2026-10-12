@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
+from activities.selectors import primary_place_for_occurrence
 from authorization.constants import PermissionCode
 from authorization.models import AuthorityScope
 from authorization.selectors import (
@@ -106,6 +107,7 @@ def _occurrence_item(occurrence, caps):
     is_departure = hasattr(occurrence, "transport_departure")
     operation_visible = occurrence.activity_id in caps["operations"]
     current_day_of = operation_visible and occurrence.is_ongoing
+    place = primary_place_for_occurrence(occurrence)
     links = {
         "detail": f"/api/v1/occurrences/{occurrence.pk}/",
         "activity": f"/api/v1/activities/{occurrence.activity_id}/",
@@ -135,6 +137,7 @@ def _occurrence_item(occurrence, caps):
         },
         "state": occurrence.status,
         "context": {
+            "place": {"id": str(place.pk), "name": place.name} if place else None,
             "activity": {
                 "id": str(occurrence.activity_id),
                 "title": occurrence.activity.title,
@@ -158,6 +161,10 @@ def _offer_item(offer, caps):
         },
         "state": offer.status,
         "context": {
+            "pricing": {
+                "unit_price": str(offer.unit_price),
+                "currency": offer.currency,
+            },
             "activity": {
                 "id": str(offer.activity_id),
                 "title": offer.activity.title,
@@ -242,7 +249,14 @@ def _route_item(route):
         "summary": None,
         "timing": {},
         "state": "active" if route.active else "inactive",
-        "context": {},
+        "context": {
+            "stops": [
+                {"id": str(stop.place_id), "name": stop.place.name,
+                 "position": stop.position, "boarding_allowed": stop.boarding_allowed,
+                 "alighting_allowed": stop.alighting_allowed}
+                for stop in route.stops.all()
+            ],
+        },
         "links": {},
         "capabilities": ["view"],
     }
@@ -323,6 +337,12 @@ def _empty_sections(*, space, include_offers=False, include_transport=False, inc
 
 
 def _append(section, item):
+    if not section.get("_enabled", True):
+        return
+    seen = section.get("_seen", 0)
+    section["_seen"] = seen + 1
+    if seen < section.get("_offset", 0):
+        return
     if len(section["items"]) < PREVIEW_LIMIT:
         section["items"].append(item)
     else:
@@ -381,7 +401,22 @@ def _journey_section(journey):
     return None
 
 
-def build_space_work_projection(*, profile, space, responsibility_key=None):
+def _selected(queryset, kind, source_kind, source_id):
+    """Restrict an owner read to one identity before applying preview limits."""
+    if not source_kind and not source_id:
+        return queryset
+    if source_kind != kind or not source_id:
+        return queryset.none()
+    try:
+        return queryset.filter(pk=source_id)
+    except (ValueError, DjangoValidationError):
+        return queryset.none()
+
+
+def build_space_work_projection(
+    *, profile, space, responsibility_key=None, source_kind=None, source_id=None,
+    section_key=None, offset=0
+):
     visible_ids = _visible_activity_ids(profile, space)
     lens_ids = _activity_scope_from_responsibility(
         profile, space, responsibility_key
@@ -396,6 +431,7 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
     direct_portfolio = _space_has_activity_portfolio_access(profile, space)
     transport_visible = (
         direct_portfolio
+        and lens_ids is None
         and "transport" in operational_footprint_for_space(space).signals
     )
     commerce_visible = bool(visible_ids & caps["commerce"])
@@ -409,10 +445,16 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         include_transport=transport_visible,
         include_requests=education_visible or service_visible,
     )
+    if section_key and section_key not in sections:
+        return None
+    for key, section in sections.items():
+        section["_enabled"] = not section_key or key == section_key
+        section["_offset"] = offset if section_key else 0
     now = timezone.now()
     today = timezone.localdate()
 
     activities = Activity.objects.filter(space=space, pk__in=visible_ids).order_by("title", "pk")
+    activities = _selected(activities, "activity", source_kind, source_id)
     for activity in activities:
         if activity.status == ActivityStatus.DRAFT:
             target = "preparation"
@@ -427,8 +469,10 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
     occurrences = (
         Occurrence.objects.filter(activity__space=space, activity_id__in=visible_ids)
         .select_related("activity", "transport_departure")
+        .prefetch_related("place_links__place")
         .order_by("start_date", "start_time", "pk")
     )
+    occurrences = _selected(occurrences, "occurrence", source_kind, source_id)
     for occurrence in occurrences:
         if occurrence.status == OccurrenceStatus.DRAFT:
             target = "preparation"
@@ -448,11 +492,12 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         _append(sections[target], _occurrence_item(occurrence, caps))
 
     commerce_activity_ids = visible_ids & caps["commerce"]
-    for offer in (
+    offers = (
         Offer.objects.filter(activity_id__in=commerce_activity_ids)
         .select_related("activity")
         .order_by("activity_id", "name", "pk")
-    ):
+    )
+    for offer in _selected(offers, "offer", source_kind, source_id):
         if offer.status == OfferStatus.DRAFT:
             target = "preparation"
         elif offer.status == OfferStatus.ACTIVE:
@@ -472,6 +517,7 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             .select_related("journey__activity")
             .order_by("-created_at", "pk")
         )
+        orders = _selected(orders, "commerce_order", source_kind, source_id)
         for order in orders:
             if order.status == CommerceOrderStatus.DRAFT:
                 target = "preparation"
@@ -488,7 +534,7 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             _append(sections[target], _order_item(order, caps))
 
     if education_ids:
-        for journey in (
+        journeys = (
             Journey.objects.filter(
                 activity_id__in=education_ids,
                 workflow=WorkflowKind.REGISTRATION,
@@ -496,7 +542,8 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
             .select_related("activity")
             .prefetch_related("blockers")
             .order_by("-created_at", "pk")
-        ):
+        )
+        for journey in _selected(journeys, "journey", source_kind, source_id):
             if (
                 education_visible
                 and journey.status in {
@@ -511,12 +558,13 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
                 _append(sections[target], _journey_item(journey, caps))
 
     if service_ids:
-        for journey in (
+        journeys = (
             service_journeys_visible_to(profile)
             .filter(activity_id__in=service_ids)
             .select_related("activity")
             .prefetch_related("blockers")
-        ):
+        )
+        for journey in _selected(journeys, "journey", source_kind, source_id):
             if (
                 service_visible
                 and journey.status in {
@@ -531,9 +579,11 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
                 _append(sections[target], _journey_item(journey, caps))
 
     if transport_visible:
-        for route in TransportRoute.objects.filter(space=space).order_by("name", "pk"):
+        routes = TransportRoute.objects.filter(space=space).prefetch_related("stops__place").order_by("name", "pk")
+        for route in _selected(routes, "transport_route", source_kind, source_id):
             _append(sections["routes"], _route_item(route))
-        for vehicle in Vehicle.objects.filter(space=space).order_by("label", "pk"):
+        vehicles = Vehicle.objects.filter(space=space).order_by("label", "pk")
+        for vehicle in _selected(vehicles, "vehicle", source_kind, source_id):
             _append(sections["vehicles"], _vehicle_item(vehicle))
 
     footprint = (
@@ -541,6 +591,12 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         if direct_portfolio
         else []
     )
+    for section in sections.values():
+        section.pop("_enabled", None)
+        section.pop("_offset", None)
+        section.pop("_seen", None)
+    if section_key:
+        sections = {section_key: sections[section_key]}
     return {
         "space": {
             "id": str(space.pk),
@@ -562,6 +618,11 @@ def build_space_work_projection(*, profile, space, responsibility_key=None):
         "composition_state": "established",
         "coverage_state": "established",
         "sections": sections,
+        "page": {"offset": offset if section_key else 0, "limit": PREVIEW_LIMIT},
+        "selection": next(
+            (item for section in sections.values() for item in section["items"]),
+            None,
+        ) if source_kind or source_id else None,
         "links": {
             "workspace": f"/api/v1/organizations/workspaces/{space.slug}/",
         },

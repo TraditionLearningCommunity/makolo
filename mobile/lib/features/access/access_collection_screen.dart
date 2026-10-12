@@ -242,40 +242,84 @@ class _AccessCollectionCard extends StatelessWidget {
   final _AccessCollectionItem item;
   final VoidCallback onOpen;
 
+  MakoloStatusTone _stateTone(String state) {
+    return switch (state.toLowerCase()) {
+      'valide' || 'valid' => MakoloStatusTone.success,
+      'en attente' || 'pending' => MakoloStatusTone.warning,
+      'annulé' || 'annule' || 'cancelled' => MakoloStatusTone.error,
+      _ => MakoloStatusTone.neutral,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final details = <String>[
+    final contextLine = [
       if (item.context != null) item.context!,
-      item.stateLabel,
       if (item.validity != null) item.validity!,
-      if (item.holder != null) 'Pour ${item.holder!}',
-    ];
+    ].join(' · ');
 
     return MakoloCard(
       onTap: onOpen,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.badge_outlined),
+          Icon(
+            Icons.badge_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(width: MakoloSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.title,
-                  style: Theme.of(context).textTheme.titleMedium,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    const SizedBox(width: MakoloSpacing.sm),
+                    MakoloStatus(
+                      label: item.stateLabel,
+                      tone: _stateTone(item.stateLabel),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: MakoloSpacing.xs),
-                Text(
-                  details.join(' · '),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                if (contextLine.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(
+                    contextLine,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
+                ],
+                if (item.holder != null) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline_rounded,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: MakoloSpacing.xs),
+                      Text(
+                        'Pour ${item.holder!}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
+          const SizedBox(width: MakoloSpacing.sm),
           const Icon(Icons.chevron_right_rounded),
         ],
       ),

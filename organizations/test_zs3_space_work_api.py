@@ -69,6 +69,56 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             **kwargs,
         )
 
+    def test_owner_selection_revalidates_scope_and_works_beyond_preview(self):
+        self.client.force_authenticate(self.owner)
+        for index in range(21):
+            self._activity(f"A {index:02}")
+        selected = self._activity("Z selected")
+        response = self.client.get(self.url, {"kind": "activity", "id": str(selected.pk)})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["selection"]["source"]["id"], str(selected.pk))
+        foreign = Organization.objects.create(name="Foreign", slug="foreign-work", created_by=self.owner)
+        hidden = Activity.objects.create(title="Hidden", space=foreign, created_by=self.owner)
+        for kind, identity in (("activity", hidden.pk), ("activity", "bad-id"), ("unknown", selected.pk)):
+            denied = self.client.get(self.url, {"kind": kind, "id": str(identity)})
+            self.assertIsNone(denied.data["selection"])
+            self.assertNotIn("Hidden", str(denied.data))
+
+    def test_work_section_continuation_does_not_repeat_preview_or_cross_owner(self):
+        self.client.force_authenticate(self.owner)
+        expected = [self._activity(f"A {index:02}") for index in range(23)]
+        first = self.client.get(self.url, {"section": "preparation", "offset": "0"})
+        second = self.client.get(self.url, {"section": "preparation", "offset": "20"})
+        self.assertEqual(set(second.data["sections"]), {"preparation"})
+        preview = first.data["sections"]["preparation"]
+        continuation = second.data["sections"]["preparation"]
+        self.assertTrue(preview["has_more"])
+        self.assertFalse(continuation["has_more"])
+        identities = [item["source"]["id"] for item in preview["items"] + continuation["items"]]
+        self.assertEqual(identities, [str(activity.pk) for activity in expected])
+        self.assertNotIn("_offset", str(second.data))
+        self.assertEqual(self.client.get(self.url, {"offset": "-1"}).status_code, 400)
+        self.assertEqual(self.client.get(self.url, {"offset": "bad"}).status_code, 400)
+        self.assertEqual(self.client.get(self.url, {"section": "not-an-owner"}).status_code, 404)
+
+    def test_activity_lens_does_not_expose_transport_structure_or_foreign_activity(self):
+        self.client.force_authenticate(self.owner)
+        self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self._activity("Scoped activity")
+        hidden = self._activity("Other activity")
+        mandate = grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_MANAGER, granted_by=self.owner,
+        )
+        route = TransportRoute.objects.create(space=self.space, name="Route privée")
+        params = {"responsibility": f"mandate:{mandate.pk}"}
+        response = self.client.get(self.url, params)
+        self.assertNotIn("routes", response.data["sections"])
+        for kind, identity in (("transport_route", route.pk), ("activity", hidden.pk)):
+            selected = self.client.get(self.url, {**params, "kind": kind, "id": str(identity)})
+            self.assertIsNone(selected.data["selection"])
+
     def test_auth_and_minimal_disclosure_boundaries(self):
         self.assertEqual(self.client.get(self.url).status_code, 401)
 
@@ -293,6 +343,8 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         ]
         self.assertEqual(len(offers), 1)
         self.assertEqual(offers[0]["title"], "Offre ZS3")
+        self.assertEqual(offers[0]["context"]["pricing"]["unit_price"], "0.00")
+        self.assertEqual(offers[0]["context"]["pricing"]["currency"], "USD")
         self.assertEqual(response.data["sections"]["preparation"]["representation"], "À traiter")
         self.assertEqual(response.data["sections"]["active"]["representation"], "Commandes actives")
         self.assertEqual(response.data["sections"]["offers"]["representation"], "Offres")

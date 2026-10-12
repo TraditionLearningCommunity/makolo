@@ -1,11 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
+import '../../design/behavior_states.dart';
+import '../../design/surface_states.dart';
+import '../../presentation/contracts/space_presentation.dart';
+import '../../presentation/projection_surface_adapter.dart';
+import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
+import 'space_insight_surfaces.dart';
 import 'space_repository.dart';
 
 class SpaceInsightScreen extends StatefulWidget {
@@ -27,6 +34,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
   Map<String, dynamic>? results;
   bool searchFailed = false;
   int searchVersion = 0;
+  bool refreshing = false;
 
   SpaceActorContext? get actor {
     final current = widget.runtime.actorContext?.value;
@@ -47,12 +55,32 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant SpaceInsightScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime.actorContext != widget.runtime.actorContext) {
+      oldWidget.runtime.actorContext?.removeListener(onActorChanged);
+      widget.runtime.actorContext?.addListener(onActorChanged);
+    }
+    if (oldWidget.runtime != widget.runtime ||
+        oldWidget.surface != widget.surface) {
+      searchVersion++;
+      results = null;
+      searchFailed = false;
+      searchController.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(refresh());
+      });
+    }
+  }
+
   void onActorChanged() {
     if (!mounted) return;
     searchVersion++;
     setState(() {
       results = null;
       searchFailed = false;
+      searchController.clear();
     });
     unawaited(refresh());
   }
@@ -61,6 +89,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     final space = actor?.space;
     final repository = widget.runtime.space;
     if (space == null || repository == null) return;
+    setState(() => refreshing = true);
     try {
       if (widget.surface == SpaceProjectionKind.relationships) {
         await repository.refreshRelationships(space);
@@ -69,6 +98,8 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
       }
     } on Object {
       // The source state decides whether cached data remains usable.
+    } finally {
+      if (mounted) setState(() => refreshing = false);
     }
   }
 
@@ -126,6 +157,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: StreamBuilder<OwnerSourceState>(
+        key: ValueKey('${space.id}:${widget.surface.name}'),
         stream: repository.watchSource(source),
         initialData: OwnerSourceState.unknown,
         builder: (context, sourceSnapshot) {
@@ -143,9 +175,54 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             builder: (context, snapshot) {
               final payload = snapshot.data?.payload;
               if (payload == null) {
-                return const Center(child: Text('Projection non disponible.'));
+                return refreshing
+                    ? const Center(child: CircularProgressIndicator())
+                    : MakoloErrorState(
+                        message: 'Projection non disponible.',
+                        onRetry: refresh,
+                      );
               }
-              return relations ? relationsBody(payload) : pilotBody(payload);
+              final freshness = WorkspaceContextRepository.surfaceFreshness
+                  .evaluate(snapshot.data!, now: DateTime.now());
+              if (freshness == FreshnessState.expired) {
+                return MakoloErrorState(
+                  message: 'Cette observation a expiré.',
+                  onRetry: refresh,
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (refreshing) const LinearProgressIndicator(),
+                  MakoloFreshnessNotice(
+                    freshness: const ProjectionSurfaceAdapter().freshnessCue(
+                      freshness,
+                    ),
+                  ),
+                  if (status?.lastErrorCode != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Actualisation indisponible. Observation conservée du ${snapshot.data!.receivedAt.toLocal()}',
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: refresh,
+                            child: const Text('Réessayer'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Expanded(
+                    child: relations
+                        ? relationsBody(payload)
+                        : SpacePilotSurface(payload: payload),
+                  ),
+                ],
+              );
             },
           );
         },
@@ -156,20 +233,25 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
   Widget relationsBody(Map<String, dynamic> payload) {
     final sections = payload['sections'];
     if (sections is! Map || sections.isEmpty) {
-      return const Center(
-        child: Text('Aucune relation visible dans ce contexte.'),
+      return const MakoloEmptyState(
+        title: 'Relations non autorisées ou indisponibles dans ce contexte.',
+        icon: Icons.lock_outline,
       );
     }
     final query = searchController.text.trim();
     final matches = results?['items'];
-    final rows = <Map<String, dynamic>>[];
+    final groups = <String, List<Map<String, dynamic>>>{};
     if (query.isNotEmpty && matches is List) {
+      final rows = <Map<String, dynamic>>[];
       for (final item in matches) {
         if (item is Map) rows.add(Map<String, dynamic>.from(item));
       }
+      groups['Résultats'] = rows;
     } else {
-      for (final section in sections.values) {
+      for (final entry in sections.entries) {
+        final section = entry.value;
         if (section is! Map || section['items'] is! List) continue;
+        final rows = <Map<String, dynamic>>[];
         for (final item in section['items'] as List) {
           if (item is Map) {
             final row = Map<String, dynamic>.from(item);
@@ -179,19 +261,27 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             }
           }
         }
+        groups[spaceRelationshipSectionLabels[entry.key] ?? 'Relations'] = rows;
       }
     }
     return ListView(
       key: const Key('space-relationships-secondary'),
       padding: const EdgeInsets.all(20),
       children: [
-        const Text('Relations conservées dans leurs domaines propriétaires.'),
+        Text(
+          spaceText(payload['label']) ?? 'Personnes & relations',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
         const SizedBox(height: 12),
         TextField(
           controller: searchController,
+          maxLength: 120,
           onChanged: (_) {
             searchVersion++;
-            setState(() => results = null);
+            setState(() {
+              results = null;
+              searchFailed = false;
+            });
           },
           onSubmitted: (_) => search(),
           decoration: InputDecoration(
@@ -207,20 +297,49 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
           const Text(
             'Recherche distante indisponible. Résultats locaux partiels.',
           ),
-        if (rows.isEmpty)
+        if (query.isNotEmpty && results == null)
+          const Text(
+            'Aperçu local partiel. Lancez la recherche pour consulter toutes les relations autorisées.',
+          ),
+        if (groups.values.every((rows) => rows.isEmpty))
           const Text(
             'Aucune relation correspondante dans les données visibles.',
           ),
-        for (final row in rows)
-          ListTile(
-            title: Text(labelOf(row)),
-            subtitle: Text(row['relation_type']?.toString() ?? 'Relation'),
+        for (final entry in groups.entries) ...[
+          if (entry.value.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                entry.key,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          for (final row in entry.value)
+            SpaceRelationshipCard(
+              row: row,
+              onOpen: _relationRoute(row) == null
+                  ? null
+                  : () => context.push(_relationRoute(row)!),
+            ),
+        ],
+        if (query.isEmpty &&
+            sections.values.any(
+              (section) => section is Map && section['has_more'] == true,
+            ))
+          const Text(
+            'Aperçu partiel. Recherchez pour retrouver les autres relations.',
           ),
         if (results?['has_more'] == true)
           const Text('Autres résultats possibles : affinez la recherche.'),
       ],
     );
   }
+
+  String? _relationRoute(Map<String, dynamic> row) => spaceOwnerRoute(
+    slug: actor?.space.slug,
+    kind: spaceText(row['kind']),
+    id: spaceText(row['id']),
+  );
 
   String labelOf(Map<String, dynamic> row) {
     final profile = row['profile'];
@@ -229,54 +348,5 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
       return profile['name'] as String;
     }
     return row['name']?.toString() ?? row['label']?.toString() ?? 'Relation';
-  }
-
-  Widget pilotBody(Map<String, dynamic> payload) {
-    final sections = payload['sections'];
-    final analytics = sections is Map ? sections['analytics'] : null;
-    if (analytics is! Map) {
-      return const Center(
-        child: Text('Pilotage non autorisé ou indisponible.'),
-      );
-    }
-    final signals = analytics['signals'] is List
-        ? analytics['signals'] as List
-        : const [];
-    final metrics = analytics['metrics'] is List
-        ? analytics['metrics'] as List
-        : const [];
-    return ListView(
-      key: const Key('space-pilot-secondary'),
-      padding: const EdgeInsets.all(20),
-      children: [
-        Text('Piloter', style: Theme.of(context).textTheme.headlineSmall),
-        const Text('Que savons-nous ? Que faut-il examiner ?'),
-        const SizedBox(height: 20),
-        if (signals.isEmpty)
-          const Text('Aucun signal interprétable à ce stade.'),
-        for (final signal in signals)
-          if (signal is Map)
-            ListTile(
-              title: Text(signal['title']?.toString() ?? 'Observation'),
-              subtitle: Text(signal['summary']?.toString() ?? ''),
-            ),
-        const SizedBox(height: 12),
-        ExpansionTile(
-          title: const Text('Mesures de soutien'),
-          children: [
-            for (final metric in metrics)
-              if (metric is Map)
-                ListTile(
-                  title: Text(metric['key']?.toString() ?? 'Mesure'),
-                  subtitle: Text(
-                    metric['state'] == 'known'
-                        ? '${metric['value']}'
-                        : metric['state']?.toString() ?? 'Inconnu',
-                  ),
-                ),
-          ],
-        ),
-      ],
-    );
   }
 }

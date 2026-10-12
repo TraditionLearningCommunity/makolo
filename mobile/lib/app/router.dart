@@ -1,4 +1,6 @@
 import '../features/continuity/transverse_retrieval_screen.dart';
+import '../features/continuity/space_retrieval_owner_screen.dart';
+import '../features/continuity/personal_owner_depth_screen.dart';
 
 import 'dart:async';
 
@@ -28,6 +30,7 @@ import '../features/settings/change_password_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
 import '../features/space/space_insight_screen.dart';
+import '../features/space/space_work_collection_screen.dart';
 import '../features/space/space_repository.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
@@ -219,6 +222,51 @@ GoRouter createMakoloRouter(
       ...markRoutes(runtime),
       ...continuityRoutes(runtime),
       ...notificationRoutes(runtime),
+      GoRoute(
+        path: '/space/:slug/work/:section',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Métier',
+              message: 'Choisissez l’Espace autorisé pour cette collection.',
+            );
+          }
+          return SpaceWorkCollectionScreen(
+            runtime: runtime,
+            actor: actor,
+            section: state.pathParameters['section']!,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/me/orders/:id',
+        builder: (context, state) => PersonalOwnerDepthScreen(
+          runtime: runtime,
+          kind: 'commerce_order',
+          id: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: '/space/:slug/retrieval/:kind/:id',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Détail de mon Espace',
+              message: 'Choisissez l’Espace autorisé pour ce détail.',
+            );
+          }
+          return SpaceRetrievalOwnerScreen(
+            runtime: runtime,
+            spaceActor: actor,
+            kind: state.pathParameters['kind']!,
+            id: state.pathParameters['id']!,
+          );
+        },
+      ),
       GoRoute(
         path: '/search',
         builder: (context, state) => TransverseRetrievalScreen(

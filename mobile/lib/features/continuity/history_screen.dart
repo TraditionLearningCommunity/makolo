@@ -423,6 +423,10 @@ class _HistoryCard extends StatelessWidget {
     return MakoloCard(
       onTap: item.id == null ? null : () => onOpen(item.kind, item.id!),
       child: MakoloStatusMetadataAction(
+        leading: Icon(
+          _kindIcon(item.kind),
+          color: Theme.of(context).colorScheme.primary,
+        ),
         title: item.title,
         subtitle: item.occurredAt,
         status: item.outcome == null
@@ -433,6 +437,19 @@ class _HistoryCard extends StatelessWidget {
             : const Icon(Icons.chevron_right_rounded),
       ),
     );
+  }
+
+  IconData _kindIcon(String kind) {
+    return switch (kind) {
+      'journey' => Icons.timeline_outlined,
+      'activity' || 'occurrence' => Icons.event_outlined,
+      'order' || 'offer' => Icons.shopping_bag_outlined,
+      'access' => Icons.badge_outlined,
+      'payment' => Icons.payments_outlined,
+      'form' || 'document' => Icons.description_outlined,
+      'message' || 'conversation' => Icons.chat_bubble_outline_rounded,
+      _ => Icons.history_rounded,
+    };
   }
 }
 

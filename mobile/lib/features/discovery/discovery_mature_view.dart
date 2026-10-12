@@ -448,6 +448,11 @@ class _DiscoveryUnit extends StatelessWidget {
         MakoloMetadataItem(item.owner!, icon: Icons.business_outlined),
       if (item.place != null)
         MakoloMetadataItem(item.place!, icon: Icons.place_outlined),
+      if (item.distanceKm != null)
+        MakoloMetadataItem(
+          '${item.distanceKm! < 10 ? item.distanceKm!.toStringAsFixed(1) : item.distanceKm!.round()} km',
+          icon: Icons.near_me_outlined,
+        ),
       if (item.timing != null)
         MakoloMetadataItem(item.timing!, icon: Icons.schedule_outlined),
       if (item.price != null)
@@ -507,9 +512,32 @@ class _DiscoveryUnit extends StatelessWidget {
                     const SizedBox(height: MakoloSpacing.md),
                     MakoloMetadata(items: metadata),
                   ],
-                  if (item.availability != null) ...[
+                  if (item.availability != null ||
+                      item.canSave ||
+                      item.canUnsave ||
+                      item.savedState == 'saved') ...[
                     const SizedBox(height: MakoloSpacing.md),
-                    MakoloStatus(label: item.availability!),
+                    Row(
+                      children: [
+                        if (item.availability != null)
+                          MakoloStatus(label: item.availability!),
+                        const Spacer(),
+                        if (item.canSave ||
+                            item.canUnsave ||
+                            item.savedState == 'saved')
+                          Icon(
+                            item.savedState == 'saved'
+                                ? Icons.bookmark_rounded
+                                : Icons.bookmark_border_rounded,
+                            size: 20,
+                            color: item.savedState == 'saved'
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                          ),
+                      ],
+                    ),
                   ],
                   if (onSelect != null) ...[
                     const SizedBox(height: MakoloSpacing.md),
@@ -619,6 +647,64 @@ class _DiscoveryFocusPane extends StatelessWidget {
           if (item.summary.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.sm),
             Text(item.summary),
+          ],
+          if (item.owner != null ||
+              item.place != null ||
+              item.timing != null ||
+              item.price != null ||
+              item.distanceKm != null) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            MakoloMetadata(
+              items: [
+                if (item.owner != null)
+                  MakoloMetadataItem(
+                    item.owner!,
+                    icon: Icons.business_outlined,
+                  ),
+                if (item.place != null)
+                  MakoloMetadataItem(item.place!, icon: Icons.place_outlined),
+                if (item.distanceKm != null)
+                  MakoloMetadataItem(
+                    '${item.distanceKm! < 10 ? item.distanceKm!.toStringAsFixed(1) : item.distanceKm!.round()} km',
+                    icon: Icons.near_me_outlined,
+                  ),
+                if (item.timing != null)
+                  MakoloMetadataItem(
+                    item.timing!,
+                    icon: Icons.schedule_outlined,
+                  ),
+                if (item.price != null)
+                  MakoloMetadataItem(
+                    item.price!,
+                    icon: Icons.payments_outlined,
+                  ),
+              ],
+            ),
+          ],
+          if (item.availability != null ||
+              item.canSave ||
+              item.canUnsave ||
+              item.savedState == 'saved') ...[
+            const SizedBox(height: MakoloSpacing.md),
+            Row(
+              children: [
+                if (item.availability != null)
+                  MakoloStatus(label: item.availability!),
+                const Spacer(),
+                if (item.canSave ||
+                    item.canUnsave ||
+                    item.savedState == 'saved')
+                  Icon(
+                    item.savedState == 'saved'
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    size: 22,
+                    color: item.savedState == 'saved'
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+              ],
+            ),
           ],
           const SizedBox(height: MakoloSpacing.lg),
           FilledButton.icon(

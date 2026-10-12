@@ -13,6 +13,8 @@ import '../../navigation/deep_link_resolver.dart';
 import '../../navigation/destination.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../presentation/contracts/now_presentation.dart';
+export '../../presentation/contracts/now_presentation.dart'
+    show NowTopology, topologyFor;
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
 import '../../sync/sync_engine.dart';
@@ -414,37 +416,6 @@ String? _distinctPresentationText(String? value, Iterable<String?> others) {
   return text;
 }
 
-enum NowTopology { meaning, media, action, waiting, composition }
-
-NowTopology topologyFor(NowSituationPresentation situation) {
-  if (situation.mediaBindings.any((media) => media.canDominate)) {
-    return NowTopology.media;
-  }
-  if (situation.businessActions.any((action) => action.canDominate)) {
-    return NowTopology.action;
-  }
-  // A relation alone is not a composed Now situation: require a present
-  // consequence and an explicit explanation from the owning projection.
-  final memberIds = situation.relationMembers.map((item) => item.id).toSet();
-  final hasRealRelation = situation.relations.any((relation) {
-    final linked = relation.memberIds.toSet().intersection(memberIds);
-    return relation.kind.trim().isNotEmpty && linked.length >= 2;
-  });
-  if (memberIds.length >= 2 &&
-      hasRealRelation &&
-      situation.whyNow?.trim().isNotEmpty == true &&
-      situation.consequence?.trim().isNotEmpty == true &&
-      situation.responseType?.trim().isNotEmpty == true) {
-    return NowTopology.composition;
-  }
-  // Waiting is a response owned by the projection, not an inferred status.
-  final response = situation.responseType?.toLowerCase();
-  if (response == 'wait' || response == 'monitor' || response == 'waiting') {
-    return NowTopology.waiting;
-  }
-  return NowTopology.meaning;
-}
-
 class _NowSemanticContent extends StatelessWidget {
   const _NowSemanticContent({
     required this.situation,
@@ -632,11 +603,21 @@ class _NowPrimarySituation extends StatelessWidget {
       situation.meaning,
       situation.humanContext,
     ]);
+    final consequence = _distinctPresentationText(situation.consequence, [
+      situation.meaning,
+      situation.humanContext,
+      situation.whyNow,
+    ]);
     return Semantics(
       container: true,
       button: true,
       selected: selected,
-      label: [?contextLabel, situation.meaning, ?whyNow].join('. '),
+      label: [
+        ?contextLabel,
+        situation.meaning,
+        ?consequence,
+        ?whyNow,
+      ].join('. '),
       child: InkWell(
         onTap: onSelect,
         borderRadius: BorderRadius.circular(MakoloRadii.card),
@@ -658,6 +639,16 @@ class _NowPrimarySituation extends StatelessWidget {
                 situation.meaning,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
+              if (consequence != null) ...[
+                const SizedBox(height: MakoloSpacing.xs),
+                Text(
+                  consequence,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
               if (whyNow != null) ...[
                 const SizedBox(height: MakoloSpacing.md),
                 Text(
@@ -712,11 +703,24 @@ class _NowSecondarySituation extends StatelessWidget {
     final contextLabel = _distinctPresentationText(situation.humanContext, [
       situation.meaning,
     ]);
+    final whyNow = _distinctPresentationText(situation.whyNow, [
+      situation.meaning,
+      situation.humanContext,
+    ]);
+    final topology = topologyFor(situation);
+    final showTurnCue =
+        topology == NowTopology.waiting && situation.turnLabel != null;
+    final showActionCue =
+        topology == NowTopology.action &&
+        situation.businessActions.isNotEmpty &&
+        situation.responseLabel != null;
+
     return MakoloCard(
       onTap: onSelect,
       semanticLabel: [
         ?contextLabel,
         situation.meaning,
+        ?whyNow,
         'Ouvrir le détail',
       ].join('. '),
       child: Column(
@@ -730,6 +734,48 @@ class _NowSecondarySituation extends StatelessWidget {
             situation.meaning,
             style: Theme.of(context).textTheme.titleLarge,
           ),
+          if (whyNow != null) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(
+              whyNow,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (showTurnCue) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Row(
+              children: [
+                Icon(
+                  Icons.hourglass_top_outlined,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: MakoloSpacing.xs),
+                Flexible(
+                  child: Text(
+                    situation.turnLabel!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (showActionCue) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            MakoloStatus(
+              label: situation.responseLabel!,
+              tone: MakoloStatusTone.info,
+              icon: Icons.arrow_forward_rounded,
+            ),
+          ],
           if (situation.metadata.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.sm),
             MakoloMetadata(
