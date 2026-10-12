@@ -26,8 +26,7 @@ List<RouteBase> questionnaireRoutes(AppRuntime runtime) => [
           form.detailLink.isEmpty) {
         return const MakoloSecondaryScreen(
           title: 'Formulaire',
-          message:
-              'Rouvrez ce formulaire depuis la démarche pour reprendre avec les liens du propriétaire.',
+          message: 'Rouvrez ce formulaire depuis la démarche pour reprendre avec les liens du propriétaire.',
         );
       }
       return QuestionnaireFormScreen(

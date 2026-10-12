@@ -54,8 +54,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                 if (repository == null || personal == null) {
                   return const MakoloSecondaryScreen(
                     title: 'Ressource',
-                    message:
-                        'Cette ressource n’est pas disponible sur cet appareil.',
+                    message: 'Cette ressource n’est pas disponible sur cet appareil.',
                   );
                 }
                 return ResourceDetailScreen(

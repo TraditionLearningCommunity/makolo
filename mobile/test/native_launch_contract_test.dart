@@ -4,18 +4,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('native launch uses Makolo indigo and the canonical white Mark', () {
-    final colors = File(
-      'android/app/src/main/res/values/colors.xml',
-    ).readAsStringSync();
+    final colors = File('android/app/src/main/res/values/colors.xml')
+        .readAsStringSync();
     final launch = File(
       'android/app/src/main/res/drawable/launch_background.xml',
     ).readAsStringSync();
     final launchNight = File(
       'android/app/src/main/res/drawable-night/launch_background.xml',
     ).readAsStringSync();
-    final launch31 = File(
-      'android/app/src/main/res/values-v31/styles.xml',
-    ).readAsStringSync();
+    final launch31 = File('android/app/src/main/res/values-v31/styles.xml')
+        .readAsStringSync();
     final launch31Night = File(
       'android/app/src/main/res/values-night-v31/styles.xml',
     ).readAsStringSync();
@@ -37,9 +35,8 @@ void main() {
   test(
     'Android host declares PAR-1B capabilities without storage permissions',
     () {
-      final manifest = File(
-        'android/app/src/main/AndroidManifest.xml',
-      ).readAsStringSync();
+      final manifest = File('android/app/src/main/AndroidManifest.xml')
+          .readAsStringSync();
 
       expect(manifest, contains('android.permission.INTERNET'));
       expect(manifest, contains('android.permission.CAMERA'));
@@ -65,9 +62,8 @@ void main() {
   );
 
   test('Android host accepts share ingress without inventing app links', () {
-    final manifest = File(
-      'android/app/src/main/AndroidManifest.xml',
-    ).readAsStringSync();
+    final manifest = File('android/app/src/main/AndroidManifest.xml')
+        .readAsStringSync();
 
     expect(manifest, contains('android.intent.action.SEND'));
     expect(manifest, contains('android.intent.action.SEND_MULTIPLE'));

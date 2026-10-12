@@ -199,9 +199,9 @@ class MakoloPrimaryHeader extends StatelessWidget
                       child: Text(
                         avatarLetter!,
                         style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimaryContainer,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onPrimaryContainer,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

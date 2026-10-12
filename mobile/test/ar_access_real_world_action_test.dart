@@ -467,27 +467,24 @@ void main() {
     expect(openedLive, isFalse);
   });
 
-  test(
-    'credential presentation requires the owner capability even when summary says presentable',
-    () {
-      final projection = StoredProjection(
-        kind: DayOfRepository.projectionKind,
-        resourceKey: 'occurrence-1',
-        schemaVersion: 1,
-        payload: dayOfPayload(presentCredentialCapability: false),
-        receivedAt: DateTime.utc(2026, 9, 30, 15),
-      );
+  test('credential presentation requires the owner capability even when summary says presentable', () {
+    final projection = StoredProjection(
+      kind: DayOfRepository.projectionKind,
+      resourceKey: 'occurrence-1',
+      schemaVersion: 1,
+      payload: dayOfPayload(presentCredentialCapability: false),
+      receivedAt: DateTime.utc(2026, 9, 30, 15),
+    );
 
-      final presentation = const DayOfSelector().select(
-        projection: projection,
-        source: DayOfSourceState.unknown,
-        now: DateTime.utc(2026, 9, 30, 15, 5),
-      );
+    final presentation = const DayOfSelector().select(
+      projection: projection,
+      source: DayOfSourceState.unknown,
+      now: DateTime.utc(2026, 9, 30, 15, 5),
+    );
 
-      expect(presentation.accesses.single.canPresentCredential, isFalse);
-      expect(presentation.canOpenLive, isTrue);
-    },
-  );
+    expect(presentation.accesses.single.canPresentCredential, isFalse);
+    expect(presentation.canOpenLive, isTrue);
+  });
 
   test('owner 404 invalidates only the keyed Access snapshot', () async {
     final tokens = MemoryTokenStore(

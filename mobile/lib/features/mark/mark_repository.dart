@@ -106,8 +106,7 @@ class MarkRepository {
     if (api == null) {
       return const MarkResult(
         state: 'offline_draft',
-        message:
-            'Enregistré sur cet appareil. L’action sera possible lorsque Makolo pourra revalider le contexte.',
+        message: 'Enregistré sur cet appareil. L’action sera possible lorsque Makolo pourra revalider le contexte.',
         offline: true,
       );
     }
@@ -155,8 +154,7 @@ class MarkRepository {
     } on MakoloTransportError {
       return const MarkResult(
         state: 'offline_draft',
-        message:
-            'Enregistré sur cet appareil. Makolo n’a pas pu revalider le contexte à distance.',
+        message: 'Enregistré sur cet appareil. Makolo n’a pas pu revalider le contexte à distance.',
         offline: true,
       );
     } on MakoloApiError catch (error) {

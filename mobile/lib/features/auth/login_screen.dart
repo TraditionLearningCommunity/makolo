@@ -131,8 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error =
-            'La connexion est indisponible sur cette installation pour le moment.';
+        _error = 'La connexion est indisponible sur cette installation pour le moment.';
       });
       return;
     }

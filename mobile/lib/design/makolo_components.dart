@@ -56,10 +56,8 @@ class MakoloStatus extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: accent, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

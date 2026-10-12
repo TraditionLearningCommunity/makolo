@@ -83,8 +83,7 @@ void main() {
                 purpose: NowMediaPurpose.understand,
                 kind: NowMediaKind.image,
                 authorized: false,
-                url:
-                    '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
+                url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
               ),
             ),
           ),
@@ -124,8 +123,7 @@ void main() {
             target: NowMediaTarget.situation,
             purpose: NowMediaPurpose.prepare,
             kind: NowMediaKind.unknown,
-            url:
-                '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
+            url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
             authorized: true,
           ),
         ),

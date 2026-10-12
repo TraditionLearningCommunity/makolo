@@ -24,8 +24,9 @@ class PluginFirebaseRuntime implements FirebaseRuntime {
   FirebaseMessaging get messaging => FirebaseMessaging.instance;
 }
 
-typedef BackgroundMessageRegistrar =
-    void Function(Future<void> Function(RemoteMessage) handler);
+typedef BackgroundMessageRegistrar = void Function(
+  Future<void> Function(RemoteMessage) handler,
+);
 
 class FirebaseRuntimeBootstrap {
   FirebaseRuntimeBootstrap({

@@ -571,8 +571,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de la conversation…',
                 ),
-                blockingErrorMessage:
-                    'Cette conversation n’est pas disponible dans votre contexte actuel.',
+                blockingErrorMessage: 'Cette conversation n’est pas disponible dans votre contexte actuel.',
                 onRetry: _refresh,
                 content: ListView(
                   key: const Key('conversation-detail-content'),
@@ -617,8 +616,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     if (detail.essential.isNotEmpty)
                       MakoloSection(
                         title: 'Essentiel',
-                        description:
-                            'Les décisions et résultats actuels restent lisibles sans relire tout le passé.',
+                        description: 'Les décisions et résultats actuels restent lisibles sans relire tout le passé.',
                         child: Column(
                           children: [
                             for (
@@ -726,8 +724,7 @@ class _PointCardState extends State<_PointCard> {
       await widget.repository.refreshDetail(widget.conversationId);
       if (!mounted) return;
       setState(
-        () => _feedback =
-            'Ce point a changé ou la réponse n’a pas été confirmée. Votre ancienne saisie n’a pas été déclarée envoyée.',
+        () => _feedback = 'Ce point a changé ou la réponse n’a pas été confirmée. Votre ancienne saisie n’a pas été déclarée envoyée.',
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1047,12 +1044,12 @@ class _ConversationDetail {
         _string(payload['lifecycle']),
       ),
       contextLabel: _string(context['label']),
-      points: _maps(
-        payload['points'],
-      ).map(_ConversationPoint.fromMap).toList(growable: false),
-      essential: _maps(
-        payload['essential'],
-      ).map(_ConversationPoint.fromMap).toList(growable: false),
+      points: _maps(payload['points'])
+          .map(_ConversationPoint.fromMap)
+          .toList(growable: false),
+      essential: _maps(payload['essential'])
+          .map(_ConversationPoint.fromMap)
+          .toList(growable: false),
       personalState: _ConversationPersonalState.fromMap(
         _map(payload['personal_state']),
       ),

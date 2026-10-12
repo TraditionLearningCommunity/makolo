@@ -21,16 +21,13 @@ void main() {
     expect(await reopened.readShellLocation('profile-b'), '/me');
   });
 
-  test(
-    'launch recovery uses persisted shell location without creating actor state',
-    () {
-      final recovery = SessionRecoveryController();
-      recovery.restoreLaunchLocation('/space/us');
+  test('launch recovery uses persisted shell location without creating actor state', () {
+    final recovery = SessionRecoveryController();
+    recovery.restoreLaunchLocation('/space/us');
 
-      expect(recovery.initialLocation(), '/space/us');
-      expect(recovery.awaitingAuthentication, isFalse);
-    },
-  );
+    expect(recovery.initialLocation(), '/space/us');
+    expect(recovery.awaitingAuthentication, isFalse);
+  });
 
   test('account switch clears restored navigation context', () {
     final recovery = SessionRecoveryController();

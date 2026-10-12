@@ -34,9 +34,8 @@ void main() {
       ],
     );
 
-    final capture = await SharedPayloadCoordinator(
-      store,
-    ).capture(payload, fileIdFor: (_, _) => 'opaque-capture-1');
+    final capture = await SharedPayloadCoordinator(store)
+        .capture(payload, fileIdFor: (_, _) => 'opaque-capture-1');
 
     expect(capture.files.single.owner, 'InboundCapture');
     expect(capture.files.single.path, startsWith(staging.path));

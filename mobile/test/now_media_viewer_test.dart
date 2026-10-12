@@ -4,8 +4,7 @@ import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
 
 NowMediaBindingPresentation binding({
   bool authorized = true,
-  String? url =
-      '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
+  String? url = '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/',
 }) => NowMediaBindingPresentation(
   resourceRef: 'journey_artifact:11111111-2222-4333-8444-555555555555',
   target: NowMediaTarget.situation,
@@ -34,8 +33,7 @@ void main() {
     expect(
       nowAuthorizedMediaPath(
         binding(
-          url:
-              '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=admin',
+          url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=admin',
         ),
       ),
       isNull,
@@ -43,8 +41,7 @@ void main() {
     expect(
       nowAuthorizedMediaPath(
         binding(
-          url:
-              '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/',
+          url: '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/',
         ),
       ),
       isNull,
@@ -57,8 +54,7 @@ void main() {
           purpose: NowMediaPurpose.prepare,
           kind: NowMediaKind.document,
           authorized: true,
-          url:
-              '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=text',
+          url: '/api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=text',
         ),
       ),
       'api/v1/me/now/media/journey-artifacts/11111111-2222-4333-8444-555555555555/?view=text',
@@ -74,8 +70,7 @@ void main() {
       purpose: NowMediaPurpose.prepare,
       kind: NowMediaKind.document,
       authorized: true,
-      mimeType:
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       url: '$original?view=text',
       downloadUrl: original,
     );
@@ -95,8 +90,7 @@ void main() {
       kind: NowMediaKind.document,
       authorized: true,
       url: '$original?view=text',
-      downloadUrl:
-          '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/',
+      downloadUrl: '/api/v1/me/resources/versions/11111111-2222-4333-8444-555555555555/download/',
     );
     expect(nowAuthorizedOriginalDownloadPath(hostile), isNull);
   });

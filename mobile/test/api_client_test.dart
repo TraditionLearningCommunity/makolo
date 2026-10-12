@@ -11,11 +11,10 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 import 'fakes.dart';
 
-typedef RequestHandler =
-    Future<ResponseBody> Function(
-      RequestOptions options,
-      Stream<Uint8List>? requestStream,
-    );
+typedef RequestHandler = Future<ResponseBody> Function(
+  RequestOptions options,
+  Stream<Uint8List>? requestStream,
+);
 
 class TestHttpAdapter implements HttpClientAdapter {
   TestHttpAdapter(this.handler);

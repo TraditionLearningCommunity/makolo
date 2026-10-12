@@ -9,11 +9,13 @@ enum OutboxResolution {
   failed,
 }
 
-typedef OutboxHandler =
-    Future<OutboxResolution> Function(OutboxOperation operation);
+typedef OutboxHandler = Future<OutboxResolution> Function(
+  OutboxOperation operation,
+);
 
-typedef OutboxReconciler =
-    Future<OutboxResolution> Function(OutboxOperation operation);
+typedef OutboxReconciler = Future<OutboxResolution> Function(
+  OutboxOperation operation,
+);
 
 class OutboxProcessor {
   OutboxProcessor({

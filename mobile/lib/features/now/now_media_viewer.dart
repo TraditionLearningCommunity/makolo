@@ -55,8 +55,7 @@ String? nowAuthorizedOriginalDownloadPath(NowMediaBindingPresentation binding) {
 }
 
 String nowOriginalDocumentExtension(NowMediaBindingPresentation media) {
-  return media.mimeType ==
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  return media.mimeType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       ? 'docx'
       : 'txt';
 }
@@ -171,8 +170,7 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       if (file != null && await file.exists()) await file.delete();
       if (mounted) {
         setState(() {
-          _error =
-              'Impossible de charger ce média. Vérifiez votre connexion et vos droits.';
+          _error = 'Impossible de charger ce média. Vérifiez votre connexion et vos droits.';
           _loading = false;
         });
       }

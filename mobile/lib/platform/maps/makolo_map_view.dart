@@ -65,12 +65,11 @@ class MakoloMapView extends StatelessWidget {
 
 enum MakoloMapRuntimeState { disabled, loading, ready, error }
 
-typedef MakoloMapFallbackBuilder =
-    Widget Function(
-      BuildContext context,
-      MakoloMapRuntimeState state,
-      VoidCallback retry,
-    );
+typedef MakoloMapFallbackBuilder = Widget Function(
+  BuildContext context,
+  MakoloMapRuntimeState state,
+  VoidCallback retry,
+);
 
 class ConfiguredMakoloMapView extends StatefulWidget {
   const ConfiguredMakoloMapView({

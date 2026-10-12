@@ -317,9 +317,8 @@ class MakoloDetailHeader extends StatelessWidget {
           if (eyebrow != null) ...[
             Text(
               eyebrow!,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              style: Theme.of(context).textTheme.labelLarge
+                  ?.copyWith(color: Theme.of(context).colorScheme.primary),
             ),
             const SizedBox(height: MakoloSpacing.xs),
           ],

@@ -142,8 +142,7 @@ class _ObjectiveDetailScreenState extends State<ObjectiveDetailScreen> {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement…',
                   ),
-                  blockingErrorMessage:
-                      'Ce contenu n’est pas disponible dans votre contexte actuel.',
+                  blockingErrorMessage: 'Ce contenu n’est pas disponible dans votre contexte actuel.',
                   onRetry: _refresh,
                   content: widget.kind == ObjectiveDepth.dossier
                       ? _DossierContent(

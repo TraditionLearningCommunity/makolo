@@ -303,8 +303,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error =
-            'La création de compte est indisponible sur cette installation pour le moment.';
+        _error = 'La création de compte est indisponible sur cette installation pour le moment.';
       });
       return;
     }

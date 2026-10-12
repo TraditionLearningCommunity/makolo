@@ -95,9 +95,8 @@ void main() {
         sensitivity: 'private',
       );
 
-      final result = await FileTransferCoordinator(
-        store,
-      ).transferToOwner(fileId: 'file-2', owner: RecoverableOwner());
+      final result = await FileTransferCoordinator(store)
+          .transferToOwner(fileId: 'file-2', owner: RecoverableOwner());
 
       expect(result.state, FileTransferState.failedRecoverable);
       expect(result.errorCode, 'network_unreachable');
