@@ -194,7 +194,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               ),
               const SizedBox(height: MakoloSpacing.xl),
               Text(
-                'Qu’est-ce que vous pourriez avoir envie de vivre, faire ou obtenir ?',
+                'Ca pourrait vous intéresser ?',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: MakoloSpacing.lg),
