@@ -467,7 +467,16 @@ class _MeTerritory extends StatelessWidget {
       return _empty(context, 'Aucun Passeport disponible ici pour le moment.');
     }
 
+    final firstItem = territory.items.isNotEmpty ? territory.items.first : null;
+    final title = firstItem?.title ?? 'Disponible';
+    final subtitle =
+        firstItem?.subtitle ??
+        'Une vue de ce qui peut vous représenter selon le contexte.';
+
     return MakoloCard(
+      onTap: firstItem == null || onSelectItem == null
+          ? null
+          : () => onSelectItem!(firstItem),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -480,19 +489,14 @@ class _MeTerritory extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Disponible',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: MakoloSpacing.xs),
-                Text(
-                  'Une vue de ce qui peut vous '
-                  'représenter selon le contexte.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ),
+          if (firstItem != null && onSelectItem != null)
+            const Icon(Icons.chevron_right_rounded),
         ],
       ),
     );
