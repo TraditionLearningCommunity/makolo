@@ -813,6 +813,10 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                         for (final index in group.value)
                           ListTile(
                             key: ValueKey('retrieval-$index'),
+                            leading: Icon(
+                              _retrievalIcon(rows[index]['kind']?.toString()),
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                             title: Text(
                               rows[index]['title']?.toString() ?? 'Élément',
                             ),
@@ -878,5 +882,18 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
               ],
             ),
     );
+  }
+
+  IconData _retrievalIcon(String? kind) {
+    return switch (kind) {
+      'journey' => Icons.timeline_outlined,
+      'access' => Icons.badge_outlined,
+      'personal_asset' || 'document' => Icons.folder_outlined,
+      'group' || 'team' => Icons.group_outlined,
+      'commerce_order' || 'order' => Icons.shopping_bag_outlined,
+      'activity' || 'occurrence' => Icons.event_outlined,
+      'space' => Icons.business_outlined,
+      _ => Icons.search_rounded,
+    };
   }
 }
