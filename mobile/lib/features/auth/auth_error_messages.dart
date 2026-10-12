@@ -42,7 +42,8 @@ String signupErrorMessage(Object error) {
   if (error is! MakoloApiError) {
     return authErrorMessage(
       error,
-      fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
+      fallback:
+          'Création du compte impossible pour le moment. Réessayez dans un instant.',
     );
   }
 
@@ -102,7 +103,8 @@ Future<String> resolvedSignupErrorMessage(
   if (error is MakoloApiError) return signupErrorMessage(error);
   return resolvedAuthErrorMessage(
     error,
-    fallback: 'Création du compte impossible pour le moment. Réessayez dans un instant.',
+    fallback:
+        'Création du compte impossible pour le moment. Réessayez dans un instant.',
     offlineProbe: offlineProbe,
   );
 }

@@ -73,8 +73,9 @@ class MakoloMediaPlaceholder extends StatelessWidget {
                 Text(
                   label!,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: foreground),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: foreground),
                 ),
               ],
             ],

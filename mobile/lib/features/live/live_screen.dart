@@ -186,7 +186,8 @@ class _LiveContent extends StatelessWidget {
           const SizedBox(height: MakoloSpacing.sm),
           const MakoloAttentionBlock(
             title: 'Dernière information connue',
-            body: 'La connexion doit être vérifiée pour confirmer la situation actuelle.',
+            body:
+                'La connexion doit être vérifiée pour confirmer la situation actuelle.',
             icon: Icons.schedule_rounded,
           ),
         ],

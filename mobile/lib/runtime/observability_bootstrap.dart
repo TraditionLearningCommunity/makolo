@@ -4,11 +4,8 @@ import '../app/environment.dart';
 import '../observability/observability.dart';
 import 'runtime_service_status.dart';
 
-typedef SentryInitializer = Future<void> Function(
-  String dsn,
-  String environment,
-  String? release,
-);
+typedef SentryInitializer =
+    Future<void> Function(String dsn, String environment, String? release);
 
 Future<void> _initializeSentry(
   String dsn,

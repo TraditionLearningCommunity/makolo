@@ -181,7 +181,8 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                   title: _onlyUnread
                       ? 'Aucune notification non lue.'
                       : 'Aucune notification.',
-                  body: 'Les signaux utiles apparaîtront ici lorsqu’ils auront quelque chose à vous porter.',
+                  body:
+                      'Les signaux utiles apparaîtront ici lorsqu’ils auront quelque chose à vous porter.',
                 ),
                 onRetry: _refresh,
                 content: Column(
@@ -386,7 +387,8 @@ class _NotificationPreferencesScreenState
     } on Object {
       if (mounted) {
         setState(
-          () => _message = 'Les préférences n’ont pas été confirmées. Réessayez lorsque Makolo est joignable.',
+          () => _message =
+              'Les préférences n’ont pas été confirmées. Réessayez lorsque Makolo est joignable.',
         );
       }
     } finally {

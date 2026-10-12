@@ -166,7 +166,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement de la démarche…',
                   ),
-                  blockingErrorMessage: 'Cette démarche n’est pas disponible dans votre contexte actuel.',
+                  blockingErrorMessage:
+                      'Cette démarche n’est pas disponible dans votre contexte actuel.',
                   onRetry: _refresh,
                   content: _JourneyContent(
                     presentation: presentation,
@@ -293,7 +294,8 @@ class _JourneyContent extends StatelessWidget {
               onTap: () => onOpenResources(presentation.resourcesLink!),
               child: const MakoloStatusMetadataAction(
                 title: 'Ressources de préparation',
-                subtitle: 'Consultez ce que le propriétaire de la démarche a rendu disponible.',
+                subtitle:
+                    'Consultez ce que le propriétaire de la démarche a rendu disponible.',
                 action: Icon(Icons.chevron_right_rounded),
               ),
             ),

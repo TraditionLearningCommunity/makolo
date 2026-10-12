@@ -8,9 +8,11 @@ import 'package:makolo_mobile/features/now/now_selector.dart';
 
 void main() {
   test('shared server semantics select S1-S5 identically on Flutter', () {
-    final fixture = jsonDecode(
-      File('test/fixtures/now_s1_s5_contract.json').readAsStringSync(),
-    ) as Map<String, dynamic>;
+    final fixture =
+        jsonDecode(
+              File('test/fixtures/now_s1_s5_contract.json').readAsStringSync(),
+            )
+            as Map<String, dynamic>;
     final projection = StoredProjection(
       kind: 'personal.now',
       schemaVersion: 1,

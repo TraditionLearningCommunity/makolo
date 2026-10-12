@@ -101,8 +101,9 @@ void main() {
       );
 
       final owner = ConfirmingOwnerTransfer();
-      final receipt = await FileTransferCoordinator(store)
-          .uploadToOwner(fileId: 'capture-a', owner: owner);
+      final receipt = await FileTransferCoordinator(
+        store,
+      ).uploadToOwner(fileId: 'capture-a', owner: owner);
 
       expect(receipt.confirmed, isTrue);
       expect(receipt.remoteVersion, 'server-version-1');

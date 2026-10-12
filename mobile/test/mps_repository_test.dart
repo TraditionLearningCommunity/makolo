@@ -69,47 +69,50 @@ void main() {
     expect(value.themeTokens['accent'], '#5232DB');
   });
 
-  test('missing custom definitions degrade locally without losing artifact context', () async {
-    final database = MakoloDatabase.memory();
-    addTearDown(database.close);
-    final store = ProfileStore(database, 'profile-1');
-    final repository = MpsPresentationRepository(
-      store: store,
-      profileId: 'profile-1',
-    );
+  test(
+    'missing custom definitions degrade locally without losing artifact context',
+    () async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-1');
+      final repository = MpsPresentationRepository(
+        store: store,
+        profileId: 'profile-1',
+      );
 
-    await store.putProjection(
-      kind: mpsArtifactProjectionKind,
-      resourceKey: repository.activityArtifactKey('activity-1', 'invitation'),
-      schemaVersion: 1,
-      payload: const {
-        'identity': {
-          'kind': 'mps_artifact',
-          'resource_key': 'activity:activity-1:invitation',
+      await store.putProjection(
+        kind: mpsArtifactProjectionKind,
+        resourceKey: repository.activityArtifactKey('activity-1', 'invitation'),
+        schemaVersion: 1,
+        payload: const {
+          'identity': {
+            'kind': 'mps_artifact',
+            'resource_key': 'activity:activity-1:invitation',
+          },
+          'purpose': 'invitation',
+          'renderer': {
+            'contract': 'mps.native.v1',
+            'schema_version': 1,
+            'minimum_renderer_version': 1,
+          },
+          'template': {'resource_key': '99', 'builtin': false},
+          'theme': {'resource_key': '88', 'builtin': false},
+          'context': {
+            'activity': {'display_title': 'Offline Activity'},
+          },
+          'capabilities': <String>[],
+          'links': <String, String>{},
         },
-        'purpose': 'invitation',
-        'renderer': {
-          'contract': 'mps.native.v1',
-          'schema_version': 1,
-          'minimum_renderer_version': 1,
-        },
-        'template': {'resource_key': '99', 'builtin': false},
-        'theme': {'resource_key': '88', 'builtin': false},
-        'context': {
-          'activity': {'display_title': 'Offline Activity'},
-        },
-        'capabilities': <String>[],
-        'links': <String, String>{},
-      },
-    );
+      );
 
-    final value = await repository.readActivityPackage(
-      'activity-1',
-      'invitation',
-    );
-    expect(value, isNotNull);
-    expect(value!.usedFallback, isTrue);
-    expect(value.artifact.context['activity'], isNotNull);
-    expect(value.manifest, mpsEssentialManifest);
-  });
+      final value = await repository.readActivityPackage(
+        'activity-1',
+        'invitation',
+      );
+      expect(value, isNotNull);
+      expect(value!.usedFallback, isTrue);
+      expect(value.artifact.context['activity'], isNotNull);
+      expect(value.manifest, mpsEssentialManifest);
+    },
+  );
 }

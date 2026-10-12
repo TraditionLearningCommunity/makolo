@@ -257,8 +257,9 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(height: MakoloSpacing.xs),
         Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     ),

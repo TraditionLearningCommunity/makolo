@@ -8,9 +8,8 @@ class NormalizedPushSignal {
   final StructuredDestination? destination;
 }
 
-typedef PushSignalNormalizer = Future<NormalizedPushSignal?> Function(
-  PushSignal signal,
-);
+typedef PushSignalNormalizer =
+    Future<NormalizedPushSignal?> Function(PushSignal signal);
 typedef PushSourceInvalidator = Future<void> Function(String sourceKey);
 typedef PushOwnerRefresh = Future<void> Function(Set<String> sourceKeys);
 

@@ -195,12 +195,14 @@ class _PreparationResourcesScreenState
                   state: surface,
                   empty: const MakoloEmptyState(
                     title: 'Rien à préparer ici',
-                    body: 'Aucun document ou instruction partagé n’est disponible pour cette démarche.',
+                    body:
+                        'Aucun document ou instruction partagé n’est disponible pour cette démarche.',
                   ),
                   initialLoading: const MakoloLoadingState(
                     label: 'Chargement des ressources de préparation…',
                   ),
-                  blockingErrorMessage: 'Ces ressources ne sont pas disponibles dans votre contexte actuel.',
+                  blockingErrorMessage:
+                      'Ces ressources ne sont pas disponibles dans votre contexte actuel.',
                   onRetry: _refresh,
                   content: ListView.separated(
                     key: const Key('preparation-resources-content'),

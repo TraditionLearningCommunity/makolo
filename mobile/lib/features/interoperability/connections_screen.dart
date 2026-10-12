@@ -289,7 +289,8 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
                   height: 520,
                   child: MakoloEmptyState(
                     title: 'Connexions indisponibles hors ligne',
-                    body: 'Aucune copie locale n’est encore disponible. Le reste de Makolo continue de fonctionner.',
+                    body:
+                        'Aucune copie locale n’est encore disponible. Le reste de Makolo continue de fonctionner.',
                   ),
                 ),
               ],

@@ -242,8 +242,10 @@ class _QuestionnaireFormScreenState extends State<QuestionnaireFormScreen> {
                             label: 'Chargement du formulaire…',
                           )
                         : MakoloErrorState(
-                            message: 'Ce formulaire n’est pas disponible sur cet appareil.',
-                            preservedMessage: 'Votre brouillon local, s’il existe, est conservé.',
+                            message:
+                                'Ce formulaire n’est pas disponible sur cet appareil.',
+                            preservedMessage:
+                                'Votre brouillon local, s’il existe, est conservé.',
                             onRetry: _refresh,
                           ))
                   : _FormContent(

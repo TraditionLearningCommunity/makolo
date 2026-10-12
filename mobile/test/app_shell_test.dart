@@ -109,8 +109,9 @@ Future<void> _pumpRouter(
         }
         if (textScale != 1) {
           result = MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(textScale)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
             child: result,
           );
         }

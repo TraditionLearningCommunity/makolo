@@ -3,11 +3,12 @@ import 'dart:io';
 import '../../network/makolo_api_client.dart';
 import 'profile_paths.dart';
 
-typedef MediaDownloader = Future<void> Function(
-  String destinationPath,
-  MakoloCancelHandle cancel,
-  TransferProgress? onProgress,
-);
+typedef MediaDownloader =
+    Future<void> Function(
+      String destinationPath,
+      MakoloCancelHandle cancel,
+      TransferProgress? onProgress,
+    );
 
 class ProfileMediaCache {
   ProfileMediaCache({required this.profileId, required this.directory});

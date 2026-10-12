@@ -242,8 +242,9 @@ Future<void> _pump(
       builder: (context, child) => textScale == 1
           ? child!
           : MediaQuery(
-              data: MediaQuery.of(context)
-                  .copyWith(textScaler: TextScaler.linear(textScale)),
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(textScale)),
               child: child!,
             ),
     ),
