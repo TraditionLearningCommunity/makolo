@@ -3,6 +3,7 @@ from django.urls import path
 from interoperability.api_views import SpaceInteroperabilityAPIView
 from commerce.space_order_views import SpaceCommerceOrderDetailAPIView
 
+from .public_space_views import PublicSpaceDetailAPIView, PublicSpacesAPIView
 from .space_attention_views import SpaceDiscoverAPIView, SpaceNowAPIView
 from .space_history_views import SpaceHistoryAPIView
 from .space_search_views import SpaceSearchAPIView
@@ -24,6 +25,8 @@ from .workspace_views import (
 app_name = "organizations_api"
 
 urlpatterns = [
+    path("public-spaces/", PublicSpacesAPIView.as_view(), name="public-spaces"),
+    path("public-spaces/<slug:slug>/", PublicSpaceDetailAPIView.as_view(), name="public-space-detail"),
     path("workspaces/", SpaceWorkspaceListAPIView.as_view(), name="workspaces"),
     path("workspaces/<slug:slug>/", SpaceWorkspaceDetailAPIView.as_view(), name="workspace-detail"),
     path("workspaces/<slug:slug>/now/", SpaceNowAPIView.as_view(), name="workspace-now"),
