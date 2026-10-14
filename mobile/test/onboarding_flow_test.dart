@@ -26,10 +26,12 @@ void main() {
 
     await tester.tap(find.text('Continuer'));
     await tester.pumpAndSettle();
-    expect(find.text('Préparer Makolo'), findsOneWidget);
+    expect(find.text('Découvrez ce qui vous entoure.'), findsOneWidget);
+    expect(find.text('Activer la localisation'), findsOneWidget);
+    expect(find.text('Passer'), findsOneWidget);
     expect(find.text('2/3'), findsOneWidget);
 
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.text('Passer'));
     await tester.pumpAndSettle();
     expect(find.text('Tout commence par une découverte.'), findsOneWidget);
     expect(find.text('3/3'), findsOneWidget);
@@ -60,7 +62,7 @@ void main() {
 
     await tester.tap(find.text('Continuer'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.text('Passer'));
     await tester.pumpAndSettle();
 
     expect(find.text('Ouvrir Makolo'), findsOneWidget);
