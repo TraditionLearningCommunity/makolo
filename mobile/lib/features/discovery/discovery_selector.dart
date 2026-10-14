@@ -218,6 +218,12 @@ class DiscoverySelector {
     DateTime? now,
   }) => _collectionFromPayload(payload, now: now ?? DateTime.now());
 
+  /// Parse a public item detail using the same Presentation contract.
+  DiscoveryItemPresentation? publicItem(
+    Map<String, dynamic> item, {
+    DateTime? now,
+  }) => _item(item, now: now ?? DateTime.now());
+
   DiscoveryCollectionPresentation collection(
     StoredProjection? projection, {
     DateTime? now,
