@@ -125,7 +125,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: MakoloSpacing.sm,
             crossAxisSpacing: MakoloSpacing.sm,
-            childAspectRatio: 3.35,
+            childAspectRatio: 2.65,
             children: [
               _ExploreChoice(
                 label: 'Voyager',
