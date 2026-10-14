@@ -326,6 +326,8 @@ void main() {
     await tester.tap(find.text('Affiner la recherche'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('guest-filter-place')), 'Kolwezi');
+    await tester.testTextInput.hide();
+    await tester.ensureVisible(find.byKey(const Key('guest-filter-apply')));
     await tester.tap(find.byKey(const Key('guest-filter-apply')));
     await tester.pumpAndSettle();
 
