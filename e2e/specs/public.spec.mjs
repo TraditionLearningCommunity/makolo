@@ -32,7 +32,7 @@ test('guest home explains the action path and exposes existing Discover filters'
   await expect(journey.getByRole('heading', { name: 'Avancez' })).toBeVisible();
   await page.getByRole('navigation', { name: 'Explorer les possibilités' })
     .getByRole('link', { name: 'Participer' }).click();
-  await expect(page).toHaveURL(/\\/discover\\/\\?vertical=event/);
+  await expect(page).toHaveURL(/\/discover\/\?vertical=event/);
 });
 
 test('private participant surface sends visitor to login with next preserved', async ({ page }) => {
