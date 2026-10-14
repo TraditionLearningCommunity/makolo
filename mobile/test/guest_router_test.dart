@@ -294,6 +294,45 @@ void main() {
     },
   );
 
+  testWidgets('public Discover filters preserve supported server criteria', (
+    tester,
+  ) async {
+    final requests = <Uri>[];
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.url.path, '/api/v1/discovery/items/');
+      requests.add(request.url);
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('guest-discover-categories')), findsOneWidget);
+    await tester.tap(find.text('Affiner la recherche'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('guest-filter-place')), 'Kolwezi');
+    await tester.tap(find.byKey(const Key('guest-filter-apply')));
+    await tester.pumpAndSettle();
+
+    expect(requests.last.queryParameters['place'], 'Kolwezi');
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
   testWidgets('public Discovery paginates on the server', (tester) async {
     final seenPages = <String>[];
     final client = MockClient((request) async {
@@ -495,6 +534,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(seenQueries, contains('Association Visible'));
+    expect(
+      find.byKey(const Key('guest-spaces-clear-search')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('guest-spaces-clear-search')));
+    await tester.pumpAndSettle();
+    expect(seenQueries.last, '');
     expect(find.byType(LoginScreen), findsNothing);
   });
 
