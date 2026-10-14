@@ -155,10 +155,12 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Atelier numérique Lubumbashi'),
         180,
-        scrollable: find.descendant(
-          of: find.byKey(const Key('guest-public-landing')),
-          matching: find.byType(Scrollable),
-        ).first,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const Key('guest-public-landing')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
       );
       expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
       await tester.enterText(
