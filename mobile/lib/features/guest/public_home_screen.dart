@@ -45,7 +45,12 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
       current: 0,
       child: ListView(
         key: const Key('guest-public-home'),
-        padding: EdgeInsets.fromLTRB(edge, MakoloSpacing.inner, edge, MakoloSpacing.lg),
+        padding: EdgeInsets.fromLTRB(
+          edge,
+          MakoloSpacing.inner,
+          edge,
+          MakoloSpacing.lg,
+        ),
         children: [
           Text(
             'DÉCOUVRIR · PRÉPARER · AVANCER',
@@ -57,7 +62,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
           ),
           const SizedBox(height: MakoloSpacing.compact),
           Text(
-            'Ce que vous voulez faire commence ici.',
+            'Ca vous intéresserait',
             style: theme.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w800,
               letterSpacing: -0.6,
@@ -76,7 +81,9 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
           const SizedBox(height: MakoloSpacing.lg),
           Text(
             'Rechercher des possibilités',
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: MakoloSpacing.sm),
           Semantics(
@@ -86,9 +93,10 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
               controller: _search,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _explore(),
-              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+              onTapOutside: (_) =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
               decoration: InputDecoration(
-                hintText: 'Voyager, participer, être accompagné…',
+                hintText: 'Trouver…',
                 hintMaxLines: 2,
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: IconButton(
@@ -130,17 +138,20 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
               _ExploreChoice(
                 label: 'Voyager',
                 icon: Icons.directions_bus_outlined,
-                onPressed: () => _explore(vertical: 'transport', includeQuery: false),
+                onPressed: () =>
+                    _explore(vertical: 'transport', includeQuery: false),
               ),
               _ExploreChoice(
                 label: 'Participer',
                 icon: Icons.event_outlined,
-                onPressed: () => _explore(vertical: 'event', includeQuery: false),
+                onPressed: () =>
+                    _explore(vertical: 'event', includeQuery: false),
               ),
               _ExploreChoice(
                 label: 'Être accompagné',
                 icon: Icons.handshake_outlined,
-                onPressed: () => _explore(vertical: 'service', includeQuery: false),
+                onPressed: () =>
+                    _explore(vertical: 'service', includeQuery: false),
               ),
               _ExploreChoice(
                 label: 'Tout explorer',
@@ -173,11 +184,17 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
                 const SizedBox(height: MakoloSpacing.md),
                 Row(
                   children: [
-                    const Expanded(child: _JourneyStep(number: '01', label: 'Découvrez')),
+                    const Expanded(
+                      child: _JourneyStep(number: '01', label: 'Découvrez'),
+                    ),
                     Icon(Icons.chevron_right_rounded, size: 18, color: muted),
-                    const Expanded(child: _JourneyStep(number: '02', label: 'Préparez')),
+                    const Expanded(
+                      child: _JourneyStep(number: '02', label: 'Préparez'),
+                    ),
                     Icon(Icons.chevron_right_rounded, size: 18, color: muted),
-                    const Expanded(child: _JourneyStep(number: '03', label: 'Avancez')),
+                    const Expanded(
+                      child: _JourneyStep(number: '03', label: 'Avancez'),
+                    ),
                   ],
                 ),
               ],
@@ -199,7 +216,11 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.groups_outlined, color: colors.primary, size: 26),
+                    Icon(
+                      Icons.groups_outlined,
+                      color: colors.primary,
+                      size: 26,
+                    ),
                     const SizedBox(width: MakoloSpacing.compact),
                     Expanded(
                       child: Column(
@@ -207,18 +228,26 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
                         children: [
                           Text(
                             'Les Espaces sur Makolo',
-                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           const SizedBox(height: MakoloSpacing.xs),
                           Text(
                             'Organisations, équipes et communautés',
-                            style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: muted,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: MakoloSpacing.xs),
-                    Icon(Icons.arrow_forward_ios_rounded, size: 16, color: muted),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: muted,
+                    ),
                   ],
                 ),
               ),
@@ -302,7 +331,9 @@ class _JourneyStep extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
