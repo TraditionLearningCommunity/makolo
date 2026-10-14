@@ -26,6 +26,9 @@ class PublicSpacesScreen extends StatefulWidget {
 
 class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   final _search = TextEditingController();
+  final _city = TextEditingController();
+  String _category = '';
+  List<({String value, String label})> _categories = const [];
   List<Map<String, dynamic>> _spaces = const [];
   int _page = 1;
   int _count = 0;
@@ -44,6 +47,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   void dispose() {
     _generation++;
     _search.dispose();
+    _city.dispose();
     super.dispose();
   }
 
@@ -59,6 +63,8 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
       final query = Uri(
         queryParameters: {
           if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
+          if (_category.isNotEmpty) 'category': _category,
+          if (_city.text.trim().isNotEmpty) 'city': _city.text.trim(),
           'page': _page.toString(),
           'page_size': '20',
         },
@@ -72,6 +78,17 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
       if (!mounted || generation != _generation) return;
       setState(() {
         _spaces = raw.whereType<Map>().map(_object).toList(growable: false);
+        final categoryRows = data['categories'];
+        if (categoryRows is List) {
+          _categories = categoryRows
+              .whereType<Map>()
+              .map((row) => (
+                    value: _field(_object(row), 'value'),
+                    label: _field(_object(row), 'label'),
+                  ))
+              .where((row) => row.value.isNotEmpty && row.label.isNotEmpty)
+              .toList(growable: false);
+        }
         _count = data['count'] is int ? data['count'] as int : _spaces.length;
         _hasNext = data['has_next'] == true;
         _loading = false;
@@ -87,6 +104,16 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
 
   void _searchSpaces() {
     setState(() => _page = 1);
+    unawaited(_load());
+  }
+
+  void _resetFilters() {
+    _search.clear();
+    _city.clear();
+    setState(() {
+      _category = '';
+      _page = 1;
+    });
     unawaited(_load());
   }
 
@@ -135,37 +162,83 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 border: const OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: MakoloSpacing.compact),
-            Row(
-              key: const Key('guest-spaces-search-context'),
-              children: [
-                Icon(
-                  Icons.groups_outlined,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: MakoloSpacing.md),
+            Card(
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MakoloRadii.card),
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
+              ),
+              child: ExpansionTile(
+                key: const Key('guest-spaces-filters'),
+                leading: const Icon(Icons.tune_rounded),
+                title: const Text('Affiner les Espaces'),
+                subtitle: const Text('Catégorie et ville'),
+                childrenPadding: const EdgeInsets.fromLTRB(
+                  MakoloSpacing.md,
+                  0,
+                  MakoloSpacing.md,
+                  MakoloSpacing.md,
                 ),
-                const SizedBox(width: MakoloSpacing.sm),
-                Expanded(
-                  child: Text(
-                    _search.text.trim().isEmpty
-                        ? 'Tous les Espaces publics'
-                        : 'Recherche par nom',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                children: [
+                  DropdownButtonFormField<String>(
+                    key: const Key('guest-spaces-category'),
+                    initialValue: _category,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Catégorie',
+                      prefixIcon: Icon(Icons.category_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text('Toutes les catégories'),
+                      ),
+                      for (final item in _categories)
+                        DropdownMenuItem(
+                          value: item.value,
+                          child: Text(item.label),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _category = value ?? ''),
+                  ),
+                  const SizedBox(height: MakoloSpacing.md),
+                  TextField(
+                    key: const Key('guest-spaces-city'),
+                    controller: _city,
+                    onSubmitted: (_) => _searchSpaces(),
+                    textInputAction: TextInputAction.search,
+                    decoration: const InputDecoration(
+                      labelText: 'Ville',
+                      hintText: 'Ex. Lubumbashi',
+                      prefixIcon: Icon(Icons.location_city_outlined),
+                      border: OutlineInputBorder(),
                     ),
                   ),
-                ),
-                if (_search.text.trim().isNotEmpty)
-                  ActionChip(
-                    key: const Key('guest-spaces-clear-search'),
-                    avatar: const Icon(Icons.close_rounded, size: 16),
-                    label: const Text('Effacer'),
-                    onPressed: () {
-                      _search.clear();
-                      _searchSpaces();
-                    },
+                  const SizedBox(height: MakoloSpacing.md),
+                  Row(
+                    children: [
+                      TextButton(
+                        key: const Key('guest-spaces-reset'),
+                        onPressed: _resetFilters,
+                        child: const Text('Effacer'),
+                      ),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(
+                        child: FilledButton(
+                          key: const Key('guest-spaces-filter-apply'),
+                          onPressed: _searchSpaces,
+                          child: const Text('Voir les Espaces'),
+                        ),
+                      ),
+                    ],
                   ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: MakoloSpacing.md),
             if (_error != null) ...[
