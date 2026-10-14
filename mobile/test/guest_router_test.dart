@@ -208,7 +208,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(LoginScreen), findsOneWidget);
-      expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
+      expect(
+        find.text('Connectez-vous pour poursuivre votre action.'),
+        findsOneWidget,
+      );
       expect(find.text('Now'), findsNothing);
       expect(find.text('En cours'), findsNothing);
       expect(find.byTooltip('Avatar'), findsNothing);
@@ -244,7 +247,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginScreen), findsOneWidget);
-    expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
+    expect(
+      find.text('Connectez-vous pour poursuivre votre action.'),
+      findsOneWidget,
+    );
     expect(recovery.lastUsefulLocation, '/journeys/journey-1');
     expect(recovery.awaitingAuthentication, isTrue);
   });

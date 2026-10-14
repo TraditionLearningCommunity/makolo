@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../app/sync_lifecycle.dart';
+import '../../sync/owner_source_state.dart';
+import '../../sync/sync_status.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
@@ -27,6 +30,32 @@ class OngoingScreen extends StatefulWidget {
 class _OngoingScreenState extends State<OngoingScreen> {
   String? _selectedOwnerKey;
   StoredProjection? _lastProjection;
+  late Stream<StoredProjection?> _projectionStream;
+  late Stream<OwnerSourceState> _sourceStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _bindStreams();
+  }
+
+  @override
+  void didUpdateWidget(covariant OngoingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.projectionStream != widget.projectionStream) {
+      _lastProjection = null;
+      _bindStreams();
+    }
+  }
+
+  void _bindStreams() {
+    _projectionStream =
+        widget.projectionStream ?? widget.repository.watchOngoing();
+    _sourceStream = widget.projectionStream == null
+        ? widget.repository.watchOngoingSource()
+        : const Stream<OwnerSourceState>.empty();
+  }
 
   void _select(OngoingContinuityPresentation item) =>
       setState(() => _selectedOwnerKey = _ownerKey(item));
@@ -37,67 +66,107 @@ class _OngoingScreenState extends State<OngoingScreen> {
 
   @override
   Widget build(BuildContext context) => MakoloRefreshBoundary(
-    child: StreamBuilder<StoredProjection?>(
-      stream: widget.projectionStream ?? widget.repository.watchOngoing(),
-      builder: (context, snapshot) {
-        if (snapshot.hasData && snapshot.data != null) {
-          _lastProjection = snapshot.data;
-        }
-        final projection = snapshot.data ?? _lastProjection;
-        if (!snapshot.hasData &&
-            snapshot.connectionState == ConnectionState.waiting) {
-          return const MakoloSurfaceStateView(
-            state: MakoloSurfacePresentation(
-              availability: MakoloAvailabilityCue.loading,
-            ),
-            content: SizedBox.shrink(),
+    child: StreamBuilder<OwnerSourceState>(
+      stream: _sourceStream,
+      initialData: OwnerSourceState.unknown,
+      builder: (context, sourceSnapshot) => StreamBuilder<StoredProjection?>(
+        stream: _projectionStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasError &&
+              snapshot.connectionState == ConnectionState.active) {
+            _lastProjection = snapshot.data;
+          }
+          final projection = snapshot.data ?? _lastProjection;
+          final syncStatus = SyncStatusScope.maybeOf(context);
+          if (projection == null &&
+              (snapshot.hasError ||
+                  sourceSnapshot.hasError ||
+                  sourceSnapshot.data?.lastErrorCode != null ||
+                  syncStatus?.state == SyncVisualState.failed)) {
+            return MakoloErrorState(
+              message: 'Vos éléments en cours n’ont pas pu être chargés.',
+              preservedMessage: 'Les données déjà enregistrées sur cet appareil sont conservées.',
+              onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
+            );
+          }
+          if (projection == null &&
+              (syncStatus?.state == SyncVisualState.syncing ||
+                  snapshot.connectionState == ConnectionState.waiting)) {
+            return const MakoloSurfaceStateView(
+              state: MakoloSurfacePresentation(
+                availability: MakoloAvailabilityCue.loading,
+              ),
+              content: SizedBox.shrink(),
+            );
+          }
+          if (projection == null) {
+            return const MakoloSurfaceStateView(
+              state: MakoloSurfacePresentation(
+                availability: MakoloAvailabilityCue.empty,
+              ),
+              empty: MakoloEmptyState(
+                title: 'Vos éléments en cours ne sont pas encore disponibles sur cet appareil.',
+                body: 'Une première connexion est nécessaire.',
+              ),
+              content: SizedBox.shrink(),
+            );
+          }
+          final items = OngoingContinuityPresentation.fromProjection(
+            projection,
           );
-        }
-        if (projection == null) {
-          return const MakoloSurfaceStateView(
-            state: MakoloSurfacePresentation(
-              availability: MakoloAvailabilityCue.empty,
-            ),
-            empty: MakoloEmptyState(title: 'Rien en cours pour le moment.'),
-            content: SizedBox.shrink(),
+          if (items.isEmpty) {
+            return MakoloSurfaceStateView(
+              state: MakoloSurfacePresentation(
+                availability: MakoloAvailabilityCue.empty,
+                failure: sourceSnapshot.data?.lastErrorCode == null
+                    ? MakoloFailureCue.none
+                    : MakoloFailureCue.recoverable,
+              ),
+              recoverableErrorMessage:
+                  'La mise à jour de vos éléments en cours a échoué.',
+              preservedMessage: 'Les données déjà enregistrées sur cet appareil sont conservées.',
+              onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
+              empty: const MakoloEmptyState(
+                title: 'Rien en cours pour le moment.',
+              ),
+              content: const SizedBox.shrink(),
+            );
+          }
+          final matches = items.where(
+            (item) => _ownerKey(item) == _selectedOwnerKey,
           );
-        }
-        final items = OngoingContinuityPresentation.fromProjection(projection);
-        if (items.isEmpty) {
-          return const MakoloSurfaceStateView(
+          final selected = matches.isEmpty ? null : matches.first;
+          final stale =
+              projection.freshUntil != null &&
+              projection.freshUntil!.isBefore(DateTime.now().toUtc());
+          return MakoloSurfaceStateView(
             state: MakoloSurfacePresentation(
-              availability: MakoloAvailabilityCue.empty,
+              availability: MakoloAvailabilityCue.content,
+              freshness: stale
+                  ? MakoloFreshnessCue.oldObservation
+                  : MakoloFreshnessCue.current,
+              failure:
+                  snapshot.hasError ||
+                      sourceSnapshot.data?.lastErrorCode != null
+                  ? MakoloFailureCue.recoverable
+                  : MakoloFailureCue.none,
             ),
-            empty: MakoloEmptyState(title: 'Rien en cours pour le moment.'),
-            content: SizedBox.shrink(),
+            recoverableErrorMessage: sourceSnapshot.data?.lastErrorCode == null
+                ? null
+                : 'La mise à jour de vos éléments en cours a échoué.',
+            preservedMessage:
+                'Les données déjà enregistrées restent consultables.',
+            onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
+            content: _OngoingAdaptiveView(
+              items: items,
+              selected: selected,
+              stale: stale,
+              onSelect: _select,
+              onBack: _clearSelection,
+            ),
           );
-        }
-        final matches = items.where(
-          (item) => _ownerKey(item) == _selectedOwnerKey,
-        );
-        final selected = matches.isEmpty ? null : matches.first;
-        final stale =
-            projection.freshUntil != null &&
-            projection.freshUntil!.isBefore(DateTime.now().toUtc());
-        return MakoloSurfaceStateView(
-          state: MakoloSurfacePresentation(
-            availability: MakoloAvailabilityCue.content,
-            freshness: stale
-                ? MakoloFreshnessCue.oldObservation
-                : MakoloFreshnessCue.current,
-            failure: snapshot.hasError
-                ? MakoloFailureCue.recoverable
-                : MakoloFailureCue.none,
-          ),
-          content: _OngoingAdaptiveView(
-            items: items,
-            selected: selected,
-            stale: stale,
-            onSelect: _select,
-            onBack: _clearSelection,
-          ),
-        );
-      },
+        },
+      ),
     ),
   );
 }

@@ -25,11 +25,59 @@ void main() {
       launch31,
       contains(
         '<item name="android:windowSplashScreenAnimatedIcon">'
-        '@drawable/ic_makolo_mark_white</item>',
+        '@drawable/makolo_splash_animated</item>',
       ),
     );
-    expect(launch31Night, contains('@drawable/ic_makolo_mark_white'));
+    expect(launch31Night, contains('@drawable/makolo_splash_animated'));
+    expect(launch31, contains('windowSplashScreenAnimationDuration">620'));
+    expect(colors, contains('#FF704D'));
     expect(File('assets/brand/makolo-mark-white.svg').existsSync(), isTrue);
+  });
+
+  test('Android 12 AVD has progressive steps and the exact canonical Mark', () {
+    const root = 'android/app/src/main/res/';
+    final avd = File('${root}drawable-v31/makolo_splash_animated.xml')
+        .readAsStringSync();
+    final vector = File('${root}drawable-v31/makolo_splash_vector.xml')
+        .readAsStringSync();
+    expect(avd, contains('<animated-vector'));
+    expect(avd, contains('@drawable/makolo_splash_vector'));
+    expect(vector, contains('android:width="432dp"'));
+    expect(vector, contains('android:viewportWidth="432"'));
+    expect(vector, contains('android:fillColor="@color/makolo_splash_step"'));
+    String normalize(String path) => path.replaceAll(RegExp(r'[\s,]+'), '');
+    final canonical = File('assets/brand/makolo-mark-white.svg')
+        .readAsStringSync();
+    final canonicalPath = RegExp(r'<path d="([^"]+)"')
+        .firstMatch(canonical)!
+        .group(1)!;
+    final nativePaths = RegExp(r'android:pathData="([^"]+)"')
+        .allMatches(vector)
+        .map((match) => normalize(match.group(1)!));
+    expect(nativePaths, contains(normalize(canonicalPath)));
+    for (final name in ['step1', 'step2', 'step3', 'mark']) {
+      expect(avd, contains('android:name="$name"'));
+      final animation = File('${root}animator-v31/makolo_splash_$name.xml')
+          .readAsStringSync();
+      expect(animation, contains('android:duration="620"'));
+      expect(animation, contains('android:propertyName="fillAlpha"'));
+      expect(
+        animation,
+        contains(
+          'android:fraction="1" android:value="${name == 'mark' ? 1 : 0}"',
+        ),
+      );
+    }
+    // A visible first step avoids a blank drawable before animation starts.
+    expect(vector, contains('android:fillAlpha="1"'));
+    final host = File('android/app/src/main/kotlin/com/makolo/MainActivity.kt')
+        .readAsStringSync();
+    expect(host, contains('Build.VERSION_CODES.S'));
+    expect(host, contains('view.remove()'));
+    expect(host, contains('call.method == "ready"'));
+    expect(host, contains('removeNativeSplash?.invoke()'));
+    expect(host, isNot(contains('OnPreDrawListener')));
+    expect(host, isNot(contains('postDelayed')));
   });
 
   test(

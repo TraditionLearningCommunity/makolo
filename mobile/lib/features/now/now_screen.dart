@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../app/sync_lifecycle.dart';
 import '../../network/makolo_api_client.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -111,6 +112,16 @@ class _NowScreenState extends State<NowScreen> {
     final projection = snapshot.data;
 
     if (projection == null) {
+      if (snapshot.hasError ||
+          source.lastErrorCode != null ||
+          syncStatus?.state == SyncVisualState.failed) {
+        return MakoloErrorState(
+          message: 'Now n’a pas pu être chargé.',
+          preservedMessage:
+              'Les données déjà enregistrées sur cet appareil sont conservées.',
+          onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
+        );
+      }
       final loading =
           snapshot.connectionState == ConnectionState.waiting ||
           syncStatus?.state == SyncVisualState.syncing;
@@ -147,6 +158,10 @@ class _NowScreenState extends State<NowScreen> {
       selection: selection,
       api: widget.api,
       profileId: widget.profileId,
+      refreshErrorMessage: source.lastErrorCode == null
+          ? null
+          : 'La mise à jour de Now a échoué.',
+      onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
       onOpenOwner: (destination) => _openOwner(context, destination),
     );
     final sync = widget.sync;
@@ -188,9 +203,13 @@ class NowView extends StatefulWidget {
     this.api,
     this.initialSelectedKey,
     this.profileId,
+    this.refreshErrorMessage,
+    this.onRetry,
   });
 
   final NowSelection selection;
+  final String? refreshErrorMessage;
+  final VoidCallback? onRetry;
   final String? initialSelectedKey;
   final String? profileId;
   final MakoloApiClient? api;
@@ -283,6 +302,9 @@ class _NowViewState extends State<NowView> {
     final state = widget.selection.state;
     final surface = MakoloSurfaceStateView(
       state: state,
+      recoverableErrorMessage: widget.refreshErrorMessage,
+      preservedMessage: 'Les données déjà enregistrées restent consultables.',
+      onRetry: widget.onRetry,
       empty: widget.selection.isCalm
           ? const _NowCalm()
           : const _NowUnavailable(),

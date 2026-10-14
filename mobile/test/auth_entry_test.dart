@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/providers.dart';
+import 'package:makolo_mobile/app/resumable_interaction_store.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/auth/auth_error_messages.dart';
+import 'package:makolo_mobile/features/auth/auth_components.dart';
 import 'package:makolo_mobile/features/auth/login_screen.dart';
 import 'package:makolo_mobile/network/api_error.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
@@ -20,11 +22,13 @@ AppRuntime _runtime({
   required MemoryTokenStore tokens,
   required MockClient client,
   SessionRecoveryController? recovery,
+  ResumableInteractionStore? interactions,
 }) {
   return AppRuntime(
     tokens: tokens,
     session: tokens.session,
     recovery: recovery ?? SessionRecoveryController(),
+    interactions: interactions,
     api: MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
       dio: client.dio,
@@ -37,14 +41,22 @@ Future<void> _pumpLogin(
   WidgetTester tester,
   AppRuntime runtime, {
   double textScale = 1,
+  double keyboardInset = 0,
+  Brightness brightness = Brightness.light,
   bool startWithAccounts = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       child: MaterialApp(
-        theme: buildMakoloTheme(),
+        theme: brightness == Brightness.dark
+            ? buildMakoloDarkTheme()
+            : buildMakoloLightTheme(),
         home: MediaQuery(
-          data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+          data: MediaQueryData(
+            size: tester.view.physicalSize / tester.view.devicePixelRatio,
+            viewInsets: EdgeInsets.only(bottom: keyboardInset),
+            textScaler: TextScaler.linear(textScale),
+          ),
           child: LoginScreen(
             runtime: runtime,
             startWithAccounts: startWithAccounts,
@@ -770,7 +782,10 @@ void main() {
 
     await _pumpLogin(tester, runtime);
 
-    expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
+    expect(
+      find.text('Connectez-vous pour poursuivre votre action.'),
+      findsOneWidget,
+    );
     expect(recovery.entryReason, EntryReason.protectedIntent);
     expect(recovery.lastUsefulLocation, '/journeys/123');
   });
@@ -799,7 +814,10 @@ void main() {
     );
 
     await _pumpLogin(tester, runtime);
-    expect(find.text('Reconnectez-vous pour continuer.'), findsOneWidget);
+    expect(
+      find.text('Votre session a expiré. Reconnectez-vous pour continuer.'),
+      findsOneWidget,
+    );
 
     await tester.enterText(
       find.byKey(const Key('login-email')),
@@ -836,4 +854,398 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byTooltip('Afficher le mot de passe'), findsOneWidget);
   });
+
+  testWidgets('empty login validates both fields without calling the API', (
+    tester,
+  ) async {
+    var calls = 0;
+    final runtime = _runtime(
+      tokens: MemoryTokenStore(),
+      client: MockClient((request) async {
+        calls++;
+        return MockResponse(jsonEncode({}), 500);
+      }),
+    );
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('login-submit')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Saisissez votre identifiant Makolo ou votre e-mail.'),
+      findsOneWidget,
+    );
+    expect(find.text('Saisissez votre mot de passe.'), findsOneWidget);
+    expect(calls, 0);
+    expect(await runtime.tokens.readSession(), isNull);
+  });
+
+  testWidgets(
+    'login keyboard next focuses password and done authenticates once',
+    (tester) async {
+      var calls = 0;
+      final tokens = MemoryTokenStore();
+      final runtime = _runtime(
+        tokens: tokens,
+        client: MockClient((request) async {
+          if (request.url.path.endsWith('/auth/login/')) {
+            calls++;
+            expect(jsonDecode(request.body), {
+              'username': '@amina',
+              'password': 'secret-pass',
+            });
+            return MockResponse(
+              jsonEncode({'access': 'access-a', 'refresh': 'refresh-a'}),
+              200,
+            );
+          }
+          if (request.url.path.endsWith('/auth/me/')) return _meResponse();
+          throw StateError('unexpected request');
+        }),
+      );
+      await _pumpLogin(tester, runtime);
+      await tester.enterText(find.byKey(const Key('login-email')), '@amina');
+      await tester.testTextInput.receiveAction(TextInputAction.next);
+      await tester.pump();
+      final password = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byKey(const Key('login-password')),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(password.focusNode.hasFocus, isTrue);
+      await tester.enterText(
+        find.byKey(const Key('login-password')),
+        'secret-pass',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(calls, 1);
+      expect((await tokens.readSession())?.profileId, 'profile-a');
+    },
+  );
+
+  testWidgets(
+    'signup busy disables fields and actions then preserves input on error',
+    (tester) async {
+      final response = Completer<MockResponse>();
+      var calls = 0;
+      final tokens = MemoryTokenStore();
+      final runtime = _runtime(
+        tokens: tokens,
+        client: MockClient((request) async {
+          if (request.url.path.endsWith('/auth/identifier/availability/')) {
+            return MockResponse(jsonEncode({'available': true}), 200);
+          }
+          if (request.url.path.endsWith('/auth/register/')) {
+            calls++;
+            return response.future;
+          }
+          throw StateError('unexpected request');
+        }),
+      );
+      await _pumpLogin(tester, runtime);
+      await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('signup-username')), 'amina');
+      await tester.enterText(
+        find.byKey(const Key('signup-password')),
+        'secret-pass',
+      );
+      await tester.enterText(
+        find.byKey(const Key('signup-password-confirm')),
+        'secret-pass',
+      );
+      await tester.pump(const Duration(milliseconds: 401));
+      await _tapVisible(tester, find.byKey(const Key('signup-submit')));
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(calls, 1);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      for (final field in tester.widgetList<TextFormField>(
+        find.byType(TextFormField),
+      )) {
+        expect(field.enabled, isFalse);
+      }
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('signup-submit')))
+            .onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed,
+        isNull,
+      );
+      // Keyboard submission and button presses cannot duplicate the mutation.
+      tester
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byKey(const Key('signup-password-confirm')),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .onSubmitted!('secret-pass');
+      await tester.tap(find.byKey(const Key('signup-submit')));
+      await tester.pump();
+      expect(calls, 1);
+      response.complete(
+        MockResponse(jsonEncode({'detail': 'Service indisponible'}), 503),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const Key('signup-username')))
+            .controller!
+            .text,
+        'amina',
+      );
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const Key('signup-password')))
+            .controller!
+            .text,
+        'secret-pass',
+      );
+      expect(await tokens.readSession(), isNull);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('signup-submit')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(find.text(makoloServerUnavailableMessage), findsOneWidget);
+      await _tapVisible(tester, find.text('J’ai déjà un compte'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('login-submit')), findsOneWidget);
+    },
+  );
+
+  testWidgets('signup keyboard focus and password toggles preserve values', (
+    tester,
+  ) async {
+    final runtime = _runtime(
+      tokens: MemoryTokenStore(),
+      client: MockClient(
+        (request) async => MockResponse(jsonEncode({'available': true}), 200),
+      ),
+    );
+    await _pumpLogin(tester, runtime);
+    await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+    await tester.pumpAndSettle();
+    const fields = [
+      'signup-email',
+      'signup-username',
+      'signup-first-name',
+      'signup-last-name',
+      'signup-phone',
+      'signup-password',
+      'signup-password-confirm',
+    ];
+    for (var i = 0; i < fields.length - 1; i++) {
+      await tester.showKeyboard(find.byKey(Key(fields[i])));
+      await tester.testTextInput.receiveAction(TextInputAction.next);
+      await tester.pump();
+      final next = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byKey(Key(fields[i + 1])),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(
+        next.focusNode.hasFocus,
+        isTrue,
+        reason: '${fields[i]} → ${fields[i + 1]}',
+      );
+    }
+    for (final pair in [
+      (
+        'signup-password',
+        'Afficher le mot de passe',
+        'Masquer le mot de passe',
+      ),
+      (
+        'signup-password-confirm',
+        'Afficher la confirmation',
+        'Masquer la confirmation',
+      ),
+    ]) {
+      final editable = find.descendant(
+        of: find.byKey(Key(pair.$1)),
+        matching: find.byType(EditableText),
+      );
+      await tester.enterText(find.byKey(Key(pair.$1)), 'secret-pass');
+      expect(tester.widget<EditableText>(editable).obscureText, isTrue);
+      await _tapVisible(tester, find.byTooltip(pair.$2));
+      await tester.pump();
+      expect(tester.widget<EditableText>(editable).obscureText, isFalse);
+      expect(
+        tester.widget<EditableText>(editable).controller.text,
+        'secret-pass',
+      );
+      await _tapVisible(tester, find.byTooltip(pair.$3));
+      await tester.pump();
+      expect(tester.widget<EditableText>(editable).obscureText, isTrue);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets(
+    'Auth drafts restore nonsecret fields and never persist passwords',
+    (tester) async {
+      final drafts = ResumableInteractionStore.memory();
+      await drafts.save('login', {'identifier': '@amina'});
+      await drafts.save('signup', {
+        'username': 'amina',
+        'email': 'amina@example.com',
+        'first_name': 'Amina',
+        'remember_on_device': true,
+      });
+      final runtime = _runtime(
+        tokens: MemoryTokenStore(),
+        interactions: drafts,
+        client: MockClient(
+          (request) async => MockResponse(jsonEncode({'available': true}), 200),
+        ),
+      );
+      await _pumpLogin(tester, runtime);
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const Key('login-email')))
+            .controller!
+            .text,
+        '@amina',
+      );
+      await tester.enterText(
+        find.byKey(const Key('login-password')),
+        'login-secret',
+      );
+      await tester.pump(const Duration(milliseconds: 301));
+      expect(await drafts.read('login'), {'identifier': '@amina'});
+      await _tapVisible(tester, find.byKey(const Key('create-account-link')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const Key('signup-first-name')))
+            .controller!
+            .text,
+        'Amina',
+      );
+      expect(
+        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+        isTrue,
+      );
+      await tester.enterText(
+        find.byKey(const Key('signup-password')),
+        'signup-secret',
+      );
+      await tester.enterText(
+        find.byKey(const Key('signup-password-confirm')),
+        'signup-secret',
+      );
+      await tester.enterText(
+        find.byKey(const Key('signup-first-name')),
+        'Amina K',
+      );
+      await tester.pump(const Duration(milliseconds: 251));
+      final saved = await drafts.read('signup');
+      expect(saved['first_name'], 'Amina K');
+      expect(saved['username'], 'amina');
+      expect(saved.containsKey('password'), isFalse);
+      expect(saved.containsKey('password_confirm'), isFalse);
+      expect(saved.values, isNot(contains('signup-secret')));
+      await _tapVisible(tester, find.text('J’ai déjà un compte'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const Key('login-password')))
+            .controller!
+            .text,
+        isEmpty,
+      );
+      // Signup prefers its canonical public identifier when returning to Login.
+      expect(
+        tester
+            .widget<TextFormField>(find.byKey(const Key('login-email')))
+            .controller!
+            .text,
+        '@amina',
+      );
+    },
+  );
+
+  for (final signup in [false, true]) {
+    testWidgets(
+      '${signup ? "Signup" : "Login"} remains accessible and scrollable above the keyboard at large text',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 568);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final semantics = tester.ensureSemantics();
+        try {
+          final runtime = _runtime(
+            tokens: MemoryTokenStore(),
+            client: MockClient(
+              (request) async => MockResponse(jsonEncode({}), 500),
+            ),
+          );
+          await _pumpLogin(
+            tester,
+            runtime,
+            textScale: 1.6,
+            keyboardInset: 280,
+            brightness: Brightness.dark,
+          );
+          if (signup) {
+            await _tapVisible(
+              tester,
+              find.byKey(const Key('create-account-link')),
+            );
+            await tester.pumpAndSettle();
+          }
+          final fields = tester
+              .widgetList<TextFormField>(find.byType(TextFormField))
+              .toList();
+          expect(fields.length, signup ? 7 : 2);
+          for (final field in fields) {
+            final finder = find.byKey(field.key!);
+            await tester.ensureVisible(finder);
+            await tester.pumpAndSettle();
+            final input = tester.widget<TextField>(
+              find.descendant(of: finder, matching: find.byType(TextField)),
+            );
+            expect(input.decoration!.labelText, isNull);
+            final label = tester
+                .widget<MakoloAuthField>(
+                  find.ancestor(
+                    of: finder,
+                    matching: find.byType(MakoloAuthField),
+                  ),
+                )
+                .label;
+            expect(
+              tester
+                  .getSemantics(
+                    find.descendant(
+                      of: finder,
+                      matching: find.byType(EditableText),
+                    ),
+                  )
+                  .label,
+              contains(label),
+            );
+          }
+          final submit = find.byKey(
+            Key(signup ? 'signup-submit' : 'login-submit'),
+          );
+          await tester.ensureVisible(submit);
+          await tester.pumpAndSettle();
+          expect(tester.getBottomLeft(submit).dy, lessThanOrEqualTo(288));
+          expect(tester.takeException(), isNull);
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+  }
 }

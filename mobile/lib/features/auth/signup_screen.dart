@@ -17,11 +17,9 @@ class SignupScreen extends StatefulWidget {
     required this.onBackToLogin,
     required this.onAuthenticated,
   });
-
   final AppRuntime runtime;
   final ValueChanged<String> onBackToLogin;
   final VoidCallback onAuthenticated;
-
   @override
   State<SignupScreen> createState() => _SignupScreenState();
 }
@@ -43,14 +41,12 @@ class _SignupScreenState extends State<SignupScreen> {
   final _phone = TextEditingController();
   final _password = TextEditingController();
   final _passwordConfirm = TextEditingController();
-
   final _usernameFocus = FocusNode();
   final _firstNameFocus = FocusNode();
   final _lastNameFocus = FocusNode();
   final _phoneFocus = FocusNode();
   final _passwordFocus = FocusNode();
   final _passwordConfirmFocus = FocusNode();
-
   bool _busy = false;
   bool _showPassword = false;
   bool _showPasswordConfirm = false;
@@ -62,7 +58,6 @@ class _SignupScreenState extends State<SignupScreen> {
   _IdentifierAvailability _usernameAvailability = _IdentifierAvailability.idle;
   String? _usernameAvailabilityMessage;
   bool _restoringDraft = false;
-
   @override
   void initState() {
     super.initState();
@@ -80,8 +75,16 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _restoreDraft() async {
-    final draft = await widget.runtime.interactions?.read('signup');
-    if (!mounted || draft == null || draft.isEmpty) return;
+    Map<String, dynamic>? draft;
+    try {
+      final saved = await widget.runtime.interactions?.read('signup');
+      if (saved == null) return;
+      draft = Map<String, dynamic>.from(saved);
+    } catch (_) {
+      // An optional draft cannot prevent creating an account.
+      return;
+    }
+    if (!mounted || draft.isEmpty) return;
     _restoringDraft = true;
     _email.text = draft['email'] is String ? draft['email'] as String : '';
     _username.text = draft['username'] is String
@@ -100,21 +103,26 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _scheduleDraftSave() {
-    if (_restoringDraft) return;
+    if (_restoringDraft || _busy) return;
     _draftTimer?.cancel();
     _draftTimer = Timer(const Duration(milliseconds: 250), () {
-      unawaited(
-        widget.runtime.interactions?.save('signup', {
-              'email': _email.text.trim(),
-              'username': _username.text.trim(),
-              'first_name': _firstName.text.trim(),
-              'last_name': _lastName.text.trim(),
-              'phone': _phone.text.trim(),
-              'remember_on_device': _rememberOnDevice,
-            }) ??
-            Future<void>.value(),
-      );
+      if (mounted) unawaited(_saveDraft());
     });
+  }
+
+  Future<void> _saveDraft() async {
+    try {
+      await widget.runtime.interactions?.save('signup', {
+        'email': _email.text.trim(),
+        'username': _username.text.trim(),
+        'first_name': _firstName.text.trim(),
+        'last_name': _lastName.text.trim(),
+        'phone': _phone.text.trim(),
+        'remember_on_device': _rememberOnDevice,
+      });
+    } catch (_) {
+      // No passwords are persisted in this draft.
+    }
   }
 
   @override
@@ -210,7 +218,6 @@ class _SignupScreenState extends State<SignupScreen> {
     final version = _usernameAvailabilityVersion;
     final normalized = _normalizedUsername(_username.text);
     final localError = _localUsernameError(normalized);
-
     if (localError != null) {
       if (mounted) {
         setState(() {
@@ -220,14 +227,12 @@ class _SignupScreenState extends State<SignupScreen> {
       }
       return;
     }
-
     if (mounted) {
       setState(() {
         _usernameAvailability = _IdentifierAvailability.checking;
         _usernameAvailabilityMessage = 'Vérification…';
       });
     }
-
     _usernameAvailabilityTimer = Timer(
       const Duration(milliseconds: 400),
       () => unawaited(_checkUsernameAvailability(normalized, version)),
@@ -247,7 +252,6 @@ class _SignupScreenState extends State<SignupScreen> {
       });
       return;
     }
-
     try {
       final response = await api.publicGet(
         'api/v1/accounts/auth/identifier/availability/?value=${Uri.encodeQueryComponent(normalized)}',
@@ -299,7 +303,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _submit() async {
-    if (_busy || !_formKey.currentState!.validate()) return;
+    if (_busy || !(_formKey.currentState?.validate() ?? false)) return;
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
@@ -307,7 +311,7 @@ class _SignupScreenState extends State<SignupScreen> {
       });
       return;
     }
-
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _busy = true;
       _error = null;
@@ -324,8 +328,13 @@ class _SignupScreenState extends State<SignupScreen> {
         phone: _phone.text.trim(),
         rememberOnDevice: _rememberOnDevice,
       );
-      TextInput.finishAutofillContext();
-      await widget.runtime.interactions?.clear('signup');
+      TextInput.finishAutofillContext(shouldSave: true);
+      _draftTimer?.cancel();
+      try {
+        await widget.runtime.interactions?.clear('signup');
+      } catch (_) {
+        // Optional draft cleanup must not undo successful registration.
+      }
       if (!mounted) return;
       widget.onAuthenticated();
     } on Object catch (error) {
@@ -351,6 +360,7 @@ class _SignupScreenState extends State<SignupScreen> {
               MakoloAuthField(
                 fieldKey: const Key('signup-email'),
                 label: 'Adresse e-mail (facultatif)',
+                hint: 'E-mail (si souhaité)',
                 controller: _email,
                 enabled: !_busy,
                 keyboardType: TextInputType.emailAddress,
@@ -364,6 +374,7 @@ class _SignupScreenState extends State<SignupScreen> {
               MakoloAuthField(
                 fieldKey: const Key('signup-username'),
                 label: 'Identifiant Makolo',
+                hint: 'Votre identifiant',
                 controller: _username,
                 focusNode: _usernameFocus,
                 enabled: !_busy,
@@ -382,21 +393,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     key: const Key('signup-username-availability'),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: switch (_usernameAvailability) {
-                        _IdentifierAvailability.available => Theme.of(
-                          context,
-                        ).colorScheme.primary,
-                        _IdentifierAvailability.unavailable => Theme.of(
-                          context,
-                        ).colorScheme.error,
-                        _IdentifierAvailability.unableToCheck => Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
-                        _IdentifierAvailability.checking => Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
-                        _IdentifierAvailability.idle => Theme.of(
-                          context,
-                        ).colorScheme.onSurfaceVariant,
+                        _IdentifierAvailability.available => const Color(
+                          0xFFE2FFE9,
+                        ),
+                        _IdentifierAvailability.unavailable => const Color(
+                          0xFFFFE0DA,
+                        ),
+                        _IdentifierAvailability.unableToCheck => Colors.white,
+                        _IdentifierAvailability.checking => Colors.white,
+                        _IdentifierAvailability.idle => Colors.white,
                       },
                       fontWeight: FontWeight.w600,
                     ),
@@ -407,6 +412,7 @@ class _SignupScreenState extends State<SignupScreen> {
               MakoloAuthField(
                 fieldKey: const Key('signup-first-name'),
                 label: 'Prénom (facultatif)',
+                hint: 'Prénom',
                 controller: _firstName,
                 focusNode: _firstNameFocus,
                 enabled: !_busy,
@@ -419,6 +425,7 @@ class _SignupScreenState extends State<SignupScreen> {
               MakoloAuthField(
                 fieldKey: const Key('signup-last-name'),
                 label: 'Nom (facultatif)',
+                hint: 'Nom',
                 controller: _lastName,
                 focusNode: _lastNameFocus,
                 enabled: !_busy,
@@ -431,6 +438,7 @@ class _SignupScreenState extends State<SignupScreen> {
               MakoloAuthField(
                 fieldKey: const Key('signup-phone'),
                 label: 'Téléphone (facultatif)',
+                hint: 'Numéro de téléphone',
                 controller: _phone,
                 focusNode: _phoneFocus,
                 enabled: !_busy,
@@ -444,6 +452,7 @@ class _SignupScreenState extends State<SignupScreen> {
               MakoloAuthField(
                 fieldKey: const Key('signup-password'),
                 label: 'Mot de passe',
+                hint: '8 caractères minimum',
                 controller: _password,
                 focusNode: _passwordFocus,
                 enabled: !_busy,
@@ -470,6 +479,7 @@ class _SignupScreenState extends State<SignupScreen> {
               MakoloAuthField(
                 fieldKey: const Key('signup-password-confirm'),
                 label: 'Confirmer le mot de passe',
+                hint: 'Répétez le mot de passe',
                 controller: _passwordConfirm,
                 focusNode: _passwordConfirmFocus,
                 enabled: !_busy,

@@ -2,6 +2,8 @@ package com.makolo
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Patterns
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -16,9 +18,35 @@ class MainActivity : FlutterFragmentActivity() {
 
     private var shareChannel: MethodChannel? = null
     private var pendingShare: Map<String, Any?>? = null
+    private var launchReady = false
+    private var removeNativeSplash: (() -> Unit)? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Flutter may draw immediately. Keep this same native view only
+            // while its real local initialization is unfinished, never for a timer.
+            splashScreen.setOnExitAnimationListener { view ->
+                if (launchReady) view.remove() else removeNativeSplash = { view.remove() }
+            }
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "makolo/launch")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "ready") {
+                    launchReady = true
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        removeNativeSplash?.invoke()
+                        removeNativeSplash = null
+                    }
+                    result.success(null)
+                } else {
+                    result.notImplemented()
+                }
+            }
         shareChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             SHARE_CHANNEL,

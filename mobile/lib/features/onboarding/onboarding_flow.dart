@@ -28,12 +28,12 @@ class OnboardingFlow extends StatefulWidget {
 class _OnboardingFlowState extends State<OnboardingFlow> {
   static const _pages = <({String title, String body, IconData icon})>[
     (
-      title: 'Découvrez ce qui compte vraiment.',
-      body: 'Explorez des possibilités réelles sans transformer Makolo en simple fil à parcourir.',
+      title: 'Découvrez ce qui compte pour vous.',
+      body: 'Explorez des possibilités réelles pour vivre, faire ou obtenir ce qui compte pour vous.',
       icon: Icons.explore_outlined,
     ),
     (
-      title: 'Préparez ce qui peut l’être.',
+      title: 'Préparez ce qui est nécessaire.',
       body: 'Rassemblez le contexte utile avant le moment d’agir et voyez clairement ce qui reste à faire.',
       icon: Icons.inventory_2_outlined,
     ),

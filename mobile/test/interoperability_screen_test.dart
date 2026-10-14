@@ -74,6 +74,7 @@ void main() {
     tester,
   ) async {
     final database = MakoloDatabase.memory();
+    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(_payload(), database: database);
 
     await tester.pumpWidget(
@@ -101,6 +102,7 @@ void main() {
     'Profile Connexions keeps scopes isolated and humanizes capabilities',
     (tester) async {
       final database = MakoloDatabase.memory();
+      addTearDown(database.close);
       final runtime = await _runtimeWithPayload(
         _payload(
           connections: [
@@ -168,6 +170,7 @@ void main() {
     tester,
   ) async {
     final database = MakoloDatabase.memory();
+    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
       _payload(
         connections: [
@@ -261,6 +264,7 @@ void main() {
     tester,
   ) async {
     final database = MakoloDatabase.memory();
+    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
       _payload(
         providers: [
@@ -327,6 +331,7 @@ void main() {
     tester,
   ) async {
     final database = MakoloDatabase.memory();
+    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
       _payload(
         connections: [
@@ -376,6 +381,7 @@ void main() {
 
   testWidgets('offline without cache degrades only Connexions', (tester) async {
     final database = MakoloDatabase.memory();
+    addTearDown(database.close);
     final store = ProfileStore(database, 'profile-a');
     final runtime = _runtimeWithStore(store, database);
 
@@ -402,6 +408,7 @@ void main() {
 
   testWidgets('wide and text scale remain a readable pane', (tester) async {
     final database = MakoloDatabase.memory();
+    addTearDown(database.close);
     final runtime = await _runtimeWithPayload(
       _payload(
         connections: [

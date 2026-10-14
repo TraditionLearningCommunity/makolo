@@ -22,6 +22,9 @@ void main() {
 
     await tester.pump(const Duration(seconds: 1));
 
+    expect(finished, isFalse);
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
     expect(finished, isTrue);
   });
 

@@ -10,7 +10,8 @@ class SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: MakoloColors.indigo,
-      body: SafeArea(child: Center(child: MakoloMark(size: 78, white: true))),
+      // Same centered final artwork as the Android splash, with no replay.
+      body: Center(child: MakoloMark(size: 78, white: true)),
     );
   }
 }
