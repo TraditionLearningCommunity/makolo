@@ -53,15 +53,6 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
         ),
         children: [
           Text(
-            'DÉCOUVRIR · PRÉPARER · AVANCER',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: colors.primary,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: MakoloSpacing.compact),
-          Text(
             'Ça vous intéresserait',
             style: theme.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w800,
@@ -78,7 +69,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
               height: 1.35,
             ),
           ),
-          const SizedBox(height: MakoloSpacing.lg),
+          const SizedBox(height: MakoloSpacing.md),
           Text(
             'Rechercher des opportunités',
             style: theme.textTheme.titleSmall?.copyWith(
@@ -133,7 +124,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: MakoloSpacing.sm,
             crossAxisSpacing: MakoloSpacing.sm,
-            childAspectRatio: 2.65,
+            childAspectRatio: 2.9,
             children: [
               _ExploreChoice(
                 label: 'Voyager',
@@ -160,12 +151,12 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: MakoloSpacing.lg),
+          const SizedBox(height: MakoloSpacing.compact),
           Container(
             key: const Key('guest-home-action-journey'),
             padding: const EdgeInsets.symmetric(
               horizontal: MakoloSpacing.md,
-              vertical: MakoloSpacing.inner,
+              vertical: MakoloSpacing.md,
             ),
             decoration: BoxDecoration(
               color: colors.primary.withValues(alpha: 0.055),
@@ -181,7 +172,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
                     height: 1.2,
                   ),
                 ),
-                const SizedBox(height: MakoloSpacing.md),
+                const SizedBox(height: MakoloSpacing.compact),
                 Row(
                   children: [
                     const Expanded(
