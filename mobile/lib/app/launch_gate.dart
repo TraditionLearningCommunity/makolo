@@ -98,7 +98,7 @@ class _LaunchGateState extends State<LaunchGate> {
         widget.router.go('/create-account');
       case OnboardingExit.skip:
       case OnboardingExit.continueGuest:
-        if (!_priorityNavigation) widget.router.go('/discover');
+        if (!_priorityNavigation) widget.router.go('/welcome');
       case OnboardingExit.continueAuthenticated:
         if (!_priorityNavigation) widget.router.go('/now');
     }
