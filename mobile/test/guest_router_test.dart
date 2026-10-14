@@ -107,49 +107,64 @@ void main() {
     expect(find.byType(LoginScreen), findsNothing);
   });
 
-  testWidgets('public Discover actually searches the server, not loaded items', (
-    tester,
-  ) async {
-    final seenQueries = <String>[];
-    final client = MockClient((request) async {
-      expect(request.headers.containsKey('Authorization'), isFalse);
-      expect(request.url.path, '/api/v1/discovery/items/');
-      seenQueries.add(request.url.queryParameters['q'] ?? '');
-      final filtered = request.url.queryParameters['q'] == '023';
-      return MockResponse(
-        jsonEncode({
-          'data': {
-            'count': filtered ? 1 : 2,
-            'page': 1,
-            'page_size': 12,
-            'has_next': false,
-            'results': filtered
-                ? [_item('Accompagnement bourses Accra — 023', '11111111-1111-4111-8111-111111111111')]
-                : [
-                    _item('Accompagnement bourses Accra — 023', '11111111-1111-4111-8111-111111111111'),
-                    _item('Atelier numérique Lubumbashi', '22222222-2222-4222-8222-222222222222'),
-                  ],
-          },
-        }),
-        200,
+  testWidgets(
+    'public Discover actually searches the server, not loaded items',
+    (tester) async {
+      final seenQueries = <String>[];
+      final client = MockClient((request) async {
+        expect(request.headers.containsKey('Authorization'), isFalse);
+        expect(request.url.path, '/api/v1/discovery/items/');
+        seenQueries.add(request.url.queryParameters['q'] ?? '');
+        final filtered = request.url.queryParameters['q'] == '023';
+        return MockResponse(
+          jsonEncode({
+            'data': {
+              'count': filtered ? 1 : 2,
+              'page': 1,
+              'page_size': 12,
+              'has_next': false,
+              'results': filtered
+                  ? [
+                      _item(
+                        'Accompagnement bourses Accra — 023',
+                        '11111111-1111-4111-8111-111111111111',
+                      ),
+                    ]
+                  : [
+                      _item(
+                        'Accompagnement bourses Accra — 023',
+                        '11111111-1111-4111-8111-111111111111',
+                      ),
+                      _item(
+                        'Atelier numérique Lubumbashi',
+                        '22222222-2222-4222-8222-222222222222',
+                      ),
+                    ],
+            },
+          }),
+          200,
+        );
+      });
+      final router = _router(
+        _guestRuntime(SessionRecoveryController(), client: client),
       );
-    });
-    final router = _router(
-      _guestRuntime(SessionRecoveryController(), client: client),
-    );
-    await _pump(tester, router);
-    router.go('/discover');
-    await tester.pumpAndSettle();
+      await _pump(tester, router);
+      router.go('/discover');
+      await tester.pumpAndSettle();
 
-    expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
-    await tester.enterText(find.byKey(const Key('guest-search-query')), '023');
-    await tester.testTextInput.receiveAction(TextInputAction.search);
-    await tester.pumpAndSettle();
+      expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('guest-search-query')),
+        '023',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
 
-    expect(seenQueries, contains('023'));
-    expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
-    expect(find.text('Atelier numérique Lubumbashi'), findsNothing);
-  });
+      expect(seenQueries, contains('023'));
+      expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
+      expect(find.text('Atelier numérique Lubumbashi'), findsNothing);
+    },
+  );
 
   testWidgets('public Discovery paginates on the server', (tester) async {
     final seenPages = <String>[];
@@ -164,17 +179,16 @@ void main() {
             'page_size': 12,
             'has_next': page == 1,
             'results': [
-              _item(
-                'Page $page',
-                '11111111-1111-4111-8111-111111111111',
-              ),
+              _item('Page $page', '11111111-1111-4111-8111-111111111111'),
             ],
           },
         }),
         200,
       );
     });
-    final router = _router(_guestRuntime(SessionRecoveryController(), client: client));
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
     await _pump(tester, router);
     router.go('/discover');
     await tester.pumpAndSettle();
@@ -193,14 +207,18 @@ void main() {
   ) async {
     final client = MockClient((request) async {
       expect(request.headers.containsKey('Authorization'), isFalse);
-      expect(request.url.path,
-          '/api/v1/discovery/items/activity/11111111-1111-4111-8111-111111111111/');
+      expect(
+        request.url.path,
+        '/api/v1/discovery/items/activity/11111111-1111-4111-8111-111111111111/',
+      );
       return MockResponse(
         jsonEncode({
           'data': {
             'item': {
-              ..._item('Voyage Lubumbashi–Kolwezi',
-                  '11111111-1111-4111-8111-111111111111'),
+              ..._item(
+                'Voyage Lubumbashi–Kolwezi',
+                '11111111-1111-4111-8111-111111111111',
+              ),
               'detail': {'description': 'Voyage public confirmé.'},
             },
           },
@@ -208,7 +226,9 @@ void main() {
         200,
       );
     });
-    final router = _router(_guestRuntime(SessionRecoveryController(), client: client));
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
     await _pump(tester, router);
     router.go('/discover/items/activity/11111111-1111-4111-8111-111111111111');
     await tester.pumpAndSettle();
@@ -232,16 +252,22 @@ void main() {
               'page': 1,
               'has_next': false,
               'results': [
-                {'name': 'Association Visible', 'slug': 'association-visible',
-                'city': 'Lubumbashi', 'country': 'RDC'},
+                {
+                  'name': 'Association Visible',
+                  'slug': 'association-visible',
+                  'city': 'Lubumbashi',
+                  'country': 'RDC',
+                },
               ],
             },
           }),
           200,
         );
       }
-      expect(request.url.path,
-          '/api/v1/organizations/public-spaces/association-visible/');
+      expect(
+        request.url.path,
+        '/api/v1/organizations/public-spaces/association-visible/',
+      );
       return MockResponse(
         jsonEncode({
           'data': {
@@ -261,7 +287,9 @@ void main() {
         200,
       );
     });
-    final router = _router(_guestRuntime(SessionRecoveryController(), client: client));
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
     await _pump(tester, router);
     router.go('/spaces');
     await tester.pumpAndSettle();
@@ -277,14 +305,23 @@ void main() {
   testWidgets('empty public contract stays calm without invented cards', (
     tester,
   ) async {
-    final client = MockClient((request) async => MockResponse(
-      jsonEncode({'data': {
-        'count': 0, 'page': 1, 'page_size': 12,
-        'has_next': false, 'results': <Object>[],
-      }}),
-      200,
-    ));
-    final router = _router(_guestRuntime(SessionRecoveryController(), client: client));
+    final client = MockClient(
+      (request) async => MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      ),
+    );
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
     await _pump(tester, router);
     router.go('/discover');
     await tester.pumpAndSettle();
@@ -295,20 +332,21 @@ void main() {
     );
   });
 
-  testWidgets('personal guest destination asks for auth without personal shell', (
-    tester,
-  ) async {
-    final recovery = SessionRecoveryController();
-    final router = _router(_guestRuntime(recovery));
-    await _pump(tester, router);
+  testWidgets(
+    'personal guest destination asks for auth without personal shell',
+    (tester) async {
+      final recovery = SessionRecoveryController();
+      final router = _router(_guestRuntime(recovery));
+      await _pump(tester, router);
 
-    router.go('/ongoing');
-    await tester.pumpAndSettle();
+      router.go('/ongoing');
+      await tester.pumpAndSettle();
 
-    expect(find.byType(LoginScreen), findsOneWidget);
-    expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
-    expect(recovery.lastUsefulLocation, '/ongoing');
-  });
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
+      expect(recovery.lastUsefulLocation, '/ongoing');
+    },
+  );
 
   testWidgets('login and create-account remain explicit public destinations', (
     tester,
