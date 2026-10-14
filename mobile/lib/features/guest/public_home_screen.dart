@@ -40,9 +40,12 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
         padding: const EdgeInsets.all(MakoloSpacing.lg),
         children: [
           const SizedBox(height: MakoloSpacing.lg),
-          Text('MAKOLO', style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.primary,
-          )),
+          Text(
+            'MAKOLO',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.primary,
+            ),
+          ),
           const SizedBox(height: MakoloSpacing.sm),
           Text(
             'Faites avancer ce qui compte.',
