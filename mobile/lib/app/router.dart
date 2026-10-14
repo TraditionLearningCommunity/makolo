@@ -67,9 +67,12 @@ GoRouter createMakoloRouter(
   bool isProtectedPath(String path) {
     // These routes are public read-only projections, even when deep-linked.
     // The authenticated router still uses the canonical personal depths.
-    if (path == '/welcome' || path == '/discover' ||
-        path == '/discover/map' || path == '/spaces' ||
-        path.startsWith('/spaces/') || path.startsWith('/discover/items/')) {
+    if (path == '/welcome' ||
+        path == '/discover' ||
+        path == '/discover/map' ||
+        path == '/spaces' ||
+        path.startsWith('/spaces/') ||
+        path.startsWith('/discover/items/')) {
       return false;
     }
     if (MakoloDestination.forPath(path) != null) return true;
@@ -123,8 +126,7 @@ GoRouter createMakoloRouter(
         return '/login';
       }
 
-      if (!runtime.isAuthenticated &&
-          path == '/discover/search') {
+      if (!runtime.isAuthenticated && path == '/discover/search') {
         return '/discover';
       }
 
