@@ -152,6 +152,14 @@ void main() {
       router.go('/discover');
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(
+        find.text('Atelier numérique Lubumbashi'),
+        180,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('guest-public-landing')),
+          matching: find.byType(Scrollable),
+        ).first,
+      );
       expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
       await tester.enterText(
         find.byKey(const Key('guest-search-query')),
