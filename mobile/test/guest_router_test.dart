@@ -98,7 +98,8 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
-    expect(find.text('Faites avancer ce qui compte.'), findsOneWidget);
+    expect(find.text('Ce que vous voulez faire commence ici.'), findsOneWidget);
+    expect(find.byKey(const Key('guest-home-search-submit')), findsOneWidget);
     expect(find.text('Accueil'), findsOneWidget);
     expect(find.text('Espaces'), findsWidgets);
     expect(find.text('En cours'), findsNothing);
@@ -112,6 +113,89 @@ void main() {
     await tester.tap(find.byKey(const Key('guest-login-action')));
     await tester.pumpAndSettle();
     expect(find.byType(LoginScreen), findsOneWidget);
+  });
+
+  testWidgets('guest welcome search submits to native Discover', (
+    tester,
+  ) async {
+    final seenQueries = <String>[];
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.url.path, '/api/v1/discovery/items/');
+      seenQueries.add(request.url.queryParameters['q'] ?? '');
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+
+    await tester.enterText(
+      find.byKey(const Key('guest-home-query')),
+      'Voyager à Kolwezi',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    expect(router.routeInformationProvider.value.uri.path, '/discover');
+    expect(
+      router.routeInformationProvider.value.uri.queryParameters['q'],
+      'Voyager à Kolwezi',
+    );
+    expect(seenQueries, contains('Voyager à Kolwezi'));
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('guest welcome quick filter navigates natively', (
+    tester,
+  ) async {
+    final router = _router(_guestRuntime(SessionRecoveryController()));
+    await _pump(tester, router);
+
+    await tester.tap(find.text('Participer'));
+    await tester.pumpAndSettle();
+
+    expect(router.routeInformationProvider.value.uri.path, '/discover');
+    expect(
+      router.routeInformationProvider.value.uri.queryParameters['vertical'],
+      'event',
+    );
+    expect(
+      router.routeInformationProvider.value.uri.queryParameters['q'],
+      isNull,
+    );
+  });
+
+  testWidgets('guest welcome links to public Spaces', (tester) async {
+    final router = _router(_guestRuntime(SessionRecoveryController()));
+    await _pump(tester, router);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('guest-home-spaces')),
+      160,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('guest-public-home')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.tap(find.byKey(const Key('guest-home-spaces')));
+    await tester.pumpAndSettle();
+
+    expect(router.routeInformationProvider.value.uri.path, '/spaces');
+    expect(find.byType(LoginScreen), findsNothing);
   });
 
   testWidgets(
