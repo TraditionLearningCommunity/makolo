@@ -104,7 +104,14 @@ void main() {
     expect(find.text('En cours'), findsNothing);
     expect(find.text('Moi'), findsNothing);
     expect(find.byTooltip('Avatar'), findsNothing);
+    expect(find.byTooltip('Compte'), findsNothing);
+    expect(find.byKey(const Key('guest-login-action')), findsOneWidget);
+    expect(find.byKey(const Key('guest-register-action')), findsOneWidget);
     expect(find.byType(LoginScreen), findsNothing);
+
+    await tester.tap(find.byKey(const Key('guest-login-action')));
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 
   testWidgets(
@@ -239,6 +246,16 @@ void main() {
                 '11111111-1111-4111-8111-111111111111',
               ),
               'detail': {'description': 'Voyage public confirmé.'},
+              'engagement': {
+                'presentation': {
+                  'enabled': true,
+                  'label': 'Voir l’événement',
+                  'web': '/activities/11111111-1111-4111-8111-111111111111/',
+                },
+              },
+              'links': {
+                'web': '/activities/11111111-1111-4111-8111-111111111111/',
+              },
             },
           },
         }),
@@ -255,6 +272,9 @@ void main() {
     expect(find.byKey(const Key('guest-possibility-detail')), findsOneWidget);
     expect(find.text('Voyage Lubumbashi–Kolwezi'), findsOneWidget);
     expect(find.text('Voyage public confirmé.'), findsOneWidget);
+    expect(find.text('Voir l’événement'), findsNothing);
+    expect(find.text('Voir la page publique'), findsNothing);
+    expect(find.byKey(const Key('guest-save-signin')), findsOneWidget);
     expect(find.byType(LoginScreen), findsNothing);
   });
 
