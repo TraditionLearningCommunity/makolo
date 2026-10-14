@@ -135,7 +135,39 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 border: const OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: MakoloSpacing.lg),
+            const SizedBox(height: MakoloSpacing.compact),
+            Row(
+              key: const Key('guest-spaces-search-context'),
+              children: [
+                Icon(
+                  Icons.groups_outlined,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: MakoloSpacing.sm),
+                Expanded(
+                  child: Text(
+                    _search.text.trim().isEmpty
+                        ? 'Tous les Espaces publics'
+                        : 'Recherche par nom',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                if (_search.text.trim().isNotEmpty)
+                  ActionChip(
+                    key: const Key('guest-spaces-clear-search'),
+                    avatar: const Icon(Icons.close_rounded, size: 16),
+                    label: const Text('Effacer'),
+                    onPressed: () {
+                      _search.clear();
+                      _searchSpaces();
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: MakoloSpacing.md),
             if (_error != null) ...[
               Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               TextButton(onPressed: _load, child: const Text('Réessayer')),
