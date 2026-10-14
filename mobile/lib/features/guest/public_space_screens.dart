@@ -109,12 +109,12 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             ),
             const SizedBox(height: MakoloSpacing.sm),
             Text(
-              'Découvrez les Espaces sur Makolo.',
+              'Les Espaces sur Makolo',
               style: theme.textTheme.headlineSmall,
             ),
             const SizedBox(height: MakoloSpacing.sm),
             const Text(
-              'Organisations, équipes et communautés qui rendent des possibilités accessibles.',
+              'Chaque Espace présente une organisation, une équipe ou une communauté, et ce qu’elle propose.',
             ),
             const SizedBox(height: MakoloSpacing.lg),
             TextField(
@@ -122,16 +122,18 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               controller: _search,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _searchSpaces(),
-              decoration: const InputDecoration(
-                labelText: 'Nom de l’Espace',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Rechercher un Espace',
+                hintText: 'Nom d’une organisation ou communauté',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  key: const Key('guest-space-search-submit'),
+                  tooltip: 'Lancer la recherche',
+                  onPressed: _searchSpaces,
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                ),
+                border: const OutlineInputBorder(),
               ),
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            FilledButton(
-              onPressed: _searchSpaces,
-              child: const Text('Rechercher'),
             ),
             const SizedBox(height: MakoloSpacing.lg),
             if (_error != null) ...[
