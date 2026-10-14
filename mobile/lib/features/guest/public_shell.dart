@@ -66,29 +66,29 @@ class PublicExperienceShell extends StatelessWidget {
           }),
         ),
         child: NavigationBar(
-        selectedIndex: current,
-        onDestinationSelected: (index) => context.go(switch (index) {
-          0 => '/welcome',
-          1 => '/discover',
-          _ => '/spaces',
-        }),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore),
-            label: 'Découvrir',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.groups_outlined),
-            selectedIcon: Icon(Icons.groups),
-            label: 'Espaces',
-          ),
-        ],
+          selectedIndex: current,
+          onDestinationSelected: (index) => context.go(switch (index) {
+            0 => '/welcome',
+            1 => '/discover',
+            _ => '/spaces',
+          }),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Accueil',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore),
+              label: 'Découvrir',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.groups_outlined),
+              selectedIcon: Icon(Icons.groups),
+              label: 'Espaces',
+            ),
+          ],
         ),
       ),
     );
