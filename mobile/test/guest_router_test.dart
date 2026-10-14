@@ -496,20 +496,24 @@ void main() {
   testWidgets('public Spaces search uses its field action and server query', (
     tester,
   ) async {
-    final seenQueries = <String>[];
+    final seenQueries = <Uri>[];
     final client = MockClient((request) async {
       expect(request.headers.containsKey('Authorization'), isFalse);
       expect(
         request.url.path,
         '/api/v1/organizations/public-spaces/',
       );
-      seenQueries.add(request.url.queryParameters['q'] ?? '');
+      seenQueries.add(request.url);
       return MockResponse(
         jsonEncode({
           'data': {
             'count': 0,
             'page': 1,
             'has_next': false,
+            'categories': [
+              {'value': 'community', 'label': 'Association / communauté'},
+              {'value': 'creative', 'label': 'Artiste / création'},
+            ],
             'results': <Object>[],
           },
         }),
@@ -535,7 +539,10 @@ void main() {
     await tester.tap(find.byKey(const Key('guest-space-search-submit')));
     await tester.pumpAndSettle();
 
-    expect(seenQueries, contains('Association Visible'));
+    expect(
+      seenQueries.any((url) => url.queryParameters['q'] == 'Association Visible'),
+      isTrue,
+    );
     await tester.tap(find.text('Affiner les Espaces'));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -543,13 +550,21 @@ void main() {
       'Lubumbashi',
     );
     await tester.testTextInput.hide();
+    await tester.tap(find.byKey(const Key('guest-spaces-category')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Association / communauté').last);
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('guest-spaces-filter-apply')));
     await tester.tap(find.byKey(const Key('guest-spaces-filter-apply')));
     await tester.pumpAndSettle();
-    expect(seenQueries.last, 'Association Visible');
+    expect(seenQueries.last.queryParameters['q'], 'Association Visible');
+    expect(seenQueries.last.queryParameters['city'], 'Lubumbashi');
+    expect(seenQueries.last.queryParameters['category'], 'community');
     await tester.tap(find.byKey(const Key('guest-spaces-reset')));
     await tester.pumpAndSettle();
-    expect(seenQueries.last, '');
+    expect(seenQueries.last.queryParameters['q'], isNull);
+    expect(seenQueries.last.queryParameters['city'], isNull);
+    expect(seenQueries.last.queryParameters['category'], isNull);
     expect(find.byType(LoginScreen), findsNothing);
   });
 
