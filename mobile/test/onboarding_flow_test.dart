@@ -33,11 +33,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Tout commence par une découverte.'), findsOneWidget);
     expect(find.text('3/3'), findsOneWidget);
-    expect(find.text('Découvrir'), findsOneWidget);
+    expect(find.text('Entrer dans Makolo'), findsOneWidget);
     expect(find.text('J’ai un compte'), findsOneWidget);
     expect(find.text('Créer un compte'), findsOneWidget);
 
-    await tester.tap(find.text('Découvrir'));
+    await tester.tap(find.text('Entrer dans Makolo'));
     await tester.pump();
 
     expect(exit, OnboardingExit.continueGuest);
