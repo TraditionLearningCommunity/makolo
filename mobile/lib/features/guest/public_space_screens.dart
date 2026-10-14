@@ -55,11 +55,13 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
     try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Public API unavailable');
-      final query = Uri(queryParameters: {
-        if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
-        'page': _page.toString(),
-        'page_size': '20',
-      }).query;
+      final query = Uri(
+        queryParameters: {
+          if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
+          'page': _page.toString(),
+          'page_size': '20',
+        },
+      ).query;
       final response = await api.publicGet(
         'api/v1/organizations/public-spaces/?$query',
       );
@@ -98,12 +100,17 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
           key: const Key('guest-public-spaces'),
           padding: const EdgeInsets.all(MakoloSpacing.lg),
           children: [
-            Text('ESPACES', style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.primary,
-            )),
+            Text(
+              'ESPACES',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
             const SizedBox(height: MakoloSpacing.sm),
-            Text('Découvrez les Espaces sur Makolo.',
-                style: theme.textTheme.headlineSmall),
+            Text(
+              'Découvrez les Espaces sur Makolo.',
+              style: theme.textTheme.headlineSmall,
+            ),
             const SizedBox(height: MakoloSpacing.sm),
             const Text(
               'Organisations, équipes et communautés qui rendent des possibilités accessibles.',
@@ -136,20 +143,27 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               Text('$_count Espaces', style: theme.textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.md),
               if (_spaces.isEmpty && !_loading)
-                const Text('Aucun Espace public ne correspond à cette recherche.'),
+                const Text(
+                  'Aucun Espace public ne correspond à cette recherche.',
+                ),
               for (final space in _spaces)
                 Padding(
                   padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                   child: Card(
                     child: ListTile(
                       leading: CircleAvatar(
-                        child: Text(_field(space, 'name').isEmpty
-                            ? '?' : _field(space, 'name')[0].toUpperCase()),
+                        child: Text(
+                          _field(space, 'name').isEmpty
+                              ? '?'
+                              : _field(space, 'name')[0].toUpperCase(),
+                        ),
                       ),
                       title: Text(_field(space, 'name')),
                       subtitle: Text(
-                        [_field(space, 'city'), _field(space, 'country')]
-                          .where((part) => part.isNotEmpty).join(' · '),
+                        [
+                          _field(space, 'city'),
+                          _field(space, 'country'),
+                        ].where((part) => part.isNotEmpty).join(' · '),
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push(
@@ -242,9 +256,13 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
       if (!mounted) return;
       setState(() {
         _space = _object(data['space']);
-        _possibilities = raw.whereType<Map>().map(_object).toList(growable: false);
+        _possibilities = raw
+            .whereType<Map>()
+            .map(_object)
+            .toList(growable: false);
         _count = possibilities['count'] is int
-            ? possibilities['count'] as int : _possibilities.length;
+            ? possibilities['count'] as int
+            : _possibilities.length;
         _hasNext = possibilities['has_next'] == true;
         _loading = false;
       });
@@ -290,12 +308,12 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/spaces');
-                }
-              },
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/spaces');
+                  }
+                },
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('Tous les Espaces'),
               ),
@@ -307,17 +325,23 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
               Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               TextButton(onPressed: _load, child: const Text('Réessayer')),
             ] else ...[
-              Text(_field(_space, 'name'),
-                  style: theme.textTheme.headlineSmall),
+              Text(
+                _field(_space, 'name'),
+                style: theme.textTheme.headlineSmall,
+              ),
               const SizedBox(height: MakoloSpacing.sm),
               if (_field(_space, 'archetype').isNotEmpty)
-                Text(_field(_space, 'archetype'),
-                    style: theme.textTheme.labelMedium),
+                Text(
+                  _field(_space, 'archetype'),
+                  style: theme.textTheme.labelMedium,
+                ),
               if (_field(_space, 'city').isNotEmpty ||
                   _field(_space, 'country').isNotEmpty)
                 Text(
-                  [_field(_space, 'city'), _field(_space, 'country')]
-                    .where((value) => value.isNotEmpty).join(' · '),
+                  [
+                    _field(_space, 'city'),
+                    _field(_space, 'country'),
+                  ].where((value) => value.isNotEmpty).join(' · '),
                 ),
               const SizedBox(height: MakoloSpacing.lg),
               if (_field(_space, 'description').isNotEmpty)
@@ -332,13 +356,14 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                   ),
                 ),
               const SizedBox(height: MakoloSpacing.xl),
-              Text('Possibilités publiques',
-                  style: theme.textTheme.titleLarge),
+              Text('Possibilités publiques', style: theme.textTheme.titleLarge),
               const SizedBox(height: MakoloSpacing.xs),
               Text('$_count possibilités accessibles à découvrir'),
               const SizedBox(height: MakoloSpacing.md),
               if (_possibilities.isEmpty && !_loading)
-                const Text('Aucune possibilité publique à afficher pour cet Espace.'),
+                const Text(
+                  'Aucune possibilité publique à afficher pour cet Espace.',
+                ),
               for (final possibility in _possibilities)
                 Padding(
                   padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
@@ -348,7 +373,10 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                         _field(_object(possibility['representation']), 'title'),
                       ),
                       subtitle: Text(
-                        _field(_object(possibility['representation']), 'summary'),
+                        _field(
+                          _object(possibility['representation']),
+                          'summary',
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -366,7 +394,8 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                           ? () {
                               setState(() => _page--);
                               unawaited(_load());
-                            } : null,
+                            }
+                          : null,
                       child: const Text('Précédent'),
                     ),
                     Text('Page $_page'),
@@ -375,7 +404,8 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                           ? () {
                               setState(() => _page++);
                               unawaited(_load());
-                            } : null,
+                            }
+                          : null,
                       child: const Text('Suivant'),
                     ),
                   ],
