@@ -179,6 +179,27 @@ void main() {
     );
   });
 
+  for (final choice in const [
+    ('Voyager', 'transport'),
+    ('Être accompagné', 'service'),
+    ('Tout explorer', ''),
+  ]) {
+    testWidgets('guest $choice opens the existing Discover field', (tester) async {
+      final router = _router(_guestRuntime(SessionRecoveryController()));
+      await _pump(tester, router);
+
+      await tester.tap(find.text(choice.$1));
+      await tester.pumpAndSettle();
+
+      expect(router.routeInformationProvider.value.uri.path, '/discover');
+      expect(
+        router.routeInformationProvider.value.uri.queryParameters['vertical'],
+        choice.$2.isEmpty ? isNull : choice.$2,
+      );
+      expect(find.byType(LoginScreen), findsNothing);
+    });
+  }
+
   testWidgets('guest welcome links to public Spaces', (tester) async {
     final router = _router(_guestRuntime(SessionRecoveryController()));
     await _pump(tester, router);
