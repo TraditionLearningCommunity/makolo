@@ -98,7 +98,7 @@ void main() {
       expect(calls, isEmpty);
       await tester.pump(const Duration(milliseconds: 2));
       await tester.pump();
-      expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+      expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
       expect(calls.map((call) => call.method), ['ready']);
       await tester.pump();
       expect(calls.length, 1);
@@ -114,7 +114,7 @@ void main() {
       await tester.pump();
       expect(find.byType(BrandMoment), findsNothing);
       expect(find.byKey(const Key('brand-footsteps')), findsNothing);
-      expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+      expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
       expect(find.byType(SplashScreen), findsNothing);
     },
   );
@@ -136,7 +136,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pump();
       expect(find.byType(SplashScreen), findsNothing);
-      expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+      expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
     },
   );
 
@@ -158,7 +158,7 @@ void main() {
     await tester.pump();
     expect(find.byType(BrandMoment), findsNothing);
     expect(find.byType(SplashScreen), findsNothing);
-    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+    expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
   });
 
   testWidgets('priority login route survives native branded launch', (
@@ -180,7 +180,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Connectez-vous à Makolo'), findsOneWidget);
     expect(find.byType(BrandMoment), findsNothing);
-    expect(find.byKey(const Key('guest-public-landing')), findsNothing);
+    expect(find.byKey(const Key('guest-public-home')), findsNothing);
   });
 
   testWidgets('new installation completes onboarding then reaches guest', (
@@ -197,7 +197,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1250));
     await tester.pumpAndSettle();
 
-    expect(find.text('Découvrez ce qui compte vraiment.'), findsOneWidget);
+    expect(find.text('Découvrez ce qui compte pour vous.'), findsOneWidget);
 
     await tester.tap(find.text('Continuer'));
     await tester.pumpAndSettle();
@@ -210,7 +210,7 @@ void main() {
 
     expect(preferences.snapshot.hasCompletedOnboarding, isTrue);
 
-    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+    expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
   });
 
   testWidgets('authenticated launch remains local-first on network failure', (
@@ -344,6 +344,6 @@ void main() {
     await tester.pump();
 
     expect(find.byType(BrandMoment), findsNothing);
-    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+    expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
   });
 }

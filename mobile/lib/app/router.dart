@@ -15,6 +15,11 @@ import '../features/continuity/continuity_routes.dart';
 import '../features/day_of/day_of_routes.dart';
 import '../features/live/live_routes.dart';
 import '../features/discovery/discovery_routes.dart';
+import '../features/discovery/discovery_repository.dart';
+import '../features/guest/public_discovery_map_screen.dart';
+import '../features/guest/public_home_screen.dart';
+import '../features/guest/public_possibility_detail_screen.dart';
+import '../features/guest/public_space_screens.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/interoperability_routes.dart';
 import '../features/journey/journey_routes.dart';
@@ -48,7 +53,7 @@ GoRouter createMakoloRouter(
       ? runtime.recovery.initialLocation()
       : runtime.recovery.awaitingAuthentication
       ? '/login'
-      : '/discover';
+      : '/welcome';
 
   void logout() {
     unawaited(
@@ -60,7 +65,16 @@ GoRouter createMakoloRouter(
   }
 
   bool isProtectedPath(String path) {
-    if (path == '/discover') return false;
+    // These routes are public read-only projections, even when deep-linked.
+    // The authenticated router still uses the canonical personal depths.
+    if (path == '/welcome' ||
+        path == '/discover' ||
+        path == '/discover/map' ||
+        path == '/spaces' ||
+        path.startsWith('/spaces/') ||
+        path.startsWith('/discover/items/')) {
+      return false;
+    }
     if (MakoloDestination.forPath(path) != null) return true;
     if (const {
       '/mark',
@@ -112,8 +126,7 @@ GoRouter createMakoloRouter(
         return '/login';
       }
 
-      if (!runtime.isAuthenticated &&
-          (path == '/discover/search' || path == '/discover/map')) {
+      if (!runtime.isAuthenticated && path == '/discover/search') {
         return '/discover';
       }
 
@@ -157,12 +170,63 @@ GoRouter createMakoloRouter(
             spaceWorkBranch(runtime),
             spaceUsBranch(runtime),
           ],
-        )
-      else
+        ),
+      if (!runtime.isAuthenticated) ...[
+        GoRoute(
+          path: '/welcome',
+          builder: (context, state) => const PublicHomeScreen(),
+        ),
         GoRoute(
           path: '/discover',
-          builder: (context, state) => GuestDiscoverScreen(runtime: runtime),
+          builder: (context, state) => GuestDiscoverScreen(
+            runtime: runtime,
+            initialQuery: state.uri.queryParameters['q'] ?? '',
+            initialVertical: state.uri.queryParameters['vertical'] ?? '',
+          ),
         ),
+        GoRoute(
+          path: '/discover/map',
+          builder: (context, state) {
+            final filters = state.uri.queryParameters;
+            return PublicDiscoveryMapScreen(
+              runtime: runtime,
+              query: DiscoveryQuery(
+                text: filters['q'] ?? '',
+                place: filters['place'] ?? '',
+                when: filters['when'] ?? '',
+                period: filters['period'] ?? '',
+                vertical: filters['vertical'] ?? '',
+                price: filters['price'] ?? '',
+                date: filters['date'] ?? '',
+                dateFrom: filters['date_from'] ?? '',
+                dateTo: filters['date_to'] ?? '',
+                latitude: double.tryParse(filters['lat'] ?? ''),
+                longitude: double.tryParse(filters['lon'] ?? ''),
+                radiusKm: double.tryParse(filters['radius_km'] ?? ''),
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/discover/items/:family/:id',
+          builder: (context, state) => PublicPossibilityDetailScreen(
+            runtime: runtime,
+            family: state.pathParameters['family']!,
+            id: state.pathParameters['id']!,
+          ),
+        ),
+        GoRoute(
+          path: '/spaces',
+          builder: (context, state) => PublicSpacesScreen(runtime: runtime),
+        ),
+        GoRoute(
+          path: '/spaces/:slug',
+          builder: (context, state) => PublicSpaceDetailScreen(
+            runtime: runtime,
+            slug: state.pathParameters['slug']!,
+          ),
+        ),
+      ],
       GoRoute(
         path: '/login',
         builder: (context, state) => LoginScreen(

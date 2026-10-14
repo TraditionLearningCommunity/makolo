@@ -32,6 +32,7 @@ class MakoloMapView extends StatelessWidget {
     required this.initialViewport,
     this.onTap,
     this.onStyleReady,
+    this.onMapCreated,
     super.key,
   });
 
@@ -39,6 +40,7 @@ class MakoloMapView extends StatelessWidget {
   final MapViewport initialViewport;
   final ValueChanged<MapCoordinate>? onTap;
   final VoidCallback? onStyleReady;
+  final ValueChanged<MapLibreMapController>? onMapCreated;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +61,7 @@ class MakoloMapView extends StatelessWidget {
               MapCoordinate(coordinate.latitude, coordinate.longitude),
             ),
       onStyleLoadedCallback: onStyleReady,
+      onMapCreated: onMapCreated,
     );
   }
 }
@@ -78,6 +81,7 @@ class ConfiguredMakoloMapView extends StatefulWidget {
     required this.fallbackBuilder,
     this.onTap,
     this.onStyleReady,
+    this.onMapCreated,
     this.styleLoadTimeout = const Duration(seconds: 20),
     super.key,
   });
@@ -87,6 +91,7 @@ class ConfiguredMakoloMapView extends StatefulWidget {
   final MakoloMapFallbackBuilder fallbackBuilder;
   final ValueChanged<MapCoordinate>? onTap;
   final VoidCallback? onStyleReady;
+  final ValueChanged<MapLibreMapController>? onMapCreated;
   final Duration styleLoadTimeout;
 
   @override
@@ -177,6 +182,7 @@ class _ConfiguredMakoloMapViewState extends State<ConfiguredMakoloMapView> {
       initialViewport: widget.initialViewport,
       onTap: widget.onTap,
       onStyleReady: _handleStyleReady,
+      onMapCreated: widget.onMapCreated,
     );
   }
 }

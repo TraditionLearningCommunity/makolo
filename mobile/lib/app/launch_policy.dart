@@ -34,6 +34,8 @@ class BrandMomentPolicy {
 }
 
 bool hasPriorityLaunchPath(String path, {required bool authenticated}) {
-  final defaultPath = authenticated ? '/now' : '/discover';
-  return path.isNotEmpty && path != '/' && path != defaultPath;
+  if (!authenticated && (path == '/welcome' || path == '/discover')) {
+    return false;
+  }
+  return path.isNotEmpty && path != '/' && path != '/now';
 }
