@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../platform/sharing/share_gateway.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
@@ -279,7 +279,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
     final website = _field(_space, 'website');
     final uri = Uri.tryParse(website);
     if (uri == null || !{'http', 'https'}.contains(uri.scheme)) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await const SystemShareGateway().openExternal(uri);
   }
 
   void _openPossibility(Map<String, dynamic> raw) {
