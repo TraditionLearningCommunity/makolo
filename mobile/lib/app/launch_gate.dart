@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/onboarding/onboarding_flow.dart';
 import '../features/splash/splash_screen.dart';
+import '../platform/permissions/permission_gateway.dart';
 import 'launch_policy.dart';
 import 'launch_preferences.dart';
 import 'providers.dart';
@@ -125,6 +126,8 @@ class _LaunchGateState extends State<LaunchGate> {
 
       _LaunchStage.onboarding => OnboardingFlow(
         isAuthenticated: widget.runtime.isAuthenticated,
+        location: widget.runtime.location,
+        permissions: const PermissionHandlerGateway(),
         onComplete: _finishOnboarding,
       ),
 
