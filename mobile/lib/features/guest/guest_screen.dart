@@ -99,10 +99,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   Future<void> _load() async {
     final generation = ++_generation;
     final query = _query;
-    if (mounted) setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (mounted)
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
     try {
       await widget.runtime.interactions?.save(_interactionId, {
         'query': query.text,
@@ -161,9 +162,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
           key: const Key('guest-public-landing'),
           padding: const EdgeInsets.all(MakoloSpacing.lg),
           children: [
-            Text('Découvrir', style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.primary,
-            )),
+            Text(
+              'Découvrir',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
             const SizedBox(height: MakoloSpacing.sm),
             Text(
               'Qu’avez-vous envie de vivre, faire ou obtenir ?',
@@ -184,14 +188,16 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 hintText: 'Ex. Voyager à Kolwezi demain',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: _search.text.isEmpty ? null : IconButton(
-                  tooltip: 'Effacer',
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _search.clear();
-                    _apply();
-                  },
-                ),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Effacer',
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _search.clear();
+                          _apply();
+                        },
+                      ),
               ),
             ),
             const SizedBox(height: MakoloSpacing.sm),
@@ -239,10 +245,19 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   decoration: const InputDecoration(labelText: 'Quand'),
                   items: const [
                     DropdownMenuItem(value: '', child: Text('À venir')),
-                    DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
+                    DropdownMenuItem(
+                      value: 'today',
+                      child: Text('Aujourd’hui'),
+                    ),
                     DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
-                    DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
-                    DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
+                    DropdownMenuItem(
+                      value: 'weekend',
+                      child: Text('Ce week-end'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'week',
+                      child: Text('Cette semaine'),
+                    ),
                   ],
                   onChanged: (value) => setState(() => _when = value ?? ''),
                 ),
@@ -291,7 +306,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               if (_collection.items.isEmpty && !_loading)
                 const Padding(
                   padding: EdgeInsets.all(MakoloSpacing.lg),
-                  child: Text('Aucune possibilité publique à afficher pour cette recherche.'),
+                  child: Text(
+                    'Aucune possibilité publique à afficher pour cette recherche.',
+                  ),
                 ),
               for (final item in _collection.items)
                 _PublicPossibilityCard(
@@ -328,10 +345,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 }
 
 class _PublicPossibilityCard extends StatelessWidget {
-  const _PublicPossibilityCard({
-    required this.item,
-    required this.onTap,
-  });
+  const _PublicPossibilityCard({required this.item, required this.onTap});
 
   final DiscoveryItemPresentation item;
   final VoidCallback onTap;
@@ -349,7 +363,8 @@ class _PublicPossibilityCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (media != null && (media.scheme == 'https' || media.scheme == 'http'))
+              if (media != null &&
+                  (media.scheme == 'https' || media.scheme == 'http'))
                 AspectRatio(
                   aspectRatio: 4 / 3,
                   child: Image.network(
@@ -374,10 +389,17 @@ class _PublicPossibilityCard extends StatelessWidget {
                     Text(item.title, style: theme.textTheme.titleMedium),
                     if (item.summary.isNotEmpty) ...[
                       const SizedBox(height: MakoloSpacing.sm),
-                      Text(item.summary, maxLines: 3, overflow: TextOverflow.ellipsis),
+                      Text(
+                        item.summary,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                     if (item.routeLabel != null)
-                      Text(item.routeLabel!, style: theme.textTheme.labelMedium),
+                      Text(
+                        item.routeLabel!,
+                        style: theme.textTheme.labelMedium,
+                      ),
                     if (item.owner != null)
                       Text(item.owner!, style: theme.textTheme.bodySmall),
                     if (item.place != null)
@@ -390,9 +412,10 @@ class _PublicPossibilityCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text('Voir le détail', style: TextStyle(
-                          color: theme.colorScheme.primary,
-                        )),
+                        Text(
+                          'Voir le détail',
+                          style: TextStyle(color: theme.colorScheme.primary),
+                        ),
                         const SizedBox(width: 4),
                         const Icon(Icons.arrow_forward, size: 18),
                       ],
