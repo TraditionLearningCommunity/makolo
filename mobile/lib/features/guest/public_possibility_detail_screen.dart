@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../platform/sharing/share_gateway.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
@@ -87,7 +87,7 @@ class _PublicPossibilityDetailScreenState
     if (api == null) return;
     final uri = api.baseUri.resolve(link);
     if (uri.scheme != 'https' && uri.scheme != 'http') return;
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+    if (!await const SystemShareGateway().openExternal(uri) &&
         mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Impossible d’ouvrir cette page.')),
