@@ -2,20 +2,20 @@
 {% block title %}Makolo — Découvrez, préparez, avancez{% endblock %}
 {% block content %}
 <section class="border-b" style="border-color:var(--mk-border);background:radial-gradient(ellipse at 85% 5%,color-mix(in srgb,var(--mk-brand) 9%,transparent),transparent 58%),var(--mk-page)">
-    <div class="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:gap-16 lg:px-8 lg:py-24">
+    <div class="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:px-8 lg:py-24">
         <div class="max-w-3xl">
             <span class="mk-kicker">Découvrir · Préparer · Avancer</span>
             <h1 class="mt-5 font-heading text-4xl font-extrabold leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl">Ce que vous voulez faire commence ici.</h1>
             <p class="mt-6 max-w-2xl text-base leading-7 sm:text-lg" style="color:var(--mk-muted)">Trouvez des activités, des services, des occasions et des personnes ou organisations qui peuvent vous aider à avancer.</p>
 
-            <form action="{% url 'discovery:home' %}" method="get" role="search" class="mt-9 max-w-2xl">
+            <form action="{% url 'discovery:home' %}" method="get" role="search" class="mt-8 max-w-2xl">
                 <label for="home-search" class="mb-3 block text-sm font-bold">Rechercher des possibilités</label>
                 <div class="flex min-w-0 flex-col gap-2 sm:flex-row">
                     <div class="relative min-w-0 flex-1">
                         <i data-lucide="search" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2" style="color:var(--mk-subtle)"></i>
-                        <input id="home-search" name="q" type="search" class="w-full !pl-12" placeholder="Voyager, participer, être accompagné…" autocomplete="off">
+                        <input id="home-search" name="q" type="search" class="w-full !pl-11" placeholder="Voyager, participer, être accompagné…" autocomplete="off">
                     </div>
-                    <button class="mk-btn mk-btn-primary min-h-12 justify-center sm:px-5" type="submit">Rechercher<i data-lucide="arrow-right" aria-hidden="true" class="h-4 w-4"></i></button>
+                    <button class="mk-btn mk-btn-primary justify-center" type="submit">Rechercher<i data-lucide="arrow-right" aria-hidden="true" class="h-4 w-4"></i></button>
                 </div>
             </form>
 
