@@ -77,7 +77,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         DiscoveryLocationContext.update(null);
         if (mounted) {
           setState(() => _locationFeedback =
-              'La localisation n’est pas disponible sur cet appareil.');
+              'La localisation n’a pas pu démarrer. Réessayez ou passez.');
         }
         return;
       }
