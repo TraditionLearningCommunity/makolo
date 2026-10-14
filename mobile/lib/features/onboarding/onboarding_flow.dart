@@ -54,13 +54,20 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     try {
       for (final entry in _choices.entries) {
         if (!entry.value) continue;
-        if (entry.key == MakoloPermission.locationWhenInUse) {
-          final result = await widget.location?.current(
-            accuracy: MakoloLocationAccuracy.low,
-          );
-          DiscoveryLocationContext.update(result?.fix);
-        } else {
-          await widget.permissions?.requestWhenNeeded(entry.key);
+        try {
+          if (entry.key == MakoloPermission.locationWhenInUse) {
+            final result = await widget.location?.current(
+              accuracy: MakoloLocationAccuracy.low,
+            );
+            DiscoveryLocationContext.update(result?.fix);
+          } else {
+            await widget.permissions?.requestWhenNeeded(entry.key);
+          }
+        } on Object {
+          // A refused or unavailable native capability must not block entry.
+          if (entry.key == MakoloPermission.locationWhenInUse) {
+            DiscoveryLocationContext.update(null);
+          }
         }
       }
     } finally {
