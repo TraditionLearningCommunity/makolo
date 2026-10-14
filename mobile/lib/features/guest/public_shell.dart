@@ -51,7 +51,21 @@ class PublicExperienceShell extends StatelessWidget {
         ],
       ),
       body: SafeArea(top: false, child: child),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            final colors = Theme.of(context).colorScheme;
+            return TextStyle(
+              color: states.contains(WidgetState.selected)
+                  ? colors.onSurface
+                  : colors.onSurfaceVariant,
+              fontWeight: states.contains(WidgetState.selected)
+                  ? FontWeight.w700
+                  : FontWeight.w600,
+            );
+          }),
+        ),
+        child: NavigationBar(
         selectedIndex: current,
         onDestinationSelected: (index) => context.go(switch (index) {
           0 => '/welcome',
@@ -75,6 +89,7 @@ class PublicExperienceShell extends StatelessWidget {
             label: 'Espaces',
           ),
         ],
+        ),
       ),
     );
   }
