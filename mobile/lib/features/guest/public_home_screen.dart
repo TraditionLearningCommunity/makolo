@@ -26,7 +26,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
     final query = <String, String>{
       if (includeQuery && _search.text.trim().isNotEmpty)
         'q': _search.text.trim(),
-      if (vertical != null) 'vertical': vertical,
+      'vertical': ?vertical,
     };
     final suffix = Uri(queryParameters: query).query;
     context.go(suffix.isEmpty ? '/discover' : '/discover?$suffix');
