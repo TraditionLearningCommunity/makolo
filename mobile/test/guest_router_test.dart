@@ -281,7 +281,11 @@ void main() {
         find.byKey(const Key('guest-search-query')),
         '023',
       );
-      await tester.testTextInput.receiveAction(TextInputAction.search);
+      expect(
+        find.byKey(const Key('guest-discover-search-submit')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('guest-discover-search-submit')));
       await tester.pumpAndSettle();
 
       expect(seenQueries, contains('023'));
@@ -445,6 +449,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('guest-public-space-detail')), findsOneWidget);
     expect(find.text('Une association publique.'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('public Spaces search uses its field action and server query', (
+    tester,
+  ) async {
+    final seenQueries = <String>[];
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(
+        request.url.path,
+        '/api/v1/organizations/public-spaces/',
+      );
+      seenQueries.add(request.url.queryParameters['q'] ?? '');
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/spaces');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Les Espaces sur Makolo'), findsOneWidget);
+    expect(
+      find.textContaining('Chaque Espace présente une organisation'),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.byKey(const Key('guest-space-query')),
+      'Association Visible',
+    );
+    await tester.tap(find.byKey(const Key('guest-space-search-submit')));
+    await tester.pumpAndSettle();
+
+    expect(seenQueries, contains('Association Visible'));
     expect(find.byType(LoginScreen), findsNothing);
   });
 
