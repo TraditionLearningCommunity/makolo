@@ -62,7 +62,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
           ),
           const SizedBox(height: MakoloSpacing.compact),
           Text(
-            'Ca vous intéresserait',
+            'Ça vous intéresserait',
             style: theme.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w800,
               letterSpacing: -0.6,
@@ -71,8 +71,8 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
           ),
           const SizedBox(height: MakoloSpacing.sm),
           Text(
-            'Trouvez des activités, des services, des occasions et des '
-            'personnes ou organisations qui peuvent vous aider à avancer.',
+            'Découvrez des activités, des services, des événements et des '
+            'opportunités pour avancer dans ce qui compte pour vous.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: muted,
               height: 1.35,
@@ -80,7 +80,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
           ),
           const SizedBox(height: MakoloSpacing.lg),
           Text(
-            'Rechercher des possibilités',
+            'Rechercher des opportunités',
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
             ),
@@ -96,7 +96,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
               onTapOutside: (_) =>
                   FocusManager.instance.primaryFocus?.unfocus(),
               decoration: InputDecoration(
-                hintText: 'Trouver…',
+                hintText: 'Voyager, participer, trouver un service…',
                 hintMaxLines: 2,
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: IconButton(
