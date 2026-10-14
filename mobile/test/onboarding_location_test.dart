@@ -71,14 +71,16 @@ Future<void> _onLocationStep(
   WidgetTester tester,
   LocationCapability capability,
 ) async {
-  await tester.pumpWidget(MaterialApp(
-    theme: buildMakoloTheme(),
-    home: OnboardingFlow(
-      isAuthenticated: false,
-      location: capability,
-      onComplete: (_) async {},
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: buildMakoloTheme(),
+      home: OnboardingFlow(
+        isAuthenticated: false,
+        location: capability,
+        onComplete: (_) async {},
+      ),
     ),
-  ));
+  );
   await tester.tap(find.text('Continuer'));
   await tester.pumpAndSettle();
   expect(find.text('Découvrez ce qui vous entoure.'), findsOneWidget);
@@ -93,11 +95,15 @@ void main() {
   setUp(() => DiscoveryLocationContext.update(null));
   tearDown(() => DiscoveryLocationContext.update(null));
 
-  testWidgets('Passer never accesses native permission or position', (tester) async {
+  testWidgets('Passer never accesses native permission or position', (
+    tester,
+  ) async {
     final permissions = _Permissions(PermissionDecision.denied);
     final service = _Location();
-    await _onLocationStep(tester,
-      LocationCapability(permissions: permissions, service: service));
+    await _onLocationStep(
+      tester,
+      LocationCapability(permissions: permissions, service: service),
+    );
     await tester.tap(find.byKey(const Key('onboarding-location-skip')));
     await tester.pumpAndSettle();
     expect(find.text('Tout commence par une découverte.'), findsOneWidget);
@@ -107,11 +113,15 @@ void main() {
     expect(DiscoveryLocationContext.current, isNull);
   });
 
-  testWidgets('already granted permission gets one foreground fix', (tester) async {
+  testWidgets('already granted permission gets one foreground fix', (
+    tester,
+  ) async {
     final permissions = _Permissions(PermissionDecision.granted);
     final service = _Location();
-    await _onLocationStep(tester,
-      LocationCapability(permissions: permissions, service: service));
+    await _onLocationStep(
+      tester,
+      LocationCapability(permissions: permissions, service: service),
+    );
     await tester.tap(find.text('Activer la localisation'));
     await tester.pumpAndSettle();
     expect(permissions.checks, 1);
@@ -121,11 +131,15 @@ void main() {
     expect(find.text('Tout commence par une découverte.'), findsOneWidget);
   });
 
-  testWidgets('denial keeps Passer available without a position', (tester) async {
+  testWidgets('denial keeps Passer available without a position', (
+    tester,
+  ) async {
     final permissions = _Permissions(PermissionDecision.denied);
     final service = _Location();
-    await _onLocationStep(tester,
-      LocationCapability(permissions: permissions, service: service));
+    await _onLocationStep(
+      tester,
+      LocationCapability(permissions: permissions, service: service),
+    );
     await tester.tap(find.text('Activer la localisation'));
     await tester.pumpAndSettle();
     expect(permissions.requests, 1);
@@ -137,11 +151,15 @@ void main() {
     expect(find.text('Tout commence par une découverte.'), findsOneWidget);
   });
 
-  testWidgets('permanent denial never opens another system dialog', (tester) async {
+  testWidgets('permanent denial never opens another system dialog', (
+    tester,
+  ) async {
     final permissions = _Permissions(PermissionDecision.permanentlyDenied);
     final service = _Location();
-    await _onLocationStep(tester,
-      LocationCapability(permissions: permissions, service: service));
+    await _onLocationStep(
+      tester,
+      LocationCapability(permissions: permissions, service: service),
+    );
     await tester.tap(find.text('Activer la localisation'));
     await tester.pumpAndSettle();
     expect(permissions.requests, 0);
@@ -153,8 +171,10 @@ void main() {
   testWidgets('disabled location service never creates a fix', (tester) async {
     final permissions = _Permissions(PermissionDecision.granted);
     final service = _Location(enabled: false);
-    await _onLocationStep(tester,
-      LocationCapability(permissions: permissions, service: service));
+    await _onLocationStep(
+      tester,
+      LocationCapability(permissions: permissions, service: service),
+    );
     await tester.tap(find.text('Activer la localisation'));
     await tester.pumpAndSettle();
     expect(service.readings, 0);
