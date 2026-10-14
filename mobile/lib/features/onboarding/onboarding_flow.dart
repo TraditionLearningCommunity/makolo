@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
+import '../../platform/location/location_capability.dart';
+import '../../platform/location/discovery_location_context.dart';
+import '../../platform/permissions/permission_gateway.dart';
 
 enum OnboardingExit {
   skip,
@@ -16,9 +19,13 @@ class OnboardingFlow extends StatefulWidget {
     super.key,
     required this.isAuthenticated,
     required this.onComplete,
+    this.location,
+    this.permissions,
   });
 
   final bool isAuthenticated;
+  final LocationCapability? location;
+  final PermissionGateway? permissions;
   final Future<void> Function(OnboardingExit exit) onComplete;
 
   @override
@@ -27,22 +34,38 @@ class OnboardingFlow extends StatefulWidget {
 
 class _OnboardingFlowState extends State<OnboardingFlow> {
   static const _pages = <({String title, String body, IconData icon})>[
-    (
-      title: 'Découvrez ce qui compte pour vous.',
-      body: 'Explorez des possibilités réelles pour vivre, faire ou obtenir ce qui compte pour vous.',
-      icon: Icons.explore_outlined,
-    ),
-    (
-      title: 'Préparez ce qui est nécessaire.',
-      body: 'Rassemblez le contexte utile avant le moment d’agir et voyez clairement ce qui reste à faire.',
-      icon: Icons.inventory_2_outlined,
-    ),
-    (
-      title: 'Avancez dans l’action réelle.',
-      body: 'Retrouvez vos démarches, vos prochaines actions et la continuité nécessaire pour aller jusqu’au bout.',
-      icon: Icons.arrow_forward_rounded,
-    ),
+    (title: 'Makolo marche pour vous.', body: 'Découvrez des possibilités, préparez ce qui peut l’être et suivez vos actions réelles.', icon: Icons.explore_outlined),
+    (title: 'Préparer Makolo', body: 'Choisissez les autorisations à activer.', icon: Icons.tune_rounded),
+    (title: 'Tout commence par une découverte.', body: 'Événements, formations, voyages, services et opportunités : explorez librement.', icon: Icons.arrow_forward_rounded),
   ];
+
+  final Map<MakoloPermission, bool> _choices = {
+    MakoloPermission.locationWhenInUse: false,
+    MakoloPermission.notifications: false,
+    MakoloPermission.camera: false,
+    MakoloPermission.microphone: false,
+  };
+  bool _requesting = false;
+
+  Future<void> _applyPermissions() async {
+    if (_requesting) return;
+    setState(() => _requesting = true);
+    try {
+      for (final entry in _choices.entries) {
+        if (!entry.value) continue;
+        if (entry.key == MakoloPermission.locationWhenInUse) {
+          final result = await widget.location?.current(
+            accuracy: MakoloLocationAccuracy.low,
+          );
+          DiscoveryLocationContext.update(result?.fix);
+        } else {
+          await widget.permissions?.requestWhenNeeded(entry.key);
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _requesting = false);
+    }
+  }
 
   final PageController _controller = PageController();
   int _page = 0;
@@ -65,6 +88,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       return;
     }
 
+    if (_page == 1) await _applyPermissions();
+    if (!mounted) return;
     await _controller.nextPage(
       duration: MakoloMotion.medium,
       curve: Curves.easeOutCubic,
@@ -77,7 +102,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     if (_isLastPage) {
       primaryLabel = widget.isAuthenticated
           ? 'Ouvrir Makolo'
-          : 'Découvrir Makolo';
+          : 'Découvrir';
     }
 
     return Scaffold(
@@ -133,6 +158,25 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                                 item.body,
                                 style: Theme.of(context).textTheme.bodyLarge,
                               ),
+                              if (index == 1) ...[
+                                const SizedBox(height: MakoloSpacing.lg),
+                                for (final choice in <({MakoloPermission permission, String label, IconData icon})>[
+                                  (permission: MakoloPermission.locationWhenInUse, label: 'Localisation', icon: Icons.location_on_outlined),
+                                  (permission: MakoloPermission.notifications, label: 'Notifications', icon: Icons.notifications_none_rounded),
+                                  (permission: MakoloPermission.camera, label: 'Appareil photo', icon: Icons.camera_alt_outlined),
+                                  (permission: MakoloPermission.microphone, label: 'Microphone', icon: Icons.mic_none_outlined),
+                                ])
+                                  CheckboxListTile(
+                                    dense: true,
+                                    contentPadding: EdgeInsets.zero,
+                                    secondary: Icon(choice.icon),
+                                    title: Text(choice.label),
+                                    value: _choices[choice.permission] ?? false,
+                                    onChanged: _requesting ? null : (value) => setState(() {
+                                      _choices[choice.permission] = value ?? false;
+                                    }),
+                                  ),
+                              ],
                             ],
                           ),
                         ),
@@ -167,7 +211,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 const SizedBox(height: MakoloSpacing.lg),
                 FilledButton(
                   key: const Key('onboarding-primary'),
-                  onPressed: _next,
+                  onPressed: _requesting ? null : _next,
                   child: Text(primaryLabel),
                 ),
                 if (!widget.isAuthenticated && _isLastPage) ...[
@@ -178,7 +222,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                         child: OutlinedButton(
                           onPressed: () =>
                               widget.onComplete(OnboardingExit.signIn),
-                          child: const Text('Se connecter'),
+                          child: const Text('J’ai un compte'),
                         ),
                       ),
                       const SizedBox(width: MakoloSpacing.sm),
