@@ -159,9 +159,7 @@ void main() {
     expect(find.byType(LoginScreen), findsNothing);
   });
 
-  testWidgets('guest welcome quick filter navigates natively', (
-    tester,
-  ) async {
+  testWidgets('guest welcome quick filter navigates natively', (tester) async {
     final router = _router(_guestRuntime(SessionRecoveryController()));
     await _pump(tester, router);
 
@@ -184,7 +182,9 @@ void main() {
     ('Être accompagné', 'service'),
     ('Tout explorer', ''),
   ]) {
-    testWidgets('guest $choice opens the existing Discover field', (tester) async {
+    testWidgets('guest $choice opens the existing Discover field', (
+      tester,
+    ) async {
       final router = _router(_guestRuntime(SessionRecoveryController()));
       await _pump(tester, router);
 
