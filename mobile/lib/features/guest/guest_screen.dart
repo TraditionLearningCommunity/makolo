@@ -277,6 +277,17 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: MakoloSpacing.md),
+              if (_collection.items.any((item) => item.isMappable))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: () => context.push(
+                      '/discover/map?${_query.mapCanonicalQuery}',
+                    ),
+                    icon: const Icon(Icons.map_outlined),
+                    label: const Text('Voir sur la carte'),
+                  ),
+                ),
               if (_collection.items.isEmpty && !_loading)
                 const Padding(
                   padding: EdgeInsets.all(MakoloSpacing.lg),
