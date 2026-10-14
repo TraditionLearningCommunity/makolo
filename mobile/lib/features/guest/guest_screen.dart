@@ -198,77 +198,115 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               ),
             ),
             const SizedBox(height: MakoloSpacing.md),
-            Wrap(
-              spacing: MakoloSpacing.sm,
-              runSpacing: MakoloSpacing.xs,
-              children: [
-                for (final value in const [
-                  ('', 'Tout'),
-                  ('transport', 'Voyager'),
-                  ('event', 'Événements'),
-                  ('service', 'Services'),
-                  ('other', 'Autres'),
-                ])
-                  ChoiceChip(
-                    label: Text(value.$2),
-                    selected: _vertical == value.$1,
-                    onSelected: (_) => _selectVertical(value.$1),
-                  ),
-              ],
+            SizedBox(
+              height: 48,
+              child: ListView(
+                key: const Key('guest-discover-categories'),
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (final value in const [
+                    ('', 'Tout', Icons.apps_rounded),
+                    ('transport', 'Voyager', Icons.directions_bus_outlined),
+                    ('event', 'Événements', Icons.event_outlined),
+                    ('service', 'Services', Icons.handshake_outlined),
+                    ('other', 'Autres', Icons.explore_outlined),
+                  ]) ...[
+                    ChoiceChip(
+                      avatar: Icon(value.$3, size: 18),
+                      label: Text(value.$2),
+                      selected: _vertical == value.$1,
+                      showCheckmark: false,
+                      onSelected: (_) => _selectVertical(value.$1),
+                    ),
+                    const SizedBox(width: MakoloSpacing.sm),
+                  ],
+                ],
+              ),
             ),
-            const SizedBox(height: MakoloSpacing.sm),
-            ExpansionTile(
-              key: const Key('guest-filters'),
-              title: const Text('Filtres'),
-              leading: const Icon(Icons.tune),
-              childrenPadding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-              children: [
-                TextField(
-                  controller: _place,
-                  decoration: const InputDecoration(
-                    labelText: 'Lieu',
-                    hintText: 'Ville ou lieu',
-                    border: OutlineInputBorder(),
+            const SizedBox(height: MakoloSpacing.compact),
+            Card(
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(MakoloRadii.card),
+                side: BorderSide(color: theme.colorScheme.outlineVariant),
+              ),
+              child: ExpansionTile(
+                key: const Key('guest-filters'),
+                leading: const Icon(Icons.tune_rounded),
+                title: const Text('Affiner la recherche'),
+                subtitle: _when.isNotEmpty ||
+                        _price.isNotEmpty ||
+                        _place.text.trim().isNotEmpty
+                    ? const Text('Critères supplémentaires')
+                    : const Text('Lieu, date et prix'),
+                childrenPadding: const EdgeInsets.fromLTRB(
+                  MakoloSpacing.md,
+                  0,
+                  MakoloSpacing.md,
+                  MakoloSpacing.md,
+                ),
+                children: [
+                  TextField(
+                    key: const Key('guest-filter-place'),
+                    controller: _place,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _apply(),
+                    decoration: const InputDecoration(
+                      labelText: 'Où ?',
+                      hintText: 'Ville ou lieu',
+                      prefixIcon: Icon(Icons.place_outlined),
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-                DropdownButtonFormField<String>(
-                  initialValue: _when,
-                  decoration: const InputDecoration(labelText: 'Quand'),
-                  items: const [
-                    DropdownMenuItem(value: '', child: Text('À venir')),
-                    DropdownMenuItem(
-                      value: 'today',
-                      child: Text('Aujourd’hui'),
+                  const SizedBox(height: MakoloSpacing.md),
+                  DropdownButtonFormField<String>(
+                    key: const Key('guest-filter-when'),
+                    initialValue: _when,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Quand ?',
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
+                      border: OutlineInputBorder(),
                     ),
-                    DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
-                    DropdownMenuItem(
-                      value: 'weekend',
-                      child: Text('Ce week-end'),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Toutes les dates')),
+                      DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
+                      DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
+                      DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
+                      DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
+                    ],
+                    onChanged: (value) => setState(() => _when = value ?? ''),
+                  ),
+                  const SizedBox(height: MakoloSpacing.md),
+                  DropdownButtonFormField<String>(
+                    key: const Key('guest-filter-price'),
+                    initialValue: _price,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Budget',
+                      prefixIcon: Icon(Icons.payments_outlined),
+                      border: OutlineInputBorder(),
                     ),
-                    DropdownMenuItem(
-                      value: 'week',
-                      child: Text('Cette semaine'),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Tous les prix')),
+                      DropdownMenuItem(value: 'free', child: Text('Gratuit')),
+                      DropdownMenuItem(value: 'paid', child: Text('Payant')),
+                    ],
+                    onChanged: (value) => setState(() => _price = value ?? ''),
+                  ),
+                  const SizedBox(height: MakoloSpacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const Key('guest-filter-apply'),
+                      onPressed: _apply,
+                      child: const Text('Voir les résultats'),
                     ),
-                  ],
-                  onChanged: (value) => setState(() => _when = value ?? ''),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: _price,
-                  decoration: const InputDecoration(labelText: 'Prix'),
-                  items: const [
-                    DropdownMenuItem(value: '', child: Text('Tous les prix')),
-                    DropdownMenuItem(value: 'free', child: Text('Gratuit')),
-                    DropdownMenuItem(value: 'paid', child: Text('Payant')),
-                  ],
-                  onChanged: (value) => setState(() => _price = value ?? ''),
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-                OutlinedButton(
-                  onPressed: _apply,
-                  child: const Text('Appliquer les filtres'),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: MakoloSpacing.lg),
             if (_error != null) ...[
