@@ -289,9 +289,13 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () => context.canPop()
-                    ? context.pop()
-                    : context.go('/spaces'),
+                onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/spaces');
+                }
+              },
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('Tous les Espaces'),
               ),
