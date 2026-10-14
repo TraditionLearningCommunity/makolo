@@ -5,7 +5,6 @@ import '../../design/makolo_theme.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/location/location_service.dart';
 import '../../platform/location/discovery_location_context.dart';
-import '../../platform/permissions/permission_gateway.dart';
 
 enum OnboardingExit {
   skip,
@@ -21,12 +20,10 @@ class OnboardingFlow extends StatefulWidget {
     required this.isAuthenticated,
     required this.onComplete,
     this.location,
-    this.permissions,
   });
 
   final bool isAuthenticated;
   final LocationCapability? location;
-  final PermissionGateway? permissions;
   final Future<void> Function(OnboardingExit exit) onComplete;
 
   @override
@@ -35,40 +32,77 @@ class OnboardingFlow extends StatefulWidget {
 
 class _OnboardingFlowState extends State<OnboardingFlow> {
   static const _pages = <({String title, String body, IconData icon})>[
-    (title: 'Makolo marche pour vous.', body: 'Découvrez des possibilités, préparez ce qui peut l’être et suivez vos actions réelles.', icon: Icons.explore_outlined),
-    (title: 'Préparer Makolo', body: 'Choisissez les autorisations à activer.', icon: Icons.tune_rounded),
-    (title: 'Tout commence par une découverte.', body: 'Événements, formations, voyages, services et opportunités : explorez librement.', icon: Icons.arrow_forward_rounded),
+    (
+      title: 'Makolo marche pour vous.',
+      body: 'Découvrez des opportunités, simplifiez vos démarches et avancez dans ce qui compte pour vous.',
+      icon: Icons.explore_outlined,
+    ),
+    (
+      title: 'Découvrez ce qui vous entoure.',
+      body: 'Avec votre localisation, Makolo peut vous montrer les activités, services et opportunités près de vous.',
+      icon: Icons.location_on_outlined,
+    ),
+    (
+      title: 'Tout commence par une découverte.',
+      body: 'Explorez des événements, des formations, des voyages, des services et bien d’autres opportunités.',
+      icon: Icons.arrow_forward_rounded,
+    ),
   ];
 
-  final Map<MakoloPermission, bool> _choices = {
-    MakoloPermission.locationWhenInUse: false,
-    MakoloPermission.notifications: false,
-    MakoloPermission.camera: false,
-    MakoloPermission.microphone: false,
-  };
   bool _requesting = false;
+  String? _locationFeedback;
 
-  Future<void> _applyPermissions() async {
-    if (_requesting) return;
-    setState(() => _requesting = true);
+  Future<void> _advance() async {
+    if (!mounted) return;
+    await _controller.nextPage(
+      duration: MakoloMotion.medium,
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _activateLocation() async {
+    if (_requesting || _page != 1) return;
+    setState(() {
+      _requesting = true;
+      _locationFeedback = null;
+    });
     try {
-      for (final entry in _choices.entries) {
-        if (!entry.value) continue;
-        try {
-          if (entry.key == MakoloPermission.locationWhenInUse) {
-            final result = await widget.location?.current(
-              accuracy: MakoloLocationAccuracy.low,
-            );
-            DiscoveryLocationContext.update(result?.fix);
-          } else {
-            await widget.permissions?.requestWhenNeeded(entry.key);
-          }
-        } on Object {
-          // A refused or unavailable native capability must not block entry.
-          if (entry.key == MakoloPermission.locationWhenInUse) {
-            DiscoveryLocationContext.update(null);
-          }
+      final location = widget.location;
+      if (location == null) {
+        DiscoveryLocationContext.update(null);
+        if (mounted) {
+          setState(() => _locationFeedback =
+              'La localisation n’est pas disponible sur cet appareil.');
         }
+        return;
+      }
+      final result = await location.current(accuracy: MakoloLocationAccuracy.low);
+      if (!mounted) return;
+      DiscoveryLocationContext.update(
+        result.status == LocationCapabilityStatus.ready ? result.fix : null,
+      );
+      if (result.status == LocationCapabilityStatus.ready && result.fix != null) {
+        await _advance();
+        return;
+      }
+      setState(() {
+        _locationFeedback = switch (result.status) {
+          LocationCapabilityStatus.settingsRequired =>
+            'La localisation est bloquée dans les réglages Android. Vous pouvez continuer sans elle.',
+          LocationCapabilityStatus.serviceUnavailable =>
+            'Le service de localisation est désactivé. Vous pouvez continuer sans lui.',
+          LocationCapabilityStatus.permissionDenied ||
+          LocationCapabilityStatus.restricted =>
+            'La localisation n’est pas autorisée. Vous pouvez continuer sans elle.',
+          _ =>
+            'Votre position n’a pas pu être obtenue. Vous pouvez continuer sans elle.',
+        };
+      });
+    } on Object {
+      DiscoveryLocationContext.update(null);
+      if (mounted) {
+        setState(() => _locationFeedback =
+            'La localisation est indisponible. Vous pouvez continuer sans elle.');
       }
     } finally {
       if (mounted) setState(() => _requesting = false);
@@ -96,12 +130,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       return;
     }
 
-    if (_page == 1) await _applyPermissions();
-    if (!mounted) return;
-    await _controller.nextPage(
-      duration: MakoloMotion.medium,
-      curve: Curves.easeOutCubic,
-    );
+    await _advance();
   }
 
   @override
@@ -168,22 +197,18 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                               ),
                               if (index == 1) ...[
                                 const SizedBox(height: MakoloSpacing.lg),
-                                for (final choice in <({MakoloPermission permission, String label, IconData icon})>[
-                                  (permission: MakoloPermission.locationWhenInUse, label: 'Localisation', icon: Icons.location_on_outlined),
-                                  (permission: MakoloPermission.notifications, label: 'Notifications', icon: Icons.notifications_none_rounded),
-                                  (permission: MakoloPermission.camera, label: 'Appareil photo', icon: Icons.camera_alt_outlined),
-                                  (permission: MakoloPermission.microphone, label: 'Microphone', icon: Icons.mic_none_outlined),
-                                ])
-                                  CheckboxListTile(
-                                    dense: true,
-                                    contentPadding: EdgeInsets.zero,
-                                    secondary: Icon(choice.icon),
-                                    title: Text(choice.label),
-                                    value: _choices[choice.permission] ?? false,
-                                    onChanged: _requesting ? null : (value) => setState(() {
-                                      _choices[choice.permission] = value ?? false;
-                                    }),
+                                Text(
+                                  'La localisation est facultative. Vous pouvez explorer Makolo sans l’activer.',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                                if (_locationFeedback != null) ...[
+                                  const SizedBox(height: MakoloSpacing.md),
+                                  Text(
+                                    _locationFeedback!,
+                                    key: const Key('onboarding-location-feedback'),
+                                    style: Theme.of(context).textTheme.bodyMedium,
                                   ),
+                                ],
                               ],
                             ],
                           ),
@@ -219,9 +244,21 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 const SizedBox(height: MakoloSpacing.lg),
                 FilledButton(
                   key: const Key('onboarding-primary'),
-                  onPressed: _requesting ? null : _next,
-                  child: Text(primaryLabel),
+                  onPressed: _requesting
+                      ? null
+                      : _page == 1
+                          ? _activateLocation
+                          : _next,
+                  child: Text(_page == 1 ? 'Activer la localisation' : primaryLabel),
                 ),
+                if (_page == 1) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  TextButton(
+                    key: const Key('onboarding-location-skip'),
+                    onPressed: _requesting ? null : _advance,
+                    child: const Text('Passer'),
+                  ),
+                ],
                 if (!widget.isAuthenticated && _isLastPage) ...[
                   const SizedBox(height: MakoloSpacing.md),
                   Row(
