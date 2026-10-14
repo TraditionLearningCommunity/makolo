@@ -26,7 +26,7 @@ test('visitor discovers an event and its public organizer @firefox', async ({ pa
 test('guest home explains the action path and exposes existing Discover filters', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Makolo vous accompagne jusqu’à l’action' })).toBeVisible();
-  const journey = page.getByRole('complementary', { name: 'Comment Makolo vous accompagne' });
+  const journey = page.getByRole('complementary', { name: 'Makolo vous accompagne jusqu’à l’action' });
   await expect(journey.getByRole('heading', { name: 'Découvrez' })).toBeVisible();
   await expect(journey.getByRole('heading', { name: 'Préparez' })).toBeVisible();
   await expect(journey.getByRole('heading', { name: 'Avancez' })).toBeVisible();
