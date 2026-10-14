@@ -202,10 +202,6 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                               ),
                               if (index == 1) ...[
                                 const SizedBox(height: MakoloSpacing.lg),
-                                Text(
-                                  'La localisation est facultative. Vous pouvez explorer Makolo sans l’activer.',
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                ),
                                 if (_locationFeedback != null) ...[
                                   const SizedBox(height: MakoloSpacing.md),
                                   Text(
@@ -261,6 +257,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   TextButton(
                     key: const Key('onboarding-location-skip'),
                     onPressed: _requesting ? null : _skipLocation,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.onSurface,
+                    ),
                     child: const Text('Passer'),
                   ),
                 ],
