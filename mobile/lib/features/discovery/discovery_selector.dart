@@ -211,6 +211,13 @@ class DiscoverySelector {
     );
   }
 
+  /// The same canonical projection parser can be used by unauthenticated
+  /// clients without creating a local Profile database or a second selector.
+  DiscoveryCollectionPresentation publicCollection(
+    Map<String, dynamic> payload, {
+    DateTime? now,
+  }) => _collectionFromPayload(payload, now: now ?? DateTime.now());
+
   DiscoveryCollectionPresentation collection(
     StoredProjection? projection, {
     DateTime? now,
