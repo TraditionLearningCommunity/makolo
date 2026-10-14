@@ -76,38 +76,40 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       if (location == null) {
         DiscoveryLocationContext.update(null);
         if (mounted) {
-          setState(() => _locationFeedback =
-              'La localisation n’a pas pu démarrer. Réessayez ou passez.');
+          setState(
+            () => _locationFeedback =
+                'La localisation n’a pas pu démarrer. Réessayez ou passez.',
+          );
         }
         return;
       }
-      final result = await location.current(accuracy: MakoloLocationAccuracy.low);
+      final result = await location.current(
+        accuracy: MakoloLocationAccuracy.low,
+      );
       if (!mounted) return;
       DiscoveryLocationContext.update(
         result.status == LocationCapabilityStatus.ready ? result.fix : null,
       );
-      if (result.status == LocationCapabilityStatus.ready && result.fix != null) {
+      if (result.status == LocationCapabilityStatus.ready &&
+          result.fix != null) {
         await _advance();
         return;
       }
       setState(() {
         _locationFeedback = switch (result.status) {
-          LocationCapabilityStatus.settingsRequired =>
-            'La localisation est bloquée dans les réglages Android. Vous pouvez continuer sans elle.',
-          LocationCapabilityStatus.serviceUnavailable =>
-            'Le service de localisation est désactivé. Vous pouvez continuer sans lui.',
+          LocationCapabilityStatus.settingsRequired => 'La localisation est bloquée dans les réglages Android. Vous pouvez continuer sans elle.',
+          LocationCapabilityStatus.serviceUnavailable => 'Le service de localisation est désactivé. Vous pouvez continuer sans lui.',
           LocationCapabilityStatus.permissionDenied ||
-          LocationCapabilityStatus.restricted =>
-            'La localisation n’est pas autorisée. Vous pouvez continuer sans elle.',
-          _ =>
-            'Votre position n’a pas pu être obtenue. Vous pouvez continuer sans elle.',
+          LocationCapabilityStatus.restricted => 'La localisation n’est pas autorisée. Vous pouvez continuer sans elle.',
+          _ => 'Votre position n’a pas pu être obtenue. Vous pouvez continuer sans elle.',
         };
       });
     } on Object {
       DiscoveryLocationContext.update(null);
       if (mounted) {
-        setState(() => _locationFeedback =
-            'La localisation est indisponible. Vous pouvez continuer sans elle.');
+        setState(
+          () => _locationFeedback = 'La localisation est indisponible. Vous pouvez continuer sans elle.',
+        );
       }
     } finally {
       if (mounted) setState(() => _requesting = false);
@@ -206,8 +208,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                                   const SizedBox(height: MakoloSpacing.md),
                                   Text(
                                     _locationFeedback!,
-                                    key: const Key('onboarding-location-feedback'),
-                                    style: Theme.of(context).textTheme.bodyMedium,
+                                    key: const Key(
+                                      'onboarding-location-feedback',
+                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium,
                                   ),
                                 ],
                               ],
@@ -248,9 +254,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   onPressed: _requesting
                       ? null
                       : _page == 1
-                          ? _activateLocation
-                          : _next,
-                  child: Text(_page == 1 ? 'Activer la localisation' : primaryLabel),
+                      ? _activateLocation
+                      : _next,
+                  child: Text(
+                    _page == 1 ? 'Activer la localisation' : primaryLabel,
+                  ),
                 ),
                 if (_page == 1) ...[
                   const SizedBox(height: MakoloSpacing.sm),
