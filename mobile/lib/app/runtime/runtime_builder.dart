@@ -61,6 +61,7 @@ Future<AppRuntime> buildAppRuntime({
       config: config,
       interactions: interactions,
       api: api,
+      location: locationFactory(config),
     );
   }
 
