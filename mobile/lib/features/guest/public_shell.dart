@@ -26,16 +26,19 @@ class PublicExperienceShell extends StatelessWidget {
           icon: const MakoloMark(size: 36),
         ),
         actions: [
-          TextButton(
-            onPressed: () => context.push('/login'),
-            child: const Text('Connexion'),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton(
-              onPressed: () => context.push('/create-account'),
-              child: const Text('Créer un compte'),
+          PopupMenuButton<String>(
+            tooltip: 'Compte',
+            icon: const Icon(Icons.account_circle_outlined),
+            onSelected: (value) => context.push(
+              value == 'register' ? '/create-account' : '/login',
             ),
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'login', child: Text('Connexion')),
+              PopupMenuItem(
+                value: 'register',
+                child: Text('Créer un compte'),
+              ),
+            ],
           ),
         ],
       ),
