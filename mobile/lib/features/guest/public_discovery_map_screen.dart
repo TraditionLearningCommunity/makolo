@@ -114,9 +114,13 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
         padding: const EdgeInsets.all(MakoloSpacing.lg),
         children: [
           TextButton.icon(
-            onPressed: () => context.canPop()
-                ? context.pop()
-                : context.go('/discover'),
+            onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/discover');
+                }
+              },
             icon: const Icon(Icons.arrow_back),
             label: const Text('Retour aux résultats'),
           ),
