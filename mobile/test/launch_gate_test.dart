@@ -87,7 +87,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(SplashScreen), findsNothing);
-    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+    expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
   });
 
   testWidgets('real initialization keeps splash while preparation runs', (
@@ -123,13 +123,13 @@ void main() {
     await tester.pump();
 
     expect(find.byType(BrandMoment), findsOneWidget);
-    expect(find.byKey(const Key('guest-public-landing')), findsNothing);
+    expect(find.byKey(const Key('guest-public-home')), findsNothing);
 
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
 
     expect(find.byType(BrandMoment), findsNothing);
-    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+    expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
     expect(preferences.snapshot.lastBrandMomentAt, isNotNull);
   });
 
@@ -159,7 +159,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(preferences.snapshot.hasCompletedOnboarding, isTrue);
-      expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
+      expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
     },
   );
 
