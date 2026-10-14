@@ -54,10 +54,7 @@ class _PublicDiscoveryPointsMapState extends State<PublicDiscoveryPointsMap> {
     final first = widget.points.first;
     return ConfiguredMakoloMapView(
       config: widget.config,
-      initialViewport: MapViewport(
-        center: first,
-        zoom: 10,
-      ),
+      initialViewport: MapViewport(center: first, zoom: 10),
       onMapCreated: (controller) => _controller = controller,
       onStyleReady: () => unawaited(_plot()),
       fallbackBuilder: widget.fallbackBuilder,
