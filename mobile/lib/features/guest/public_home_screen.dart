@@ -87,7 +87,7 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
           ),
           const SizedBox(height: MakoloSpacing.sm),
           Semantics(
-            label: 'Rechercher des possibilités',
+            label: 'Rechercher des opportunités',
             child: TextField(
               key: const Key('guest-home-query'),
               controller: _search,
@@ -274,6 +274,9 @@ class _ExploreChoice extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final accent = theme.brightness == Brightness.dark
+        ? colors.secondary
+        : colors.primary;
     return Material(
       color: colors.surface,
       shape: RoundedRectangleBorder(
@@ -287,7 +290,7 @@ class _ExploreChoice extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.sm),
           child: Row(
             children: [
-              Icon(icon, size: 19, color: colors.primary),
+              Icon(icon, size: 19, color: accent),
               const SizedBox(width: MakoloSpacing.sm),
               Expanded(
                 child: Text(
@@ -317,13 +320,16 @@ class _JourneyStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final accent = theme.brightness == Brightness.dark
+        ? colors.secondary
+        : colors.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           number,
           style: theme.textTheme.labelMedium?.copyWith(
-            color: colors.primary,
+            color: accent,
             fontWeight: FontWeight.w800,
           ),
         ),
