@@ -34,10 +34,7 @@ class PublicExperienceShell extends StatelessWidget {
             ),
             itemBuilder: (context) => const [
               PopupMenuItem(value: 'login', child: Text('Connexion')),
-              PopupMenuItem(
-                value: 'register',
-                child: Text('Créer un compte'),
-              ),
+              PopupMenuItem(value: 'register', child: Text('Créer un compte')),
             ],
           ),
         ],
