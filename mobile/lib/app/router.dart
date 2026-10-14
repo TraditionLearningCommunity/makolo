@@ -168,7 +168,7 @@ GoRouter createMakoloRouter(
             spaceWorkBranch(runtime),
             spaceUsBranch(runtime),
           ],
-        )
+        ),
       if (!runtime.isAuthenticated) ...[
         GoRoute(
           path: '/welcome',
