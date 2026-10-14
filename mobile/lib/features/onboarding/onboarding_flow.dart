@@ -110,7 +110,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     if (_isLastPage) {
       primaryLabel = widget.isAuthenticated
           ? 'Ouvrir Makolo'
-          : 'Découvrir';
+          : 'Entrer dans Makolo';
     }
 
     return Scaffold(
