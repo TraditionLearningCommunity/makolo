@@ -100,6 +100,8 @@ void main() {
     expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
     expect(find.text('Ce que vous voulez faire commence ici.'), findsOneWidget);
     expect(find.byKey(const Key('guest-home-search-submit')), findsOneWidget);
+    expect(find.byKey(const Key('guest-home-quick-choices')), findsOneWidget);
+    expect(find.byKey(const Key('guest-home-action-journey')), findsOneWidget);
     expect(find.text('Accueil'), findsOneWidget);
     expect(find.text('Espaces'), findsWidgets);
     expect(find.text('En cours'), findsNothing);
