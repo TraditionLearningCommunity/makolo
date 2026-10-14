@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../platform/sharing/share_gateway.dart';
-
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
 import '../discovery/discovery_selector.dart';
@@ -83,24 +81,6 @@ class _PublicPossibilityDetailScreenState
     context.push('/login');
   }
 
-  Future<void> _openServerLink(String link) async {
-    final api = widget.runtime.api;
-    if (api == null) return;
-    final uri = api.baseUri.resolve(link);
-    if (uri.scheme != 'https' && uri.scheme != 'http') return;
-    if (!await const SystemShareGateway().openExternal(uri) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir cette page.')),
-      );
-    }
-  }
-
-  String? _text(Map<String, dynamic> source, String key) {
-    final value = source[key];
-    if (value is! String || value.trim().isEmpty) return null;
-    return value.trim();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -117,12 +97,6 @@ class _PublicPossibilityDetailScreenState
     final primaryMap = primary is Map
         ? Map<String, dynamic>.from(primary)
         : const <String, dynamic>{};
-    final primaryWeb = _text(primaryMap, 'web');
-    final links = _detail['links'];
-    final linksMap = links is Map
-        ? Map<String, dynamic>.from(links)
-        : const <String, dynamic>{};
-    final publicWeb = _text(linksMap, 'web');
 
     return PublicExperienceShell(
       current: 1,
@@ -200,19 +174,19 @@ class _PublicPossibilityDetailScreenState
                 subtitle: Text(item.availability!),
               ),
             const SizedBox(height: MakoloSpacing.lg),
-            if (primaryMap['enabled'] == true && primaryWeb != null)
-              FilledButton(
-                onPressed: () => unawaited(_openServerLink(primaryWeb)),
-                child: Text(_text(primaryMap, 'label') ?? 'Continuer'),
-              )
-            else if (publicWeb != null)
-              OutlinedButton.icon(
-                onPressed: () => unawaited(_openServerLink(publicWeb)),
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Voir la page publique'),
+            // A server-owned web presentation is not a native mobile action.
+            // The public item is already displayed here. Never open Makolo's
+            // web pages as a hidden fallback for guest navigation.
+            if (primaryMap['enabled'] == true) ...[
+              Text(
+                'Pour poursuivre cette action avec votre compte, '
+                'connectez-vous à Makolo.',
+                style: theme.textTheme.bodyMedium,
               ),
-            const SizedBox(height: MakoloSpacing.sm),
+              const SizedBox(height: MakoloSpacing.sm),
+            ],
             OutlinedButton.icon(
+              key: const Key('guest-save-signin'),
               onPressed: _requireAuthentication,
               icon: const Icon(Icons.bookmark_border),
               label: const Text('Se connecter pour enregistrer'),
