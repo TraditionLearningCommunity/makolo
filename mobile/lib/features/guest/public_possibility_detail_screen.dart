@@ -106,7 +106,9 @@ class _PublicPossibilityDetailScreenState
     final theme = Theme.of(context);
     final item = _item;
     final detail = _detail['detail'];
-    final description = detail is Map ? detail['description']?.toString() : null;
+    final description = detail is Map
+        ? detail['description']?.toString()
+        : null;
     final engagement = _detail['engagement'];
     final engagementMap = engagement is Map
         ? Map<String, dynamic>.from(engagement)
@@ -160,7 +162,8 @@ class _PublicPossibilityDetailScreenState
             Text(item.title, style: theme.textTheme.headlineSmall),
             const SizedBox(height: MakoloSpacing.md),
             if (item.summary.isNotEmpty) Text(item.summary),
-            if (description != null && description.isNotEmpty &&
+            if (description != null &&
+                description.isNotEmpty &&
                 description != item.summary) ...[
               const SizedBox(height: MakoloSpacing.lg),
               Text(description),
