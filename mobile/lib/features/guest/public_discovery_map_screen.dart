@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
 import '../../platform/maps/makolo_map_view.dart';
+import '../../platform/maps/public_discovery_points_map.dart';
 import '../discovery/discovery_repository.dart';
 import 'public_shell.dart';
 
@@ -27,7 +27,6 @@ class PublicDiscoveryMapScreen extends StatefulWidget {
 
 class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
   List<Map<String, dynamic>> _points = const [];
-  MapLibreMapController? _controller;
   bool _loading = true;
   String? _error;
 
@@ -78,31 +77,6 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     }
   }
 
-  Future<void> _plot() async {
-    final controller = _controller;
-    if (controller == null) return;
-    for (final item in _points) {
-      final place = _object(item['place']);
-      final lat = _number(place['latitude']);
-      final lon = _number(place['longitude']);
-      if (lat == null || lon == null) continue;
-      try {
-        await controller.addCircle(
-          CircleOptions(
-            geometry: LatLng(lat, lon),
-            circleColor: '#5232DB',
-            circleStrokeColor: '#FFFFFF',
-            circleStrokeWidth: 2,
-            circleRadius: 8,
-          ),
-        );
-      } on Object {
-        // A map style can be unavailable; the list remains the fallback.
-        break;
-      }
-    }
-  }
-
   void _open(Map<String, dynamic> item) {
     final id = item['activity_id']?.toString();
     if (id == null || id.isEmpty) return;
@@ -145,17 +119,15 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
           else ...[
             SizedBox(
               height: 320,
-              child: ConfiguredMakoloMapView(
+              child: PublicDiscoveryPointsMap(
                 config: widget.runtime.mapConfig,
-                initialViewport: MapViewport(
-                  center: MapCoordinate(
-                    _number(_object(_points.first['place'])['latitude'])!,
-                    _number(_object(_points.first['place'])['longitude'])!,
-                  ),
-                  zoom: 10,
-                ),
-                onMapCreated: (controller) => _controller = controller,
-                onStyleReady: () => unawaited(_plot()),
+                points: [
+                  for (final point in _points)
+                    MapCoordinate(
+                      _number(_object(point['place'])['latitude'])!,
+                      _number(_object(point['place'])['longitude'])!,
+                    ),
+                ],
                 fallbackBuilder: (context, state, retry) => Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
