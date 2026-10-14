@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
 from dataclasses import dataclass
 from types import SimpleNamespace
 
@@ -65,7 +68,40 @@ def _authenticated(profile) -> bool:
     return bool(getattr(profile, "is_authenticated", False))
 
 
-def parse_page_params(params) -> tuple[int, int]:
+def _continuation_context(params, *, profile=None) -> str:
+    """Bind a cursor to the exact request criteria and authenticated viewer.
+
+    Page and continuation are navigation controls, not exploration criteria.
+    No client-provided profile or authority is ever trusted.
+    """
+    if hasattr(params, "lists"):
+        criteria = {
+            key: sorted(str(value) for value in values)
+            for key, values in params.lists()
+            if key not in {"page", "continuation"}
+        }
+    else:
+        criteria = {
+            str(key): [str(value)]
+            for key, value in params.items()
+            if key not in {"page", "continuation"}
+        }
+    viewer = (
+        str(profile.pk)
+        if _authenticated(profile)
+        else None
+    )
+    canonical = json.dumps(
+        {"criteria": criteria, "viewer": viewer},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def parse_page_params(params, *, profile=None) -> tuple[int, int]:
+    """A request without parameters is valid; a cursor must match its context."""
     try:
         continuation = params.get("continuation")
         if continuation:
@@ -74,6 +110,13 @@ def parse_page_params(params) -> tuple[int, int]:
                 salt=DISCOVERY_CONTINUATION_SALT,
                 max_age=60 * 60 * 24,
             )
+            if (
+                not isinstance(cursor, dict)
+                or cursor.get("context") != _continuation_context(
+                    params, profile=profile
+                )
+            ):
+                raise ValueError("Contexte de continuation incompatible.")
             page = max(int(cursor["page"]), 1)
         else:
             page = max(int(params.get("page") or 1), 1)
@@ -82,7 +125,7 @@ def parse_page_params(params) -> tuple[int, int]:
             DISCOVERY_API_MAX_PAGE_SIZE,
         )
     except (signing.BadSignature, KeyError, TypeError, ValueError) as exc:
-        raise ValidationError("Pagination invalide.") from exc
+        raise ValidationError("Pagination invalide ou continuation expiree.") from exc
     return page, page_size
 
 
@@ -635,7 +678,7 @@ def paginated_projection(
     include_internal_rows=False,
 ) -> dict:
     composition = compose_discovery(params, profile=profile)
-    page, page_size = parse_page_params(params)
+    page, page_size = parse_page_params(params, profile=profile)
     start = (page - 1) * page_size
     end = start + page_size
     page_rows = composition.rows[start:end]
@@ -702,7 +745,7 @@ def paginated_projection(
             "state": "more" if has_next else "end",
             "token": (
                 signing.dumps(
-                    {"page": page + 1},
+                    {"page": page + 1, "context": _continuation_context(params, profile=profile)},
                     salt=DISCOVERY_CONTINUATION_SALT,
                     compress=True,
                 )
