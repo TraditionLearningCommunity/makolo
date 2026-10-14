@@ -60,6 +60,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
   }
 
+  Future<void> _skipLocation() async {
+    DiscoveryLocationContext.update(null);
+    await _advance();
+  }
+
   Future<void> _activateLocation() async {
     if (_requesting || _page != 1) return;
     setState(() {
@@ -255,7 +260,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   const SizedBox(height: MakoloSpacing.sm),
                   TextButton(
                     key: const Key('onboarding-location-skip'),
-                    onPressed: _requesting ? null : _advance,
+                    onPressed: _requesting ? null : _skipLocation,
                     child: const Text('Passer'),
                   ),
                 ],
