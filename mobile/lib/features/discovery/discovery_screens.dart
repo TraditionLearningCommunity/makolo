@@ -38,6 +38,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   static const _selector = DiscoverySelector();
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
+  bool _acquisitionFailed = false;
 
   @override
   void initState() {
@@ -46,31 +47,40 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   Future<void> _acquire() async {
-    final local = await widget.repository.readItems(_query);
-    if (local != null) {
-      await widget.repository.indexItemPreviews(_query);
-    }
-    final source = await widget.repository.readSource(
-      widget.repository.itemsSource(_query),
-    );
-    if (local == null ||
-        DiscoveryRepository.discoveryFreshness.evaluate(
-              local,
-              now: DateTime.now(),
-              invalidated: source.invalidated,
-            ) !=
-            FreshnessState.fresh) {
-      await _refreshItems();
+    try {
+      final local = await widget.repository.readItems(_query);
+      if (!mounted) return;
+      if (local != null) {
+        await widget.repository.indexItemPreviews(_query);
+      }
+      final source = await widget.repository.readSource(
+        widget.repository.itemsSource(_query),
+      );
+      if (!mounted) return;
+      if (local == null ||
+          DiscoveryRepository.discoveryFreshness.evaluate(
+                local,
+                now: DateTime.now(),
+                invalidated: source.invalidated,
+              ) !=
+              FreshnessState.fresh) {
+        await _refreshItems();
+      }
+    } on Object {
+      if (mounted) setState(() => _acquisitionFailed = true);
     }
   }
 
   Future<void> _refreshItems() async {
-    if (_refreshing) return;
-    setState(() => _refreshing = true);
+    if (_refreshing || !mounted) return;
+    setState(() {
+      _refreshing = true;
+      _acquisitionFailed = false;
+    });
     try {
       await widget.repository.refreshItems(_query);
     } on Object {
-      // The existing local snapshot remains usable.
+      if (mounted) setState(() => _acquisitionFailed = true);
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -140,7 +150,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               hasCriteria: _query.hasCriteria,
               freshness: freshness,
               reachability: _reachability(sourceState, syncStatus),
-              failure: sourceState.lastErrorCode != null && projection != null
+              failure:
+                  sourceState.lastErrorCode != null ||
+                      snapshot.hasError ||
+                      sourceSnapshot.hasError ||
+                      _acquisitionFailed
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
               refreshing: _refreshing,

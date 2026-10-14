@@ -28,24 +28,29 @@ void main() {
   testWidgets('refresh error preserves content and adds local support', (
     tester,
   ) async {
+    var retries = 0;
     await PresentationHarness.pump(
       tester,
-      child: const MakoloSurfaceStateView(
-        state: MakoloSurfacePresentation(
+      child: MakoloSurfaceStateView(
+        state: const MakoloSurfacePresentation(
           availability: MakoloAvailabilityCue.content,
           failure: MakoloFailureCue.recoverable,
           refreshing: true,
         ),
-        content: Center(child: Text('Continuité conservée')),
+        content: const Center(child: Text('Continuité conservée')),
         recoverableErrorMessage: 'La mise à jour a échoué.',
+        onRetry: () => retries++,
       ),
     );
 
     expect(find.text('Continuité conservée'), findsOneWidget);
-    expect(find.text('La mise à jour a échoué.'), findsNothing);
+    expect(find.text('La mise à jour a échoué.'), findsOneWidget);
     expect(find.text('Mise à jour…'), findsNothing);
-    expect(find.byType(MakoloNotice), findsNothing);
+    expect(find.byType(MakoloNotice), findsOneWidget);
     expect(find.byType(MakoloSkeleton), findsNothing);
+    await tester.tap(find.text('Réessayer'));
+    expect(retries, 1);
+    expect(find.text('Continuité conservée'), findsOneWidget);
   });
 
   testWidgets('pending content never renders false confirmation', (

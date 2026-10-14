@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
 
+/// Shared purple identity for login, signup and account recovery.
 class AuthEntryFrame extends StatelessWidget {
   const AuthEntryFrame({
     super.key,
@@ -10,7 +12,7 @@ class AuthEntryFrame extends StatelessWidget {
     this.subtitle,
     required this.child,
     this.onBack,
-    this.footer = 'Avance, tout est déjà prêt.',
+    this.footer = '',
   });
 
   final String title;
@@ -22,78 +24,117 @@ class AuthEntryFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      backgroundColor: MakoloColors.indigo,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.fromLTRB(
-              MakoloSpacing.lg,
-              MakoloSpacing.md,
-              MakoloSpacing.lg,
-              MakoloSpacing.lg + MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - (MakoloSpacing.lg * 2),
-              ),
-              child: Center(
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final compact = MediaQuery.sizeOf(context).height < 700 || keyboardOpen;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: MakoloColors.indigo,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: MakoloColors.indigo,
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const horizontal = MakoloSpacing.lg;
+              final vertical = compact ? MakoloSpacing.sm : MakoloSpacing.lg;
+
+              return SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontal,
+                  vertical: vertical,
+                ),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (onBack != null)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            tooltip: 'Retour',
-                            onPressed: onBack,
-                            color: Colors.white,
-                            icon: const Icon(Icons.arrow_back),
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight > vertical * 2
+                        ? constraints.maxHeight - vertical * 2
+                        : 0.0,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (onBack != null)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: IconButton(
+                                tooltip: 'Retour',
+                                onPressed: onBack,
+                                color: Colors.white,
+                                icon: const Icon(Icons.arrow_back_rounded),
+                              ),
+                            ),
+                          SizedBox(
+                            height: compact
+                                ? MakoloSpacing.xs
+                                : MakoloSpacing.md,
                           ),
-                        ),
-                      const SizedBox(height: MakoloSpacing.sm),
-                      const Center(child: MakoloMark(size: 64, white: true)),
-                      const SizedBox(height: MakoloSpacing.lg),
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        style: textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          height: 1.12,
-                        ),
+                          Center(
+                            child: MakoloMark(
+                              size: compact ? 52 : 64,
+                              white: true,
+                            ),
+                          ),
+                          SizedBox(
+                            height: compact
+                                ? MakoloSpacing.md
+                                : MakoloSpacing.lg,
+                          ),
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: textTheme.headlineSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              height: 1.18,
+                            ),
+                          ),
+                          if (subtitle != null &&
+                              subtitle!.trim().isNotEmpty) ...[
+                            const SizedBox(height: MakoloSpacing.sm),
+                            Text(
+                              subtitle!,
+                              textAlign: TextAlign.center,
+                              style: textTheme.bodyLarge?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.90),
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                          SizedBox(
+                            height: compact
+                                ? MakoloSpacing.lg
+                                : MakoloSpacing.xl,
+                          ),
+                          child,
+                          if (!keyboardOpen && footer.isNotEmpty) ...[
+                            const SizedBox(height: MakoloSpacing.xl),
+                            Text(
+                              footer,
+                              textAlign: TextAlign.center,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.74),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: MakoloSpacing.md),
+                        ],
                       ),
-                      if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
-                        const SizedBox(height: MakoloSpacing.sm),
-                        Text(
-                          subtitle!,
-                          textAlign: TextAlign.center,
-                          style: textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.86),
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: MakoloSpacing.xl),
-                      child,
-                      const SizedBox(height: MakoloSpacing.xl),
-                      if (footer.isNotEmpty)
-                        Text(
-                          footer,
-                          textAlign: TextAlign.center,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.72),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),

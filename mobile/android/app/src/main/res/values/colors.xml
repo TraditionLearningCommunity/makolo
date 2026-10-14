@@ -6,4 +6,5 @@
     <color name="makolo_splash_background">#5232DB</color>
     <color name="makolo_text_primary">#0F172A</color>
     <color name="makolo_text_secondary">#2B176E</color>
+    <color name="makolo_splash_step">#FF704D</color>
 </resources>

@@ -14,8 +14,6 @@ import 'providers.dart';
 import 'router.dart';
 import 'sync_lifecycle.dart';
 
-final DateTime _makoloLaunchStartedAt = DateTime.now();
-
 class MakoloApp extends ConsumerWidget {
   const MakoloApp({super.key});
 
@@ -32,6 +30,9 @@ class MakoloApp extends ConsumerWidget {
     final runtime = ref.watch(appRuntimeProvider);
 
     return runtime.when(
+      // Replacement disposes the previous runtime, including its local store.
+      // AsyncData retained during refresh must never be rendered again.
+      skipLoadingOnRefresh: false,
       loading: () => MaterialApp(
         title: 'Makolo',
         debugShowCheckedModeBanner: false,
@@ -42,24 +43,27 @@ class MakoloApp extends ConsumerWidget {
         supportedLocales: const [Locale('fr'), Locale('en')],
         home: const MakoloSystemUi(child: SplashScreen()),
       ),
-      error: (error, stackTrace) => MaterialApp(
-        title: 'Makolo',
-        debugShowCheckedModeBanner: false,
-        theme: buildMakoloLightTheme(),
-        darkTheme: buildMakoloDarkTheme(),
-        themeMode: ThemeMode.system,
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        supportedLocales: const [Locale('fr'), Locale('en')],
-        home: MakoloSystemUi(
-          child: Scaffold(
-            body: MakoloErrorState(
-              message: 'Makolo n’a pas pu ouvrir les données locales de cet appareil.',
-              preservedMessage: 'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
-              onRetry: () => ref.invalidate(appRuntimeProvider),
+      error: (error, stackTrace) {
+        releaseNativeLaunchAfterFrame();
+        return MaterialApp(
+          title: 'Makolo',
+          debugShowCheckedModeBanner: false,
+          theme: buildMakoloLightTheme(),
+          darkTheme: buildMakoloDarkTheme(),
+          themeMode: ThemeMode.system,
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          supportedLocales: const [Locale('fr'), Locale('en')],
+          home: MakoloSystemUi(
+            child: Scaffold(
+              body: MakoloErrorState(
+                message: 'Makolo n’a pas pu ouvrir les données locales de cet appareil.',
+                preservedMessage: 'Aucune donnée locale n’a été supprimée. Vous pouvez réessayer.',
+                onRetry: () => ref.invalidate(appRuntimeProvider),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
       data: (runtime) {
         final ingress = ref.watch(runtimeIngressProvider);
         if (runtime.isAuthenticated) {
@@ -98,7 +102,6 @@ class MakoloApp extends ConsumerWidget {
                 child: LaunchGate(
                   runtime: runtime,
                   router: router,
-                  launchStartedAt: _makoloLaunchStartedAt,
                   child: routedChild,
                 ),
               );

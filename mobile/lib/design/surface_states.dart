@@ -115,6 +115,14 @@ class MakoloSurfaceStateView extends StatelessWidget {
     }
 
     if (!state.hasUsableContent) {
+      if (state.failure == MakoloFailureCue.recoverable) {
+        return MakoloErrorState(
+          message:
+              recoverableErrorMessage ?? 'Ce contenu n’a pas pu être chargé.',
+          preservedMessage: preservedMessage,
+          onRetry: onRetry,
+        );
+      }
       switch (state.availability) {
         case MakoloAvailabilityCue.initial:
         case MakoloAvailabilityCue.loading:
@@ -128,6 +136,15 @@ class MakoloSurfaceStateView extends StatelessWidget {
     }
 
     final cues = <Widget>[
+      if (state.failure == MakoloFailureCue.recoverable &&
+          recoverableErrorMessage != null)
+        MakoloNotice(
+          message: [recoverableErrorMessage!, ?preservedMessage].join(' '),
+          kind: MakoloNoticeKind.error,
+          behavior: MakoloNoticeBehavior.persistent,
+          actionLabel: onRetry == null ? null : 'Réessayer',
+          onAction: onRetry,
+        ),
       if (state.commit != MakoloCommitCue.none)
         MakoloCommitIndicator(commit: state.commit),
     ];

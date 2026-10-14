@@ -133,6 +133,10 @@ class DiscoveryFieldView extends StatelessWidget {
     return MakoloSurfaceStateView(
       state: selection.surface,
       blockingErrorMessage: 'Ce contenu n’est pas disponible.',
+      recoverableErrorMessage: onRetry == null
+          ? null
+          : 'Découvrir n’a pas pu être chargé.',
+      preservedMessage: 'Les possibilités déjà enregistrées sur cet appareil sont conservées.',
       onRetry: onRetry,
       empty: _DiscoveryEmptyState(
         states: selection.states,

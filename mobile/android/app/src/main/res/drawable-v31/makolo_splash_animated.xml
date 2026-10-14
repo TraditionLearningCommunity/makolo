@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/makolo_splash_vector">
+    <target android:name="step1" android:animation="@animator/makolo_splash_step1" />
+    <target android:name="step2" android:animation="@animator/makolo_splash_step2" />
+    <target android:name="step3" android:animation="@animator/makolo_splash_step3" />
+    <target android:name="mark" android:animation="@animator/makolo_splash_mark" />
+</animated-vector>

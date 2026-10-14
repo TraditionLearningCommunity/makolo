@@ -51,6 +51,30 @@ class _NeverUsedStore implements ProfileStore {
 }
 
 void main() {
+  testWidgets(
+    'a removed projection does not resurrect private cached content',
+    (tester) async {
+      final controller = StreamController<StoredProjection?>();
+      await PresentationHarness.pump(
+        tester,
+        child: OngoingScreen(
+          repository: _UnusedRepository(),
+          projectionStream: controller.stream,
+        ),
+      );
+      controller.add(_projection());
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Visa Canada'), findsOneWidget);
+      controller.add(null);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Visa Canada'), findsNothing);
+      expect(find.textContaining('pas encore disponibles'), findsOneWidget);
+      await controller.close();
+    },
+  );
+
   testWidgets('calm content and true empty stay distinct', (tester) async {
     final controller = StreamController<StoredProjection?>();
 

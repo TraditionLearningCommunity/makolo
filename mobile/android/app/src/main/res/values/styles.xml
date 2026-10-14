@@ -5,6 +5,6 @@
     </style>
 
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">@color/makolo_background</item>
+        <item name="android:windowBackground">@color/makolo_splash_background</item>
     </style>
 </resources>

@@ -35,11 +35,12 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
+  final _identifier = TextEditingController();
   final _password = TextEditingController();
   final _passwordFocus = FocusNode();
 
   late _EntryMode _mode;
+  late Future<bool> _hasStoredAccounts;
   bool _busy = false;
   bool _showPassword = false;
   bool _rememberOnDevice = false;
@@ -51,46 +52,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _mode = widget.startWithAccounts ? _EntryMode.accounts : _EntryMode.login;
-    final initialEmail = widget.initialEmail?.trim() ?? '';
-    if (initialEmail.isNotEmpty) {
-      _email.text = initialEmail;
+    _hasStoredAccounts = _checkStoredAccounts();
+    final initial = widget.initialEmail?.trim() ?? '';
+    if (initial.isNotEmpty) {
+      _identifier.text = initial;
     } else {
       unawaited(_restoreDraft());
     }
-    _email.addListener(_scheduleDraftSave);
+    _identifier.addListener(_scheduleDraftSave);
 
-    if (widget.runtime.recovery.entryReason == EntryReason.sessionExpired) {
-      _notice = 'Reconnectez-vous pour continuer.';
-    } else if (widget.runtime.recovery.entryReason ==
-            EntryReason.protectedIntent ||
-        widget.runtime.recovery.entryReason == EntryReason.protectedAction) {
-      _notice = 'Connectez-vous pour continuer.';
+    final reason = widget.runtime.recovery.entryReason;
+    if (reason == EntryReason.sessionExpired) {
+      _notice = 'Votre session a expiré. Reconnectez-vous pour continuer.';
+    } else if (reason == EntryReason.protectedIntent ||
+        reason == EntryReason.protectedAction) {
+      _notice = 'Connectez-vous pour poursuivre votre action.';
+    }
+  }
+
+  Future<bool> _checkStoredAccounts() async {
+    try {
+      return (await widget.runtime.tokens.listAccounts()).isNotEmpty;
+    } catch (_) {
+      return false;
     }
   }
 
   Future<void> _restoreDraft() async {
-    final draft = await widget.runtime.interactions?.read('login');
-    if (!mounted || _email.text.isNotEmpty) return;
-    final identifier = draft?['identifier'] ?? draft?['email'];
-    if (identifier is String) _email.text = identifier;
+    try {
+      final draft = await widget.runtime.interactions?.read('login');
+      if (!mounted || _identifier.text.isNotEmpty) return;
+      final value = draft?['identifier'] ?? draft?['email'];
+      if (value is String) _identifier.text = value.trim();
+    } catch (_) {
+      // Draft persistence is optional; it cannot prevent login.
+    }
   }
 
   void _scheduleDraftSave() {
     _draftTimer?.cancel();
-    _draftTimer = Timer(const Duration(milliseconds: 250), () {
-      unawaited(
-        widget.runtime.interactions?.save('login', {
-              'identifier': _email.text.trim(),
-            }) ??
-            Future<void>.value(),
-      );
+    if (_busy) return;
+    _draftTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) unawaited(_saveDraft());
     });
+  }
+
+  Future<void> _saveDraft() async {
+    try {
+      await widget.runtime.interactions?.save('login', {
+        'identifier': _identifier.text.trim(),
+      });
+    } catch (_) {
+      // No password is stored in the draft.
+    }
   }
 
   @override
   void dispose() {
     _draftTimer?.cancel();
-    _email.dispose();
+    _identifier.dispose();
     _password.dispose();
     _passwordFocus.dispose();
     super.dispose();
@@ -99,75 +119,83 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _showLogin({String email = ''}) {
     setState(() {
       _mode = _EntryMode.login;
-      if (email.isNotEmpty) _email.text = email;
+      if (email.isNotEmpty) _identifier.text = email;
       _password.clear();
+      _showPassword = false;
       _error = null;
       _notice = null;
     });
   }
 
   String? _validateIdentifier(String? value) {
-    if ((value?.trim() ?? '').isEmpty) {
-      return 'Indiquez votre Identifiant Makolo ou votre adresse e-mail.';
-    }
-    return null;
+    return (value?.trim() ?? '').isEmpty
+        ? 'Saisissez votre identifiant Makolo ou votre e-mail.'
+        : null;
+  }
+
+  String? _validatePassword(String? value) {
+    return (value == null || value.isEmpty)
+        ? 'Saisissez votre mot de passe.'
+        : null;
   }
 
   String _passwordRecoveryEmail() {
-    final value = _email.text.trim();
+    final value = _identifier.text.trim();
     if (value.startsWith('@') || !value.contains('@')) return '';
     return value;
   }
 
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Indiquez votre mot de passe.';
-    }
-    return null;
-  }
-
   Future<void> _login() async {
-    if (_busy || !_formKey.currentState!.validate()) return;
+    if (_busy || !(_formKey.currentState?.validate() ?? false)) return;
     final api = widget.runtime.api;
     if (api == null) {
       setState(() {
-        _error = 'La connexion est indisponible sur cette installation pour le moment.';
+        _error =
+            'La connexion est indisponible sur cette installation '
+            'pour le moment.';
       });
       return;
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _busy = true;
       _error = null;
     });
+
     try {
       await AuthRepository(api, widget.runtime.tokens).login(
-        identifier: _email.text.trim(),
+        identifier: _identifier.text.trim(),
         password: _password.text,
         rememberOnDevice: _rememberOnDevice,
       );
-      TextInput.finishAutofillContext();
-      await widget.runtime.interactions?.clear('login');
+      TextInput.finishAutofillContext(shouldSave: true);
+      _draftTimer?.cancel();
+      try {
+        await widget.runtime.interactions?.clear('login');
+      } catch (_) {
+        // An optional draft cleanup must not undo a valid login.
+      }
+      if (!mounted) return;
       ref.invalidate(appRuntimeProvider);
     } on Object catch (error) {
       final message = await resolvedLoginErrorMessage(error);
       if (!mounted) return;
-      setState(() {
-        _error = message;
-      });
+      setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _forgotPassword() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final email = await showForgotPasswordDialog(
       context,
       runtime: widget.runtime,
       initialEmail: _passwordRecoveryEmail(),
     );
     if (!mounted || email == null || email.isEmpty) return;
-    _email.text = email;
+    _identifier.text = email;
   }
 
   @override
@@ -179,7 +207,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         onAddAccount: _showLogin,
       );
     }
-
     if (_mode == _EntryMode.signup) {
       return SignupScreen(
         runtime: widget.runtime,
@@ -204,8 +231,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     key: const Key('login-notice'),
                     padding: const EdgeInsets.all(MakoloSpacing.md),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(MakoloRadii.medium),
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(MakoloRadii.card),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                      ),
                     ),
                     child: Text(
                       _notice!,
@@ -216,11 +246,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: MakoloSpacing.md),
+                const SizedBox(height: MakoloSpacing.lg),
               ],
               MakoloAuthField(
                 fieldKey: const Key('login-email'),
-                controller: _email,
+                label: 'Identifiant Makolo ou adresse e-mail',
+                hint: 'Identifiant ou e-mail',
+                controller: _identifier,
                 enabled: !_busy,
                 keyboardType: TextInputType.text,
                 autofillHints: const [
@@ -228,23 +260,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   AutofillHints.email,
                 ],
                 textInputAction: TextInputAction.next,
-                prefixIcon: Icons.alternate_email,
+                prefixIcon: Icons.alternate_email_rounded,
                 validator: _validateIdentifier,
+                onChanged: (_) {
+                  if (_error != null) setState(() => _error = null);
+                },
                 onEditingComplete: () => _passwordFocus.requestFocus(),
-                label: 'Identifiant Makolo ou adresse e-mail',
               ),
-              const SizedBox(height: MakoloSpacing.md),
+              const SizedBox(height: MakoloSpacing.inner),
               MakoloAuthField(
                 fieldKey: const Key('login-password'),
+                label: 'Mot de passe',
+                hint: 'Votre mot de passe',
                 controller: _password,
                 focusNode: _passwordFocus,
                 enabled: !_busy,
                 obscureText: !_showPassword,
                 autofillHints: const [AutofillHints.password],
                 textInputAction: TextInputAction.done,
-                prefixIcon: Icons.lock_outline,
+                prefixIcon: Icons.lock_outline_rounded,
                 validator: _validatePassword,
-                onFieldSubmitted: (_) => _login(),
+                onChanged: (_) {
+                  if (_error != null) setState(() => _error = null);
+                },
+                onFieldSubmitted: (_) => unawaited(_login()),
                 suffixIcon: IconButton(
                   key: const Key('login-password-toggle'),
                   tooltip: _showPassword
@@ -254,18 +293,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ? null
                       : () => setState(() => _showPassword = !_showPassword),
                   icon: Icon(
-                    _showPassword ? Icons.visibility_off : Icons.visibility,
+                    _showPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                     color: MakoloColors.deep,
                   ),
                 ),
-                label: 'Mot de passe',
               ),
               Align(
                 alignment: Alignment.centerRight,
                 child: MakoloAuthTextAction(
                   label: 'Mot de passe oublié ?',
                   buttonKey: const Key('forgot-password-link'),
-                  onPressed: _busy ? null : _forgotPassword,
+                  onPressed: _busy ? null : () => unawaited(_forgotPassword()),
                   underline: true,
                 ),
               ),
@@ -276,15 +316,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     : (value) => setState(() => _rememberOnDevice = value),
               ),
               if (_error != null) ...[
-                const SizedBox(height: MakoloSpacing.md),
+                const SizedBox(height: MakoloSpacing.sm),
                 Semantics(
                   liveRegion: true,
                   child: Text(
                     _error!,
                     key: const Key('login-error'),
                     style: const TextStyle(
-                      color: Color(0xFFFFDAD6),
+                      color: Color(0xFFFFE5E0),
                       fontWeight: FontWeight.w700,
+                      height: 1.45,
                     ),
                   ),
                 ),
@@ -294,31 +335,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 buttonKey: const Key('login-submit'),
                 label: 'Se connecter',
                 busy: _busy,
-                onPressed: _login,
+                onPressed: () => unawaited(_login()),
               ),
               const SizedBox(height: MakoloSpacing.sm),
               MakoloAuthSecondaryButton(
-                label: 'Créer un compte',
                 buttonKey: const Key('create-account-link'),
+                label: 'Créer un compte',
                 onPressed: _busy
                     ? null
-                    : () => setState(() {
-                        _mode = _EntryMode.signup;
-                        _error = null;
-                        _notice = null;
-                      }),
+                    : () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        setState(() {
+                          _mode = _EntryMode.signup;
+                          _error = null;
+                          _notice = null;
+                        });
+                      },
               ),
-              FutureBuilder(
-                future: widget.runtime.tokens.listAccounts(),
+              FutureBuilder<bool>(
+                future: _hasStoredAccounts,
                 builder: (context, snapshot) {
-                  final hasAccounts =
-                      snapshot.data != null && snapshot.data!.isNotEmpty;
-                  if (!hasAccounts) return const SizedBox.shrink();
-                  return MakoloAuthTextAction(
-                    label: 'Utiliser un autre compte de cet appareil',
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() => _mode = _EntryMode.accounts),
+                  if (snapshot.data != true) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+                    child: MakoloAuthTextAction(
+                      label: 'Utiliser un autre compte de cet appareil',
+                      onPressed: _busy
+                          ? null
+                          : () {
+                              FocusManager.instance.primaryFocus?.unfocus();
+                              setState(() => _mode = _EntryMode.accounts);
+                            },
+                    ),
                   );
                 },
               ),

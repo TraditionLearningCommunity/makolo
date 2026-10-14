@@ -71,27 +71,125 @@ Future<void> _pump(WidgetTester tester, GoRouter router) async {
   await tester.pumpAndSettle();
 }
 
+Map<String, dynamic> _item(String title, String id) => {
+  'identity': {
+    'family': 'activity',
+    'candidate_key': 'activity:$id',
+    'resource': {'id': id},
+  },
+  'representation': {
+    'title': title,
+    'summary': 'Description publique.',
+    'eyebrow': 'Voyager',
+  },
+  'capabilities': ['view'],
+  'links': {'detail': '/api/v1/discovery/items/activity/$id/'},
+};
+
 void main() {
-  testWidgets('guest sees a standalone public landing without personal shell', (
+  testWidgets('guest enters public home with no Profile or Space shell', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    final router = _router(_guestRuntime(SessionRecoveryController()));
 
+    await _pump(tester, router);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
+    expect(find.text('Faites avancer ce qui compte.'), findsOneWidget);
+    expect(find.text('Accueil'), findsOneWidget);
+    expect(find.text('Espaces'), findsWidgets);
+    expect(find.text('En cours'), findsNothing);
+    expect(find.text('Moi'), findsNothing);
+    expect(find.byTooltip('Avatar'), findsNothing);
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets(
+    'public Discover actually searches the server, not loaded items',
+    (tester) async {
+      final seenQueries = <String>[];
+      final client = MockClient((request) async {
+        expect(request.headers.containsKey('Authorization'), isFalse);
+        expect(request.url.path, '/api/v1/discovery/items/');
+        seenQueries.add(request.url.queryParameters['q'] ?? '');
+        final filtered = request.url.queryParameters['q'] == '023';
+        return MockResponse(
+          jsonEncode({
+            'data': {
+              'count': filtered ? 1 : 2,
+              'page': 1,
+              'page_size': 12,
+              'has_next': false,
+              'results': filtered
+                  ? [
+                      _item(
+                        'Accompagnement bourses Accra — 023',
+                        '11111111-1111-4111-8111-111111111111',
+                      ),
+                    ]
+                  : [
+                      _item(
+                        'Accompagnement bourses Accra — 023',
+                        '11111111-1111-4111-8111-111111111111',
+                      ),
+                      _item(
+                        'Atelier numérique Lubumbashi',
+                        '22222222-2222-4222-8222-222222222222',
+                      ),
+                    ],
+            },
+          }),
+          200,
+        );
+      });
+      final router = _router(
+        _guestRuntime(SessionRecoveryController(), client: client),
+      );
+      await _pump(tester, router);
+      router.go('/discover');
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Atelier numérique Lubumbashi'),
+        180,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const Key('guest-public-landing')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('guest-search-query')),
+        '023',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      expect(seenQueries, contains('023'));
+      expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
+      expect(find.text('Atelier numérique Lubumbashi'), findsNothing);
+    },
+  );
+
+  testWidgets('public Discovery paginates on the server', (tester) async {
+    final seenPages = <String>[];
     final client = MockClient((request) async {
-      expect(request.headers.containsKey('Authorization'), isFalse);
-      expect(request.url.path, '/api/v1/discovery/items/');
+      seenPages.add(request.url.queryParameters['page'] ?? '');
+      final page = int.parse(request.url.queryParameters['page'] ?? '1');
       return MockResponse(
         jsonEncode({
           'data': {
+            'count': 24,
+            'page': page,
+            'page_size': 12,
+            'has_next': page == 1,
             'results': [
-              {
-                'representation': {
-                  'title': 'Possibilité réelle',
-                  'summary': 'Résumé public.',
-                  'eyebrow': 'Public',
-                },
-              },
+              _item('Page $page', '11111111-1111-4111-8111-111111111111'),
             ],
           },
         }),
@@ -101,77 +199,127 @@ void main() {
     final router = _router(
       _guestRuntime(SessionRecoveryController(), client: client),
     );
-
     await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(find.byKey(const Key('guest-public-landing')), findsOneWidget);
-    expect(find.text('Possibilité réelle'), findsOneWidget);
-    expect(find.text('Now'), findsNothing);
-    expect(find.text('En cours'), findsNothing);
-    expect(find.text('Moi'), findsNothing);
-    expect(find.byTooltip('Avatar'), findsNothing);
-    expect(find.byTooltip('Makolo Mark'), findsNothing);
+    expect(find.text('Page 1'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('Suivant'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('guest-public-landing')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.tap(find.text('Suivant'));
+    await tester.pumpAndSettle();
+
+    expect(seenPages, contains('2'));
+    expect(find.text('Page 2'), findsWidgets);
+  });
+
+  testWidgets('guest opens public possibility detail without authentication', (
+    tester,
+  ) async {
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(
+        request.url.path,
+        '/api/v1/discovery/items/activity/11111111-1111-4111-8111-111111111111/',
+      );
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'item': {
+              ..._item(
+                'Voyage Lubumbashi–Kolwezi',
+                '11111111-1111-4111-8111-111111111111',
+              ),
+              'detail': {'description': 'Voyage public confirmé.'},
+            },
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/discover/items/activity/11111111-1111-4111-8111-111111111111');
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('guest-possibility-detail')), findsOneWidget);
+    expect(find.text('Voyage Lubumbashi–Kolwezi'), findsOneWidget);
+    expect(find.text('Voyage public confirmé.'), findsOneWidget);
     expect(find.byType(LoginScreen), findsNothing);
   });
 
-  testWidgets(
-    'guest search filters loaded items while typing without refetch',
-    (tester) async {
-      var requestCount = 0;
-      final client = MockClient((request) async {
-        requestCount += 1;
-        expect(request.url.queryParameters.containsKey('q'), isFalse);
+  testWidgets('public Space directory and details stay anonymous', (
+    tester,
+  ) async {
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      if (request.url.path.endsWith('/public-spaces/')) {
         return MockResponse(
           jsonEncode({
             'data': {
+              'count': 1,
+              'page': 1,
+              'has_next': false,
               'results': [
                 {
-                  'representation': {
-                    'title': 'Accompagnement bourses Accra — 023',
-                    'summary': 'Orientation et accompagnement.',
-                    'eyebrow': 'Orientation',
-                  },
-                },
-                {
-                  'representation': {
-                    'title': 'Atelier numérique Lubumbashi',
-                    'summary': 'Apprentissage pratique.',
-                    'eyebrow': 'Formation',
-                  },
+                  'name': 'Association Visible',
+                  'slug': 'association-visible',
+                  'city': 'Lubumbashi',
+                  'country': 'RDC',
                 },
               ],
             },
           }),
           200,
         );
-      });
-      final router = _router(
-        _guestRuntime(SessionRecoveryController(), client: client),
-      );
-
-      await _pump(tester, router);
-      expect(requestCount, 1);
-      expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
-      expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
-
-      await tester.enterText(find.byType(SearchBar), '023');
-      await tester.pump();
-
-      expect(find.text('Accompagnement bourses Accra — 023'), findsOneWidget);
-      expect(find.text('Atelier numérique Lubumbashi'), findsNothing);
-      expect(requestCount, 1);
-
-      await tester.enterText(find.byType(SearchBar), '023jj');
-      await tester.pump();
-
+      }
       expect(
-        find.text('Aucune possibilité publique à afficher pour le moment.'),
-        findsOneWidget,
+        request.url.path,
+        '/api/v1/organizations/public-spaces/association-visible/',
       );
-      expect(requestCount, 1);
-    },
-  );
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'space': {
+              'name': 'Association Visible',
+              'slug': 'association-visible',
+              'description': 'Une association publique.',
+            },
+            'possibilities': {
+              'count': 0,
+              'page': 1,
+              'has_next': false,
+              'results': <Object>[],
+            },
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/spaces');
+    await tester.pumpAndSettle();
+    expect(find.text('Association Visible'), findsOneWidget);
+
+    router.go('/spaces/association-visible');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('guest-public-space-detail')), findsOneWidget);
+    expect(find.text('Une association publique.'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsNothing);
+  });
 
   testWidgets('empty public contract stays calm without invented cards', (
     tester,
@@ -179,7 +327,13 @@ void main() {
     final client = MockClient(
       (request) async => MockResponse(
         jsonEncode({
-          'data': {'results': <Object>[]},
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
         }),
         200,
       ),
@@ -187,14 +341,14 @@ void main() {
     final router = _router(
       _guestRuntime(SessionRecoveryController(), client: client),
     );
-
     await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
 
     expect(
-      find.text('Aucune possibilité publique à afficher pour le moment.'),
+      find.text('Aucune possibilité publique à afficher pour cette recherche.'),
       findsOneWidget,
     );
-    expect(find.byType(Card), findsNothing);
   });
 
   testWidgets(
@@ -202,13 +356,16 @@ void main() {
     (tester) async {
       final recovery = SessionRecoveryController();
       final router = _router(_guestRuntime(recovery));
-
       await _pump(tester, router);
+
       router.go('/ongoing');
       await tester.pumpAndSettle();
 
       expect(find.byType(LoginScreen), findsOneWidget);
-      expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
+      expect(
+        find.text('Connectez-vous pour poursuivre votre action.'),
+        findsOneWidget,
+      );
       expect(find.text('Now'), findsNothing);
       expect(find.text('En cours'), findsNothing);
       expect(find.byTooltip('Avatar'), findsNothing);
@@ -220,7 +377,6 @@ void main() {
     tester,
   ) async {
     final router = _router(_guestRuntime(SessionRecoveryController()));
-
     await _pump(tester, router);
 
     router.go('/login');
@@ -237,14 +393,19 @@ void main() {
   ) async {
     final recovery = SessionRecoveryController();
     final router = _router(_guestRuntime(recovery));
-
     await _pump(tester, router);
 
     router.go('/journeys/journey-1');
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginScreen), findsOneWidget);
-    expect(find.text('Connectez-vous pour continuer.'), findsOneWidget);
+    expect(
+      find.text('Connectez-vous pour poursuivre votre action.'),
+      findsOneWidget,
+    );
+    expect(find.text('Now'), findsNothing);
+    expect(find.text('En cours'), findsNothing);
+    expect(find.byTooltip('Avatar'), findsNothing);
     expect(recovery.lastUsefulLocation, '/journeys/journey-1');
     expect(recovery.awaitingAuthentication, isTrue);
   });
