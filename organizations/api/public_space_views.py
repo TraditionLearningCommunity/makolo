@@ -84,6 +84,7 @@ class PublicSpaceDetailAPIView(APIView):
         owned_activity_ids = set(
             Activity.objects.filter(space=space).values_list("id", flat=True)
         )
+        owned_ids = {str(pk) for pk in owned_activity_ids}
         rows = tuple(
             (family, key, candidate)
             for family, key, candidate in public_field.rows
@@ -92,7 +93,7 @@ class PublicSpaceDetailAPIView(APIView):
                 candidate.get("activity_id")
                 if isinstance(candidate, dict)
                 else candidate.activity_id
-            ) in {str(pk) for pk in owned_activity_ids}
+            ) in owned_ids
         )
         start = (page - 1) * page_size
         return Response(projection_envelope(
