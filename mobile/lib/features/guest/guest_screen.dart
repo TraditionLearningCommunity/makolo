@@ -99,11 +99,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   Future<void> _load() async {
     final generation = ++_generation;
     final query = _query;
-    if (mounted)
+    if (mounted) {
       setState(() {
         _loading = true;
         _error = null;
       });
+    }
     try {
       await widget.runtime.interactions?.save(_interactionId, {
         'query': query.text,
@@ -370,7 +371,8 @@ class _PublicPossibilityCard extends StatelessWidget {
                   child: Image.network(
                     item.imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    errorBuilder: (context, error, stackTrace) =>
+                        const SizedBox.shrink(),
                   ),
                 ),
               Padding(
