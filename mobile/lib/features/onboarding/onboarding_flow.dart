@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../design/makolo_mark.dart';
 import '../../design/makolo_theme.dart';
 import '../../platform/location/location_capability.dart';
+import '../../platform/location/location_service.dart';
 import '../../platform/location/discovery_location_context.dart';
 import '../../platform/permissions/permission_gateway.dart';
 
