@@ -42,13 +42,11 @@ class PublicExperienceShell extends StatelessWidget {
       body: SafeArea(top: false, child: child),
       bottomNavigationBar: NavigationBar(
         selectedIndex: current,
-        onDestinationSelected: (index) => context.go(
-          switch (index) {
-            0 => '/welcome',
-            1 => '/discover',
-            _ => '/spaces',
-          },
-        ),
+        onDestinationSelected: (index) => context.go(switch (index) {
+          0 => '/welcome',
+          1 => '/discover',
+          _ => '/spaces',
+        }),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
