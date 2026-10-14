@@ -55,11 +55,15 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
       final response = await api.publicGet(widget.query.mapPath);
       final raw = response.jsonObject()['results'];
       if (raw is! List) throw const FormatException('Invalid map results');
-      final points = raw.whereType<Map>().map(_object).where((item) {
-        final place = _object(item['place']);
-        return _number(place['latitude']) != null &&
-            _number(place['longitude']) != null;
-      }).toList(growable: false);
+      final points = raw
+          .whereType<Map>()
+          .map(_object)
+          .where((item) {
+            final place = _object(item['place']);
+            return _number(place['latitude']) != null &&
+                _number(place['longitude']) != null;
+          })
+          .toList(growable: false);
       if (!mounted) return;
       setState(() {
         _points = points;
@@ -83,13 +87,15 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
       final lon = _number(place['longitude']);
       if (lat == null || lon == null) continue;
       try {
-        await controller.addCircle(CircleOptions(
-          geometry: LatLng(lat, lon),
-          circleColor: '#5232DB',
-          circleStrokeColor: '#FFFFFF',
-          circleStrokeWidth: 2,
-          circleRadius: 8,
-        ));
+        await controller.addCircle(
+          CircleOptions(
+            geometry: LatLng(lat, lon),
+            circleColor: '#5232DB',
+            circleStrokeColor: '#FFFFFF',
+            circleStrokeWidth: 2,
+            circleRadius: 8,
+          ),
+        );
       } on Object {
         // A map style can be unavailable; the list remains the fallback.
         break;
@@ -115,12 +121,12 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
         children: [
           TextButton.icon(
             onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/discover');
-                }
-              },
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/discover');
+              }
+            },
             icon: const Icon(Icons.arrow_back),
             label: const Text('Retour aux résultats'),
           ),
@@ -133,7 +139,9 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
             Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
             TextButton(onPressed: _load, child: const Text('Réessayer')),
           ] else if (!hasPoints)
-            const Text('Aucune possibilité géolocalisable pour cette recherche.')
+            const Text(
+              'Aucune possibilité géolocalisable pour cette recherche.',
+            )
           else ...[
             SizedBox(
               height: 320,
@@ -152,7 +160,9 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Carte indisponible. Les lieux restent consultables.'),
+                      const Text(
+                        'Carte indisponible. Les lieux restent consultables.',
+                      ),
                       if (state == MakoloMapRuntimeState.error)
                         TextButton(
                           onPressed: retry,
@@ -170,7 +180,9 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
               Card(
                 child: ListTile(
                   title: Text(item['title']?.toString() ?? 'Possibilité'),
-                  subtitle: Text(_object(item['place'])['name']?.toString() ?? ''),
+                  subtitle: Text(
+                    _object(item['place'])['name']?.toString() ?? '',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _open(item),
                 ),
