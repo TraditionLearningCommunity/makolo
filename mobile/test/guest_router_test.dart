@@ -536,11 +536,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(seenQueries, contains('Association Visible'));
-    expect(
-      find.byKey(const Key('guest-spaces-clear-search')),
-      findsOneWidget,
+    await tester.tap(find.text('Affiner les Espaces'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('guest-spaces-city')),
+      'Lubumbashi',
     );
-    await tester.tap(find.byKey(const Key('guest-spaces-clear-search')));
+    await tester.testTextInput.hide();
+    await tester.ensureVisible(find.byKey(const Key('guest-spaces-filter-apply')));
+    await tester.tap(find.byKey(const Key('guest-spaces-filter-apply')));
+    await tester.pumpAndSettle();
+    expect(seenQueries.last, 'Association Visible');
+    await tester.tap(find.byKey(const Key('guest-spaces-reset')));
     await tester.pumpAndSettle();
     expect(seenQueries.last, '');
     expect(find.byType(LoginScreen), findsNothing);
