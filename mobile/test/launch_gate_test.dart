@@ -202,7 +202,7 @@ void main() {
     await tester.tap(find.text('Continuer'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Continuer'));
+    await tester.tap(find.byKey(const Key('onboarding-location-skip')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('onboarding-primary')));
