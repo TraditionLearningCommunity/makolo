@@ -212,12 +212,17 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                   labelText: 'Rechercher un Espace',
                   hintText: 'Nom d’une organisation ou communauté',
                   prefixIcon: const Icon(Icons.search),
-                  suffixIcon: IconButton(
-                    key: const Key('guest-space-search-submit'),
-                    tooltip: 'Lancer la recherche',
-                    onPressed: _searchSpaces,
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                  ),
+                  suffixIcon: _search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          key: const Key('guest-space-search-clear'),
+                          tooltip: 'Effacer la recherche',
+                          onPressed: () {
+                            _search.clear();
+                            _criteriaChanged(immediate: true);
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                        ),
                   border: const OutlineInputBorder(),
                 ),
               ),
