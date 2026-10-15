@@ -8,7 +8,9 @@ void main() {
     final calls = <int>[];
     final coordinator = ProgressiveSearchCoordinator(
       debounce: const Duration(milliseconds: 15),
-      onSearch: (revision) async => calls.add(revision),
+      onSearch: (revision) async {
+        calls.add(revision);
+      },
     );
     coordinator.changed();
     coordinator.changed();
@@ -40,7 +42,9 @@ void main() {
     final calls = <int>[];
     final coordinator = ProgressiveSearchCoordinator(
       debounce: const Duration(milliseconds: 10),
-      onSearch: (revision) async => calls.add(revision),
+      onSearch: (revision) async {
+        calls.add(revision);
+      },
     );
     coordinator.changed();
     await coordinator.refresh();
