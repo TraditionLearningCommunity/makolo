@@ -19,13 +19,22 @@ class GeoSuggestion {
   final String? kind;
 }
 
+/// Cancellation contract: presentation never handles Dio directly.
+class GeoSearchCancellation {
+  final CancelToken _token = CancelToken();
+
+  bool get isCancelled => _token.isCancelled;
+
+  void cancel() => _token.cancel('outdated suggestion');
+}
+
 abstract interface class GeoSearchGateway {
   /// A caller owns typing debounce and cancellation. No GPS is sent implicitly.
   Future<List<GeoSuggestion>> suggest(
     String query, {
     String language = 'fr',
     int limit = 5,
-    CancelToken? cancelToken,
+    GeoSearchCancellation? cancelToken,
   });
 }
 
@@ -65,7 +74,7 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
     String query, {
     String language = 'fr',
     int limit = 5,
-    CancelToken? cancelToken,
+    GeoSearchCancellation? cancelToken,
   }) async {
     final text = query.trim();
     if (text.isEmpty) return const [];
@@ -85,7 +94,7 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
     try {
       final response = await _dio.getUri<Map<String, dynamic>>(
         uri,
-        cancelToken: cancelToken,
+        cancelToken: cancelToken?._token,
       );
       final features = response.data?['features'];
       if (features is! List) throw const FormatException('Missing features');
