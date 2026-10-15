@@ -414,13 +414,17 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             if (_loading && _collection.items.isEmpty)
               const Center(child: CircularProgressIndicator())
             else ...[
-              Text(
-                _updatingCriteria && _collection.items.isNotEmpty
-                      ? 'Actualisation… résultats précédents'
+              if (_collection.items.isNotEmpty) ...[
+                Text(
+                  _updatingCriteria
+                      ? (_error == null
+                            ? 'Actualisation… résultats précédents'
+                            : 'Résultats précédents')
                       : '${_collection.count} résultats',
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: MakoloSpacing.md),
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: MakoloSpacing.md),
+              ],
               if (!_updatingCriteria &&
                   _collection.items.any((item) => item.isMappable))
                 Align(
