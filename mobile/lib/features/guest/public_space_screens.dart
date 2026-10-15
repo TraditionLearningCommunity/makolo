@@ -233,8 +233,10 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               filters: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  DropdownButtonFormField<String>(
-                    key: const Key('guest-spaces-category'),
+                  KeyedSubtree(
+                    key: ValueKey('space-category-$_category'),
+                    child: DropdownButtonFormField<String>(
+                      key: const Key('guest-spaces-category'),
                     initialValue: _category,
                     isExpanded: true,
                     decoration: const InputDecoration(
@@ -257,6 +259,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                       setState(() => _category = value ?? '');
                       _criteriaChanged(immediate: true);
                     },
+                    ),
                   ),
                   const SizedBox(height: MakoloSpacing.md),
                   GeoAutocompleteField(
