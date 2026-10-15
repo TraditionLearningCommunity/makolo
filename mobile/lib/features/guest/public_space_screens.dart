@@ -263,7 +263,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               Text('$_count Espaces', style: theme.textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.md),
               if (_spaces.isEmpty && !_loading)
-                const Text(
+                Text(
                   _city.text.trim().isEmpty
                       ? 'Aucun Espace public ne correspond à cette recherche.'
                       : 'Aucun Espace trouvé à ${_selectedCity ?? _city.text.trim()} pour le moment.',
