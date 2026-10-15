@@ -639,6 +639,9 @@ void main() {
               'name': 'Association Visible',
               'slug': 'association-visible',
               'description': 'Une association publique.',
+              'archetype': 'generic',
+              'city': 'Lubumbashi',
+              'country': 'RDC',
             },
             'possibilities': {
               'count': 0,
@@ -663,6 +666,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('guest-public-space-detail')), findsOneWidget);
     expect(find.text('Une association publique.'), findsOneWidget);
+    expect(find.text('Espace générique'), findsOneWidget);
+    expect(find.text('generic'), findsNothing);
+    expect(find.text('Lubumbashi · RDC'), findsOneWidget);
+    expect(find.text('À propos'), findsOneWidget);
+    expect(find.text('Site officiel'), findsNothing);
+    expect(find.text('Ce que propose cet Espace'), findsOneWidget);
+    expect(find.text('Cet Espace ne propose pas encore de possibilité publique.'), findsOneWidget);
     expect(find.byType(LoginScreen), findsNothing);
   });
 
