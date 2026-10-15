@@ -10,6 +10,8 @@ import '../../presentation/search/progressive_search_coordinator.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
+import '../discovery/discovery_selector.dart';
+import '../../presentation/possibilities/public_possibility_card.dart';
 import 'public_shell.dart';
 
 Map<String, dynamic> _object(Object? value) =>
@@ -329,9 +331,78 @@ class PublicSpaceDetailScreen extends StatefulWidget {
       _PublicSpaceDetailScreenState();
 }
 
+
+Uri? _validPublicWebsite(String website) {
+  final uri = Uri.tryParse(website);
+  if (uri == null ||
+      !{'http', 'https'}.contains(uri.scheme) ||
+      uri.host.isEmpty) {
+    return null;
+  }
+  return uri;
+}
+
+const _spaceArchetypes = <String, String>{
+  'generic': 'Espace générique',
+  'creative': 'Artiste / création',
+  'media': 'Média / journalisme',
+  'education': 'Enseignement / formation',
+  'commerce': 'Commerce / distribution',
+  'service_provider': 'Prestataire de services',
+  'transport_operator': 'Opérateur de transport',
+  'community': 'Association / communauté',
+};
+
+class _PublicSpaceIdentity extends StatelessWidget {
+  const _PublicSpaceIdentity({required this.space});
+
+  final Map<String, dynamic> space;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final name = _field(space, 'name');
+    final category = _spaceArchetypes[_field(space, 'archetype')];
+    final location = [
+      _field(space, 'city'),
+      _field(space, 'country'),
+    ].where((value) => value.isNotEmpty).join(' · ');
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: theme.colorScheme.primaryContainer,
+          foregroundColor: theme.colorScheme.onPrimaryContainer,
+          child: Text(
+            name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(),
+            style: theme.textTheme.headlineSmall,
+          ),
+        ),
+        const SizedBox(width: MakoloSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: theme.textTheme.headlineSmall),
+              if (category != null)
+                Text(category, style: theme.textTheme.labelMedium),
+              if (location.isNotEmpty) ...[
+                const SizedBox(height: MakoloSpacing.xs),
+                Text(location, style: theme.textTheme.bodySmall),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
   Map<String, dynamic> _space = const {};
-  List<Map<String, dynamic>> _possibilities = const [];
+  static const _selector = DiscoverySelector();
+  List<DiscoveryItemPresentation> _possibilities = const [];
   int _count = 0;
   int _page = 1;
   bool _hasNext = false;
@@ -365,10 +436,13 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
       if (!mounted) return;
       setState(() {
         _space = _object(data['space']);
-        _possibilities = raw
-            .whereType<Map>()
-            .map(_object)
-            .toList(growable: false);
+        _possibilities = _selector.publicCollection({
+          'results': raw,
+          'count': possibilities['count'],
+          'page': possibilities['page'],
+          'page_size': possibilities['page_size'],
+          'has_next': possibilities['has_next'],
+        }).items;
         _count = possibilities['count'] is int
             ? possibilities['count'] as int
             : _possibilities.length;
@@ -386,16 +460,14 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
 
   Future<void> _openWebsite() async {
     final website = _field(_space, 'website');
-    final uri = Uri.tryParse(website);
-    if (uri == null || !{'http', 'https'}.contains(uri.scheme)) return;
+    final uri = _validPublicWebsite(website);
+    if (uri == null) return;
     await const SystemShareGateway().openExternal(uri);
   }
 
-  void _openPossibility(Map<String, dynamic> raw) {
-    final identity = _object(raw['identity']);
-    final resource = _object(identity['resource']);
-    final family = _field(identity, 'family');
-    final id = _field(resource, 'id');
+  void _openPossibility(DiscoveryItemPresentation possibility) {
+    final family = possibility.family;
+    final id = possibility.id;
     if (family.isEmpty || id.isEmpty) return;
     context.push(
       '/discover/items/${Uri.encodeComponent(family)}/${Uri.encodeComponent(id)}',
@@ -434,28 +506,14 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
               Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               TextButton(onPressed: _load, child: const Text('Réessayer')),
             ] else ...[
-              Text(
-                _field(_space, 'name'),
-                style: theme.textTheme.headlineSmall,
-              ),
-              const SizedBox(height: MakoloSpacing.sm),
-              if (_field(_space, 'archetype').isNotEmpty)
-                Text(
-                  _field(_space, 'archetype'),
-                  style: theme.textTheme.labelMedium,
-                ),
-              if (_field(_space, 'city').isNotEmpty ||
-                  _field(_space, 'country').isNotEmpty)
-                Text(
-                  [
-                    _field(_space, 'city'),
-                    _field(_space, 'country'),
-                  ].where((value) => value.isNotEmpty).join(' · '),
-                ),
-              const SizedBox(height: MakoloSpacing.lg),
-              if (_field(_space, 'description').isNotEmpty)
+              _PublicSpaceIdentity(space: _space),
+              if (_field(_space, 'description').isNotEmpty) ...[
+                const SizedBox(height: MakoloSpacing.lg),
+                Text('À propos', style: theme.textTheme.titleMedium),
+                const SizedBox(height: MakoloSpacing.xs),
                 Text(_field(_space, 'description')),
-              if (_field(_space, 'website').isNotEmpty)
+              ],
+              if (_validPublicWebsite(_field(_space, 'website')) != null)
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
@@ -465,34 +523,26 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                   ),
                 ),
               const SizedBox(height: MakoloSpacing.xl),
-              Text('Possibilités publiques', style: theme.textTheme.titleLarge),
-              const SizedBox(height: MakoloSpacing.xs),
-              Text('$_count possibilités accessibles à découvrir'),
+              Text(
+                'Ce que propose cet Espace',
+                style: theme.textTheme.titleLarge,
+              ),
+              if (_count > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                  child: Text(
+                    '$_count possibilités',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
               const SizedBox(height: MakoloSpacing.md),
               if (_possibilities.isEmpty && !_loading)
-                const Text(
-                  'Aucune possibilité publique à afficher pour cet Espace.',
-                ),
+                const Text('Cet Espace ne propose pas encore de possibilité publique.'),
               for (final possibility in _possibilities)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-                  child: Card(
-                    child: ListTile(
-                      title: Text(
-                        _field(_object(possibility['representation']), 'title'),
-                      ),
-                      subtitle: Text(
-                        _field(
-                          _object(possibility['representation']),
-                          'summary',
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _openPossibility(possibility),
-                    ),
-                  ),
+                PublicPossibilityCard(
+                  item: possibility,
+                  compact: true,
+                  onTap: () => _openPossibility(possibility),
                 ),
               if (_page > 1 || _hasNext)
                 Row(
