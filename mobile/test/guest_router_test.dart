@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:makolo_mobile/platform/location/geo_search_gateway.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +38,7 @@ class _MemoryLaunchPreferences implements LaunchPreferencesStore {
 AppRuntime _guestRuntime(
   SessionRecoveryController recovery, {
   MockClient? client,
+  GeoSearchGateway? geoSearch,
 }) {
   final tokens = MemoryTokenStore();
   return AppRuntime(
@@ -45,6 +47,7 @@ AppRuntime _guestRuntime(
     recovery: recovery,
     launchPreferences: _MemoryLaunchPreferences(),
     interactions: ResumableInteractionStore.memory(),
+    geoSearch: geoSearch,
     api: client == null
         ? null
         : MakoloApiClient(
@@ -373,6 +376,120 @@ void main() {
 
     expect(requests.last.queryParameters['place'], 'Kolwezi');
     expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('guest chooses a real city and sends the supported place criterion', (
+    tester,
+  ) async {
+    final requests = <Uri>[];
+    final client = MockClient((request) async {
+      requests.add(request.url);
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final gateway = MapTilerGeoSearchGateway(
+      apiKey: 'test-only',
+      dio: MockClient((request) async => MockResponse(
+        jsonEncode({
+          'features': [
+            {
+              'id': 'place.kolwezi',
+              'place_name': 'Kolwezi, Lualaba, RD Congo',
+              'center': [25.47, -10.72],
+              'place_type': ['place'],
+            },
+          ],
+        }),
+        200,
+      )).dio,
+    );
+    final router = _router(
+      _guestRuntime(
+        SessionRecoveryController(),
+        client: client,
+        geoSearch: gateway,
+      ),
+    );
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Affiner la recherche'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('guest-filter-place')), 'Kol');
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+    expect(find.text('Kolwezi, Lualaba, RD Congo'), findsOneWidget);
+    await tester.tap(find.text('Kolwezi, Lualaba, RD Congo'));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('guest-filter-apply')),
+      160,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('guest-public-landing')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.tap(find.byKey(const Key('guest-filter-apply')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['place'], 'Kolwezi');
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('guest selects a custom calendar date using the existing date API', (
+    tester,
+  ) async {
+    final requests = <Uri>[];
+    final client = MockClient((request) async {
+      requests.add(request.url);
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Affiner la recherche'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('guest-filter-when')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choisir une date…').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('guest-filter-apply')),
+      160,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('guest-public-landing')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.tap(find.byKey(const Key('guest-filter-apply')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['date'], isNotEmpty);
+    expect(requests.last.queryParameters.containsKey('when'), isFalse);
   });
 
   testWidgets('public Discovery paginates on the server', (tester) async {
