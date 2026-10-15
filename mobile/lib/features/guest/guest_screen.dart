@@ -262,12 +262,17 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   hintText: 'Ex. Voyager à Kolwezi demain',
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.search),
-                  suffixIcon: IconButton(
-                    key: const Key('guest-discover-search-submit'),
-                    tooltip: 'Lancer la recherche',
-                    onPressed: _apply,
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                  ),
+                  suffixIcon: _search.text.isEmpty
+                      ? null
+                      : IconButton(
+                          key: const Key('guest-discover-search-clear'),
+                          tooltip: 'Effacer la recherche',
+                          onPressed: () {
+                            _search.clear();
+                            _criteriaChanged(immediate: true);
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                        ),
                 ),
               ),
               filterButtonKey: const Key('guest-filter-toggle'),
