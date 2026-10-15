@@ -213,6 +213,9 @@ void main() {
             matching: find.byType(Scrollable),
           )
           .first,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('guest-home-spaces'))),
       alignment: 0.3,
     );
     await tester.pumpAndSettle();
@@ -288,6 +291,9 @@ void main() {
               matching: find.byType(Scrollable),
             )
             .first,
+      );
+      await Scrollable.ensureVisible(
+        tester.element(find.byKey(const Key('guest-search-query'))),
         alignment: 0.2,
       );
       await tester.pumpAndSettle();
@@ -295,6 +301,8 @@ void main() {
         find.byKey(const Key('guest-search-query')),
         '023',
       );
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
       expect(
         find.byKey(const Key('guest-discover-search-submit')),
         findsOneWidget,
@@ -354,6 +362,9 @@ void main() {
             matching: find.byType(Scrollable),
           )
           .first,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('guest-filter-apply'))),
       alignment: 0.3,
     );
     await tester.pumpAndSettle();
