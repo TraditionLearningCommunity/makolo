@@ -9,6 +9,7 @@ import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
 import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/fields/geo_autocomplete_field.dart';
+import '../../presentation/fields/search_filter_bar.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
 import 'public_shell.dart';
 
@@ -217,7 +218,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               'Décrivez ce que vous cherchez, choisissez une piste ou explorez librement.',
             ),
             const SizedBox(height: MakoloSpacing.lg),
-            TextField(
+            SearchFilterBar(
+              searchField: TextField(
               controller: _search,
               key: const Key('guest-search-query'),
               textInputAction: TextInputAction.search,
@@ -235,59 +237,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   icon: const Icon(Icons.arrow_forward_rounded),
                 ),
               ),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            SizedBox(
-              height: 48,
-              child: ListView(
-                key: const Key('guest-discover-categories'),
-                scrollDirection: Axis.horizontal,
-                children: [
-                  for (final value in const [
-                    ('', 'Tout', Icons.apps_rounded),
-                    ('transport', 'Voyager', Icons.directions_bus_outlined),
-                    ('event', 'Événements', Icons.event_outlined),
-                    ('service', 'Services', Icons.handshake_outlined),
-                    ('other', 'Autres', Icons.explore_outlined),
-                  ]) ...[
-                    ChoiceChip(
-                      avatar: Icon(value.$3, size: 18),
-                      label: Text(value.$2),
-                      selected: _vertical == value.$1,
-                      showCheckmark: false,
-                      onSelected: (_) => _selectVertical(value.$1),
-                    ),
-                    const SizedBox(width: MakoloSpacing.sm),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: MakoloSpacing.compact),
-            Card(
-              margin: EdgeInsets.zero,
-              elevation: 0,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MakoloRadii.card),
-                side: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
-              child: ExpansionTile(
-                key: const Key('guest-filters'),
-                leading: const Icon(Icons.tune_rounded),
-                title: const Text('Affiner la recherche'),
-                subtitle:
-                    _when.isNotEmpty ||
-                        _date.isNotEmpty ||
-                        _price.isNotEmpty ||
-                        _place.text.trim().isNotEmpty
-                    ? const Text('Critères supplémentaires')
-                    : const Text('Lieu, date et prix'),
-                childrenPadding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.md,
-                  0,
-                  MakoloSpacing.md,
-                  MakoloSpacing.md,
-                ),
+            ),,
+              filterButtonKey: const Key('guest-filter-toggle'),
+              filterPanelKey: const Key('guest-filters'),
+              hasActiveFilters: _when.isNotEmpty || _date.isNotEmpty || _price.isNotEmpty || _place.text.trim().isNotEmpty,
+              filters: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   GeoAutocompleteField(
                     fieldKey: const Key('guest-filter-place'),
@@ -379,9 +334,37 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     },
                   ),
                   const SizedBox(height: MakoloSpacing.md),
+
                 ],
               ),
             ),
+            const SizedBox(height: MakoloSpacing.md),
+            SizedBox(
+              height: 48,
+              child: ListView(
+                key: const Key('guest-discover-categories'),
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (final value in const [
+                    ('', 'Tout', Icons.apps_rounded),
+                    ('transport', 'Voyager', Icons.directions_bus_outlined),
+                    ('event', 'Événements', Icons.event_outlined),
+                    ('service', 'Services', Icons.handshake_outlined),
+                    ('other', 'Autres', Icons.explore_outlined),
+                  ]) ...[
+                    ChoiceChip(
+                      avatar: Icon(value.$3, size: 18),
+                      label: Text(value.$2),
+                      selected: _vertical == value.$1,
+                      showCheckmark: false,
+                      onSelected: (_) => _selectVertical(value.$1),
+                    ),
+                    const SizedBox(width: MakoloSpacing.sm),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: MakoloSpacing.compact),
             const SizedBox(height: MakoloSpacing.lg),
             if (_error != null) ...[
               Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
