@@ -387,7 +387,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('guest-discover-categories')), findsOneWidget);
-    await tester.tap(find.text('Affiner la recherche'));
+    await tester.tap(find.byKey(const Key('guest-filter-toggle')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('guest-filter-place')),
@@ -449,7 +449,7 @@ void main() {
       await _pump(tester, router);
       router.go('/discover');
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Affiner la recherche'));
+      await tester.tap(find.byKey(const Key('guest-filter-toggle')));
       await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const Key('guest-filter-place')),
@@ -491,7 +491,7 @@ void main() {
       await _pump(tester, router);
       router.go('/discover');
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Affiner la recherche'));
+      await tester.tap(find.byKey(const Key('guest-filter-toggle')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('guest-filter-when')));
       await tester.pumpAndSettle();
@@ -714,7 +714,7 @@ void main() {
       ),
       isTrue,
     );
-    await tester.tap(find.text('Affiner les Espaces'));
+    await tester.tap(find.byKey(const Key('guest-spaces-filter-toggle')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('guest-spaces-city')),
