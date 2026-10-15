@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
 import '../../presentation/possibilities/public_possibility_card.dart';
+import '../../presentation/search/load_more_on_scroll.dart';
 import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
 import '../../platform/location/geo_search_gateway.dart';
@@ -133,7 +134,22 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       );
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
-        _collection = collection;
+        _collection = _page == 1
+            ? collection
+            : DiscoveryCollectionPresentation(
+                items: [
+                  ..._collection.items,
+                  ...collection.items.where(
+                    (item) => !_collection.items.any(
+                      (known) => known.candidateKey == item.candidateKey,
+                    ),
+                  ),
+                ],
+                count: collection.count,
+                page: collection.page,
+                pageSize: collection.pageSize,
+                hasNext: collection.hasNext,
+              );
         _loading = false;
       });
     } on Object {
@@ -186,9 +202,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _searchCoordinator.changed(immediate: true);
   }
 
-  void _movePage(int page) {
-    if (page < 1) return;
-    setState(() => _page = page);
+  void _loadNextPage() {
+    if (_loading || !_collection.hasNext) return;
+    setState(() => _page++);
     _searchCoordinator.changed(immediate: true);
   }
 
@@ -197,9 +213,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     final theme = Theme.of(context);
     return PublicExperienceShell(
       current: 1,
-      child: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
+      child: LoadMoreOnScroll(
+        hasMore: _collection.hasNext,
+        loading: _loading,
+        loadMore: _loadNextPage,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
           key: const Key('guest-public-landing'),
           padding: const EdgeInsets.all(MakoloSpacing.lg),
           children: [
@@ -410,27 +430,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
                   ),
                 ),
-              if (_collection.page > 1 || _collection.hasNext)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: _collection.page > 1 && !_loading
-                          ? () => _movePage(_collection.page - 1)
-                          : null,
-                      child: const Text('Précédent'),
-                    ),
-                    Text('Page ${_collection.page}'),
-                    TextButton(
-                      onPressed: _collection.hasNext && !_loading
-                          ? () => _movePage(_collection.page + 1)
-                          : null,
-                      child: const Text('Suivant'),
-                    ),
-                  ],
-                ),
+              if (_loading && _collection.items.isNotEmpty)
+                const Center(child: CircularProgressIndicator()),
+              if (!_collection.hasNext && _collection.items.isNotEmpty)
+                const Center(child: Text('Vous avez tout exploré.')),
             ],
           ],
+          ),
         ),
       ),
     );
