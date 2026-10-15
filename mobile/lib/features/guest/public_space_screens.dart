@@ -264,7 +264,9 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               const SizedBox(height: MakoloSpacing.md),
               if (_spaces.isEmpty && !_loading)
                 const Text(
-                  'Aucun Espace public ne correspond à cette recherche.',
+                  _city.text.trim().isEmpty
+                      ? 'Aucun Espace public ne correspond à cette recherche.'
+                      : 'Aucun Espace trouvé à ${_selectedCity ?? _city.text.trim()} pour le moment.',
                 ),
               for (final space in _spaces)
                 Padding(
