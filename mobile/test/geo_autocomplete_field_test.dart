@@ -160,4 +160,33 @@ void main() {
     expect(find.byKey(const Key('geo-suggestions-error')), findsOneWidget);
     expect(controller.text, 'K');
   });
+
+  testWidgets('clear control resets manual place and notifies owner', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    var edits = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GeoAutocompleteField(
+            controller: controller,
+            fieldKey: const Key('place'),
+            onEdited: () => edits++,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byKey(const Key('place')), 'Lagos');
+    await tester.pump();
+    expect(find.byKey(const Key('geo-search-clear')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('geo-search-clear')));
+    await tester.pump();
+    expect(controller.text, isEmpty);
+    expect(edits, 2);
+    expect(find.byKey(const Key('geo-suggestions')), findsNothing);
+  });
+
 }
