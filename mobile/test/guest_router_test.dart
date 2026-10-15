@@ -882,6 +882,7 @@ void main() {
     expect(seenQueries.last.queryParameters['q'], isNull);
     expect(seenQueries.last.queryParameters['city'], isNull);
     expect(seenQueries.last.queryParameters['category'], isNull);
+    expect(find.text('Toutes les catégories'), findsOneWidget);
     expect(find.byType(LoginScreen), findsNothing);
   });
 
