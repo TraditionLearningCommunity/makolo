@@ -149,6 +149,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
       helpText: 'Choisir une date',
+      confirmText: 'Valider',
     );
     if (!mounted) return;
     if (chosen == null) return;
