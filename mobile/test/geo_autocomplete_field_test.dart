@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/platform/location/geo_search_gateway.dart';
@@ -15,7 +14,7 @@ class _FakeGeoSearch implements GeoSearchGateway {
     String query, {
     String language = 'fr',
     int limit = 5,
-    CancelToken? cancelToken,
+    GeoSearchCancellation? cancelToken,
   }) {
     calls.add(query);
     final request = Completer<List<GeoSuggestion>>();
