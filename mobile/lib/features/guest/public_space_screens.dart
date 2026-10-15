@@ -29,6 +29,7 @@ class PublicSpacesScreen extends StatefulWidget {
 class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   final _search = TextEditingController();
   final _city = TextEditingController();
+  String? _selectedCity;
   late final ProgressiveSearchCoordinator _searchCoordinator;
   String _category = '';
   List<({String value, String label})> _categories = const [];
@@ -69,7 +70,8 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         queryParameters: {
           if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
           if (_category.isNotEmpty) 'category': _category,
-          if (_city.text.trim().isNotEmpty) 'city': _city.text.trim(),
+          if (_city.text.trim().isNotEmpty)
+            'city': _selectedCity ?? _city.text.trim(),
           'page': _page.toString(),
           'page_size': '20',
         },
@@ -109,7 +111,10 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
     }
   }
 
-  void _onCityEdited() => _criteriaChanged();
+  void _onCityEdited() {
+    _selectedCity = null;
+    _criteriaChanged();
+  }
 
   void _criteriaChanged({bool immediate = false}) {
     setState(() => _page = 1);
@@ -121,6 +126,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   void _resetFilters() {
     _search.clear();
     _city.clear();
+    _selectedCity = null;
     setState(() {
       _category = '';
       _page = 1;
@@ -228,7 +234,8 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                     labelText: 'Ville',
                     hintText: 'Ex. Lubumbashi',
                     onEdited: _onCityEdited,
-                    onSelected: (_) {
+                    onSelected: (suggestion) {
+                      _selectedCity = suggestion.label.split(',').first.trim();
                       _criteriaChanged(immediate: true);
                     },
                     onSubmitted: _searchSpaces,
