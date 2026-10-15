@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
+import '../../presentation/possibilities/public_possibility_card.dart';
 import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
 import '../../platform/location/geo_search_gateway.dart';
@@ -403,7 +404,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   ),
                 ),
               for (final item in _collection.items)
-                _PublicPossibilityCard(
+                PublicPossibilityCard(
                   item: item,
                   onTap: () => context.push(
                     '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
@@ -436,90 +437,3 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   }
 }
 
-class _PublicPossibilityCard extends StatelessWidget {
-  const _PublicPossibilityCard({required this.item, required this.onTap});
-
-  final DiscoveryItemPresentation item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final media = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (media != null &&
-                  (media.scheme == 'https' || media.scheme == 'http'))
-                AspectRatio(
-                  aspectRatio: 4 / 3,
-                  child: Image.network(
-                    item.imageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const SizedBox.shrink(),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(MakoloSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (item.eyebrow != null)
-                      Text(
-                        item.eyebrow!,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    const SizedBox(height: MakoloSpacing.xs),
-                    Text(item.title, style: theme.textTheme.titleMedium),
-                    if (item.summary.isNotEmpty) ...[
-                      const SizedBox(height: MakoloSpacing.sm),
-                      Text(
-                        item.summary,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    if (item.routeLabel != null)
-                      Text(
-                        item.routeLabel!,
-                        style: theme.textTheme.labelMedium,
-                      ),
-                    if (item.owner != null)
-                      Text(item.owner!, style: theme.textTheme.bodySmall),
-                    if (item.place != null)
-                      Text(item.place!, style: theme.textTheme.bodySmall),
-                    if (item.timing != null)
-                      Text(item.timing!, style: theme.textTheme.bodySmall),
-                    if (item.price != null)
-                      Text(item.price!, style: theme.textTheme.bodySmall),
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Voir le détail',
-                          style: TextStyle(color: theme.colorScheme.primary),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward, size: 18),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
