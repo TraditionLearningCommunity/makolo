@@ -269,13 +269,13 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             if (_loading && _spaces.isEmpty)
               const Center(child: CircularProgressIndicator())
             else ...[
-              Text('$_count Espaces', style: theme.textTheme.titleMedium),
+              Text('$_count ${_count == 1 ? 'Espace' : 'Espaces'}', style: theme.textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.md),
               if (_spaces.isEmpty && !_loading)
                 Text(
                   _city.text.trim().isEmpty
                       ? 'Aucun Espace public ne correspond à cette recherche.'
-                      : 'Aucun Espace trouvé à ${_selectedCity ?? _city.text.trim()} pour le moment.',
+                      : 'Aucun Espace correspondant à « ${_selectedCity ?? _city.text.trim()} ».',
                 ),
               for (final space in _spaces)
                 Padding(
