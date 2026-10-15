@@ -50,6 +50,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   ];
 
   bool _requesting = false;
+  bool _locationGranted = false;
   String? _locationFeedback;
 
   Future<void> _advance() async {
@@ -61,12 +62,17 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   }
 
   Future<void> _skipLocation() async {
-    DiscoveryLocationContext.update(null);
+    if (!_locationGranted) DiscoveryLocationContext.update(null);
     await _advance();
   }
 
   Future<void> _activateLocation() async {
     if (_requesting || _page != 1) return;
+    if (_locationGranted || DiscoveryLocationContext.current != null) {
+      setState(() => _locationGranted = true);
+      await _advance();
+      return;
+    }
     setState(() {
       _requesting = true;
       _locationFeedback = null;
@@ -92,6 +98,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       );
       if (result.status == LocationCapabilityStatus.ready &&
           result.fix != null) {
+        setState(() => _locationGranted = true);
         await _advance();
         return;
       }
@@ -254,13 +261,15 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   onPressed: _requesting
                       ? null
                       : _page == 1
-                      ? _activateLocation
+                      ? (_locationGranted ? _advance : _activateLocation)
                       : _next,
                   child: Text(
-                    _page == 1 ? 'Activer la localisation' : primaryLabel,
+                    _page == 1
+                        ? (_locationGranted ? 'Continuer' : 'Activer la localisation')
+                        : primaryLabel,
                   ),
                 ),
-                if (_page == 1) ...[
+                if (_page == 1 && !_locationGranted) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   TextButton(
                     key: const Key('onboarding-location-skip'),
