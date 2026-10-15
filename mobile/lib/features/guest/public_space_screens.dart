@@ -295,10 +295,17 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             if (_loading && _spaces.isEmpty)
               const Center(child: CircularProgressIndicator())
             else ...[
-              Text(_updatingCriteria && _spaces.isNotEmpty
-                  ? 'Actualisation… résultats précédents'
-                  : '$_count ${_count == 1 ? 'Espace' : 'Espaces'}', style: theme.textTheme.titleMedium),
-              const SizedBox(height: MakoloSpacing.md),
+              if (_spaces.isNotEmpty) ...[
+                Text(
+                  _updatingCriteria
+                      ? (_error == null
+                            ? 'Actualisation… résultats précédents'
+                            : 'Résultats précédents')
+                      : '$_count ${_count == 1 ? 'Espace' : 'Espaces'}',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: MakoloSpacing.md),
+              ],
               if (_spaces.isEmpty && !_loading && _error == null)
                 Text(
                   _city.text.trim().isEmpty
