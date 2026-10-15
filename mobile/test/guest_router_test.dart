@@ -731,11 +731,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Association / communauté').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(
-      find.byKey(const Key('guest-spaces-filter-apply')),
-    );
-    await tester.tap(find.byKey(const Key('guest-spaces-filter-apply')));
+    await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('guest-spaces-filter-apply')), findsNothing);
     expect(seenQueries.last.queryParameters['q'], 'Association Visible');
     expect(seenQueries.last.queryParameters['city'], 'Lubumbashi');
     expect(seenQueries.last.queryParameters['category'], 'community');
