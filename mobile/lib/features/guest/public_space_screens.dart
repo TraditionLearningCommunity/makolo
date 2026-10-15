@@ -407,6 +407,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
   bool _hasNext = false;
   bool _loading = true;
   String? _error;
+  int _revision = 0;
 
   @override
   void initState() {
@@ -415,6 +416,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
   }
 
   Future<void> _load() async {
+    final revision = ++_revision;
     setState(() {
       _loading = true;
       _error = null;
@@ -432,16 +434,25 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
       if (raw is! List || data['space'] is! Map) {
         throw const FormatException('Invalid public space');
       }
-      if (!mounted) return;
+      if (!mounted || revision != _revision) return;
       setState(() {
         _space = _object(data['space']);
-        _possibilities = _selector.publicCollection({
+        final incoming = _selector.publicCollection({
           'results': raw,
           'count': possibilities['count'],
           'page': possibilities['page'],
           'page_size': possibilities['page_size'],
           'has_next': possibilities['has_next'],
         }).items;
+        if (_page == 1) {
+          _possibilities = incoming;
+        } else {
+          final seen = _possibilities.map((item) => item.candidateKey).toSet();
+          _possibilities = [
+            ..._possibilities,
+            ...incoming.where((item) => seen.add(item.candidateKey)),
+          ];
+        }
         _count = possibilities['count'] is int
             ? possibilities['count'] as int
             : _possibilities.length;
@@ -449,12 +460,18 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
         _loading = false;
       });
     } on Object {
-      if (!mounted) return;
+      if (!mounted || revision != _revision) return;
       setState(() {
         _loading = false;
         _error = 'Ce profil public d’Espace n’est pas disponible.';
       });
     }
+  }
+
+  void _loadNextPage() {
+    if (_loading || !_hasNext) return;
+    setState(() => _page++);
+    unawaited(_load());
   }
 
   Future<void> _openWebsite() async {
@@ -478,9 +495,13 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
     final theme = Theme.of(context);
     return PublicExperienceShell(
       current: 2,
-      child: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
+      child: LoadMoreOnScroll(
+        hasMore: _hasNext,
+        loading: _loading,
+        loadMore: _loadNextPage,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
           key: const Key('guest-public-space-detail'),
           padding: const EdgeInsets.all(MakoloSpacing.lg),
           children: [
@@ -545,33 +566,13 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                   compact: true,
                   onTap: () => _openPossibility(possibility),
                 ),
-              if (_page > 1 || _hasNext)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: _page > 1 && !_loading
-                          ? () {
-                              setState(() => _page--);
-                              unawaited(_load());
-                            }
-                          : null,
-                      child: const Text('Précédent'),
-                    ),
-                    Text('Page $_page'),
-                    TextButton(
-                      onPressed: _hasNext && !_loading
-                          ? () {
-                              setState(() => _page++);
-                              unawaited(_load());
-                            }
-                          : null,
-                      child: const Text('Suivant'),
-                    ),
-                  ],
-                ),
+              if (_loading && _possibilities.isNotEmpty)
+                const Center(child: CircularProgressIndicator()),
+              if (!_hasNext && _possibilities.isNotEmpty)
+                const Center(child: Text('Vous avez tout exploré.')),
             ],
           ],
+          ),
         ),
       ),
     );
