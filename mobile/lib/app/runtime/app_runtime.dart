@@ -17,6 +17,7 @@ import '../../features/space/space_repository.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
+import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
@@ -46,6 +47,7 @@ class AppRuntime {
     this.interoperability,
     this.discovery,
     this.location,
+    this.geoSearch,
     this.accesses,
     this.dayOf,
     this.live,
@@ -87,6 +89,7 @@ class AppRuntime {
   final ProfileInteroperabilityRepository? interoperability;
   final DiscoveryRepository? discovery;
   final LocationCapability? location;
+  final GeoSearchGateway? geoSearch;
   final AccessRepository? accesses;
   final DayOfRepository? dayOf;
   final LiveRepository? live;
