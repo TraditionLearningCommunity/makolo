@@ -91,7 +91,9 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
 
   Future<void> _suggest(String query, int revision) async {
     final gateway = widget.gateway;
-    if (gateway == null || !mounted || !_coordinator.isCurrent(revision)) return;
+    if (gateway == null || !mounted || !_coordinator.isCurrent(revision)) {
+      return;
+    }
     final cancel = GeoSearchCancellation();
     _pending = cancel;
     setState(() => _loading = true);
@@ -101,7 +103,9 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
         limit: 5,
         cancelToken: cancel,
       );
-      if (!mounted || !_coordinator.isCurrent(revision) || cancel.isCancelled) return;
+      if (!mounted || !_coordinator.isCurrent(revision) || cancel.isCancelled) {
+        return;
+      }
       setState(() {
         _loading = false;
         _suggestions = results;
@@ -109,7 +113,9 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
         _searched = true;
       });
     } on Object {
-      if (!mounted || !_coordinator.isCurrent(revision) || cancel.isCancelled) return;
+      if (!mounted || !_coordinator.isCurrent(revision) || cancel.isCancelled) {
+        return;
+      }
       setState(() {
         _loading = false;
         _suggestions = const [];
