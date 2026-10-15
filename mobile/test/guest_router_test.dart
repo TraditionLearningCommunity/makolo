@@ -304,13 +304,12 @@ void main() {
         find.byKey(const Key('guest-search-query')),
         '023',
       );
-      tester.testTextInput.hide();
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(
-        find.byKey(const Key('guest-discover-search-submit')),
+        find.byKey(const Key('guest-discover-search-clear')),
         findsOneWidget,
       );
-      await tester.tap(find.byKey(const Key('guest-discover-search-submit')));
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
 
       expect(seenQueries, contains('023'));
@@ -714,8 +713,9 @@ void main() {
       find.byKey(const Key('guest-space-query')),
       'Association Visible',
     );
-    await tester.tap(find.byKey(const Key('guest-space-search-submit')));
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('guest-space-search-clear')), findsOneWidget);
 
     expect(
       seenQueries.any(
@@ -781,6 +781,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(queries.last.queryParameters['q'], 'alm');
     expect(queries.last.queryParameters['page'], '1');
+    await tester.tap(find.byKey(const Key('guest-space-search-clear')));
+    await tester.pumpAndSettle();
+    expect(queries.last.queryParameters.containsKey('q'), isFalse);
+    await tester.enterText(input, 'alm');
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
     await tester.enterText(input, '');
     await tester.pump(const Duration(milliseconds: 360));
     await tester.pumpAndSettle();
