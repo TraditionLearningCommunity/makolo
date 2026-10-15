@@ -63,7 +63,7 @@ class PublicSpacesAPIView(APIView):
         if category:
             spaces = spaces.filter(archetype=category)
         if city:
-            spaces = spaces.filter(city__iexact=city)
+            spaces = spaces.filter(city__icontains=city)
         if country:
             spaces = spaces.filter(country__iexact=country)
         spaces = spaces.order_by("name", "id")
