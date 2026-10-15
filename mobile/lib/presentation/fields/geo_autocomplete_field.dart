@@ -42,6 +42,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
   bool _loading = false;
   bool _showSuggestions = false;
   bool _unavailable = false;
+  bool _searched = false;
   List<GeoSuggestion> _suggestions = const [];
 
   @override
@@ -76,6 +77,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
       _suggestions = const [];
       _loading = false;
       _unavailable = false;
+      _searched = false;
       _showSuggestions = widget.gateway != null && query.isNotEmpty;
     });
     if (widget.gateway == null || query.isEmpty) return;
@@ -100,6 +102,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
         _loading = false;
         _suggestions = results;
         _unavailable = false;
+        _searched = true;
       });
     } on Object {
       if (!mounted || revision != _revision || cancel.isCancelled) return;
@@ -123,6 +126,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
       _showSuggestions = false;
       _loading = false;
       _unavailable = false;
+      _searched = false;
     });
     FocusScope.of(context).unfocus();
     widget.onSelected?.call(suggestion);
@@ -179,9 +183,15 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
               style: theme.textTheme.bodySmall?.copyWith(color: colors.error),
             ),
           ),
-        if (_showSuggestions && !_loading && !_unavailable &&
+        if (_showSuggestions && _searched && !_loading && !_unavailable &&
             _suggestions.isEmpty)
-          const SizedBox.shrink(),
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Aucun lieu trouvé. Vous pouvez saisir le lieu manuellement.',
+              key: Key('geo-suggestions-empty'),
+            ),
+          ),
         if (_showSuggestions && _suggestions.isNotEmpty)
           Card(
             key: const Key('geo-suggestions'),
