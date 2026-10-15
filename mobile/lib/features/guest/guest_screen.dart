@@ -420,7 +420,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       ? (_error == null
                             ? 'Actualisation… résultats précédents'
                             : 'Résultats précédents')
-                      : '${_collection.count} résultats',
+                      : '${_collection.count} ${_collection.count == 1 ? 'résultat' : 'résultats'}',
                   style: theme.textTheme.titleMedium,
                 ),
                 const SizedBox(height: MakoloSpacing.md),
