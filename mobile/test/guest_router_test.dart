@@ -339,7 +339,10 @@ void main() {
     expect(find.byKey(const Key('guest-discover-categories')), findsOneWidget);
     await tester.tap(find.text('Affiner la recherche'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('guest-filter-place')), 'Kolwezi');
+    await tester.enterText(
+      find.byKey(const Key('guest-filter-place')),
+      'Kolwezi',
+    );
     tester.testTextInput.hide();
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
@@ -525,10 +528,7 @@ void main() {
     final seenQueries = <Uri>[];
     final client = MockClient((request) async {
       expect(request.headers.containsKey('Authorization'), isFalse);
-      expect(
-        request.url.path,
-        '/api/v1/organizations/public-spaces/',
-      );
+      expect(request.url.path, '/api/v1/organizations/public-spaces/');
       seenQueries.add(request.url);
       return MockResponse(
         jsonEncode({
@@ -566,7 +566,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      seenQueries.any((url) => url.queryParameters['q'] == 'Association Visible'),
+      seenQueries.any(
+        (url) => url.queryParameters['q'] == 'Association Visible',
+      ),
       isTrue,
     );
     await tester.tap(find.text('Affiner les Espaces'));
@@ -580,7 +582,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Association / communauté').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('guest-spaces-filter-apply')));
+    await tester.ensureVisible(
+      find.byKey(const Key('guest-spaces-filter-apply')),
+    );
     await tester.tap(find.byKey(const Key('guest-spaces-filter-apply')));
     await tester.pumpAndSettle();
     expect(seenQueries.last.queryParameters['q'], 'Association Visible');

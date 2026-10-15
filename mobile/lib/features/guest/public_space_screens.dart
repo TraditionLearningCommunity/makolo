@@ -82,10 +82,12 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         if (categoryRows is List) {
           _categories = categoryRows
               .whereType<Map>()
-              .map((row) => (
-                    value: _field(_object(row), 'value'),
-                    label: _field(_object(row), 'label'),
-                  ))
+              .map(
+                (row) => (
+                  value: _field(_object(row), 'value'),
+                  label: _field(_object(row), 'label'),
+                ),
+              )
               .where((row) => row.value.isNotEmpty && row.label.isNotEmpty)
               .toList(growable: false);
         }

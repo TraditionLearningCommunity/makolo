@@ -236,7 +236,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 key: const Key('guest-filters'),
                 leading: const Icon(Icons.tune_rounded),
                 title: const Text('Affiner la recherche'),
-                subtitle: _when.isNotEmpty ||
+                subtitle:
+                    _when.isNotEmpty ||
                         _price.isNotEmpty ||
                         _place.text.trim().isNotEmpty
                     ? const Text('Critères supplémentaires')
@@ -271,11 +272,26 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       border: OutlineInputBorder(),
                     ),
                     items: const [
-                      DropdownMenuItem(value: '', child: Text('Toutes les dates')),
-                      DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
-                      DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
-                      DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
-                      DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text('Toutes les dates'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'today',
+                        child: Text('Aujourd’hui'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'tomorrow',
+                        child: Text('Demain'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'weekend',
+                        child: Text('Ce week-end'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'week',
+                        child: Text('Cette semaine'),
+                      ),
                     ],
                     onChanged: (value) => setState(() => _when = value ?? ''),
                   ),
