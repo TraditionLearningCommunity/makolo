@@ -356,22 +356,7 @@ void main() {
     );
     tester.testTextInput.hide();
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('guest-filter-apply')),
-      150,
-      scrollable: find
-          .descendant(
-            of: find.byKey(const Key('guest-public-landing')),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
-    await Scrollable.ensureVisible(
-      tester.element(find.byKey(const Key('guest-filter-apply'))),
-      alignment: 0.3,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('guest-filter-apply')));
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
     expect(requests.last.queryParameters['place'], 'Kolwezi');
@@ -435,22 +420,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Kolwezi, Lualaba, RD Congo'), findsOneWidget);
       await tester.tap(find.text('Kolwezi, Lualaba, RD Congo'));
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('guest-filter-apply')),
-        160,
-        scrollable: find
-            .descendant(
-              of: find.byKey(const Key('guest-public-landing')),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-      await Scrollable.ensureVisible(
-        tester.element(find.byKey(const Key('guest-filter-apply'))),
-        alignment: 0.3,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('guest-filter-apply')));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
       expect(requests.last.queryParameters['place'], 'Kolwezi');
       expect(find.byType(LoginScreen), findsNothing);
@@ -491,22 +461,7 @@ void main() {
       expect(find.byType(DatePickerDialog), findsOneWidget);
       await tester.tap(find.text('Valider'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('guest-filter-apply')),
-        160,
-        scrollable: find
-            .descendant(
-              of: find.byKey(const Key('guest-public-landing')),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-      await Scrollable.ensureVisible(
-        tester.element(find.byKey(const Key('guest-filter-apply'))),
-        alignment: 0.3,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('guest-filter-apply')));
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
       expect(requests.last.queryParameters['date'], isNotEmpty);
       expect(requests.last.queryParameters.containsKey('when'), isFalse);
