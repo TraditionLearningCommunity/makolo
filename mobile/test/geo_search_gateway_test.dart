@@ -8,7 +8,7 @@ import 'package:makolo_mobile/platform/location/geo_search_gateway.dart';
 import 'dio_testing.dart';
 
 void main() {
-  test('short text returns no suggestions without a network call', () async {
+  test('blank query returns no suggestions without a network call', () async {
     var calls = 0;
     final gateway = MapTilerGeoSearchGateway(
       apiKey: 'test-only',
@@ -17,7 +17,7 @@ void main() {
         return const MockResponse('{}', 200);
       }).dio,
     );
-    expect(await gateway.suggest(' K '), isEmpty);
+    expect(await gateway.suggest('   '), isEmpty);
     expect(calls, 0);
   });
 
