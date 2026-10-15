@@ -62,7 +62,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
   }
 
   void _invalidate() {
-    _coordinator.changed();
+    _coordinator.invalidate();
     _pending?.cancel();
     _pending = null;
   }
