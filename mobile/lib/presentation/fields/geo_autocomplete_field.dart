@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../platform/location/geo_search_gateway.dart';
+import '../search/progressive_search_coordinator.dart';
 
 /// Autocomplete for worldwide places. It does not persist Makolo Geography.
 /// With no configured provider, the field remains a usable free-text input.
@@ -35,14 +34,22 @@ class GeoAutocompleteField extends StatefulWidget {
 }
 
 class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
-  Timer? _timer;
+  late final ProgressiveSearchCoordinator _coordinator;
   GeoSearchCancellation? _pending;
-  int _revision = 0;
   bool _loading = false;
   bool _showSuggestions = false;
   bool _unavailable = false;
   bool _searched = false;
   List<GeoSuggestion> _suggestions = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _coordinator = ProgressiveSearchCoordinator(
+      onSearch: (revision) => _suggest(widget.controller.text.trim(), revision),
+      debounce: widget.debounce,
+    );
+  }
 
   @override
   void didUpdateWidget(covariant GeoAutocompleteField oldWidget) {
@@ -55,16 +62,15 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
   }
 
   void _invalidate() {
-    _revision++;
-    _timer?.cancel();
-    _timer = null;
+    _coordinator.changed();
     _pending?.cancel();
     _pending = null;
   }
 
   @override
   void dispose() {
-    _invalidate();
+    _pending?.cancel();
+    _coordinator.dispose();
     super.dispose();
   }
 
@@ -80,13 +86,12 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
       _showSuggestions = widget.gateway != null && query.isNotEmpty;
     });
     if (widget.gateway == null || query.isEmpty) return;
-    final revision = _revision;
-    _timer = Timer(widget.debounce, () => _suggest(query, revision));
+    _coordinator.changed();
   }
 
   Future<void> _suggest(String query, int revision) async {
     final gateway = widget.gateway;
-    if (gateway == null || !mounted || revision != _revision) return;
+    if (gateway == null || !mounted || !_coordinator.isCurrent(revision)) return;
     final cancel = GeoSearchCancellation();
     _pending = cancel;
     setState(() => _loading = true);
