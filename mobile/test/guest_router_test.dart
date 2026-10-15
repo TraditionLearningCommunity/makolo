@@ -536,20 +536,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Page 1'), findsWidgets);
-    await tester.scrollUntilVisible(
-      find.text('Suivant'),
-      200,
-      scrollable: find
-          .descendant(
-            of: find.byKey(const Key('guest-public-landing')),
-            matching: find.byType(Scrollable),
-          )
-          .first,
+    expect(find.text('Suivant'), findsNothing);
+    await tester.drag(
+      find.byKey(const Key('guest-public-landing')),
+      const Offset(0, -800),
     );
-    await tester.tap(find.text('Suivant'));
     await tester.pumpAndSettle();
 
     expect(seenPages, contains('2'));
+    expect(find.text('Page 1'), findsWidgets);
     expect(find.text('Page 2'), findsWidgets);
   });
 
