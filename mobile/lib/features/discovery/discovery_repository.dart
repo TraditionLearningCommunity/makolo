@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
+import '../../platform/location/discovery_location_context.dart';
 import '../../sync/freshness.dart';
 import '../../sync/projection_contract.dart';
 import '../../sync/sync_engine.dart';
@@ -92,6 +93,7 @@ class DiscoveryQuery {
       if (latitude != null) 'lat': latitude!.toString(),
       if (longitude != null) 'lon': longitude!.toString(),
       if (radiusKm != null) 'radius_km': radiusKm!.toString(),
+      ...DiscoveryLocationContext.parameters,
       'page': page.toString(),
       'page_size': pageSize.toString(),
     };

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:makolo_mobile/platform/location/geo_search_gateway.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -37,6 +38,7 @@ class _MemoryLaunchPreferences implements LaunchPreferencesStore {
 AppRuntime _guestRuntime(
   SessionRecoveryController recovery, {
   MockClient? client,
+  GeoSearchGateway? geoSearch,
 }) {
   final tokens = MemoryTokenStore();
   return AppRuntime(
@@ -45,6 +47,7 @@ AppRuntime _guestRuntime(
     recovery: recovery,
     launchPreferences: _MemoryLaunchPreferences(),
     interactions: ResumableInteractionStore.memory(),
+    geoSearch: geoSearch,
     api: client == null
         ? null
         : MakoloApiClient(
@@ -98,7 +101,10 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
-    expect(find.text('Faites avancer ce qui compte.'), findsOneWidget);
+    expect(find.text('Ça vous intéresserait'), findsOneWidget);
+    expect(find.byKey(const Key('guest-home-search-submit')), findsOneWidget);
+    expect(find.byKey(const Key('guest-home-quick-choices')), findsOneWidget);
+    expect(find.byKey(const Key('guest-home-action-journey')), findsOneWidget);
     expect(find.text('Accueil'), findsOneWidget);
     expect(find.text('Espaces'), findsWidgets);
     expect(find.text('En cours'), findsNothing);
@@ -112,6 +118,115 @@ void main() {
     await tester.tap(find.byKey(const Key('guest-login-action')));
     await tester.pumpAndSettle();
     expect(find.byType(LoginScreen), findsOneWidget);
+  });
+
+  testWidgets('guest welcome search submits to native Discover', (
+    tester,
+  ) async {
+    final seenQueries = <String>[];
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.url.path, '/api/v1/discovery/items/');
+      seenQueries.add(request.url.queryParameters['q'] ?? '');
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+
+    await tester.enterText(
+      find.byKey(const Key('guest-home-query')),
+      'Voyager à Kolwezi',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    expect(router.routeInformationProvider.value.uri.path, '/discover');
+    expect(
+      router.routeInformationProvider.value.uri.queryParameters['q'],
+      'Voyager à Kolwezi',
+    );
+    expect(seenQueries, contains('Voyager à Kolwezi'));
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('guest welcome quick filter navigates natively', (tester) async {
+    final router = _router(_guestRuntime(SessionRecoveryController()));
+    await _pump(tester, router);
+
+    await tester.tap(find.text('Participer'));
+    await tester.pumpAndSettle();
+
+    expect(router.routeInformationProvider.value.uri.path, '/discover');
+    expect(
+      router.routeInformationProvider.value.uri.queryParameters['vertical'],
+      'event',
+    );
+    expect(
+      router.routeInformationProvider.value.uri.queryParameters['q'],
+      isNull,
+    );
+  });
+
+  for (final choice in const [
+    ('Voyager', 'transport'),
+    ('Être accompagné', 'service'),
+    ('Tout explorer', ''),
+  ]) {
+    testWidgets('guest $choice opens the existing Discover field', (
+      tester,
+    ) async {
+      final router = _router(_guestRuntime(SessionRecoveryController()));
+      await _pump(tester, router);
+
+      await tester.tap(find.text(choice.$1));
+      await tester.pumpAndSettle();
+
+      expect(router.routeInformationProvider.value.uri.path, '/discover');
+      expect(
+        router.routeInformationProvider.value.uri.queryParameters['vertical'],
+        choice.$2.isEmpty ? isNull : choice.$2,
+      );
+      expect(find.byType(LoginScreen), findsNothing);
+    });
+  }
+
+  testWidgets('guest welcome links to public Spaces', (tester) async {
+    final router = _router(_guestRuntime(SessionRecoveryController()));
+    await _pump(tester, router);
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('guest-home-spaces')),
+      160,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('guest-public-home')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('guest-home-spaces'))),
+      alignment: 0.3,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('guest-home-spaces')));
+    await tester.pumpAndSettle();
+
+    expect(router.routeInformationProvider.value.uri.path, '/spaces');
+    expect(find.byType(LoginScreen), findsNothing);
   });
 
   testWidgets(
@@ -170,11 +285,32 @@ void main() {
             .first,
       );
       expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('guest-search-query')),
+        -180,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const Key('guest-public-landing')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await Scrollable.ensureVisible(
+        tester.element(find.byKey(const Key('guest-search-query'))),
+        alignment: 0.2,
+      );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const Key('guest-search-query')),
         '023',
       );
-      await tester.testTextInput.receiveAction(TextInputAction.search);
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('guest-discover-search-submit')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('guest-discover-search-submit')));
       await tester.pumpAndSettle();
 
       expect(seenQueries, contains('023'));
@@ -182,6 +318,179 @@ void main() {
       expect(find.text('Atelier numérique Lubumbashi'), findsNothing);
     },
   );
+
+  testWidgets('public Discover filters preserve supported server criteria', (
+    tester,
+  ) async {
+    final requests = <Uri>[];
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.url.path, '/api/v1/discovery/items/');
+      requests.add(request.url);
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('guest-discover-categories')), findsOneWidget);
+    await tester.tap(find.text('Affiner la recherche'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('guest-filter-place')),
+      'Kolwezi',
+    );
+    tester.testTextInput.hide();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('guest-filter-apply')),
+      150,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('guest-public-landing')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('guest-filter-apply'))),
+      alignment: 0.3,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('guest-filter-apply')));
+    await tester.pumpAndSettle();
+
+    expect(requests.last.queryParameters['place'], 'Kolwezi');
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('guest chooses a real city and sends the supported place criterion', (
+    tester,
+  ) async {
+    final requests = <Uri>[];
+    final client = MockClient((request) async {
+      requests.add(request.url);
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final gateway = MapTilerGeoSearchGateway(
+      apiKey: 'test-only',
+      dio: MockClient((request) async => MockResponse(
+        jsonEncode({
+          'features': [
+            {
+              'id': 'place.kolwezi',
+              'place_name': 'Kolwezi, Lualaba, RD Congo',
+              'center': [25.47, -10.72],
+              'place_type': ['place'],
+            },
+          ],
+        }),
+        200,
+      )).dio,
+    );
+    final router = _router(
+      _guestRuntime(
+        SessionRecoveryController(),
+        client: client,
+        geoSearch: gateway,
+      ),
+    );
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Affiner la recherche'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('guest-filter-place')), 'Kol');
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+    expect(find.text('Kolwezi, Lualaba, RD Congo'), findsOneWidget);
+    await tester.tap(find.text('Kolwezi, Lualaba, RD Congo'));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('guest-filter-apply')),
+      160,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('guest-public-landing')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.tap(find.byKey(const Key('guest-filter-apply')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['place'], 'Kolwezi');
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('guest selects a custom calendar date using the existing date API', (
+    tester,
+  ) async {
+    final requests = <Uri>[];
+    final client = MockClient((request) async {
+      requests.add(request.url);
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Affiner la recherche'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('guest-filter-when')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choisir une date…').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.text('Valider'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('guest-filter-apply')),
+      160,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('guest-public-landing')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.tap(find.byKey(const Key('guest-filter-apply')));
+    await tester.pumpAndSettle();
+    expect(requests.last.queryParameters['date'], isNotEmpty);
+    expect(requests.last.queryParameters.containsKey('when'), isFalse);
+  });
 
   testWidgets('public Discovery paginates on the server', (tester) async {
     final seenPages = <String>[];
@@ -338,6 +647,82 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('guest-public-space-detail')), findsOneWidget);
     expect(find.text('Une association publique.'), findsOneWidget);
+    expect(find.byType(LoginScreen), findsNothing);
+  });
+
+  testWidgets('public Spaces search uses its field action and server query', (
+    tester,
+  ) async {
+    final seenQueries = <Uri>[];
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.url.path, '/api/v1/organizations/public-spaces/');
+      seenQueries.add(request.url);
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 0,
+            'page': 1,
+            'has_next': false,
+            'categories': [
+              {'value': 'community', 'label': 'Association / communauté'},
+              {'value': 'creative', 'label': 'Artiste / création'},
+            ],
+            'results': <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/spaces');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Les Espaces sur Makolo'), findsOneWidget);
+    expect(
+      find.textContaining('Chaque Espace présente une organisation'),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.byKey(const Key('guest-space-query')),
+      'Association Visible',
+    );
+    await tester.tap(find.byKey(const Key('guest-space-search-submit')));
+    await tester.pumpAndSettle();
+
+    expect(
+      seenQueries.any(
+        (url) => url.queryParameters['q'] == 'Association Visible',
+      ),
+      isTrue,
+    );
+    await tester.tap(find.text('Affiner les Espaces'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('guest-spaces-city')),
+      'Lubumbashi',
+    );
+    tester.testTextInput.hide();
+    await tester.tap(find.byKey(const Key('guest-spaces-category')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Association / communauté').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('guest-spaces-filter-apply')),
+    );
+    await tester.tap(find.byKey(const Key('guest-spaces-filter-apply')));
+    await tester.pumpAndSettle();
+    expect(seenQueries.last.queryParameters['q'], 'Association Visible');
+    expect(seenQueries.last.queryParameters['city'], 'Lubumbashi');
+    expect(seenQueries.last.queryParameters['category'], 'community');
+    await tester.tap(find.byKey(const Key('guest-spaces-reset')));
+    await tester.pumpAndSettle();
+    expect(seenQueries.last.queryParameters['q'], isNull);
+    expect(seenQueries.last.queryParameters['city'], isNull);
+    expect(seenQueries.last.queryParameters['category'], isNull);
     expect(find.byType(LoginScreen), findsNothing);
   });
 
