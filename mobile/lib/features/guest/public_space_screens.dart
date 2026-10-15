@@ -41,7 +41,6 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   bool _loading = true;
   String? _error;
 
-
   @override
   void initState() {
     super.initState();
@@ -164,27 +163,28 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             const SizedBox(height: MakoloSpacing.lg),
             SearchFilterBar(
               searchField: TextField(
-              key: const Key('guest-space-query'),
-              controller: _search,
-              textInputAction: TextInputAction.search,
-              onChanged: (_) => _criteriaChanged(),
-              onSubmitted: (_) => _searchSpaces(),
-              decoration: InputDecoration(
-                labelText: 'Rechercher un Espace',
-                hintText: 'Nom d’une organisation ou communauté',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  key: const Key('guest-space-search-submit'),
-                  tooltip: 'Lancer la recherche',
-                  onPressed: _searchSpaces,
-                  icon: const Icon(Icons.arrow_forward_rounded),
+                key: const Key('guest-space-query'),
+                controller: _search,
+                textInputAction: TextInputAction.search,
+                onChanged: (_) => _criteriaChanged(),
+                onSubmitted: (_) => _searchSpaces(),
+                decoration: InputDecoration(
+                  labelText: 'Rechercher un Espace',
+                  hintText: 'Nom d’une organisation ou communauté',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    key: const Key('guest-space-search-submit'),
+                    tooltip: 'Lancer la recherche',
+                    onPressed: _searchSpaces,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
+                  border: const OutlineInputBorder(),
                 ),
-                border: const OutlineInputBorder(),
               ),
-            ),
               filterButtonKey: const Key('guest-spaces-filter-toggle'),
               filterPanelKey: const Key('guest-spaces-filters'),
-              hasActiveFilters: _category.isNotEmpty || _city.text.trim().isNotEmpty,
+              hasActiveFilters:
+                  _category.isNotEmpty || _city.text.trim().isNotEmpty,
               filters: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -236,7 +236,6 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                       child: const Text('Effacer les filtres'),
                     ),
                   ),
-
                 ],
               ),
             ),

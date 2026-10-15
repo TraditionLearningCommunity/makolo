@@ -220,27 +220,31 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             const SizedBox(height: MakoloSpacing.lg),
             SearchFilterBar(
               searchField: TextField(
-              controller: _search,
-              key: const Key('guest-search-query'),
-              textInputAction: TextInputAction.search,
-              onChanged: (_) => _criteriaChanged(),
-              onSubmitted: (_) => _apply(),
-              decoration: InputDecoration(
-                labelText: 'Rechercher',
-                hintText: 'Ex. Voyager à Kolwezi demain',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  key: const Key('guest-discover-search-submit'),
-                  tooltip: 'Lancer la recherche',
-                  onPressed: _apply,
-                  icon: const Icon(Icons.arrow_forward_rounded),
+                controller: _search,
+                key: const Key('guest-search-query'),
+                textInputAction: TextInputAction.search,
+                onChanged: (_) => _criteriaChanged(),
+                onSubmitted: (_) => _apply(),
+                decoration: InputDecoration(
+                  labelText: 'Rechercher',
+                  hintText: 'Ex. Voyager à Kolwezi demain',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton(
+                    key: const Key('guest-discover-search-submit'),
+                    tooltip: 'Lancer la recherche',
+                    onPressed: _apply,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
                 ),
               ),
-            ),
               filterButtonKey: const Key('guest-filter-toggle'),
               filterPanelKey: const Key('guest-filters'),
-              hasActiveFilters: _when.isNotEmpty || _date.isNotEmpty || _price.isNotEmpty || _place.text.trim().isNotEmpty,
+              hasActiveFilters:
+                  _when.isNotEmpty ||
+                  _date.isNotEmpty ||
+                  _price.isNotEmpty ||
+                  _place.text.trim().isNotEmpty,
               filters: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -334,7 +338,6 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     },
                   ),
                   const SizedBox(height: MakoloSpacing.md),
-
                 ],
               ),
             ),

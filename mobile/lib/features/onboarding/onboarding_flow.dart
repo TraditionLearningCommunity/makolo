@@ -265,7 +265,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                       : _next,
                   child: Text(
                     _page == 1
-                        ? (_locationGranted ? 'Continuer' : 'Activer la localisation')
+                        ? (_locationGranted
+                              ? 'Continuer'
+                              : 'Activer la localisation')
                         : primaryLabel,
                   ),
                 ),

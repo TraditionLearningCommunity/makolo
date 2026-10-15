@@ -319,44 +319,45 @@ void main() {
     },
   );
 
-  testWidgets('public Discover text searches progressively without submission', (
-    tester,
-  ) async {
-    final queries = <Uri>[];
-    final client = MockClient((request) async {
-      queries.add(request.url);
-      return MockResponse(
-        jsonEncode({
-          'data': {
-            'count': 0,
-            'page': 1,
-            'page_size': 12,
-            'has_next': false,
-            'results': <Object>[],
-          },
-        }),
-        200,
+  testWidgets(
+    'public Discover text searches progressively without submission',
+    (tester) async {
+      final queries = <Uri>[];
+      final client = MockClient((request) async {
+        queries.add(request.url);
+        return MockResponse(
+          jsonEncode({
+            'data': {
+              'count': 0,
+              'page': 1,
+              'page_size': 12,
+              'has_next': false,
+              'results': <Object>[],
+            },
+          }),
+          200,
+        );
+      });
+      final router = _router(
+        _guestRuntime(SessionRecoveryController(), client: client),
       );
-    });
-    final router = _router(
-      _guestRuntime(SessionRecoveryController(), client: client),
-    );
-    await _pump(tester, router);
-    router.go('/discover');
-    await tester.pumpAndSettle();
-    final input = find.byKey(const Key('guest-search-query'));
-    await tester.enterText(input, 'zam');
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.enterText(input, 'zamof');
-    await tester.pump(const Duration(milliseconds: 360));
-    await tester.pumpAndSettle();
-    expect(queries.last.queryParameters['q'], 'zamof');
-    expect(queries.last.queryParameters['page'], '1');
-    await tester.enterText(input, '');
-    await tester.pump(const Duration(milliseconds: 360));
-    await tester.pumpAndSettle();
-    expect(queries.last.queryParameters.containsKey('q'), isFalse);
-  });
+      await _pump(tester, router);
+      router.go('/discover');
+      await tester.pumpAndSettle();
+      final input = find.byKey(const Key('guest-search-query'));
+      await tester.enterText(input, 'zam');
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.enterText(input, 'zamof');
+      await tester.pump(const Duration(milliseconds: 360));
+      await tester.pumpAndSettle();
+      expect(queries.last.queryParameters['q'], 'zamof');
+      expect(queries.last.queryParameters['page'], '1');
+      await tester.enterText(input, '');
+      await tester.pump(const Duration(milliseconds: 360));
+      await tester.pumpAndSettle();
+      expect(queries.last.queryParameters.containsKey('q'), isFalse);
+    },
+  );
 
   testWidgets('public Discover filters preserve supported server criteria', (
     tester,

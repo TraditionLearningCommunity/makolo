@@ -43,7 +43,9 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
               height: 56,
               child: IconButton(
                 key: widget.filterButtonKey,
-                tooltip: _expanded ? 'Masquer les filtres' : 'Afficher les filtres',
+                tooltip: _expanded
+                    ? 'Masquer les filtres'
+                    : 'Afficher les filtres',
                 isSelected: _expanded,
                 onPressed: () => setState(() => _expanded = !_expanded),
                 icon: const Icon(Icons.tune_rounded),
