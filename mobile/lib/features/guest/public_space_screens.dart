@@ -181,7 +181,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 ),
                 border: const OutlineInputBorder(),
               ),
-            ),,
+            ),
               filterButtonKey: const Key('guest-spaces-filter-toggle'),
               filterPanelKey: const Key('guest-spaces-filters'),
               hasActiveFilters: _category.isNotEmpty || _city.text.trim().isNotEmpty,
