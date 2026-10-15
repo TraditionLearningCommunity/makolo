@@ -68,10 +68,13 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
     CancelToken? cancelToken,
   }) async {
     final text = query.trim();
-    if (text.length < 2) return const [];
+    if (text.isEmpty) return const [];
     final effectiveLimit = limit.clamp(1, 10);
     final uri = _endpoint.replace(
-      path: '${_endpoint.path.endsWith('/') ? _endpoint.path : '${_endpoint.path}/'}${Uri.encodeComponent(text)}.json',
+      pathSegments: [
+        ..._endpoint.pathSegments.where((segment) => segment.isNotEmpty),
+        '$text.json',
+      ],
       queryParameters: {
         'key': _key,
         'autocomplete': 'true',
