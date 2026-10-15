@@ -90,6 +90,17 @@ class PublicSpaceApiTests(TestCase):
         )
         response = self.client.get(endpoint, {"category": SpaceArchetype.CREATIVE})
         self.assertEqual(response.json()["data"]["results"][0]["slug"], second.slug)
+        for partial in ("L", "Lu", "Lub", "Lubu", "Lubumbashi"):
+            with self.subTest(partial=partial):
+                response = self.client.get(endpoint, {"city": partial})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["data"]["count"], 1)
+                self.assertEqual(
+                    response.json()["data"]["results"][0]["slug"],
+                    self.visible.slug,
+                )
+        response = self.client.get(endpoint, {"city": "shas"})
+        self.assertEqual(response.json()["data"]["count"], 1)
         response = self.client.get(endpoint, {"city": "Kolwezi"})
         self.assertEqual(response.json()["data"]["count"], 0)
         response = self.client.get(endpoint, {"category": "not-a-category"})
