@@ -101,7 +101,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
         limit: 5,
         cancelToken: cancel,
       );
-      if (!mounted || revision != _revision || cancel.isCancelled) return;
+      if (!mounted || !_coordinator.isCurrent(revision) || cancel.isCancelled) return;
       setState(() {
         _loading = false;
         _suggestions = results;
@@ -109,7 +109,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
         _searched = true;
       });
     } on Object {
-      if (!mounted || revision != _revision || cancel.isCancelled) return;
+      if (!mounted || !_coordinator.isCurrent(revision) || cancel.isCancelled) return;
       setState(() {
         _loading = false;
         _suggestions = const [];
