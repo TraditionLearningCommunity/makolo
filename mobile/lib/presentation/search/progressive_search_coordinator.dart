@@ -21,6 +21,13 @@ class ProgressiveSearchCoordinator {
 
   bool isCurrent(int revision) => !_disposed && revision == _revision;
 
+  void invalidate() {
+    if (_disposed) return;
+    _revision++;
+    _timer?.cancel();
+    _timer = null;
+  }
+
   void changed({bool immediate = false}) {
     if (_disposed) return;
     final revision = ++_revision;
