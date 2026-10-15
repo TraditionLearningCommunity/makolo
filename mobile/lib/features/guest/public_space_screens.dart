@@ -42,6 +42,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   int _count = 0;
   bool _hasNext = false;
   bool _loading = true;
+  bool _updatingCriteria = false;
   String? _error;
 
   @override
@@ -61,7 +62,16 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
 
   Future<void> _load() => _searchCoordinator.refresh();
 
+  Future<void> _refresh() async {
+    setState(() {
+      _page = 1;
+      _updatingCriteria = true;
+    });
+    await _load();
+  }
+
   Future<void> _loadRevision(int revision) async {
+    final page = _page;
     setState(() {
       _loading = true;
       _error = null;
@@ -75,7 +85,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
           if (_category.isNotEmpty) 'category': _category,
           if (_city.text.trim().isNotEmpty)
             'city': _selectedCity ?? _city.text.trim(),
-          'page': _page.toString(),
+          'page': page.toString(),
           'page_size': '20',
         },
       ).query;
@@ -88,7 +98,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         final incoming = raw.whereType<Map>().map(_object).toList(growable: false);
-        if (_page == 1) {
+        if (page == 1) {
           _spaces = incoming;
         } else {
           final seen = _spaces.map((space) => _field(space, 'slug')).toSet();
@@ -113,6 +123,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         _count = data['count'] is int ? data['count'] as int : _spaces.length;
         _hasNext = data['has_next'] == true;
         _loading = false;
+        _updatingCriteria = false;
       });
     } on Object {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
@@ -129,14 +140,21 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   }
 
   void _criteriaChanged({bool immediate = false}) {
-    setState(() => _page = 1);
+    setState(() {
+      _page = 1;
+      _updatingCriteria = true;
+      _loading = true;
+      _error = null;
+    });
     _searchCoordinator.changed(immediate: immediate);
   }
 
   void _searchSpaces() => _criteriaChanged(immediate: true);
 
   void _loadNextPage() {
-    if (_loading || !_hasNext) return;
+    if (_loading || _updatingCriteria || _error != null || !_hasNext) {
+      return;
+    }
     setState(() => _page++);
     unawaited(_load());
   }
@@ -149,7 +167,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
       _category = '';
       _page = 1;
     });
-    _searchCoordinator.changed(immediate: true);
+    _criteriaChanged(immediate: true);
   }
 
   @override
@@ -158,11 +176,11 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
     return PublicExperienceShell(
       current: 2,
       child: LoadMoreOnScroll(
-        hasMore: _hasNext,
+        hasMore: _hasNext && _error == null && !_updatingCriteria,
         loading: _loading,
         loadMore: _loadNextPage,
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: _refresh,
           child: ListView(
           key: const Key('guest-public-spaces'),
           padding: const EdgeInsets.all(MakoloSpacing.lg),
@@ -269,9 +287,11 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             if (_loading && _spaces.isEmpty)
               const Center(child: CircularProgressIndicator())
             else ...[
-              Text('$_count ${_count == 1 ? 'Espace' : 'Espaces'}', style: theme.textTheme.titleMedium),
+              Text(_updatingCriteria && _spaces.isNotEmpty
+                  ? 'Actualisation… résultats précédents'
+                  : '$_count ${_count == 1 ? 'Espace' : 'Espaces'}', style: theme.textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.md),
-              if (_spaces.isEmpty && !_loading)
+              if (_spaces.isEmpty && !_loading && _error == null)
                 Text(
                   _city.text.trim().isEmpty
                       ? 'Aucun Espace public ne correspond à cette recherche.'
@@ -305,7 +325,8 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 ),
               if (_loading && _spaces.isNotEmpty)
                 const Center(child: CircularProgressIndicator()),
-              if (!_hasNext && _spaces.isNotEmpty)
+              if (!_updatingCriteria && _error == null &&
+                  !_hasNext && _spaces.isNotEmpty)
                 const Center(child: Text('Vous avez tout exploré.')),
             ],
           ],
