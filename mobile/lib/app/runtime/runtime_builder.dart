@@ -14,6 +14,7 @@ import '../../features/space/space_assembly.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/location/location_capability.dart';
+import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/mps/mps_repository.dart';
 import '../../repositories/draft_repository.dart';
 import '../../repositories/interoperability_repository.dart';
@@ -49,6 +50,9 @@ Future<AppRuntime> buildAppRuntime({
   final api = baseUri == null
       ? null
       : MakoloApiClient(baseUri: baseUri, tokenStore: tokens);
+  final geoSearch = config.geocoding.enabled
+      ? MapTilerGeoSearchGateway(apiKey: config.geocoding.apiKey!)
+      : null;
 
   final profileId = session?.profileId;
   if (profileId == null) {
@@ -62,6 +66,7 @@ Future<AppRuntime> buildAppRuntime({
       interactions: interactions,
       api: api,
       location: locationFactory(config),
+      geoSearch: geoSearch,
     );
   }
 
@@ -143,6 +148,7 @@ Future<AppRuntime> buildAppRuntime({
       sync: sync,
     ),
     location: locationFactory(config),
+    geoSearch: geoSearch,
     accesses: buildAccessRepository(
       database: database,
       store: store,
