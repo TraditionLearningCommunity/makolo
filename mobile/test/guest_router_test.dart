@@ -438,6 +438,11 @@ void main() {
         matching: find.byType(Scrollable),
       ).first,
     );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('guest-filter-apply'))),
+      alignment: 0.3,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('guest-filter-apply')));
     await tester.pumpAndSettle();
     expect(requests.last.queryParameters['place'], 'Kolwezi');
@@ -486,6 +491,11 @@ void main() {
         matching: find.byType(Scrollable),
       ).first,
     );
+    await Scrollable.ensureVisible(
+      tester.element(find.byKey(const Key('guest-filter-apply'))),
+      alignment: 0.3,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('guest-filter-apply')));
     await tester.pumpAndSettle();
     expect(requests.last.queryParameters['date'], isNotEmpty);
