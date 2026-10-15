@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../platform/sharing/share_gateway.dart';
 import '../../presentation/fields/geo_autocomplete_field.dart';
+import '../../presentation/fields/search_filter_bar.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
 
 import '../../app/providers.dart';
@@ -161,7 +162,8 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               'Chaque Espace présente une organisation, une équipe ou une communauté, et ce qu’elle propose.',
             ),
             const SizedBox(height: MakoloSpacing.lg),
-            TextField(
+            SearchFilterBar(
+              searchField: TextField(
               key: const Key('guest-space-query'),
               controller: _search,
               textInputAction: TextInputAction.search,
@@ -179,27 +181,12 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 ),
                 border: const OutlineInputBorder(),
               ),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            Card(
-              margin: EdgeInsets.zero,
-              elevation: 0,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(MakoloRadii.card),
-                side: BorderSide(color: theme.colorScheme.outlineVariant),
-              ),
-              child: ExpansionTile(
-                key: const Key('guest-spaces-filters'),
-                leading: const Icon(Icons.tune_rounded),
-                title: const Text('Affiner les Espaces'),
-                subtitle: const Text('Catégorie et ville'),
-                childrenPadding: const EdgeInsets.fromLTRB(
-                  MakoloSpacing.md,
-                  0,
-                  MakoloSpacing.md,
-                  MakoloSpacing.md,
-                ),
+            ),,
+              filterButtonKey: const Key('guest-spaces-filter-toggle'),
+              filterPanelKey: const Key('guest-spaces-filters'),
+              hasActiveFilters: _category.isNotEmpty || _city.text.trim().isNotEmpty,
+              filters: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   DropdownButtonFormField<String>(
                     key: const Key('guest-spaces-category'),
@@ -249,6 +236,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                       child: const Text('Effacer les filtres'),
                     ),
                   ),
+
                 ],
               ),
             ),
