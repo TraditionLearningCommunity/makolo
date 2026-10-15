@@ -436,8 +436,34 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
     unawaited(_load());
   }
 
+  @override
+  void didUpdateWidget(covariant PublicSpaceDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.slug != widget.slug) {
+      _revision++;
+      _space = const {};
+      _possibilities = const [];
+      _count = 0;
+      _page = 1;
+      _hasNext = false;
+      unawaited(_load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _revision++;
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _page = 1);
+    await _load();
+  }
+
   Future<void> _load() async {
     final revision = ++_revision;
+    final page = _page;
     setState(() {
       _loading = true;
       _error = null;
@@ -447,7 +473,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
       if (api == null) throw StateError('Public API unavailable');
       final response = await api.publicGet(
         'api/v1/organizations/public-spaces/'
-        '${Uri.encodeComponent(widget.slug)}/?page=$_page&page_size=12',
+        '${Uri.encodeComponent(widget.slug)}/?page=$page&page_size=12',
       );
       final data = _object(response.jsonObject()['data']);
       final possibilities = _object(data['possibilities']);
@@ -465,7 +491,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
           'page_size': possibilities['page_size'],
           'has_next': possibilities['has_next'],
         }).items;
-        if (_page == 1) {
+        if (page == 1) {
           _possibilities = incoming;
         } else {
           final seen = _possibilities.map((item) => item.candidateKey).toSet();
@@ -484,13 +510,13 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
       if (!mounted || revision != _revision) return;
       setState(() {
         _loading = false;
-        _error = 'Ce profil public d’Espace n’est pas disponible.';
+        _error = 'Impossible de charger cette fiche publique. Réessayez.';
       });
     }
   }
 
   void _loadNextPage() {
-    if (_loading || !_hasNext) return;
+    if (_loading || _error != null || !_hasNext) return;
     setState(() => _page++);
     unawaited(_load());
   }
@@ -517,11 +543,11 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
     return PublicExperienceShell(
       current: 2,
       child: LoadMoreOnScroll(
-        hasMore: _hasNext,
+        hasMore: _hasNext && _error == null,
         loading: _loading,
         loadMore: _loadNextPage,
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: _refresh,
           child: ListView(
           key: const Key('guest-public-space-detail'),
           padding: const EdgeInsets.all(MakoloSpacing.lg),
@@ -577,7 +603,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                   ),
                 ),
               const SizedBox(height: MakoloSpacing.md),
-              if (_possibilities.isEmpty && !_loading)
+              if (_possibilities.isEmpty && !_loading && _error == null)
                 const Text(
                   'Cet Espace ne propose pas encore de possibilité publique.',
                 ),
@@ -589,7 +615,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                 ),
               if (_loading && _possibilities.isNotEmpty)
                 const Center(child: CircularProgressIndicator()),
-              if (!_hasNext && _possibilities.isNotEmpty)
+              if (_error == null && !_hasNext && _possibilities.isNotEmpty)
                 const Center(child: Text('Vous avez tout exploré.')),
             ],
           ],
