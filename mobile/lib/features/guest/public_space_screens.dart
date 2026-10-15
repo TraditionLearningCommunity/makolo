@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../platform/sharing/share_gateway.dart';
 import '../../presentation/fields/geo_autocomplete_field.dart';
+import '../../presentation/search/progressive_search_coordinator.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
@@ -28,7 +29,7 @@ class PublicSpacesScreen extends StatefulWidget {
 class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   final _search = TextEditingController();
   final _city = TextEditingController();
-  Timer? _cityDebounce;
+  late final ProgressiveSearchCoordinator _searchCoordinator;
   String _category = '';
   List<({String value, String label})> _categories = const [];
   List<Map<String, dynamic>> _spaces = const [];
@@ -37,25 +38,26 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   bool _hasNext = false;
   bool _loading = true;
   String? _error;
-  int _generation = 0;
+
 
   @override
   void initState() {
     super.initState();
+    _searchCoordinator = ProgressiveSearchCoordinator(onSearch: _loadRevision);
     unawaited(_load());
   }
 
   @override
   void dispose() {
-    _generation++;
-    _cityDebounce?.cancel();
+    _searchCoordinator.dispose();
     _search.dispose();
     _city.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
-    final generation = ++_generation;
+  Future<void> _load() => _searchCoordinator.refresh();
+
+  Future<void> _loadRevision(int revision) async {
     setState(() {
       _loading = true;
       _error = null;
@@ -78,7 +80,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
       final data = _object(response.jsonObject()['data']);
       final raw = data['results'];
       if (raw is! List) throw const FormatException('Invalid directory');
-      if (!mounted || generation != _generation) return;
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _spaces = raw.whereType<Map>().map(_object).toList(growable: false);
         final categoryRows = data['categories'];
@@ -99,7 +101,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         _loading = false;
       });
     } on Object {
-      if (!mounted || generation != _generation) return;
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
         _error = 'Impossible d’actualiser les Espaces publics.';
@@ -107,25 +109,23 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
     }
   }
 
-  void _onCityEdited() {
-    _cityDebounce?.cancel();
-    _cityDebounce = Timer(const Duration(milliseconds: 550), _searchSpaces);
+  void _onCityEdited() => _criteriaChanged();
+
+  void _criteriaChanged({bool immediate = false}) {
+    setState(() => _page = 1);
+    _searchCoordinator.changed(immediate: immediate);
   }
 
-  void _searchSpaces() {
-    setState(() => _page = 1);
-    unawaited(_load());
-  }
+  void _searchSpaces() => _criteriaChanged(immediate: true);
 
   void _resetFilters() {
-    _cityDebounce?.cancel();
     _search.clear();
     _city.clear();
     setState(() {
       _category = '';
       _page = 1;
     });
-    unawaited(_load());
+    _searchCoordinator.changed(immediate: true);
   }
 
   @override
@@ -159,6 +159,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               key: const Key('guest-space-query'),
               controller: _search,
               textInputAction: TextInputAction.search,
+              onChanged: (_) => _criteriaChanged(),
               onSubmitted: (_) => _searchSpaces(),
               decoration: InputDecoration(
                 labelText: 'Rechercher un Espace',
@@ -216,7 +217,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                     ],
                     onChanged: (value) {
                       setState(() => _category = value ?? '');
-                      _searchSpaces();
+                      _criteriaChanged(immediate: true);
                     },
                   ),
                   const SizedBox(height: MakoloSpacing.md),
@@ -228,8 +229,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                     hintText: 'Ex. Lubumbashi',
                     onEdited: _onCityEdited,
                     onSelected: (_) {
-                      _cityDebounce?.cancel();
-                      _searchSpaces();
+                      _criteriaChanged(immediate: true);
                     },
                     onSubmitted: _searchSpaces,
                   ),
