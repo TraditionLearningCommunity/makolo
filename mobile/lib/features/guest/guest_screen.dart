@@ -9,6 +9,7 @@ import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
 import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/fields/geo_autocomplete_field.dart';
+import '../../presentation/search/progressive_search_coordinator.dart';
 import 'public_shell.dart';
 
 /// Public Discovery consumes the same server projection and parser as personal
@@ -44,13 +45,14 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   GeoSuggestion? _selectedPlace;
   String _price = '';
   int _page = 1;
-  int _generation = 0;
+  late final ProgressiveSearchCoordinator _searchCoordinator;
   bool _loading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _searchCoordinator = ProgressiveSearchCoordinator(onSearch: _loadRevision);
     _search.text = widget.initialQuery;
     _vertical = widget.initialVertical;
     unawaited(_restoreAndLoad());
@@ -64,13 +66,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       _search.text = widget.initialQuery;
       _vertical = widget.initialVertical;
       _page = 1;
-      unawaited(_load());
+      _searchCoordinator.changed(immediate: true);
     }
   }
 
   @override
   void dispose() {
-    _generation++;
+    _searchCoordinator.dispose();
     _search.dispose();
     _place.dispose();
     super.dispose();
@@ -100,11 +102,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       final vertical = saved?['vertical'];
       if (vertical is String) _vertical = vertical;
     }
-    await _load();
+    await _searchCoordinator.refresh();
   }
 
-  Future<void> _load() async {
-    final generation = ++_generation;
+  Future<void> _load() => _searchCoordinator.refresh();
+
+  Future<void> _loadRevision(int revision) async {
     final query = _query;
     if (mounted) {
       setState(() {
@@ -126,13 +129,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       final collection = _selector.publicCollection(
         Map<String, dynamic>.from(payload),
       );
-      if (!mounted || generation != _generation) return;
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _collection = collection;
         _loading = false;
       });
     } on Object {
-      if (!mounted || generation != _generation) return;
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
         _error = 'Impossible d’actualiser les possibilités publiques.';
@@ -160,11 +163,17 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
           '${chosen.month.toString().padLeft(2, '0')}-'
           '${chosen.day.toString().padLeft(2, '0')}';
     });
+    _criteriaChanged(immediate: true);
   }
 
   void _apply() {
     setState(() => _page = 1);
-    unawaited(_load());
+    _searchCoordinator.changed(immediate: true);
+  }
+
+  void _criteriaChanged({bool immediate = false}) {
+    setState(() => _page = 1);
+    _searchCoordinator.changed(immediate: immediate);
   }
 
   void _selectVertical(String vertical) {
@@ -172,13 +181,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       _vertical = vertical;
       _page = 1;
     });
-    unawaited(_load());
+    _searchCoordinator.changed(immediate: true);
   }
 
   void _movePage(int page) {
     if (page < 1) return;
     setState(() => _page = page);
-    unawaited(_load());
+    _searchCoordinator.changed(immediate: true);
   }
 
   @override
@@ -212,6 +221,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               controller: _search,
               key: const Key('guest-search-query'),
               textInputAction: TextInputAction.search,
+              onChanged: (_) => _criteriaChanged(),
               onSubmitted: (_) => _apply(),
               decoration: InputDecoration(
                 labelText: 'Rechercher',
@@ -283,9 +293,14 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     fieldKey: const Key('guest-filter-place'),
                     controller: _place,
                     gateway: widget.runtime.geoSearch,
-                    onSelected: (suggestion) =>
-                        setState(() => _selectedPlace = suggestion),
-                    onEdited: () => _selectedPlace = null,
+                    onSelected: (suggestion) {
+                      setState(() => _selectedPlace = suggestion);
+                      _criteriaChanged(immediate: true);
+                    },
+                    onEdited: () {
+                      _selectedPlace = null;
+                      _criteriaChanged();
+                    },
                     onSubmitted: _apply,
                   ),
                   const SizedBox(height: MakoloSpacing.md),
@@ -332,6 +347,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                           _when = value ?? '';
                           _date = '';
                         });
+                        _criteriaChanged(immediate: true);
                       }
                     },
                   ),
@@ -357,17 +373,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       DropdownMenuItem(value: 'free', child: Text('Gratuit')),
                       DropdownMenuItem(value: 'paid', child: Text('Payant')),
                     ],
-                    onChanged: (value) => setState(() => _price = value ?? ''),
+                    onChanged: (value) {
+                      setState(() => _price = value ?? '');
+                      _criteriaChanged(immediate: true);
+                    },
                   ),
                   const SizedBox(height: MakoloSpacing.md),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      key: const Key('guest-filter-apply'),
-                      onPressed: _apply,
-                      child: const Text('Voir les résultats'),
-                    ),
-                  ),
                 ],
               ),
             ),
