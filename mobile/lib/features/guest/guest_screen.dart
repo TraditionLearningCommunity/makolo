@@ -7,6 +7,8 @@ import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
 import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
+import '../../platform/location/geo_search_gateway.dart';
+import '../../presentation/fields/geo_autocomplete_field.dart';
 import 'public_shell.dart';
 
 /// Public Discovery consumes the same server projection and parser as personal
@@ -38,6 +40,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       DiscoveryCollectionPresentation.empty;
   String _vertical = '';
   String _when = '';
+  String _date = '';
+  GeoSuggestion? _selectedPlace;
   String _price = '';
   int _page = 1;
   int _generation = 0;
@@ -74,8 +78,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 
   DiscoveryQuery get _query => DiscoveryQuery(
     text: _search.text.trim(),
-    place: _place.text.trim(),
-    when: _when,
+    place: _selectedPlace == null
+        ? _place.text.trim()
+        : _selectedPlace!.label.split(',').first.trim(),
+    when: _when == 'custom' ? '' : _when,
+    date: _date,
     vertical: _vertical,
     price: _price,
     page: _page,
@@ -131,6 +138,26 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _error = 'Impossible d’actualiser les possibilités publiques.';
       });
     }
+  }
+
+  Future<void> _chooseDate() async {
+    final now = DateTime.now();
+    final initial = DateTime.tryParse(_date) ?? now;
+    final chosen = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Choisir une date',
+    );
+    if (!mounted) return;
+    if (chosen == null) return;
+    setState(() {
+      _when = 'custom';
+      _date = '${chosen.year.toString().padLeft(4, '0')}-'
+          '${chosen.month.toString().padLeft(2, '0')}-'
+          '${chosen.day.toString().padLeft(2, '0')}';
+    });
   }
 
   void _apply() {
@@ -238,6 +265,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 title: const Text('Affiner la recherche'),
                 subtitle:
                     _when.isNotEmpty ||
+                        _date.isNotEmpty ||
                         _price.isNotEmpty ||
                         _place.text.trim().isNotEmpty
                     ? const Text('Critères supplémentaires')
@@ -249,17 +277,14 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   MakoloSpacing.md,
                 ),
                 children: [
-                  TextField(
-                    key: const Key('guest-filter-place'),
+                  GeoAutocompleteField(
+                    fieldKey: const Key('guest-filter-place'),
                     controller: _place,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _apply(),
-                    decoration: const InputDecoration(
-                      labelText: 'Où ?',
-                      hintText: 'Ville ou lieu',
-                      prefixIcon: Icon(Icons.place_outlined),
-                      border: OutlineInputBorder(),
-                    ),
+                    gateway: widget.runtime.geoSearch,
+                    onSelected: (suggestion) =>
+                        setState(() => _selectedPlace = suggestion),
+                    onEdited: () => _selectedPlace = null,
+                    onSubmitted: _apply,
                   ),
                   const SizedBox(height: MakoloSpacing.md),
                   DropdownButtonFormField<String>(
@@ -292,9 +317,29 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                         value: 'week',
                         child: Text('Cette semaine'),
                       ),
+                      DropdownMenuItem(
+                        value: 'custom',
+                        child: Text('Choisir une date…'),
+                      ),
                     ],
-                    onChanged: (value) => setState(() => _when = value ?? ''),
+                    onChanged: (value) {
+                      if (value == 'custom') {
+                        unawaited(_chooseDate());
+                      } else {
+                        setState(() {
+                          _when = value ?? '';
+                          _date = '';
+                        });
+                      }
+                    },
                   ),
+                  if (_date.isNotEmpty)
+                    TextButton.icon(
+                      key: const Key('guest-filter-selected-date'),
+                      onPressed: _chooseDate,
+                      icon: const Icon(Icons.edit_calendar_outlined),
+                      label: Text('Date : $_date'),
+                    ),
                   const SizedBox(height: MakoloSpacing.md),
                   DropdownButtonFormField<String>(
                     key: const Key('guest-filter-price'),
