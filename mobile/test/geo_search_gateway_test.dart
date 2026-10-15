@@ -77,10 +77,10 @@ void main() {
         return release.future;
       }).dio,
     );
-    final cancellation = CancelToken();
+    final cancellation = GeoSearchCancellation();
     final future = gateway.suggest('Kol', cancelToken: cancellation);
     await requestStarted.future;
-    cancellation.cancel('new typing');
+    cancellation.cancel();
     await expectLater(future, throwsA(isA<DioException>()));
     release.complete(const MockResponse('{"features":[]}', 200));
   });
