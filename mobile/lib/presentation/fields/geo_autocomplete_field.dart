@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../../platform/location/geo_search_gateway.dart';
@@ -37,7 +36,7 @@ class GeoAutocompleteField extends StatefulWidget {
 
 class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
   Timer? _timer;
-  CancelToken? _pending;
+  GeoSearchCancellation? _pending;
   int _revision = 0;
   bool _loading = false;
   bool _showSuggestions = false;
@@ -59,7 +58,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
     _revision++;
     _timer?.cancel();
     _timer = null;
-    _pending?.cancel('new query');
+    _pending?.cancel();
     _pending = null;
   }
 
@@ -88,7 +87,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
   Future<void> _suggest(String query, int revision) async {
     final gateway = widget.gateway;
     if (gateway == null || !mounted || revision != _revision) return;
-    final cancel = CancelToken();
+    final cancel = GeoSearchCancellation();
     _pending = cancel;
     setState(() => _loading = true);
     try {
