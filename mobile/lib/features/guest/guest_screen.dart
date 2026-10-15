@@ -411,7 +411,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 const Padding(
                   padding: EdgeInsets.all(MakoloSpacing.lg),
                   child: Text(
-                    'Aucune possibilité publique à afficher pour cette recherche.',
+                    _query.place.isEmpty
+                        ? 'Aucune possibilité publique à afficher pour cette recherche.'
+                        : 'Aucun résultat à ${_query.place} pour le moment.',
                   ),
                 ),
               for (final item in _collection.items)
