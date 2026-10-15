@@ -50,6 +50,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   int _page = 1;
   late final ProgressiveSearchCoordinator _searchCoordinator;
   bool _loading = true;
+  bool _updatingCriteria = false;
   String? _error;
 
   @override
@@ -68,8 +69,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         widget.initialVertical != oldWidget.initialVertical) {
       _search.text = widget.initialQuery;
       _vertical = widget.initialVertical;
-      _page = 1;
-      _searchCoordinator.changed(immediate: true);
+      _criteriaChanged(immediate: true);
     }
   }
 
@@ -110,6 +110,14 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 
   Future<void> _load() => _searchCoordinator.refresh();
 
+  Future<void> _refresh() async {
+    setState(() {
+      _page = 1;
+      _updatingCriteria = true;
+    });
+    await _load();
+  }
+
   Future<void> _loadRevision(int revision) async {
     final query = _query;
     if (mounted) {
@@ -134,7 +142,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       );
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
-        _collection = _page == 1
+        _collection = query.page == 1
             ? collection
             : DiscoveryCollectionPresentation(
                 items: [
@@ -151,6 +159,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 hasNext: collection.hasNext,
               );
         _loading = false;
+        _updatingCriteria = false;
       });
     } on Object {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
@@ -184,26 +193,28 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _criteriaChanged(immediate: true);
   }
 
-  void _apply() {
-    setState(() => _page = 1);
-    _searchCoordinator.changed(immediate: true);
-  }
+  void _apply() => _criteriaChanged(immediate: true);
 
   void _criteriaChanged({bool immediate = false}) {
-    setState(() => _page = 1);
+    setState(() {
+      _page = 1;
+      _updatingCriteria = true;
+      _loading = true;
+      _error = null;
+    });
     _searchCoordinator.changed(immediate: immediate);
   }
 
   void _selectVertical(String vertical) {
-    setState(() {
-      _vertical = vertical;
-      _page = 1;
-    });
-    _searchCoordinator.changed(immediate: true);
+    setState(() => _vertical = vertical);
+    _criteriaChanged(immediate: true);
   }
 
   void _loadNextPage() {
-    if (_loading || !_collection.hasNext) return;
+    if (_loading || _updatingCriteria || _error != null ||
+        !_collection.hasNext) {
+      return;
+    }
     setState(() => _page++);
     _searchCoordinator.changed(immediate: true);
   }
@@ -214,11 +225,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     return PublicExperienceShell(
       current: 1,
       child: LoadMoreOnScroll(
-        hasMore: _collection.hasNext,
+        hasMore: _collection.hasNext && _error == null && !_updatingCriteria,
         loading: _loading,
         loadMore: _loadNextPage,
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: _refresh,
           child: ListView(
           key: const Key('guest-public-landing'),
           padding: const EdgeInsets.all(MakoloSpacing.lg),
@@ -399,11 +410,14 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               const Center(child: CircularProgressIndicator())
             else ...[
               Text(
-                '${_collection.count} résultats',
+                _updatingCriteria && _collection.items.isNotEmpty
+                      ? 'Actualisation… résultats précédents'
+                      : '${_collection.count} résultats',
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: MakoloSpacing.md),
-              if (_collection.items.any((item) => item.isMappable))
+              if (!_updatingCriteria &&
+                  _collection.items.any((item) => item.isMappable))
                 Align(
                   alignment: Alignment.centerLeft,
                   child: OutlinedButton.icon(
@@ -414,7 +428,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     label: const Text('Voir sur la carte'),
                   ),
                 ),
-              if (_collection.items.isEmpty && !_loading)
+              if (_collection.items.isEmpty && !_loading && _error == null)
                 Padding(
                   padding: EdgeInsets.all(MakoloSpacing.lg),
                   child: Text(
@@ -432,7 +446,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 ),
               if (_loading && _collection.items.isNotEmpty)
                 const Center(child: CircularProgressIndicator()),
-              if (!_collection.hasNext && _collection.items.isNotEmpty)
+              if (!_updatingCriteria && _error == null &&
+                  !_collection.hasNext && _collection.items.isNotEmpty)
                 const Center(child: Text('Vous avez tout exploré.')),
             ],
           ],
