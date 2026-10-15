@@ -331,7 +331,6 @@ class PublicSpaceDetailScreen extends StatefulWidget {
       _PublicSpaceDetailScreenState();
 }
 
-
 Uri? _validPublicWebsite(String website) {
   final uri = Uri.tryParse(website);
   if (uri == null ||
@@ -537,7 +536,9 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                 ),
               const SizedBox(height: MakoloSpacing.md),
               if (_possibilities.isEmpty && !_loading)
-                const Text('Cet Espace ne propose pas encore de possibilité publique.'),
+                const Text(
+                  'Cet Espace ne propose pas encore de possibilité publique.',
+                ),
               for (final possibility in _possibilities)
                 PublicPossibilityCard(
                   item: possibility,

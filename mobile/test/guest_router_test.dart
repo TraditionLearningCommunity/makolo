@@ -672,7 +672,10 @@ void main() {
     expect(find.text('À propos'), findsOneWidget);
     expect(find.text('Site officiel'), findsNothing);
     expect(find.text('Ce que propose cet Espace'), findsOneWidget);
-    expect(find.text('Cet Espace ne propose pas encore de possibilité publique.'), findsOneWidget);
+    expect(
+      find.text('Cet Espace ne propose pas encore de possibilité publique.'),
+      findsOneWidget,
+    );
     expect(find.byType(LoginScreen), findsNothing);
   });
 

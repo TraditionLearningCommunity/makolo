@@ -436,4 +436,3 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     );
   }
 }
-

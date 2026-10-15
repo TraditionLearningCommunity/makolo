@@ -20,7 +20,8 @@ class PublicPossibilityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    final hasImage = uri != null &&
+    final hasImage =
+        uri != null &&
         (uri.scheme == 'https' || uri.scheme == 'http') &&
         uri.host.isNotEmpty;
     return Padding(
@@ -70,8 +71,7 @@ class PublicPossibilityCard extends StatelessWidget {
                                 : theme.textTheme.titleMedium,
                           ),
                         ),
-                        if (compact)
-                          const Icon(Icons.chevron_right, size: 20),
+                        if (compact) const Icon(Icons.chevron_right, size: 20),
                       ],
                     ),
                     if (item.summary.isNotEmpty) ...[
@@ -84,8 +84,10 @@ class PublicPossibilityCard extends StatelessWidget {
                       ),
                     ],
                     if (item.routeLabel != null)
-                      Text(item.routeLabel!,
-                          style: theme.textTheme.labelMedium),
+                      Text(
+                        item.routeLabel!,
+                        style: theme.textTheme.labelMedium,
+                      ),
                     if (!compact && item.owner != null)
                       Text(item.owner!, style: theme.textTheme.bodySmall),
                     if (item.place != null)
