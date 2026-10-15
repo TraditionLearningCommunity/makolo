@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../platform/sharing/share_gateway.dart';
+import '../../presentation/fields/geo_autocomplete_field.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
@@ -27,6 +28,7 @@ class PublicSpacesScreen extends StatefulWidget {
 class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   final _search = TextEditingController();
   final _city = TextEditingController();
+  Timer? _cityDebounce;
   String _category = '';
   List<({String value, String label})> _categories = const [];
   List<Map<String, dynamic>> _spaces = const [];
@@ -46,6 +48,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   @override
   void dispose() {
     _generation++;
+    _cityDebounce?.cancel();
     _search.dispose();
     _city.dispose();
     super.dispose();
@@ -104,12 +107,18 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
     }
   }
 
+  void _onCityEdited() {
+    _cityDebounce?.cancel();
+    _cityDebounce = Timer(const Duration(milliseconds: 550), _searchSpaces);
+  }
+
   void _searchSpaces() {
     setState(() => _page = 1);
     unawaited(_load());
   }
 
   void _resetFilters() {
+    _cityDebounce?.cancel();
     _search.clear();
     _city.clear();
     setState(() {
@@ -205,39 +214,33 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                           child: Text(item.label),
                         ),
                     ],
-                    onChanged: (value) =>
-                        setState(() => _category = value ?? ''),
+                    onChanged: (value) {
+                      setState(() => _category = value ?? '');
+                      _searchSpaces();
+                    },
                   ),
                   const SizedBox(height: MakoloSpacing.md),
-                  TextField(
-                    key: const Key('guest-spaces-city'),
+                  GeoAutocompleteField(
+                    fieldKey: const Key('guest-spaces-city'),
                     controller: _city,
-                    onSubmitted: (_) => _searchSpaces(),
-                    textInputAction: TextInputAction.search,
-                    decoration: const InputDecoration(
-                      labelText: 'Ville',
-                      hintText: 'Ex. Lubumbashi',
-                      prefixIcon: Icon(Icons.location_city_outlined),
-                      border: OutlineInputBorder(),
-                    ),
+                    gateway: widget.runtime.geoSearch,
+                    labelText: 'Ville',
+                    hintText: 'Ex. Lubumbashi',
+                    onEdited: _onCityEdited,
+                    onSelected: (_) {
+                      _cityDebounce?.cancel();
+                      _searchSpaces();
+                    },
+                    onSubmitted: _searchSpaces,
                   ),
                   const SizedBox(height: MakoloSpacing.md),
-                  Row(
-                    children: [
-                      TextButton(
-                        key: const Key('guest-spaces-reset'),
-                        onPressed: _resetFilters,
-                        child: const Text('Effacer'),
-                      ),
-                      const SizedBox(width: MakoloSpacing.sm),
-                      Expanded(
-                        child: FilledButton(
-                          key: const Key('guest-spaces-filter-apply'),
-                          onPressed: _searchSpaces,
-                          child: const Text('Voir les Espaces'),
-                        ),
-                      ),
-                    ],
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      key: const Key('guest-spaces-reset'),
+                      onPressed: _resetFilters,
+                      child: const Text('Effacer les filtres'),
+                    ),
                   ),
                 ],
               ),
