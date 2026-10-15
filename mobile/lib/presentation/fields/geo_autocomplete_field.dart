@@ -142,6 +142,11 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
     widget.onSelected?.call(suggestion);
   }
 
+  void _clear() {
+    widget.controller.clear();
+    _onChanged('');
+  }
+
   void _submit() {
     _invalidate();
     setState(() {
@@ -180,7 +185,14 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
                       ),
                     ),
                   )
-                : null,
+                : widget.controller.text.isEmpty
+                ? null
+                : IconButton(
+                    key: const Key('geo-search-clear'),
+                    tooltip: 'Effacer le lieu',
+                    onPressed: _clear,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
             border: const OutlineInputBorder(),
           ),
         ),
@@ -210,9 +222,12 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
             key: const Key('geo-suggestions'),
             margin: const EdgeInsets.only(top: 4),
             clipBehavior: Clip.antiAlias,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 240),
+              child: ListView(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                children: [
                 for (final suggestion in _suggestions)
                   ListTile(
                     dense: true,
@@ -220,7 +235,8 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
                     title: Text(suggestion.label, maxLines: 2),
                     onTap: () => _choose(suggestion),
                   ),
-              ],
+                ],
+              ),
             ),
           ),
       ],
