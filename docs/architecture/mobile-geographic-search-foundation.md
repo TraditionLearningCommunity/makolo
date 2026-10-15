@@ -15,10 +15,11 @@ n'est pas un fournisseur de géocodage.
 - `GeoSuggestion` conserve l'identifiant externe, le libellé, les coordonnées,
   le type et la provenance. Aucune donnée de Profile ni position GPS implicite.
 - `MapTilerGeoSearchGateway` est un adaptateur candidat, injectable,
-  **non activé** dans le runtime ou dans une feature.
+  activé uniquement si le runtime possède une configuration explicite.
 - Réponses malformées / requêtes réseau refusées / annulations ont des contrats distincts.
-- Minimum deux caractères, maximum dix résultats ; le futur widget impose
-  aussi un debounce et invalide ses réponses obsolètes.
+- Une saisie non vide peut déclencher une suggestion ; le composant partagé
+  utilise un debounce de 350 ms, limite à cinq résultats, annule les appels
+  obsolètes et ignore les réponses tardives.
 
 Aucun compte, clé, quota, prix spécifique au compte ni droit commercial
 de géocodage Makolo n'a été vérifié. L'existence d'un style MapTiler
@@ -56,14 +57,13 @@ Références :
 
 ## Conditions d'activation et d'intégration
 
-1. Faire approuver le produit de géocodage et le quota effectif par le propriétaire.
-2. Étendre la configuration runtime de manière explicite, sans utiliser le
-   token de style et sans intégrer de secret serveur dans l'APK.
-3. Fournir `GeoSearchGateway` par injection dans le composant partagé du
-   **lot 2** ; ne pas le coupler à `DiscoveryQuery`.
-4. Le widget du lot 2 gère 250–400 ms de debounce, suppression des résultats
-   obsolètes, annulation par `CancelToken`, limites de requêtes, états de réseau,
-   sélection accessible et retour à la saisie si le provider est indisponible.
+1. Vérifier la licence et le quota effectifs avant une utilisation commerciale.
+2. Utiliser les valeurs explicites `MAKOLO_GEOCODING_ENABLED` et
+   `MAKOLO_GEOCODING_API_KEY`, indépendantes de `MAKOLO_MAP_STYLE`.
+3. Injecter `GeoSearchGateway` dans le composant `GeoAutocompleteField`,
+   sans lier le provider aux vues métier.
+4. Le widget gère 350 ms de debounce, suppression des résultats obsolètes,
+   annulation par `CancelToken`, résultats bornés, erreurs et saisie libre.
 5. Ne solliciter le GPS que pour une action utilisateur distincte.
 6. Limiter les caches aux données temporaires autorisées par la licence.
 7. Tester avant l'activation la recherche au Congo/RDC et ailleurs,
@@ -71,3 +71,31 @@ Références :
 
 Le lot 1 ne modifie ni backend, ni migrations, ni écran Discover,
 ni tarifs, ni contrat métier Geography.
+
+## Configuration locale (les clés ne sont pas dans le code)
+
+Pour le développement, copier `mobile/config/dev.json` vers
+`mobile/config/dev.local.json` (ignoré par Git) puis y ajouter :
+
+```json
+"MAKOLO_GEOCODING_ENABLED": "true",
+"MAKOLO_GEOCODING_API_KEY": "VOTRE_CLE_CLIENTE_GEOCODING"
+```
+
+Conserver les autres paramètres du JSON. Démarrer depuis `mobile/` :
+
+```bash
+flutter run --flavor dev --dart-define-from-file=config/dev.local.json
+```
+
+Ces clés restent remplaçables par environnement. Le plan MapTiler Free
+ou payant ne change pas le code Flutter. Une clé incluse dans l'APK est
+visible par le client : la restreindre et maîtriser les quotas ; ne jamais
+utiliser une clé privée serveur. Les clés diffusées dans un chat ou des logs
+sont à régénérer avant une diffusion au public.
+
+La suggestion externe ne modifie jamais `Geography.Place`. Dans le filtre
+Discovery actuel, la ville sélectionnée fournit une valeur textuelle compatible
+avec le paramètre `place` côté serveur ; les coordonnées externes restent
+attachées à la suggestion UX, sans forcer une recherche nearby. Le filtre
+`date` exact existant est alimenté par le sélecteur calendrier Flutter.
