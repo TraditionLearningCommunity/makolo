@@ -49,7 +49,9 @@ class _PublicHomeScreenState extends State<PublicHomeScreen> {
           edge,
           MakoloSpacing.inner,
           edge,
-          MakoloSpacing.lg,
+          MediaQuery.sizeOf(context).height < 700
+              ? MakoloSpacing.exceptional
+              : MakoloSpacing.lg,
         ),
         children: [
           Text(
