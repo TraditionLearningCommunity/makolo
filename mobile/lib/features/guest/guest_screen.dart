@@ -408,7 +408,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   ),
                 ),
               if (_collection.items.isEmpty && !_loading)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(MakoloSpacing.lg),
                   child: Text(
                     _query.place.isEmpty
