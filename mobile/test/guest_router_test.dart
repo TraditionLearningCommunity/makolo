@@ -476,7 +476,7 @@ void main() {
     await tester.tap(find.text('Choisir une date…').last);
     await tester.pumpAndSettle();
     expect(find.byType(DatePickerDialog), findsOneWidget);
-    await tester.tap(find.text('OK'));
+    await tester.tap(find.text('Valider'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const Key('guest-filter-apply')),
