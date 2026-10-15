@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -506,6 +507,64 @@ void main() {
       expect(requests.last.queryParameters.containsKey('when'), isFalse);
     },
   );
+
+  testWidgets('older public search response never replaces newer results', (
+    tester,
+  ) async {
+    final previous = Completer<MockResponse>();
+    final client = MockClient((request) async {
+      final q = request.url.queryParameters['q'];
+      if (q == 'ancien') return previous.future;
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': q == 'nouveau' ? 1 : 0,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': q == 'nouveau'
+                ? [_item('Nouvelle possibilité', '11111111-1111-4111-8111-111111111111')]
+                : <Object>[],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+
+    final input = find.byKey(const Key('guest-search-query'));
+    await tester.enterText(input, 'ancien');
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.enterText(input, 'nouveau');
+    await tester.pump(const Duration(milliseconds: 360));
+    await tester.pumpAndSettle();
+    expect(find.text('Nouvelle possibilité'), findsOneWidget);
+
+    previous.complete(
+      MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 1,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': [
+              _item('Ancienne possibilité', '22222222-2222-4222-8222-222222222222'),
+            ],
+          },
+        }),
+        200,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Nouvelle possibilité'), findsOneWidget);
+    expect(find.text('Ancienne possibilité'), findsNothing);
+  });
 
   testWidgets('public Discovery paginates on the server', (tester) async {
     final seenPages = <String>[];
