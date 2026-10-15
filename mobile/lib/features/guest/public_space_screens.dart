@@ -7,6 +7,7 @@ import '../../platform/sharing/share_gateway.dart';
 import '../../presentation/fields/geo_autocomplete_field.dart';
 import '../../presentation/fields/search_filter_bar.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
+import '../../presentation/search/load_more_on_scroll.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
@@ -86,7 +87,16 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
       if (raw is! List) throw const FormatException('Invalid directory');
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
-        _spaces = raw.whereType<Map>().map(_object).toList(growable: false);
+        final incoming = raw.whereType<Map>().map(_object).toList(growable: false);
+        if (_page == 1) {
+          _spaces = incoming;
+        } else {
+          final seen = _spaces.map((space) => _field(space, 'slug')).toSet();
+          _spaces = [
+            ..._spaces,
+            ...incoming.where((space) => seen.add(_field(space, 'slug'))),
+          ];
+        }
         final categoryRows = data['categories'];
         if (categoryRows is List) {
           _categories = categoryRows
@@ -125,6 +135,12 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
 
   void _searchSpaces() => _criteriaChanged(immediate: true);
 
+  void _loadNextPage() {
+    if (_loading || !_hasNext) return;
+    setState(() => _page++);
+    unawaited(_load());
+  }
+
   void _resetFilters() {
     _search.clear();
     _city.clear();
@@ -141,9 +157,13 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
     final theme = Theme.of(context);
     return PublicExperienceShell(
       current: 2,
-      child: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
+      child: LoadMoreOnScroll(
+        hasMore: _hasNext,
+        loading: _loading,
+        loadMore: _loadNextPage,
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
           key: const Key('guest-public-spaces'),
           padding: const EdgeInsets.all(MakoloSpacing.lg),
           children: [
@@ -283,33 +303,13 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                     ),
                   ),
                 ),
-              if (_page > 1 || _hasNext)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: _page > 1 && !_loading
-                          ? () {
-                              setState(() => _page--);
-                              unawaited(_load());
-                            }
-                          : null,
-                      child: const Text('Précédent'),
-                    ),
-                    Text('Page $_page'),
-                    TextButton(
-                      onPressed: _hasNext && !_loading
-                          ? () {
-                              setState(() => _page++);
-                              unawaited(_load());
-                            }
-                          : null,
-                      child: const Text('Suivant'),
-                    ),
-                  ],
-                ),
+              if (_loading && _spaces.isNotEmpty)
+                const Center(child: CircularProgressIndicator()),
+              if (!_hasNext && _spaces.isNotEmpty)
+                const Center(child: Text('Vous avez tout exploré.')),
             ],
           ],
+          ),
         ),
       ),
     );
