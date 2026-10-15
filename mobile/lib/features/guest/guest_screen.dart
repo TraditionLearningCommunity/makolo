@@ -237,7 +237,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   icon: const Icon(Icons.arrow_forward_rounded),
                 ),
               ),
-            ),,
+            ),
               filterButtonKey: const Key('guest-filter-toggle'),
               filterPanelKey: const Key('guest-filters'),
               hasActiveFilters: _when.isNotEmpty || _date.isNotEmpty || _price.isNotEmpty || _place.text.trim().isNotEmpty,
