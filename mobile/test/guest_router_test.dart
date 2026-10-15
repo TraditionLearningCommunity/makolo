@@ -213,7 +213,9 @@ void main() {
             matching: find.byType(Scrollable),
           )
           .first,
+      alignment: 0.3,
     );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('guest-home-spaces')));
     await tester.pumpAndSettle();
 
@@ -277,6 +279,18 @@ void main() {
             .first,
       );
       expect(find.text('Atelier numérique Lubumbashi'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('guest-search-query')),
+        -180,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const Key('guest-public-landing')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+        alignment: 0.2,
+      );
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const Key('guest-search-query')),
         '023',
@@ -327,7 +341,19 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('guest-filter-place')), 'Kolwezi');
     tester.testTextInput.hide();
-    await tester.ensureVisible(find.byKey(const Key('guest-filter-apply')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('guest-filter-apply')),
+      150,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('guest-public-landing')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+      alignment: 0.3,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('guest-filter-apply')));
     await tester.pumpAndSettle();
 
