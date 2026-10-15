@@ -155,7 +155,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     if (chosen == null) return;
     setState(() {
       _when = 'custom';
-      _date = '${chosen.year.toString().padLeft(4, '0')}-'
+      _date =
+          '${chosen.year.toString().padLeft(4, '0')}-'
           '${chosen.month.toString().padLeft(2, '0')}-'
           '${chosen.day.toString().padLeft(2, '0')}';
     });

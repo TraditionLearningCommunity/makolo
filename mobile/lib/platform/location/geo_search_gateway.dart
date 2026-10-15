@@ -49,19 +49,21 @@ class GeoSearchException implements Exception {
 /// MapTiler forward geocoding adapter, opt-in until the account authorizes it.
 /// The token is injected from approved client runtime configuration only.
 class MapTilerGeoSearchGateway implements GeoSearchGateway {
-  MapTilerGeoSearchGateway({
-    required String apiKey,
-    Dio? dio,
-    Uri? endpoint,
-  })  : _key = apiKey,
-        _endpoint = endpoint ?? Uri.parse('https://api.maptiler.com/geocoding/'),
-        _dio = dio ??
-            Dio(BaseOptions(
+  MapTilerGeoSearchGateway({required String apiKey, Dio? dio, Uri? endpoint})
+    : _key = apiKey,
+      _endpoint = endpoint ?? Uri.parse('https://api.maptiler.com/geocoding/'),
+      _dio =
+          dio ??
+          Dio(
+            BaseOptions(
               connectTimeout: const Duration(seconds: 5),
               receiveTimeout: const Duration(seconds: 7),
-            )) {
+            ),
+          ) {
     if (_key.trim().isEmpty || _endpoint.scheme != 'https') {
-      throw ArgumentError('MapTiler geocoding requires approved HTTPS configuration.');
+      throw ArgumentError(
+        'MapTiler geocoding requires approved HTTPS configuration.',
+      );
     }
   }
 
@@ -116,24 +118,34 @@ class MapTilerGeoSearchGateway implements GeoSearchGateway {
         }
         final lon = (center[0] as num).toDouble();
         final lat = (center[1] as num).toDouble();
-        if (!lon.isFinite || !lat.isFinite || lon < -180 || lon > 180 ||
-            lat < -90 || lat > 90) {
+        if (!lon.isFinite ||
+            !lat.isFinite ||
+            lon < -180 ||
+            lon > 180 ||
+            lat < -90 ||
+            lat > 90) {
           continue;
         }
         final types = item['place_type'];
-        output.add(GeoSuggestion(
-          id: id,
-          label: name,
-          longitude: lon,
-          latitude: lat,
-          source: 'maptiler',
-          kind: types is List && types.isNotEmpty ? types.first.toString() : null,
-        ));
+        output.add(
+          GeoSuggestion(
+            id: id,
+            label: name,
+            longitude: lon,
+            latitude: lat,
+            source: 'maptiler',
+            kind: types is List && types.isNotEmpty
+                ? types.first.toString()
+                : null,
+          ),
+        );
       }
       return List.unmodifiable(output);
     } on DioException catch (error) {
       if (CancelToken.isCancel(error)) rethrow;
-      throw const GeoSearchException('Geographic suggestions are temporarily unavailable.');
+      throw const GeoSearchException(
+        'Geographic suggestions are temporarily unavailable.',
+      );
     } on FormatException {
       throw const GeoSearchException('Invalid geographic search response.');
     } on TypeError {

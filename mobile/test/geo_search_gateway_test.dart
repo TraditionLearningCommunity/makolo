@@ -59,13 +59,19 @@ void main() {
     expect(results.single.longitude, 25.47);
   });
 
-  test('malformed payload is surfaced instead of inventing locations', () async {
-    final gateway = MapTilerGeoSearchGateway(
-      apiKey: 'test-only',
-      dio: MockClient((_) async => const MockResponse('{"bad":[]}', 200)).dio,
-    );
-    await expectLater(gateway.suggest('Kol'), throwsA(isA<GeoSearchException>()));
-  });
+  test(
+    'malformed payload is surfaced instead of inventing locations',
+    () async {
+      final gateway = MapTilerGeoSearchGateway(
+        apiKey: 'test-only',
+        dio: MockClient((_) async => const MockResponse('{"bad":[]}', 200)).dio,
+      );
+      await expectLater(
+        gateway.suggest('Kol'),
+        throwsA(isA<GeoSearchException>()),
+      );
+    },
+  );
 
   test('request cancellation is preserved for the caller', () async {
     final requestStarted = Completer<void>();
@@ -86,9 +92,6 @@ void main() {
   });
 
   test('missing provider configuration is rejected', () {
-    expect(
-      () => MapTilerGeoSearchGateway(apiKey: ''),
-      throwsArgumentError,
-    );
+    expect(() => MapTilerGeoSearchGateway(apiKey: ''), throwsArgumentError);
   });
 }

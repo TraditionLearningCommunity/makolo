@@ -28,15 +28,17 @@ void main() {
     final controller = TextEditingController();
     addTearDown(controller.dispose);
     var submitted = 0;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: GeoAutocompleteField(
-          controller: controller,
-          fieldKey: const Key('place'),
-          onSubmitted: () => submitted++,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GeoAutocompleteField(
+            controller: controller,
+            fieldKey: const Key('place'),
+            onSubmitted: () => submitted++,
+          ),
         ),
       ),
-    ));
+    );
 
     await tester.enterText(find.byKey(const Key('place')), 'Kolwezi');
     await tester.testTextInput.receiveAction(TextInputAction.search);
@@ -51,16 +53,18 @@ void main() {
     final controller = TextEditingController();
     addTearDown(controller.dispose);
     GeoSuggestion? selected;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: GeoAutocompleteField(
-          controller: controller,
-          gateway: gateway,
-          fieldKey: const Key('place'),
-          onSelected: (value) => selected = value,
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GeoAutocompleteField(
+            controller: controller,
+            gateway: gateway,
+            fieldKey: const Key('place'),
+            onSelected: (value) => selected = value,
+          ),
         ),
       ),
-    ));
+    );
     await tester.enterText(find.byKey(const Key('place')), 'K');
     await tester.pump(const Duration(milliseconds: 150));
     await tester.enterText(find.byKey(const Key('place')), 'Ko');
@@ -91,15 +95,17 @@ void main() {
     final gateway = _FakeGeoSearch();
     final controller = TextEditingController();
     addTearDown(controller.dispose);
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: GeoAutocompleteField(
-          controller: controller,
-          gateway: gateway,
-          fieldKey: const Key('place'),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GeoAutocompleteField(
+            controller: controller,
+            gateway: gateway,
+            fieldKey: const Key('place'),
+          ),
         ),
       ),
-    ));
+    );
     await tester.enterText(find.byKey(const Key('place')), 'Kin');
     await tester.pump(const Duration(milliseconds: 360));
     await tester.enterText(find.byKey(const Key('place')), 'Kol');
@@ -128,19 +134,23 @@ void main() {
     expect(find.text('Kinshasa, RD Congo'), findsNothing);
   });
 
-  testWidgets('provider error leaves entry editable with honest fallback', (tester) async {
+  testWidgets('provider error leaves entry editable with honest fallback', (
+    tester,
+  ) async {
     final gateway = _FakeGeoSearch();
     final controller = TextEditingController();
     addTearDown(controller.dispose);
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: GeoAutocompleteField(
-          controller: controller,
-          gateway: gateway,
-          fieldKey: const Key('place'),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GeoAutocompleteField(
+            controller: controller,
+            gateway: gateway,
+            fieldKey: const Key('place'),
+          ),
         ),
       ),
-    ));
+    );
     await tester.enterText(find.byKey(const Key('place')), 'K');
     await tester.pump(const Duration(milliseconds: 360));
     gateway.requests.single.completeError(

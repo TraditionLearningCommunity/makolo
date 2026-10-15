@@ -182,7 +182,10 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
               style: theme.textTheme.bodySmall?.copyWith(color: colors.error),
             ),
           ),
-        if (_showSuggestions && _searched && !_loading && !_unavailable &&
+        if (_showSuggestions &&
+            _searched &&
+            !_loading &&
+            !_unavailable &&
             _suggestions.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 8),

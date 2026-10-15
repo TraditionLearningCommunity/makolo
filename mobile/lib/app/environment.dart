@@ -105,7 +105,9 @@ class MakoloRuntimeConfig {
     'MAKOLO_GEOCODING_ENABLED',
     defaultValue: 'false',
   );
-  static const _geocodingKey = String.fromEnvironment('MAKOLO_GEOCODING_API_KEY');
+  static const _geocodingKey = String.fromEnvironment(
+    'MAKOLO_GEOCODING_API_KEY',
+  );
   static const _firebaseEnabled = String.fromEnvironment(
     'MAKOLO_FIREBASE_ENABLED',
     defaultValue: 'false',
