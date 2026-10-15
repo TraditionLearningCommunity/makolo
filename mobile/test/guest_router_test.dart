@@ -930,6 +930,77 @@ void main() {
     expect(queries.last.queryParameters.containsKey('q'), isFalse);
   });
 
+  testWidgets('directory page failure stops auto-retry and retains page one', (
+    tester,
+  ) async {
+    var pageTwoRequests = 0;
+    final client = MockClient((request) async {
+      expect(request.url.path, '/api/v1/organizations/public-spaces/');
+      final page = request.url.queryParameters['page'] ?? '1';
+      if (page == '2') {
+        pageTwoRequests++;
+        if (pageTwoRequests == 1) {
+          return const MockResponse('{"detail":"Unavailable"}', 503);
+        }
+      }
+      return MockResponse(
+        jsonEncode({
+          'data': {
+            'count': 17,
+            'page': int.parse(page),
+            'page_size': 20,
+            'has_next': page == '1',
+            'categories': <Object>[],
+            'results': [
+              for (var i = page == '1' ? 0 : 16;
+                  i < (page == '1' ? 16 : 17);
+                  i++)
+                {
+                  'name': 'Espace $i',
+                  'slug': 'space-$i',
+                  'city': 'Kolwezi',
+                  'country': 'CD',
+                },
+            ],
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/spaces');
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const Key('guest-public-spaces')),
+      const Offset(0, -2400),
+    );
+    await tester.pumpAndSettle();
+    expect(pageTwoRequests, 1);
+    expect(find.text('Impossible d’actualiser les Espaces publics.'), findsOneWidget);
+    await tester.drag(
+      find.byKey(const Key('guest-public-spaces')),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    expect(pageTwoRequests, 1);
+
+    await tester.scrollUntilVisible(
+      find.text('Réessayer'),
+      -250,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('guest-public-spaces')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.tap(find.text('Réessayer'));
+    await tester.pumpAndSettle();
+    expect(pageTwoRequests, 2);
+    expect(find.text('Impossible d’actualiser les Espaces publics.'), findsNothing);
+  });
+
   testWidgets('empty public contract stays calm without invented cards', (
     tester,
   ) async {
