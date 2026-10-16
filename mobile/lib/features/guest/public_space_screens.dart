@@ -288,7 +288,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               ),
             ),
             const SizedBox(height: MakoloSpacing.md),
-            if (_error != null) ...[
+            if (_error != null && _page == 1) ...[
               Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               TextButton(onPressed: _load, child: const Text('Réessayer')),
             ],
@@ -340,6 +340,10 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 ),
               if (_loading && _spaces.isNotEmpty)
                 const Center(child: CircularProgressIndicator()),
+              if (_error != null && _page > 1) ...[
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                TextButton(onPressed: _load, child: const Text('Réessayer')),
+              ],
               if (!_updatingCriteria && _error == null &&
                   !_hasNext && _spaces.isNotEmpty)
                 const Center(child: Text('Vous avez tout exploré.')),
