@@ -189,6 +189,32 @@ class MatureDiscoveryAPITests(TestCase):
                 self.assertEqual(row["identity"], detailed_row["identity"])
                 self.assertTrue(row["detail"]["description"])
 
+    def test_collection_exposes_native_api_references_without_web_authority(self):
+        from django.urls import resolve
+
+        for viewer in (None, self.participant):
+            if viewer is None:
+                self.client.logout()
+            else:
+                self.client.force_login(viewer)
+            rows = self._items(q="Z3", page_size=20)["data"]["results"]
+            for row in rows:
+                detail = row["links"]["detail"]
+                saved = row["links"]["saved"]
+                self.assertEqual(resolve(detail).url_name, "item-detail")
+                self.assertEqual(resolve(saved).url_name, "item-saved")
+                self.assertTrue(detail.startswith("/api/v1/"))
+                self.assertTrue(saved.startswith("/api/v1/"))
+                self.assertIn("view", row["capabilities"])
+                self.assertEqual("save" in row["capabilities"], viewer is not None)
+                engagement = row["engagement"]
+                if engagement["state"] == "owner_contract":
+                    self.assertEqual(engagement["links"], {})
+                    self.assertEqual(engagement["capabilities"], [])
+                    primary = engagement.get("presentation")
+                    if primary is not None:
+                        self.assertFalse(primary["enabled"])
+
     def test_web_and_api_use_the_same_canonical_discovery_field(self):
         params = {"q": "Z3", "page_size": 20}
         api = self._items(**params)["data"]
