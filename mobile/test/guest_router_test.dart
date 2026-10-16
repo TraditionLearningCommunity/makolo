@@ -995,7 +995,7 @@ void main() {
     expect(pageTwoRequests, 1);
     await tester.scrollUntilVisible(
       find.text('Réessayer'),
-      -200,
+      200,
       scrollable: find
           .descendant(
             of: find.byKey(const Key('guest-public-spaces')),
