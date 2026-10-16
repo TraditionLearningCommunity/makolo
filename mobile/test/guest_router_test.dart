@@ -985,6 +985,15 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 1);
+    await tester.scrollUntilVisible(
+      find.text('Réessayer'),
+      -200,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('guest-public-spaces')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Impossible d’actualiser les Espaces publics.'), findsOneWidget);
     await tester.drag(
       find.byKey(const Key('guest-public-spaces')),
@@ -993,14 +1002,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 1);
 
-    await tester.scrollUntilVisible(
-      find.text('Réessayer'),
-      -250,
-      scrollable: find.descendant(
-        of: find.byKey(const Key('guest-public-spaces')),
-        matching: find.byType(Scrollable),
-      ).first,
-    );
+    await tester.ensureVisible(find.text('Réessayer'));
     await tester.tap(find.text('Réessayer'));
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 2);
