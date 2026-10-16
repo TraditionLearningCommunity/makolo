@@ -238,13 +238,11 @@ class MatureDiscoveryAPITests(TestCase):
         handoff = service["engagement"]
         self.assertEqual(handoff["state"], "owner_contract")
         self.assertEqual(handoff["capabilities"], [])
-        presentation = handoff.get("presentation")
-        if presentation is not None:
-            self.assertFalse(presentation["enabled"])
-            self.assertEqual(
-                presentation["web_enabled"],
-                bool(presentation["web"]),
-            )
+        presentation = handoff["presentation"]
+        self.assertEqual(presentation["capability"], "start")
+        self.assertFalse(presentation["enabled"])
+        self.assertTrue(presentation["web_enabled"])
+        self.assertTrue(presentation["web"])
 
     def test_authenticated_collection_exposes_discover_me_contract_and_cursor(self):
         self.client.force_login(self.participant)
