@@ -523,7 +523,12 @@ void main() {
             'page_size': 12,
             'has_next': false,
             'results': q == 'nouveau'
-                ? [_item('Nouvelle possibilité', '11111111-1111-4111-8111-111111111111')]
+                ? [
+                    _item(
+                      'Nouvelle possibilité',
+                      '11111111-1111-4111-8111-111111111111',
+                    ),
+                  ]
                 : <Object>[],
           },
         }),
@@ -554,7 +559,10 @@ void main() {
             'page_size': 12,
             'has_next': false,
             'results': [
-              _item('Ancienne possibilité', '22222222-2222-4222-8222-222222222222'),
+              _item(
+                'Ancienne possibilité',
+                '22222222-2222-4222-8222-222222222222',
+              ),
             ],
           },
         }),
@@ -737,83 +745,81 @@ void main() {
     expect(find.byType(LoginScreen), findsNothing);
   });
 
-  testWidgets('public Space keeps its identity separate from opportunity place', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(360, 800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    const id = '11111111-1111-4111-8111-111111111111';
-    const title = 'Clinique CV & candidature Kinshasa — 069';
-    final client = MockClient((request) async {
-      if (request.url.path.endsWith('/public-spaces/agri/')) {
+  testWidgets(
+    'public Space keeps its identity separate from opportunity place',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(360, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const id = '11111111-1111-4111-8111-111111111111';
+      const title = 'Clinique CV & candidature Kinshasa — 069';
+      final client = MockClient((request) async {
+        if (request.url.path.endsWith('/public-spaces/agri/')) {
+          return MockResponse(
+            jsonEncode({
+              'data': {
+                'space': {
+                  'name': 'AgriFuture Cooperative',
+                  'slug': 'agri',
+                  'archetype': 'generic',
+                  'city': 'Yaoundé',
+                  'country': 'CM',
+                },
+                'possibilities': {
+                  'count': 2,
+                  'page': 1,
+                  'page_size': 12,
+                  'has_next': false,
+                  'results': [
+                    {
+                      ..._item(title, id),
+                      'place': {'name': 'Kinshasa', 'locality': 'Kinshasa'},
+                    },
+                    _item(
+                      'Clinique CV & candidature Kinshasa — 189',
+                      '22222222-2222-4222-8222-222222222222',
+                    ),
+                  ],
+                },
+              },
+            }),
+            200,
+          );
+        }
+        expect(request.url.path, '/api/v1/discovery/items/activity/$id/');
         return MockResponse(
           jsonEncode({
             'data': {
-              'space': {
-                'name': 'AgriFuture Cooperative',
-                'slug': 'agri',
-                'archetype': 'generic',
-                'city': 'Yaoundé',
-                'country': 'CM',
-              },
-              'possibilities': {
-                'count': 2,
-                'page': 1,
-                'page_size': 12,
-                'has_next': false,
-                'results': [
-                  {
-                    ..._item(title, id),
-                    'place': {'name': 'Kinshasa', 'locality': 'Kinshasa'},
-                  },
-                  _item(
-                    'Clinique CV & candidature Kinshasa — 189',
-                    '22222222-2222-4222-8222-222222222222',
-                  ),
-                ],
+              'item': {
+                ..._item(title, id),
+                'detail': {'description': 'Détail public.'},
               },
             },
           }),
           200,
         );
-      }
-      expect(
-        request.url.path,
-        '/api/v1/discovery/items/activity/$id/',
+      });
+      final router = _router(
+        _guestRuntime(SessionRecoveryController(), client: client),
       );
-      return MockResponse(
-        jsonEncode({
-          'data': {
-            'item': {
-              ..._item(title, id),
-              'detail': {'description': 'Détail public.'},
-            },
-          },
-        }),
-        200,
-      );
-    });
-    final router = _router(
-      _guestRuntime(SessionRecoveryController(), client: client),
-    );
-    await _pump(tester, router);
-    router.go('/spaces/agri');
-    await tester.pumpAndSettle();
+      await _pump(tester, router);
+      router.go('/spaces/agri');
+      await tester.pumpAndSettle();
 
-    expect(find.text('Espace générique'), findsOneWidget);
-    expect(find.text('Yaoundé · CM'), findsOneWidget);
-    expect(find.text('Kinshasa'), findsOneWidget);
-    expect(find.text(title), findsOneWidget);
-    expect(find.text('2 possibilités'), findsOneWidget);
-    expect(find.text('À propos'), findsNothing);
-    expect(find.text('Site officiel'), findsNothing);
-    await tester.ensureVisible(find.text(title));
-    await tester.tap(find.text(title));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('guest-possibility-detail')), findsOneWidget);
-    expect(find.text(title), findsOneWidget);
-    expect(find.byType(LoginScreen), findsNothing);
-  });
+      expect(find.text('Espace générique'), findsOneWidget);
+      expect(find.text('Yaoundé · CM'), findsOneWidget);
+      expect(find.text('Kinshasa'), findsOneWidget);
+      expect(find.text(title), findsOneWidget);
+      expect(find.text('2 possibilités'), findsOneWidget);
+      expect(find.text('À propos'), findsNothing);
+      expect(find.text('Site officiel'), findsNothing);
+      await tester.ensureVisible(find.text(title));
+      await tester.tap(find.text(title));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('guest-possibility-detail')), findsOneWidget);
+      expect(find.text(title), findsOneWidget);
+      expect(find.byType(LoginScreen), findsNothing);
+    },
+  );
 
   testWidgets('public Spaces search uses its field action and server query', (
     tester,
@@ -958,9 +964,11 @@ void main() {
             'has_next': page == '1',
             'categories': <Object>[],
             'results': [
-              for (var i = page == '1' ? 0 : 20;
-                  i < (page == '1' ? 20 : 22);
-                  i++)
+              for (
+                var i = page == '1' ? 0 : 20;
+                i < (page == '1' ? 20 : 22);
+                i++
+              )
                 {
                   'name': 'Espace $i',
                   'slug': 'space-$i',
@@ -988,13 +996,18 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Réessayer'),
       -200,
-      scrollable: find.descendant(
-        of: find.byKey(const Key('guest-public-spaces')),
-        matching: find.byType(Scrollable),
-      ).first,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('guest-public-spaces')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.pumpAndSettle();
-    expect(find.text('Impossible d’actualiser les Espaces publics.'), findsOneWidget);
+    expect(
+      find.text('Impossible d’actualiser les Espaces publics.'),
+      findsOneWidget,
+    );
     await tester.drag(
       find.byKey(const Key('guest-public-spaces')),
       const Offset(0, -200),
@@ -1006,7 +1019,10 @@ void main() {
     await tester.tap(find.text('Réessayer'));
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 2);
-    expect(find.text('Impossible d’actualiser les Espaces publics.'), findsNothing);
+    expect(
+      find.text('Impossible d’actualiser les Espaces publics.'),
+      findsNothing,
+    );
   });
 
   testWidgets('empty public contract stays calm without invented cards', (

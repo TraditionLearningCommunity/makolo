@@ -188,5 +188,4 @@ void main() {
     expect(edits, 2);
     expect(find.byKey(const Key('geo-suggestions')), findsNothing);
   });
-
 }

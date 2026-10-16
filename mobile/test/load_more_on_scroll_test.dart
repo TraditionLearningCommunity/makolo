@@ -28,7 +28,9 @@ void main() {
     );
   }
 
-  testWidgets('does not page when no further page is available', (tester) async {
+  testWidgets('does not page when no further page is available', (
+    tester,
+  ) async {
     var calls = 0;
     await pumpList(
       tester,

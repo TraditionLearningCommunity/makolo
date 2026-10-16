@@ -211,7 +211,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   }
 
   void _loadNextPage() {
-    if (_loading || _updatingCriteria || _error != null ||
+    if (_loading ||
+        _updatingCriteria ||
+        _error != null ||
         !_collection.hasNext) {
       return;
     }
@@ -231,235 +233,240 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
-          key: const Key('guest-public-landing'),
-          padding: const EdgeInsets.all(MakoloSpacing.lg),
-          children: [
-            Text(
-              'Découvrir',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              'Qu’avez-vous envie de vivre, faire ou obtenir ?',
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            const Text(
-              'Décrivez ce que vous cherchez, choisissez une piste ou explorez librement.',
-            ),
-            const SizedBox(height: MakoloSpacing.lg),
-            SearchFilterBar(
-              searchField: TextField(
-                controller: _search,
-                key: const Key('guest-search-query'),
-                textInputAction: TextInputAction.search,
-                onChanged: (_) => _criteriaChanged(),
-                onSubmitted: (_) => _apply(),
-                decoration: InputDecoration(
-                  labelText: 'Rechercher',
-                  hintText: 'Ex. Voyager à Kolwezi demain',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _search.text.isEmpty
-                      ? null
-                      : IconButton(
-                          key: const Key('guest-discover-search-clear'),
-                          tooltip: 'Effacer la recherche',
-                          onPressed: () {
-                            _search.clear();
-                            _criteriaChanged(immediate: true);
-                          },
-                          icon: const Icon(Icons.close_rounded),
-                        ),
+            key: const Key('guest-public-landing'),
+            padding: const EdgeInsets.all(MakoloSpacing.lg),
+            children: [
+              Text(
+                'Découvrir',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
                 ),
               ),
-              filterButtonKey: const Key('guest-filter-toggle'),
-              filterPanelKey: const Key('guest-filters'),
-              hasActiveFilters:
-                  _when.isNotEmpty ||
-                  _date.isNotEmpty ||
-                  _price.isNotEmpty ||
-                  _place.text.trim().isNotEmpty,
-              filters: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  GeoAutocompleteField(
-                    fieldKey: const Key('guest-filter-place'),
-                    controller: _place,
-                    gateway: widget.runtime.geoSearch,
-                    onSelected: (suggestion) {
-                      setState(() => _selectedPlace = suggestion);
-                      _criteriaChanged(immediate: true);
-                    },
-                    onEdited: () {
-                      _selectedPlace = null;
-                      _criteriaChanged();
-                    },
-                    onSubmitted: _apply,
-                  ),
-                  const SizedBox(height: MakoloSpacing.md),
-                  DropdownButtonFormField<String>(
-                    key: const Key('guest-filter-when'),
-                    initialValue: _when,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Quand ?',
-                      prefixIcon: Icon(Icons.calendar_today_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: '',
-                        child: Text('Toutes les dates'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'today',
-                        child: Text('Aujourd’hui'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'tomorrow',
-                        child: Text('Demain'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'weekend',
-                        child: Text('Ce week-end'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'week',
-                        child: Text('Cette semaine'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'custom',
-                        child: Text('Choisir une date…'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value == 'custom') {
-                        unawaited(_chooseDate());
-                      } else {
-                        setState(() {
-                          _when = value ?? '';
-                          _date = '';
-                        });
-                        _criteriaChanged(immediate: true);
-                      }
-                    },
-                  ),
-                  if (_date.isNotEmpty)
-                    TextButton.icon(
-                      key: const Key('guest-filter-selected-date'),
-                      onPressed: _chooseDate,
-                      icon: const Icon(Icons.edit_calendar_outlined),
-                      label: Text('Date : $_date'),
-                    ),
-                  const SizedBox(height: MakoloSpacing.md),
-                  DropdownButtonFormField<String>(
-                    key: const Key('guest-filter-price'),
-                    initialValue: _price,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Budget',
-                      prefixIcon: Icon(Icons.payments_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: '', child: Text('Tous les prix')),
-                      DropdownMenuItem(value: 'free', child: Text('Gratuit')),
-                      DropdownMenuItem(value: 'paid', child: Text('Payant')),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _price = value ?? '');
-                      _criteriaChanged(immediate: true);
-                    },
-                  ),
-                  const SizedBox(height: MakoloSpacing.md),
-                ],
-              ),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            SizedBox(
-              height: 48,
-              child: ListView(
-                key: const Key('guest-discover-categories'),
-                scrollDirection: Axis.horizontal,
-                children: [
-                  for (final value in const [
-                    ('', 'Tout', Icons.apps_rounded),
-                    ('transport', 'Voyager', Icons.directions_bus_outlined),
-                    ('event', 'Événements', Icons.event_outlined),
-                    ('service', 'Services', Icons.handshake_outlined),
-                    ('other', 'Autres', Icons.explore_outlined),
-                  ]) ...[
-                    ChoiceChip(
-                      avatar: Icon(value.$3, size: 18),
-                      label: Text(value.$2),
-                      selected: _vertical == value.$1,
-                      showCheckmark: false,
-                      onSelected: (_) => _selectVertical(value.$1),
-                    ),
-                    const SizedBox(width: MakoloSpacing.sm),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: MakoloSpacing.compact),
-            const SizedBox(height: MakoloSpacing.lg),
-            if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-              TextButton(onPressed: _load, child: const Text('Réessayer')),
               const SizedBox(height: MakoloSpacing.sm),
-            ],
-            if (_loading && _collection.items.isEmpty)
-              const Center(child: CircularProgressIndicator())
-            else ...[
-              if (_collection.items.isNotEmpty) ...[
-                Text(
-                  _updatingCriteria
-                      ? (_error == null
-                            ? 'Actualisation… résultats précédents'
-                            : 'Résultats précédents')
-                      : '${_collection.count} ${_collection.count == 1 ? 'résultat' : 'résultats'}',
-                  style: theme.textTheme.titleMedium,
+              Text(
+                'Qu’avez-vous envie de vivre, faire ou obtenir ?',
+                style: theme.textTheme.headlineSmall,
+              ),
+              const SizedBox(height: MakoloSpacing.sm),
+              const Text(
+                'Décrivez ce que vous cherchez, choisissez une piste ou explorez librement.',
+              ),
+              const SizedBox(height: MakoloSpacing.lg),
+              SearchFilterBar(
+                searchField: TextField(
+                  controller: _search,
+                  key: const Key('guest-search-query'),
+                  textInputAction: TextInputAction.search,
+                  onChanged: (_) => _criteriaChanged(),
+                  onSubmitted: (_) => _apply(),
+                  decoration: InputDecoration(
+                    labelText: 'Rechercher',
+                    hintText: 'Ex. Voyager à Kolwezi demain',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            key: const Key('guest-discover-search-clear'),
+                            tooltip: 'Effacer la recherche',
+                            onPressed: () {
+                              _search.clear();
+                              _criteriaChanged(immediate: true);
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                  ),
                 ),
-                const SizedBox(height: MakoloSpacing.md),
-              ],
-              if (!_updatingCriteria &&
-                  _collection.items.any((item) => item.isMappable))
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push(
-                      '/discover/map?${_query.mapCanonicalQuery}',
+                filterButtonKey: const Key('guest-filter-toggle'),
+                filterPanelKey: const Key('guest-filters'),
+                hasActiveFilters:
+                    _when.isNotEmpty ||
+                    _date.isNotEmpty ||
+                    _price.isNotEmpty ||
+                    _place.text.trim().isNotEmpty,
+                filters: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GeoAutocompleteField(
+                      fieldKey: const Key('guest-filter-place'),
+                      controller: _place,
+                      gateway: widget.runtime.geoSearch,
+                      onSelected: (suggestion) {
+                        setState(() => _selectedPlace = suggestion);
+                        _criteriaChanged(immediate: true);
+                      },
+                      onEdited: () {
+                        _selectedPlace = null;
+                        _criteriaChanged();
+                      },
+                      onSubmitted: _apply,
                     ),
-                    icon: const Icon(Icons.map_outlined),
-                    label: const Text('Voir sur la carte'),
-                  ),
+                    const SizedBox(height: MakoloSpacing.md),
+                    DropdownButtonFormField<String>(
+                      key: const Key('guest-filter-when'),
+                      initialValue: _when,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Quand ?',
+                        prefixIcon: Icon(Icons.calendar_today_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: '',
+                          child: Text('Toutes les dates'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'today',
+                          child: Text('Aujourd’hui'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'tomorrow',
+                          child: Text('Demain'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'weekend',
+                          child: Text('Ce week-end'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'week',
+                          child: Text('Cette semaine'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'custom',
+                          child: Text('Choisir une date…'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == 'custom') {
+                          unawaited(_chooseDate());
+                        } else {
+                          setState(() {
+                            _when = value ?? '';
+                            _date = '';
+                          });
+                          _criteriaChanged(immediate: true);
+                        }
+                      },
+                    ),
+                    if (_date.isNotEmpty)
+                      TextButton.icon(
+                        key: const Key('guest-filter-selected-date'),
+                        onPressed: _chooseDate,
+                        icon: const Icon(Icons.edit_calendar_outlined),
+                        label: Text('Date : $_date'),
+                      ),
+                    const SizedBox(height: MakoloSpacing.md),
+                    DropdownButtonFormField<String>(
+                      key: const Key('guest-filter-price'),
+                      initialValue: _price,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Budget',
+                        prefixIcon: Icon(Icons.payments_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: '',
+                          child: Text('Tous les prix'),
+                        ),
+                        DropdownMenuItem(value: 'free', child: Text('Gratuit')),
+                        DropdownMenuItem(value: 'paid', child: Text('Payant')),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _price = value ?? '');
+                        _criteriaChanged(immediate: true);
+                      },
+                    ),
+                    const SizedBox(height: MakoloSpacing.md),
+                  ],
                 ),
-              if (_collection.items.isEmpty && !_loading && _error == null)
-                Padding(
-                  padding: EdgeInsets.all(MakoloSpacing.lg),
-                  child: Text(
-                    _query.place.isEmpty
-                        ? 'Aucune possibilité publique à afficher pour cette recherche.'
-                        : 'Aucun résultat à ${_query.place} pour le moment.',
-                  ),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              SizedBox(
+                height: 48,
+                child: ListView(
+                  key: const Key('guest-discover-categories'),
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (final value in const [
+                      ('', 'Tout', Icons.apps_rounded),
+                      ('transport', 'Voyager', Icons.directions_bus_outlined),
+                      ('event', 'Événements', Icons.event_outlined),
+                      ('service', 'Services', Icons.handshake_outlined),
+                      ('other', 'Autres', Icons.explore_outlined),
+                    ]) ...[
+                      ChoiceChip(
+                        avatar: Icon(value.$3, size: 18),
+                        label: Text(value.$2),
+                        selected: _vertical == value.$1,
+                        showCheckmark: false,
+                        onSelected: (_) => _selectVertical(value.$1),
+                      ),
+                      const SizedBox(width: MakoloSpacing.sm),
+                    ],
+                  ],
                 ),
-              for (final item in _collection.items)
-                PublicPossibilityCard(
-                  item: item,
-                  onTap: () => context.push(
-                    '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+              ),
+              const SizedBox(height: MakoloSpacing.compact),
+              const SizedBox(height: MakoloSpacing.lg),
+              if (_error != null) ...[
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                TextButton(onPressed: _load, child: const Text('Réessayer')),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
+              if (_loading && _collection.items.isEmpty)
+                const Center(child: CircularProgressIndicator())
+              else ...[
+                if (_collection.items.isNotEmpty) ...[
+                  Text(
+                    _updatingCriteria
+                        ? (_error == null
+                              ? 'Actualisation… résultats précédents'
+                              : 'Résultats précédents')
+                        : '${_collection.count} ${_collection.count == 1 ? 'résultat' : 'résultats'}',
+                    style: theme.textTheme.titleMedium,
                   ),
-                ),
-              if (_loading && _collection.items.isNotEmpty)
-                const Center(child: CircularProgressIndicator()),
-              if (!_updatingCriteria && _error == null &&
-                  !_collection.hasNext && _collection.items.isNotEmpty)
-                const Center(child: Text('Vous avez tout exploré.')),
+                  const SizedBox(height: MakoloSpacing.md),
+                ],
+                if (!_updatingCriteria &&
+                    _collection.items.any((item) => item.isMappable))
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push(
+                        '/discover/map?${_query.mapCanonicalQuery}',
+                      ),
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('Voir sur la carte'),
+                    ),
+                  ),
+                if (_collection.items.isEmpty && !_loading && _error == null)
+                  Padding(
+                    padding: EdgeInsets.all(MakoloSpacing.lg),
+                    child: Text(
+                      _query.place.isEmpty
+                          ? 'Aucune possibilité publique à afficher pour cette recherche.'
+                          : 'Aucun résultat à ${_query.place} pour le moment.',
+                    ),
+                  ),
+                for (final item in _collection.items)
+                  PublicPossibilityCard(
+                    item: item,
+                    onTap: () => context.push(
+                      '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+                    ),
+                  ),
+                if (_loading && _collection.items.isNotEmpty)
+                  const Center(child: CircularProgressIndicator()),
+                if (!_updatingCriteria &&
+                    _error == null &&
+                    !_collection.hasNext &&
+                    _collection.items.isNotEmpty)
+                  const Center(child: Text('Vous avez tout exploré.')),
+              ],
             ],
-          ],
           ),
         ),
       ),

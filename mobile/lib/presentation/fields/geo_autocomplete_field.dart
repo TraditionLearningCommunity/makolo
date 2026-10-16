@@ -228,13 +228,13 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
                 children: [
-                for (final suggestion in _suggestions)
-                  ListTile(
-                    dense: true,
-                    leading: const Icon(Icons.location_on_outlined),
-                    title: Text(suggestion.label, maxLines: 2),
-                    onTap: () => _choose(suggestion),
-                  ),
+                  for (final suggestion in _suggestions)
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.location_on_outlined),
+                      title: Text(suggestion.label, maxLines: 2),
+                      onTap: () => _choose(suggestion),
+                    ),
                 ],
               ),
             ),

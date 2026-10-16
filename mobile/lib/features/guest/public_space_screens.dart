@@ -97,7 +97,10 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
       if (raw is! List) throw const FormatException('Invalid directory');
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
-        final incoming = raw.whereType<Map>().map(_object).toList(growable: false);
+        final incoming = raw
+            .whereType<Map>()
+            .map(_object)
+            .toList(growable: false);
         if (page == 1) {
           _spaces = incoming;
         } else {
@@ -182,173 +185,181 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
-          key: const Key('guest-public-spaces'),
-          padding: const EdgeInsets.all(MakoloSpacing.lg),
-          children: [
-            Text(
-              'ESPACES',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              'Les Espaces sur Makolo',
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            const Text(
-              'Chaque Espace présente une organisation, une équipe ou une communauté, et ce qu’elle propose.',
-            ),
-            const SizedBox(height: MakoloSpacing.lg),
-            SearchFilterBar(
-              searchField: TextField(
-                key: const Key('guest-space-query'),
-                controller: _search,
-                textInputAction: TextInputAction.search,
-                onChanged: (_) => _criteriaChanged(),
-                onSubmitted: (_) => _searchSpaces(),
-                decoration: InputDecoration(
-                  labelText: 'Rechercher un Espace',
-                  hintText: 'Nom d’une organisation ou communauté',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _search.text.isEmpty
-                      ? null
-                      : IconButton(
-                          key: const Key('guest-space-search-clear'),
-                          tooltip: 'Effacer la recherche',
-                          onPressed: () {
-                            _search.clear();
-                            _criteriaChanged(immediate: true);
-                          },
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                  border: const OutlineInputBorder(),
+            key: const Key('guest-public-spaces'),
+            padding: const EdgeInsets.all(MakoloSpacing.lg),
+            children: [
+              Text(
+                'ESPACES',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
                 ),
               ),
-              filterButtonKey: const Key('guest-spaces-filter-toggle'),
-              filterPanelKey: const Key('guest-spaces-filters'),
-              hasActiveFilters:
-                  _category.isNotEmpty || _city.text.trim().isNotEmpty,
-              filters: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  KeyedSubtree(
-                    key: ValueKey('space-category-$_category'),
-                    child: DropdownButtonFormField<String>(
-                      key: const Key('guest-spaces-category'),
-                    initialValue: _category,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Catégorie',
-                      prefixIcon: Icon(Icons.category_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('Toutes les catégories'),
-                      ),
-                      for (final item in _categories)
-                        DropdownMenuItem(
-                          value: item.value,
-                          child: Text(item.label),
-                        ),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _category = value ?? '');
-                      _criteriaChanged(immediate: true);
-                    },
-                    ),
-                  ),
-                  const SizedBox(height: MakoloSpacing.md),
-                  GeoAutocompleteField(
-                    fieldKey: const Key('guest-spaces-city'),
-                    controller: _city,
-                    gateway: widget.runtime.geoSearch,
-                    labelText: 'Ville',
-                    hintText: 'Ex. Lubumbashi',
-                    onEdited: _onCityEdited,
-                    onSelected: (suggestion) {
-                      _selectedCity = suggestion.label.split(',').first.trim();
-                      _criteriaChanged(immediate: true);
-                    },
-                    onSubmitted: _searchSpaces,
-                  ),
-                  const SizedBox(height: MakoloSpacing.md),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      key: const Key('guest-spaces-reset'),
-                      onPressed: _resetFilters,
-                      child: const Text('Effacer les filtres'),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: MakoloSpacing.sm),
+              Text(
+                'Les Espaces sur Makolo',
+                style: theme.textTheme.headlineSmall,
               ),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            if (_error != null && _page == 1) ...[
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-              TextButton(onPressed: _load, child: const Text('Réessayer')),
-            ],
-            if (_loading && _spaces.isEmpty)
-              const Center(child: CircularProgressIndicator())
-            else ...[
-              if (_spaces.isNotEmpty) ...[
-                Text(
-                  _updatingCriteria
-                      ? (_error == null
-                            ? 'Actualisation… résultats précédents'
-                            : 'Résultats précédents')
-                      : '$_count ${_count == 1 ? 'Espace' : 'Espaces'}',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-              ],
-              if (_spaces.isEmpty && !_loading && _error == null)
-                Text(
-                  _city.text.trim().isEmpty
-                      ? 'Aucun Espace public ne correspond à cette recherche.'
-                      : 'Aucun Espace correspondant à « ${_selectedCity ?? _city.text.trim()} ».',
-                ),
-              for (final space in _spaces)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-                  child: Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        child: Text(
-                          _field(space, 'name').isEmpty
-                              ? '?'
-                              : _field(space, 'name')[0].toUpperCase(),
-                        ),
-                      ),
-                      title: Text(_field(space, 'name')),
-                      subtitle: Text(
-                        [
-                          _field(space, 'city'),
-                          _field(space, 'country'),
-                        ].where((part) => part.isNotEmpty).join(' · '),
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push(
-                        '/spaces/${Uri.encodeComponent(_field(space, 'slug'))}',
-                      ),
-                    ),
+              const SizedBox(height: MakoloSpacing.sm),
+              const Text(
+                'Chaque Espace présente une organisation, une équipe ou une communauté, et ce qu’elle propose.',
+              ),
+              const SizedBox(height: MakoloSpacing.lg),
+              SearchFilterBar(
+                searchField: TextField(
+                  key: const Key('guest-space-query'),
+                  controller: _search,
+                  textInputAction: TextInputAction.search,
+                  onChanged: (_) => _criteriaChanged(),
+                  onSubmitted: (_) => _searchSpaces(),
+                  decoration: InputDecoration(
+                    labelText: 'Rechercher un Espace',
+                    hintText: 'Nom d’une organisation ou communauté',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            key: const Key('guest-space-search-clear'),
+                            tooltip: 'Effacer la recherche',
+                            onPressed: () {
+                              _search.clear();
+                              _criteriaChanged(immediate: true);
+                            },
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
-              if (_loading && _spaces.isNotEmpty)
-                const Center(child: CircularProgressIndicator()),
-              if (_error != null && _page > 1) ...[
+                filterButtonKey: const Key('guest-spaces-filter-toggle'),
+                filterPanelKey: const Key('guest-spaces-filters'),
+                hasActiveFilters:
+                    _category.isNotEmpty || _city.text.trim().isNotEmpty,
+                filters: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    KeyedSubtree(
+                      key: ValueKey('space-category-$_category'),
+                      child: DropdownButtonFormField<String>(
+                        key: const Key('guest-spaces-category'),
+                        initialValue: _category,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Catégorie',
+                          prefixIcon: Icon(Icons.category_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: Text('Toutes les catégories'),
+                          ),
+                          for (final item in _categories)
+                            DropdownMenuItem(
+                              value: item.value,
+                              child: Text(item.label),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          setState(() => _category = value ?? '');
+                          _criteriaChanged(immediate: true);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: MakoloSpacing.md),
+                    GeoAutocompleteField(
+                      fieldKey: const Key('guest-spaces-city'),
+                      controller: _city,
+                      gateway: widget.runtime.geoSearch,
+                      labelText: 'Ville',
+                      hintText: 'Ex. Lubumbashi',
+                      onEdited: _onCityEdited,
+                      onSelected: (suggestion) {
+                        _selectedCity = suggestion.label
+                            .split(',')
+                            .first
+                            .trim();
+                        _criteriaChanged(immediate: true);
+                      },
+                      onSubmitted: _searchSpaces,
+                    ),
+                    const SizedBox(height: MakoloSpacing.md),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        key: const Key('guest-spaces-reset'),
+                        onPressed: _resetFilters,
+                        child: const Text('Effacer les filtres'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.md),
+              if (_error != null && _page == 1) ...[
                 Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
                 TextButton(onPressed: _load, child: const Text('Réessayer')),
               ],
-              if (!_updatingCriteria && _error == null &&
-                  !_hasNext && _spaces.isNotEmpty)
-                const Center(child: Text('Vous avez tout exploré.')),
+              if (_loading && _spaces.isEmpty)
+                const Center(child: CircularProgressIndicator())
+              else ...[
+                if (_spaces.isNotEmpty) ...[
+                  Text(
+                    _updatingCriteria
+                        ? (_error == null
+                              ? 'Actualisation… résultats précédents'
+                              : 'Résultats précédents')
+                        : '$_count ${_count == 1 ? 'Espace' : 'Espaces'}',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: MakoloSpacing.md),
+                ],
+                if (_spaces.isEmpty && !_loading && _error == null)
+                  Text(
+                    _city.text.trim().isEmpty
+                        ? 'Aucun Espace public ne correspond à cette recherche.'
+                        : 'Aucun Espace correspondant à « ${_selectedCity ?? _city.text.trim()} ».',
+                  ),
+                for (final space in _spaces)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                    child: Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Text(
+                            _field(space, 'name').isEmpty
+                                ? '?'
+                                : _field(space, 'name')[0].toUpperCase(),
+                          ),
+                        ),
+                        title: Text(_field(space, 'name')),
+                        subtitle: Text(
+                          [
+                            _field(space, 'city'),
+                            _field(space, 'country'),
+                          ].where((part) => part.isNotEmpty).join(' · '),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push(
+                          '/spaces/${Uri.encodeComponent(_field(space, 'slug'))}',
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_loading && _spaces.isNotEmpty)
+                  const Center(child: CircularProgressIndicator()),
+                if (_error != null && _page > 1) ...[
+                  Text(
+                    _error!,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
+                  TextButton(onPressed: _load, child: const Text('Réessayer')),
+                ],
+                if (!_updatingCriteria &&
+                    _error == null &&
+                    !_hasNext &&
+                    _spaces.isNotEmpty)
+                  const Center(child: Text('Vous avez tout exploré.')),
+              ],
             ],
-          ],
           ),
         ),
       ),
@@ -568,76 +579,76 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
-          key: const Key('guest-public-space-detail'),
-          padding: const EdgeInsets.all(MakoloSpacing.lg),
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () {
-                  if (context.canPop()) {
-                    context.pop();
-                  } else {
-                    context.go('/spaces');
-                  }
-                },
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Tous les Espaces'),
-              ),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            if (_loading && _space.isEmpty)
-              const Center(child: CircularProgressIndicator())
-            else if (_error != null && _space.isEmpty) ...[
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-              TextButton(onPressed: _load, child: const Text('Réessayer')),
-            ] else ...[
-              _PublicSpaceIdentity(space: _space),
-              if (_field(_space, 'description').isNotEmpty) ...[
-                const SizedBox(height: MakoloSpacing.lg),
-                Text('À propos', style: theme.textTheme.titleMedium),
-                const SizedBox(height: MakoloSpacing.xs),
-                Text(_field(_space, 'description')),
-              ],
-              if (_validPublicWebsite(_field(_space, 'website')) != null)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => unawaited(_openWebsite()),
-                    icon: const Icon(Icons.open_in_new),
-                    label: const Text('Site officiel'),
-                  ),
+            key: const Key('guest-public-space-detail'),
+            padding: const EdgeInsets.all(MakoloSpacing.lg),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/spaces');
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Tous les Espaces'),
                 ),
-              const SizedBox(height: MakoloSpacing.xl),
-              Text(
-                'Ce que propose cet Espace',
-                style: theme.textTheme.titleLarge,
               ),
-              if (_count > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                  child: Text(
-                    '$_count possibilités',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ),
               const SizedBox(height: MakoloSpacing.md),
-              if (_possibilities.isEmpty && !_loading && _error == null)
-                const Text(
-                  'Cet Espace ne propose pas encore de possibilité publique.',
+              if (_loading && _space.isEmpty)
+                const Center(child: CircularProgressIndicator())
+              else if (_error != null && _space.isEmpty) ...[
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                TextButton(onPressed: _load, child: const Text('Réessayer')),
+              ] else ...[
+                _PublicSpaceIdentity(space: _space),
+                if (_field(_space, 'description').isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.lg),
+                  Text('À propos', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(_field(_space, 'description')),
+                ],
+                if (_validPublicWebsite(_field(_space, 'website')) != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => unawaited(_openWebsite()),
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('Site officiel'),
+                    ),
+                  ),
+                const SizedBox(height: MakoloSpacing.xl),
+                Text(
+                  'Ce que propose cet Espace',
+                  style: theme.textTheme.titleLarge,
                 ),
-              for (final possibility in _possibilities)
-                PublicPossibilityCard(
-                  item: possibility,
-                  compact: true,
-                  onTap: () => _openPossibility(possibility),
-                ),
-              if (_loading && _possibilities.isNotEmpty)
-                const Center(child: CircularProgressIndicator()),
-              if (_error == null && !_hasNext && _possibilities.isNotEmpty)
-                const Center(child: Text('Vous avez tout exploré.')),
+                if (_count > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                    child: Text(
+                      '$_count possibilités',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                const SizedBox(height: MakoloSpacing.md),
+                if (_possibilities.isEmpty && !_loading && _error == null)
+                  const Text(
+                    'Cet Espace ne propose pas encore de possibilité publique.',
+                  ),
+                for (final possibility in _possibilities)
+                  PublicPossibilityCard(
+                    item: possibility,
+                    compact: true,
+                    onTap: () => _openPossibility(possibility),
+                  ),
+                if (_loading && _possibilities.isNotEmpty)
+                  const Center(child: CircularProgressIndicator()),
+                if (_error == null && !_hasNext && _possibilities.isNotEmpty)
+                  const Center(child: Text('Vous avez tout exploré.')),
+              ],
             ],
-          ],
           ),
         ),
       ),
