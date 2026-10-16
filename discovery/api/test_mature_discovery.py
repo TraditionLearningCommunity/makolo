@@ -210,6 +210,42 @@ class MatureDiscoveryAPITests(TestCase):
             {"state": "empty", "message": None},
         )
 
+    def test_out_of_range_page_is_end_of_field_not_no_match(self):
+        payload = self._items(q="Z3", page=999, page_size=1)["data"]
+        self.assertGreater(payload["count"], 0)
+        self.assertEqual(payload["results"], [])
+        self.assertEqual(payload["items"], [])
+        self.assertEqual(payload["selection"], {"state": "ready", "reason": None})
+        self.assertEqual(payload["terminal"]["state"], "end_of_field")
+        self.assertFalse(payload["has_next"])
+        self.assertEqual(payload["continuation"]["state"], "end")
+        self.assertIsNone(payload["continuation"]["token"])
+
+    def test_generation_timestamp_does_not_assert_owner_fact_freshness(self):
+        data = self._items(q="Z3")["data"]
+        self.assertEqual(
+            data["freshness"]["generated_at"],
+            data["freshness"]["observed_at"],
+        )
+        self.assertEqual(data["freshness"]["fact_freshness"], "not_asserted")
+
+    def test_web_primary_action_is_not_an_unbacked_owner_capability(self):
+        data = self._items(q="Z3 accompagnement")["data"]
+        service = next(
+            item for item in data["results"]
+            if item["identity"]["family"] == "service_activity"
+        )
+        handoff = service["engagement"]
+        self.assertEqual(handoff["state"], "owner_contract")
+        self.assertEqual(handoff["capabilities"], [])
+        presentation = handoff.get("presentation")
+        if presentation is not None:
+            self.assertFalse(presentation["enabled"])
+            self.assertEqual(
+                presentation["web_enabled"],
+                bool(presentation["web"]),
+            )
+
     def test_authenticated_collection_exposes_discover_me_contract_and_cursor(self):
         self.client.force_login(self.participant)
 
