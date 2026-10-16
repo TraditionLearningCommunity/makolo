@@ -563,11 +563,15 @@ def _finalize_projection(
     )
     if card is not None and card.actions.primary is not None:
         primary = card.actions.primary
+        # A Web CTA may remain navigable without a matching owner API.
+        # Do not advertise executable authority from presentation alone.
+        executable = primary.code in projection["engagement"]["capabilities"]
         projection["engagement"]["presentation"] = {
             "label": primary.label,
             "capability": primary.code,
-            "enabled": bool(primary.enabled),
+            "enabled": bool(primary.enabled and executable),
             "web": primary.url,
+            "web_enabled": bool(primary.enabled and primary.url),
         }
     if description:
         projection["detail"] = {"description": description}
@@ -691,9 +695,12 @@ def paginated_projection(
     has_exploration = bool(
         composition.intent.raw_text or composition.intent.constraints
     )
-    is_empty = not results
+    # Empty *page* is not an empty *field*: an out-of-range page must not
+    # claim that the current criteria have no matching possibilities.
+    field_empty = count == 0
+    page_exhausted = count > 0 and not results
     selection_reason = None
-    if is_empty:
+    if field_empty:
         selection_reason = "no_match" if has_exploration else "no_current_proposal"
     payload = {
         "surface": "discover_me" if authenticated else "discover_public",
@@ -709,10 +716,13 @@ def paginated_projection(
         ),
         "freshness": {
             "state": "fresh",
+            # Generation time, not proof that each owner fact was revalidated.
             "observed_at": observed_at.isoformat(),
+            "generated_at": observed_at.isoformat(),
+            "fact_freshness": "not_asserted",
         },
         "selection": {
-            "state": "empty" if is_empty else "ready",
+            "state": "empty" if field_empty else "ready",
             "reason": selection_reason,
         },
         "capabilities": [],
@@ -762,7 +772,7 @@ def paginated_projection(
             }
         },
         "terminal": {
-            "state": "empty" if is_empty else "ok",
+            "state": ("empty" if field_empty else "end_of_field" if page_exhausted else "ok"),
             "message": None,
         },
     }
