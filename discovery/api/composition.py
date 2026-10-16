@@ -593,6 +593,16 @@ def project_rows(rows, *, profile=None) -> list[dict]:
         for family, _, candidate in rows
         if family == "opportunity"
     }
+    # The collection and the existing detail API must expose the same
+    # public description. Bulk-load it for the selected page only.
+    from activities.models import Activity
+
+    descriptions_by_activity = {
+        str(activity_id): description
+        for activity_id, description in Activity.objects.filter(
+            pk__in=activity_ids
+        ).values_list("pk", "description")
+    }
     saved_activity_ids = _saved_activity_ids(profile, activity_ids)
     saved_opportunity_ids = _saved_opportunity_ids(profile, opportunity_ids)
     can_save = _authenticated(profile)
@@ -659,10 +669,19 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             )
         else:
             continue
+        description = (
+            candidate.get("summary") or ""
+            if family == "opportunity"
+            else descriptions_by_activity.get(
+                str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
+                "",
+            )
+        )
         finalized = _finalize_projection(
             projection,
             card=card,
             event_handoffs=event_handoffs,
+            description=description,
         )
         resource = finalized["identity"]["resource"]
         if resource["kind"] == "activity":
@@ -829,28 +848,8 @@ def detail_projection(family, item_id, *, profile=None) -> dict | None:
         profile=profile,
     )[0]
 
-    if family == "activity":
-        from activities.models import Activity
-
-        activity = Activity.objects.filter(pk=item_id).only("description").first()
-        description = activity.description if activity is not None else ""
-    elif family == "service_activity":
-        from services.models import ServiceDetails
-
-        service = (
-            ServiceDetails.objects.filter(activity_id=item_id)
-            .select_related("activity")
-            .only("activity__description")
-            .first()
-        )
-        description = service.activity.description if service is not None else ""
-    elif family == "funding_activity":
-        description = item["funding"].activity.description
-    else:
-        description = item.get("summary") or ""
-
-    if description:
-        projection["detail"] = {"description": description}
+    # The collection already carries the same authorized detail facts.
+    # This endpoint stays available for refresh and direct links.
     return projection
 
 
