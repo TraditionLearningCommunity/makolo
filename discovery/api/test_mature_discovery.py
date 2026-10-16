@@ -172,6 +172,23 @@ class MatureDiscoveryAPITests(TestCase):
         )
         self.assertIsNone(opportunity["identity"]["occurrence"])
 
+    def test_collection_includes_existing_detail_description(self):
+        for profile in (None, self.participant):
+            if profile is None:
+                self.client.logout()
+            else:
+                self.client.force_login(profile)
+            results = self._items(q="Z3", page_size=20)["data"]["results"]
+            self.assertEqual(len(results), 4)
+            for row in results:
+                self.assertTrue(row["links"]["detail"].startswith("/api/v1/"))
+                detail_response = self.client.get(row["links"]["detail"])
+                self.assertEqual(detail_response.status_code, 200)
+                detailed_row = detail_response.json()["data"]["item"]
+                self.assertEqual(row.get("detail"), detailed_row.get("detail"))
+                self.assertEqual(row["identity"], detailed_row["identity"])
+                self.assertTrue(row["detail"]["description"])
+
     def test_web_and_api_use_the_same_canonical_discovery_field(self):
         params = {"q": "Z3", "page_size": 20}
         api = self._items(**params)["data"]
