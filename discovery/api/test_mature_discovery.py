@@ -215,6 +215,51 @@ class MatureDiscoveryAPITests(TestCase):
                     if primary is not None:
                         self.assertFalse(primary["enabled"])
 
+    def test_wire_exposes_only_known_owner_facts_and_empty_collections(self):
+        rows = self._items(q="Z3", page_size=20)["data"]["results"]
+        by_family = {row["identity"]["family"]: row for row in rows}
+        self.assertEqual(
+            set(by_family), {"activity", "service_activity", "funding_activity", "opportunity"}
+        )
+        for row in rows:
+            for key in ("variants", "relations", "temporal_facts", "spatial_facts", "media_bindings"):
+                self.assertIsInstance(row[key], list)
+            self.assertEqual(row["relations"], [])
+            self.assertEqual(row["media_bindings"], [])
+        activity = by_family["activity"]
+        self.assertEqual(activity["variants"], [])
+        self.assertEqual(activity["spatial_facts"], [])
+        self.assertTrue(activity["temporal_facts"])
+        self.assertEqual(by_family["service_activity"]["temporal_facts"], [])
+        self.assertEqual(by_family["service_activity"]["spatial_facts"], [])
+        self.assertEqual(
+            {fact["kind"] for fact in by_family["funding_activity"]["temporal_facts"]},
+            {"opens_at", "closes_at"},
+        )
+        self.assertEqual(
+            {fact["kind"] for fact in by_family["opportunity"]["temporal_facts"]},
+            {"opens_at", "deadline_at"},
+        )
+
+    def test_multiple_occurrences_have_canonical_bounded_variant_references(self):
+        second = self._occurrence(
+            self.event_activity,
+            start=self.now + timedelta(days=3),
+        )
+        event = next(
+            row for row in self._items(q="Z3 concert")["data"]["results"]
+            if row["identity"]["family"] == "activity"
+        )
+        self.assertEqual(
+            {variant["occurrence"]["id"] for variant in event["variants"]},
+            {str(self.event_occurrence.pk), str(second.pk)},
+        )
+        self.assertEqual(
+            {variant["occurrence"]["kind"] for variant in event["variants"]},
+            {"occurrence"},
+        )
+        self.assertEqual(event["identity"]["resource"]["id"], str(self.event_activity.pk))
+
     def test_web_and_api_use_the_same_canonical_discovery_field(self):
         params = {"q": "Z3", "page_size": 20}
         api = self._items(**params)["data"]
