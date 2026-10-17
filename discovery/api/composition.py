@@ -320,7 +320,7 @@ def _opportunity_source_previews(opportunity_ids) -> dict[str, list[dict]]:
     return result
 
 
-def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
+def _public_occurrence_facts_for_rows(rows) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
     """Resolve public occurrence-place roles for selected Activity candidates.
 
     Only Occurrences already admitted by Discovery can be inspected here.
@@ -337,7 +337,7 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
         selected[str(candidate.activity_id)] = set(candidate.matching_occurrence_ids)
 
     if not selected:
-        return {}
+        return {}, {}
     activity_ids = list(selected)
     occurrence_ids = {oid for ids in selected.values() for oid in ids}
     from activities.models import ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
@@ -362,10 +362,25 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
         .order_by("start_date", "start_time", "id")
     )
     facts = {activity_id: [] for activity_id in activity_ids}
+    variants = {activity_id: [] for activity_id in activity_ids}
     for occurrence in queryset:
         activity_id = str(occurrence.activity_id)
         if str(occurrence.pk) not in selected.get(activity_id, set()):
             continue
+        if len(variants[activity_id]) < 12:
+            variants[activity_id].append({
+                "occurrence": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "timing": {
+                    "kind": occurrence.timing_kind,
+                    "start_at": occurrence.start_at.isoformat() if occurrence.start_at else None,
+                    "end_at": occurrence.end_at.isoformat() if occurrence.end_at else None,
+                    "start_date": occurrence.start_date.isoformat() if occurrence.start_date else None,
+                    "end_date": occurrence.end_date.isoformat() if occurrence.end_date else None,
+                    "start_time": occurrence.start_time.isoformat() if occurrence.start_time else None,
+                    "end_time": occurrence.end_time.isoformat() if occurrence.end_time else None,
+                    "timezone": occurrence.timezone,
+                },
+            })
         bucket = facts[activity_id]
         if len(bucket) >= 12:
             continue
@@ -424,7 +439,7 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
             })
             if len(bucket) >= 12:
                 break
-    return facts
+    return facts, variants
 
 
 def _assessment(projection: dict) -> list[dict]:
@@ -728,7 +743,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     )
     activity_resources = _activity_resource_previews(activity_ids)
     opportunity_resources = _opportunity_source_previews(opportunity_ids)
-    public_spatial_facts = _public_spatial_facts_for_rows(rows)
+    public_spatial_facts, occurrence_variants = _public_occurrence_facts_for_rows(rows)
 
     projections = []
     for family, _, candidate in rows:
@@ -805,6 +820,10 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             finalized["spatial_facts"] = public_spatial_facts.get(
                 str(candidate.activity_id), []
             )
+            if candidate.matching_count > 1:
+                finalized["variants"] = occurrence_variants.get(
+                    str(candidate.activity_id), []
+                )
         if resource["kind"] == "activity":
             finalized["resources"] = activity_resources.get(resource["id"], [])
         elif resource["kind"] == "opportunity":
