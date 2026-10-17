@@ -35,12 +35,17 @@ class DiscoveryItemPresentation {
     this.latitude,
     this.longitude,
     this.distanceKm,
+    this.revisionId,
+    this.wire = const {},
   });
 
   final String family;
   final String id;
   final String candidateKey;
   final String? occurrenceId;
+  final String? revisionId;
+  /// Complete server-owned possibility facts, without client inference.
+  final Map<String, dynamic> wire;
   final String? representationKind;
   final String? routeLabel;
   final String title;
@@ -71,6 +76,7 @@ class DiscoveryCollectionPresentation {
     required this.page,
     required this.pageSize,
     required this.hasNext,
+    this.wire = const {},
   });
 
   final List<DiscoveryItemPresentation> items;
@@ -78,6 +84,14 @@ class DiscoveryCollectionPresentation {
   final int page;
   final int pageSize;
   final bool hasNext;
+  /// Complete collection context, continuation, selection and terminal facts.
+  final Map<String, dynamic> wire;
+
+  Map<String, dynamic>? get continuation => _map(wire['continuation']);
+  Map<String, dynamic>? get selection => _map(wire['selection']);
+  Map<String, dynamic>? get terminal => _map(wire['terminal']);
+  Map<String, dynamic>? get exploration => _map(wire['exploration']);
+  String? get continuationToken => _text(continuation?['token']);
 
   static const empty = DiscoveryCollectionPresentation(
     items: [],
@@ -186,13 +200,22 @@ class DiscoverySelector {
     if (reachability == MakoloReachabilityCue.temporarilyUnavailable) {
       states.add(DiscoveryFieldState.offlineWithSnapshot);
     }
-    if (collection.items.isEmpty) {
+    final selection = collection.selection;
+    final terminal = collection.terminal;
+    final reason = _text(selection?['reason']);
+    if (reason == 'no_match') {
+      states.add(DiscoveryFieldState.noMatch);
+    } else if (reason == 'no_current_proposal') {
+      states.add(DiscoveryFieldState.noCurrentProposal);
+    } else if (selection == null && collection.items.isEmpty) {
       states.add(
         hasCriteria
             ? DiscoveryFieldState.noMatch
             : DiscoveryFieldState.noCurrentProposal,
       );
-    } else if (!collection.hasNext) {
+    }
+    if (terminal?['state'] == 'end_of_field' ||
+        (terminal == null && collection.items.isNotEmpty && !collection.hasNext)) {
       states.add(DiscoveryFieldState.endOfField);
     }
 
@@ -237,7 +260,7 @@ class DiscoverySelector {
     Map<String, dynamic> payload, {
     required DateTime now,
   }) {
-    final rawItems = payload['results'];
+    final rawItems = payload['results'] ?? payload['items'];
     final items = rawItems is List
         ? rawItems
               .whereType<Map>()
@@ -251,6 +274,7 @@ class DiscoverySelector {
       page: _int(payload['page']) ?? 1,
       pageSize: _int(payload['page_size']) ?? items.length,
       hasNext: payload['has_next'] == true,
+      wire: Map.unmodifiable(payload),
     );
   }
 
@@ -331,9 +355,11 @@ class DiscoverySelector {
     final representation = _map(item['representation']);
     final family = _text(identity?['family']);
     final id = _text(resource?['id']);
-    final candidateKey = _text(identity?['candidate_key']) ?? '$family:$id';
+    final candidateKey = _text(identity?['candidate_key']);
     final title = _text(representation?['title']);
-    if (family == null || id == null || title == null) return null;
+    if (family == null || id == null || candidateKey == null || title == null) {
+      return null;
+    }
 
     final occurrence = _map(identity?['occurrence']);
     final owner = _map(item['owner']);
@@ -379,6 +405,8 @@ class DiscoverySelector {
       id: id,
       candidateKey: candidateKey,
       occurrenceId: _text(occurrence?['id']),
+      revisionId: _text(_map(identity?['revision'])?['id']),
+      wire: Map.unmodifiable(item),
       representationKind: _text(representation?['kind']),
       routeLabel: _text(representation?['route_label']),
       title: title,
