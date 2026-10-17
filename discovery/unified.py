@@ -54,6 +54,8 @@ def _opportunity_discovery_row(opportunity, *, temporal_state):
         "opportunity_id": str(opportunity.pk),
         "revision_id": str(revision.pk),
         "temporal_state": temporal_state,
+        "opens_at": revision.opens_at.isoformat() if revision.opens_at else None,
+        "deadline_at": revision.deadline_at.isoformat() if revision.deadline_at else None,
         "title": revision.title,
         "summary": revision.summary,
         "issuer_name": revision.issuer_name,
