@@ -262,9 +262,16 @@ class MatureDiscoveryAPITests(TestCase):
             {variant["occurrence"]["kind"] for variant in event["variants"]},
             {"occurrence"},
         )
+        # The API may serialize UTC while fixtures retain their local offset.
+        # Compare instants, not their ISO-8601 textual representations.
+        from datetime import datetime
+
         self.assertEqual(
-            {variant["timing"]["start_at"] for variant in event["variants"]},
-            {self.event_occurrence.start_at.isoformat(), second.start_at.isoformat()},
+            {
+                datetime.fromisoformat(variant["timing"]["start_at"])
+                for variant in event["variants"]
+            },
+            {self.event_occurrence.start_at, second.start_at},
         )
         self.assertEqual(event["identity"]["resource"]["id"], str(self.event_activity.pk))
 
