@@ -93,6 +93,39 @@ class DiscoveryCollectionPresentation {
   Map<String, dynamic>? get exploration => _map(wire['exploration']);
   String? get continuationToken => _text(continuation?['token']);
 
+  /// Reconcile an authoritative next server lot by canonical candidate key.
+  ///
+  /// Existing order is stable; newer facts replace the matching observation
+  /// in place. New candidates follow in server order. The arriving page owns
+  /// the continuation and terminal context.
+  DiscoveryCollectionPresentation reconcile(
+    DiscoveryCollectionPresentation incoming,
+  ) {
+    if (incoming.page <= 1) return incoming;
+    if (incoming.page != page + 1) {
+      throw const FormatException('Non-contiguous Discovery continuation');
+    }
+    final ordered = <DiscoveryItemPresentation>[];
+    final positions = <String, int>{};
+    for (final item in [...items, ...incoming.items]) {
+      final index = positions[item.candidateKey];
+      if (index == null) {
+        positions[item.candidateKey] = ordered.length;
+        ordered.add(item);
+      } else {
+        ordered[index] = item;
+      }
+    }
+    return DiscoveryCollectionPresentation(
+      items: List.unmodifiable(ordered),
+      count: incoming.count,
+      page: incoming.page,
+      pageSize: incoming.pageSize,
+      hasNext: incoming.hasNext,
+      wire: incoming.wire,
+    );
+  }
+
   static const empty = DiscoveryCollectionPresentation(
     items: [],
     count: 0,
