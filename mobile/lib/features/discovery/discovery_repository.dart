@@ -258,7 +258,7 @@ class DiscoveryRepository {
   }
 
   SyncSourceDefinition itemSource(String family, String id) {
-    return SyncSourceDefinition.projectionEnvelope(
+    return SyncSourceDefinition(
       sourceKey: 'discovery-item:$family:$id',
       owner: 'Discovery',
       path: 'api/v1/discovery/items/$family/$id/',
@@ -266,6 +266,26 @@ class DiscoveryRepository {
       resourceKey: '$family:$id',
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: detailFreshness,
+      parser: (response) {
+        final json = response.jsonObject();
+        final envelope = ProjectionEnvelope.parse(
+          json,
+          expectedProjection: itemProjectionKind,
+          expectedScope: 'personal',
+        );
+        final item = DiscoveryWire.receiveItem(json, scope: 'personal');
+        final identity = item['identity'] as Map;
+        final resource = identity['resource'] as Map;
+        if (identity['family'] != family || resource['id'] != id) {
+          throw const FormatException('Unexpected Discovery detail identity');
+        }
+        return AcquiredProjection(
+          schemaVersion: envelope.schemaVersion,
+          payload: {'item': item},
+          sourceGeneratedAt: envelope.generatedAt,
+        );
+      },
+      applier: applyProjectionSnapshot,
     );
   }
 
