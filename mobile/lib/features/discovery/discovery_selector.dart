@@ -103,7 +103,30 @@ class DiscoveryItemPresentation {
 
   bool get canSave => capabilities.contains('save');
   bool get canUnsave => capabilities.contains('unsave');
-  bool get isMappable => latitude != null && longitude != null;
+  bool get isMappable {
+    if (latitude != null &&
+        longitude != null &&
+        latitude! >= -90 &&
+        latitude! <= 90 &&
+        longitude! >= -180 &&
+        longitude! <= 180) {
+      return true;
+    }
+    for (final fact in spatialFacts) {
+      final place = _map(fact['place']) ?? fact;
+      final lat = _double(place['latitude']);
+      final lon = _double(place['longitude']);
+      if (lat != null &&
+          lon != null &&
+          lat >= -90 &&
+          lat <= 90 &&
+          lon >= -180 &&
+          lon <= 180) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
 
 class DiscoveryCollectionPresentation {
