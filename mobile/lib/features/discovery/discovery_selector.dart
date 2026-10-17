@@ -66,6 +66,35 @@ class DiscoveryItemPresentation {
   final Set<String> capabilities;
   final Map<String, String> links;
 
+  Map<String, dynamic>? get identity => _map(wire['identity']);
+  Map<String, dynamic>? get representation => _map(wire['representation']);
+  Map<String, dynamic>? get ownerFacts => _map(wire['owner']);
+  Map<String, dynamic>? get provenance => _map(wire['provenance']);
+  Map<String, dynamic>? get personalRelation =>
+      _map(wire['personal_relation']);
+  Map<String, dynamic>? get saved => _map(wire['saved']);
+  Map<String, dynamic>? get watch => _map(wire['watch']);
+  Map<String, dynamic>? get priceFacts => _map(wire['price']);
+  Map<String, dynamic>? get availabilityFacts => _map(wire['availability']);
+  Map<String, dynamic>? get placeFacts => _map(wire['place']);
+  Map<String, dynamic>? get timingFacts => _map(wire['timing']);
+  Map<String, dynamic>? get engagement => _map(wire['engagement']);
+  Map<String, dynamic>? get knowledge => _map(wire['knowledge']);
+  Map<String, dynamic>? get freshness => _map(wire['freshness']);
+  List<Map<String, dynamic>> get facts => _objectFacts(wire['facts']);
+  List<Map<String, dynamic>> get assessment =>
+      _objectFacts(wire['assessment']);
+  List<Map<String, dynamic>> get variants => _objectFacts(wire['variants']);
+  List<Map<String, dynamic>> get relations => _objectFacts(wire['relations']);
+  List<Map<String, dynamic>> get temporalFacts =>
+      _objectFacts(wire['temporal_facts']);
+  List<Map<String, dynamic>> get spatialFacts =>
+      _objectFacts(wire['spatial_facts']);
+  List<Map<String, dynamic>> get mediaBindings =>
+      _objectFacts(wire['media_bindings']);
+  List<Map<String, dynamic>> get handoffs =>
+      _objectFacts(wire['handoffs']);
+
   bool get canSave => capabilities.contains('save');
   bool get canUnsave => capabilities.contains('unsave');
   bool get isMappable => latitude != null && longitude != null;
@@ -96,6 +125,17 @@ class DiscoveryCollectionPresentation {
   Map<String, dynamic>? get terminal => _map(wire['terminal']);
   Map<String, dynamic>? get exploration => _map(wire['exploration']);
   String? get continuationToken => _text(continuation?['token']);
+  String? get surface => _text(wire['surface']);
+  Map<String, dynamic>? get actor => _map(wire['actor']);
+  Map<String, dynamic>? get viewer => _map(wire['viewer']);
+  Map<String, dynamic>? get freshness => _map(wire['freshness']);
+  String? get selectionReason => _text(selection?['reason']);
+  String? get terminalState => _text(terminal?['state']);
+  String? get continuationState => _text(continuation?['state']);
+  bool get hasPrevious => wire['has_previous'] == true;
+  String? get timezone => _text(wire['timezone']);
+  bool get nearbyActive => wire['nearby_active'] == true;
+
 
   /// Reconcile an authoritative next server lot by canonical candidate key.
   ///
@@ -485,6 +525,17 @@ class DiscoverySelector {
       FreshnessState.expired => MakoloFreshnessCue.expired,
     };
   }
+}
+
+List<Map<String, dynamic>> _objectFacts(Object? raw) {
+  if (raw is! List) return const [];
+  return List.unmodifiable(
+    raw.whereType<Map>().map(
+      (value) => Map<String, dynamic>.unmodifiable(
+        Map<String, dynamic>.from(value),
+      ),
+    ),
+  );
 }
 
 Map<String, dynamic>? _map(Object? value) =>
