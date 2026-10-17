@@ -348,6 +348,8 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
         if str(occurrence.pk) not in selected.get(activity_id, set()):
             continue
         bucket = facts[activity_id]
+        if len(bucket) >= 12:
+            continue
         for link in occurrence.place_links.all():
             place = link.place
             if not place.is_active or not _space_place_is_public(occurrence.activity, place):
@@ -365,8 +367,6 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
             })
             if len(bucket) >= 12:
                 break
-        if len(bucket) >= 12:
-            continue
     return facts
 
 
