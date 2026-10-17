@@ -15,6 +15,7 @@ from .forms import ServiceStartForm
 from .models import OpportunityPolicy
 from .native_start import (
     ServiceStartIdempotencyConflict,
+    replay_native_start_if_exists,
     start_service_journey_idempotently,
 )
 from .views import public_services
@@ -34,6 +35,42 @@ def _error_from_owner(exc):
     if hasattr(exc, "message_dict"):
         return ValidationError(exc.message_dict)
     return ValidationError(getattr(exc, "messages", [str(exc)]))
+
+
+def _conflict_response():
+    response = Response(
+        {
+            "code": "idempotency_conflict",
+            "detail": "Clé déjà utilisée pour une autre demande.",
+        },
+        status=409,
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+def _journey_response(*, service, journey, created):
+    response = Response(
+        {
+            "journey": {
+                "kind": "journey",
+                "id": str(journey.pk),
+                "workflow": journey.workflow,
+                "status": journey.status,
+            },
+            "service": {"kind": "service", "id": str(service.pk)},
+            "replayed": not created,
+            "links": {
+                "journey": reverse(
+                    "personal-detail-projections:journey-detail",
+                    kwargs={"pk": journey.pk},
+                ),
+            },
+        },
+        status=201 if created else 200,
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 class ServiceStartAPIView(APIView):
@@ -67,6 +104,23 @@ class ServiceStartAPIView(APIView):
         unexpected = set(request.data) - {"objective", "opportunity"}
         if unexpected:
             raise ValidationError({"body": ["Champs non reconnus."]})
+        operation_key = request.headers.get("Idempotency-Key", "")
+        try:
+            replay = replay_native_start_if_exists(
+                service=service, actor=request.user, operation_key=operation_key,
+                objective=request.data.get("objective") or "",
+                opportunity_id=request.data.get("opportunity"),
+            )
+        except ServiceStartIdempotencyConflict:
+            return _conflict_response()
+        except DjangoValidationError as exc:
+            raise _error_from_owner(exc) from exc
+        if replay is not None:
+            journey, created = replay
+            return _journey_response(
+                service=service, journey=journey, created=created,
+            )
+
         if (
             service.opportunity_policy == OpportunityPolicy.NONE
             and request.data.get("opportunity")
@@ -83,38 +137,15 @@ class ServiceStartAPIView(APIView):
             journey, created = start_service_journey_idempotently(
                 service=service,
                 actor=request.user,
-                operation_key=request.headers.get("Idempotency-Key", ""),
+                operation_key=operation_key,
                 objective=form.cleaned_data.get("objective") or "",
                 opportunity=form.cleaned_data.get("opportunity"),
             )
         except ServiceStartIdempotencyConflict:
-            response = Response(
-                {"code": "idempotency_conflict", "detail": "Clé déjà utilisée pour une autre demande."},
-                status=409,
-            )
-            response["Cache-Control"] = "private, no-store"
-            return response
+            return _conflict_response()
         except DjangoValidationError as exc:
             raise _error_from_owner(exc) from exc
 
-        response = Response(
-            {
-                "journey": {
-                    "kind": "journey",
-                    "id": str(journey.pk),
-                    "workflow": journey.workflow,
-                    "status": journey.status,
-                },
-                "service": {"kind": "service", "id": str(service.pk)},
-                "replayed": not created,
-                "links": {
-                    "journey": reverse(
-                        "personal-detail-projections:journey-detail",
-                        kwargs={"pk": journey.pk},
-                    ),
-                },
-            },
-            status=201 if created else 200,
+        return _journey_response(
+            service=service, journey=journey, created=created,
         )
-        response["Cache-Control"] = "private, no-store"
-        return response
