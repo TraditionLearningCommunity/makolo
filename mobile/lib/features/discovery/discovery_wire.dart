@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../sync/projection_contract.dart';
 
 /// Validates the Django Discovery wire without deriving domain truth.
@@ -91,7 +93,8 @@ final class DiscoveryWire {
         if (a == null ||
             b == null ||
             _map(a['identity'])?['candidate_key'] !=
-                _map(b['identity'])?['candidate_key']) {
+                _map(b['identity'])?['candidate_key'] ||
+            jsonEncode(a) != jsonEncode(b)) {
           throw const FormatException('Inconsistent Discovery item identity');
         }
       }
@@ -117,6 +120,8 @@ final class DiscoveryWire {
         'spatial_facts',
         'media_bindings',
         'assessment',
+        'facts',
+        'presentation_facts',
       ]) {
         final value = item[key];
         if (value != null &&
@@ -135,6 +140,10 @@ final class DiscoveryWire {
         'timing',
         'availability',
         'engagement',
+        'participant_presentation',
+        'knowledge',
+        'freshness',
+        'detail',
       ]) {
         if (item[key] != null && item[key] is! Map) {
           throw FormatException('Invalid Discovery object: $key');
@@ -144,6 +153,22 @@ final class DiscoveryWire {
           (item['capabilities'] is! List ||
               (item['capabilities'] as List).any((value) => value is! String))) {
         throw const FormatException('Invalid Discovery capabilities');
+      }
+      if (item['links'] != null &&
+          (item['links'] is! Map ||
+              (item['links'] as Map).values.any(
+                (value) => value != null && value is! String,
+              ))) {
+        throw const FormatException('Invalid Discovery links');
+      }
+      for (final key in ['occurrence', 'revision']) {
+        final reference = identity[key];
+        if (reference != null &&
+            (_map(reference) == null ||
+                !_nonEmpty(_map(reference)?['kind']) ||
+                !_nonEmpty(_map(reference)?['id']))) {
+          throw FormatException('Invalid Discovery reference: $key');
+        }
       }
     }
     if (!currentWire) return;
@@ -166,6 +191,16 @@ final class DiscoveryWire {
       if (data[key] is! Map) {
         throw FormatException('Missing Discovery context: $key');
       }
+    }
+    if (data['capabilities'] != null &&
+        (data['capabilities'] is! List ||
+            (data['capabilities'] as List).any((value) => value is! String))) {
+      throw const FormatException('Invalid Discovery collection capabilities');
+    }
+    if (data['handoffs'] != null &&
+        (data['handoffs'] is! List ||
+            (data['handoffs'] as List).any((value) => value is! Map))) {
+      throw const FormatException('Invalid Discovery collection handoffs');
     }
     final continuation = _map(data['continuation'])!;
     if (continuation['state'] != 'more' &&
