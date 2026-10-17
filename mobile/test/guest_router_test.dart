@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:convert' as convert;
 
 import 'package:flutter/material.dart';
 import 'package:makolo_mobile/platform/location/geo_search_gateway.dart';
@@ -79,7 +79,7 @@ Map<String, dynamic> _item(String title, String id) => {
   'identity': {
     'family': 'activity',
     'candidate_key': 'activity:$id',
-    'resource': {'id': id},
+    'resource': {'kind': 'activity', 'id': id},
   },
   'representation': {
     'title': title,
@@ -89,6 +89,76 @@ Map<String, dynamic> _item(String title, String id) => {
   'capabilities': ['view'],
   'links': {'detail': '/api/v1/discovery/items/activity/$id/'},
 };
+
+/// Legacy screen fixtures are framed as the actual B1 public wire.
+/// Contract rejection cases are tested directly in discovery_wire_test.dart.
+String _mockResponseJson(Object? value) {
+  if (value is! Map || value['data'] is! Map) {
+    return convert.jsonEncode(value);
+  }
+  final data = Map<String, dynamic>.from(value['data'] as Map);
+  final results = data['results'];
+  final detail = data['item'];
+  if (results is! List && detail is! Map) {
+    return convert.jsonEncode(value);
+  }
+  if (detail is Map) {
+    if (detail['identity'] is! Map) {
+      return convert.jsonEncode(value);
+    }
+    return convert.jsonEncode({
+      ...value,
+      'meta': {
+        'projection': 'discovery.item',
+        'schema_version': 1,
+        'scope': 'public',
+        'generated_at': '2026-10-17T12:00:00+00:00',
+      },
+    });
+  }
+  if (results!.isNotEmpty &&
+      results.first is Map &&
+      (results.first as Map)['identity'] is! Map) {
+    return convert.jsonEncode(value);
+  }
+  final count = data['count'];
+  final emptyField = count == 0;
+  final hasNext = data['has_next'] == true;
+  data.addAll({
+    'surface': 'discover_public',
+    'actor': null,
+    'viewer': null,
+    'items': results,
+    'selection': {
+      'state': emptyField ? 'empty' : 'ready',
+      'reason': emptyField ? 'no_current_proposal' : null,
+    },
+    'terminal': {
+      'state': emptyField
+          ? 'empty'
+          : results.isEmpty
+          ? 'end_of_field'
+          : 'ok',
+      'message': null,
+    },
+    'continuation': {
+      'state': hasNext ? 'more' : 'end',
+      'token': hasNext ? 'fixture-opaque-next-page' : null,
+    },
+    'exploration': {'raw_text': '', 'constraints': <Object>[]},
+    'freshness': {'state': 'fresh', 'fact_freshness': 'not_asserted'},
+  });
+  return convert.jsonEncode({
+    ...value,
+    'meta': {
+      'projection': 'discovery.items',
+      'schema_version': 1,
+      'scope': 'public',
+      'generated_at': '2026-10-17T12:00:00+00:00',
+    },
+    'data': data,
+  });
+}
 
 void main() {
   testWidgets('guest enters public home with no Profile or Space shell', (
@@ -130,7 +200,7 @@ void main() {
       expect(request.url.path, '/api/v1/discovery/items/');
       seenQueries.add(request.url.queryParameters['q'] ?? '');
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': 0,
             'page': 1,
@@ -240,7 +310,7 @@ void main() {
         seenQueries.add(request.url.queryParameters['q'] ?? '');
         final filtered = request.url.queryParameters['q'] == '023';
         return MockResponse(
-          jsonEncode({
+          _mockResponseJson({
             'data': {
               'count': filtered ? 1 : 2,
               'page': 1,
@@ -326,7 +396,7 @@ void main() {
       final client = MockClient((request) async {
         queries.add(request.url);
         return MockResponse(
-          jsonEncode({
+          _mockResponseJson({
             'data': {
               'count': 0,
               'page': 1,
@@ -368,7 +438,7 @@ void main() {
       expect(request.url.path, '/api/v1/discovery/items/');
       requests.add(request.url);
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': 0,
             'page': 1,
@@ -410,7 +480,7 @@ void main() {
       final client = MockClient((request) async {
         requests.add(request.url);
         return MockResponse(
-          jsonEncode({
+          _mockResponseJson({
             'data': {
               'count': 0,
               'page': 1,
@@ -426,7 +496,7 @@ void main() {
         apiKey: 'test-only',
         dio: MockClient(
           (request) async => MockResponse(
-            jsonEncode({
+            _mockResponseJson({
               'features': [
                 {
                   'id': 'place.kolwezi',
@@ -474,7 +544,7 @@ void main() {
       final client = MockClient((request) async {
         requests.add(request.url);
         return MockResponse(
-          jsonEncode({
+          _mockResponseJson({
             'data': {
               'count': 0,
               'page': 1,
@@ -516,7 +586,7 @@ void main() {
       final q = request.url.queryParameters['q'];
       if (q == 'ancien') return previous.future;
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': q == 'nouveau' ? 1 : 0,
             'page': 1,
@@ -552,7 +622,7 @@ void main() {
 
     previous.complete(
       MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': 1,
             'page': 1,
@@ -580,7 +650,7 @@ void main() {
       seenPages.add(request.url.queryParameters['page'] ?? '');
       final page = int.parse(request.url.queryParameters['page'] ?? '1');
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': 24,
             'page': page,
@@ -629,7 +699,7 @@ void main() {
         '/api/v1/discovery/items/activity/11111111-1111-4111-8111-111111111111/',
       );
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'item': {
               ..._item(
@@ -676,7 +746,7 @@ void main() {
       expect(request.headers.containsKey('Authorization'), isFalse);
       if (request.url.path.endsWith('/public-spaces/')) {
         return MockResponse(
-          jsonEncode({
+          _mockResponseJson({
             'data': {
               'count': 1,
               'page': 1,
@@ -699,7 +769,7 @@ void main() {
         '/api/v1/organizations/public-spaces/association-visible/',
       );
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'space': {
               'name': 'Association Visible',
@@ -755,7 +825,7 @@ void main() {
       final client = MockClient((request) async {
         if (request.url.path.endsWith('/public-spaces/agri/')) {
           return MockResponse(
-            jsonEncode({
+            _mockResponseJson({
               'data': {
                 'space': {
                   'name': 'AgriFuture Cooperative',
@@ -787,7 +857,7 @@ void main() {
         }
         expect(request.url.path, '/api/v1/discovery/items/activity/$id/');
         return MockResponse(
-          jsonEncode({
+          _mockResponseJson({
             'data': {
               'item': {
                 ..._item(title, id),
@@ -830,7 +900,7 @@ void main() {
       expect(request.url.path, '/api/v1/organizations/public-spaces/');
       seenQueries.add(request.url);
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': 0,
             'page': 1,
@@ -904,7 +974,7 @@ void main() {
     final client = MockClient((request) async {
       queries.add(request.url);
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': 0,
             'page': 1,
@@ -956,7 +1026,7 @@ void main() {
         }
       }
       return MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': 22,
             'page': int.parse(page),
@@ -1030,7 +1100,7 @@ void main() {
   ) async {
     final client = MockClient(
       (request) async => MockResponse(
-        jsonEncode({
+        _mockResponseJson({
           'data': {
             'count': 0,
             'page': 1,
