@@ -43,6 +43,10 @@ def _replay_or_conflict(
     opportunity_id=None,
 ):
     existing = context.journey
+    if not isinstance(objective, str):
+        raise ServiceStartIdempotencyConflict(
+            "Cette clé ne correspond pas aux données de la requête."
+        )
     requested_opportunity_id = getattr(opportunity, "pk", None)
     if opportunity_id is not None:
         try:
