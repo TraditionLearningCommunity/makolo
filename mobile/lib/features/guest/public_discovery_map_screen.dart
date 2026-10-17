@@ -8,7 +8,14 @@ import '../../design/makolo_theme.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/public_discovery_points_map.dart';
 import '../discovery/discovery_repository.dart';
+import '../discovery/discovery_selector.dart';
+import '../discovery/discovery_wire.dart';
 import 'public_shell.dart';
+
+typedef _MappedPossibility = ({
+  DiscoverySpatialAnchor anchor,
+  DiscoveryItemPresentation item,
+});
 
 class PublicDiscoveryMapScreen extends StatefulWidget {
   const PublicDiscoveryMapScreen({
@@ -26,7 +33,10 @@ class PublicDiscoveryMapScreen extends StatefulWidget {
 }
 
 class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
-  List<Map<String, dynamic>> _points = const [];
+  static const _selector = DiscoverySelector();
+  DiscoveryCollectionPresentation _collection =
+      DiscoveryCollectionPresentation.empty;
+  List<_MappedPossibility> _points = const [];
   bool _loading = true;
   String? _error;
 
@@ -36,14 +46,18 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     unawaited(_load());
   }
 
-  Map<String, dynamic> _object(Object? value) =>
-      value is Map ? Map<String, dynamic>.from(value) : const {};
+  @override
+  void didUpdateWidget(covariant PublicDiscoveryMapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.query.mapCanonicalQuery != widget.query.mapCanonicalQuery) {
+      _collection = DiscoveryCollectionPresentation.empty;
+      _points = const [];
+      unawaited(_load());
+    }
+  }
 
-  double? _number(Object? value) => value is num
-      ? value.toDouble()
-      : double.tryParse(value?.toString() ?? '');
-
-  Future<void> _load() async {
+  Future<void> _load({bool next = false}) async {
+    if (next && (_loading || !_collection.hasNext)) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -51,21 +65,30 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Public API unavailable');
-      final response = await api.publicGet(widget.query.mapPath);
-      final raw = response.jsonObject()['results'];
-      if (raw is! List) throw const FormatException('Invalid map results');
-      final points = raw
-          .whereType<Map>()
-          .map(_object)
-          .where((item) {
-            final place = _object(item['place']);
-            return _number(place['latitude']) != null &&
-                _number(place['longitude']) != null;
-          })
-          .toList(growable: false);
+      final query = widget.query.copyWith(
+        page: next ? _collection.page + 1 : 1,
+        pageSize: 50,
+        continuation: next ? _collection.continuationToken : null,
+      );
+      final response = await api.publicGet(query.path);
+      final wire = DiscoveryWire.receive(
+        response.jsonObject(),
+        scope: 'public',
+      );
+      final incoming = _selector.publicCollection(wire.snapshotPayload);
       if (!mounted) return;
+      final collection = next ? _collection.reconcile(incoming) : incoming;
+      final items = {
+        for (final item in collection.items) item.candidateKey: item,
+      };
+      final anchors = _selector.spatialAnchorsFromCollection(collection);
       setState(() {
-        _points = points;
+        _collection = collection;
+        _points = [
+          for (final anchor in anchors)
+            if (items[anchor.candidateKey] != null)
+              (anchor: anchor, item: items[anchor.candidateKey]!),
+        ];
         _loading = false;
       });
     } on Object {
@@ -77,10 +100,11 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     }
   }
 
-  void _open(Map<String, dynamic> item) {
-    final id = item['activity_id']?.toString();
-    if (id == null || id.isEmpty) return;
-    context.push('/discover/items/activity/${Uri.encodeComponent(id)}');
+  void _open(DiscoveryItemPresentation item) {
+    context.push(
+      '/discover/items/${Uri.encodeComponent(item.family)}/'
+      '${Uri.encodeComponent(item.id)}',
+    );
   }
 
   @override
@@ -107,57 +131,79 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
           const SizedBox(height: MakoloSpacing.sm),
           Text('Explorer sur la carte', style: theme.textTheme.headlineSmall),
           const SizedBox(height: MakoloSpacing.md),
-          if (_loading)
+          if (_loading && !hasPoints)
             const Center(child: CircularProgressIndicator())
-          else if (_error != null) ...[
+          else if (_error != null && !hasPoints) ...[
             Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
             TextButton(onPressed: _load, child: const Text('Réessayer')),
-          ] else if (!hasPoints)
-            const Text(
-              'Aucune possibilité géolocalisable pour cette recherche.',
-            )
+          ] else if (!hasPoints && !_collection.hasNext)
+            const Text('Aucune possibilité géolocalisable pour cette recherche.')
           else ...[
-            SizedBox(
-              height: 320,
-              child: PublicDiscoveryPointsMap(
-                config: widget.runtime.mapConfig,
-                points: [
-                  for (final point in _points)
-                    MapCoordinate(
-                      _number(_object(point['place'])['latitude'])!,
-                      _number(_object(point['place'])['longitude'])!,
-                    ),
-                ],
-                fallbackBuilder: (context, state, retry) => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Carte indisponible. Les lieux restent consultables.',
+            if (hasPoints) ...[
+              SizedBox(
+                height: 320,
+                child: PublicDiscoveryPointsMap(
+                  config: widget.runtime.mapConfig,
+                  points: [
+                    for (final point in _points)
+                      MapCoordinate(
+                        point.anchor.latitude,
+                        point.anchor.longitude,
                       ),
-                      if (state == MakoloMapRuntimeState.error)
-                        TextButton(
-                          onPressed: retry,
-                          child: const Text('Réessayer la carte'),
+                  ],
+                  fallbackBuilder: (context, state, retry) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Carte indisponible. Les lieux restent consultables.',
                         ),
-                    ],
+                        if (state == MakoloMapRuntimeState.error)
+                          TextButton(
+                            onPressed: retry,
+                            child: const Text('Réessayer la carte'),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            Text('${_points.length} lieux', style: theme.textTheme.titleMedium),
-            const SizedBox(height: MakoloSpacing.sm),
-            for (final item in _points)
-              Card(
-                child: ListTile(
-                  title: Text(item['title']?.toString() ?? 'Possibilité'),
-                  subtitle: Text(
-                    _object(item['place'])['name']?.toString() ?? '',
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                '${_points.length} lieux',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: MakoloSpacing.sm),
+              for (final point in _points)
+                Card(
+                  child: ListTile(
+                    title: Text(point.item.title),
+                    subtitle: Text(
+                      (point.anchor.fact['place'] is Map
+                                  ? (point.anchor.fact['place'] as Map)['name']
+                                  : null)
+                              ?.toString() ??
+                          point.item.place ??
+                          '',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _open(point.item),
                   ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _open(item),
                 ),
+            ],
+            if (_loading)
+              const Center(child: CircularProgressIndicator()),
+            if (_error != null) ...[
+              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+              TextButton(
+                onPressed: () => _load(next: true),
+                child: const Text('Réessayer'),
+              ),
+            ],
+            if (_collection.hasNext && !_loading && _error == null)
+              TextButton(
+                onPressed: () => _load(next: true),
+                child: const Text('Explorer plus de lieux'),
               ),
           ],
         ],
