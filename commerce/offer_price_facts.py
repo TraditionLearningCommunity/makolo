@@ -99,3 +99,69 @@ def offer_price_facts(*, activity=None, occurrence=None, at=None) -> OfferPriceF
         owner_updated_at=stats["owner_updated_at"],
         earliest_offer_end_at=stats["earliest_offer_end_at"],
     )
+
+
+def occurrence_variant_price_facts(*, occurrences, at=None) -> dict:
+    """Compare at most 12 owner-scoped Occurrences selected by the caller.
+
+    The caller MUST pass Occurrences whose visibility and viewer eligibility
+    have already been checked. This is an on-demand owner read operation, not
+    a public ID-based comparison API and not a replacement for checkout.
+    """
+    selected = list(occurrences)
+    if not 2 <= len(selected) <= 12:
+        raise ValueError("La comparaison exige entre 2 et 12 Occurrences.")
+    identities = {occurrence.pk for occurrence in selected}
+    activity_ids = {occurrence.activity_id for occurrence in selected}
+    if (
+        len(identities) != len(selected)
+        or len(activity_ids) != 1
+        or None in identities
+    ):
+        raise ValueError("Les variantes doivent être distinctes et partager une Activity.")
+
+    snapshot_at = at if at is not None else timezone.now()
+    rows = [
+        (
+            occurrence,
+            offer_price_facts(occurrence=occurrence, at=snapshot_at),
+        )
+        for occurrence in selected
+    ]
+    prices = [price for _, price in rows]
+    currencies = {price.currency for price in prices}
+    comparable = (
+        len(currencies) == 1 and None not in currencies
+        and all(price.state in {"free", "exact", "range"} for price in prices)
+    )
+    if comparable:
+        minimum = min(price.minimum for price in prices)
+        maximum = max(price.maximum for price in prices)
+        distinct_terms = {(price.minimum, price.maximum) for price in prices}
+        if len(distinct_terms) > 1:
+            state = "variant_dependent"
+        elif maximum == Decimal("0.00"):
+            state = "free"
+        elif minimum == maximum:
+            state = "exact"
+        else:
+            state = "range"
+        currency = prices[0].currency
+    else:
+        state = "unknown"
+        minimum = maximum = currency = None
+    return {
+        "state": state,
+        "minimum": str(minimum) if minimum is not None else None,
+        "maximum": str(maximum) if maximum is not None else None,
+        "currency": currency,
+        "basis": "selected_occurrence_offers",
+        "fact_freshness": "not_asserted",
+        "variants": [
+            {
+                "occurrence": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "price": price.as_dict(),
+            }
+            for occurrence, price in rows
+        ],
+    }
