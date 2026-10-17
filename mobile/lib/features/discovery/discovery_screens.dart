@@ -17,6 +17,7 @@ import 'detail_selector.dart';
 import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
 import 'discovery_selector.dart';
+import 'discovery_wire.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({
@@ -50,14 +51,20 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     try {
       final local = await widget.repository.readItems(_query);
       if (!mounted) return;
+      var locallyValid = local != null;
       if (local != null) {
-        await widget.repository.indexItemPreviews(_query);
+        try {
+          DiscoveryWire.validateData(local.payload);
+          await widget.repository.indexItemPreviews(_query);
+        } on FormatException {
+          locallyValid = false;
+        }
       }
       final source = await widget.repository.readSource(
         widget.repository.itemsSource(_query),
       );
       if (!mounted) return;
-      if (local == null ||
+      if (!locallyValid ||
           DiscoveryRepository.discoveryFreshness.evaluate(
                 local,
                 now: DateTime.now(),
@@ -73,6 +80,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Future<void> _refreshItems() async {
     if (_refreshing || !mounted) return;
+    final source = await widget.repository.readSource(
+      widget.repository.itemsSource(_query),
+    );
+    if (!mounted) return;
+    if (source.lastErrorCode == 'continuation_rejected') {
+      setState(() => _query = _query.copyWith(page: 1));
+    }
     setState(() {
       _refreshing = true;
       _acquisitionFailed = false;
@@ -174,6 +188,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                   : MakoloFailureCue.none,
               refreshing: _refreshing,
               serverUnavailable: serverUnavailable,
+              sourceErrorCode: sourceState.lastErrorCode,
             );
             return RefreshIndicator(
               onRefresh: _refreshItems,
@@ -406,6 +421,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                               ? MakoloFailureCue.recoverable
                               : MakoloFailureCue.none,
                           refreshing: _refreshing,
+                          sourceErrorCode: sourceState.lastErrorCode,
                         );
                         return RefreshIndicator(
                           onRefresh: () => _refreshPage(_query),
@@ -413,7 +429,16 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             selection: selection,
                             onOpen: _open,
                             onPage: _movePage,
-                            onRetry: () => unawaited(_refreshPage(_query)),
+                            onRetry: () {
+                              if (sourceState.lastErrorCode ==
+                                  'continuation_rejected') {
+                                final reset = _query.copyWith(page: 1);
+                                setState(() => _query = reset);
+                                unawaited(_refreshPage(reset));
+                              } else {
+                                unawaited(_refreshPage(_query));
+                              }
+                            },
                             onResetCriteria: _resetCriteria,
                           ),
                         );
@@ -587,7 +612,13 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     return StreamBuilder<StoredProjection?>(
       stream: widget.repository.watchItem(widget.family, widget.id),
       builder: (context, snapshot) {
-        final item = _selector.detail(snapshot.data);
+        DiscoveryItemPresentation? item;
+        var invalidDetail = false;
+        try {
+          item = _selector.detail(snapshot.data);
+        } on FormatException {
+          invalidDetail = true;
+        }
         return Scaffold(
           appBar: AppBar(
             title: const Text('Possibilité'),
@@ -603,7 +634,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
-                        message: 'Ce contenu n’est pas disponible.',
+                        message: invalidDetail
+                            ? 'La réponse de cette possibilité est incompatible.'
+                            : 'Ce contenu n’est pas disponible.',
                         onRetry: _refresh,
                       )
               : ListView(
