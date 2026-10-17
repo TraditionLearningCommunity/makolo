@@ -297,6 +297,9 @@ class DiscoverySelector {
 
     final rawItems = projection.payload['results'] ?? projection.payload['items'];
     try {
+      if (projection.schemaVersion != 1) {
+        throw const FormatException('Unsupported Discovery snapshot version');
+      }
       DiscoveryWire.validateData(projection.payload);
     } on FormatException {
       return DiscoveryFieldSelection(
@@ -388,6 +391,9 @@ class DiscoverySelector {
   }) {
     final payload = projection?.payload;
     if (payload == null) return DiscoveryCollectionPresentation.empty;
+    if (projection!.schemaVersion != 1) {
+      throw const FormatException('Unsupported Discovery snapshot version');
+    }
     return _collectionFromPayload(payload, now: now ?? DateTime.now());
   }
 
@@ -418,6 +424,9 @@ class DiscoverySelector {
     StoredProjection? projection, {
     DateTime? now,
   }) {
+    if (projection != null && projection.schemaVersion != 1) {
+      throw const FormatException('Unsupported Discovery detail snapshot');
+    }
     final raw = projection?.payload['item'];
     if (raw is! Map) return null;
     final item = Map<String, dynamic>.from(raw);
