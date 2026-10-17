@@ -12,6 +12,7 @@ enum DiscoveryFieldState {
   offlineNoSnapshot,
   serverUnavailableNoSnapshot,
   contractError,
+  continuationRejected,
 }
 
 class DiscoveryItemPresentation {
@@ -245,10 +246,15 @@ class DiscoverySelector {
     MakoloFailureCue failure = MakoloFailureCue.none,
     bool refreshing = false,
     bool serverUnavailable = false,
+    String? sourceErrorCode,
     DateTime? now,
   }) {
     if (projection == null) {
       final states = <DiscoveryFieldState>{
+        if (sourceErrorCode == 'contract_error')
+          DiscoveryFieldState.contractError,
+        if (sourceErrorCode == 'continuation_rejected')
+          DiscoveryFieldState.continuationRejected,
         if (reachability == MakoloReachabilityCue.temporarilyUnavailable)
           serverUnavailable
               ? DiscoveryFieldState.serverUnavailableNoSnapshot
@@ -261,7 +267,9 @@ class DiscoverySelector {
               ? MakoloAvailabilityCue.initial
               : MakoloAvailabilityCue.empty,
           reachability: reachability,
-          failure: failure,
+          failure: sourceErrorCode == 'contract_error'
+              ? MakoloFailureCue.blocking
+              : failure,
           refreshing: refreshing,
         ),
         states: Set.unmodifiable(states),
@@ -290,7 +298,12 @@ class DiscoverySelector {
       now: now ?? DateTime.now(),
     );
     final malformedOnly = rawItems.isNotEmpty && collection.items.isEmpty;
-    final states = <DiscoveryFieldState>{};
+    final states = <DiscoveryFieldState>{
+      if (sourceErrorCode == 'contract_error')
+        DiscoveryFieldState.contractError,
+      if (sourceErrorCode == 'continuation_rejected')
+        DiscoveryFieldState.continuationRejected,
+    };
 
     if (reachability == MakoloReachabilityCue.temporarilyUnavailable) {
       states.add(DiscoveryFieldState.offlineWithSnapshot);
