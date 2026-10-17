@@ -367,6 +367,11 @@ class DiscoveryRepository {
             ? current
             : await readItems(earlierQuery);
         if (projection == null) break;
+        final viewer = projection.payload['viewer'];
+        if (viewer != null &&
+            (viewer is! Map || viewer['id'] != profileId)) {
+          throw const FormatException('Discovery snapshot belongs to another Profile');
+        }
         final batch = selector.collection(projection);
         if (batch.page != page) {
           throw const FormatException('Unexpected Discovery snapshot page');
