@@ -310,7 +310,12 @@ class DiscoverySelector {
       );
     }
     if (terminal?['state'] == 'end_of_field' ||
-        (terminal == null && collection.items.isNotEmpty && !collection.hasNext)) {
+        (collection.continuationState == 'end' &&
+            collection.items.isNotEmpty &&
+            selection?['state'] == 'ready') ||
+        (terminal == null &&
+            collection.items.isNotEmpty &&
+            !collection.hasNext)) {
       states.add(DiscoveryFieldState.endOfField);
     }
 
