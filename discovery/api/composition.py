@@ -556,6 +556,15 @@ def _finalize_projection(
                 "label": getattr(participant_state, "label", ""),
                 "secondary_label": getattr(participant_state, "secondary_label", ""),
             }
+    # Bind only owner-resolved public imagery already carried by the
+    # canonical representation; a document is not a visual cover.
+    image_url = projection["representation"].get("image_url")
+    if image_url:
+        projection["media_bindings"] = [{
+            "resource": {"url": image_url},
+            "target": dict(identity["resource"]),
+            "purpose": "RECOGNIZE",
+        }]
     projection["assessment"] = _assessment(projection)
     projection["engagement"] = _handoff_for_projection(
         projection,
