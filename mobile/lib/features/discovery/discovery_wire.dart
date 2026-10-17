@@ -53,6 +53,23 @@ final class DiscoveryWire {
     );
   }
 
+  static Map<String, dynamic> receiveItem(
+    Map<String, dynamic> response, {
+    required String scope,
+  }) {
+    final envelope = ProjectionEnvelope.parse(
+      response,
+      expectedProjection: 'discovery.item',
+      expectedScope: scope,
+    );
+    final item = _map(envelope.data['item']);
+    if (item == null) {
+      throw const FormatException('Missing Discovery detail');
+    }
+    validateData({'results': [item]});
+    return Map.unmodifiable(item);
+  }
+
   /// Existing snapshots from before B1 may omit new optional metadata.
   /// A malformed identity or a malformed exposed fact remains an error.
   static void validateData(
