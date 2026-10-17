@@ -80,6 +80,9 @@ class DiscoveryItemPresentation {
   Map<String, dynamic>? get placeFacts => _map(wire['place']);
   Map<String, dynamic>? get timingFacts => _map(wire['timing']);
   Map<String, dynamic>? get engagement => _map(wire['engagement']);
+  Map<String, dynamic>? get detailFacts => _map(wire['detail']);
+  Map<String, dynamic>? get participantPresentation =>
+      _map(wire['participant_presentation']);
   Map<String, dynamic>? get knowledge => _map(wire['knowledge']);
   Map<String, dynamic>? get freshness => _map(wire['freshness']);
   List<Map<String, dynamic>> get facts => _objectFacts(wire['facts']);
@@ -93,6 +96,8 @@ class DiscoveryItemPresentation {
       _objectFacts(wire['spatial_facts']);
   List<Map<String, dynamic>> get mediaBindings =>
       _objectFacts(wire['media_bindings']);
+  List<Map<String, dynamic>> get presentationFacts =>
+      _objectFacts(wire['presentation_facts']);
   List<Map<String, dynamic>> get handoffs =>
       _objectFacts(wire['handoffs']);
 
@@ -130,6 +135,13 @@ class DiscoveryCollectionPresentation {
   Map<String, dynamic>? get actor => _map(wire['actor']);
   Map<String, dynamic>? get viewer => _map(wire['viewer']);
   Map<String, dynamic>? get freshness => _map(wire['freshness']);
+  List<Map<String, dynamic>> get handoffs =>
+      _objectFacts(wire['handoffs']);
+  Set<String> get capabilities =>
+      Set.unmodifiable((wire['capabilities'] is List
+              ? wire['capabilities'] as List
+              : const [])
+          .whereType<String>());
   String? get selectionReason => _text(selection?['reason']);
   String? get terminalState => _text(terminal?['state']);
   String? get continuationState => _text(continuation?['state']);
