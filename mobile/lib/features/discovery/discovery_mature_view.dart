@@ -201,19 +201,23 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         if (item.candidateKey == key) return item;
       }
     }
+    final anchorKeys = _selector
+        .spatialAnchorsFromCollection(widget.selection.collection)
+        .map((anchor) => anchor.candidateKey)
+        .toSet();
     for (final item in items) {
-      if (item.isMappable) return item;
+      if (anchorKeys.contains(item.candidateKey)) return item;
     }
     return items.first;
   }
 
   @override
   Widget build(BuildContext context) {
-    final points = _selector.mapPointsFromCollection(
+    final points = _selector.spatialAnchorsFromCollection(
       widget.selection.collection,
     );
     final selected = _selectedItem;
-    DiscoveryMapPoint? selectedPoint;
+    DiscoverySpatialAnchor? selectedPoint;
     if (selected != null) {
       for (final point in points) {
         if (point.candidateKey == selected.candidateKey) {
@@ -247,7 +251,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           Positioned.fill(
             child: ConfiguredMakoloMapView(
               key: ValueKey(
-                'discover-map-${anchor.candidateKey ?? anchor.occurrenceId}',
+                'discover-map-${anchor.candidateKey}',
               ),
               config: widget.mapConfig,
               initialViewport: MapViewport(
