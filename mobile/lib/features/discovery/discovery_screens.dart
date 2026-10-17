@@ -81,18 +81,19 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Future<void> _refreshItems() async {
     if (_refreshing || !mounted) return;
-    final source = await widget.repository.readSource(
-      widget.repository.itemsSource(_query),
-    );
-    if (!mounted) return;
-    if (source.lastErrorCode == 'continuation_rejected') {
-      setState(() => _query = _query.copyWith(page: 1));
-    }
+    final current = _query;
     setState(() {
       _refreshing = true;
       _acquisitionFailed = false;
     });
     try {
+      final source = await widget.repository.readSource(
+        widget.repository.itemsSource(current),
+      );
+      if (!mounted || !identical(current, _query)) return;
+      if (source.lastErrorCode == 'continuation_rejected') {
+        setState(() => _query = current.copyWith(page: 1));
+      }
       await widget.repository.refreshItems(_query);
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
