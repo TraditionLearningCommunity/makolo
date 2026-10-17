@@ -339,8 +339,22 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
         return {}
     activity_ids = list(selected)
     occurrence_ids = {oid for ids in selected.values() for oid in ids}
-    queryset = public_occurrences_for_activities(activity_ids).filter(
-        pk__in=occurrence_ids
+    from activities.models import ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
+
+    # Exact identities have already passed the viewer-aware Discovery selector.
+    # Only load place relations here, not Commerce/Capacity prefetches.
+    queryset = (
+        Occurrence.objects.filter(
+            pk__in=occurrence_ids,
+            activity_id__in=activity_ids,
+            activity__status=ActivityStatus.PUBLISHED,
+            activity__visibility=ActivityVisibility.PUBLIC,
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        .exclude(activity__space__verification_status="suspended")
+        .select_related("activity", "activity__space")
+        .prefetch_related("place_links__place", "activity__space__space_places")
+        .order_by("start_date", "start_time", "id")
     )
     facts = {activity_id: [] for activity_id in activity_ids}
     for occurrence in queryset:
