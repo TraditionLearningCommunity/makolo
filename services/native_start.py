@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from uuid import UUID
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError
@@ -38,10 +39,20 @@ def _fingerprint(*, service, actor, operation_key: str) -> str:
 
 
 def _replay_or_conflict(
-    *, context, service, actor, objective: str, opportunity,
+    *, context, service, actor, objective: str, opportunity=None,
+    opportunity_id=None,
 ):
     existing = context.journey
     requested_opportunity_id = getattr(opportunity, "pk", None)
+    if opportunity_id is not None:
+        try:
+            requested_opportunity_id = (
+                UUID(str(opportunity_id)) if opportunity_id else None
+            )
+        except (ValueError, TypeError, AttributeError):
+            raise ServiceStartIdempotencyConflict(
+                "Une Opportunity différente a été fournie."
+            ) from None
     if (
         existing.initiated_by_id != actor.pk
         or existing.beneficiary_id != actor.pk
@@ -53,6 +64,29 @@ def _replay_or_conflict(
             "Cette clé d'opération a déjà été utilisée avec d'autres données."
         )
     return existing, False
+
+
+def replay_native_start_if_exists(
+    *, service, actor, operation_key: str, objective="", opportunity_id=None,
+):
+    """Return the accepted result even if new creation rules changed later.
+
+    The caller must still authorize viewing the Service. An existing operation
+    is checked against the original actor, Service, objective and Opportunity,
+    not against a newly published revision.
+    """
+    key = _fingerprint(service=service, actor=actor, operation_key=operation_key)
+    existing = (
+        ServiceJourneyContext.objects.select_related("journey")
+        .filter(start_operation_fingerprint=key)
+        .first()
+    )
+    if existing is None:
+        return None
+    return _replay_or_conflict(
+        context=existing, service=service, actor=actor,
+        objective=objective, opportunity_id=opportunity_id,
+    )
 
 
 def start_service_journey_idempotently(
