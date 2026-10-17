@@ -327,6 +327,7 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
     Reuse the same place-publication rule as Discovery's primary place.
     The bounded wire contains locations, not inferred routes or coordinates.
     """
+    from django.core.exceptions import ObjectDoesNotExist
     from discovery.presentation import _space_place_is_public
 
     selected = {}
@@ -352,8 +353,12 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
             status=OccurrenceStatus.SCHEDULED,
         )
         .exclude(activity__space__verification_status="suspended")
-        .select_related("activity", "activity__space")
-        .prefetch_related("place_links__place", "activity__space__space_places")
+        .select_related("activity", "activity__space", "activity__transport_service__route")
+        .prefetch_related(
+            "place_links__place",
+            "activity__space__space_places",
+            "activity__transport_service__route__stops__place",
+        )
         .order_by("start_date", "start_time", "id")
     )
     facts = {activity_id: [] for activity_id in activity_ids}
@@ -371,6 +376,44 @@ def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
             bucket.append({
                 "occurrence": {"kind": "occurrence", "id": str(occurrence.pk)},
                 "role": link.role,
+                "place": {
+                    "id": str(place.pk),
+                    "name": place.name,
+                    "locality": place.locality,
+                    "latitude": float(place.latitude) if place.latitude is not None else None,
+                    "longitude": float(place.longitude) if place.longitude is not None else None,
+                },
+            })
+            if len(bucket) >= 12:
+                break
+
+        # Transport route stops are canonical multi-place facts even when an
+        # Occurrence has no explicit place_links. Their original positions
+        # determine departure/stopover/arrival; never reclassify after hiding
+        # a non-public stop.
+        if len(bucket) >= 12:
+            continue
+        try:
+            service = occurrence.activity.transport_service
+        except ObjectDoesNotExist:
+            service = None
+        if service is None:
+            continue
+        stops = list(service.route.stops.all())
+        for index, stop in enumerate(stops):
+            place = stop.place
+            if not place.is_active or not _space_place_is_public(occurrence.activity, place):
+                continue
+            role = (
+                "stop"
+                if len(stops) == 1
+                else "departure" if index == 0
+                else "arrival" if index == len(stops) - 1
+                else "stopover"
+            )
+            bucket.append({
+                "occurrence": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "role": role,
                 "place": {
                     "id": str(place.pk),
                     "name": place.name,
