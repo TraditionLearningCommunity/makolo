@@ -735,6 +735,23 @@ class _DiscoveryEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (states.contains(DiscoveryFieldState.contractError)) {
+      return _EmptyBody(
+        icon: Icons.error_outline_rounded,
+        title: 'Cette réponse Discovery n’est pas compatible.',
+        body: 'Les informations reçues ne peuvent pas être présentées de façon sûre.',
+        actionLabel: onRetry == null ? null : 'Réessayer',
+        onAction: onRetry,
+      );
+    }
+    if (states.contains(DiscoveryFieldState.continuationRejected)) {
+      return _EmptyBody(
+        icon: Icons.refresh_rounded,
+        title: 'La suite de cette recherche doit être actualisée.',
+        actionLabel: onRetry == null ? null : 'Actualiser la recherche',
+        onAction: onRetry,
+      );
+    }
     if (states.contains(DiscoveryFieldState.serverUnavailableNoSnapshot)) {
       return _EmptyBody(
         icon: Icons.cloud_off_outlined,
