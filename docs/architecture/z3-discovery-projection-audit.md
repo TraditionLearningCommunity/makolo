@@ -500,16 +500,19 @@ domaines propriétaires restent les seules autorités sur les faits.
   déjà autorisée. `results` et `items` restent compatibles.
 - `variants[]` référence, pour une Activity comportant plusieurs Occurrences
   sélectionnées par Discovery, jusqu'à douze Occurrences par leur identifiant
-  canonique. Ce ne sont pas des Alternatives indépendantes. Aucune variante
-  n'est fabriquée pour les autres familles.
+  canonique et les horaires effectivement connus. Ce ne sont pas des
+  Alternatives indépendantes. Aucune variante n'est fabriquée pour les autres
+  familles.
 - `temporal_facts[]` reprend les repères Occurrence déjà qualifiés,
   `FundingDetails.opens_at/closes_at` et les dates de la révision publiée
   d'Opportunity. Les instants qualifiés priment sur la répétition de leurs
   composantes date/heure.
 - `spatial_facts[]` transporte les rôles des lieux d'Occurrence admis dans le
-  résultat courant (maximum douze), après le contrôle public existant des lieux
-  d'Espace. `place` reste le lieu principal de compatibilité. Les coordonnées
-  manquantes ne sont jamais estimées.
+  résultat courant (maximum douze), ainsi que les arrêts publics des routes
+  Transport canoniques (départ, escale, arrivée) en conservant leur position
+  d'origine. Le contrôle public existant des lieux d'Espace est appliqué.
+  `place` reste le lieu principal de compatibilité. Les coordonnées manquantes
+  ne sont jamais estimées.
 - `media_bindings[]` reprend uniquement une image déjà autorisée par la
   représentation canonique, avec `RECOGNIZE`. Les documents et ressources ne
   deviennent jamais implicitement des couvertures visuelles.
