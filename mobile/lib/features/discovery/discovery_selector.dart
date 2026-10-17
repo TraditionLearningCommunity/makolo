@@ -218,6 +218,22 @@ class DiscoveryMapPoint {
   final String? placeName;
 }
 
+/// Exact spatial observations of one canonical possibility.
+/// A locality without coordinates remains in the general Discovery field.
+class DiscoverySpatialAnchor {
+  const DiscoverySpatialAnchor({
+    required this.candidateKey,
+    required this.latitude,
+    required this.longitude,
+    required this.fact,
+  });
+
+  final String candidateKey;
+  final double latitude;
+  final double longitude;
+  final Map<String, dynamic> fact;
+}
+
 class DiscoverySelector {
   const DiscoverySelector();
 
@@ -370,6 +386,43 @@ class DiscoverySelector {
     final item = Map<String, dynamic>.from(raw);
     DiscoveryWire.validateData({'results': [item]});
     return _item(item, now: now ?? DateTime.now());
+  }
+
+  /// Multiple spatial facts may point to distinct real places. Neither
+  /// missing coordinates nor a place name is converted into an invented pin.
+  List<DiscoverySpatialAnchor> spatialAnchorsFromCollection(
+    DiscoveryCollectionPresentation collection,
+  ) {
+    final anchors = <DiscoverySpatialAnchor>[];
+    for (final item in collection.items) {
+      final facts = item.spatialFacts.isEmpty
+          ? [
+              if (item.placeFacts != null) item.placeFacts!,
+            ]
+          : item.spatialFacts;
+      for (final fact in facts) {
+        final place = _map(fact['place']) ?? fact;
+        final latitude = _double(place['latitude']);
+        final longitude = _double(place['longitude']);
+        if (latitude == null ||
+            longitude == null ||
+            latitude < -90 ||
+            latitude > 90 ||
+            longitude < -180 ||
+            longitude > 180) {
+          continue;
+        }
+        anchors.add(
+          DiscoverySpatialAnchor(
+            candidateKey: item.candidateKey,
+            latitude: latitude,
+            longitude: longitude,
+            fact: Map.unmodifiable(fact),
+          ),
+        );
+      }
+    }
+    return List.unmodifiable(anchors);
   }
 
   List<DiscoveryMapPoint> mapPointsFromCollection(
