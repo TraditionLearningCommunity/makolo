@@ -9,6 +9,7 @@ import '../../presentation/possibilities/public_possibility_card.dart';
 import '../../presentation/search/load_more_on_scroll.dart';
 import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
+import '../discovery/discovery_wire.dart';
 import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/fields/geo_autocomplete_field.dart';
 import '../../presentation/fields/search_filter_bar.dart';
@@ -48,6 +49,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   GeoSuggestion? _selectedPlace;
   String _price = '';
   int _page = 1;
+  String? _continuationToken;
   late final ProgressiveSearchCoordinator _searchCoordinator;
   bool _loading = true;
   bool _updatingCriteria = false;
@@ -92,6 +94,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     price: _price,
     page: _page,
     pageSize: 12,
+    continuation: _page > 1 ? _continuationToken : null,
   );
 
   Future<void> _restoreAndLoad() async {
@@ -113,6 +116,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   Future<void> _refresh() async {
     setState(() {
       _page = 1;
+      _continuationToken = null;
       _updatingCriteria = true;
     });
     await _load();
@@ -135,29 +139,16 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Public API unavailable');
       final response = await api.publicGet(query.path);
-      final payload = response.jsonObject()['data'];
-      if (payload is! Map) throw const FormatException('Invalid projection');
-      final collection = _selector.publicCollection(
-        Map<String, dynamic>.from(payload),
+      final wire = DiscoveryWire.receive(
+        response.jsonObject(),
+        scope: 'public',
       );
+      final collection = _selector.publicCollection(wire.snapshotPayload);
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _collection = query.page == 1
             ? collection
-            : DiscoveryCollectionPresentation(
-                items: [
-                  ..._collection.items,
-                  ...collection.items.where(
-                    (item) => !_collection.items.any(
-                      (known) => known.candidateKey == item.candidateKey,
-                    ),
-                  ),
-                ],
-                count: collection.count,
-                page: collection.page,
-                pageSize: collection.pageSize,
-                hasNext: collection.hasNext,
-              );
+            : _collection.reconcile(collection);
         _loading = false;
         _updatingCriteria = false;
       });
@@ -198,6 +189,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   void _criteriaChanged({bool immediate = false}) {
     setState(() {
       _page = 1;
+      _continuationToken = null;
       _updatingCriteria = true;
       _loading = true;
       _error = null;
@@ -217,7 +209,10 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         !_collection.hasNext) {
       return;
     }
-    setState(() => _page++);
+    setState(() {
+      _continuationToken = _collection.continuationToken;
+      _page++;
+    });
     _searchCoordinator.changed(immediate: true);
   }
 
