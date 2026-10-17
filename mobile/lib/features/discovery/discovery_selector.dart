@@ -161,13 +161,20 @@ class DiscoveryCollectionPresentation {
         ordered[index] = item;
       }
     }
+    final reconciledRows = List<Map<String, dynamic>>.unmodifiable(
+      ordered.map((item) => item.wire),
+    );
     return DiscoveryCollectionPresentation(
       items: List.unmodifiable(ordered),
       count: incoming.count,
       page: incoming.page,
       pageSize: incoming.pageSize,
       hasNext: incoming.hasNext,
-      wire: incoming.wire,
+      wire: Map.unmodifiable({
+        ...incoming.wire,
+        'results': reconciledRows,
+        'items': reconciledRows,
+      }),
     );
   }
 
