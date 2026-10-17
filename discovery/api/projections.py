@@ -147,6 +147,24 @@ def _availability(state: str, *, remaining=None) -> dict:
     }
 
 
+def _occurrence_temporal_facts(timing: Mapping) -> list[dict]:
+    """Prefer qualified instants; expose date/time only when no instant exists."""
+    facts = []
+    for prefix in ("start", "end"):
+        instant = timing.get(f"{prefix}_at")
+        keys = (f"{prefix}_at",) if instant is not None else (
+            f"{prefix}_date", f"{prefix}_time"
+        )
+        for key in keys:
+            if timing.get(key) is not None:
+                facts.append({
+                    "kind": key,
+                    "value": timing[key],
+                    "timezone": timing["timezone"],
+                })
+    return facts
+
+
 def _existing_relation_action(card, participant):
     if participant is None or participant.participant_state in {None, "", "none"}:
         return None
@@ -298,13 +316,9 @@ def project_occurrence_possibility(
         ),
         variants=(
             {"occurrence": _resource("occurrence", occurrence_id)}
-            for occurrence_id in item.matching_occurrence_ids
+            for occurrence_id in item.matching_occurrence_ids[:12]
         ) if item.matching_count > 1 else (),
-        temporal_facts=(
-            {"kind": field, "value": timing[field], "timezone": timing["timezone"]}
-            for field in ("start_at", "end_at", "start_date", "end_date")
-            if timing.get(field) is not None
-        ),
+        temporal_facts=_occurrence_temporal_facts(timing),
         spatial_facts=(
             ({"role": "primary", "place": dict(place)},)
             if place is not None else ()
