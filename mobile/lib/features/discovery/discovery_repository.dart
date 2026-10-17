@@ -10,6 +10,7 @@ import '../../sync/freshness.dart';
 import '../../sync/projection_contract.dart';
 import '../../sync/sync_engine.dart';
 import '../../sync/sync_source.dart';
+import 'discovery_selector.dart';
 import 'discovery_wire.dart';
 
 class DiscoveryQuery {
@@ -338,8 +339,67 @@ class DiscoveryRepository {
     );
   }
 
-  Stream<StoredProjection?> watchItems(DiscoveryQuery query) => store
-      .watchProjection(itemsProjectionKind, resourceKey: query.fingerprint);
+  /// A read-only logical field: each server page remains stored unchanged
+  /// under its own criteria/cursor key. Presentation receives reconciled
+  /// candidate identities, not a second persisted collection truth.
+  Stream<StoredProjection?> watchItems(DiscoveryQuery query) {
+    final updates = store.watchProjection(
+      itemsProjectionKind,
+      resourceKey: query.fingerprint,
+    );
+    if (query.page <= 1) return updates;
+    return updates.asyncMap(
+      (current) => _logicalItemsProjection(query, current),
+    );
+  }
+
+  Future<StoredProjection?> _logicalItemsProjection(
+    DiscoveryQuery query,
+    StoredProjection? current,
+  ) async {
+    const selector = DiscoverySelector();
+    DiscoveryCollectionPresentation? field;
+    StoredProjection? last;
+    var earlierQuery = query.copyWith(page: 1);
+    try {
+      for (var page = 1; page <= query.page; page++) {
+        final projection = page == query.page
+            ? current
+            : await readItems(earlierQuery);
+        if (projection == null) break;
+        final batch = selector.collection(projection);
+        if (batch.page != page) {
+          throw const FormatException('Unexpected Discovery snapshot page');
+        }
+        field = field == null ? batch : field.reconcile(batch);
+        last = projection;
+        if (page < query.page) {
+          earlierQuery = earlierQuery.copyWith(
+            page: page + 1,
+            continuation: batch.continuationToken,
+          );
+        }
+      }
+    } on FormatException {
+      // An incompatible historical prefix cannot contaminate the current
+      // server-owned page. The caller still sees its actual snapshot/error.
+      return current;
+    }
+    if (last == null || field == null) return current;
+    return StoredProjection(
+      kind: last.kind,
+      resourceKey: last.resourceKey,
+      schemaVersion: last.schemaVersion,
+      payload: field.wire,
+      receivedAt: last.receivedAt,
+      sourceGeneratedAt: last.sourceGeneratedAt,
+      sourceUpdatedAt: last.sourceUpdatedAt,
+      lastVerifiedOnlineAt: last.lastVerifiedOnlineAt,
+      freshUntil: last.freshUntil,
+      expiresAt: last.expiresAt,
+      freshnessPolicyId: last.freshnessPolicyId,
+    );
+  }
 
   Future<StoredProjection?> readItems(DiscoveryQuery query) =>
       store.readProjection(itemsProjectionKind, resourceKey: query.fingerprint);
