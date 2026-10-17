@@ -2,6 +2,7 @@ import '../../data/local/profile_store.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/humanization.dart';
 import '../../sync/freshness.dart';
+import 'discovery_wire.dart';
 
 enum DiscoveryFieldState {
   noMatch,
@@ -10,6 +11,7 @@ enum DiscoveryFieldState {
   offlineWithSnapshot,
   offlineNoSnapshot,
   serverUnavailableNoSnapshot,
+  contractError,
 }
 
 class DiscoveryItemPresentation {
@@ -87,6 +89,8 @@ class DiscoveryCollectionPresentation {
   /// Complete collection context, continuation, selection and terminal facts.
   final Map<String, dynamic> wire;
 
+  Map<String, dynamic>? get envelopeMeta =>
+      _map(wire[DiscoveryWire.snapshotMetaKey]);
   Map<String, dynamic>? get continuation => _map(wire['continuation']);
   Map<String, dynamic>? get selection => _map(wire['selection']);
   Map<String, dynamic>? get terminal => _map(wire['terminal']);
@@ -209,7 +213,9 @@ class DiscoverySelector {
     }
 
     final rawItems = projection.payload['results'] ?? projection.payload['items'];
-    if (rawItems is! List) {
+    try {
+      DiscoveryWire.validateData(projection.payload);
+    } on FormatException {
       return DiscoveryFieldSelection(
         collection: DiscoveryCollectionPresentation.empty,
         surface: MakoloSurfacePresentation(
@@ -219,7 +225,7 @@ class DiscoverySelector {
           failure: MakoloFailureCue.blocking,
           refreshing: refreshing,
         ),
-        states: const {},
+        states: const {DiscoveryFieldState.contractError},
       );
     }
 
@@ -278,7 +284,10 @@ class DiscoverySelector {
   DiscoveryItemPresentation? publicItem(
     Map<String, dynamic> item, {
     DateTime? now,
-  }) => _item(item, now: now ?? DateTime.now());
+  }) {
+    DiscoveryWire.validateData({'results': [item]});
+    return _item(item, now: now ?? DateTime.now());
+  }
 
   DiscoveryCollectionPresentation collection(
     StoredProjection? projection, {
@@ -294,6 +303,7 @@ class DiscoverySelector {
     required DateTime now,
   }) {
     final rawItems = payload['results'] ?? payload['items'];
+    DiscoveryWire.validateData(payload);
     final items = rawItems is List
         ? rawItems
               .whereType<Map>()
@@ -317,7 +327,9 @@ class DiscoverySelector {
   }) {
     final raw = projection?.payload['item'];
     if (raw is! Map) return null;
-    return _item(Map<String, dynamic>.from(raw), now: now ?? DateTime.now());
+    final item = Map<String, dynamic>.from(raw);
+    DiscoveryWire.validateData({'results': [item]});
+    return _item(item, now: now ?? DateTime.now());
   }
 
   List<DiscoveryMapPoint> mapPointsFromCollection(
