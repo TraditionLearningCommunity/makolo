@@ -37,6 +37,7 @@ from opportunities.models import (
 from organizations.models import Organization
 from services.models import OpportunityPolicy, ServiceDetails, ServiceKind
 from topics.models import ProfileInterest
+from transport.models import TransportRoute, TransportRouteStop, TransportService
 
 
 User = get_user_model()
@@ -326,6 +327,38 @@ class MatureDiscoveryAPITests(TestCase):
                 [fact["place"]["id"] for fact in event["spatial_facts"]],
                 [str(public_place.pk)],
             )
+
+    def test_transport_spatial_facts_preserve_route_roles_and_privacy(self):
+        activity = self._activity("Z3 trajet")
+        self._occurrence(activity)
+        route = TransportRoute.objects.create(space=self.space, name="Z3 route")
+        places = [
+            Place.objects.create(name=name, locality="Lubumbashi")
+            for name in (
+                "Z3 départ", "Z3 escale publique", "Z3 arrêt privé", "Z3 arrivée"
+            )
+        ]
+        for position, place in enumerate(places, start=1):
+            TransportRouteStop.objects.create(
+                route=route, place=place, position=position
+            )
+        SpacePlace.objects.create(
+            organization=self.space, place=places[2], is_public=False
+        )
+        TransportService.objects.create(activity=activity, route=route)
+        row = next(
+            row for row in self._items(q="Z3 trajet")["data"]["results"]
+            if row["identity"]["resource"]["id"] == str(activity.pk)
+        )
+        self.assertEqual(
+            [(fact["role"], fact["place"]["id"]) for fact in row["spatial_facts"]],
+            [
+                ("departure", str(places[0].pk)),
+                ("stopover", str(places[1].pk)),
+                ("arrival", str(places[3].pk)),
+            ],
+        )
+        self.assertEqual(row["identity"]["family"], "activity")
 
     def test_web_and_api_use_the_same_canonical_discovery_field(self):
         params = {"q": "Z3", "page_size": 20}
