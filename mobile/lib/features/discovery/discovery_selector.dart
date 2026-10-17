@@ -320,8 +320,9 @@ class DiscoverySelector {
 
     final rawItems = projection.payload['results'] ?? projection.payload['items'];
     try {
-      if (projection.schemaVersion != 1) {
-        throw const FormatException('Unsupported Discovery snapshot version');
+      if (projection.kind != 'discovery.items' ||
+          projection.schemaVersion != 1) {
+        throw const FormatException('Incompatible Discovery snapshot');
       }
       DiscoveryWire.validateData(projection.payload);
     } on FormatException {
@@ -414,8 +415,9 @@ class DiscoverySelector {
   }) {
     final payload = projection?.payload;
     if (payload == null) return DiscoveryCollectionPresentation.empty;
-    if (projection!.schemaVersion != 1) {
-      throw const FormatException('Unsupported Discovery snapshot version');
+    if (projection!.kind != 'discovery.items' ||
+        projection.schemaVersion != 1) {
+      throw const FormatException('Incompatible Discovery snapshot');
     }
     return _collectionFromPayload(payload, now: now ?? DateTime.now());
   }
@@ -447,8 +449,10 @@ class DiscoverySelector {
     StoredProjection? projection, {
     DateTime? now,
   }) {
-    if (projection != null && projection.schemaVersion != 1) {
-      throw const FormatException('Unsupported Discovery detail snapshot');
+    if (projection != null &&
+        (projection.kind != 'discovery.item' ||
+            projection.schemaVersion != 1)) {
+      throw const FormatException('Incompatible Discovery detail snapshot');
     }
     final raw = projection?.payload['item'];
     if (raw is! Map) return null;
@@ -464,11 +468,18 @@ class DiscoverySelector {
   ) {
     final anchors = <DiscoverySpatialAnchor>[];
     for (final item in collection.items) {
-      final facts = item.spatialFacts.isEmpty
-          ? [
-              if (item.placeFacts != null) item.placeFacts!,
-            ]
-          : item.spatialFacts;
+      final facts = <Map<String, dynamic>>[...item.spatialFacts];
+      final legacyPlace = item.placeFacts;
+      if (legacyPlace != null) {
+        final lat = _double(legacyPlace['latitude']);
+        final lon = _double(legacyPlace['longitude']);
+        final alreadyLocated = facts.any((fact) {
+          final place = _map(fact['place']) ?? fact;
+          return _double(place['latitude']) == lat &&
+              _double(place['longitude']) == lon;
+        });
+        if (!alreadyLocated) facts.add(legacyPlace);
+      }
       for (final fact in facts) {
         final place = _map(fact['place']) ?? fact;
         final latitude = _double(place['latitude']);
