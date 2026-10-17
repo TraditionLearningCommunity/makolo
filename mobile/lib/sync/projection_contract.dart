@@ -30,7 +30,19 @@ class ProjectionEnvelope {
       throw const FormatException('Invalid projection envelope');
     }
 
-    final parsedMeta = ProjectionMetaDto.fromJson(rawMeta);
+    if (rawMeta['projection'] is! String ||
+        rawMeta['schema_version'] is! int ||
+        rawMeta['schema_version'] is bool ||
+        (rawMeta['generated_at'] != null &&
+            rawMeta['generated_at'] is! String)) {
+      throw const FormatException('Invalid projection metadata');
+    }
+    late final ProjectionMetaDto parsedMeta;
+    try {
+      parsedMeta = ProjectionMetaDto.fromJson(rawMeta);
+    } on Object {
+      throw const FormatException('Invalid projection metadata');
+    }
     if (parsedMeta.schemaVersion != 1) {
       throw FormatException(
         'Unsupported schema_version: ${parsedMeta.schemaVersion}',
