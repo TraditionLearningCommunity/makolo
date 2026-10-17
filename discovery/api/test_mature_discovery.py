@@ -262,6 +262,10 @@ class MatureDiscoveryAPITests(TestCase):
             {variant["occurrence"]["kind"] for variant in event["variants"]},
             {"occurrence"},
         )
+        self.assertEqual(
+            {variant["timing"]["start_at"] for variant in event["variants"]},
+            {self.event_occurrence.start_at.isoformat(), second.start_at.isoformat()},
+        )
         self.assertEqual(event["identity"]["resource"]["id"], str(self.event_activity.pk))
 
     def test_spatial_facts_include_public_occurrence_place_roles(self):
