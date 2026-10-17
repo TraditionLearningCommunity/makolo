@@ -9,7 +9,7 @@ from activities.models import Activity, Occurrence
 from organizations.models import Organization
 
 from .models import Offer, OfferStatus, PaymentMode
-from .offer_price_facts import offer_price_facts
+from .offer_price_facts import offer_price_facts, occurrence_variant_price_facts
 
 
 class OfferPriceFactsTests(TestCase):
@@ -116,3 +116,37 @@ class OfferPriceFactsTests(TestCase):
             offer_price_facts()
         with self.assertRaises(ValueError):
             offer_price_facts(activity=self.activity, occurrence=self.occurrence)
+
+    def test_occurrence_variants_show_owner_backed_different_prices(self):
+        self.make_offer("10.00", occurrence=self.occurrence)
+        self.make_offer("40.00", occurrence=self.other_occurrence)
+        result = occurrence_variant_price_facts(
+            occurrences=[self.occurrence, self.other_occurrence], at=self.now,
+        )
+        self.assertEqual(result["state"], "variant_dependent")
+        self.assertEqual(result["minimum"], "10.00")
+        self.assertEqual(result["maximum"], "40.00")
+        self.assertEqual(result["currency"], "USD")
+        self.assertEqual(
+            {v["occurrence"]["id"] for v in result["variants"]},
+            {str(self.occurrence.pk), str(self.other_occurrence.pk)},
+        )
+
+    def test_variants_do_not_convert_currencies_or_infer_unknown_price(self):
+        self.make_offer("10.00", occurrence=self.occurrence)
+        self.make_offer(
+            "1000.00", occurrence=self.other_occurrence, currency="CDF",
+        )
+        result = occurrence_variant_price_facts(
+            occurrences=[self.occurrence, self.other_occurrence], at=self.now,
+        )
+        self.assertEqual(result["state"], "unknown")
+        self.assertIsNone(result["currency"])
+        self.assertIsNone(result["minimum"])
+        self.assertEqual(len(result["variants"]), 2)
+
+    def test_variant_comparison_rejects_unrelated_or_repeated_occurrences(self):
+        with self.assertRaises(ValueError):
+            occurrence_variant_price_facts(
+                occurrences=[self.occurrence, self.occurrence],
+            )
