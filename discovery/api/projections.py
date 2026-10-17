@@ -178,6 +178,9 @@ def build_possibility_projection(
     capabilities: Iterable[str],
     links: Mapping[str, str | None],
     provenance_resources: Iterable[Mapping[str, str]],
+    variants: Iterable[Mapping] = (),
+    temporal_facts: Iterable[Mapping] = (),
+    spatial_facts: Iterable[Mapping] = (),
 ) -> dict:
     """Compose one Z3 possibility projection from already-resolved domain facts.
 
@@ -221,6 +224,13 @@ def build_possibility_projection(
         "capabilities": _capabilities(capabilities),
         "links": _links(links),
         "provenance": {"resources": provenance},
+        # Empty collections mean nothing is exposed, not proof that no
+        # relation, variant, or media exists anywhere in the owner domain.
+        "variants": [dict(value) for value in variants],
+        "relations": [],
+        "temporal_facts": [dict(value) for value in temporal_facts],
+        "spatial_facts": [dict(value) for value in spatial_facts],
+        "media_bindings": [],
     }
 
 
@@ -285,6 +295,19 @@ def project_occurrence_possibility(
         provenance_resources=(
             {"kind": "activity", "id": item.activity_id},
             {"kind": "occurrence", "id": item.occurrence_id},
+        ),
+        variants=(
+            {"occurrence": _resource("occurrence", occurrence_id)}
+            for occurrence_id in item.matching_occurrence_ids
+        ) if item.matching_count > 1 else (),
+        temporal_facts=(
+            {"kind": field, "value": timing[field], "timezone": timing["timezone"]}
+            for field in ("start_at", "end_at", "start_date", "end_date")
+            if timing.get(field) is not None
+        ),
+        spatial_facts=(
+            ({"role": "primary", "place": dict(place)},)
+            if place is not None else ()
         ),
     )
 
@@ -365,6 +388,14 @@ def project_funding_possibility(
             {"kind": "activity", "id": item["activity_id"]},
             {"kind": "funding", "id": funding.pk},
         ),
+        temporal_facts=(
+            {"kind": field, "value": value.isoformat()}
+            for field, value in (
+                ("opens_at", funding.opens_at),
+                ("closes_at", funding.closes_at),
+            )
+            if value is not None
+        ),
     )
 
 
@@ -399,5 +430,13 @@ def project_opportunity_possibility(
         provenance_resources=(
             {"kind": "opportunity", "id": item["opportunity_id"]},
             {"kind": "opportunity_revision", "id": item["revision_id"]},
+        ),
+        temporal_facts=(
+            {"kind": field, "value": value}
+            for field, value in (
+                ("opens_at", item.get("opens_at")),
+                ("deadline_at", item.get("deadline_at")),
+            )
+            if value is not None
         ),
     )
