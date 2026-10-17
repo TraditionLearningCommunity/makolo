@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
+import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/public_possibility_card.dart';
 import '../../presentation/search/load_more_on_scroll.dart';
 import '../discovery/discovery_repository.dart';
@@ -54,6 +55,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   bool _loading = true;
   bool _updatingCriteria = false;
   String? _error;
+  bool _continuationRejected = false;
 
   @override
   void initState() {
@@ -128,6 +130,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       setState(() {
         _loading = true;
         _error = null;
+        _continuationRejected = false;
       });
     }
     try {
@@ -152,6 +155,23 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _loading = false;
         _updatingCriteria = false;
       });
+    } on MakoloApiError catch (error) {
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      final rejected = query.continuation != null &&
+          error.statusCode == 400;
+      setState(() {
+        _loading = false;
+        _continuationRejected = rejected;
+        _error = rejected
+            ? 'La suite de la recherche doit être actualisée.'
+            : 'Impossible d’actualiser les possibilités publiques.';
+      });
+    } on FormatException {
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      setState(() {
+        _loading = false;
+        _error = 'Réponse Discovery incompatible. Réessayez plus tard.';
+      });
     } on Object {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
@@ -160,6 +180,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       });
     }
   }
+
+  Future<void> _retry() =>
+      _continuationRejected ? _refresh() : _load();
 
   Future<void> _chooseDate() async {
     final now = DateTime.now();
@@ -408,7 +431,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               const SizedBox(height: MakoloSpacing.lg),
               if (_error != null) ...[
                 Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-                TextButton(onPressed: _load, child: const Text('Réessayer')),
+                TextButton(
+                  onPressed: _retry,
+                  child: Text(
+                    _continuationRejected ? 'Actualiser la recherche' : 'Réessayer',
+                  ),
+                ),
                 const SizedBox(height: MakoloSpacing.sm),
               ],
               if (_loading && _collection.items.isEmpty)
@@ -426,7 +454,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   const SizedBox(height: MakoloSpacing.md),
                 ],
                 if (!_updatingCriteria &&
-                    _collection.items.any((item) => item.isMappable))
+                    _selector.spatialAnchorsFromCollection(_collection).isNotEmpty)
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
