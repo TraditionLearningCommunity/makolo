@@ -489,6 +489,10 @@ class DiscoveryRepository {
   }
 
   Future<void> _indexDiscoveryItemPreviews(StoredProjection projection) async {
+    if (projection.schemaVersion != 1) {
+      throw const FormatException('Unsupported Discovery snapshot version');
+    }
+    DiscoveryWire.validateData(projection.payload);
     final rawResults = projection.payload['results'] ?? projection.payload['items'];
     if (rawResults is! List) return;
 
