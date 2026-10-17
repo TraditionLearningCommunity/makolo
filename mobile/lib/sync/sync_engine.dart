@@ -135,8 +135,17 @@ class SyncEngine {
       if (error.statusCode == 403 || error.statusCode == 404) {
         await _recordScopedUnavailable(source, error.code);
       } else {
-        await _recordFailure(source, error.code);
+        final cursorRejected = source.projectionKind == 'discovery.items' &&
+            error.statusCode == 400 &&
+            Uri.parse(source.path).queryParameters.containsKey('continuation');
+        await _recordFailure(
+          source,
+          cursorRejected ? 'continuation_rejected' : error.code,
+        );
       }
+      rethrow;
+    } on FormatException {
+      await _recordFailure(source, 'contract_error');
       rethrow;
     } on MakoloTransportError catch (error) {
       await _recordFailure(source, error.code);
