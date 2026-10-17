@@ -175,7 +175,7 @@ class DiscoverySelector {
       );
     }
 
-    final rawItems = projection.payload['results'];
+    final rawItems = projection.payload['results'] ?? projection.payload['items'];
     if (rawItems is! List) {
       return DiscoveryFieldSelection(
         collection: DiscoveryCollectionPresentation.empty,
