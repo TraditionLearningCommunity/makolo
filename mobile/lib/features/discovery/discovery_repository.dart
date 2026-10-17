@@ -10,6 +10,7 @@ import '../../sync/freshness.dart';
 import '../../sync/projection_contract.dart';
 import '../../sync/sync_engine.dart';
 import '../../sync/sync_source.dart';
+import 'discovery_wire.dart';
 
 class DiscoveryQuery {
   const DiscoveryQuery({
@@ -27,6 +28,7 @@ class DiscoveryQuery {
     this.radiusKm,
     this.page = 1,
     this.pageSize = 24,
+    this.continuation,
   });
 
   final String text;
@@ -43,6 +45,8 @@ class DiscoveryQuery {
   final double? radiusKm;
   final int page;
   final int pageSize;
+  /// Opaque, signed server continuation; never decoded locally.
+  final String? continuation;
 
   DiscoveryQuery copyWith({
     String? text,
@@ -59,6 +63,8 @@ class DiscoveryQuery {
     double? radiusKm,
     int? page,
     int? pageSize,
+    String? continuation,
+    bool clearContinuation = false,
     bool clearLocation = false,
   }) {
     return DiscoveryQuery(
@@ -76,6 +82,7 @@ class DiscoveryQuery {
       radiusKm: clearLocation ? null : radiusKm ?? this.radiusKm,
       page: page ?? this.page,
       pageSize: pageSize ?? this.pageSize,
+      continuation: clearContinuation ? null : continuation ?? this.continuation,
     );
   }
 
@@ -96,6 +103,7 @@ class DiscoveryQuery {
       ...DiscoveryLocationContext.parameters,
       'page': page.toString(),
       'page_size': pageSize.toString(),
+      if (continuation != null) 'continuation': continuation!,
     };
   }
 
@@ -128,7 +136,8 @@ class DiscoveryQuery {
   String get mapCanonicalQuery {
     final entries = Map<String, String>.from(parameters)
       ..remove('page')
-      ..remove('page_size');
+      ..remove('page_size')
+      ..remove('continuation');
     final sorted = entries.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     return Uri(queryParameters: Map.fromEntries(sorted)).query;
@@ -202,7 +211,7 @@ class DiscoveryRepository {
   final SyncEngine? sync;
 
   SyncSourceDefinition itemsSource(DiscoveryQuery query) {
-    return SyncSourceDefinition.projectionEnvelope(
+    return SyncSourceDefinition(
       sourceKey: 'discovery:${query.fingerprint}',
       owner: 'Discovery',
       path: query.path,
@@ -210,6 +219,20 @@ class DiscoveryRepository {
       resourceKey: query.fingerprint,
       category: SyncSourceCategory.collection,
       freshnessPolicy: discoveryFreshness,
+      parser: (response) {
+        final wire = DiscoveryWire.receive(
+          response.jsonObject(),
+          scope: 'personal',
+        );
+        return AcquiredProjection(
+          schemaVersion: 1,
+          payload: wire.snapshotPayload,
+          sourceGeneratedAt: DateTime.tryParse(
+            wire.meta['generated_at'] as String? ?? '',
+          ),
+        );
+      },
+      applier: applyProjectionSnapshot,
     );
   }
 
@@ -442,7 +465,7 @@ class DiscoveryRepository {
   }
 
   Future<void> _indexDiscoveryItemPreviews(StoredProjection projection) async {
-    final rawResults = projection.payload['results'];
+    final rawResults = projection.payload['results'] ?? projection.payload['items'];
     if (rawResults is! List) return;
 
     for (final raw in rawResults.whereType<Map>()) {
