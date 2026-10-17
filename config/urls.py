@@ -50,6 +50,7 @@ urlpatterns = [
     path("api/v1/goals/", include("goals.api_urls")),
     path("api/v1/growth/", include("growth.api.urls")),
     path("api/v1/funding/", include("funding.api_urls")),
+    path("api/v1/services/", include("services.api_urls")),
     path("api/v1/obtention/", include("obtention.api_urls")),
     path("api/v1/platform/", include("core.api.platform_urls")),
     path("api/v1/spatiotemporal/", include("spatiotemporal.api_urls")),
