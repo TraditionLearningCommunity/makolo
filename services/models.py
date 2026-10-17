@@ -198,6 +198,11 @@ class ServiceJourneyContext(models.Model):
     service_plan_template = models.ForeignKey(ServicePlanTemplate, on_delete=models.PROTECT, related_name="journey_contexts", null=True, blank=True)
     opportunity = models.ForeignKey("opportunities.Opportunity", on_delete=models.PROTECT, related_name="service_contexts", null=True, blank=True)
     opportunity_revision = models.ForeignKey("opportunities.OpportunityRevision", on_delete=models.PROTECT, related_name="service_contexts", null=True, blank=True)
+    # HTTP-native Service start retry token, scoped and hashed by the owner
+    # service. NULL preserves every legacy/Web-created Journey.
+    start_operation_fingerprint = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, editable=False,
+    )
     objective = models.TextField(blank=True)
     plan_materialized_at = models.DateTimeField(null=True, blank=True)
     current_outcome = models.CharField(max_length=24, choices=ServiceCurrentOutcome.choices, default=ServiceCurrentOutcome.NOT_SUBMITTED)
