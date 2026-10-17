@@ -320,6 +320,56 @@ def _opportunity_source_previews(opportunity_ids) -> dict[str, list[dict]]:
     return result
 
 
+def _public_spatial_facts_for_rows(rows) -> dict[str, list[dict]]:
+    """Resolve public occurrence-place roles for selected Activity candidates.
+
+    Only Occurrences already admitted by Discovery can be inspected here.
+    Reuse the same place-publication rule as Discovery's primary place.
+    The bounded wire contains locations, not inferred routes or coordinates.
+    """
+    from discovery.presentation import _space_place_is_public
+
+    selected = {}
+    for family, _, candidate in rows:
+        if family != "activity":
+            continue
+        selected[str(candidate.activity_id)] = set(candidate.matching_occurrence_ids)
+
+    if not selected:
+        return {}
+    activity_ids = list(selected)
+    occurrence_ids = {oid for ids in selected.values() for oid in ids}
+    queryset = public_occurrences_for_activities(activity_ids).filter(
+        pk__in=occurrence_ids
+    )
+    facts = {activity_id: [] for activity_id in activity_ids}
+    for occurrence in queryset:
+        activity_id = str(occurrence.activity_id)
+        if str(occurrence.pk) not in selected.get(activity_id, set()):
+            continue
+        bucket = facts[activity_id]
+        for link in occurrence.place_links.all():
+            place = link.place
+            if not place.is_active or not _space_place_is_public(occurrence.activity, place):
+                continue
+            bucket.append({
+                "occurrence": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "role": link.role,
+                "place": {
+                    "id": str(place.pk),
+                    "name": place.name,
+                    "locality": place.locality,
+                    "latitude": float(place.latitude) if place.latitude is not None else None,
+                    "longitude": float(place.longitude) if place.longitude is not None else None,
+                },
+            })
+            if len(bucket) >= 12:
+                break
+        if len(bucket) >= 12:
+            continue
+    return facts
+
+
 def _assessment(projection: dict) -> list[dict]:
     facts = []
     availability = projection["availability"]["state"]
@@ -621,6 +671,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     )
     activity_resources = _activity_resource_previews(activity_ids)
     opportunity_resources = _opportunity_source_previews(opportunity_ids)
+    public_spatial_facts = _public_spatial_facts_for_rows(rows)
 
     projections = []
     for family, _, candidate in rows:
@@ -693,6 +744,10 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             description=description,
         )
         resource = finalized["identity"]["resource"]
+        if family == "activity":
+            finalized["spatial_facts"] = public_spatial_facts.get(
+                str(candidate.activity_id), []
+            )
         if resource["kind"] == "activity":
             finalized["resources"] = activity_resources.get(resource["id"], [])
         elif resource["kind"] == "opportunity":
