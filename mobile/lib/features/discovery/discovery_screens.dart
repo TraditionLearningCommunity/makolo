@@ -64,7 +64,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         widget.repository.itemsSource(_query),
       );
       if (!mounted) return;
-      if (!locallyValid ||
+      if (local == null ||
+          !locallyValid ||
           DiscoveryRepository.discoveryFreshness.evaluate(
                 local,
                 now: DateTime.now(),
