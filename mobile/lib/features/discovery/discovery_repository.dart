@@ -82,7 +82,7 @@ class DiscoveryQuery {
       radiusKm: clearLocation ? null : radiusKm ?? this.radiusKm,
       page: page ?? this.page,
       pageSize: pageSize ?? this.pageSize,
-      continuation: clearContinuation ? null : continuation ?? this.continuation,
+      continuation: clearContinuation ? null : continuation,
     );
   }
 
@@ -224,6 +224,10 @@ class DiscoveryRepository {
           response.jsonObject(),
           scope: 'personal',
         );
+        final viewer = wire.data['viewer'];
+        if (viewer is! Map || viewer['id'] != profileId) {
+          throw const FormatException('Discovery viewer does not match Profile');
+        }
         return AcquiredProjection(
           schemaVersion: 1,
           payload: wire.snapshotPayload,
