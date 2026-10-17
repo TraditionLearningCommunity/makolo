@@ -11,11 +11,14 @@ from activities.models import (
     ActivityStatus,
     ActivityVisibility,
     Occurrence,
+    OccurrencePlace,
+    OccurrencePlaceRole,
     OccurrenceStatus,
 )
 from discovery.models import ActivityBookmark, DiscoveryWatch
 from events.models import Event
 from funding.models import FundingDetails
+from geography.models import Place
 from groups.models import (
     ActivityGroupEligibility,
     ActivityGroupEligibilityStatus,
@@ -259,6 +262,35 @@ class MatureDiscoveryAPITests(TestCase):
             {"occurrence"},
         )
         self.assertEqual(event["identity"]["resource"]["id"], str(self.event_activity.pk))
+
+    def test_spatial_facts_include_public_occurrence_place_roles(self):
+        first = Place.objects.create(name="Z3 lieu principal", locality="Lubumbashi")
+        second = Place.objects.create(name="Z3 point de rencontre", locality="Lubumbashi")
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence, place=first,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence, place=second,
+            role=OccurrencePlaceRole.MEETING_POINT,
+        )
+        event = next(
+            row for row in self._items(q="Z3 concert")["data"]["results"]
+            if row["identity"]["family"] == "activity"
+        )
+        self.assertEqual(
+            {fact["role"] for fact in event["spatial_facts"]},
+            {"primary", "meeting_point"},
+        )
+        self.assertEqual(
+            {fact["place"]["id"] for fact in event["spatial_facts"]},
+            {str(first.pk), str(second.pk)},
+        )
+        self.assertEqual(event["place"]["id"], str(first.pk))
+        self.assertTrue(all(
+            fact["occurrence"]["id"] == str(self.event_occurrence.pk)
+            for fact in event["spatial_facts"]
+        ))
 
     def test_web_and_api_use_the_same_canonical_discovery_field(self):
         params = {"q": "Z3", "page_size": 20}
