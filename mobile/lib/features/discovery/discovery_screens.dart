@@ -87,8 +87,23 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   void _movePage(int page) {
+    unawaited(_navigateToPage(page));
+  }
+
+  Future<void> _navigateToPage(int page) async {
     if (page < 1) return;
-    setState(() => _query = _query.copyWith(page: page));
+    final current = _query;
+    String? token;
+    if (page == current.page + 1) {
+      final projection = await widget.repository.readItems(current);
+      final collection = _selector.collection(projection);
+      token = collection.continuationToken;
+    }
+    if (!mounted || !identical(current, _query)) return;
+    setState(() => _query = current.copyWith(
+      page: page,
+      continuation: token,
+    ));
     unawaited(_acquire());
   }
 
@@ -255,8 +270,20 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   void _movePage(int page) {
+    unawaited(_navigateToPage(page));
+  }
+
+  Future<void> _navigateToPage(int page) async {
     if (page < 1) return;
-    final query = _query.copyWith(page: page);
+    final current = _query;
+    String? token;
+    if (page == current.page + 1) {
+      final projection = await widget.repository.readItems(current);
+      final collection = _selector.collection(projection);
+      token = collection.continuationToken;
+    }
+    if (!mounted || !identical(current, _query)) return;
+    final query = current.copyWith(page: page, continuation: token);
     setState(() => _query = query);
     unawaited(_refreshPage(query));
   }
