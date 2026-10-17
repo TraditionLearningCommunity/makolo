@@ -18,7 +18,7 @@ from activities.models import (
 from discovery.models import ActivityBookmark, DiscoveryWatch
 from events.models import Event
 from funding.models import FundingDetails
-from geography.models import Place
+from geography.models import Place, SpacePlace
 from groups.models import (
     ActivityGroupEligibility,
     ActivityGroupEligibilityStatus,
@@ -291,6 +291,41 @@ class MatureDiscoveryAPITests(TestCase):
             fact["occurrence"]["id"] == str(self.event_occurrence.pk)
             for fact in event["spatial_facts"]
         ))
+
+    def test_private_space_place_is_not_exposed_by_spatial_facts(self):
+        private_place = Place.objects.create(
+            name="Z3 lieu privé", locality="Lubumbashi"
+        )
+        public_place = Place.objects.create(
+            name="Z3 lieu public", locality="Lubumbashi"
+        )
+        SpacePlace.objects.create(
+            organization=self.space, place=private_place, is_public=False
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=private_place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=public_place,
+            role=OccurrencePlaceRole.MEETING_POINT,
+        )
+        for profile in (None, self.participant):
+            if profile is None:
+                self.client.logout()
+            else:
+                self.client.force_login(profile)
+            event = next(
+                row for row in self._items(q="Z3 concert")["data"]["results"]
+                if row["identity"]["family"] == "activity"
+            )
+            self.assertIsNone(event["place"])
+            self.assertEqual(
+                [fact["place"]["id"] for fact in event["spatial_facts"]],
+                [str(public_place.pk)],
+            )
 
     def test_web_and_api_use_the_same_canonical_discovery_field(self):
         params = {"q": "Z3", "page_size": 20}
