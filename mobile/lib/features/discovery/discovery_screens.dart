@@ -109,14 +109,22 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     if (page < 1) return;
     final current = _query;
     String? token;
+    var targetPage = page;
     if (page == current.page + 1) {
       final projection = await widget.repository.readItems(current);
-      final collection = _selector.collection(projection);
-      token = collection.continuationToken;
+      try {
+        if (projection == null) {
+          targetPage = 1;
+        } else {
+          token = _selector.collection(projection).continuationToken;
+        }
+      } on FormatException {
+        targetPage = 1;
+      }
     }
     if (!mounted || !identical(current, _query)) return;
     setState(() => _query = current.copyWith(
-      page: page,
+      page: targetPage,
       continuation: token,
     ));
     unawaited(_acquire());
@@ -293,13 +301,21 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (page < 1) return;
     final current = _query;
     String? token;
+    var targetPage = page;
     if (page == current.page + 1) {
       final projection = await widget.repository.readItems(current);
-      final collection = _selector.collection(projection);
-      token = collection.continuationToken;
+      try {
+        if (projection == null) {
+          targetPage = 1;
+        } else {
+          token = _selector.collection(projection).continuationToken;
+        }
+      } on FormatException {
+        targetPage = 1;
+      }
     }
     if (!mounted || !identical(current, _query)) return;
-    final query = current.copyWith(page: page, continuation: token);
+    final query = current.copyWith(page: targetPage, continuation: token);
     setState(() => _query = query);
     unawaited(_refreshPage(query));
   }
@@ -485,7 +501,15 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
 
   Future<void> _acquire() async {
     final local = await widget.repository.readItems(_query);
-    if (local == null) await _refresh();
+    if (local == null || local.schemaVersion != 1) {
+      await _refresh();
+      return;
+    }
+    try {
+      DiscoveryWire.validateData(local.payload);
+    } on FormatException {
+      await _refresh();
+    }
   }
 
   Future<void> _refresh() async {
