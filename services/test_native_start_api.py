@@ -10,6 +10,14 @@ from groups.models import (
 )
 from journeys.models import Journey, WorkflowKind
 from organizations.models import Organization
+from opportunities.models import OpportunityKind, OpportunitySourceType
+from opportunities.services import (
+    create_opportunity,
+    create_opportunity_revision,
+    create_opportunity_source,
+    publish_opportunity_revision,
+    withdraw_opportunity,
+)
 
 from .models import OpportunityPolicy, ServiceDetails, ServiceKind
 
@@ -153,3 +161,42 @@ class NativeServiceStartAPITests(TestCase):
         self.assertEqual(Journey.objects.filter(
             initiated_by=self.participant, activity=self.activity,
         ).count(), 0)
+
+    def test_retry_survives_opportunity_withdrawal_without_recreating_journey(self):
+        User = get_user_model()
+        curator = User.objects.create_user(
+            username="native-start-curator", email="native-curator@example.test",
+            password="test-pass-2026", is_superuser=True, is_staff=True,
+        )
+        opportunity = create_opportunity(
+            actor=curator, kind=OpportunityKind.SCHOLARSHIP,
+        )
+        revision = create_opportunity_revision(
+            opportunity=opportunity, actor=curator,
+            title="Test scholarship", issuer_name="External organization",
+            timezone_name="Africa/Lubumbashi",
+        )
+        create_opportunity_source(
+            opportunity=opportunity, actor=curator,
+            source_type=OpportunitySourceType.OFFICIAL,
+            source_name="External official", url="https://example.test/official",
+            is_primary=True,
+        )
+        publish_opportunity_revision(
+            opportunity=opportunity, revision=revision, actor=curator,
+        )
+        self.service.opportunity_policy = OpportunityPolicy.REQUIRED
+        self.service.save(update_fields=["opportunity_policy", "updated_at"])
+        self.client.force_login(self.participant)
+        created = self._start(opportunity=str(opportunity.pk))
+        self.assertEqual(created.status_code, 201)
+        withdraw_opportunity(opportunity=opportunity, actor=curator)
+        replay = self._start(opportunity=str(opportunity.pk))
+        self.assertEqual(replay.status_code, 200)
+        self.assertTrue(replay.json()["replayed"])
+        self.assertEqual(
+            created.json()["journey"]["id"], replay.json()["journey"]["id"],
+        )
+        self.assertEqual(Journey.objects.filter(
+            initiated_by=self.participant, activity=self.activity,
+        ).count(), 1)
