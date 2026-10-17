@@ -39,11 +39,18 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
   List<_MappedPossibility> _points = const [];
   bool _loading = true;
   String? _error;
+  int _requestRevision = 0;
 
   @override
   void initState() {
     super.initState();
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    _requestRevision++;
+    super.dispose();
   }
 
   @override
@@ -58,6 +65,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
 
   Future<void> _load({bool next = false}) async {
     if (next && (_loading || !_collection.hasNext)) return;
+    final revision = ++_requestRevision;
     setState(() {
       _loading = true;
       _error = null;
@@ -76,7 +84,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
         scope: 'public',
       );
       final incoming = _selector.publicCollection(wire.snapshotPayload);
-      if (!mounted) return;
+      if (!mounted || revision != _requestRevision) return;
       final collection = next ? _collection.reconcile(incoming) : incoming;
       final items = {
         for (final item in collection.items) item.candidateKey: item,
@@ -92,7 +100,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
         _loading = false;
       });
     } on Object {
-      if (!mounted) return;
+      if (!mounted || revision != _requestRevision) return;
       setState(() {
         _loading = false;
         _error = 'Impossible de charger la carte publique.';
