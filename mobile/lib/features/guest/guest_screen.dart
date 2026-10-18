@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
+import '../../network/api_error.dart';
 import '../../presentation/possibilities/public_possibility_card.dart';
 import '../../presentation/search/load_more_on_scroll.dart';
 import '../discovery/discovery_repository.dart';
