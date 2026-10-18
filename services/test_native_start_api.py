@@ -114,6 +114,37 @@ class NativeServiceStartAPITests(TestCase):
             first.json()["journey"]["id"], second.json()["journey"]["id"]
         )
 
+    def test_same_operation_key_on_distinct_services_creates_distinct_journeys(self):
+        second_activity = Activity.objects.create(
+            space=self.space, created_by=self.owner,
+            title="Another Native Service", status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        second_service = ServiceDetails.objects.create(
+            activity=second_activity,
+            service_kind=ServiceKind.APPLICATION_SUPPORT,
+            opportunity_policy=OpportunityPolicy.NONE,
+        )
+        self.client.force_login(self.participant)
+        first = self._start()
+        self.assertEqual(first.status_code, 201)
+        second = self.client.post(
+            reverse("services-api:start", kwargs={"pk": second_service.pk}),
+            data={"objective": "Préparer mon dossier"},
+            content_type="application/json",
+            HTTP_IDEMPOTENCY_KEY=self.key,
+        )
+        self.assertEqual(second.status_code, 201)
+        self.assertNotEqual(
+            first.json()["journey"]["id"], second.json()["journey"]["id"]
+        )
+        self.assertEqual(
+            Journey.objects.filter(
+                initiated_by=self.participant, workflow=WorkflowKind.SERVICE,
+            ).count(),
+            2,
+        )
+
     def test_missing_or_short_operation_key_is_rejected(self):
         self.client.force_login(self.participant)
         response = self.client.post(
