@@ -15,6 +15,11 @@ from django.utils import timezone
 from .selectors import currently_available_offers
 
 
+def _amount_as_text(amount: Decimal | None) -> str | None:
+    """Serialize owner Offer unit prices with stable two-decimal precision."""
+    return format(amount, ".2f") if amount is not None else None
+
+
 @dataclass(frozen=True)
 class OfferPriceFacts:
     state: str
@@ -29,8 +34,8 @@ class OfferPriceFacts:
     def as_dict(self) -> dict:
         return {
             "state": self.state,
-            "minimum": str(self.minimum) if self.minimum is not None else None,
-            "maximum": str(self.maximum) if self.maximum is not None else None,
+            "minimum": _amount_as_text(self.minimum),
+            "maximum": _amount_as_text(self.maximum),
             "currency": self.currency,
             "offer_count": self.offer_count,
             "reason": self.reason,
@@ -152,8 +157,8 @@ def occurrence_variant_price_facts(*, occurrences, at=None) -> dict:
         minimum = maximum = currency = None
     return {
         "state": state,
-        "minimum": str(minimum) if minimum is not None else None,
-        "maximum": str(maximum) if maximum is not None else None,
+        "minimum": _amount_as_text(minimum),
+        "maximum": _amount_as_text(maximum),
         "currency": currency,
         "basis": "selected_occurrence_offers",
         "fact_freshness": "not_asserted",
