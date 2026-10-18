@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/discovery/discovery_repository.dart';
 import 'package:makolo_mobile/features/discovery/discovery_selector.dart';
 import 'package:makolo_mobile/features/discovery/discovery_wire.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 Map<String, dynamic> candidate(String family, String id) => {
   'identity': {
@@ -273,6 +276,72 @@ void main() {
     expect(merged.page, 2);
     expect(merged.hasNext, isFalse);
     expect(() => second.reconcile(first), returnsNormally);
+  });
+
+  test('offline one-shot and watched Discovery reads reconcile the same pages',
+      () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'p-1');
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: MemoryTokenStore(),
+    );
+    addTearDown(api.close);
+    final repository = DiscoveryRepository(
+      database: database,
+      store: store,
+      profileId: 'p-1',
+      api: api,
+    );
+    const firstQuery = DiscoveryQuery(pageSize: 20);
+    final first = envelope(
+      scope: 'personal',
+      candidates: [candidate('activity', 'a')],
+      hasNext: true,
+    );
+    final firstWire = DiscoveryWire.receive(first, scope: 'personal');
+    await store.putProjection(
+      kind: DiscoveryRepository.itemsProjectionKind,
+      resourceKey: firstQuery.fingerprint,
+      schemaVersion: 1,
+      payload: firstWire.snapshotPayload,
+    );
+    final secondQuery = firstQuery.copyWith(
+      page: 2,
+      continuation: 'opaque.signed.cursor',
+    );
+    final second = envelope(
+      scope: 'personal',
+      candidates: [candidate('opportunity', 'b')],
+    );
+    final secondData = second['data'] as Map<String, dynamic>;
+    secondData['page'] = 2;
+    secondData['count'] = 2;
+    secondData['has_previous'] = true;
+    final secondWire = DiscoveryWire.receive(second, scope: 'personal');
+    await store.putProjection(
+      kind: DiscoveryRepository.itemsProjectionKind,
+      resourceKey: secondQuery.fingerprint,
+      schemaVersion: 1,
+      payload: secondWire.snapshotPayload,
+    );
+
+    final offline = await repository.readItems(secondQuery);
+    final watched = await repository.watchItems(secondQuery).first;
+    expect(offline, isNotNull);
+    expect(watched, isNotNull);
+    final offlineItems = selector.collection(offline!).items;
+    final watchedItems = selector.collection(watched!).items;
+    expect(offlineItems.map((item) => item.candidateKey),
+        ['activity:a', 'opportunity:b']);
+    expect(watchedItems.map((item) => item.candidateKey),
+        offlineItems.map((item) => item.candidateKey));
+    expect((await store.readProjection(
+      DiscoveryRepository.itemsProjectionKind,
+      resourceKey: secondQuery.fingerprint,
+    ))!
+        .payload['results'], hasLength(1));
   });
 
   test('old snapshot is readable; malformed snapshot is not NO_MATCH', () {
