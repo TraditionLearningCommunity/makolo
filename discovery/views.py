@@ -222,16 +222,12 @@ def _web_discovery_card(item):
             )
 
     save_action = None
-    if (
-        links.get("web_saved")
-        or "save" in item.get("capabilities", [])
-        or "unsave" in item.get("capabilities", [])
-    ):
+    if links.get("web_saved"):
         is_saved = saved.get("state") == "saved"
         save_action = SimpleNamespace(
             code="unsave" if is_saved else "save",
             role="save",
-            label="Enregistré" if is_saved else "Enregistrer",
+            label="Enregistré" if is_saved else "J’enregistre",
             icon="orbit",
             state="saved" if is_saved else "available",
             url=links.get("web_saved"),
@@ -249,7 +245,11 @@ def _web_discovery_card(item):
             state="available",
             url=engagement_presentation["web"],
             emphasis="primary",
-            enabled=bool(engagement_presentation.get("enabled", True)),
+            enabled=bool(
+                engagement_presentation.get(
+                    "web_enabled", engagement_presentation.get("enabled", False)
+                )
+            ),
         )
 
     share_action = None
