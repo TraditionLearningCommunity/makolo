@@ -496,8 +496,13 @@ class DiscoveryRepository {
   }
 
   Future<void> refreshItems(DiscoveryQuery query) async {
-    await _refresh(itemsSource(query));
-    await indexItemPreviews(query);
+    final source = itemsSource(query);
+    await _refresh(source);
+    // A failed offline refresh retains the cached collection, but must not
+    // re-index it as if fresh server data had just been received.
+    if ((await readSource(source)).lastErrorCode == null) {
+      await indexItemPreviews(query);
+    }
   }
 
   Future<void> indexItemPreviews(DiscoveryQuery query) async {
@@ -512,7 +517,9 @@ class DiscoveryRepository {
       _refresh(itemSource(family, id));
 
   Future<void> refreshActivity(String id) async {
-    await _refresh(activitySource(id));
+    final source = activitySource(id);
+    await _refresh(source);
+    if ((await readSource(source)).lastErrorCode != null) return;
     final projection = await readActivity(id);
     if (projection != null) {
       await _indexActivityOccurrencePreviews(id, projection);
