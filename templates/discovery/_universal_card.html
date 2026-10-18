@@ -4,14 +4,24 @@
     <div class="relative overflow-hidden rounded-t-2xl" style="aspect-ratio:16/9;background:var(--mk-surface-muted)"><img src="{{ card.representation.image_url }}" alt="" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover"></div>
     {% elif card.representation.kind == 'route' %}
     <div class="p-5 sm:p-6"><div class="rounded-2xl border p-5" style="border-color:var(--mk-border);background:linear-gradient(135deg,color-mix(in srgb,var(--mk-brand) 10%,var(--mk-surface-solid)),var(--mk-surface-solid))"><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle);letter-spacing:.08em">Trajet</p><p class="mt-2 text-xl font-extrabold" style="letter-spacing:-.03em">{{ card.representation.route_label|default:card.title }}</p></div></div>
-    {% elif card.representation.kind == 'service' %}
-    <div class="p-5 sm:p-6"><div class="rounded-2xl border p-5" style="border-color:var(--mk-border);background:linear-gradient(135deg,color-mix(in srgb,var(--mk-brand) 9%,var(--mk-surface-solid)),var(--mk-surface-solid))"><div class="flex items-center gap-3"><span class="grid place-items-center rounded-2xl border" style="width:44px;height:44px;border-color:var(--mk-border);background:var(--mk-surface-solid);color:var(--mk-brand)"><i data-lucide="map-pin" class="h-5 w-5" aria-hidden="true"></i></span><div><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle);letter-spacing:.08em">Accompagnement</p><p class="mt-1 font-bold">{{ card.representation.eyebrow|default:'Progression guidée' }}</p></div></div></div></div>
-    {% elif card.representation.kind == 'opportunity' %}
-    <div class="p-5 sm:p-6"><div class="rounded-2xl border p-5" style="border-color:var(--mk-border);background:linear-gradient(135deg,color-mix(in srgb,var(--mk-brand) 8%,var(--mk-surface-solid)),var(--mk-surface-solid))"><div class="flex items-center gap-3"><span class="grid place-items-center rounded-2xl border" style="width:44px;height:44px;border-color:var(--mk-border);background:var(--mk-surface-solid);color:var(--mk-brand)"><i data-lucide="sparkles" class="h-5 w-5" aria-hidden="true"></i></span><div><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle);letter-spacing:.08em">Opportunité</p>{% if card.representation.eyebrow %}<p class="mt-1 font-bold">{{ card.representation.eyebrow }}</p>{% endif %}</div></div></div></div>
     {% endif %}
     <div class="p-5 sm:p-6"><div class="flex flex-wrap items-center gap-2"><span class="mk-badge">{{ card.vertical_label }}</span>{% if card.representation.eyebrow and card.representation.kind != 'service' and card.representation.kind != 'opportunity' %}<span class="text-xs font-semibold" style="color:var(--mk-muted)">{{ card.representation.eyebrow }}</span>{% endif %}</div><h3 class="mt-4 text-lg font-extrabold" style="letter-spacing:-.025em">{{ card.title }}</h3>{% if card.operator_name %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">{{ card.operator_label }} {{ card.operator_name }}</p>{% endif %}{% if card.summary %}<p class="mt-2 text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.summary }}</p>{% endif %}</div>
   </a>
-  {% if card.facts %}<div class="p-5 sm:p-6" aria-label="Informations utiles"><div class="flex flex-wrap gap-2">{% for fact in card.facts %}<span class="mk-badge">{% if fact.icon %}<i data-lucide="{{ fact.icon }}" class="h-4 w-4" aria-hidden="true"></i>{% endif %}<span class="sr-only">{{ fact.label }} : </span><span>{{ fact.value }}</span></span>{% endfor %}</div></div>{% endif %}
+  {% if card.facts %}
+  <div class="px-5 pb-5 sm:px-6 sm:pb-6" aria-label="Informations utiles">
+    <dl class="grid grid-cols-2 gap-x-4 gap-y-3">
+      {% for fact in card.facts %}
+        <div class="min-w-0">
+          <dt class="flex items-center gap-1 text-xs font-medium" style="color:var(--mk-subtle)">
+            {% if fact.icon %}<i data-lucide="{{ fact.icon }}" class="h-4 w-4 shrink-0" aria-hidden="true"></i>{% endif %}
+            {{ fact.label }}
+          </dt>
+          <dd class="mt-1 break-words text-sm font-semibold">{{ fact.value }}</dd>
+        </div>
+      {% endfor %}
+    </dl>
+  </div>
+{% endif %}
   {% if card.participant_state and card.participant_state.label or card.participant_state and card.participant_state.secondary_label %}<div class="p-5 sm:p-6" aria-label="Mon état"><div class="rounded-2xl border p-4" style="border-color:var(--mk-border);background:var(--mk-surface-muted)">{% if card.participant_state.label %}<p class="text-sm font-bold">{{ card.participant_state.label }}</p>{% endif %}{% if card.participant_state.secondary_label %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ card.participant_state.secondary_label }}</p>{% endif %}</div></div>{% endif %}
   <div class="mt-5 grid grid-cols-3 gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Interactions avec cette possibilité">
     <div class="min-w-0">
