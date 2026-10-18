@@ -366,7 +366,10 @@ class DiscoveryRepository {
         final projection = page == query.page
             ? current
             : await _readStoredItems(earlierQuery);
-        if (projection == null) break;
+        // A missing lot cannot be represented by its preceding lot.
+        // Keep the requested page absent (or return its own raw snapshot)
+        // rather than mislabelling an incomplete offline field.
+        if (projection == null) return current;
         final viewer = projection.payload['viewer'];
         if (viewer != null &&
             (viewer is! Map || viewer['id'] != profileId)) {
