@@ -168,6 +168,25 @@ def _discovery_fact(code, label, value, icon=None):
     return SimpleNamespace(code=code, label=label, value=value, icon=icon)
 
 
+def _discovery_first_person_action_label(label):
+    """Humanize a confirmed owner Web action without changing its capability."""
+    normalized = label.strip().casefold()
+    return {
+        "s'inscrire": "Je m'inscris",
+        "s’inscrire": "Je m’inscris",
+        "réserver": "Je réserve",
+        "payer": "Je paye",
+        "commander": "Je commande",
+        "candidater": "Je candidate",
+        "participer": "Je participe",
+        "acheter": "J’achète",
+        "louer": "Je loue",
+        "demander": "Je demande",
+        "contribuer": "Je contribue",
+        "postuler": "Je postule",
+    }.get(normalized, label)
+
+
 def _web_discovery_card(item):
     identity = item["identity"]
     representation = item["representation"]
@@ -240,7 +259,7 @@ def _web_discovery_card(item):
         primary_action = SimpleNamespace(
             code=engagement_presentation.get("capability") or "open",
             role="primary",
-            label=engagement_presentation.get("label") or "Continuer",
+            label=_discovery_first_person_action_label(engagement_presentation.get("label") or "Continuer"),
             icon="arrow-right",
             state="available",
             url=engagement_presentation["web"],
