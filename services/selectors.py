@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 
 from authorization.constants import PermissionCode
@@ -100,3 +101,39 @@ def service_notes_visible_to(profile, *, journey):
     if not can(profile, PermissionCode.ACTIVITY_SERVICES_NOTES_INTERNAL, activity=journey.activity):
         return queryset.filter(visibility=JourneyNoteVisibility.BENEFICIARY_VISIBLE)
     return queryset
+
+
+def service_opportunity_relation_for_viewer(*, journey_id, viewer) -> dict | None:
+    """Read an existing Journey -> Opportunity relationship with owner authority.
+
+    Only a viewer permitted to see the Service Journey may receive the
+    identifiers. The pinned published revision remains the historical basis,
+    even if the Opportunity later changes. This does not grant rights to the
+    linked Opportunity or create a public Discovery graph.
+    """
+    journey = (
+        service_journeys_visible_to(viewer)
+        .select_related("service_context", "service_context__opportunity_revision")
+        .filter(pk=journey_id)
+        .first()
+    )
+    if journey is None:
+        return None
+    try:
+        context = journey.service_context
+    except ObjectDoesNotExist:
+        return None
+    if not context.opportunity_id or not context.opportunity_revision_id:
+        return None
+    return {
+        "kind": "service_journey_opportunity",
+        "members": [
+            {"kind": "journey", "id": str(journey.pk)},
+            {"kind": "opportunity", "id": str(context.opportunity_id)},
+        ],
+        "basis": {"kind": "service_journey_context", "id": str(context.pk)},
+        "revision": {
+            "kind": "opportunity_revision",
+            "id": str(context.opportunity_revision_id),
+        },
+    }
