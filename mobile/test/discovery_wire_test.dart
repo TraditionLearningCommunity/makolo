@@ -311,6 +311,8 @@ void main() {
       page: 2,
       continuation: 'opaque.signed.cursor',
     );
+    expect(await repository.readItems(secondQuery), isNull);
+    expect(await repository.watchItems(secondQuery).first, isNull);
     final second = envelope(
       scope: 'personal',
       candidates: [candidate('opportunity', 'b')],
