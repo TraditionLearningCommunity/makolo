@@ -365,7 +365,7 @@ class DiscoveryRepository {
       for (var page = 1; page <= query.page; page++) {
         final projection = page == query.page
             ? current
-            : await readItems(earlierQuery);
+            : await _readStoredItems(earlierQuery);
         if (projection == null) break;
         final viewer = projection.payload['viewer'];
         if (viewer != null &&
@@ -406,8 +406,16 @@ class DiscoveryRepository {
     );
   }
 
-  Future<StoredProjection?> readItems(DiscoveryQuery query) =>
+  Future<StoredProjection?> _readStoredItems(DiscoveryQuery query) =>
       store.readProjection(itemsProjectionKind, resourceKey: query.fingerprint);
+
+  /// Keep one-shot offline reads consistent with the watched logical field.
+  /// Each raw server page remains the only persisted snapshot.
+  Future<StoredProjection?> readItems(DiscoveryQuery query) async {
+    final current = await _readStoredItems(query);
+    if (query.page <= 1) return current;
+    return _logicalItemsProjection(query, current);
+  }
 
   Stream<StoredProjection?> watchMap(DiscoveryQuery query) => store
       .watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
