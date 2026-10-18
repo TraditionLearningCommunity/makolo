@@ -698,7 +698,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                           ),
                       ],
                     ),
-                    if (item.canSave || item.canUnsave)
+                    if (item?.canSave == true || item?.canUnsave == true)
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: MakoloSpacing.inner,
@@ -706,7 +706,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                         child: FilledButton.icon(
                           onPressed: _saving
                               ? null
-                              : () => _setSaved(item.canSave),
+                              : () => _setSaved(item!.canSave),
                           icon: Icon(
                             item.canUnsave
                                 ? Icons.bookmark_rounded
