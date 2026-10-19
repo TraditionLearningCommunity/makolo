@@ -134,9 +134,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             ? 'PDF'
             : mime.contains('spreadsheet') || mime.contains('excel')
                 ? 'Tableur'
-                : raw['kind'] == 'file'
-                    ? 'Document'
-                    : 'Source';
+                : mime.startsWith('video/')
+                    ? 'Vidéo'
+                    : mime.startsWith('audio/')
+                        ? 'Audio'
+                        : raw['kind'] == 'file'
+                            ? 'Document'
+                            : 'Source';
         labels.add('$format · $title');
         if (labels.length == 3) return labels;
       }
@@ -155,9 +159,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           ? 'PDF'
           : mime.contains('spreadsheet') || mime.contains('excel')
               ? 'Tableur'
-              : mime.contains('document')
-                  ? 'Document'
-                  : null;
+              : mime.startsWith('video/')
+                  ? 'Vidéo'
+                  : mime.startsWith('audio/')
+                      ? 'Audio'
+                      : mime.contains('document')
+                          ? 'Document'
+                          : null;
       if (format != null) labels.add(name.isEmpty ? format : '$format · $name');
     }
     return labels;
@@ -224,8 +232,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
   Widget _knowledge(BuildContext context) {
     final significant = item.assessment.where((fact) {
-      return fact['state'] == 'limiting' || fact['state'] == 'unknown';
-    }).take(2);
+      return fact['state'] == 'favorable' ||
+          fact['state'] == 'limiting' ||
+          fact['state'] == 'unknown';
+    }).take(3);
     if (significant.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,7 +323,26 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ],
                   if (item.summary.trim().isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
-                    Text(item.summary, style: widget.compact ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium),
+                    Text(
+                      item.summary,
+                      style: widget.compact
+                          ? theme.textTheme.bodySmall
+                          : theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                  if (item.detailFacts?['description'] is String &&
+                      (item.detailFacts!['description'] as String).trim().isNotEmpty &&
+                      item.detailFacts!['description'] != item.summary) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(item.detailFacts!['description'] as String),
+                  ],
+                  if (item.participantPresentation?['label'] is String &&
+                      (item.participantPresentation!['label'] as String).isNotEmpty) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      item.participantPresentation!['label'] as String,
+                      style: theme.textTheme.labelMedium,
+                    ),
                   ],
                   if (resources.isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
