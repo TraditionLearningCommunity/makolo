@@ -78,10 +78,31 @@ class ServiceStartAPIView(APIView):
 
     def get(self, request, pk):
         service = _public_service_for_viewer(pk=pk, viewer=request.user)
+        opportunities = None
+        if service.opportunity_policy != OpportunityPolicy.NONE:
+            from opportunities.selectors import published_opportunities
+
+            query = (request.query_params.get("q") or "").strip()[:120]
+            queryset = published_opportunities()
+            if query:
+                queryset = queryset.filter(current_revision__title__icontains=query)
+            selected = list(queryset[:31])
+            opportunities = {
+                "results": [
+                    {
+                        "kind": "opportunity",
+                        "id": str(item.pk),
+                        "title": item.current_revision.title,
+                    }
+                    for item in selected[:30]
+                ],
+                "has_next": len(selected) > 30,
+            }
         response = Response({
             "service": {"kind": "service", "id": str(service.pk)},
             "activity": {"kind": "activity", "id": str(service.activity_id)},
             "capabilities": ["start"],
+            "opportunities": opportunities,
             "requirements": {
                 "opportunity_policy": service.opportunity_policy,
                 "opportunity_required": (
