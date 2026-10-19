@@ -83,8 +83,6 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             onSave: widget.onSave,
             baseUri: widget.baseUri,
       shareApi: widget.shareApi,
-          shareApi: widget.shareApi,
-            shareApi: widget.shareApi,
             onPage: widget.onPage,
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
@@ -97,7 +95,6 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           onSave: widget.onSave,
           baseUri: widget.baseUri,
       shareApi: widget.shareApi,
-          shareApi: widget.shareApi,
           onPage: widget.onPage,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
@@ -389,7 +386,6 @@ class _DiscoveryScrollableField extends StatelessWidget {
               selected: selectedCandidateKey == item.candidateKey,
               baseUri: baseUri,
               shareApi: shareApi,
-        shareApi: shareApi,
               onSave: onSave == null ? null : () => onSave!(item),
               onTap: () {
                 if (selectOnCardTap && onSelect != null) {
