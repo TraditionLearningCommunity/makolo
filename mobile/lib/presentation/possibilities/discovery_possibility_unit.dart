@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 import '../../design/makolo_theme.dart';
-import '../../platform/sharing/share_gateway.dart';
+import '../../network/makolo_api_client.dart';
+import '../../features/discovery/discovery_share_sheet.dart';
 import '../../features/discovery/discovery_selector.dart';
 
 /// The existing Discovery projection rendered as one N1 unit.
@@ -45,6 +44,9 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
     required this.onOpen,
     this.onSave,
     this.allowSavePrompt = false,
+    this.shareApi,
+    this.shareAuthenticated = false,
+    this.onSignIn,
     this.onSelect,
     this.selectionActionLabel,
     this.baseUri,
@@ -55,6 +57,9 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
   final VoidCallback onOpen;
   final Future<void> Function()? onSave;
   final bool allowSavePrompt;
+  final MakoloApiClient? shareApi;
+  final bool shareAuthenticated;
+  final VoidCallback? onSignIn;
   final VoidCallback? onSelect;
   final String? selectionActionLabel;
   final Uri? baseUri;
@@ -102,20 +107,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  Uri? get _shareableUrl {
-    if (widget.item.links['web_share'] == null) return null;
-    final raw = widget.item.links['web'];
-    if (raw == null || raw.isEmpty || widget.baseUri == null) return null;
-    final candidate = Uri.tryParse(raw);
-    if (candidate == null) return null;
-    final uri = widget.baseUri!.resolveUri(candidate);
-    if (uri.scheme != 'https' && uri.scheme != 'http') return null;
-    if (uri.host != widget.baseUri!.host || uri.port != widget.baseUri!.port)
-      return null;
-    if (uri.userInfo.isNotEmpty) return null;
-    return uri;
   }
 
   DiscoveryItemPresentation get item => widget.item;
@@ -275,51 +266,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     );
   }
 
-  Future<void> _share(BuildContext context, String action, Uri uri) async {
-    try {
-      if (action == 'copy') {
-        await Clipboard.setData(ClipboardData(text: uri.toString()));
-        if (context.mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('Lien copié.')));
-        }
-      } else if (action == 'external') {
-        await const SystemShareGateway().shareText('${item.title}\n$uri');
-      } else if (action == 'qr' && context.mounted) {
-        await showDialog<void>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Partager par QR'),
-            content: SizedBox(
-              width: 220,
-              height: 220,
-              child: PrettyQrView.data(data: uri.toString()),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Fermer'),
-              ),
-            ],
-          ),
-        );
-      }
-    } on Object {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Le partage n’a pas pu aboutir.')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final saved = _confirmedSaved ?? (item.savedState == 'saved');
     final canToggle =
         _confirmedSaved == null && (saved ? item.canUnsave : item.canSave);
-    final url = _shareableUrl;
+
     final resources = _resourceLabels;
     final focus = item.imageUrl != null;
     return Card(
@@ -469,34 +422,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     ),
                   ),
                   Expanded(
-                    child: url == null
-                        ? const SizedBox.shrink()
-                        : PopupMenuButton<String>(
-                            tooltip: 'Partager',
-                            onSelected: (value) => _share(context, value, url),
-                            itemBuilder: (context) => const [
-                              PopupMenuItem(
-                                value: 'external',
-                                child: Text('Partager avec…'),
-                              ),
-                              PopupMenuItem(
-                                value: 'copy',
-                                child: Text('Copier le lien'),
-                              ),
-                              PopupMenuItem(
-                                value: 'qr',
-                                child: Text('Afficher le QR'),
-                              ),
-                            ],
-                            child: const Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.share_outlined),
-                                SizedBox(height: 3),
-                                Text('Partager'),
-                              ],
-                            ),
-                          ),
+                    child: DiscoveryShareControl(
+                      item: item,
+                      api: widget.shareApi,
+                      authenticated: widget.shareAuthenticated,
+                      onSignIn: widget.onSignIn,
+                    ),
                   ),
                 ],
               ),
