@@ -584,6 +584,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             onSave: (item) =>
                 _saveDiscoveryPossibility(widget.repository, item, _query),
             baseUri: widget.repository.api.baseUri,
+            shareApi: widget.repository.api,
             onRetry: () => unawaited(_refresh()),
             onOpen: (item) {
               final occurrenceId = item.occurrenceId;
