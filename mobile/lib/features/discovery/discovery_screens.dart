@@ -19,6 +19,28 @@ import 'discovery_repository.dart';
 import 'discovery_selector.dart';
 import 'discovery_wire.dart';
 
+/// A confirmed owner mutation updates the detail snapshot first. Refresh the
+/// existing field opportunistically; a failed refresh does not negate a save.
+Future<void> _saveDiscoveryPossibility(
+  DiscoveryRepository repository,
+  DiscoveryItemPresentation item,
+  DiscoveryQuery query,
+) async {
+  final willSave = item.savedState != 'saved';
+  if (willSave && !item.canSave) {
+    throw StateError('Enregistrement indisponible pour cette possibilité.');
+  }
+  if (!willSave && !item.canUnsave) {
+    throw StateError('Suppression indisponible pour cette possibilité.');
+  }
+  await repository.setSaved(family: item.family, id: item.id, saved: willSave);
+  try {
+    await repository.refreshItems(query);
+  } on Object {
+    // The owner already confirmed the mutation; the snapshot can refresh later.
+  }
+}
+
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({
     super.key,
@@ -205,6 +227,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               child: DiscoveryExplorationView(
                 selection: selection,
                 onOpen: _open,
+                onSave: (item) => _saveDiscoveryPossibility(widget.repository, item, _query),
+                baseUri: widget.repository.api.baseUri,
                 onPage: _movePage,
                 onRetry: () => unawaited(_refreshItems()),
               ),
@@ -446,6 +470,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                           child: DiscoveryExplorationView(
                             selection: selection,
                             onOpen: _open,
+                            onSave: (item) => _saveDiscoveryPossibility(widget.repository, item, _query),
+                            baseUri: widget.repository.api.baseUri,
                             onPage: _movePage,
                             onRetry: () {
                               if (sourceState.lastErrorCode ==
@@ -549,6 +575,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
           return DiscoverySpatialView(
             selection: selection,
             mapConfig: widget.mapConfig,
+            onSave: (item) => _saveDiscoveryPossibility(widget.repository, item, _query),
+            baseUri: widget.repository.api.baseUri,
             onRetry: () => unawaited(_refresh()),
             onOpen: (item) {
               final occurrenceId = item.occurrenceId;
