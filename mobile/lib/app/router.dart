@@ -16,6 +16,7 @@ import '../features/day_of/day_of_routes.dart';
 import '../features/live/live_routes.dart';
 import '../features/discovery/discovery_routes.dart';
 import '../features/discovery/discovery_repository.dart';
+import '../features/discovery/discovery_shared_link_screen.dart';
 import '../features/guest/public_discovery_map_screen.dart';
 import '../features/guest/public_home_screen.dart';
 import '../features/guest/public_possibility_detail_screen.dart';
@@ -72,7 +73,8 @@ GoRouter createMakoloRouter(
         path == '/discover/map' ||
         path == '/spaces' ||
         path.startsWith('/spaces/') ||
-        path.startsWith('/discover/items/')) {
+        path.startsWith('/discover/items/') ||
+        path.startsWith('/s/')) {
       return false;
     }
     if (MakoloDestination.forPath(path) != null) return true;
@@ -148,6 +150,13 @@ GoRouter createMakoloRouter(
       message: 'Cette page n’est pas disponible.',
     ),
     routes: [
+      GoRoute(
+        path: '/s/:token',
+        builder: (context, state) => DiscoverySharedLinkScreen(
+          runtime: runtime,
+          token: state.pathParameters['token']!,
+        ),
+      ),
       if (runtime.isAuthenticated)
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) => AppShell(
