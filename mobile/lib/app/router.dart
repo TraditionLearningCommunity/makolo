@@ -17,6 +17,7 @@ import '../features/live/live_routes.dart';
 import '../features/discovery/discovery_routes.dart';
 import '../features/discovery/discovery_repository.dart';
 import '../features/discovery/discovery_shared_link_screen.dart';
+import '../features/services/service_start_screen.dart';
 import '../features/guest/public_discovery_map_screen.dart';
 import '../features/guest/public_home_screen.dart';
 import '../features/guest/public_possibility_detail_screen.dart';
@@ -97,6 +98,7 @@ GoRouter createMakoloRouter(
       '/shares/',
       '/discover/items/',
       '/activities/',
+      '/services/',
       '/occurrences/',
       '/space/occurrences/',
       '/space/relationships',
@@ -241,6 +243,26 @@ GoRouter createMakoloRouter(
           builder: (context, state) => PublicSpaceDetailScreen(
             runtime: runtime,
             slug: state.pathParameters['slug']!,
+          ),
+        ),
+      ],
+      if (runtime.isAuthenticated) ...[
+        GoRoute(
+          path: '/spaces',
+          builder: (context, state) => PublicSpacesScreen(runtime: runtime),
+        ),
+        GoRoute(
+          path: '/spaces/:slug',
+          builder: (context, state) => PublicSpaceDetailScreen(
+            runtime: runtime,
+            slug: state.pathParameters['slug']!,
+          ),
+        ),
+        GoRoute(
+          path: '/services/:id/start',
+          builder: (context, state) => ServiceStartScreen(
+            runtime: runtime,
+            serviceId: state.pathParameters['id']!,
           ),
         ),
       ],
