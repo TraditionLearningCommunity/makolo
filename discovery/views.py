@@ -232,6 +232,14 @@ def _web_discovery_card(item):
         add_fact("price", "Prix", "Gratuit", "wallet-cards")
     elif price.get("minimum") is not None:
         price_value = str(price["minimum"])
+        if (
+            price.get("state") == "range"
+            and price.get("maximum") is not None
+            and price["maximum"] != price["minimum"]
+        ):
+            price_value = f"{price_value} – {price['maximum']}"
+        elif price.get("state") in {"priced", "variant_dependent"}:
+            price_value = f"À partir de {price_value}"
         if price.get("currency"):
             price_value = f"{price_value} {price['currency']}"
         add_fact("price", "Prix", price_value, "wallet-cards")
@@ -272,7 +280,15 @@ def _web_discovery_card(item):
             code=engagement_presentation.get("capability") or "open",
             role="primary",
             label=_discovery_first_person_action_label(engagement_presentation.get("label") or "Continuer"),
-            icon="arrow-right",
+            icon={
+                "start": "play-circle",
+                "reserve": "ticket",
+                "book": "ticket",
+                "register": "user-plus",
+                "contribute": "hand-heart",
+                "buy": "shopping-bag",
+                "apply": "send",
+            }.get(engagement_presentation.get("capability"), "external-link"),
             state="available",
             url=engagement_presentation["web"],
             emphasis="primary",
