@@ -330,10 +330,32 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         resource['id'] is String;
   }
 
+  String? get _nativeTicketChoices {
+    final handoff = item.engagement;
+    final caps = handoff?['capabilities'];
+    final links = handoff?['links'];
+    final resource = handoff?['resource'];
+    final native = links is Map ? links['native'] : null;
+    if (item.family != 'activity' ||
+        handoff?['owner'] != 'events' ||
+        caps is! List ||
+        !caps.contains('inspect_offers') ||
+        resource is! Map ||
+        resource['kind'] != 'event' ||
+        native is! String ||
+        !native.startsWith('/events/') ||
+        !native.endsWith('/tickets')) {
+      return null;
+    }
+    return native;
+  }
+
   void _centralAction(BuildContext context) {
     if (_canStartService) {
       final service = item.engagement!['resource'] as Map;
       context.push('/services/${service['id']}/start');
+    } else if (_nativeTicketChoices != null) {
+      context.push(_nativeTicketChoices!);
     } else {
       widget.onOpen();
     }
@@ -541,10 +563,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     child: IconButton(
                       key: const Key('discover-primary-n1'),
                       onPressed: () => _centralAction(context),
-                      tooltip: _canStartService ? 'Commencer' : 'Voir plus',
+                      tooltip: _canStartService
+                          ? 'Commencer'
+                          : _nativeTicketChoices != null
+                          ? 'Voir les billets'
+                          : 'Voir plus',
                       icon: Icon(
                         _canStartService
                             ? Icons.play_circle_outline_rounded
+                            : _nativeTicketChoices != null
+                            ? Icons.confirmation_number_outlined
                             : Icons.open_in_new_rounded,
                       ),
                     ),
