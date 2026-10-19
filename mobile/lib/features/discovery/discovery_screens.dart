@@ -734,7 +734,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                           ),
                       ],
                     ),
-                    if (item?.canSave == true || item?.canUnsave == true)
+                    if (item.canSave || item.canUnsave)
                       Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: MakoloSpacing.inner,
