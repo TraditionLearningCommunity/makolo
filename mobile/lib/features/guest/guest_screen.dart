@@ -259,7 +259,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             'Contrat Discovery incompatible (FORMAT). '
             'Réponse reçue mais impossible à interpréter : ${error.message}.';
       });
-      _trace('LOAD_FINISHED', revision: revision, detail: 'state=contract_error');
+      _trace(
+        'LOAD_FINISHED',
+        revision: revision,
+        detail: 'state=contract_error',
+      );
     } on TimeoutException catch (error, stack) {
       _reportFailure('TIMEOUT', error, stack, revision: revision);
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;

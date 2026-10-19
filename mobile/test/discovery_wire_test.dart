@@ -162,11 +162,20 @@ void main() {
 
     expect(collection.count, 191);
     expect(collection.items, hasLength(12));
-    expect(collection.items.every((item) => item.family == 'service_activity'), isTrue);
+    expect(
+      collection.items.every((item) => item.family == 'service_activity'),
+      isTrue,
+    );
     expect(collection.hasNext, isTrue);
     expect(collection.continuationToken, 'opaque.signed.cursor');
-    expect(collection.items.every((item) => !item.capabilities.contains('start')), isTrue);
-    expect(collection.items.first.engagement?['presentation'], containsPair('enabled', false));
+    expect(
+      collection.items.every((item) => !item.capabilities.contains('start')),
+      isTrue,
+    );
+    expect(
+      collection.items.first.engagement?['presentation'],
+      containsPair('enabled', false),
+    );
     expect(collection.items.first.representationKind, 'service');
   });
 

@@ -183,98 +183,138 @@ class _FaultyInteractions implements ResumableInteractionAccess {
 }
 
 void main() {
-  testWidgets('public Discovery loads after local restore failure', (tester) async {
-    final client = MockClient((request) async => MockResponse(
-      _mockResponseJson({
-        'data': {
-          'count': 1,
-          'page': 1,
-          'page_size': 12,
-          'has_next': false,
-          'results': [
-            _item('Possibilité après erreur locale', '11111111-1111-4111-8111-111111111111'),
-          ],
-        },
-      }),
-      200,
-    ));
-    final router = _router(_guestRuntime(
-      SessionRecoveryController(),
-      client: client,
-      interactions: _FaultyInteractions(failRead: true),
-    ));
+  testWidgets('public Discovery loads after local restore failure', (
+    tester,
+  ) async {
+    final client = MockClient(
+      (request) async => MockResponse(
+        _mockResponseJson({
+          'data': {
+            'count': 1,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': [
+              _item(
+                'Possibilité après erreur locale',
+                '11111111-1111-4111-8111-111111111111',
+              ),
+            ],
+          },
+        }),
+        200,
+      ),
+    );
+    final router = _router(
+      _guestRuntime(
+        SessionRecoveryController(),
+        client: client,
+        interactions: _FaultyInteractions(failRead: true),
+      ),
+    );
     await _pump(tester, router);
     router.go('/discover');
     await tester.pumpAndSettle();
 
     expect(find.text('Possibilité après erreur locale'), findsOneWidget);
-    expect(find.byKey(const Key('guest-discover-local-warning')), findsOneWidget);
+    expect(
+      find.byKey(const Key('guest-discover-local-warning')),
+      findsOneWidget,
+    );
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets('public Discovery does not wait for a failing local save', (tester) async {
-    final client = MockClient((request) async => MockResponse(
-      _mockResponseJson({
-        'data': {
-          'count': 1,
-          'page': 1,
-          'page_size': 12,
-          'has_next': false,
-          'results': [
-            _item('Possibilité malgré écriture locale', '11111111-1111-4111-8111-111111111111'),
-          ],
-        },
-      }),
-      200,
-    ));
-    final router = _router(_guestRuntime(
-      SessionRecoveryController(),
-      client: client,
-      interactions: _FaultyInteractions(failSave: true),
-    ));
+  testWidgets('public Discovery does not wait for a failing local save', (
+    tester,
+  ) async {
+    final client = MockClient(
+      (request) async => MockResponse(
+        _mockResponseJson({
+          'data': {
+            'count': 1,
+            'page': 1,
+            'page_size': 12,
+            'has_next': false,
+            'results': [
+              _item(
+                'Possibilité malgré écriture locale',
+                '11111111-1111-4111-8111-111111111111',
+              ),
+            ],
+          },
+        }),
+        200,
+      ),
+    );
+    final router = _router(
+      _guestRuntime(
+        SessionRecoveryController(),
+        client: client,
+        interactions: _FaultyInteractions(failSave: true),
+      ),
+    );
     await _pump(tester, router);
     router.go('/discover');
     await tester.pumpAndSettle();
 
     expect(find.text('Possibilité malgré écriture locale'), findsOneWidget);
-    expect(find.byKey(const Key('guest-discover-local-warning')), findsOneWidget);
+    expect(
+      find.byKey(const Key('guest-discover-local-warning')),
+      findsOneWidget,
+    );
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets('public Discovery exposes a malformed HTTP 200 as contract error', (tester) async {
-    final client = MockClient((request) async => MockResponse(
-      convert.jsonEncode({
-        'meta': {
-          'projection': 'discovery.items',
-          'schema_version': 1,
-          'scope': 'public',
-          'generated_at': '2026-10-19T12:00:00Z',
-        },
-        'data': {
-          'surface': 'discover_public',
-          'actor': null,
-          'viewer': null,
-          'count': 1,
-          'page': 1,
-          'page_size': 12,
-          'has_next': true,
-          'results': [
-            _item('Réponse incomplète', '11111111-1111-4111-8111-111111111111'),
-          ],
-        },
-      }),
-      200,
-    ));
-    final router = _router(_guestRuntime(SessionRecoveryController(), client: client));
-    await _pump(tester, router);
-    router.go('/discover');
-    await tester.pumpAndSettle();
+  testWidgets(
+    'public Discovery exposes a malformed HTTP 200 as contract error',
+    (tester) async {
+      final client = MockClient(
+        (request) async => MockResponse(
+          convert.jsonEncode({
+            'meta': {
+              'projection': 'discovery.items',
+              'schema_version': 1,
+              'scope': 'public',
+              'generated_at': '2026-10-19T12:00:00Z',
+            },
+            'data': {
+              'surface': 'discover_public',
+              'actor': null,
+              'viewer': null,
+              'count': 1,
+              'page': 1,
+              'page_size': 12,
+              'has_next': true,
+              'results': [
+                _item(
+                  'Réponse incomplète',
+                  '11111111-1111-4111-8111-111111111111',
+                ),
+              ],
+            },
+          }),
+          200,
+        ),
+      );
+      final router = _router(
+        _guestRuntime(SessionRecoveryController(), client: client),
+      );
+      await _pump(tester, router);
+      router.go('/discover');
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('guest-discover-load-error')), findsOneWidget);
-    expect(find.textContaining('Contrat Discovery incompatible'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.text('Réessayer'), findsOneWidget);
-  });
+      expect(
+        find.byKey(const Key('guest-discover-load-error')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Contrat Discovery incompatible'),
+        findsOneWidget,
+      );
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Réessayer'), findsOneWidget);
+    },
+  );
   testWidgets('guest enters public home with no Profile or Space shell', (
     tester,
   ) async {
