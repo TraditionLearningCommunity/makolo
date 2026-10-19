@@ -37,6 +37,15 @@ DiscoveryItemPresentation item(
     savedState: 'not_saved',
     capabilities: const {'view', 'save'},
     links: const {'detail': '/api/v1/discovery/items/activity/test/'},
+    wire: mappable
+        ? {
+            'place': {
+              'latitude': -11.66 + id.length / 100,
+              'longitude': 27.48 + id.length / 100,
+              'locality': 'Lubumbashi',
+            },
+          }
+        : const {},
   );
 }
 
