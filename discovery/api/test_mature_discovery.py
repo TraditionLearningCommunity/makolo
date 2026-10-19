@@ -428,6 +428,67 @@ class MatureDiscoveryAPITests(TestCase):
         )
         self.assertEqual(data["freshness"]["fact_freshness"], "not_asserted")
 
+    def test_public_owner_object_comes_from_logical_activity_owner(self):
+        data = self._items(q="Z3 concert")["data"]
+        item = next(
+            row for row in data["results"]
+            if row["identity"]["family"] == "activity"
+        )
+        owner = item["owner"]
+        self.assertEqual(owner["identity"], {
+            "kind": "space",
+            "id": str(self.space.pk),
+        })
+        self.assertEqual(owner["representation"]["name"], self.space.name)
+        self.assertEqual(owner["links"]["native"], f"/spaces/{self.space.slug}")
+        self.assertEqual(owner["capabilities"], ["view_public"])
+        self.assertEqual(item["date"]["kind"], "added_at")
+        self.assertEqual(
+            item["date"]["value"],
+            self.event_activity.created_at.isoformat(),
+        )
+
+    def test_private_owner_is_not_promoted_to_public_navigation(self):
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile"])
+        item = next(
+            row for row in self._items(q="Z3 concert")["data"]["results"]
+            if row["identity"]["family"] == "activity"
+        )
+        self.assertIsNone(item["owner"])
+        self.assertNotIn("created_by", item)
+
+    def test_opportunity_issuer_is_external_without_makolo_identity(self):
+        item = next(
+            row for row in self._items(q="Z3 bourse")["data"]["results"]
+            if row["identity"]["family"] == "opportunity"
+        )
+        self.assertEqual(item["owner"]["display_name"], "Fondation Z3")
+        self.assertEqual(item["owner"]["identity"], {"kind": "external_issuer"})
+        self.assertFalse(item["owner"]["links"])
+        self.assertEqual(item["date"]["kind"], "published_at")
+        self.assertEqual(
+            item["date"]["value"], self.opportunity.published_at.isoformat()
+        )
+
+    def test_authenticated_service_start_refers_to_service_not_activity(self):
+        self.client.force_login(self.participant)
+        item = next(
+            row for row in self._items(q="Z3 accompagnement")["data"]["results"]
+            if row["identity"]["family"] == "service_activity"
+        )
+        handoff = item["engagement"]
+        self.assertEqual(handoff["state"], "owner_api")
+        self.assertEqual(
+            handoff["resource"], {"kind": "service", "id": str(self.service.pk)}
+        )
+        self.assertIn("start", handoff["capabilities"])
+        self.assertEqual(
+            handoff["links"]["start"],
+            reverse("services-api:start", kwargs={"pk": self.service.pk}),
+        )
+        self.assertTrue(handoff["presentation"]["enabled"])
+
     def test_web_primary_action_is_not_an_unbacked_owner_capability(self):
         data = self._items(q="Z3 accompagnement")["data"]
         service = next(
