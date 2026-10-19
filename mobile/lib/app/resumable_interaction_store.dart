@@ -3,7 +3,15 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-class ResumableInteractionStore {
+/// Small read/write boundary for resumable UX interactions.
+ /// Allows a public surface to recover from storage failures independently.
+ abstract interface class ResumableInteractionAccess {
+   Future<Map<String, dynamic>> read(String interactionId);
+   Future<void> save(String interactionId, Map<String, dynamic> values);
+   Future<void> clear(String interactionId);
+ }
+
+ class ResumableInteractionStore implements ResumableInteractionAccess {
   ResumableInteractionStore._(this._file, this._memory);
 
   factory ResumableInteractionStore.memory() =>
