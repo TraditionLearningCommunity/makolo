@@ -38,10 +38,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   static String _newOperationKey() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     final random = Random.secure();
-    return List.generate(
-      32,
-      (_) => chars[random.nextInt(chars.length)],
-    ).join();
+    return List.generate(32, (_) => chars[random.nextInt(chars.length)]).join();
   }
 
   @override
@@ -85,9 +82,10 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       setState(() {
         _requirements = Map<String, dynamic>.from(requirements);
         _opportunities = results is List
-            ? results.whereType<Map>()
-                .map((value) => Map<String, dynamic>.from(value))
-                .toList(growable: false)
+            ? results
+                  .whereType<Map>()
+                  .map((value) => Map<String, dynamic>.from(value))
+                  .toList(growable: false)
             : const [];
         _loading = false;
       });
@@ -113,15 +111,18 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       if (results is! List) throw const FormatException('Invalid choices');
       if (!mounted) return;
       setState(() {
-        _opportunities = results.whereType<Map>()
+        _opportunities = results
+            .whereType<Map>()
             .map((value) => Map<String, dynamic>.from(value))
             .toList(growable: false);
         _selectedOpportunity = null;
       });
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'Impossible de rechercher les Opportunities disponibles.');
+        setState(
+          () => _error =
+              'Impossible de rechercher les Opportunities disponibles.',
+        );
       }
     } finally {
       if (mounted) setState(() => _searchingOpportunities = false);
@@ -131,7 +132,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   Future<void> _start() async {
     if (_loading || _submitting || _requirements == null) return;
     if (_requirements!['opportunity_required'] == true &&
-        _selectedOpportunity == null) return;
+        _selectedOpportunity == null)
+      return;
     setState(() {
       _submitting = true;
       _error = null;
@@ -160,8 +162,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     } on Object {
       if (!mounted) return;
       setState(() {
-        _error =
-            'Le démarrage n’a pas été confirmé. Réessayez sans changer la demande.';
+        _error = 'Le démarrage n’a pas été confirmé. Réessayez sans changer la demande.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -185,8 +186,10 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
               label: const Text('Réessayer'),
             )
           else ...[
-            Text('Votre objectif',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Votre objectif',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _objective,
@@ -232,7 +235,9 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                   for (final opportunity in _opportunities)
                     DropdownMenuItem<String>(
                       value: opportunity['id']?.toString() ?? '',
-                      child: Text(opportunity['title']?.toString() ?? 'Opportunity'),
+                      child: Text(
+                        opportunity['title']?.toString() ?? 'Opportunity',
+                      ),
                     ),
                 ],
                 onChanged: _attempted
@@ -245,7 +250,8 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
             ],
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: _submitting ||
+              onPressed:
+                  _submitting ||
                       (needsOpportunity && _selectedOpportunity == null)
                   ? null
                   : _start,
