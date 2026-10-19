@@ -517,39 +517,34 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextButton(
+                    child: IconButton(
+                      key: const Key('discover-save-n1'),
                       onPressed:
                           !_saving &&
                               widget.onSave != null &&
                               (canToggle || widget.allowSavePrompt)
                           ? _save
                           : null,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          DiscoveryOrbitIcon(
-                            saved: saved,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            _saving
-                                ? 'Enregistrement…'
-                                : saved
-                                ? 'Enregistré'
-                                : 'J’enregistre',
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                      tooltip: _saving
+                          ? 'Enregistrement…'
+                          : saved
+                          ? 'Enregistré'
+                          : 'Enregistrer',
+                      icon: DiscoveryOrbitIcon(
+                        saved: saved,
+                        color: theme.colorScheme.primary,
                       ),
                     ),
                   ),
                   Expanded(
-                    child: TextButton(
-                      onPressed: widget.onOpen,
-                      child: const Text(
-                        'Voir plus',
-                        textAlign: TextAlign.center,
+                    child: IconButton(
+                      key: const Key('discover-primary-n1'),
+                      onPressed: () => _centralAction(context),
+                      tooltip: _canStartService ? 'Commencer' : 'Voir plus',
+                      icon: Icon(
+                        _canStartService
+                            ? Icons.play_circle_outline_rounded
+                            : Icons.open_in_new_rounded,
                       ),
                     ),
                   ),
@@ -559,6 +554,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       api: widget.shareApi,
                       authenticated: widget.shareAuthenticated,
                       onSignIn: widget.onSignIn,
+                      iconOnly: true,
                     ),
                   ),
                 ],
