@@ -594,7 +594,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     ),
                   ),
                 for (final item in _collection.items)
-                  PublicPossibilityCard(
+                  OverflowBox(
+                    alignment: Alignment.center,
+                    minWidth: MediaQuery.sizeOf(context).width,
+                    maxWidth: MediaQuery.sizeOf(context).width,
+                    child: PublicPossibilityCard(
                     item: item,
                     baseUri: widget.runtime.api?.baseUri,
                     shareApi: widget.runtime.api,
@@ -613,6 +617,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       );
                       if (context.mounted) context.push('/login');
                     },
+                    ),
                   ),
                 if (_loading && _collection.items.isNotEmpty)
                   const Center(child: CircularProgressIndicator()),
