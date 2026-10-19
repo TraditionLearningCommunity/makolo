@@ -304,6 +304,7 @@ def _web_discovery_card(item):
         vertical_label=representation.get("vertical_label") or "Possibilité",
         title=representation["title"],
         summary=representation.get("summary") or "",
+        description=(item.get("detail") or {}).get("description") or "",
         operator_label=operator_label,
         operator_name=owner.get("display_name") or "",
         representation=SimpleNamespace(**representation),
