@@ -128,10 +128,16 @@ void main() {
       availability: 'Disponible',
       savedState: 'not_saved',
       capabilities: const {'view'},
-      links: const {'detail': '/api/v1/discovery/items/service_activity/service-n1/'},
+      links: const {
+        'detail': '/api/v1/discovery/items/service_activity/service-n1/',
+      },
       wire: const {
         'presentation_facts': [
-          {'code': 'condition', 'label': 'Condition', 'value': 'Document requis'},
+          {
+            'code': 'condition',
+            'label': 'Condition',
+            'value': 'Document requis',
+          },
           {'code': 'duration', 'label': 'Durée', 'value': 'Une semaine'},
         ],
         'date': {
