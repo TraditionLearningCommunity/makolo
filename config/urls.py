@@ -46,6 +46,7 @@ urlpatterns = [
     path("api/v1/loyalty/", include("loyalty.api.urls")),
     path("api/v1/operations/", include("operations.api.urls")),
     path("api/v1/discovery/", include("discovery.api.urls")),
+    path("api/v1/sharing/", include("sharing.api_urls")),
     path("api/v1/social/", include("social.api_urls")),
     path("api/v1/goals/", include("goals.api_urls")),
     path("api/v1/growth/", include("growth.api.urls")),
