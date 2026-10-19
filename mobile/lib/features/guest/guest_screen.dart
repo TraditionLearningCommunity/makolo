@@ -158,8 +158,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       });
     } on MakoloApiError catch (error) {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
-      final rejected = query.continuation != null &&
-          error.statusCode == 400;
+      final rejected = query.continuation != null && error.statusCode == 400;
       setState(() {
         _loading = false;
         _continuationRejected = rejected;
@@ -182,8 +181,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     }
   }
 
-  Future<void> _retry() =>
-      _continuationRejected ? _refresh() : _load();
+  Future<void> _retry() => _continuationRejected ? _refresh() : _load();
 
   Future<void> _chooseDate() async {
     final now = DateTime.now();
@@ -435,7 +433,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 TextButton(
                   onPressed: _retry,
                   child: Text(
-                    _continuationRejected ? 'Actualiser la recherche' : 'Réessayer',
+                    _continuationRejected
+                        ? 'Actualiser la recherche'
+                        : 'Réessayer',
                   ),
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
@@ -455,7 +455,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   const SizedBox(height: MakoloSpacing.md),
                 ],
                 if (!_updatingCriteria &&
-                    _selector.spatialAnchorsFromCollection(_collection).isNotEmpty)
+                    _selector
+                        .spatialAnchorsFromCollection(_collection)
+                        .isNotEmpty)
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(

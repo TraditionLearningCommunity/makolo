@@ -145,7 +145,9 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
             Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
             TextButton(onPressed: _load, child: const Text('Réessayer')),
           ] else if (!hasPoints && !_collection.hasNext)
-            const Text('Aucune possibilité géolocalisable pour cette recherche.')
+            const Text(
+              'Aucune possibilité géolocalisable pour cette recherche.',
+            )
           else ...[
             if (hasPoints) ...[
               SizedBox(
@@ -199,8 +201,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
                   ),
                 ),
             ],
-            if (_loading)
-              const Center(child: CircularProgressIndicator()),
+            if (_loading) const Center(child: CircularProgressIndicator()),
             if (_error != null) ...[
               Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               TextButton(

@@ -146,10 +146,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       }
     }
     if (!mounted || !identical(current, _query)) return;
-    setState(() => _query = current.copyWith(
-      page: targetPage,
-      continuation: token,
-    ));
+    setState(
+      () => _query = current.copyWith(page: targetPage, continuation: token),
+    );
     unawaited(_acquire());
   }
 
@@ -227,7 +226,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               child: DiscoveryExplorationView(
                 selection: selection,
                 onOpen: _open,
-                onSave: (item) => _saveDiscoveryPossibility(widget.repository, item, _query),
+                onSave: (item) =>
+                    _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
                 onPage: _movePage,
                 onRetry: () => unawaited(_refreshItems()),
@@ -470,7 +470,11 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                           child: DiscoveryExplorationView(
                             selection: selection,
                             onOpen: _open,
-                            onSave: (item) => _saveDiscoveryPossibility(widget.repository, item, _query),
+                            onSave: (item) => _saveDiscoveryPossibility(
+                              widget.repository,
+                              item,
+                              _query,
+                            ),
                             baseUri: widget.repository.api.baseUri,
                             onPage: _movePage,
                             onRetry: () {
@@ -575,7 +579,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
           return DiscoverySpatialView(
             selection: selection,
             mapConfig: widget.mapConfig,
-            onSave: (item) => _saveDiscoveryPossibility(widget.repository, item, _query),
+            onSave: (item) =>
+                _saveDiscoveryPossibility(widget.repository, item, _query),
             baseUri: widget.repository.api.baseUri,
             onRetry: () => unawaited(_refresh()),
             onOpen: (item) {

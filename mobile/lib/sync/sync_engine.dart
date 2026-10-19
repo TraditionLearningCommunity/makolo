@@ -135,7 +135,8 @@ class SyncEngine {
       if (error.statusCode == 403 || error.statusCode == 404) {
         await _recordScopedUnavailable(source, error.code);
       } else {
-        final cursorRejected = source.projectionKind == 'discovery.items' &&
+        final cursorRejected =
+            source.projectionKind == 'discovery.items' &&
             error.statusCode == 400 &&
             Uri.parse(source.path).queryParameters.containsKey('continuation');
         await _recordFailure(

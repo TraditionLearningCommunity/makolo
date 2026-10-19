@@ -11,7 +11,9 @@ import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'discovery_selector.dart';
 
 typedef DiscoveryOpenItem = void Function(DiscoveryItemPresentation item);
-typedef DiscoverySaveItem = Future<void> Function(DiscoveryItemPresentation item);
+typedef DiscoverySaveItem = Future<void> Function(
+  DiscoveryItemPresentation item,
+);
 
 class DiscoveryExplorationView extends StatefulWidget {
   const DiscoveryExplorationView({
@@ -272,9 +274,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         children: [
           Positioned.fill(
             child: ConfiguredMakoloMapView(
-              key: ValueKey(
-                'discover-map-${anchor.candidateKey}',
-              ),
+              key: ValueKey('discover-map-${anchor.candidateKey}'),
               config: widget.mapConfig,
               initialViewport: MapViewport(
                 center: MapCoordinate(anchor.latitude, anchor.longitude),

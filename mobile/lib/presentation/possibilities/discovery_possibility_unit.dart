@@ -8,9 +8,13 @@ import '../../platform/sharing/share_gateway.dart';
 import '../../features/discovery/discovery_selector.dart';
 
 /// The existing Discovery projection rendered as one N1 unit.
- /// Facts and actions remain owned by the server; this widget only composes.
+/// Facts and actions remain owned by the server; this widget only composes.
 class DiscoveryOrbitIcon extends StatelessWidget {
-  const DiscoveryOrbitIcon({super.key, required this.saved, required this.color});
+  const DiscoveryOrbitIcon({
+    super.key,
+    required this.saved,
+    required this.color,
+  });
 
   final bool saved;
   final Color color;
@@ -32,7 +36,6 @@ class DiscoveryOrbitIcon extends StatelessWidget {
       semanticsLabel: saved ? 'Enregistré' : 'Enregistrer',
     );
   }
-
 }
 
 class DiscoveryPossibilityUnit extends StatefulWidget {
@@ -58,7 +61,8 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
   final bool compact;
 
   @override
-  State<DiscoveryPossibilityUnit> createState() => _DiscoveryPossibilityUnitState();
+  State<DiscoveryPossibilityUnit> createState() =>
+      _DiscoveryPossibilityUnitState();
 }
 
 class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
@@ -70,7 +74,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.candidateKey != widget.item.candidateKey ||
         (_confirmedSaved != null &&
-            widget.item.savedState == (_confirmedSaved! ? 'saved' : 'not_saved'))) {
+            widget.item.savedState ==
+                (_confirmedSaved! ? 'saved' : 'not_saved'))) {
       _confirmedSaved = null;
     }
   }
@@ -81,14 +86,17 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     setState(() => _saving = true);
     try {
       await widget.onSave!();
-      if (mounted && !widget.allowSavePrompt &&
+      if (mounted &&
+          !widget.allowSavePrompt &&
           widget.item.savedState == previousState) {
         setState(() => _confirmedSaved = previousState != 'saved');
       }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('L’enregistrement n’a pas pu être confirmé.')),
+          const SnackBar(
+            content: Text('L’enregistrement n’a pas pu être confirmé.'),
+          ),
         );
       }
     } finally {
@@ -104,22 +112,25 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (candidate == null) return null;
     final uri = widget.baseUri!.resolveUri(candidate);
     if (uri.scheme != 'https' && uri.scheme != 'http') return null;
-    if (uri.host != widget.baseUri!.host || uri.port != widget.baseUri!.port) return null;
+    if (uri.host != widget.baseUri!.host || uri.port != widget.baseUri!.port)
+      return null;
     if (uri.userInfo.isNotEmpty) return null;
     return uri;
   }
 
   DiscoveryItemPresentation get item => widget.item;
 
-  List<Map<String, dynamic>> get _reliableFacts =>
-      item.presentationFacts.where((fact) {
+  List<Map<String, dynamic>> get _reliableFacts => item.presentationFacts
+      .where((fact) {
         final label = fact['label'];
         final value = fact['value'];
         return label is String &&
             label.trim().isNotEmpty &&
             value is String &&
             value.trim().isNotEmpty;
-      }).take(6).toList(growable: false);
+      })
+      .take(6)
+      .toList(growable: false);
 
   List<String> get _resourceLabels {
     final labels = <String>[];
@@ -133,14 +144,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         final format = mime.contains('pdf')
             ? 'PDF'
             : mime.contains('spreadsheet') || mime.contains('excel')
-                ? 'Tableur'
-                : mime.startsWith('video/')
-                    ? 'Vidéo'
-                    : mime.startsWith('audio/')
-                        ? 'Audio'
-                        : raw['kind'] == 'file'
-                            ? 'Document'
-                            : 'Source';
+            ? 'Tableur'
+            : mime.startsWith('video/')
+            ? 'Vidéo'
+            : mime.startsWith('audio/')
+            ? 'Audio'
+            : raw['kind'] == 'file'
+            ? 'Document'
+            : 'Source';
         labels.add('$format · $title');
         if (labels.length == 3) return labels;
       }
@@ -158,14 +169,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       final format = mime.contains('pdf')
           ? 'PDF'
           : mime.contains('spreadsheet') || mime.contains('excel')
-              ? 'Tableur'
-              : mime.startsWith('video/')
-                  ? 'Vidéo'
-                  : mime.startsWith('audio/')
-                      ? 'Audio'
-                      : mime.contains('document')
-                          ? 'Document'
-                          : null;
+          ? 'Tableur'
+          : mime.startsWith('video/')
+          ? 'Vidéo'
+          : mime.startsWith('audio/')
+          ? 'Audio'
+          : mime.contains('document')
+          ? 'Document'
+          : null;
       if (format != null) labels.add(name.isEmpty ? format : '$format · $name');
     }
     return labels;
@@ -173,7 +184,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
   Widget _media(BuildContext context) {
     final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    final validImage = uri != null &&
+    final validImage =
+        uri != null &&
         (uri.scheme == 'https' || uri.scheme == 'http') &&
         uri.host.isNotEmpty;
     if (!validImage) return const SizedBox.shrink();
@@ -202,7 +214,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       return Wrap(
         spacing: MakoloSpacing.sm,
         runSpacing: MakoloSpacing.xs,
-        children: [for (final value in values) Text(value, style: Theme.of(context).textTheme.bodySmall)],
+        children: [
+          for (final value in values)
+            Text(value, style: Theme.of(context).textTheme.bodySmall),
+        ],
       );
     }
     return Wrap(
@@ -222,7 +237,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                Text(fact['value'] as String, style: Theme.of(context).textTheme.bodyMedium),
+                Text(
+                  fact['value'] as String,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ],
             ),
           ),
@@ -231,11 +249,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   Widget _knowledge(BuildContext context) {
-    final significant = item.assessment.where((fact) {
-      return fact['state'] == 'favorable' ||
-          fact['state'] == 'limiting' ||
-          fact['state'] == 'unknown';
-    }).take(3);
+    final significant = item.assessment
+        .where((fact) {
+          return fact['state'] == 'favorable' ||
+              fact['state'] == 'limiting' ||
+              fact['state'] == 'unknown';
+        })
+        .take(3);
     if (significant.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,9 +280,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       if (action == 'copy') {
         await Clipboard.setData(ClipboardData(text: uri.toString()));
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lien copié.')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Lien copié.')));
         }
       } else if (action == 'external') {
         await const SystemShareGateway().shareText('${item.title}\n$uri');
@@ -277,7 +296,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               child: PrettyQrView.data(data: uri.toString()),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fermer')),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Fermer'),
+              ),
             ],
           ),
         );
@@ -295,8 +317,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final saved = _confirmedSaved ?? (item.savedState == 'saved');
-    final canToggle = _confirmedSaved == null &&
-        (saved ? item.canUnsave : item.canSave);
+    final canToggle =
+        _confirmedSaved == null && (saved ? item.canUnsave : item.canSave);
     final url = _shareableUrl;
     final resources = _resourceLabels;
     final focus = item.imageUrl != null;
@@ -309,14 +331,26 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           InkWell(
             onTap: widget.onOpen,
             child: Padding(
-              padding: EdgeInsets.all(widget.compact ? MakoloSpacing.sm : MakoloSpacing.md),
+              padding: EdgeInsets.all(
+                widget.compact ? MakoloSpacing.sm : MakoloSpacing.md,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (item.eyebrow != null && item.eyebrow!.trim().isNotEmpty)
-                    Text(item.eyebrow!, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary)),
+                    Text(
+                      item.eyebrow!,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
                   const SizedBox(height: MakoloSpacing.xs),
-                  Text(item.title, style: widget.compact ? theme.textTheme.titleSmall : theme.textTheme.titleMedium),
+                  Text(
+                    item.title,
+                    style: widget.compact
+                        ? theme.textTheme.titleSmall
+                        : theme.textTheme.titleMedium,
+                  ),
                   if (item.owner != null) ...[
                     const SizedBox(height: MakoloSpacing.xs),
                     Text(item.owner!, style: theme.textTheme.labelMedium),
@@ -331,13 +365,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     ),
                   ],
                   if (item.detailFacts?['description'] is String &&
-                      (item.detailFacts!['description'] as String).trim().isNotEmpty &&
+                      (item.detailFacts!['description'] as String)
+                          .trim()
+                          .isNotEmpty &&
                       item.detailFacts!['description'] != item.summary) ...[
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(item.detailFacts!['description'] as String),
                   ],
                   if (item.participantPresentation?['label'] is String &&
-                      (item.participantPresentation!['label'] as String).isNotEmpty) ...[
+                      (item.participantPresentation!['label'] as String)
+                          .isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(
                       item.participantPresentation!['label'] as String,
@@ -348,13 +385,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     const SizedBox(height: MakoloSpacing.sm),
                     for (final resource in resources)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+                        padding: const EdgeInsets.only(
+                          bottom: MakoloSpacing.xs,
+                        ),
                         child: Row(
                           children: [
                             const Icon(Icons.description_outlined, size: 18),
                             const SizedBox(width: MakoloSpacing.xs),
                             Expanded(
-                              child: Text(resource, style: theme.textTheme.bodySmall),
+                              child: Text(
+                                resource,
+                                style: theme.textTheme.bodySmall,
+                              ),
                             ),
                           ],
                         ),
@@ -363,12 +405,15 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   const SizedBox(height: MakoloSpacing.md),
                   _facts(context),
                   _knowledge(context),
-                  if (item.variants.isNotEmpty || item.relations.isNotEmpty) ...[
+                  if (item.variants.isNotEmpty ||
+                      item.relations.isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(
                       [
-                        if (item.variants.isNotEmpty) '${item.variants.length} variantes',
-                        if (item.relations.isNotEmpty) '${item.relations.length} relations',
+                        if (item.variants.isNotEmpty)
+                          '${item.variants.length} variantes',
+                        if (item.relations.isNotEmpty)
+                          '${item.relations.length} relations',
                       ].join(' · '),
                       style: theme.textTheme.bodySmall,
                     ),
@@ -380,12 +425,20 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           if (!widget.compact) ...[
             const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.xs, vertical: MakoloSpacing.xs),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.xs,
+                vertical: MakoloSpacing.xs,
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: !_saving && widget.onSave != null && (canToggle || widget.allowSavePrompt) ? _save : null,
+                      onPressed:
+                          !_saving &&
+                              widget.onSave != null &&
+                              (canToggle || widget.allowSavePrompt)
+                          ? _save
+                          : null,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -395,7 +448,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            _saving ? 'Enregistrement…' : saved ? 'Enregistré' : 'J’enregistre',
+                            _saving
+                                ? 'Enregistrement…'
+                                : saved
+                                ? 'Enregistré'
+                                : 'J’enregistre',
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -405,7 +462,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   Expanded(
                     child: TextButton(
                       onPressed: widget.onOpen,
-                      child: const Text('Voir plus', textAlign: TextAlign.center),
+                      child: const Text(
+                        'Voir plus',
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                   Expanded(
@@ -415,9 +475,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                             tooltip: 'Partager',
                             onSelected: (value) => _share(context, value, url),
                             itemBuilder: (context) => const [
-                              PopupMenuItem(value: 'external', child: Text('Partager avec…')),
-                              PopupMenuItem(value: 'copy', child: Text('Copier le lien')),
-                              PopupMenuItem(value: 'qr', child: Text('Afficher le QR')),
+                              PopupMenuItem(
+                                value: 'external',
+                                child: Text('Partager avec…'),
+                              ),
+                              PopupMenuItem(
+                                value: 'copy',
+                                child: Text('Copier le lien'),
+                              ),
+                              PopupMenuItem(
+                                value: 'qr',
+                                child: Text('Afficher le QR'),
+                              ),
                             ],
                             child: const Column(
                               mainAxisSize: MainAxisSize.min,

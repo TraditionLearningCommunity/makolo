@@ -60,8 +60,7 @@ class _PublicPossibilityDetailScreenState
       );
       final identity = raw['identity'] as Map;
       final resource = identity['resource'] as Map;
-      if (identity['family'] != widget.family ||
-          resource['id'] != widget.id) {
+      if (identity['family'] != widget.family || resource['id'] != widget.id) {
         throw const FormatException('Unexpected Discovery detail identity');
       }
       final item = _selector.publicItem(raw);

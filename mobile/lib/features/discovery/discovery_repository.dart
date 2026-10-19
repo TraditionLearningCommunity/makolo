@@ -46,6 +46,7 @@ class DiscoveryQuery {
   final double? radiusKm;
   final int page;
   final int pageSize;
+
   /// Opaque, signed server continuation; never decoded locally.
   final String? continuation;
 
@@ -227,7 +228,9 @@ class DiscoveryRepository {
         );
         final viewer = wire.data['viewer'];
         if (viewer is! Map || viewer['id'] != profileId) {
-          throw const FormatException('Discovery viewer does not match Profile');
+          throw const FormatException(
+            'Discovery viewer does not match Profile',
+          );
         }
         return AcquiredProjection(
           schemaVersion: 1,
@@ -371,9 +374,10 @@ class DiscoveryRepository {
         // rather than mislabelling an incomplete offline field.
         if (projection == null) return current;
         final viewer = projection.payload['viewer'];
-        if (viewer != null &&
-            (viewer is! Map || viewer['id'] != profileId)) {
-          throw const FormatException('Discovery snapshot belongs to another Profile');
+        if (viewer != null && (viewer is! Map || viewer['id'] != profileId)) {
+          throw const FormatException(
+            'Discovery snapshot belongs to another Profile',
+          );
         }
         final batch = selector.collection(projection);
         if (batch.page != page) {
@@ -576,7 +580,8 @@ class DiscoveryRepository {
       throw const FormatException('Unsupported Discovery snapshot version');
     }
     DiscoveryWire.validateData(projection.payload);
-    final rawResults = projection.payload['results'] ?? projection.payload['items'];
+    final rawResults =
+        projection.payload['results'] ?? projection.payload['items'];
     if (rawResults is! List) return;
 
     for (final raw in rawResults.whereType<Map>()) {

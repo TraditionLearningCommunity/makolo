@@ -25,8 +25,7 @@ class ProjectionEnvelope {
   }) {
     final rawMeta = json['meta'];
     final rawData = json['data'];
-    if (rawMeta is! Map<String, dynamic> ||
-        rawData is! Map<String, dynamic>) {
+    if (rawMeta is! Map<String, dynamic> || rawData is! Map<String, dynamic>) {
       throw const FormatException('Invalid projection envelope');
     }
 
@@ -51,13 +50,10 @@ class ProjectionEnvelope {
     if (parsedMeta.projection.trim().isEmpty ||
         (expectedProjection != null &&
             parsedMeta.projection != expectedProjection)) {
-      throw FormatException(
-        'Unexpected projection: ${parsedMeta.projection}',
-      );
+      throw FormatException('Unexpected projection: ${parsedMeta.projection}');
     }
     final scope = rawMeta['scope'];
-    if (expectedScope != null &&
-        (scope is! String || scope != expectedScope)) {
+    if (expectedScope != null && (scope is! String || scope != expectedScope)) {
       throw const FormatException('Unexpected projection scope');
     }
     if (scope != null && (scope is! String || scope.trim().isEmpty)) {

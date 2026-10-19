@@ -239,8 +239,14 @@ void main() {
       {'kind': 'deadline', 'date': '2026-10-22'},
     ];
     raw['spatial_facts'] = [
-      {'role': 'departure', 'place': {'name': 'Lubumbashi'}},
-      {'role': 'arrival', 'place': {'name': 'Kolwezi'}},
+      {
+        'role': 'departure',
+        'place': {'name': 'Lubumbashi'},
+      },
+      {
+        'role': 'arrival',
+        'place': {'name': 'Kolwezi'},
+      },
     ];
     raw['media_bindings'] = [
       {
@@ -256,7 +262,9 @@ void main() {
     };
     raw['personal_relation'] = {'state': 'unknown'};
     raw['watch'] = {'state': 'not_watching'};
-    raw['engagement'] = {'presentation': {'enabled': false}};
+    raw['engagement'] = {
+      'presentation': {'enabled': false},
+    };
     final payload = {
       'results': [raw],
       'count': 1,
@@ -268,14 +276,17 @@ void main() {
     };
 
     final guest = selector.publicCollection(payload).items.single;
-    final me = selector.collection(
-      StoredProjection(
-        kind: DiscoveryRepository.itemsProjectionKind,
-        schemaVersion: 1,
-        receivedAt: DateTime.utc(2026, 10, 17),
-        payload: payload,
-      ),
-    ).items.single;
+    final me = selector
+        .collection(
+          StoredProjection(
+            kind: DiscoveryRepository.itemsProjectionKind,
+            schemaVersion: 1,
+            receivedAt: DateTime.utc(2026, 10, 17),
+            payload: payload,
+          ),
+        )
+        .items
+        .single;
 
     expect(guest.candidateKey, 'activity:item-1');
     expect(me.candidateKey, guest.candidateKey);

@@ -7,10 +7,7 @@ import '../../sync/projection_contract.dart';
 /// The payload is kept whole. Presentation may humanize these facts later,
 /// but reception never replaces UNKNOWN, authorization or provenance.
 final class DiscoveryWire {
-  const DiscoveryWire._({
-    required this.data,
-    required this.meta,
-  });
+  const DiscoveryWire._({required this.data, required this.meta});
 
   static const projection = 'discovery.items';
   static const snapshotMetaKey = '_discovery_envelope_meta';
@@ -68,7 +65,9 @@ final class DiscoveryWire {
     if (item == null) {
       throw const FormatException('Missing Discovery detail');
     }
-    validateData({'results': [item]});
+    validateData({
+      'results': [item],
+    });
     return Map.unmodifiable(item);
   }
 
@@ -151,7 +150,9 @@ final class DiscoveryWire {
       }
       if (item['capabilities'] != null &&
           (item['capabilities'] is! List ||
-              (item['capabilities'] as List).any((value) => value is! String))) {
+              (item['capabilities'] as List).any(
+                (value) => value is! String,
+              ))) {
         throw const FormatException('Invalid Discovery capabilities');
       }
       if (item['links'] != null &&
@@ -203,8 +204,7 @@ final class DiscoveryWire {
       throw const FormatException('Invalid Discovery collection handoffs');
     }
     final continuation = _map(data['continuation'])!;
-    if (continuation['state'] != 'more' &&
-        continuation['state'] != 'end') {
+    if (continuation['state'] != 'more' && continuation['state'] != 'end') {
       throw const FormatException('Invalid Discovery continuation state');
     }
     final token = continuation['token'];
@@ -224,10 +224,7 @@ final class DiscoveryWire {
     }
   }
 
-  Map<String, dynamic> get snapshotPayload => {
-    ...data,
-    snapshotMetaKey: meta,
-  };
+  Map<String, dynamic> get snapshotPayload => {...data, snapshotMetaKey: meta};
 
   static Map<String, dynamic>? _map(Object? value) =>
       value is Map ? Map<String, dynamic>.from(value) : null;

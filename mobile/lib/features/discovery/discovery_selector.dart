@@ -47,6 +47,7 @@ class DiscoveryItemPresentation {
   final String candidateKey;
   final String? occurrenceId;
   final String? revisionId;
+
   /// Complete server-owned possibility facts, without client inference.
   final Map<String, dynamic> wire;
   final String? representationKind;
@@ -71,8 +72,7 @@ class DiscoveryItemPresentation {
   Map<String, dynamic>? get representation => _map(wire['representation']);
   Map<String, dynamic>? get ownerFacts => _map(wire['owner']);
   Map<String, dynamic>? get provenance => _map(wire['provenance']);
-  Map<String, dynamic>? get personalRelation =>
-      _map(wire['personal_relation']);
+  Map<String, dynamic>? get personalRelation => _map(wire['personal_relation']);
   Map<String, dynamic>? get saved => _map(wire['saved']);
   Map<String, dynamic>? get watch => _map(wire['watch']);
   Map<String, dynamic>? get priceFacts => _map(wire['price']);
@@ -86,8 +86,7 @@ class DiscoveryItemPresentation {
   Map<String, dynamic>? get knowledge => _map(wire['knowledge']);
   Map<String, dynamic>? get freshness => _map(wire['freshness']);
   List<Map<String, dynamic>> get facts => _objectFacts(wire['facts']);
-  List<Map<String, dynamic>> get assessment =>
-      _objectFacts(wire['assessment']);
+  List<Map<String, dynamic>> get assessment => _objectFacts(wire['assessment']);
   List<Map<String, dynamic>> get variants => _objectFacts(wire['variants']);
   List<Map<String, dynamic>> get relations => _objectFacts(wire['relations']);
   List<Map<String, dynamic>> get temporalFacts =>
@@ -98,8 +97,7 @@ class DiscoveryItemPresentation {
       _objectFacts(wire['media_bindings']);
   List<Map<String, dynamic>> get presentationFacts =>
       _objectFacts(wire['presentation_facts']);
-  List<Map<String, dynamic>> get handoffs =>
-      _objectFacts(wire['handoffs']);
+  List<Map<String, dynamic>> get handoffs => _objectFacts(wire['handoffs']);
 
   bool get canSave => capabilities.contains('save');
   bool get canUnsave => capabilities.contains('unsave');
@@ -144,6 +142,7 @@ class DiscoveryCollectionPresentation {
   final int page;
   final int pageSize;
   final bool hasNext;
+
   /// Complete collection context, continuation, selection and terminal facts.
   final Map<String, dynamic> wire;
 
@@ -158,20 +157,17 @@ class DiscoveryCollectionPresentation {
   Map<String, dynamic>? get actor => _map(wire['actor']);
   Map<String, dynamic>? get viewer => _map(wire['viewer']);
   Map<String, dynamic>? get freshness => _map(wire['freshness']);
-  List<Map<String, dynamic>> get handoffs =>
-      _objectFacts(wire['handoffs']);
-  Set<String> get capabilities =>
-      Set.unmodifiable((wire['capabilities'] is List
-              ? wire['capabilities'] as List
-              : const [])
-          .whereType<String>());
+  List<Map<String, dynamic>> get handoffs => _objectFacts(wire['handoffs']);
+  Set<String> get capabilities => Set.unmodifiable(
+    (wire['capabilities'] is List ? wire['capabilities'] as List : const [])
+        .whereType<String>(),
+  );
   String? get selectionReason => _text(selection?['reason']);
   String? get terminalState => _text(terminal?['state']);
   String? get continuationState => _text(continuation?['state']);
   bool get hasPrevious => wire['has_previous'] == true;
   String? get timezone => _text(wire['timezone']);
   bool get nearbyActive => wire['nearby_active'] == true;
-
 
   /// Reconcile an authoritative next server lot by canonical candidate key.
   ///
@@ -318,7 +314,8 @@ class DiscoverySelector {
       );
     }
 
-    final rawItems = projection.payload['results'] ?? projection.payload['items'];
+    final rawItems =
+        projection.payload['results'] ?? projection.payload['items'];
     try {
       if (projection.kind != 'discovery.items' ||
           projection.schemaVersion != 1) {
@@ -405,7 +402,9 @@ class DiscoverySelector {
     Map<String, dynamic> item, {
     DateTime? now,
   }) {
-    DiscoveryWire.validateData({'results': [item]});
+    DiscoveryWire.validateData({
+      'results': [item],
+    });
     return _item(item, now: now ?? DateTime.now());
   }
 
@@ -457,7 +456,9 @@ class DiscoverySelector {
     final raw = projection?.payload['item'];
     if (raw is! Map) return null;
     final item = Map<String, dynamic>.from(raw);
-    DiscoveryWire.validateData({'results': [item]});
+    DiscoveryWire.validateData({
+      'results': [item],
+    });
     return _item(item, now: now ?? DateTime.now());
   }
 
@@ -664,9 +665,8 @@ List<Map<String, dynamic>> _objectFacts(Object? raw) {
   if (raw is! List) return const [];
   return List.unmodifiable(
     raw.whereType<Map>().map(
-      (value) => Map<String, dynamic>.unmodifiable(
-        Map<String, dynamic>.from(value),
-      ),
+      (value) =>
+          Map<String, dynamic>.unmodifiable(Map<String, dynamic>.from(value)),
     ),
   );
 }
