@@ -843,6 +843,17 @@ def project_rows(rows, *, profile=None) -> list[dict]:
         for family, _, candidate in rows
         if family == "opportunity"
     }
+    from commerce.offer_price_facts import offer_price_facts_many
+
+    price_contexts = {
+        (
+            str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
+            str(candidate.occurrence_id) if family == "activity" else None,
+        )
+        for family, _, candidate in rows
+        if family in {"activity", "service_activity"}
+    }
+    owner_prices = offer_price_facts_many(contexts=price_contexts)
     # The collection and the existing detail API must expose the same
     # public description. Bulk-load it for the selected page only.
     from activities.models import Activity
@@ -964,6 +975,14 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             )
             finalized["owner"] = facts.get("owner")
             finalized["date"] = facts.get("date")
+        if family in {"activity", "service_activity"}:
+            key = (
+                str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
+                str(candidate.occurrence_id) if family == "activity" else None,
+            )
+            owner_price = owner_prices.get(key)
+            if owner_price is not None and owner_price.state != "unknown":
+                finalized["price"] = owner_price.as_dict()
         resource = finalized["identity"]["resource"]
         if family == "activity":
             finalized["spatial_facts"] = public_spatial_facts.get(
