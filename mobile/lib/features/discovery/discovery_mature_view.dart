@@ -512,6 +512,7 @@ class _DiscoveryUnit extends StatelessWidget {
         onSave: onSave,
         baseUri: baseUri,
         shareApi: shareApi,
+        shareAuthenticated: shareApi != null,
         onSelect: onSelect,
         selectionActionLabel: selectionActionLabel,
       ),
