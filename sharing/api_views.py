@@ -4,9 +4,9 @@ No new sharing authority: public selection and permissions stay with Discovery
 and sharing.services; tokens remain opaque to Flutter.
 """
 from django.contrib.auth.models import AnonymousUser
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError as DomainValidationError
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import NotFound, Throttled
+from rest_framework.exceptions import NotFound, Throttled, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -95,11 +95,16 @@ class SharePossibilityAPIView(APIView):
             raise ValidationError({"recipient_id": "Identifiant incorrect."})
         recipient = None
         if recipient_id:
+            from uuid import UUID
+            try:
+                recipient_uuid = UUID(recipient_id)
+            except (TypeError, ValueError) as exc:
+                raise ValidationError({"recipient_id": "Identifiant incorrect."}) from exc
             recipient = get_object_or_404(
                 UserProfile.objects.select_related("user").filter(
                     user__is_active=True, searchable=True,
                 ),
-                pk=recipient_id,
+                pk=recipient_uuid,
             )
         _limited(request, recipient)
         try:
@@ -137,7 +142,7 @@ class SharePossibilityAPIView(APIView):
                     create_direct_activity_share(recipient=recipient, **args)
                     if recipient else create_activity_share(**args)
                 )
-        except (PermissionDenied, ValidationError) as exc:
+        except (PermissionDenied, DomainValidationError) as exc:
             raise ValidationError({"share": str(exc)}) from exc
         if recipient:
             return Response({
@@ -180,7 +185,7 @@ class PublicShareResolveAPIView(APIView):
                 )
             else:
                 identity = None
-        except (ShareUnavailable, ValidationError):
+        except (ShareUnavailable, DomainValidationError):
             identity = None
         if identity is None:
             raise NotFound("Partage indisponible.")
