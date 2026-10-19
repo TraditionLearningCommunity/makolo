@@ -94,6 +94,7 @@ GoRouter createMakoloRouter(
     }
     return const [
       '/journeys/',
+      '/shares/',
       '/discover/items/',
       '/activities/',
       '/occurrences/',
@@ -155,6 +156,13 @@ GoRouter createMakoloRouter(
         builder: (context, state) => DiscoverySharedLinkScreen(
           runtime: runtime,
           token: state.pathParameters['token']!,
+        ),
+      ),
+      GoRoute(
+        path: '/shares/:id',
+        builder: (context, state) => DiscoverySharedLinkScreen(
+          runtime: runtime,
+          deliveryId: state.pathParameters['id']!,
         ),
       ),
       if (runtime.isAuthenticated)
