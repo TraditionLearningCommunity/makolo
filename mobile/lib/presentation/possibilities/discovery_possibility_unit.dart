@@ -270,7 +270,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         ? _publicImage(representation['avatar_url']?.toString())
         : null;
     final nativePath = ownerLinks is Map ? ownerLinks['native'] : null;
-    final navigable = owner?['capabilities'] is List &&
+    final navigable =
+        owner?['capabilities'] is List &&
         (owner!['capabilities'] as List).contains('view_public') &&
         nativePath is String &&
         (nativePath.startsWith('/spaces/') ||
@@ -286,13 +287,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           ),
           const SizedBox(width: MakoloSpacing.sm),
           Expanded(
-            child: Text(
-              name,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
+            child: Text(name, style: Theme.of(context).textTheme.labelLarge),
           ),
-          if (navigable)
-            const Icon(Icons.open_in_new_rounded, size: 16),
+          if (navigable) const Icon(Icons.open_in_new_rounded, size: 16),
         ],
       ),
     );
@@ -308,9 +305,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (parsed == null) return const SizedBox.shrink();
     return Text(
       '$label ${MaterialLocalizations.of(context).formatMediumDate(parsed.toLocal())}',
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
+      style: Theme.of(context).textTheme.labelSmall
+          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
     );
   }
 
@@ -457,7 +453,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   const SizedBox(height: MakoloSpacing.xs),
                   Text(
                     item.representation?['vertical_label']?.toString() ??
-                        item.eyebrow ?? '',
+                        item.eyebrow ??
+                        '',
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: theme.colorScheme.primary,
                     ),
