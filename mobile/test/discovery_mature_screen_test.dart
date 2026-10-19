@@ -114,6 +114,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 mobile shows price beside independent presentation facts', (
+    tester,
+  ) async {
+    final rich = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'service-n1',
+      candidateKey: 'service_activity:service-n1',
+      title: 'Accompagnement très détaillé',
+      summary: 'Une description utile du Service.',
+      owner: 'Espace conseil',
+      price: '25000 CDF',
+      availability: 'Disponible',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {'detail': '/api/v1/discovery/items/service_activity/service-n1/'},
+      wire: const {
+        'presentation_facts': [
+          {'code': 'condition', 'label': 'Condition', 'value': 'Document requis'},
+          {'code': 'duration', 'label': 'Durée', 'value': 'Une semaine'},
+        ],
+        'date': {
+          'kind': 'added_at',
+          'label': 'Ajouté le',
+          'value': '2026-10-10T10:30:00+02:00',
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) {},
+      ),
+    );
+
+    expect(find.text('Accompagnement très détaillé'), findsOneWidget);
+    expect(find.text('25000 CDF'), findsOneWidget);
+    expect(find.text('Document requis'), findsOneWidget);
+    expect(find.text('Une semaine'), findsOneWidget);
+    expect(find.byKey(const Key('discover-save-n1')), findsOneWidget);
+    expect(find.byKey(const Key('discover-primary-n1')), findsOneWidget);
+    expect(find.text('Voir plus'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('G04 wide uses the shared adaptive grid', (tester) async {
     await PresentationHarness.pump(
       tester,
