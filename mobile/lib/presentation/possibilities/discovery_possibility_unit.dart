@@ -63,12 +63,28 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
 
 class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   bool _saving = false;
+  bool? _confirmedSaved;
+
+  @override
+  void didUpdateWidget(covariant DiscoveryPossibilityUnit oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.candidateKey != widget.item.candidateKey ||
+        (_confirmedSaved != null &&
+            widget.item.savedState == (_confirmedSaved! ? 'saved' : 'not_saved'))) {
+      _confirmedSaved = null;
+    }
+  }
 
   Future<void> _save() async {
     if (_saving || widget.onSave == null) return;
+    final previousState = widget.item.savedState;
     setState(() => _saving = true);
     try {
       await widget.onSave!();
+      if (mounted && !widget.allowSavePrompt &&
+          widget.item.savedState == previousState) {
+        setState(() => _confirmedSaved = previousState != 'saved');
+      }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -326,8 +342,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final saved = item.savedState == 'saved';
-    final canToggle = saved ? item.canUnsave : item.canSave;
+    final saved = _confirmedSaved ?? (item.savedState == 'saved');
+    final canToggle = _confirmedSaved == null &&
+        (saved ? item.canUnsave : item.canSave);
     final url = _shareableUrl;
     final resources = _resourceLabels;
     final focus = item.imageUrl != null;
