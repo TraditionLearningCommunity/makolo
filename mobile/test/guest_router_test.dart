@@ -40,6 +40,7 @@ AppRuntime _guestRuntime(
   SessionRecoveryController recovery, {
   MockClient? client,
   GeoSearchGateway? geoSearch,
+  ResumableInteractionStore? interactions,
 }) {
   final tokens = MemoryTokenStore();
   return AppRuntime(
@@ -47,7 +48,7 @@ AppRuntime _guestRuntime(
     session: null,
     recovery: recovery,
     launchPreferences: _MemoryLaunchPreferences(),
-    interactions: ResumableInteractionStore.memory(),
+    interactions: interactions ?? ResumableInteractionStore.memory(),
     geoSearch: geoSearch,
     api: client == null
         ? null
@@ -160,7 +161,120 @@ String _mockResponseJson(Object? value) {
   });
 }
 
+class _FaultyInteractions implements ResumableInteractionStore {
+  _FaultyInteractions({this.failRead = false, this.failSave = false});
+
+  final bool failRead;
+  final bool failSave;
+
+  @override
+  Future<Map<String, dynamic>> read(String interactionId) async {
+    if (failRead) throw const FormatException('corrupt local interaction');
+    return <String, dynamic>{};
+  }
+
+  @override
+  Future<void> save(String interactionId, Map<String, dynamic> values) async {
+    if (failSave) throw const FormatException('local storage unavailable');
+  }
+
+  @override
+  Future<void> clear(String interactionId) async {}
+}
+
 void main() {
+  testWidgets('public Discovery loads after local restore failure', (tester) async {
+    final client = MockClient((request) async => MockResponse(
+      _mockResponseJson({
+        'data': {
+          'count': 1,
+          'page': 1,
+          'page_size': 12,
+          'has_next': false,
+          'results': [
+            _item('Possibilité après erreur locale', '11111111-1111-4111-8111-111111111111'),
+          ],
+        },
+      }),
+      200,
+    ));
+    final router = _router(_guestRuntime(
+      SessionRecoveryController(),
+      client: client,
+      interactions: _FaultyInteractions(failRead: true),
+    ));
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Possibilité après erreur locale'), findsOneWidget);
+    expect(find.byKey(const Key('guest-discover-local-warning')), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('public Discovery does not wait for a failing local save', (tester) async {
+    final client = MockClient((request) async => MockResponse(
+      _mockResponseJson({
+        'data': {
+          'count': 1,
+          'page': 1,
+          'page_size': 12,
+          'has_next': false,
+          'results': [
+            _item('Possibilité malgré écriture locale', '11111111-1111-4111-8111-111111111111'),
+          ],
+        },
+      }),
+      200,
+    ));
+    final router = _router(_guestRuntime(
+      SessionRecoveryController(),
+      client: client,
+      interactions: _FaultyInteractions(failSave: true),
+    ));
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Possibilité malgré écriture locale'), findsOneWidget);
+    expect(find.byKey(const Key('guest-discover-local-warning')), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  testWidgets('public Discovery exposes a malformed HTTP 200 as contract error', (tester) async {
+    final client = MockClient((request) async => MockResponse(
+      convert.jsonEncode({
+        'meta': {
+          'projection': 'discovery.items',
+          'schema_version': 1,
+          'scope': 'public',
+          'generated_at': '2026-10-19T12:00:00Z',
+        },
+        'data': {
+          'surface': 'discover_public',
+          'actor': null,
+          'viewer': null,
+          'count': 1,
+          'page': 1,
+          'page_size': 12,
+          'has_next': true,
+          'results': [
+            _item('Réponse incomplète', '11111111-1111-4111-8111-111111111111'),
+          ],
+        },
+      }),
+      200,
+    ));
+    final router = _router(_guestRuntime(SessionRecoveryController(), client: client));
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('guest-discover-load-error')), findsOneWidget);
+    expect(find.textContaining('Contrat Discovery incompatible'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Réessayer'), findsOneWidget);
+  });
   testWidgets('guest enters public home with no Profile or Space shell', (
     tester,
   ) async {
