@@ -76,7 +76,7 @@ class AppRuntime {
   final LaunchPreferencesStore? launchPreferences;
   final AppPreferencesController? preferences;
   final MakoloRuntimeConfig? config;
-  final ResumableInteractionStore? interactions;
+  final ResumableInteractionAccess? interactions;
 
   MakoloMapsConfig get mapConfig =>
       config?.maps ?? const MakoloMapsConfig(enabled: false, style: null);

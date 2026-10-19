@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,6 +39,8 @@ class GuestDiscoverScreen extends StatefulWidget {
 class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   static const _interactionId = 'public-discover';
   static const _selector = DiscoverySelector();
+  static const _localTimeout = Duration(seconds: 3);
+  static const _requestTimeout = Duration(seconds: 25);
 
   final _search = TextEditingController();
   final _place = TextEditingController();
@@ -55,6 +58,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   bool _loading = true;
   bool _updatingCriteria = false;
   String? _error;
+  String? _localWarning;
   bool _continuationRejected = false;
 
   @override
@@ -99,8 +103,47 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     continuation: _page > 1 ? _continuationToken : null,
   );
 
+  // Diagnostic phases deliberately avoid query text, coordinates and tokens.
+  void _trace(String phase, {int? revision, String? detail}) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '[DISCOVERY_PUBLIC] $phase'
+      '${revision == null ? '' : ' revision=$revision'}'
+      '${detail == null ? '' : ' $detail'}',
+    );
+  }
+
+  void _reportFailure(
+    String phase,
+    Object error,
+    StackTrace stack, {
+    int? revision,
+  }) {
+    _trace(phase, revision: revision, detail: 'type=${error.runtimeType}');
+    if (kDebugMode) {
+      debugPrintStack(label: '[DISCOVERY_PUBLIC] $phase', stackTrace: stack);
+    }
+  }
+
   Future<void> _restoreAndLoad() async {
-    final saved = await widget.runtime.interactions?.read(_interactionId);
+    _trace('RESTORE_BEGIN');
+    Map<String, dynamic>? saved;
+    try {
+      saved = await widget.runtime.interactions
+          ?.read(_interactionId)
+          .timeout(_localTimeout);
+      _trace('RESTORE_DONE');
+    } on Object catch (error, stack) {
+      _reportFailure('RESTORE_ERROR', error, stack);
+      if (mounted) {
+        setState(() {
+          _localWarning =
+              'La dernière recherche locale n’a pas pu être restaurée. '
+              'Vous pouvez continuer à explorer.';
+        });
+      }
+    }
+
     if (!mounted) return;
     if (widget.initialQuery.isEmpty && widget.initialVertical.isEmpty) {
       final query = saved?['query'];
@@ -110,7 +153,28 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       final vertical = saved?['vertical'];
       if (vertical is String) _vertical = vertical;
     }
+    _trace('SEARCH_SCHEDULED');
     await _searchCoordinator.refresh();
+  }
+
+  // A failed local write must never block an otherwise valid server response.
+  Future<void> _persistQuery(DiscoveryQuery query, int revision) async {
+    try {
+      await widget.runtime.interactions
+          ?.save(_interactionId, {
+            'query': query.text,
+            'place': query.place,
+            'vertical': query.vertical,
+          })
+          .timeout(_localTimeout);
+    } on Object catch (error, stack) {
+      _reportFailure('PERSIST_ERROR', error, stack, revision: revision);
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      setState(() {
+        _localWarning =
+            'Les filtres n’ont pas pu être enregistrés sur cet appareil.';
+      });
+    }
   }
 
   Future<void> _load() => _searchCoordinator.refresh();
@@ -126,6 +190,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 
   Future<void> _loadRevision(int revision) async {
     final query = _query;
+    _trace('SEARCH_START', revision: revision);
     if (mounted) {
       setState(() {
         _loading = true;
@@ -134,20 +199,30 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       });
     }
     try {
-      await widget.runtime.interactions?.save(_interactionId, {
-        'query': query.text,
-        'place': query.place,
-        'vertical': query.vertical,
-      });
       final api = widget.runtime.api;
       if (api == null) throw StateError('Public API unavailable');
-      final response = await api.publicGet(query.path);
+      _trace('API_REQUEST_START', revision: revision);
+      final response = await api.publicGet(query.path).timeout(_requestTimeout);
+      _trace(
+        'API_RESPONSE',
+        revision: revision,
+        detail: 'status=${response.statusCode} chars=${response.body.length}',
+      );
       final wire = DiscoveryWire.receive(
         response.jsonObject(),
         scope: 'public',
       );
+      _trace('WIRE_OK', revision: revision);
       final collection = _selector.publicCollection(wire.snapshotPayload);
-      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      _trace(
+        'SELECT_OK',
+        revision: revision,
+        detail: 'items=${collection.items.length}',
+      );
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) {
+        _trace('REVISION_DISCARDED', revision: revision);
+        return;
+      }
       setState(() {
         _collection = query.page == 1
             ? collection
@@ -155,28 +230,58 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _loading = false;
         _updatingCriteria = false;
       });
-    } on MakoloApiError catch (error) {
+      _trace('REVISION_ACCEPTED', revision: revision);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _searchCoordinator.isCurrent(revision)) {
+          _trace('FRAME_BUILT', revision: revision);
+        }
+      });
+      _trace('LOAD_FINISHED', revision: revision, detail: 'state=content');
+      unawaited(_persistQuery(query, revision));
+    } on MakoloApiError catch (error, stack) {
+      _reportFailure('API_ERROR', error, stack, revision: revision);
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       final rejected = query.continuation != null && error.statusCode == 400;
       setState(() {
         _loading = false;
         _continuationRejected = rejected;
         _error = rejected
-            ? 'La suite de la recherche doit être actualisée.'
-            : 'Impossible d’actualiser les possibilités publiques.';
+            ? 'Suite de recherche rejetée (HTTP 400). Actualisez depuis la première page.'
+            : 'Discovery HTTP ${error.statusCode} (${error.code}). Réessayez.';
       });
-    } on FormatException {
+      _trace('LOAD_FINISHED', revision: revision, detail: 'state=http_error');
+    } on FormatException catch (error, stack) {
+      _reportFailure('WIRE_OR_SELECT_ERROR', error, stack, revision: revision);
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
-        _error = 'Réponse Discovery incompatible. Réessayez plus tard.';
+        _error =
+            'Contrat Discovery incompatible (FORMAT). '
+            'Réponse reçue mais impossible à interpréter : ${error.message}.';
       });
-    } on Object {
+      _trace(
+        'LOAD_FINISHED',
+        revision: revision,
+        detail: 'state=contract_error',
+      );
+    } on TimeoutException catch (error, stack) {
+      _reportFailure('TIMEOUT', error, stack, revision: revision);
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
-        _error = 'Impossible d’actualiser les possibilités publiques.';
+        _error = 'Chargement Discovery expiré (TIMEOUT). Réessayez.';
       });
+      _trace('LOAD_FINISHED', revision: revision, detail: 'state=timeout');
+    } on Object catch (error, stack) {
+      _reportFailure('LOAD_ERROR', error, stack, revision: revision);
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      setState(() {
+        _loading = false;
+        _error = error is MakoloTransportError
+            ? 'Discovery réseau (${error.code}) : ${error.message}'
+            : 'Erreur Discovery (${error.runtimeType}). Réessayez.';
+      });
+      _trace('LOAD_FINISHED', revision: revision, detail: 'state=error');
     }
   }
 
@@ -427,8 +532,20 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               ),
               const SizedBox(height: MakoloSpacing.compact),
               const SizedBox(height: MakoloSpacing.lg),
+              if (_localWarning != null) ...[
+                Text(
+                  _localWarning!,
+                  key: const Key('guest-discover-local-warning'),
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
               if (_error != null) ...[
-                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                Text(
+                  _error!,
+                  key: const Key('guest-discover-load-error'),
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
                 TextButton(
                   onPressed: _retry,
                   child: Text(
