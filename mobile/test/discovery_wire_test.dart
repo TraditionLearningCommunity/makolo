@@ -116,6 +116,60 @@ void main() {
     expect(collection.items.first.capabilities, isEmpty);
   });
 
+  test('beta-shaped public Services wire accepts 12 items, aliases and opaque continuation', () {
+    final services = List.generate(12, (index) {
+      final item = candidate('service_activity', 'synthetic-$index');
+      item['representation'] = {
+        'kind': 'service',
+        'presentation_kind': 'service',
+        'vertical_label': 'Accompagnement',
+        'title': 'Accompagnement synthétique $index',
+        'summary': 'Jeu de test, sans relation personnelle.',
+        'image_url': null,
+        'route_label': null,
+        'eyebrow': 'Orientation',
+      };
+      item['capabilities'] = <String>['view'];
+      item['personal_relation'] = {
+        'state': 'none',
+        'availability': 'available',
+        'expires_at': null,
+      };
+      item['engagement'] = {
+        'state': 'owner_contract',
+        'owner': 'services',
+        'capabilities': <String>[],
+        'links': <String, dynamic>{},
+        'presentation': {
+          'label': 'Commencer',
+          'capability': 'start',
+          'enabled': false,
+          'web': '/services/synthetic-$index/start/',
+          'web_enabled': true,
+        },
+      };
+      item['detail'] = {'description': 'Donnée synthétique de test.'};
+      item['media_bindings'] = <Map<String, dynamic>>[];
+      return item;
+    });
+    final response = envelope(candidates: services, hasNext: true);
+    final data = response['data'] as Map<String, dynamic>;
+    data['page_size'] = 12;
+    data['count'] = 191;
+    data['items'] = services;
+    final wire = DiscoveryWire.receive(response, scope: 'public');
+    final collection = selector.publicCollection(wire.snapshotPayload);
+
+    expect(collection.count, 191);
+    expect(collection.items, hasLength(12));
+    expect(collection.items.every((item) => item.family == 'service_activity'), isTrue);
+    expect(collection.hasNext, isTrue);
+    expect(collection.continuationToken, 'opaque.signed.cursor');
+    expect(collection.items.every((item) => !item.capabilities.contains('start')), isTrue);
+    expect(collection.items.first.engagement?['presentation'], containsPair('enabled', false));
+    expect(collection.items.first.representationKind, 'service');
+  });
+
   test('B1 public and personal use identical semantic interpretation', () {
     final guest = DiscoveryWire.receive(envelope(), scope: 'public');
     final me = DiscoveryWire.receive(
