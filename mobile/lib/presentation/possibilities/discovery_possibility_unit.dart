@@ -435,6 +435,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           ],
           if (widget.onSelect != null)
             TextButton.icon(
+              key: ValueKey('discover-map-action-${widget.item.candidateKey}'),
               onPressed: widget.onSelect,
               icon: const Icon(Icons.map_outlined),
               label: Text(widget.selectionActionLabel ?? 'Voir sur la carte'),
