@@ -75,7 +75,7 @@ adb reverse tcp:9999 tcp:9999
 $cfg = Get-Content ".\config\dev.json" -Raw | ConvertFrom-Json
 $cfg.MAKOLO_API_BASE_URL = "http://127.0.0.1:9999/"
 $localConfig = Join-Path $env:TEMP "makolo-local-android.json"
-[System.IO.File]::WriteAllText($localConfig, ($cfg | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding($false)))
+[System.IO.File]::WriteAllText($localConfig, ($cfg | ConvertTo-Json -Depth 12), ([System.Text.UTF8Encoding]::new($false)))
 flutter run --debug --flavor dev --dart-define-from-file="$localConfig"
 ```
 
