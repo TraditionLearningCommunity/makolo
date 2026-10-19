@@ -599,24 +599,24 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     minWidth: MediaQuery.sizeOf(context).width,
                     maxWidth: MediaQuery.sizeOf(context).width,
                     child: PublicPossibilityCard(
-                    item: item,
-                    baseUri: widget.runtime.api?.baseUri,
-                    shareApi: widget.runtime.api,
-                    onSignIn: () {
-                      widget.runtime.recovery.requireAuthentication(
+                      item: item,
+                      baseUri: widget.runtime.api?.baseUri,
+                      shareApi: widget.runtime.api,
+                      onSignIn: () {
+                        widget.runtime.recovery.requireAuthentication(
+                          '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+                        );
+                        context.push('/login');
+                      },
+                      onTap: () => context.push(
                         '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
-                      );
-                      context.push('/login');
-                    },
-                    onTap: () => context.push(
-                      '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
-                    ),
-                    onSave: () async {
-                      widget.runtime.recovery.requireAuthentication(
-                        '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
-                      );
-                      if (context.mounted) context.push('/login');
-                    },
+                      ),
+                      onSave: () async {
+                        widget.runtime.recovery.requireAuthentication(
+                          '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+                        );
+                        if (context.mounted) context.push('/login');
+                      },
                     ),
                   ),
                 if (_loading && _collection.items.isNotEmpty)
