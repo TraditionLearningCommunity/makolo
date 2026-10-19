@@ -25,6 +25,7 @@ from .services import (
     create_opportunity_share,
     create_direct_opportunity_share,
     resolve_share_link,
+    resolve_delivery_for_recipient,
     resolve_activity_share_subject,
     resolve_opportunity_share_subject,
     share_public_url,
@@ -158,6 +159,33 @@ class SharePossibilityAPIView(APIView):
         }, status=201)
 
 
+def _public_discovery_destination(envelope):
+    # Opaque Sharing identities only become N2 routes after owner/public checks.
+    if envelope.subject_type == ShareSubjectType.ACTIVITY:
+        _, activity, _ = resolve_activity_share_subject(envelope)
+        for family in ("activity", "service_activity", "funding_activity"):
+            if detail_projection(family, activity.pk, profile=AnonymousUser()) is not None:
+                return family, str(activity.pk)
+    elif envelope.subject_type == ShareSubjectType.OPPORTUNITY:
+        _, opportunity, _, _ = resolve_opportunity_share_subject(envelope)
+        if detail_projection(
+            "opportunity", opportunity.pk, profile=AnonymousUser(),
+        ) is not None:
+            return "opportunity", str(opportunity.pk)
+    raise ShareUnavailable
+
+
+def _destination_response(envelope):
+    family, id_ = _public_discovery_destination(envelope)
+    response = Response({
+        "family": family,
+        "id": id_,
+        "route": f"/discover/items/{family}/{id_}",
+    })
+    response["Cache-Control"] = "no-store"
+    return response
+
+
 class PublicShareResolveAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -165,34 +193,24 @@ class PublicShareResolveAPIView(APIView):
         if len(token) > 128:
             raise NotFound("Partage indisponible.")
         try:
-            envelope = resolve_share_link(token)
-            if envelope.subject_type == ShareSubjectType.ACTIVITY:
-                _, activity, _ = resolve_activity_share_subject(envelope)
-                identity = next(
-                    (
-                        (family, str(activity.pk))
-                        for family in ("activity", "service_activity", "funding_activity")
-                        if detail_projection(family, activity.pk, profile=AnonymousUser()) is not None
-                    ), None,
-                )
-            elif envelope.subject_type == ShareSubjectType.OPPORTUNITY:
-                _, opportunity, _, _ = resolve_opportunity_share_subject(envelope)
-                identity = (
-                    ("opportunity", str(opportunity.pk))
-                    if detail_projection(
-                        "opportunity", opportunity.pk, profile=AnonymousUser(),
-                    ) is not None else None
-                )
-            else:
-                identity = None
-        except (ShareUnavailable, DomainValidationError):
-            identity = None
-        if identity is None:
-            raise NotFound("Partage indisponible.")
-        response = Response({
-            "family": identity[0],
-            "id": identity[1],
-            "route": f"/discover/items/{identity[0]}/{identity[1]}",
-        })
-        response["Cache-Control"] = "no-store"
-        return response
+            return _destination_response(resolve_share_link(token))
+        except (ShareUnavailable, DomainValidationError) as exc:
+            raise NotFound("Partage indisponible.") from exc
+
+
+class ShareDeliveryResolveAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, delivery_id):
+        try:
+            delivery = resolve_delivery_for_recipient(
+                delivery_id=delivery_id,
+                user=request.user,
+                mark_opened=True,
+            )
+            return _destination_response(delivery.envelope)
+        except PermissionDenied:
+            from rest_framework.exceptions import PermissionDenied as APIForbidden
+            raise APIForbidden("Partage réservé au destinataire.")
+        except (ShareUnavailable, DomainValidationError) as exc:
+            raise NotFound("Partage indisponible.") from exc
