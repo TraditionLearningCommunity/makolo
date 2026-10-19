@@ -34,8 +34,8 @@ class DashboardTests(TestCase):
         response = self.client.get(reverse("core:home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Faites avancer ce qui compte.")
-        self.assertContains(response, "Trouvez ce que vous voulez vivre, faire ou obtenir.")
+        self.assertContains(response, "Ça vous intéresserait")
+        self.assertContains(response, "Trouvez des activités, des services, des occasions")
         self.assertContains(response, "Découvrir")
         self.assertContains(response, "Espaces")
         self.assertContains(response, "Créer un compte")
