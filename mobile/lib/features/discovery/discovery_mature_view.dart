@@ -430,24 +430,33 @@ class _DiscoveryScrollableField extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
-                  if (wide)
-                    MakoloAdaptiveGrid(
-                      key: const Key('discover-wide-grid'),
-                      minUnitWidth: MakoloLayout.unitMinWidth,
-                      maxColumns: 3,
-                      children: units,
-                    )
-                  else
-                    Column(
-                      key: const Key('discover-compact-field'),
-                      children: [
-                        for (var index = 0; index < units.length; index++) ...[
-                          units[index],
-                          if (index < units.length - 1)
-                            const SizedBox(height: MakoloSpacing.md),
-                        ],
-                      ],
-                    ),
+                ],
+              ),
+            ),
+            if (wide)
+              MakoloContentFrame(
+                child: MakoloAdaptiveGrid(
+                  key: const Key('discover-wide-grid'),
+                  minUnitWidth: MakoloLayout.unitMinWidth,
+                  maxColumns: 3,
+                  children: units,
+                ),
+              )
+            else
+              Column(
+                key: const Key('discover-compact-field'),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < units.length; index++) ...[
+                    units[index],
+                    if (index < units.length - 1)
+                      const SizedBox(height: MakoloSpacing.md),
+                  ],
+                ],
+              ),
+            MakoloContentFrame(
+              child: Column(
+                children: [
                   if (selection.states.contains(
                     DiscoveryFieldState.endOfField,
                   )) ...[
