@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/discovery/discovery_selector.dart';
+import '../../network/makolo_api_client.dart';
 import 'discovery_possibility_unit.dart';
 
 /// Public Discovery and personal Discovery share one semantic N1 composition.
@@ -10,6 +11,8 @@ class PublicPossibilityCard extends StatelessWidget {
     required this.item,
     required this.onTap,
     this.onSave,
+    this.shareApi,
+    this.onSignIn,
     this.baseUri,
     this.compact = false,
   });
@@ -17,6 +20,8 @@ class PublicPossibilityCard extends StatelessWidget {
   final DiscoveryItemPresentation item;
   final VoidCallback onTap;
   final Future<void> Function()? onSave;
+  final MakoloApiClient? shareApi;
+  final VoidCallback? onSignIn;
   final Uri? baseUri;
   final bool compact;
 
@@ -26,6 +31,8 @@ class PublicPossibilityCard extends StatelessWidget {
       item: item,
       onOpen: onTap,
       onSave: onSave,
+      shareApi: shareApi,
+      onSignIn: onSignIn,
       allowSavePrompt: onSave != null,
       baseUri: baseUri,
       compact: compact,
