@@ -211,22 +211,131 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return labels;
   }
 
+  String? _publicImage(String? source) {
+    if (source == null || source.trim().isEmpty) return null;
+    final parsed = Uri.tryParse(source);
+    if (parsed == null) return null;
+    final url = parsed.hasScheme ? parsed : widget.baseUri?.resolveUri(parsed);
+    if (url == null ||
+        (url.scheme != 'https' && url.scheme != 'http') ||
+        url.host.isEmpty) {
+      return null;
+    }
+    return url.toString();
+  }
+
   Widget _media(BuildContext context) {
-    final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    final validImage =
-        uri != null &&
-        (uri.scheme == 'https' || uri.scheme == 'http') &&
-        uri.host.isNotEmpty;
-    if (!validImage) return const SizedBox.shrink();
-    return AspectRatio(
-      aspectRatio: 4 / 3,
-      child: Image.network(
-        item.imageUrl!,
-        fit: BoxFit.cover,
-        semanticLabel: 'Visuel de ${item.title}',
-        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    final urls = <String>[];
+    final seen = <String>{};
+    void add(String? source) {
+      final url = _publicImage(source);
+      if (url != null && seen.add(url)) urls.add(url);
+    }
+
+    add(item.imageUrl);
+    for (final binding in item.mediaBindings) {
+      final resource = binding['resource'];
+      if (resource is! Map) continue;
+      final mime = (resource['mime_type'] ?? '').toString();
+      final purpose = (binding['purpose'] ?? '').toString();
+      if (mime.startsWith('image/') || purpose == 'RECOGNIZE') {
+        add(resource['url']?.toString());
+      }
+    }
+    if (urls.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final url in urls)
+          AspectRatio(
+            aspectRatio: 4 / 3,
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              semanticLabel: 'Visuel de ${item.title}',
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _ownerHeader(BuildContext context) {
+    final name = item.owner;
+    if (name == null || name.isEmpty) return const SizedBox.shrink();
+    final owner = item.ownerFacts;
+    final representation = owner?['representation'];
+    final ownerLinks = owner?['links'];
+    final avatar = representation is Map
+        ? _publicImage(representation['avatar_url']?.toString())
+        : null;
+    final nativePath = ownerLinks is Map ? ownerLinks['native'] : null;
+    final navigable = owner?['capabilities'] is List &&
+        (owner!['capabilities'] as List).contains('view_public') &&
+        nativePath is String &&
+        nativePath.startsWith('/spaces/');
+    return InkWell(
+      onTap: navigable ? () => context.push(nativePath) : null,
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 19,
+            foregroundImage: avatar == null ? null : NetworkImage(avatar),
+            child: avatar == null ? Text(name[0].toUpperCase()) : null,
+          ),
+          const SizedBox(width: MakoloSpacing.sm),
+          Expanded(
+            child: Text(
+              name,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+          ),
+          if (navigable)
+            const Icon(Icons.open_in_new_rounded, size: 16),
+        ],
       ),
     );
+  }
+
+  Widget _dateLabel(BuildContext context) {
+    final date = item.wire['date'];
+    if (date is! Map) return const SizedBox.shrink();
+    final raw = date['value'];
+    final label = date['label'];
+    if (raw is! String || label is! String) return const SizedBox.shrink();
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return const SizedBox.shrink();
+    return Text(
+      '$label ${MaterialLocalizations.of(context).formatMediumDate(parsed.toLocal())}',
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+
+  bool get _canStartService {
+    final handoff = item.engagement;
+    final presentation = handoff?['presentation'];
+    final caps = handoff?['capabilities'];
+    final resource = handoff?['resource'];
+    return item.family == 'service_activity' &&
+        presentation is Map &&
+        presentation['capability'] == 'start' &&
+        presentation['enabled'] == true &&
+        caps is List &&
+        caps.contains('start') &&
+        resource is Map &&
+        resource['kind'] == 'service' &&
+        resource['id'] is String;
+  }
+
+  void _centralAction(BuildContext context) {
+    if (_canStartService) {
+      final service = item.engagement!['resource'] as Map;
+      context.push('/services/${service['id']}/start');
+    } else {
+      widget.onOpen();
+    }
   }
 
   Widget _facts(BuildContext context) {
@@ -314,24 +423,23 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (item.eyebrow != null && item.eyebrow!.trim().isNotEmpty)
-                    Text(
-                      item.eyebrow!,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  const SizedBox(height: MakoloSpacing.xs),
                   Text(
                     item.title,
                     style: widget.compact
-                        ? theme.textTheme.titleSmall
-                        : theme.textTheme.titleMedium,
+                        ? theme.textTheme.titleMedium
+                        : theme.textTheme.headlineSmall,
                   ),
-                  if (item.owner != null) ...[
-                    const SizedBox(height: MakoloSpacing.xs),
-                    Text(item.owner!, style: theme.textTheme.labelMedium),
-                  ],
+                  const SizedBox(height: MakoloSpacing.sm),
+                  _ownerHeader(context),
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(
+                    item.representation?['vertical_label']?.toString() ??
+                        item.eyebrow ?? '',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  _dateLabel(context),
                   if (item.summary.trim().isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(
