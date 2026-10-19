@@ -170,3 +170,88 @@ def occurrence_variant_price_facts(*, occurrences, at=None) -> dict:
             for occurrence, price in rows
         ],
     }
+
+
+
+def offer_price_facts_many(*, contexts, at=None) -> dict:
+    """Batch owner price facts for admitted (Activity, optional Occurrence) pairs.
+
+    Contexts are trusted only after a caller has enforced visibility. This
+    preserves applicable_offers semantics and does not assert Capacity or
+    checkout totals. Unlike repeated offer_price_facts calls, it uses one
+    query for the selected page.
+    """
+    from django.db.models import Q
+
+    from .models import Offer, OfferStatus
+
+    selected = {
+        (str(activity_id), str(occurrence_id) if occurrence_id else None)
+        for activity_id, occurrence_id in contexts
+    }
+    if not selected:
+        return {}
+    activity_ids = {activity_id for activity_id, _ in selected}
+    now = at if at is not None else timezone.now()
+    offers = list(
+        Offer.objects.filter(
+            activity_id__in=activity_ids,
+            status=OfferStatus.ACTIVE,
+        ).filter(
+            Q(available_from__isnull=True) | Q(available_from__lte=now),
+            Q(available_until__isnull=True) | Q(available_until__gt=now),
+        ).select_related("capacity_pool")
+    )
+    by_activity = {}
+    for offer in offers:
+        by_activity.setdefault(str(offer.activity_id), []).append(offer)
+
+    result = {}
+    for activity_id, occurrence_id in selected:
+        applicable = [
+            offer
+            for offer in by_activity.get(activity_id, ())
+            if (
+                offer.occurrence_id is None
+                or (occurrence_id is not None and str(offer.occurrence_id) == occurrence_id)
+            )
+            and (
+                offer.capacity_pool_id is None
+                or offer.capacity_pool.occurrence_id is None
+                or (
+                    occurrence_id is not None
+                    and str(offer.capacity_pool.occurrence_id) == occurrence_id
+                )
+            )
+        ]
+        currencies = {offer.currency for offer in applicable}
+        minimum = maximum = currency = None
+        reason = None
+        if not applicable:
+            state = "unknown"
+            reason = "no_applicable_offer"
+        elif len(currencies) != 1:
+            state = "unknown"
+            reason = "mixed_currencies"
+        else:
+            currency = next(iter(currencies))
+            minimum = min(offer.unit_price for offer in applicable)
+            maximum = max(offer.unit_price for offer in applicable)
+            state = (
+                "free" if maximum == Decimal("0.00")
+                else "exact" if minimum == maximum
+                else "range"
+            )
+        timestamps = [offer.updated_at for offer in applicable if offer.updated_at]
+        ends = [offer.available_until for offer in applicable if offer.available_until]
+        result[(activity_id, occurrence_id)] = OfferPriceFacts(
+            state=state,
+            minimum=minimum,
+            maximum=maximum,
+            currency=currency,
+            offer_count=len(applicable),
+            reason=reason,
+            owner_updated_at=max(timestamps) if timestamps else None,
+            earliest_offer_end_at=min(ends) if ends else None,
+        )
+    return result
