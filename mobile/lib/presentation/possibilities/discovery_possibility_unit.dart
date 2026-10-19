@@ -273,7 +273,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final navigable = owner?['capabilities'] is List &&
         (owner!['capabilities'] as List).contains('view_public') &&
         nativePath is String &&
-        nativePath.startsWith('/spaces/');
+        (nativePath.startsWith('/spaces/') ||
+            nativePath.startsWith('/people/'));
     return InkWell(
       onTap: navigable ? () => context.push(nativePath as String) : null,
       child: Row(
