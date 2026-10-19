@@ -578,6 +578,7 @@ def _public_owner_facts(activity_ids, opportunity_ids) -> tuple[dict, dict]:
                         "account:public-profile",
                         kwargs={"profile_id": person.pk},
                     ),
+                    "native": f"/people/{person.pk}",
                 },
                 "capabilities": ["view_public"],
             }
