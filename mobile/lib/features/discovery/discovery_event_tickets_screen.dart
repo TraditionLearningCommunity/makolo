@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -73,10 +74,11 @@ class _DiscoveryEventTicketsScreenState
       final detail = (await api.publicGet(
         'api/v1/events/discover/$slug/',
       )).jsonObject();
-      final raw = (await api.publicGet(
+      final ticketResponse = await api.publicGet(
         'api/v1/events/$slug/ticket-types/',
-      )).jsonObject();
-      final collection = raw['results'] ?? raw;
+      );
+      final decoded = jsonDecode(ticketResponse.body);
+      final collection = decoded is Map ? decoded['results'] : decoded;
       if (detail['id'] is! String || collection is! List) {
         throw const FormatException('Unexpected Event Ticket owner response');
       }
