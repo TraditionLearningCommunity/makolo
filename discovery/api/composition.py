@@ -513,6 +513,116 @@ def _assessment(projection: dict) -> list[dict]:
     return facts
 
 
+def _public_owner_facts(activity_ids, opportunity_ids) -> tuple[dict, dict]:
+    """Batch owner identity and date facts without inferring ownership from created_by."""
+    from accounts.models import UserProfile
+    from activities.models import Activity
+    from opportunities.models import Opportunity
+    from organizations.models import SpaceLifecycle
+
+    activities = list(
+        Activity.objects.filter(pk__in=activity_ids)
+        .select_related("space", "owner_profile")
+    )
+    profile_ids = [
+        activity.owner_profile_id
+        for activity in activities
+        if activity.owner_profile_id is not None
+    ]
+    public_profiles = set(
+        UserProfile.objects.filter(
+            user_id__in=profile_ids,
+            public_profile=True,
+            searchable=True,
+            user__is_active=True,
+        ).values_list("user_id", flat=True)
+    )
+    activity_facts = {}
+    for activity in activities:
+        owner = None
+        if activity.space_id is not None:
+            space = activity.space
+            if (
+                space.public_profile
+                and space.searchable
+                and space.lifecycle == SpaceLifecycle.ACTIVE
+                and space.verification_status != "suspended"
+            ):
+                owner = {
+                    "display_name": space.name,
+                    "identity": {"kind": "space", "id": str(space.pk)},
+                    "representation": {"name": space.name, "avatar_url": None},
+                    "context": {"city": space.city, "country": space.country},
+                    "links": {
+                        "public": reverse(
+                            "organizer_public:detail",
+                            kwargs={"slug": space.slug},
+                        ),
+                        "native": f"/spaces/{space.slug}",
+                    },
+                    "capabilities": ["view_public"],
+                }
+        elif activity.owner_profile_id in public_profiles:
+            person = activity.owner_profile
+            name = person.full_name or person.username
+            owner = {
+                "display_name": name,
+                "identity": {"kind": "profile", "id": str(person.pk)},
+                "representation": {
+                    "name": name,
+                    "avatar_url": person.avatar.url if person.avatar else None,
+                },
+                "context": {},
+                "links": {
+                    "public": reverse(
+                        "account:public-profile",
+                        kwargs={"profile_id": person.pk},
+                    ),
+                },
+                "capabilities": ["view_public"],
+            }
+        activity_facts[str(activity.pk)] = {
+            "owner": owner,
+            "date": {
+                "kind": "added_at",
+                "label": "Ajouté le",
+                "value": activity.created_at.isoformat(),
+            },
+        }
+
+    opportunity_dates = {
+        str(pk): published_at.isoformat() if published_at else None
+        for pk, published_at in Opportunity.objects.filter(
+            pk__in=opportunity_ids,
+        ).values_list("pk", "published_at")
+    }
+    return activity_facts, opportunity_dates
+
+
+def _service_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
+    """A Service start is prevalidated and executed by Services, not Discovery."""
+    if not activity_ids or not _authenticated(profile):
+        return {}
+    from services.models import ServiceDetails
+
+    return {
+        str(service.activity_id): {
+            "state": "owner_api",
+            "owner": "services",
+            "capabilities": ["start"],
+            "links": {
+                "start": reverse(
+                    "services-api:start", kwargs={"pk": service.pk},
+                ),
+            },
+            "resource": {"kind": "service", "id": str(service.pk)},
+        }
+        for service in ServiceDetails.objects.filter(
+            activity_id__in=activity_ids,
+        )
+    }
+
+
 def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
     if not activity_ids:
         return {}
@@ -603,9 +713,15 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
     return result
 
 
-def _handoff_for_projection(projection: dict, *, event_handoffs=None) -> dict:
+def _handoff_for_projection(
+    projection: dict, *, event_handoffs=None, service_handoffs=None
+) -> dict:
     resource = projection["identity"]["resource"]
     family = projection["identity"]["family"]
+    if family == "service_activity" and service_handoffs:
+        handoff = service_handoffs.get(resource["id"])
+        if handoff is not None:
+            return handoff
     if family == "activity" and event_handoffs:
         handoff = event_handoffs.get(resource["id"])
         if handoff is not None:
@@ -627,6 +743,7 @@ def _finalize_projection(
     *,
     card=None,
     event_handoffs=None,
+    service_handoffs=None,
     description="",
 ) -> dict:
     identity = projection["identity"]
@@ -691,6 +808,7 @@ def _finalize_projection(
     projection["engagement"] = _handoff_for_projection(
         projection,
         event_handoffs=event_handoffs,
+        service_handoffs=service_handoffs,
     )
     if card is not None and card.actions.primary is not None:
         primary = card.actions.primary
@@ -740,6 +858,10 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     event_handoffs = _event_handoffs(
         activity_ids,
         profile=profile,
+    )
+    service_handoffs = _service_handoffs(activity_ids, profile=profile)
+    owner_facts, opportunity_dates = _public_owner_facts(
+        activity_ids, opportunity_ids,
     )
     activity_resources = _activity_resource_previews(activity_ids)
     opportunity_resources = _opportunity_source_previews(opportunity_ids)
@@ -813,8 +935,34 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             projection,
             card=card,
             event_handoffs=event_handoffs,
+            service_handoffs=service_handoffs,
             description=description,
         )
+        if family == "opportunity":
+            issuer_name = (candidate.get("issuer_name") or "").strip()
+            finalized["owner"] = (
+                {
+                    "display_name": issuer_name,
+                    "identity": {"kind": "external_issuer"},
+                    "representation": {"name": issuer_name, "avatar_url": None},
+                    "context": {},
+                    "links": {},
+                    "capabilities": [],
+                }
+                if issuer_name else None
+            )
+            published = opportunity_dates.get(str(candidate["opportunity_id"]))
+            finalized["date"] = (
+                {"kind": "published_at", "label": "Publiée le", "value": published}
+                if published else None
+            )
+        else:
+            facts = owner_facts.get(
+                str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
+                {},
+            )
+            finalized["owner"] = facts.get("owner")
+            finalized["date"] = facts.get("date")
         resource = finalized["identity"]["resource"]
         if family == "activity":
             finalized["spatial_facts"] = public_spatial_facts.get(
