@@ -16,12 +16,14 @@ class DiscoveryShareControl extends StatefulWidget {
     required this.api,
     required this.authenticated,
     this.onSignIn,
+    this.iconOnly = false,
   });
 
   final DiscoveryItemPresentation item;
   final MakoloApiClient? api;
   final bool authenticated;
   final VoidCallback? onSignIn;
+  final bool iconOnly;
 
   @override
   State<DiscoveryShareControl> createState() => _DiscoveryShareControlState();
@@ -134,18 +136,30 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     // The owner Web share reference is the current contract for shareability.
     // Presence of a public card alone never grants sharing authority.
     if (widget.item.links['web_share'] == null) {
-      return TextButton.icon(
-        onPressed: null,
-        icon: Icon(Icons.share_outlined),
-        label: Text('Partager'),
-      );
+      return widget.iconOnly
+          ? const IconButton(
+              onPressed: null,
+              tooltip: 'Partager',
+              icon: Icon(Icons.share_outlined),
+            )
+          : TextButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Partager'),
+            );
     }
     if (widget.api == null || !widget.authenticated) {
-      return TextButton.icon(
-        onPressed: widget.onSignIn,
-        icon: const Icon(Icons.share_outlined),
-        label: const Text('Partager'),
-      );
+      return widget.iconOnly
+          ? IconButton(
+              onPressed: widget.onSignIn,
+              tooltip: 'Partager',
+              icon: const Icon(Icons.share_outlined),
+            )
+          : TextButton.icon(
+              onPressed: widget.onSignIn,
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Partager'),
+            );
     }
     return PopupMenuButton<String>(
       tooltip: 'Partager cette possibilité',
@@ -178,8 +192,10 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
             )
           else
             const Icon(Icons.share_outlined),
-          const SizedBox(height: 3),
-          const Text('Partager', textAlign: TextAlign.center),
+          if (!widget.iconOnly) ...[
+            const SizedBox(height: 3),
+            const Text('Partager', textAlign: TextAlign.center),
+          ],
         ],
       ),
     );
