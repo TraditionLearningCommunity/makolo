@@ -9,12 +9,13 @@ import '../../features/discovery/discovery_selector.dart';
 
 /// The existing Discovery projection rendered as one N1 unit.
  /// Facts and actions remain owned by the server; this widget only composes.
-class DiscoveryPossibilityUnit extends StatelessWidget {
+class DiscoveryPossibilityUnit extends StatefulWidget {
   const DiscoveryPossibilityUnit({
     super.key,
     required this.item,
     required this.onOpen,
     this.onSave,
+    this.allowSavePrompt = false,
     this.onSelect,
     this.selectionActionLabel,
     this.baseUri,
@@ -23,11 +24,19 @@ class DiscoveryPossibilityUnit extends StatelessWidget {
 
   final DiscoveryItemPresentation item;
   final VoidCallback onOpen;
-  final VoidCallback? onSave;
+  final Future<void> Function()? onSave;
+  final bool allowSavePrompt;
   final VoidCallback? onSelect;
   final String? selectionActionLabel;
   final Uri? baseUri;
   final bool compact;
+
+  @override
+  State<DiscoveryPossibilityUnit> createState() => _DiscoveryPossibilityUnitState();
+}
+
+class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
+  bool _saving = false;
 
   static const _orbitAvailable = '''
 <svg viewBox="0 0 24 24"><path d="M5.2 17.6A8.7 8.7 0 0 1 16.9 5.1" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><path d="M18.4 7.2a8.6 8.6 0 0 1 .2 7.4" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><circle cx="19.3" cy="17.6" r="1.45" fill="#000"/></svg>
@@ -46,17 +55,35 @@ class DiscoveryPossibilityUnit extends StatelessWidget {
     );
   }
 
+  Future<void> _save() async {
+    if (_saving || widget.onSave == null) return;
+    setState(() => _saving = true);
+    try {
+      await widget.onSave!();
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('L’enregistrement n’a pas pu être confirmé.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Uri? get _shareableUrl {
-    final raw = item.links['web'];
-    if (raw == null || raw.isEmpty || baseUri == null) return null;
+    final raw = widget.item.links['web'];
+    if (raw == null || raw.isEmpty || widget.baseUri == null) return null;
     final candidate = Uri.tryParse(raw);
     if (candidate == null) return null;
-    final uri = baseUri!.resolveUri(candidate);
+    final uri = widget.baseUri!.resolveUri(candidate);
     if (uri.scheme != 'https' && uri.scheme != 'http') return null;
-    if (uri.host != baseUri!.host || uri.port != baseUri!.port) return null;
+    if (uri.host != widget.baseUri!.host || uri.port != widget.baseUri!.port) return null;
     if (uri.userInfo.isNotEmpty) return null;
     return uri;
   }
+
+  DiscoveryItemPresentation get item => widget.item;
 
   List<Map<String, dynamic>> get _reliableFacts =>
       item.presentationFacts.where((fact) {
@@ -217,25 +244,25 @@ class DiscoveryPossibilityUnit extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (focus && !compact) _media(context),
+          if (focus && !widget.compact) _media(context),
           InkWell(
-            onTap: onOpen,
+            onTap: widget.onOpen,
             child: Padding(
-              padding: EdgeInsets.all(compact ? MakoloSpacing.sm : MakoloSpacing.md),
+              padding: EdgeInsets.all(widget.compact ? MakoloSpacing.sm : MakoloSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (item.eyebrow != null && item.eyebrow!.trim().isNotEmpty)
                     Text(item.eyebrow!, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary)),
                   const SizedBox(height: MakoloSpacing.xs),
-                  Text(item.title, style: compact ? theme.textTheme.titleSmall : theme.textTheme.titleMedium),
+                  Text(item.title, style: widget.compact ? theme.textTheme.titleSmall : theme.textTheme.titleMedium),
                   if (item.owner != null) ...[
                     const SizedBox(height: MakoloSpacing.xs),
                     Text(item.owner!, style: theme.textTheme.labelMedium),
                   ],
                   if (item.summary.trim().isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
-                    Text(item.summary, style: compact ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium),
+                    Text(item.summary, style: widget.compact ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium),
                   ],
                   if (doc != null) ...[
                     const SizedBox(height: MakoloSpacing.sm),
@@ -262,7 +289,7 @@ class DiscoveryPossibilityUnit extends StatelessWidget {
               ),
             ),
           ),
-          if (!compact) ...[
+          if (!widget.compact) ...[
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.xs, vertical: MakoloSpacing.xs),
@@ -270,7 +297,7 @@ class DiscoveryPossibilityUnit extends StatelessWidget {
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: onSave != null && canToggle ? onSave : null,
+                      onPressed: !_saving && widget.onSave != null && (canToggle || widget.allowSavePrompt) ? _save : null,
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Column(
@@ -278,7 +305,7 @@ class DiscoveryPossibilityUnit extends StatelessWidget {
                           children: [
                             orbitIcon(saved: saved, color: theme.colorScheme.primary),
                             const SizedBox(height: 3),
-                            Text(saved ? 'Enregistré' : 'J’enregistre'),
+                            Text(_saving ? 'Enregistrement…' : saved ? 'Enregistré' : 'J’enregistre'),
                           ],
                         ),
                       ),
@@ -286,7 +313,7 @@ class DiscoveryPossibilityUnit extends StatelessWidget {
                   ),
                   Expanded(
                     child: TextButton(
-                      onPressed: onOpen,
+                      onPressed: widget.onOpen,
                       child: const Text('Voir plus', textAlign: TextAlign.center),
                     ),
                   ),
@@ -315,11 +342,11 @@ class DiscoveryPossibilityUnit extends StatelessWidget {
               ),
             ),
           ],
-          if (onSelect != null)
+          if (widget.onSelect != null)
             TextButton.icon(
-              onPressed: onSelect,
+              onPressed: widget.onSelect,
               icon: const Icon(Icons.map_outlined),
-              label: Text(selectionActionLabel ?? 'Voir sur la carte'),
+              label: Text(widget.selectionActionLabel ?? 'Voir sur la carte'),
             ),
         ],
       ),
