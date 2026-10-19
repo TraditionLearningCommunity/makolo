@@ -9,7 +9,7 @@ from activities.models import Activity, Occurrence
 from organizations.models import Organization
 
 from .models import Offer, OfferStatus, PaymentMode
-from .offer_price_facts import offer_price_facts, occurrence_variant_price_facts
+from .offer_price_facts import offer_price_facts, occurrence_variant_price_facts, offer_price_facts_many
 
 
 class OfferPriceFactsTests(TestCase):
@@ -49,6 +49,32 @@ class OfferPriceFactsTests(TestCase):
             ),
             available_from=available_from, available_until=available_until,
         )
+
+    def test_batch_owner_facts_match_single_contexts(self):
+        self.make_offer("10.00")
+        self.make_offer("30.00", occurrence=self.occurrence)
+        self.make_offer("70.00", occurrence=self.other_occurrence)
+        contexts = (
+            (self.activity.pk, None),
+            (self.activity.pk, self.occurrence.pk),
+            (self.activity.pk, self.other_occurrence.pk),
+        )
+        with self.assertNumQueries(1):
+            batch = offer_price_facts_many(contexts=contexts, at=self.now)
+        for activity_id, occurrence_id in contexts:
+            single = (
+                offer_price_facts(activity=self.activity, at=self.now)
+                if occurrence_id is None else
+                offer_price_facts(
+                    occurrence=self.occurrence if occurrence_id == self.occurrence.pk
+                    else self.other_occurrence,
+                    at=self.now,
+                )
+            )
+            self.assertEqual(
+                batch[(str(activity_id), str(occurrence_id) if occurrence_id else None)].as_dict(),
+                single.as_dict(),
+            )
 
     def test_missing_offer_is_unknown_not_free(self):
         result = offer_price_facts(activity=self.activity, at=self.now)
