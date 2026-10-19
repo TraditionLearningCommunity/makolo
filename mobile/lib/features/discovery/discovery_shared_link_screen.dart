@@ -23,8 +23,7 @@ class DiscoverySharedLinkScreen extends StatefulWidget {
       _DiscoverySharedLinkScreenState();
 }
 
-class _DiscoverySharedLinkScreenState
-    extends State<DiscoverySharedLinkScreen> {
+class _DiscoverySharedLinkScreenState extends State<DiscoverySharedLinkScreen> {
   String? _error;
 
   @override
@@ -52,9 +51,14 @@ class _DiscoverySharedLinkScreenState
       final payload = response.jsonObject();
       final family = payload['family'];
       final id = payload['id'];
-      if (family is! String || id is! String ||
-          !{'activity', 'service_activity', 'funding_activity', 'opportunity'}
-              .contains(family) ||
+      if (family is! String ||
+          id is! String ||
+          !{
+            'activity',
+            'service_activity',
+            'funding_activity',
+            'opportunity',
+          }.contains(family) ||
           id.isEmpty) {
         throw const FormatException('Invalid Sharing destination');
       }

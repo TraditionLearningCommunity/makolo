@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
@@ -46,9 +47,8 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
 
   void _feedback(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _action(Future<void> Function() task) async {
@@ -82,9 +82,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
 
   Future<void> _external() => _action(() async {
     final url = await _link();
-    await const SystemShareGateway().shareText(
-      '${widget.item.title}\n$url',
-    );
+    await const SystemShareGateway().shareText('${widget.item.title}\n$url');
   });
 
   Future<void> _copy() => _action(() async {
@@ -226,29 +224,37 @@ class _ShareRecipientPickerState extends State<_ShareRecipientPicker> {
       _search(input);
       return;
     }
-    _debounce = Timer(
-      const Duration(milliseconds: 320),
-      () => _search(input),
-    );
+    _debounce = Timer(const Duration(milliseconds: 320), () => _search(input));
   }
 
   Future<void> _search(String input) async {
     final generation = ++_generation;
     final query = input.trim();
     if (query.length < 2) {
-      setState(() { _results = const []; _error = null; });
+      setState(() {
+        _results = const [];
+        _error = null;
+      });
       return;
     }
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final response = await widget.api.get(
         'api/v1/sharing/recipients/?q=${Uri.encodeQueryComponent(query)}',
       );
       final data = response.jsonObject()['results'];
       if (!mounted || generation != _generation) return;
-      setState(() => _results = data is List
-          ? data.whereType<Map>().map((p) => Map<String, dynamic>.from(p)).toList()
-          : const []);
+      setState(
+        () => _results = data is List
+            ? data
+                  .whereType<Map>()
+                  .map((p) => Map<String, dynamic>.from(p))
+                  .toList()
+            : const [],
+      );
     } on Object {
       if (!mounted || generation != _generation) return;
       setState(() => _error = 'Recherche indisponible.');
@@ -261,7 +267,10 @@ class _ShareRecipientPickerState extends State<_ShareRecipientPicker> {
 
   Future<void> _send(String id) async {
     if (_sending != null) return;
-    setState(() { _sending = id; _error = null; });
+    setState(() {
+      _sending = id;
+      _error = null;
+    });
     try {
       final response = await widget.api.post(
         widget.endpoint,
@@ -285,13 +294,18 @@ class _ShareRecipientPickerState extends State<_ShareRecipientPicker> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          16, 8, 16,
+          16,
+          8,
+          16,
           MediaQuery.viewInsetsOf(context).bottom + 20,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Partager dans Makolo', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Partager dans Makolo',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _controller,
@@ -307,7 +321,10 @@ class _ShareRecipientPickerState extends State<_ShareRecipientPicker> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             Flexible(
               child: ListView(

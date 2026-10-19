@@ -229,7 +229,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 onSave: (item) =>
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
-            shareApi: widget.repository.api,
+                shareApi: widget.repository.api,
                 onPage: _movePage,
                 onRetry: () => unawaited(_refreshItems()),
               ),

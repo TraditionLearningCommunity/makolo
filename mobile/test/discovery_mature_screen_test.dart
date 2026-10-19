@@ -202,7 +202,11 @@ void main() {
     final secondMapAction = find.byKey(
       const ValueKey('discover-map-action-activity:route'),
     );
-    await tester.ensureVisible(secondMapAction);
+    await tester.scrollUntilVisible(
+      secondMapAction,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pump();
     await tester.tap(secondMapAction);
     await tester.pump();
