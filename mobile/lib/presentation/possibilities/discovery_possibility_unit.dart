@@ -72,6 +72,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   Uri? get _shareableUrl {
+    if (widget.item.links['web_share'] == null) return null;
     final raw = widget.item.links['web'];
     if (raw == null || raw.isEmpty || widget.baseUri == null) return null;
     final candidate = Uri.tryParse(raw);
@@ -81,6 +82,64 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (uri.host != widget.baseUri!.host || uri.port != widget.baseUri!.port) return null;
     if (uri.userInfo.isNotEmpty) return null;
     return uri;
+  }
+
+  Uri? get _ownerWebAction {
+    final presentation = widget.item.engagement?['presentation'];
+    if (presentation is! Map || presentation['web_enabled'] != true) return null;
+    final raw = presentation['web'];
+    if (raw is! String || raw.isEmpty || widget.baseUri == null) return null;
+    final target = Uri.tryParse(raw);
+    if (target == null) return null;
+    final resolved = widget.baseUri!.resolveUri(target);
+    if (!{'http', 'https'}.contains(resolved.scheme) ||
+        resolved.host != widget.baseUri!.host ||
+        resolved.port != widget.baseUri!.port ||
+        resolved.userInfo.isNotEmpty) {
+      return null;
+    }
+    return resolved;
+  }
+
+  String get _primaryLabel {
+    if (_ownerWebAction == null) return 'Voir plus';
+    final presentation = widget.item.engagement?['presentation'];
+    final raw = presentation is Map ? presentation['label'] : null;
+    if (raw is! String || raw.trim().isEmpty) return 'Voir plus';
+    return switch (raw.trim().toLowerCase()) {
+      "s'inscrire" || 's’inscrire' => "Je m'inscris",
+      'réserver' => 'Je réserve',
+      'payer' => 'Je paye',
+      'commander' => 'Je commande',
+      'candidater' => 'Je candidate',
+      'participer' => 'Je participe',
+      'contribuer' => 'Je contribue',
+      'acheter' => "J'achète",
+      'demander' => 'Je demande',
+      _ => raw,
+    };
+  }
+
+  Future<void> _continue(BuildContext context) async {
+    final uri = _ownerWebAction;
+    if (uri == null) {
+      widget.onOpen();
+      return;
+    }
+    try {
+      final opened = await const SystemShareGateway().openExternal(uri);
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cette suite ne peut pas être ouverte actuellement.')),
+        );
+      }
+    } on Object {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cette suite ne peut pas être ouverte actuellement.')),
+        );
+      }
+    }
   }
 
   DiscoveryItemPresentation get item => widget.item;
@@ -345,8 +404,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ),
                   Expanded(
                     child: TextButton(
-                      onPressed: widget.onOpen,
-                      child: const Text('Voir plus', textAlign: TextAlign.center),
+                      onPressed: () => _continue(context),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(_primaryLabel, textAlign: TextAlign.center),
+                      ),
                     ),
                   ),
                   Expanded(
