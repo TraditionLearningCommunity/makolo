@@ -478,9 +478,16 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 for (final item in _collection.items)
                   PublicPossibilityCard(
                     item: item,
+                    baseUri: widget.runtime.api?.baseUri,
                     onTap: () => context.push(
                       '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
                     ),
+                    onSave: () async {
+                      widget.runtime.recovery.requireAuthentication(
+                        '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+                      );
+                      if (context.mounted) context.push('/login');
+                    },
                   ),
                 if (_loading && _collection.items.isNotEmpty)
                   const Center(child: CircularProgressIndicator()),
