@@ -481,6 +481,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   PublicPossibilityCard(
                     item: item,
                     baseUri: widget.runtime.api?.baseUri,
+                    shareApi: widget.runtime.api,
+                    onSignIn: () {
+                      widget.runtime.recovery.requireAuthentication(
+                        '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+                      );
+                      context.push('/login');
+                    },
                     onTap: () => context.push(
                       '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
                     ),
