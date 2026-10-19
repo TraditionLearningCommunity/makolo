@@ -71,9 +71,8 @@ class _DiscoveryEventTicketsScreenState
       final api = widget.runtime.api;
       if (api == null) throw StateError('API unavailable');
       final slug = Uri.encodeComponent(widget.eventSlug);
-      final detail = (await api.publicGet(
-        'api/v1/events/discover/$slug/',
-      )).jsonObject();
+      final detail = (await api.publicGet('api/v1/events/discover/$slug/'))
+          .jsonObject();
       final ticketResponse = await api.publicGet(
         'api/v1/events/$slug/ticket-types/',
       );
@@ -86,7 +85,8 @@ class _DiscoveryEventTicketsScreenState
       setState(() {
         _eventId = detail['id'] as String;
         _eventTitle = detail['title']?.toString() ?? 'Billets';
-        _types = collection.whereType<Map>()
+        _types = collection
+            .whereType<Map>()
             .map((value) => Map<String, dynamic>.from(value))
             .toList(growable: false);
         _loading = false;
@@ -126,10 +126,7 @@ class _DiscoveryEventTicketsScreenState
           'customer_name': _name.text.trim(),
           'customer_email': _email.text.trim(),
           'items': [
-            {
-              'ticket_type_id': _ticketTypeId,
-              'quantity': _quantity,
-            },
+            {'ticket_type_id': _ticketTypeId, 'quantity': _quantity},
           ],
         },
       );
@@ -143,7 +140,8 @@ class _DiscoveryEventTicketsScreenState
     } on Object {
       if (!mounted) return;
       setState(() {
-        _error = 'La commande n’a pas été confirmée. '
+        _error =
+            'La commande n’a pas été confirmée. '
             'Réessayez avec la même demande pour préserver l’idempotence.';
       });
     } finally {
@@ -161,20 +159,21 @@ class _DiscoveryEventTicketsScreenState
     final maximum = int.tryParse('${selected?['max_per_order'] ?? 10}') ?? 10;
     final allowed = selected?['is_on_sale'] == true;
     return Scaffold(
-      appBar: AppBar(title: Text(_eventTitle.isEmpty ? 'Billets' : _eventTitle)),
+      appBar: AppBar(
+        title: Text(_eventTitle.isEmpty ? 'Billets' : _eventTitle),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_eventId == null)
-            OutlinedButton(
-              onPressed: _load,
-              child: const Text('Réessayer'),
-            )
+            OutlinedButton(onPressed: _load, child: const Text('Réessayer'))
           else ...[
-            Text('Billets disponibles',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Billets disponibles',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 12),
             if (_types.isEmpty)
               const Text('Aucun type de billet n’est publié actuellement.'),
@@ -186,9 +185,8 @@ class _DiscoveryEventTicketsScreenState
                     ? (value) {
                         setState(() {
                           _ticketTypeId = value;
-                          _quantity = int.tryParse(
-                                '${ticket['min_per_order'] ?? 1}',
-                              ) ??
+                          _quantity =
+                              int.tryParse('${ticket['min_per_order'] ?? 1}') ??
                               1;
                         });
                       }
@@ -232,26 +230,28 @@ class _DiscoveryEventTicketsScreenState
                 controller: _email,
                 enabled: !_submitting,
                 keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Adresse e-mail',
-                ),
+                decoration: const InputDecoration(labelText: 'Adresse e-mail'),
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: allowed && !_submitting ? _order : null,
                 icon: const Icon(Icons.confirmation_number_outlined),
-                label: Text(_submitting
-                    ? 'Demande en cours…'
-                    : widget.runtime.isAuthenticated
-                        ? 'Passer commande'
-                        : 'Se connecter pour commander'),
+                label: Text(
+                  _submitting
+                      ? 'Demande en cours…'
+                      : widget.runtime.isAuthenticated
+                      ? 'Passer commande'
+                      : 'Se connecter pour commander',
+                ),
               ),
             ],
           ],
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
         ],
       ),
