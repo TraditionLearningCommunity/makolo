@@ -79,7 +79,10 @@ class _DiscoveryTicketOrderScreenState
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_error != null) ...[
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
             TextButton(onPressed: _load, child: const Text('Réessayer')),
           ] else if (order != null) ...[
             Text(
