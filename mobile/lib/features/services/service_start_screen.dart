@@ -24,6 +24,10 @@ class ServiceStartScreen extends StatefulWidget {
 
 class _ServiceStartScreenState extends State<ServiceStartScreen> {
   final _objective = TextEditingController();
+  final _opportunitySearch = TextEditingController();
+  List<Map<String, dynamic>> _opportunities = const [];
+  String? _selectedOpportunity;
+  bool _searchingOpportunities = false;
   bool _loading = true;
   bool _submitting = false;
   bool _attempted = false;
@@ -49,6 +53,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   @override
   void dispose() {
     _objective.dispose();
+    _opportunitySearch.dispose();
     super.dispose();
   }
 
@@ -75,8 +80,15 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
         throw const FormatException('Service prevalidation invalid');
       }
       if (!mounted) return;
+      final choices = body['opportunities'];
+      final results = choices is Map ? choices['results'] : null;
       setState(() {
         _requirements = Map<String, dynamic>.from(requirements);
+        _opportunities = results is List
+            ? results.whereType<Map>()
+                .map((value) => Map<String, dynamic>.from(value))
+                .toList(growable: false)
+            : const [];
         _loading = false;
       });
     } on Object {
@@ -88,9 +100,38 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     }
   }
 
+  Future<void> _searchOpportunities() async {
+    if (_searchingOpportunities || _attempted) return;
+    setState(() => _searchingOpportunities = true);
+    try {
+      final query = Uri.encodeQueryComponent(_opportunitySearch.text.trim());
+      final response = await widget.runtime.api!.get(
+        'api/v1/services/${Uri.encodeComponent(widget.serviceId)}/start/?q=$query',
+      );
+      final choices = response.jsonObject()['opportunities'];
+      final results = choices is Map ? choices['results'] : null;
+      if (results is! List) throw const FormatException('Invalid choices');
+      if (!mounted) return;
+      setState(() {
+        _opportunities = results.whereType<Map>()
+            .map((value) => Map<String, dynamic>.from(value))
+            .toList(growable: false);
+        _selectedOpportunity = null;
+      });
+    } on Object {
+      if (mounted) {
+        setState(() => _error =
+            'Impossible de rechercher les Opportunities disponibles.');
+      }
+    } finally {
+      if (mounted) setState(() => _searchingOpportunities = false);
+    }
+  }
+
   Future<void> _start() async {
     if (_loading || _submitting || _requirements == null) return;
-    if (_requirements!['opportunity_required'] == true) return;
+    if (_requirements!['opportunity_required'] == true &&
+        _selectedOpportunity == null) return;
     setState(() {
       _submitting = true;
       _error = null;
@@ -102,7 +143,10 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       final response = await api.post(
         'api/v1/services/${Uri.encodeComponent(widget.serviceId)}/start/',
         headers: {'Idempotency-Key': _operationKey},
-        body: {'objective': _objective.text.trim()},
+        body: {
+          'objective': _objective.text.trim(),
+          if (_selectedOpportunity != null) 'opportunity': _selectedOpportunity,
+        },
       );
       final data = response.jsonObject();
       final journey = data['journey'];
@@ -154,14 +198,57 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
-            if (needsOpportunity)
-              const Text(
-                'Ce Service nécessite une Opportunity choisie. '
-                'Le démarrage direct n’est pas disponible dans ce parcours.',
+            if (_requirements?['opportunity_policy'] != 'none') ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _opportunitySearch,
+                enabled: !_attempted,
+                decoration: InputDecoration(
+                  labelText: 'Rechercher une Opportunity',
+                  suffixIcon: IconButton(
+                    tooltip: 'Rechercher',
+                    onPressed: _searchingOpportunities
+                        ? null
+                        : _searchOpportunities,
+                    icon: const Icon(Icons.search),
+                  ),
+                ),
+                onSubmitted: (_) => _searchOpportunities(),
               ),
+              DropdownButtonFormField<String>(
+                value: _selectedOpportunity,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: needsOpportunity
+                      ? 'Opportunity requise'
+                      : 'Opportunity (facultatif)',
+                ),
+                items: [
+                  if (!needsOpportunity)
+                    const DropdownMenuItem<String>(
+                      value: '',
+                      child: Text('Sans Opportunity'),
+                    ),
+                  for (final opportunity in _opportunities)
+                    DropdownMenuItem<String>(
+                      value: opportunity['id']?.toString() ?? '',
+                      child: Text(opportunity['title']?.toString() ?? 'Opportunity'),
+                    ),
+                ],
+                onChanged: _attempted
+                    ? null
+                    : (value) => setState(
+                        () => _selectedOpportunity =
+                            value == null || value.isEmpty ? null : value,
+                      ),
+              ),
+            ],
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: _submitting || needsOpportunity ? null : _start,
+              onPressed: _submitting ||
+                      (needsOpportunity && _selectedOpportunity == null)
+                  ? null
+                  : _start,
               icon: const Icon(Icons.play_arrow_rounded),
               label: Text(_submitting ? 'Démarrage…' : 'Commencer'),
             ),
