@@ -10,11 +10,13 @@ class DiscoverySharedLinkScreen extends StatefulWidget {
   const DiscoverySharedLinkScreen({
     super.key,
     required this.runtime,
-    required this.token,
+    this.token,
+    this.deliveryId,
   });
 
   final AppRuntime runtime;
-  final String token;
+  final String? token;
+  final String? deliveryId;
 
   @override
   State<DiscoverySharedLinkScreen> createState() =>
@@ -35,9 +37,18 @@ class _DiscoverySharedLinkScreenState
     try {
       final api = widget.runtime.api;
       if (api == null) throw const FormatException('API unavailable');
-      final response = await api.publicGet(
-        'api/v1/sharing/resolve/${Uri.encodeComponent(widget.token)}/',
-      );
+      final deliveryId = widget.deliveryId;
+      final token = widget.token;
+      if (deliveryId == null && token == null) {
+        throw const FormatException('Missing share reference');
+      }
+      final response = deliveryId != null
+          ? await api.get(
+              'api/v1/sharing/deliveries/${Uri.encodeComponent(deliveryId)}/',
+            )
+          : await api.publicGet(
+              'api/v1/sharing/resolve/${Uri.encodeComponent(token!)}/',
+            );
       final payload = response.jsonObject();
       final family = payload['family'];
       final id = payload['id'];
