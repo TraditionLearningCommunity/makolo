@@ -40,7 +40,7 @@ AppRuntime _guestRuntime(
   SessionRecoveryController recovery, {
   MockClient? client,
   GeoSearchGateway? geoSearch,
-  ResumableInteractionStore? interactions,
+  ResumableInteractionAccess? interactions,
 }) {
   final tokens = MemoryTokenStore();
   return AppRuntime(
@@ -161,7 +161,7 @@ String _mockResponseJson(Object? value) {
   });
 }
 
-class _FaultyInteractions implements ResumableInteractionStore {
+class _FaultyInteractions implements ResumableInteractionAccess {
   _FaultyInteractions({this.failRead = false, this.failSave = false});
 
   final bool failRead;
