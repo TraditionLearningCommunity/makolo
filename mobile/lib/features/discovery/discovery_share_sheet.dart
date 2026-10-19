@@ -136,7 +136,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     // The owner Web share reference is the current contract for shareability.
     // Presence of a public card alone never grants sharing authority.
     if (widget.item.links['web_share'] == null) {
-      return const TextButton.icon(
+      return TextButton.icon(
         onPressed: null,
         icon: Icon(Icons.share_outlined),
         label: Text('Partager'),
