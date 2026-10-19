@@ -95,22 +95,46 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             value.trim().isNotEmpty;
       }).take(6).toList(growable: false);
 
-  String? get _documentLabel {
+  List<String> get _resourceLabels {
+    final labels = <String>[];
+    final resources = item.wire['resources'];
+    if (resources is List) {
+      for (final raw in resources) {
+        if (raw is! Map) continue;
+        final title = (raw['title'] ?? '').toString().trim();
+        if (title.isEmpty) continue;
+        final mime = (raw['mime_type'] ?? '').toString().toLowerCase();
+        final format = mime.contains('pdf')
+            ? 'PDF'
+            : mime.contains('spreadsheet') || mime.contains('excel')
+                ? 'Tableur'
+                : raw['kind'] == 'file'
+                    ? 'Document'
+                    : 'Source';
+        labels.add('$format · $title');
+        if (labels.length == 3) return labels;
+      }
+    }
     for (final binding in item.mediaBindings) {
+      if (labels.length == 3) break;
       final resource = binding['resource'];
       if (resource is! Map) continue;
-      final mime = (resource['mime_type'] ?? binding['mime_type'] ?? '').toString().toLowerCase();
-      final name = (resource['name'] ?? resource['title'] ?? '').toString().trim();
-      final kind = mime.contains('pdf')
+      final mime = (resource['mime_type'] ?? binding['mime_type'] ?? '')
+          .toString()
+          .toLowerCase();
+      final name = (resource['name'] ?? resource['title'] ?? '')
+          .toString()
+          .trim();
+      final format = mime.contains('pdf')
           ? 'PDF'
           : mime.contains('spreadsheet') || mime.contains('excel')
               ? 'Tableur'
               : mime.contains('document')
                   ? 'Document'
                   : null;
-      if (kind != null) return name.isEmpty ? kind : '$kind · $name';
+      if (format != null) labels.add(name.isEmpty ? format : '$format · $name');
     }
-    return null;
+    return labels;
   }
 
   Widget _media(BuildContext context) {
@@ -237,7 +261,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final saved = item.savedState == 'saved';
     final canToggle = saved ? item.canUnsave : item.canSave;
     final url = _shareableUrl;
-    final doc = _documentLabel;
+    final resources = _resourceLabels;
     final focus = item.imageUrl != null;
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -264,13 +288,21 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     const SizedBox(height: MakoloSpacing.sm),
                     Text(item.summary, style: widget.compact ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium),
                   ],
-                  if (doc != null) ...[
+                  if (resources.isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
-                    Row(children: [
-                      const Icon(Icons.description_outlined, size: 18),
-                      const SizedBox(width: MakoloSpacing.xs),
-                      Expanded(child: Text(doc, style: theme.textTheme.bodySmall)),
-                    ]),
+                    for (final resource in resources)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.description_outlined, size: 18),
+                            const SizedBox(width: MakoloSpacing.xs),
+                            Expanded(
+                              child: Text(resource, style: theme.textTheme.bodySmall),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                   const SizedBox(height: MakoloSpacing.md),
                   _facts(context),
