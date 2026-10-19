@@ -308,6 +308,18 @@ def _web_discovery_card(item):
         operator_name=owner.get("display_name") or "",
         representation=SimpleNamespace(**representation),
         facts=tuple(facts),
+        resources=tuple(
+            resource
+            for resource in (item.get("resources") or [])[:3]
+            if resource.get("title")
+        ),
+        context_notes=tuple(
+            fact.get("label")
+            for fact in (item.get("assessment") or [])
+            if fact.get("state") in {"limiting", "unknown"} and fact.get("label")
+        )[:2],
+        variant_count=len(item.get("variants") or []),
+        relation_count=len(item.get("relations") or []),
         participant_state=(
             SimpleNamespace(
                 participant_state=item["participant_presentation"].get("state"),
