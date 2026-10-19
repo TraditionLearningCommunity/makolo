@@ -1,12 +1,37 @@
 <article id="discovery-card-{{ card.candidate_key|slugify }}" data-discovery-result="{% if card.occurrence_id %}{{ card.occurrence_id }}{% else %}{{ card.candidate_key }}{% endif %}" data-candidate-key="{{ card.candidate_key }}" class="mk-panel relative overflow-visible transition">
-  <a href="{{ card.url }}" class="block">
+  <div class="block">
+    <div class="p-5 sm:p-6">
+      <h3 class="text-xl font-extrabold sm:text-2xl" style="letter-spacing:-.025em"><a href="{{ card.url }}">{{ card.title }}</a></h3>
+      {% if card.operator_name %}
+      <div class="mt-3 flex items-center gap-3">
+        {% if card.owner.links.public %}
+        <a href="{{ card.owner.links.public }}" class="flex min-w-0 items-center gap-3 font-semibold" aria-label="Voir le Profil ou l'Espace public de {{ card.operator_name }}">
+        {% else %}
+        <span class="flex min-w-0 items-center gap-3">
+        {% endif %}
+          {% if card.owner.representation.avatar_url %}
+          <img src="{{ card.owner.representation.avatar_url }}" alt="" class="h-10 w-10 rounded-full object-cover" loading="lazy">
+          {% else %}
+          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold" style="background:var(--mk-surface-muted)">{{ card.operator_name|slice:":1" }}</span>
+          {% endif %}
+          <span class="min-w-0 break-words text-sm">{{ card.operator_name }}</span>
+        {% if card.owner.links.public %}</a>{% else %}</span>{% endif %}
+        {% if card.owner.links.public %}<i data-lucide="external-link" class="h-4 w-4 shrink-0" aria-hidden="true"></i>{% endif %}
+      </div>
+      {% endif %}
+      <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs" style="color:var(--mk-subtle)">
+        <span>{{ card.vertical_label }}</span>
+        {% if card.date and card.date.value %}<time datetime="{{ card.date.value }}">{{ card.date.label }} {{ card.date.value|slice:":10" }}</time>{% endif %}
+      </div>
+      {% if card.summary %}<p class="mt-4 whitespace-pre-line text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.summary }}</p>{% endif %}
+      {% if card.description and card.description != card.summary %}<p class="mt-3 whitespace-pre-line text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.description }}</p>{% endif %}
+    </div>
     {% if card.representation.image_url %}
-    <div class="relative overflow-hidden rounded-t-2xl" style="aspect-ratio:16/9;background:var(--mk-surface-muted)"><img src="{{ card.representation.image_url }}" alt="" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover"></div>
+    <div class="relative overflow-hidden" style="aspect-ratio:4/3;background:var(--mk-surface-muted)"><img src="{{ card.representation.image_url }}" alt="Visuel de {{ card.title }}" loading="lazy" style="display:block;width:100%;height:100%;object-fit:cover"></div>
     {% elif card.representation.kind == 'route' %}
-    <div class="p-5 sm:p-6"><div class="rounded-2xl border p-5" style="border-color:var(--mk-border);background:linear-gradient(135deg,color-mix(in srgb,var(--mk-brand) 10%,var(--mk-surface-solid)),var(--mk-surface-solid))"><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle);letter-spacing:.08em">Trajet</p><p class="mt-2 text-xl font-extrabold" style="letter-spacing:-.03em">{{ card.representation.route_label|default:card.title }}</p></div></div>
+    <div class="px-5 pb-5 sm:px-6"><div class="rounded-2xl border p-5" style="border-color:var(--mk-border);background:var(--mk-surface-muted)"><p class="text-xs font-bold uppercase" style="color:var(--mk-subtle)">Trajet</p><p class="mt-2 text-xl font-extrabold">{{ card.representation.route_label|default:card.title }}</p></div></div>
     {% endif %}
-    <div class="p-5 sm:p-6"><div class="flex flex-wrap items-center gap-2"><span class="mk-badge">{{ card.vertical_label }}</span>{% if card.representation.eyebrow and card.representation.kind != 'service' and card.representation.kind != 'opportunity' %}<span class="text-xs font-semibold" style="color:var(--mk-muted)">{{ card.representation.eyebrow }}</span>{% endif %}</div><h3 class="mt-4 text-lg font-extrabold" style="letter-spacing:-.025em">{{ card.title }}</h3>{% if card.operator_name %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">{{ card.operator_label }} {{ card.operator_name }}</p>{% endif %}{% if card.summary %}<p class="mt-2 text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.summary }}</p>{% endif %}{% if card.description and card.description != card.summary %}<p class="mt-3 whitespace-pre-line text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.description }}</p>{% endif %}</div>
-  </a>
+  </div>
   {% if card.facts %}
   <div class="px-5 pb-5 sm:px-6 sm:pb-6" aria-label="Informations utiles">
     <dl class="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -65,22 +90,22 @@
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
             <button type="submit" class="mk-btn mk-btn-ghost min-h-[48px] w-full justify-center gap-1 px-1 text-center sm:px-2" aria-pressed="{% if card.actions.save.state == 'saved' %}true{% else %}false{% endif %}" aria-label="{{ card.actions.save.label }}">
               {% include 'discovery/_orbit_icon.html' with saved=card.actions.save.state size='20' %}
-              <span class="text-xs sm:text-sm">{{ card.actions.save.label }}</span>
+              <span class="sr-only sm:not-sr-only sm:text-sm">{{ card.actions.save.label }}</span>
             </button>
           </form>
         {% else %}
           <a href="{% url 'core:login' %}?next={{ request.get_full_path|urlencode }}" class="mk-btn mk-btn-ghost min-h-[48px] w-full justify-center gap-1 px-1 text-center sm:px-2">
             {% include 'discovery/_orbit_icon.html' with size='20' %}
-            <span class="text-xs sm:text-sm">J'enregistre</span>
+            <span class="sr-only sm:not-sr-only sm:text-sm">J'enregistre</span>
           </a>
         {% endif %}
       {% endif %}
     </div>
     <div class="min-w-0">
       {% if card.actions.primary and card.actions.primary.enabled and card.actions.primary.url %}
-        <a href="{{ card.actions.primary.url }}" class="mk-btn mk-btn-primary min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm">{{ card.actions.primary.label }}</a>
+        <a href="{{ card.actions.primary.url }}" class="mk-btn mk-btn-primary min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" aria-label="{{ card.actions.primary.label }}"><i data-lucide="{{ card.actions.primary.icon }}" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">{{ card.actions.primary.label }}</span></a>
       {% else %}
-        <a href="{{ card.url }}" class="mk-btn mk-btn-secondary min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm">Voir plus</a>
+        <a href="{{ card.url }}" class="mk-btn mk-btn-secondary min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" aria-label="Voir plus"><i data-lucide="external-link" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">Voir plus</span></a>
       {% endif %}
     </div>
     <div class="min-w-0">
@@ -89,7 +114,7 @@
           <div data-makolo-share data-create-url="{{ card.actions.share.url }}" data-profile-search-url="{% url 'sharing:profile-search' %}" data-share-title="{{ card.title }}" data-share-text="{{ card.summary|default:'Une possibilité Makolo vous a été partagée.' }}">
             <form hidden aria-hidden="true">{% csrf_token %}<input type="hidden" name="intent" value="view"></form>
             <details class="relative group">
-              <summary class="mk-btn mk-btn-ghost min-h-[48px] w-full cursor-pointer justify-center gap-1 px-1 text-center text-xs sm:px-2 sm:text-sm" aria-label="Options de partage"><i data-lucide="send" class="h-4 w-4 shrink-0" aria-hidden="true"></i><span>Partager</span><i data-lucide="chevron-down" class="h-3 w-3 shrink-0" aria-hidden="true"></i></summary>
+              <summary class="mk-btn mk-btn-ghost min-h-[48px] w-full cursor-pointer justify-center gap-1 px-1 text-center text-xs sm:px-2 sm:text-sm" aria-label="Options de partage"><i data-lucide="send" class="h-4 w-4 shrink-0" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">Partager</span><i data-lucide="chevron-down" class="h-3 w-3 shrink-0" aria-hidden="true"></i></summary>
               <div class="absolute right-0 top-full z-30 mt-2 flex flex-col gap-2 rounded-2xl border p-3 shadow-lg" style="width:min(18rem,calc(100vw - 2rem));border-color:var(--mk-border);background:var(--mk-surface-solid)" role="group" aria-label="Options de partage">
                 <button type="button" class="mk-btn mk-btn-secondary w-full justify-start" data-share-internal>Envoyer dans Makolo</button>
                 <button type="button" class="mk-btn mk-btn-secondary w-full justify-start" data-share-native>Partager avec…</button>
