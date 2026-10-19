@@ -7,6 +7,7 @@ import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
+import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'discovery_selector.dart';
 
@@ -22,6 +23,7 @@ class DiscoveryExplorationView extends StatefulWidget {
     required this.onOpen,
     this.onSave,
     this.baseUri,
+    this.shareApi,
     this.onPage,
     this.onRetry,
     this.onResetCriteria,
@@ -31,6 +33,7 @@ class DiscoveryExplorationView extends StatefulWidget {
   final DiscoveryOpenItem onOpen;
   final DiscoverySaveItem? onSave;
   final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
@@ -79,6 +82,9 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             onOpen: widget.onOpen,
             onSave: widget.onSave,
             baseUri: widget.baseUri,
+      shareApi: widget.shareApi,
+          shareApi: widget.shareApi,
+            shareApi: widget.shareApi,
             onPage: widget.onPage,
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
@@ -90,6 +96,8 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           onOpen: widget.onOpen,
           onSave: widget.onSave,
           baseUri: widget.baseUri,
+      shareApi: widget.shareApi,
+          shareApi: widget.shareApi,
           onPage: widget.onPage,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
@@ -123,6 +131,7 @@ class DiscoveryFieldView extends StatelessWidget {
     required this.onOpen,
     this.onSave,
     this.baseUri,
+    this.shareApi,
     this.onPage,
     this.onRetry,
     this.onResetCriteria,
@@ -136,6 +145,7 @@ class DiscoveryFieldView extends StatelessWidget {
   final DiscoveryOpenItem onOpen;
   final DiscoverySaveItem? onSave;
   final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
@@ -164,6 +174,7 @@ class DiscoveryFieldView extends StatelessWidget {
         onOpen: onOpen,
         onSave: onSave,
         baseUri: baseUri,
+        shareApi: shareApi,
         onPage: onPage,
         selectedCandidateKey: selectedCandidateKey,
         onSelect: onSelect,
@@ -182,6 +193,7 @@ class DiscoverySpatialView extends StatefulWidget {
     required this.onOpen,
     this.onSave,
     this.baseUri,
+    this.shareApi,
     this.onPage,
     this.onRetry,
   });
@@ -191,6 +203,7 @@ class DiscoverySpatialView extends StatefulWidget {
   final DiscoveryOpenItem onOpen;
   final DiscoverySaveItem? onSave;
   final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
   final VoidCallback? onRetry;
 
@@ -254,6 +267,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       onOpen: widget.onOpen,
       onSave: widget.onSave,
       baseUri: widget.baseUri,
+      shareApi: widget.shareApi,
       onPage: widget.onPage,
       onRetry: widget.onRetry,
       selectedCandidateKey: _selectedCandidateKey,
@@ -335,6 +349,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
     required this.onOpen,
     this.onSave,
     this.baseUri,
+    this.shareApi,
     this.onPage,
     this.selectedCandidateKey,
     this.onSelect,
@@ -346,6 +361,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
   final DiscoveryOpenItem onOpen;
   final DiscoverySaveItem? onSave;
   final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
@@ -372,6 +388,8 @@ class _DiscoveryScrollableField extends StatelessWidget {
               item: item,
               selected: selectedCandidateKey == item.candidateKey,
               baseUri: baseUri,
+              shareApi: shareApi,
+        shareApi: shareApi,
               onSave: onSave == null ? null : () => onSave!(item),
               onTap: () {
                 if (selectOnCardTap && onSelect != null) {
@@ -466,6 +484,7 @@ class _DiscoveryUnit extends StatelessWidget {
     required this.onTap,
     this.onSave,
     this.baseUri,
+    this.shareApi,
     this.onSelect,
     this.selectionActionLabel,
   });
@@ -475,6 +494,7 @@ class _DiscoveryUnit extends StatelessWidget {
   final VoidCallback onTap;
   final Future<void> Function()? onSave;
   final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final VoidCallback? onSelect;
   final String? selectionActionLabel;
 
@@ -495,6 +515,7 @@ class _DiscoveryUnit extends StatelessWidget {
         onOpen: onTap,
         onSave: onSave,
         baseUri: baseUri,
+        shareApi: shareApi,
         onSelect: onSelect,
         selectionActionLabel: selectionActionLabel,
       ),
