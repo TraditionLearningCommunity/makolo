@@ -7,6 +7,8 @@ import 'package:makolo_mobile/features/discovery/discovery_selector.dart';
 import 'package:makolo_mobile/features/discovery/discovery_wire.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
+import 'fakes.dart';
+
 Map<String, dynamic> candidate(String family, String id) => {
   'identity': {
     'family': family,
