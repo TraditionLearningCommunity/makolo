@@ -79,7 +79,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         : resolved.hasScheme
         ? resolved
         : apiBase?.resolveUri(resolved);
-    final avatarUrl = avatar != null &&
+    final avatarUrl =
+        avatar != null &&
             (avatar.scheme == 'https' || avatar.scheme == 'http') &&
             avatar.host.isNotEmpty
         ? avatar.toString()
@@ -92,14 +93,19 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_error != null) ...[
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
             TextButton(onPressed: _load, child: const Text('Réessayer')),
           ] else if (profile != null) ...[
             Align(
               alignment: Alignment.centerLeft,
               child: CircleAvatar(
                 radius: 36,
-                foregroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
+                foregroundImage: avatarUrl == null
+                    ? null
+                    : NetworkImage(avatarUrl),
                 child: avatarUrl == null && name.isNotEmpty
                     ? Text(name[0].toUpperCase())
                     : null,
