@@ -76,6 +76,11 @@ android {
         create("dev") {
             dimension = "environment"
             applicationId = "com.makolo.dev"
+            // DEV uses a deliberately unverified host unless configured.
+            manifestPlaceholders["makoloAppLinkScheme"] =
+                makoloAppLinkScheme ?: "https"
+            manifestPlaceholders["makoloAppLinkHost"] =
+                makoloAppLinkHost ?: "app-links-not-configured.invalid"
             // DEV may stay locally installable without production signing material.
             signingConfig = signingConfigs.getByName("debug")
         }
