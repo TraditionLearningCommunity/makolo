@@ -613,9 +613,16 @@ class DiscoverySelector {
       priceText = 'Gratuit';
     } else {
       final minimum = _text(price?['minimum']);
+      final maximum = _text(price?['maximum']);
       final currency = _text(price?['currency']);
       if (minimum != null) {
-        priceText = currency == null ? minimum : '$minimum $currency';
+        final amount = priceState == 'range' &&
+                maximum != null && maximum != minimum
+            ? '$minimum – $maximum'
+            : priceState == 'priced' || priceState == 'variant_dependent'
+            ? 'À partir de $minimum'
+            : minimum;
+        priceText = currency == null ? amount : '$amount $currency';
       }
     }
 
