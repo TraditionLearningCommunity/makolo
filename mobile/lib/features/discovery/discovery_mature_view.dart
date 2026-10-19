@@ -633,11 +633,8 @@ class _DiscoveryFocusPane extends StatelessWidget {
                 if (item.canSave ||
                     item.canUnsave ||
                     item.savedState == 'saved')
-                  Icon(
-                    item.savedState == 'saved'
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    size: 22,
+                  DiscoveryOrbitIcon(
+                    saved: item.savedState == 'saved',
                     color: item.savedState == 'saved'
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurfaceVariant,
