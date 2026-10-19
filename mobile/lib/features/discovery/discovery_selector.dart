@@ -616,8 +616,8 @@ class DiscoverySelector {
       final maximum = _text(price?['maximum']);
       final currency = _text(price?['currency']);
       if (minimum != null) {
-        final amount = priceState == 'range' &&
-                maximum != null && maximum != minimum
+        final amount =
+            priceState == 'range' && maximum != null && maximum != minimum
             ? '$minimum – $maximum'
             : priceState == 'priced' || priceState == 'variant_dependent'
             ? 'À partir de $minimum'
