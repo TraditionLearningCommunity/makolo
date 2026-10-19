@@ -105,7 +105,7 @@ class DiscoveryQuery {
       ...DiscoveryLocationContext.parameters,
       'page': page.toString(),
       'page_size': pageSize.toString(),
-      if (continuation != null) 'continuation': continuation!,
+      'continuation': ?continuation,
     };
   }
 
