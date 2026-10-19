@@ -699,6 +699,8 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
             "orders": reverse("ticket-orders-list"),
         }
         public_types = types_by_event.get(event.pk, [])
+        if public_types:
+            links["native"] = f"/events/{event.slug}/tickets"
         if authenticated and any(
             sold_out(ticket_type)
             for ticket_type in public_types
@@ -710,6 +712,11 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
             "owner": "events",
             "capabilities": capabilities,
             "links": links,
+            "resource": {
+                "kind": "event",
+                "id": str(event.pk),
+                "slug": event.slug,
+            },
         }
     return result
 
