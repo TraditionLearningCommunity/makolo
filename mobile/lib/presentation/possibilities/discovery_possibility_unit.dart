@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../design/makolo_theme.dart';
@@ -111,17 +112,56 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
   DiscoveryItemPresentation get item => widget.item;
 
-  List<Map<String, dynamic>> get _reliableFacts => item.presentationFacts
-      .where((fact) {
-        final label = fact['label'];
-        final value = fact['value'];
-        return label is String &&
-            label.trim().isNotEmpty &&
-            value is String &&
-            value.trim().isNotEmpty;
-      })
-      .take(6)
-      .toList(growable: false);
+  List<Map<String, dynamic>> get _reliableFacts {
+    final facts = <Map<String, dynamic>>[];
+    final seen = <String>{};
+
+    void add(String code, String label, String? value) {
+      if (value == null || value.trim().isEmpty || !seen.add(code)) return;
+      facts.add({'code': code, 'label': label, 'value': value});
+    }
+
+    for (final fact in item.presentationFacts) {
+      final label = fact['label'];
+      final value = fact['value'];
+      if (label is String && value is String) {
+        add((fact['code'] ?? label).toString(), label, value);
+      }
+    }
+    add('price', 'Prix', item.price);
+    add('when', 'Quand', item.timing);
+    add('place', 'Lieu', item.place);
+    add('capacity', 'Disponibilité', item.availability);
+    add('route', 'Trajet', item.routeLabel);
+    const dates = {
+      'start_at': 'Début',
+      'end_at': 'Fin',
+      'start_date': 'Début',
+      'end_date': 'Fin',
+      'opens_at': 'Ouverture',
+      'closes_at': 'Clôture',
+      'deadline_at': 'Date limite',
+    };
+    for (final fact in item.temporalFacts) {
+      final kind = fact['kind']?.toString() ?? '';
+      final label = dates[kind];
+      if (kind.startsWith('start_') && seen.contains('when')) continue;
+      if (label != null) add(kind, label, fact['value']?.toString());
+    }
+    for (final fact in item.spatialFacts) {
+      final role = fact['role']?.toString() ?? '';
+      if (role == 'primary' && seen.contains('place')) continue;
+      final place = fact['place'];
+      if (place is Map) {
+        add(
+          'place_$role',
+          role.isEmpty ? 'Lieu' : role,
+          place['name']?.toString(),
+        );
+      }
+    }
+    return facts;
+  }
 
   List<String> get _resourceLabels {
     final labels = <String>[];
@@ -144,11 +184,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             ? 'Document'
             : 'Source';
         labels.add('$format · $title');
-        if (labels.length == 3) return labels;
       }
     }
     for (final binding in item.mediaBindings) {
-      if (labels.length == 3) break;
       final resource = binding['resource'];
       if (resource is! Map) continue;
       final mime = (resource['mime_type'] ?? binding['mime_type'] ?? '')
@@ -193,24 +231,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
   Widget _facts(BuildContext context) {
     final facts = _reliableFacts;
-    if (facts.isEmpty) {
-      final values = <String>[
-        if (item.routeLabel != null) item.routeLabel!,
-        if (item.timing != null) item.timing!,
-        if (item.place != null) item.place!,
-        if (item.price != null) item.price!,
-        if (item.availability != null) item.availability!,
-      ];
-      if (values.isEmpty) return const SizedBox.shrink();
-      return Wrap(
-        spacing: MakoloSpacing.sm,
-        runSpacing: MakoloSpacing.xs,
-        children: [
-          for (final value in values)
-            Text(value, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      );
-    }
+    if (facts.isEmpty) return const SizedBox.shrink();
     return Wrap(
       spacing: MakoloSpacing.md,
       runSpacing: MakoloSpacing.sm,
@@ -274,13 +295,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         _confirmedSaved == null && (saved ? item.canUnsave : item.canSave);
 
     final resources = _resourceLabels;
-    final focus = item.imageUrl != null;
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (focus && !widget.compact) _media(context),
+          if (!widget.compact) _media(context),
           InkWell(
             onTap: widget.onOpen,
             child: Padding(
@@ -375,7 +399,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               ),
             ),
           ),
-          if (!widget.compact) ...[
+          ...[
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(
