@@ -17,6 +17,8 @@ import '../features/live/live_routes.dart';
 import '../features/discovery/discovery_routes.dart';
 import '../features/discovery/discovery_repository.dart';
 import '../features/discovery/discovery_shared_link_screen.dart';
+import '../features/discovery/discovery_event_tickets_screen.dart';
+import '../features/discovery/discovery_ticket_order_screen.dart';
 import '../features/services/service_start_screen.dart';
 import '../features/guest/public_discovery_map_screen.dart';
 import '../features/guest/public_home_screen.dart';
@@ -76,6 +78,7 @@ GoRouter createMakoloRouter(
         path == '/spaces' ||
         path.startsWith('/spaces/') ||
         path.startsWith('/people/') ||
+        path.startsWith('/events/') ||
         path.startsWith('/discover/items/') ||
         path.startsWith('/s/')) {
       return false;
@@ -101,6 +104,7 @@ GoRouter createMakoloRouter(
       '/discover/items/',
       '/activities/',
       '/services/',
+      '/tickets/orders/',
       '/occurrences/',
       '/space/occurrences/',
       '/space/relationships',
@@ -268,6 +272,21 @@ GoRouter createMakoloRouter(
           ),
         ),
       ],
+      GoRoute(
+        path: '/events/:slug/tickets',
+        builder: (context, state) => DiscoveryEventTicketsScreen(
+          runtime: runtime,
+          eventSlug: state.pathParameters['slug']!,
+        ),
+      ),
+      if (runtime.isAuthenticated)
+        GoRoute(
+          path: '/tickets/orders/:id',
+          builder: (context, state) => DiscoveryTicketOrderScreen(
+            runtime: runtime,
+            orderId: state.pathParameters['id']!,
+          ),
+        ),
       GoRoute(
         path: '/people/:id',
         builder: (context, state) => PublicProfileScreen(
