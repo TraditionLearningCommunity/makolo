@@ -17,6 +17,10 @@ class DeepLinkResolver {
         return '/conversations/${target.id}';
       case 'journey':
         return '/journeys/${target.id}';
+      case 'share_delivery':
+        return '/shares/${Uri.encodeComponent(target.id)}';
+      case 'share_link':
+        return '/s/${Uri.encodeComponent(target.id)}';
       case 'activity':
         return '/activities/${target.id}';
       case 'occurrence':
