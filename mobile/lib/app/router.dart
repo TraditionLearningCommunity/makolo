@@ -22,6 +22,7 @@ import '../features/guest/public_discovery_map_screen.dart';
 import '../features/guest/public_home_screen.dart';
 import '../features/guest/public_possibility_detail_screen.dart';
 import '../features/guest/public_space_screens.dart';
+import '../features/guest/public_profile_screen.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/interoperability_routes.dart';
 import '../features/journey/journey_routes.dart';
@@ -74,6 +75,7 @@ GoRouter createMakoloRouter(
         path == '/discover/map' ||
         path == '/spaces' ||
         path.startsWith('/spaces/') ||
+        path.startsWith('/people/') ||
         path.startsWith('/discover/items/') ||
         path.startsWith('/s/')) {
       return false;
@@ -266,6 +268,13 @@ GoRouter createMakoloRouter(
           ),
         ),
       ],
+      GoRoute(
+        path: '/people/:id',
+        builder: (context, state) => PublicProfileScreen(
+          runtime: runtime,
+          profileId: state.pathParameters['id']!,
+        ),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => LoginScreen(
