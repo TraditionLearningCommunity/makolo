@@ -206,7 +206,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       _trace(
         'API_RESPONSE',
         revision: revision,
-        detail: 'status=${response.statusCode} bytes=${response.body.length}',
+        detail: 'status=${response.statusCode} chars=${response.body.length}',
       );
       final wire = DiscoveryWire.receive(
         response.jsonObject(),
@@ -231,6 +231,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _updatingCriteria = false;
       });
       _trace('REVISION_ACCEPTED', revision: revision);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _searchCoordinator.isCurrent(revision)) {
+          _trace('FRAME_BUILT', revision: revision);
+        }
+      });
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=content');
       unawaited(_persistQuery(query, revision));
     } on MakoloApiError catch (error, stack) {
@@ -252,7 +257,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _loading = false;
         _error =
             'Contrat Discovery incompatible (FORMAT). '
-            'Réponse reçue mais impossible à interpréter.';
+            'Réponse reçue mais impossible à interpréter : ${error.message}.';
       });
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=contract_error');
     } on TimeoutException catch (error, stack) {
@@ -268,7 +273,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
-        _error = 'Erreur Discovery (${error.runtimeType}). Réessayez.';
+        _error = error is MakoloTransportError
+            ? 'Discovery réseau (${error.code}) : ${error.message}'
+            : 'Erreur Discovery (${error.runtimeType}). Réessayez.';
       });
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=error');
     }
