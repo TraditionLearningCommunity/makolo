@@ -415,26 +415,26 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   Expanded(
                     child: TextButton(
                       onPressed: !_saving && widget.onSave != null && (canToggle || widget.allowSavePrompt) ? _save : null,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            DiscoveryOrbitIcon(saved: saved, color: theme.colorScheme.primary),
-                            const SizedBox(height: 3),
-                            Text(_saving ? 'Enregistrement…' : saved ? 'Enregistré' : 'J’enregistre'),
-                          ],
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          DiscoveryOrbitIcon(
+                            saved: saved,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _saving ? 'Enregistrement…' : saved ? 'Enregistré' : 'J’enregistre',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   Expanded(
                     child: TextButton(
                       onPressed: () => _continue(context),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(_primaryLabel, textAlign: TextAlign.center),
-                      ),
+                      child: Text(_primaryLabel, textAlign: TextAlign.center),
                     ),
                   ),
                   Expanded(
