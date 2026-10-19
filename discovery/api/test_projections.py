@@ -125,6 +125,8 @@ class PossibilityProjectionContractTests(SimpleTestCase):
             candidate_key=f"activity:{activity_id}",
             activity_id=activity_id,
             occurrence_id=occurrence_id,
+            matching_count=1,
+            matching_occurrence_ids=[occurrence_id],
             timing_kind="exact",
             start_date=(now + timedelta(days=3)).date(),
             start_time=timezone.localtime(now + timedelta(days=3)).time().replace(tzinfo=None),
@@ -241,7 +243,7 @@ class PossibilityProjectionContractTests(SimpleTestCase):
         item = {
             "candidate_key": f"funding_activity:{activity_id}",
             "activity_id": activity_id,
-            "funding": SimpleNamespace(pk=funding_id),
+            "funding": SimpleNamespace(pk=funding_id, opens_at=None, closes_at=None),
         }
         card = _card(candidate_key=item["candidate_key"], activity_id=activity_id)
 
