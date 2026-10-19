@@ -208,37 +208,49 @@ def _web_discovery_card(item):
     place = item.get("place")
     price = item.get("price") or {}
     availability = item.get("availability") or {}
-    if not facts:
-        if timing.get("start_at"):
-            facts.append(_discovery_fact("when", "Quand", timing["start_at"], "calendar-clock"))
-        elif timing.get("start_date"):
-            facts.append(_discovery_fact("when", "Quand", timing["start_date"], "calendar-clock"))
+    # Presentation facts never suppress the independent canonical fields.
+    seen = {fact.code for fact in facts}
+    def add_fact(code, label, value, icon):
+        if value is None or code in seen:
+            return
+        facts.append(_discovery_fact(code, label, value, icon))
+        seen.add(code)
 
-        if place:
-            place_value = place.get("name") or place.get("locality")
-            if place.get("name") and place.get("locality") and place["locality"] != place["name"]:
-                place_value = f"{place['name']}, {place['locality']}"
-            if place_value:
-                facts.append(_discovery_fact("place", "Lieu", place_value, "map-pin"))
+    if timing.get("start_at"):
+        add_fact("when", "Quand", timing["start_at"], "calendar-clock")
+    elif timing.get("start_date"):
+        add_fact("when", "Quand", timing["start_date"], "calendar-clock")
 
-        if price.get("state") == "free":
-            facts.append(_discovery_fact("price", "Prix", "Gratuit", "wallet-cards"))
-        elif price.get("minimum") is not None:
-            value = str(price["minimum"])
-            if price.get("currency"):
-                value = f"{value} {price['currency']}"
-            facts.append(_discovery_fact("price", "Prix", value, "wallet-cards"))
+    if place:
+        place_value = place.get("name") or place.get("locality")
+        if place.get("name") and place.get("locality") and place["locality"] != place["name"]:
+            place_value = f"{place['name']}, {place['locality']}"
+        if place_value:
+            add_fact("place", "Lieu", place_value, "map-pin")
 
-        availability_state = availability.get("state")
-        if availability_state:
-            facts.append(
-                _discovery_fact(
-                    "availability",
-                    "Disponibilité",
-                    _AVAILABILITY_LABELS.get(availability_state, availability_state),
-                    "users",
-                )
-            )
+    if price.get("state") == "free":
+        add_fact("price", "Prix", "Gratuit", "wallet-cards")
+    elif price.get("minimum") is not None:
+        price_value = str(price["minimum"])
+        if price.get("currency"):
+            price_value = f"{price_value} {price['currency']}"
+        add_fact("price", "Prix", price_value, "wallet-cards")
+
+    availability_state = availability.get("state")
+    if availability_state:
+        add_fact(
+            "availability",
+            "Disponibilité",
+            _AVAILABILITY_LABELS.get(availability_state, availability_state),
+            "users",
+        )
+    for fact in item.get("temporal_facts") or []:
+        kind = fact.get("kind") or ""
+        if kind in {"start_at", "start_date", "start_time"} and "when" in seen:
+            continue
+        if fact.get("value") is not None:
+            add_fact(kind, kind.replace("_", " ").capitalize(), fact["value"], "calendar-clock")
+
 
     save_action = None
     if links.get("web_saved"):
@@ -307,11 +319,13 @@ def _web_discovery_card(item):
         description=(item.get("detail") or {}).get("description") or "",
         operator_label=operator_label,
         operator_name=owner.get("display_name") or "",
+        owner=owner,
+        date=item.get("date"),
         representation=SimpleNamespace(**representation),
         facts=tuple(facts),
         resources=tuple(
             resource
-            for resource in (item.get("resources") or [])[:3]
+            for resource in (item.get("resources") or [])
             if resource.get("title")
         ),
         context_notes=tuple(
