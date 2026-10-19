@@ -39,6 +39,7 @@ class ResumableInteractionStore implements ResumableInteractionAccess {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> read(String interactionId) async {
     final all = await _readAll();
     final value = all[interactionId];
@@ -46,6 +47,7 @@ class ResumableInteractionStore implements ResumableInteractionAccess {
     return Map<String, dynamic>.from(value);
   }
 
+  @override
   Future<void> save(String interactionId, Map<String, dynamic> values) async {
     final safe = <String, dynamic>{};
     for (final entry in values.entries) {
@@ -66,6 +68,7 @@ class ResumableInteractionStore implements ResumableInteractionAccess {
     await _writeAll(all);
   }
 
+  @override
   Future<void> clear(String interactionId) async {
     final all = await _readAll();
     if (all.remove(interactionId) != null) {
