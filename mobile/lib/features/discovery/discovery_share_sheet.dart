@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
@@ -143,15 +144,14 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
       tooltip: 'Partager cette possibilité',
       enabled: !_busy,
       onSelected: (value) {
-        switch (value) {
-          case 'makolo':
-            _internal();
-          case 'external':
-            _external();
-          case 'copy':
-            _copy();
-          case 'qr':
-            _qr();
+        if (value == 'makolo') {
+          _internal();
+        } else if (value == 'external') {
+          _external();
+        } else if (value == 'copy') {
+          _copy();
+        } else if (value == 'qr') {
+          _qr();
         }
       },
       itemBuilder: (_) => const [
@@ -201,12 +201,26 @@ class _ShareRecipientPickerState extends State<_ShareRecipientPicker> {
   bool _loading = false;
   String? _sending;
   int _generation = 0;
+  Timer? _debounce;
 
   @override
   void dispose() {
     _generation++;
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _scheduleSearch(String input) {
+    _debounce?.cancel();
+    if (input.trim().length < 2) {
+      _search(input);
+      return;
+    }
+    _debounce = Timer(
+      const Duration(milliseconds: 320),
+      () => _search(input),
+    );
   }
 
   Future<void> _search(String input) async {
@@ -273,7 +287,7 @@ class _ShareRecipientPickerState extends State<_ShareRecipientPicker> {
             TextField(
               controller: _controller,
               autofocus: true,
-              onChanged: _search,
+              onChanged: _scheduleSearch,
               decoration: const InputDecoration(
                 labelText: 'Rechercher un Profil',
                 hintText: 'Nom ou identifiant',
