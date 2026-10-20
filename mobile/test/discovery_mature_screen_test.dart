@@ -454,6 +454,4 @@ void main() {
     expect(find.text('Dans Makolo · connexion requise'), findsOneWidget);
     expect(requestedSignIn, isFalse);
   });
-
-
 }
