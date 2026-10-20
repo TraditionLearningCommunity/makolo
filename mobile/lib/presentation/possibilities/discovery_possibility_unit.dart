@@ -277,7 +277,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         (nativePath.startsWith('/spaces/') ||
             nativePath.startsWith('/people/'));
     return InkWell(
-      onTap: navigable ? () => context.push(nativePath as String) : null,
+      onTap: navigable ? () => context.push(nativePath) : null,
       child: Row(
         children: [
           CircleAvatar(
