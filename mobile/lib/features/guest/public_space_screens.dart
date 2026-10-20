@@ -11,6 +11,7 @@ import '../../presentation/search/load_more_on_scroll.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
+import '../../design/behavior_states.dart';
 import '../discovery/discovery_selector.dart';
 import '../../presentation/possibilities/public_possibility_card.dart';
 import 'public_shell.dart';
@@ -44,6 +45,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
   bool _loading = true;
   bool _updatingCriteria = false;
   String? _error;
+  bool _serviceUnavailable = false;
 
   @override
   void initState() {
@@ -75,6 +77,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
     setState(() {
       _loading = true;
       _error = null;
+      _serviceUnavailable = false;
     });
     try {
       final api = widget.runtime.api;
@@ -127,12 +130,15 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         _hasNext = data['has_next'] == true;
         _loading = false;
         _updatingCriteria = false;
+        _serviceUnavailable = false;
       });
     } on Object {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
-        _error = 'Impossible d’actualiser les Espaces publics.';
+        _updatingCriteria = false;
+        _serviceUnavailable = true;
+        _error = 'Actualisation indisponible.';
       });
     }
   }
@@ -188,6 +194,8 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             key: const Key('guest-public-spaces'),
             padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
             children: [
+              if (_serviceUnavailable)
+                const OfflineBanner(message: 'Actualisation des Espaces indisponible'),
               Text(
                 'ESPACES',
                 style: theme.textTheme.labelMedium?.copyWith(
@@ -295,7 +303,8 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               ),
               const SizedBox(height: MakoloSpacing.md),
               if (_error != null && _page == 1) ...[
-                Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                if (!_serviceUnavailable)
+                  Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
                 TextButton(onPressed: _load, child: const Text('Réessayer')),
               ],
               if (_loading && _spaces.isEmpty)
@@ -347,10 +356,11 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 if (_loading && _spaces.isNotEmpty)
                   const Center(child: CircularProgressIndicator()),
                 if (_error != null && _page > 1) ...[
-                  Text(
-                    _error!,
-                    style: TextStyle(color: theme.colorScheme.error),
-                  ),
+                  if (!_serviceUnavailable)
+                    Text(
+                      _error!,
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
                   TextButton(onPressed: _load, child: const Text('Réessayer')),
                 ],
                 if (!_updatingCriteria &&
