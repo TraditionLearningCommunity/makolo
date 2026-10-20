@@ -81,6 +81,11 @@
   </div>
   {% endif %}
   {% if card.participant_state and card.participant_state.label or card.participant_state and card.participant_state.secondary_label %}<div class="p-5 sm:p-6" aria-label="Mon état"><div class="rounded-2xl border p-4" style="border-color:var(--mk-border);background:var(--mk-surface-muted)">{% if card.participant_state.label %}<p class="text-sm font-bold">{{ card.participant_state.label }}</p>{% endif %}{% if card.participant_state.secondary_label %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ card.participant_state.secondary_label }}</p>{% endif %}</div></div>{% endif %}
+  {% if request.user.is_authenticated %}
+  <div class="hidden lg:block px-5 pt-3 sm:px-6">
+    <button type="button" class="mk-btn mk-btn-secondary mk-discovery-preview-action min-h-[44px] w-full justify-center" hx-get="{{ card.url }}" hx-target="#discover-preview-body" hx-select="#main-content" hx-swap="innerHTML" hx-push-url="false" hx-indicator="#discover-preview" aria-label="Aperçu"><i data-lucide="eye" class="h-4 w-4" aria-hidden="true"></i><span>Aperçu</span></button>
+  </div>
+  {% endif %}
   <div class="mt-5 grid grid-cols-3 gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Interactions avec cette possibilité">
     <div class="min-w-0">
       {% if card.actions.save and card.actions.save.url %}
@@ -103,7 +108,7 @@
     </div>
     <div class="min-w-0">
       {% if card.actions.primary and card.actions.primary.enabled and card.actions.primary.url %}
-        <a href="{{ card.actions.primary.url }}" class="mk-btn mk-btn-primary min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" aria-label="{{ card.actions.primary.label }}"><i data-lucide="{{ card.actions.primary.icon }}" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">{{ card.actions.primary.label }}</span></a>
+        <a href="{{ card.actions.primary.url }}" class="mk-btn mk-btn-primary min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" aria-label="{% if card.actions.primary.code == 'access' %}{% if card.presentation_kind == 'event' or card.presentation_kind == 'transport' %}Voir mon billet{% elif card.presentation_kind == 'service' %}Voir ma confirmation{% else %}Voir mon accès{% endif %}{% else %}{{ card.actions.primary.label }}{% endif %}"><i data-lucide="{{ card.actions.primary.icon }}" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">{{ card.actions.primary.label }}</span></a>
       {% else %}
         <a href="{{ card.url }}" class="mk-btn mk-btn-secondary min-h-[48px] w-full justify-center px-1 text-center text-xs sm:px-2 sm:text-sm" aria-label="Voir plus"><i data-lucide="external-link" class="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true"></i><span class="sr-only sm:not-sr-only">Voir plus</span></a>
       {% endif %}
