@@ -87,7 +87,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   Future<Uri> _link() async {
     if (_shareUrl != null) return _shareUrl!;
     final api = widget.api;
-    if (api == null || !widget.authenticated) {
+    if (api == null || !widget.authenticated || widget.item.links['web_share'] == null) {
       final publicUrl = _publicItemUrl;
       if (publicUrl == null) throw StateError('Public share URL unavailable');
       return publicUrl;
@@ -156,7 +156,8 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   Widget build(BuildContext context) {
     // The owner Web share reference is the current contract for shareability.
     // Presence of a public card alone never grants sharing authority.
-    if (widget.item.links['web_share'] == null) {
+    if (widget.item.links['web'] == null &&
+        widget.item.links['web_share'] == null) {
       return widget.iconOnly
           ? const IconButton(
               onPressed: null,
