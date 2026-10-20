@@ -355,30 +355,36 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
           onRefresh: _refresh,
           child: ListView(
             key: const Key('guest-public-landing'),
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
             children: [
               Padding(
-                padding: const EdgeInsets.all(MakoloSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-              Text(
+                padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                child: Text(
                 'Découvrir',
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: theme.colorScheme.primary,
                 ),
               ),
+                ),
               const SizedBox(height: MakoloSpacing.sm),
-              Text(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                child: Text(
                 'Qu’avez-vous envie de vivre, faire ou obtenir ?',
                 style: theme.textTheme.headlineSmall,
               ),
+                ),
               const SizedBox(height: MakoloSpacing.sm),
-              const Text(
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                child: Text(
                 'Décrivez ce que vous cherchez, choisissez une piste ou explorez librement.',
               ),
+                ),
               const SizedBox(height: MakoloSpacing.lg),
-              SearchFilterBar(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                child: SearchFilterBar(
                 searchField: TextField(
                   controller: _search,
                   key: const Key('guest-search-query'),
@@ -509,8 +515,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   ],
                 ),
               ),
+              ),
               const SizedBox(height: MakoloSpacing.md),
-              SizedBox(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                child: SizedBox(
                 height: 48,
                 child: ListView(
                   key: const Key('guest-discover-categories'),
@@ -534,6 +543,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     ],
                   ],
                 ),
+              ),
               ),
               const SizedBox(height: MakoloSpacing.compact),
               const SizedBox(height: MakoloSpacing.lg),
@@ -565,13 +575,16 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 const Center(child: CircularProgressIndicator())
               else ...[
                 if (_collection.items.isNotEmpty) ...[
-                  Text(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                    child: Text(
                     _updatingCriteria
                         ? (_error == null
                               ? 'Actualisation… résultats précédents'
                               : 'Résultats précédents')
                         : '${_collection.count} ${_collection.count == 1 ? 'résultat' : 'résultats'}',
                     style: theme.textTheme.titleMedium,
+                  ),
                   ),
                   const SizedBox(height: MakoloSpacing.md),
                 ],
@@ -598,9 +611,6 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                           : 'Aucun résultat à ${_query.place} pour le moment.',
                     ),
                   ),
-              ],
-            ),
-          ),
                 for (final item in _collection.items)
                   PublicPossibilityCard(
                     item: item,
