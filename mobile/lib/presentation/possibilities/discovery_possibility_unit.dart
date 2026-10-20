@@ -293,7 +293,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           Expanded(
             child: Text(name, style: Theme.of(context).textTheme.labelLarge),
           ),
-          if (navigable) const Icon(Icons.open_in_new_rounded, size: 16),
         ],
       ),
     );
@@ -473,12 +472,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _ownerHeader(context),
+                  const SizedBox(height: MakoloSpacing.sm),
                   Text(
                     item.title,
                     style: theme.textTheme.titleLarge,
                   ),
-                  const SizedBox(height: MakoloSpacing.sm),
-                  _ownerHeader(context),
                   const SizedBox(height: MakoloSpacing.xs),
                   Text(
                     item.representation?['vertical_label']?.toString() ??
@@ -614,6 +613,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       authenticated: widget.shareAuthenticated,
                       onSignIn: widget.onSignIn,
                       iconOnly: true,
+                      baseUri: widget.baseUri,
                     ),
                   ),
                 ],
