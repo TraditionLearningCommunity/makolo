@@ -613,7 +613,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       );
                       if (context.mounted) context.push('/login');
                     },
-                ),
+                  ),
                 if (_loading && _collection.items.isNotEmpty)
                   const Center(child: CircularProgressIndicator()),
                 if (!_updatingCriteria &&
