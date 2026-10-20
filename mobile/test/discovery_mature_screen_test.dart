@@ -166,6 +166,46 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 long description expands inline without opening detail', (
+    tester,
+  ) async {
+    var opened = false;
+    final longSummary = List.filled(35, 'Une possibilité concrète.').join(' ');
+    final rich = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'inline',
+      candidateKey: 'activity:inline',
+      title: 'Description dépliable',
+      summary: longSummary,
+      owner: 'Espace test',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {},
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) => opened = true,
+      ),
+    );
+
+    expect(find.text('Voir plus'), findsOneWidget);
+    expect(find.text(longSummary), findsNothing);
+    await tester.tap(find.byKey(const Key('discover-description-expand')));
+    await tester.pump();
+    expect(find.text(longSummary), findsOneWidget);
+    expect(find.text('Voir moins'), findsOneWidget);
+    expect(opened, isFalse);
+    await tester.tap(find.text('Voir moins'));
+    await tester.pump();
+    expect(find.text(longSummary), findsNothing);
+    expect(opened, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('G04 wide uses the shared adaptive grid', (tester) async {
     await PresentationHarness.pump(
       tester,
