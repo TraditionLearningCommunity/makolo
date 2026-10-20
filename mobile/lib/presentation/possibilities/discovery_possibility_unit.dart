@@ -525,11 +525,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ],
                   const SizedBox(height: MakoloSpacing.sm),
                   if (_reliableFacts.isNotEmpty)
-                    Text(
-                      _reliableFacts.take(2).map((fact) => fact['value']).join(' · '),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                    Wrap(
+                      spacing: MakoloSpacing.sm,
+                      runSpacing: MakoloSpacing.xs,
+                      children: [
+                        for (final fact in _reliableFacts.take(2))
+                          Text(
+                            fact['value'] as String,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
                     ),
                   if (_expanded) ...[
                     const SizedBox(height: MakoloSpacing.sm),
