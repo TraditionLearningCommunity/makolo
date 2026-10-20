@@ -384,7 +384,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   horizontal: MakoloSpacing.lg,
                 ),
                 child: Text(
-                  'Explorez les possibilités qui s’offrent à vous.',
+                  'Explorez les possibilités.',
                   style: theme.textTheme.headlineSmall,
                 ),
               ),
@@ -392,10 +392,10 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
                 child: Text(
-                  'Recherchez une activité, un événement, un service ou une opportunité, ou explorez librement.',
+                  'Activités, événements, services et opportunités à découvrir.',
                 ),
               ),
-              const SizedBox(height: MakoloSpacing.lg),
+              const SizedBox(height: MakoloSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: MakoloSpacing.lg,
@@ -569,8 +569,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: MakoloSpacing.compact),
-              const SizedBox(height: MakoloSpacing.lg),
+              const SizedBox(height: MakoloSpacing.sm),
               if (_localWarning != null) ...[
                 Text(
                   _localWarning!,
@@ -618,9 +617,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
-                  const SizedBox(height: MakoloSpacing.xl),
+                  const SizedBox(height: MakoloSpacing.sm),
                   const Divider(height: 1),
-                  const SizedBox(height: MakoloSpacing.md),
+                  const SizedBox(height: MakoloSpacing.sm),
                 ],
                 if (!_updatingCriteria &&
                     _selector
