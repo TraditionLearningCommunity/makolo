@@ -382,8 +382,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final visible = _expanded
         ? description
         : preview.length > _previewCharacters
-            ? '${preview.substring(0, _previewCharacters).trimRight()}…'
-            : preview;
+        ? '${preview.substring(0, _previewCharacters).trimRight()}…'
+        : preview;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -475,94 +475,88 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ownerHeader(context),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ownerHeader(context),
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(item.title, style: theme.textTheme.titleLarge),
+                const SizedBox(height: MakoloSpacing.xs),
+                Text(
+                  item.representation?['vertical_label']?.toString() ??
+                      item.eyebrow ??
+                      '',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                _dateLabel(context),
+                if (_description.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  _descriptionBody(context),
+                ],
+                if (item.participantPresentation?['label'] is String &&
+                    (item.participantPresentation!['label'] as String)
+                        .isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   Text(
-                    item.title,
-                    style: theme.textTheme.titleLarge,
+                    item.participantPresentation!['label'] as String,
+                    style: theme.textTheme.labelMedium,
                   ),
-                  const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    item.representation?['vertical_label']?.toString() ??
-                        item.eyebrow ??
-                        '',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  _dateLabel(context),
-                  if (_description.isNotEmpty) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    _descriptionBody(context),
-                  ],
-                  if (item.participantPresentation?['label'] is String &&
-                      (item.participantPresentation!['label'] as String)
-                          .isNotEmpty) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(
-                      item.participantPresentation!['label'] as String,
-                      style: theme.textTheme.labelMedium,
-                    ),
-                  ],
-                  if (resources.isNotEmpty) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    for (final resource in resources)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: MakoloSpacing.xs,
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.description_outlined, size: 18),
-                            const SizedBox(width: MakoloSpacing.xs),
-                            Expanded(
-                              child: Text(
-                                resource,
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
+                ],
+                if (resources.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
-                  if (_reliableFacts.isNotEmpty)
-                    Wrap(
-                      spacing: MakoloSpacing.sm,
-                      runSpacing: MakoloSpacing.xs,
-                      children: [
-                        for (final fact in _reliableFacts.take(2))
-                          Text(
-                            fact['value'] as String,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
+                  for (final resource in resources)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.description_outlined, size: 18),
+                          const SizedBox(width: MakoloSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              resource,
+                              style: theme.textTheme.bodySmall,
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
-                  if (_expanded) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    _facts(context),
-                    _knowledge(context),
-                  ],
-                  if (item.variants.isNotEmpty ||
-                      item.relations.isNotEmpty) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(
-                      [
-                        if (item.variants.isNotEmpty)
-                          '${item.variants.length} variantes',
-                        if (item.relations.isNotEmpty)
-                          '${item.relations.length} relations',
-                      ].join(' · '),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
                 ],
-              ),
+                const SizedBox(height: MakoloSpacing.sm),
+                if (_reliableFacts.isNotEmpty)
+                  Wrap(
+                    spacing: MakoloSpacing.sm,
+                    runSpacing: MakoloSpacing.xs,
+                    children: [
+                      for (final fact in _reliableFacts.take(2))
+                        Text(
+                          fact['value'] as String,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                if (_expanded) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  _facts(context),
+                  _knowledge(context),
+                ],
+                if (item.variants.isNotEmpty || item.relations.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Text(
+                    [
+                      if (item.variants.isNotEmpty)
+                        '${item.variants.length} variantes',
+                      if (item.relations.isNotEmpty)
+                        '${item.relations.length} relations',
+                    ].join(' · '),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ],
+            ),
           ),
           _media(context),
           ...[
