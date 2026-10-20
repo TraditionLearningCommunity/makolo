@@ -345,8 +345,8 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                           ),
                         ),
                         title: Text(_field(space, 'name')),
-                        subtitle: _spaceArchetypes[_field(space, 'archetype')] ==
-                                null
+                        subtitle:
+                            _spaceArchetypes[_field(space, 'archetype')] == null
                             ? null
                             : Text(
                                 _spaceArchetypes[_field(space, 'archetype')]!,
