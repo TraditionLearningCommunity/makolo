@@ -580,7 +580,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
           onRefresh: _refresh,
           child: ListView(
             key: const Key('guest-public-space-detail'),
-            padding: const EdgeInsets.all(MakoloSpacing.lg),
+            padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
@@ -622,15 +622,6 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                     child: Text(_field(_space, 'description')),
                   ),
                 ],
-                if (_validPublicWebsite(_field(_space, 'website')) != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () => unawaited(_openWebsite()),
-                      icon: const Icon(Icons.open_in_new),
-                      label: const Text('Site officiel'),
-                    ),
-                  ),
                 const SizedBox(height: MakoloSpacing.xl),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
