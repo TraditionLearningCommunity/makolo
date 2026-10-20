@@ -183,6 +183,43 @@ class _FaultyInteractions implements ResumableInteractionAccess {
 }
 
 void main() {
+  testWidgets('public Discover paints server results when count is 188', (
+    tester,
+  ) async {
+    final client = MockClient(
+      (request) async => MockResponse(
+        _mockResponseJson({
+          'data': {
+            'count': 188,
+            'page': 1,
+            'page_size': 12,
+            'has_next': true,
+            'results': [
+              _item(
+                'Possibilité visible malgré un total de 188',
+                '11111111-1111-4111-8111-111111111111',
+              ),
+            ],
+          },
+        }),
+        200,
+      ),
+    );
+    final router = _router(
+      _guestRuntime(SessionRecoveryController(), client: client),
+    );
+    await _pump(tester, router);
+    router.go('/discover');
+    await tester.pumpAndSettle();
+
+    expect(find.text('188 résultats'), findsOneWidget);
+    expect(
+      find.text('Possibilité visible malgré un total de 188'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('public Discovery loads after local restore failure', (
     tester,
   ) async {
