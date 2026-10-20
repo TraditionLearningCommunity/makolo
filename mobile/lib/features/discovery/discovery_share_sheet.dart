@@ -56,7 +56,9 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     if (raw == null || raw.isEmpty) return null;
     final parsed = Uri.tryParse(raw);
     if (parsed == null) return null;
-    final resolved = parsed.hasScheme ? parsed : widget.baseUri?.resolveUri(parsed);
+    final resolved = parsed.hasScheme
+        ? parsed
+        : widget.baseUri?.resolveUri(parsed);
     if (resolved == null ||
         (resolved.scheme != 'https' && resolved.scheme != 'http') ||
         resolved.host.isEmpty ||
@@ -87,7 +89,9 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   Future<Uri> _link() async {
     if (_shareUrl != null) return _shareUrl!;
     final api = widget.api;
-    if (api == null || !widget.authenticated || widget.item.links['web_share'] == null) {
+    if (api == null ||
+        !widget.authenticated ||
+        widget.item.links['web_share'] == null) {
       final publicUrl = _publicItemUrl;
       if (publicUrl == null) throw StateError('Public share URL unavailable');
       return publicUrl;
@@ -191,9 +195,11 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
       itemBuilder: (_) => [
         PopupMenuItem(
           value: 'makolo',
-          child: Text(widget.authenticated
-              ? 'Dans Makolo'
-              : 'Dans Makolo · connexion requise'),
+          child: Text(
+            widget.authenticated
+                ? 'Dans Makolo'
+                : 'Dans Makolo · connexion requise',
+          ),
         ),
         PopupMenuItem(value: 'external', child: Text('Partager avec…')),
         PopupMenuItem(value: 'copy', child: Text('Copier le lien')),
