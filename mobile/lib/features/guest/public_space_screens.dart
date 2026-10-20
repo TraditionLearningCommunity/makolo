@@ -345,12 +345,12 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                           ),
                         ),
                         title: Text(_field(space, 'name')),
-                        subtitle: Text(
-                          [
-                            _field(space, 'city'),
-                            _field(space, 'country'),
-                          ].where((part) => part.isNotEmpty).join(' · '),
-                        ),
+                        subtitle: _spaceArchetypes[_field(space, 'archetype')] ==
+                                null
+                            ? null
+                            : Text(
+                                _spaceArchetypes[_field(space, 'archetype')]!,
+                              ),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => context.push(
                           '/spaces/${Uri.encodeComponent(_field(space, 'slug'))}',
