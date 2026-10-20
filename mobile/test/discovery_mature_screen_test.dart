@@ -4,6 +4,7 @@ import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/discovery/discovery_mature_view.dart';
 import 'package:makolo_mobile/features/discovery/discovery_selector.dart';
+import 'package:makolo_mobile/features/discovery/discovery_share_sheet.dart';
 import 'package:makolo_mobile/platform/maps/map_runtime_config.dart';
 
 import 'support/presentation_harness.dart';
@@ -418,4 +419,41 @@ void main() {
     expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('guest share presents external choices without signing in', (
+    tester,
+  ) async {
+    final publicItem = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'public-one',
+      candidateKey: 'activity:public-one',
+      title: 'Possibilité publique',
+      summary: 'Une possibilité visible par tous.',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {
+        'web': '/discover/items/activity/public-one/',
+        'web_share': '/discovery/share/activity/public-one/',
+      },
+    );
+    var requestedSignIn = false;
+    await PresentationHarness.pump(
+      tester,
+      child: DiscoveryShareControl(
+        item: publicItem,
+        api: null,
+        authenticated: false,
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        onSignIn: () => requestedSignIn = true,
+      ),
+    );
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    expect(find.text('Partager avec…'), findsOneWidget);
+    expect(find.text('Copier le lien'), findsOneWidget);
+    expect(find.text('Afficher le QR'), findsOneWidget);
+    expect(find.text('Dans Makolo · connexion requise'), findsOneWidget);
+    expect(requestedSignIn, isFalse);
+  });
+
+
 }
