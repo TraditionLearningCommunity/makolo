@@ -73,6 +73,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
 
 class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   bool _saving = false;
+  bool _expanded = false;
   bool? _confirmedSaved;
 
   @override
@@ -83,6 +84,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             widget.item.savedState ==
                 (_confirmedSaved! ? 'saved' : 'not_saved'))) {
       _confirmedSaved = null;
+    }
+    if (oldWidget.item.candidateKey != widget.item.candidateKey) {
+      _expanded = false;
     }
   }
 
@@ -357,6 +361,38 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     }
   }
 
+  static const int _previewCharacters = 240;
+
+  String get _description {
+    final summary = item.summary.trim();
+    final raw = item.detailFacts?['description'];
+    final detail = raw is String ? raw.trim() : '';
+    if (detail.isEmpty || detail == summary) return summary;
+    if (summary.isEmpty || detail.contains(summary)) return detail;
+    return '$summary\n\n$detail';
+  }
+
+  Widget _descriptionBody(BuildContext context) {
+    final description = _description;
+    if (description.isEmpty) return const SizedBox.shrink();
+    final truncated = description.length > _previewCharacters;
+    final visible = truncated && !_expanded
+        ? '${description.substring(0, _previewCharacters).trimRight()}…'
+        : description;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(visible, key: const Key('discover-description-text')),
+        if (truncated)
+          TextButton(
+            key: const Key('discover-description-expand'),
+            onPressed: () => setState(() => _expanded = !_expanded),
+            child: Text(_expanded ? 'Voir moins' : 'Voir plus'),
+          ),
+      ],
+    );
+  }
+
   Widget _facts(BuildContext context) {
     final facts = _reliableFacts;
     if (facts.isEmpty) return const SizedBox.shrink();
@@ -432,21 +468,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!widget.compact) _media(context),
-          InkWell(
-            onTap: widget.onOpen,
-            child: Padding(
-              padding: EdgeInsets.all(
-                widget.compact ? MakoloSpacing.sm : MakoloSpacing.md,
-              ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     item.title,
-                    style: widget.compact
-                        ? theme.textTheme.titleMedium
-                        : theme.textTheme.headlineSmall,
+                    style: theme.textTheme.titleLarge,
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
                   _ownerHeader(context),
@@ -460,22 +489,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     ),
                   ),
                   _dateLabel(context),
-                  if (item.summary.trim().isNotEmpty) ...[
+                  if (_description.isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
-                    Text(
-                      item.summary,
-                      style: widget.compact
-                          ? theme.textTheme.bodySmall
-                          : theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                  if (item.detailFacts?['description'] is String &&
-                      (item.detailFacts!['description'] as String)
-                          .trim()
-                          .isNotEmpty &&
-                      item.detailFacts!['description'] != item.summary) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(item.detailFacts!['description'] as String),
+                    _descriptionBody(context),
                   ],
                   if (item.participantPresentation?['label'] is String &&
                       (item.participantPresentation!['label'] as String)
@@ -507,9 +523,19 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                         ),
                       ),
                   ],
-                  const SizedBox(height: MakoloSpacing.md),
-                  _facts(context),
-                  _knowledge(context),
+                  const SizedBox(height: MakoloSpacing.sm),
+                  if (_reliableFacts.isNotEmpty)
+                    Text(
+                      _reliableFacts.take(2).map((fact) => fact['value']).join(' · '),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  if (_expanded) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    _facts(context),
+                    _knowledge(context),
+                  ],
                   if (item.variants.isNotEmpty ||
                       item.relations.isNotEmpty) ...[
                     const SizedBox(height: MakoloSpacing.sm),
@@ -525,8 +551,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ],
                 ],
               ),
-            ),
           ),
+          _media(context),
           ...[
             const Divider(height: 1),
             Padding(
@@ -564,13 +590,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                           ? 'Commencer'
                           : _nativeTicketChoices != null
                           ? 'Voir les billets'
-                          : 'Voir plus',
+                          : 'Consulter dans Makolo',
                       icon: Icon(
                         _canStartService
                             ? Icons.play_circle_outline_rounded
                             : _nativeTicketChoices != null
                             ? Icons.confirmation_number_outlined
-                            : Icons.open_in_new_rounded,
+                            : Icons.arrow_forward_rounded,
                       ),
                     ),
                   ),
@@ -594,6 +620,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               icon: const Icon(Icons.map_outlined),
               label: Text(widget.selectionActionLabel ?? 'Voir sur la carte'),
             ),
+          Container(height: 10, color: theme.colorScheme.surfaceContainerLow),
         ],
       ),
     );
