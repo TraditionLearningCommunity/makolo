@@ -17,6 +17,7 @@ class DiscoveryShareControl extends StatefulWidget {
     required this.authenticated,
     this.onSignIn,
     this.iconOnly = false,
+    this.baseUri,
   });
 
   final DiscoveryItemPresentation item;
@@ -24,6 +25,7 @@ class DiscoveryShareControl extends StatefulWidget {
   final bool authenticated;
   final VoidCallback? onSignIn;
   final bool iconOnly;
+  final Uri? baseUri;
 
   @override
   State<DiscoveryShareControl> createState() => _DiscoveryShareControlState();
@@ -45,6 +47,23 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     return uri != null && uri.scheme == 'https' && uri.host.isNotEmpty
         ? uri
         : null;
+  }
+
+  // The public item URL is projected by Discovery from its canonical Web
+  // presentation. It contains no sender identity, session or private delivery.
+  Uri? get _publicItemUrl {
+    final raw = widget.item.links['web'];
+    if (raw == null || raw.isEmpty) return null;
+    final parsed = Uri.tryParse(raw);
+    if (parsed == null) return null;
+    final resolved = parsed.hasScheme ? parsed : widget.baseUri?.resolveUri(parsed);
+    if (resolved == null ||
+        (resolved.scheme != 'https' && resolved.scheme != 'http') ||
+        resolved.host.isEmpty ||
+        resolved.userInfo.isNotEmpty) {
+      return null;
+    }
+    return resolved;
   }
 
   void _feedback(String message) {
@@ -69,7 +88,9 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     if (_shareUrl != null) return _shareUrl!;
     final api = widget.api;
     if (api == null || !widget.authenticated) {
-      throw StateError('Authentication required');
+      final publicUrl = _publicItemUrl;
+      if (publicUrl == null) throw StateError('Public share URL unavailable');
+      return publicUrl;
     }
     final result = await api.post(_endpoint, body: {'intent': 'view'});
     final data = result.jsonObject();
@@ -148,25 +169,16 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
               label: const Text('Partager'),
             );
     }
-    if (widget.api == null || !widget.authenticated) {
-      return widget.iconOnly
-          ? IconButton(
-              onPressed: widget.onSignIn,
-              tooltip: 'Partager',
-              icon: const Icon(Icons.share_outlined),
-            )
-          : TextButton.icon(
-              onPressed: widget.onSignIn,
-              icon: const Icon(Icons.share_outlined),
-              label: const Text('Partager'),
-            );
-    }
     return PopupMenuButton<String>(
       tooltip: 'Partager cette possibilité',
       enabled: !_busy,
       onSelected: (value) {
         if (value == 'makolo') {
-          _internal();
+          if (widget.authenticated) {
+            _internal();
+          } else {
+            widget.onSignIn?.call();
+          }
         } else if (value == 'external') {
           _external();
         } else if (value == 'copy') {
@@ -175,8 +187,13 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
           _qr();
         }
       },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: 'makolo', child: Text('Dans Makolo')),
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: 'makolo',
+          child: Text(widget.authenticated
+              ? 'Dans Makolo'
+              : 'Dans Makolo · connexion requise'),
+        ),
         PopupMenuItem(value: 'external', child: Text('Partager avec…')),
         PopupMenuItem(value: 'copy', child: Text('Copier le lien')),
         PopupMenuItem(value: 'qr', child: Text('Afficher le QR')),
