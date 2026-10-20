@@ -188,9 +188,8 @@ class _DiscoveryEventTicketsScreenState
                 }
                 setState(() {
                   _ticketTypeId = value;
-                  _quantity = int.tryParse(
-                        '${matching.first['min_per_order'] ?? 1}',
-                      ) ??
+                  _quantity =
+                      int.tryParse('${matching.first['min_per_order'] ?? 1}') ??
                       1;
                 });
               },
