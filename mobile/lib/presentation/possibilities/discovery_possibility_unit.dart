@@ -374,15 +374,21 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   Widget _descriptionBody(BuildContext context) {
     final description = _description;
     if (description.isEmpty) return const SizedBox.shrink();
+    final summary = item.summary.trim();
+    final hasSupplement = summary.isNotEmpty && description != summary;
     final truncated = description.length > _previewCharacters;
-    final visible = truncated && !_expanded
-        ? '${description.substring(0, _previewCharacters).trimRight()}…'
-        : description;
+    final expandable = hasSupplement || truncated;
+    final preview = hasSupplement ? summary : description;
+    final visible = _expanded
+        ? description
+        : preview.length > _previewCharacters
+            ? '${preview.substring(0, _previewCharacters).trimRight()}…'
+            : preview;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(visible, key: const Key('discover-description-text')),
-        if (truncated)
+        if (expandable)
           TextButton(
             key: const Key('discover-description-expand'),
             onPressed: () => setState(() => _expanded = !_expanded),
