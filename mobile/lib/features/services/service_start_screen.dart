@@ -33,7 +33,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   bool _attempted = false;
   String? _error;
   Map<String, dynamic>? _requirements;
-  late String _operationKey = _newOperationKey();
+  late final String _operationKey = _newOperationKey();
 
   static String _newOperationKey() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -132,8 +132,9 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   Future<void> _start() async {
     if (_loading || _submitting || _requirements == null) return;
     if (_requirements!['opportunity_required'] == true &&
-        _selectedOpportunity == null)
+        _selectedOpportunity == null) {
       return;
+    }
     setState(() {
       _submitting = true;
       _error = null;
@@ -219,7 +220,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                 onSubmitted: (_) => _searchOpportunities(),
               ),
               DropdownButtonFormField<String>(
-                value: _selectedOpportunity,
+                initialValue: _selectedOpportunity,
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: needsOpportunity
