@@ -619,6 +619,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     ),
                   ),
                   const SizedBox(height: MakoloSpacing.xl),
+                  const Divider(height: 1),
+                  const SizedBox(height: MakoloSpacing.md),
                 ],
                 if (!_updatingCriteria &&
                     _selector
