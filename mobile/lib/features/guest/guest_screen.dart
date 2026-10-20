@@ -384,7 +384,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   horizontal: MakoloSpacing.lg,
                 ),
                 child: Text(
-                  'Qu’avez-vous envie de vivre, faire ou obtenir ?',
+                  'Explorez les possibilités qui s’offrent à vous.',
                   style: theme.textTheme.headlineSmall,
                 ),
               ),
@@ -392,7 +392,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
                 child: Text(
-                  'Décrivez ce que vous cherchez, choisissez une piste ou explorez librement.',
+                  'Recherchez une activité, un événement, un service ou une opportunité, ou explorez librement.',
                 ),
               ),
               const SizedBox(height: MakoloSpacing.lg),
@@ -618,7 +618,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
-                  const SizedBox(height: MakoloSpacing.md),
+                  const SizedBox(height: MakoloSpacing.xl),
                 ],
                 if (!_updatingCriteria &&
                     _selector
