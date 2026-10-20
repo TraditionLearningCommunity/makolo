@@ -195,7 +195,9 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
             children: [
               if (_serviceUnavailable)
-                const OfflineBanner(message: 'Actualisation des Espaces indisponible'),
+                const OfflineBanner(
+                  message: 'Actualisation des Espaces indisponible',
+                ),
               Text(
                 'ESPACES',
                 style: theme.textTheme.labelMedium?.copyWith(
@@ -304,7 +306,10 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
               const SizedBox(height: MakoloSpacing.md),
               if (_error != null && _page == 1) ...[
                 if (!_serviceUnavailable)
-                  Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                  Text(
+                    _error!,
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
                 TextButton(onPressed: _load, child: const Text('Réessayer')),
               ],
               if (_loading && _spaces.isEmpty)
@@ -593,21 +598,23 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
             padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
-                child: Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      context.go('/spaces');
-                    }
-                  },
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Tous les Espaces'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.lg,
                 ),
-              ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/spaces');
+                      }
+                    },
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Tous les Espaces'),
+                  ),
+                ),
               ),
               const SizedBox(height: MakoloSpacing.md),
               if (_loading && _space.isEmpty)
@@ -617,24 +624,32 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                 TextButton(onPressed: _load, child: const Text('Réessayer')),
               ] else ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MakoloSpacing.lg,
+                  ),
                   child: _PublicSpaceIdentity(space: _space),
                 ),
                 if (_field(_space, 'description').isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.lg),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: MakoloSpacing.lg,
+                    ),
                     child: Text('À propos', style: theme.textTheme.titleMedium),
                   ),
                   const SizedBox(height: MakoloSpacing.xs),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: MakoloSpacing.lg,
+                    ),
                     child: Text(_field(_space, 'description')),
                   ),
                 ],
                 const SizedBox(height: MakoloSpacing.xl),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MakoloSpacing.lg,
+                  ),
                   child: Text(
                     'Ce que propose cet Espace',
                     style: theme.textTheme.titleLarge,
@@ -644,11 +659,13 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: MakoloSpacing.xs),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MakoloSpacing.lg,
+                      ),
                       child: Text(
-                      '$_count possibilités',
-                      style: theme.textTheme.bodySmall,
-                    ),
+                        '$_count possibilités',
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ),
                   ),
                 const SizedBox(height: MakoloSpacing.md),
