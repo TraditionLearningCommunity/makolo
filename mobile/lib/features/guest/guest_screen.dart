@@ -355,8 +355,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
           onRefresh: _refresh,
           child: ListView(
             key: const Key('guest-public-landing'),
-            padding: const EdgeInsets.all(MakoloSpacing.lg),
+            padding: EdgeInsets.zero,
             children: [
+              Padding(
+                padding: const EdgeInsets.all(MakoloSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               Text(
                 'Découvrir',
                 style: theme.textTheme.labelMedium?.copyWith(
@@ -593,6 +598,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                           : 'Aucun résultat à ${_query.place} pour le moment.',
                     ),
                   ),
+              ],
+            ),
+          ),
                 for (final item in _collection.items)
                   PublicPossibilityCard(
                     item: item,
