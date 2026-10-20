@@ -186,7 +186,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
           onRefresh: _refresh,
           child: ListView(
             key: const Key('guest-public-spaces'),
-            padding: const EdgeInsets.all(MakoloSpacing.lg),
+            padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
             children: [
               Text(
                 'ESPACES',
@@ -580,14 +580,11 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
           onRefresh: _refresh,
           child: ListView(
             key: const Key('guest-public-space-detail'),
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.all(MakoloSpacing.lg),
             children: [
               Padding(
-                padding: const EdgeInsets.all(MakoloSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-              Align(
+                padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                child: Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
                   onPressed: () {
@@ -601,6 +598,7 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                   label: const Text('Tous les Espaces'),
                 ),
               ),
+              ),
               const SizedBox(height: MakoloSpacing.md),
               if (_loading && _space.isEmpty)
                 const Center(child: CircularProgressIndicator())
@@ -608,12 +606,21 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                 Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
                 TextButton(onPressed: _load, child: const Text('Réessayer')),
               ] else ...[
-                _PublicSpaceIdentity(space: _space),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                  child: _PublicSpaceIdentity(space: _space),
+                ),
                 if (_field(_space, 'description').isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.lg),
-                  Text('À propos', style: theme.textTheme.titleMedium),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                    child: Text('À propos', style: theme.textTheme.titleMedium),
+                  ),
                   const SizedBox(height: MakoloSpacing.xs),
-                  Text(_field(_space, 'description')),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                    child: Text(_field(_space, 'description')),
+                  ),
                 ],
                 if (_validPublicWebsite(_field(_space, 'website')) != null)
                   Align(
@@ -625,16 +632,22 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                     ),
                   ),
                 const SizedBox(height: MakoloSpacing.xl),
-                Text(
-                  'Ce que propose cet Espace',
-                  style: theme.textTheme.titleLarge,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                  child: Text(
+                    'Ce que propose cet Espace',
+                    style: theme.textTheme.titleLarge,
+                  ),
                 ),
                 if (_count > 0)
                   Padding(
                     padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                    child: Text(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                      child: Text(
                       '$_count possibilités',
                       style: theme.textTheme.bodySmall,
+                    ),
                     ),
                   ),
                 const SizedBox(height: MakoloSpacing.md),
@@ -642,9 +655,6 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                   const Text(
                     'Cet Espace ne propose pas encore de possibilité publique.',
                   ),
-                ],
-              ),
-            ),
                 for (final possibility in _possibilities)
                   PublicPossibilityCard(
                     item: possibility,
