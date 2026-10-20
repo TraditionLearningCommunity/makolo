@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
+import '../../design/behavior_states.dart';
 import '../../network/api_error.dart';
 import '../../presentation/possibilities/public_possibility_card.dart';
 import '../../presentation/search/load_more_on_scroll.dart';
@@ -60,6 +61,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   String? _error;
   String? _localWarning;
   bool _continuationRejected = false;
+  bool _serviceUnavailable = false;
 
   @override
   void initState() {
@@ -196,6 +198,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _loading = true;
         _error = null;
         _continuationRejected = false;
+        _serviceUnavailable = false;
       });
     }
     try {
@@ -229,6 +232,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             : _collection.reconcile(collection);
         _loading = false;
         _updatingCriteria = false;
+        _serviceUnavailable = false;
       });
       _trace('REVISION_ACCEPTED', revision: revision);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -244,10 +248,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       final rejected = query.continuation != null && error.statusCode == 400;
       setState(() {
         _loading = false;
+        _updatingCriteria = false;
         _continuationRejected = rejected;
+        _serviceUnavailable = error.statusCode >= 500;
         _error = rejected
-            ? 'Suite de recherche rejetée (HTTP 400). Actualisez depuis la première page.'
-            : 'Discovery HTTP ${error.statusCode} (${error.code}). Réessayez.';
+            ? 'Cette recherche doit être actualisée depuis le début.'
+            : 'Impossible d’actualiser les possibilités.';
       });
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=http_error');
     } on FormatException catch (error, stack) {
@@ -255,9 +261,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
-        _error =
-            'Contrat Discovery incompatible (FORMAT). '
-            'Réponse reçue mais impossible à interpréter : ${error.message}.';
+        _updatingCriteria = false;
+        _error = 'Les informations reçues ne peuvent pas être affichées.';
       });
       _trace(
         'LOAD_FINISHED',
@@ -269,7 +274,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
-        _error = 'Chargement Discovery expiré (TIMEOUT). Réessayez.';
+        _updatingCriteria = false;
+        _error = 'L’actualisation prend trop de temps.';
       });
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=timeout');
     } on Object catch (error, stack) {
@@ -277,9 +283,11 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
         _loading = false;
+        _updatingCriteria = false;
+        _serviceUnavailable = error is MakoloTransportError;
         _error = error is MakoloTransportError
-            ? 'Discovery réseau (${error.code}) : ${error.message}'
-            : 'Erreur Discovery (${error.runtimeType}). Réessayez.';
+            ? 'Connexion à Makolo indisponible.'
+            : 'Impossible d’actualiser les possibilités.';
       });
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=error');
     }
@@ -357,6 +365,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             key: const Key('guest-public-landing'),
             padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
             children: [
+              if (_serviceUnavailable)
+                const OfflineBanner(message: 'Connexion à Makolo indisponible'),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
                 child: Text(
@@ -556,11 +566,15 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 const SizedBox(height: MakoloSpacing.sm),
               ],
               if (_error != null) ...[
-                Text(
-                  _error!,
-                  key: const Key('guest-discover-load-error'),
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
+                if (!_serviceUnavailable)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                    child: Text(
+                      _error!,
+                      key: const Key('guest-discover-load-error'),
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                  ),
                 TextButton(
                   onPressed: _retry,
                   child: Text(
