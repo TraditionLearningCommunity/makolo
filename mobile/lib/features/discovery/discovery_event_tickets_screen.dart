@@ -177,26 +177,38 @@ class _DiscoveryEventTicketsScreenState
             const SizedBox(height: 12),
             if (_types.isEmpty)
               const Text('Aucun type de billet n’est publié actuellement.'),
-            for (final ticket in _types)
-              RadioListTile<String>(
-                value: ticket['id']?.toString() ?? '',
-                groupValue: _ticketTypeId,
-                onChanged: ticket['is_on_sale'] == true
-                    ? (value) {
-                        setState(() {
-                          _ticketTypeId = value;
-                          _quantity =
-                              int.tryParse('${ticket['min_per_order'] ?? 1}') ??
-                              1;
-                        });
-                      }
-                    : null,
-                title: Text(ticket['name']?.toString() ?? 'Billet'),
-                subtitle: Text(
-                  '${ticket['price'] ?? ''} ${ticket['currency'] ?? ''}'
-                  '${ticket['is_on_sale'] == true ? '' : ' · Non disponible'}',
-                ),
+            RadioGroup<String>(
+              groupValue: _ticketTypeId,
+              onChanged: (value) {
+                final matching = _types.where(
+                  (ticket) => ticket['id']?.toString() == value,
+                );
+                if (matching.isEmpty || matching.first['is_on_sale'] != true) {
+                  return;
+                }
+                setState(() {
+                  _ticketTypeId = value;
+                  _quantity = int.tryParse(
+                        '${matching.first['min_per_order'] ?? 1}',
+                      ) ??
+                      1;
+                });
+              },
+              child: Column(
+                children: [
+                  for (final ticket in _types)
+                    RadioListTile<String>(
+                      value: ticket['id']?.toString() ?? '',
+                      enabled: ticket['is_on_sale'] == true,
+                      title: Text(ticket['name']?.toString() ?? 'Billet'),
+                      subtitle: Text(
+                        '${ticket['price'] ?? ''} ${ticket['currency'] ?? ''}'
+                        '${ticket['is_on_sale'] == true ? '' : ' · Non disponible'}',
+                      ),
+                    ),
+                ],
               ),
+            ),
             if (selected != null) ...[
               const SizedBox(height: 16),
               Row(
