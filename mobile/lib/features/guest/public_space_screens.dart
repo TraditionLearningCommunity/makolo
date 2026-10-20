@@ -669,6 +669,8 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                     ),
                   ),
                 const SizedBox(height: MakoloSpacing.xl),
+                const Divider(height: 1),
+                const SizedBox(height: MakoloSpacing.md),
                 if (_possibilities.isEmpty && !_loading && _error == null)
                   const Text(
                     'Cet Espace ne propose pas encore de possibilité publique.',
