@@ -580,8 +580,13 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
           onRefresh: _refresh,
           child: ListView(
             key: const Key('guest-public-space-detail'),
-            padding: const EdgeInsets.all(MakoloSpacing.lg),
+            padding: EdgeInsets.zero,
             children: [
+              Padding(
+                padding: const EdgeInsets.all(MakoloSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -637,10 +642,27 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
                   const Text(
                     'Cet Espace ne propose pas encore de possibilité publique.',
                   ),
+                ],
+              ),
+            ),
                 for (final possibility in _possibilities)
                   PublicPossibilityCard(
                     item: possibility,
                     compact: true,
+                    baseUri: widget.runtime.api?.baseUri,
+                    shareApi: widget.runtime.api,
+                    onSignIn: () {
+                      widget.runtime.recovery.requireAuthentication(
+                        '/discover/items/${Uri.encodeComponent(possibility.family)}/${Uri.encodeComponent(possibility.id)}',
+                      );
+                      context.push('/login');
+                    },
+                    onSave: () async {
+                      widget.runtime.recovery.requireAuthentication(
+                        '/discover/items/${Uri.encodeComponent(possibility.family)}/${Uri.encodeComponent(possibility.id)}',
+                      );
+                      if (context.mounted) context.push('/login');
+                    },
                     onTap: () => _openPossibility(possibility),
                   ),
                 if (_loading && _possibilities.isNotEmpty)
