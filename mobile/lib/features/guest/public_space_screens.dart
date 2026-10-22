@@ -566,13 +566,6 @@ class _PublicSpaceDetailScreenState extends State<PublicSpaceDetailScreen> {
     unawaited(_load());
   }
 
-  Future<void> _openWebsite() async {
-    final website = _field(_space, 'website');
-    final uri = _validPublicWebsite(website);
-    if (uri == null) return;
-    await const SystemShareGateway().openExternal(uri);
-  }
-
   void _openPossibility(DiscoveryItemPresentation possibility) {
     final family = possibility.family;
     final id = possibility.id;
