@@ -3,6 +3,8 @@ from django.http import FileResponse, Http404
 from django.views.decorators.http import require_GET
 
 from activities.models import ActivityStatus, ActivityVisibility
+from accounts.models import UserProfile
+from organizations.models import SpaceLifecycle
 from groups.selectors import eligible_activity_ids_for_profile
 from .media_models import PresentationMediaState, PresentationMediaUse
 
@@ -20,6 +22,21 @@ def published_media_file(request, use_id):
     if activity.status != ActivityStatus.PUBLISHED or activity.visibility != ActivityVisibility.PUBLIC:
         raise Http404
     if activity.pk not in eligible_activity_ids_for_profile(request.user, [activity.pk]):
+        raise Http404
+    if activity.space_id:
+        space = activity.space
+        if not (
+            space.public_profile and space.searchable
+            and space.lifecycle == SpaceLifecycle.ACTIVE
+            and space.verification_status != "suspended"
+        ):
+            raise Http404
+    elif not UserProfile.objects.filter(
+        user_id=activity.owner_profile_id,
+        public_profile=True,
+        searchable=True,
+        user__is_active=True,
+    ).exists():
         raise Http404
     # Publication of an association cannot transfer ownership of the underlying asset.
     if use.asset.owner_space_id:
