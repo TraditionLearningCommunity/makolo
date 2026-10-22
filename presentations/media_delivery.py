@@ -51,7 +51,7 @@ def published_media_file(request, use_id):
         raise Http404
     if use.asset.mime_type not in {"image/jpeg", "image/png"}:
         raise Http404
-    file = use.asset.file
+    file = use.asset.private_file if use.asset.private_file else use.asset.file
     if not file or not file.storage.exists(file.name):
         raise Http404
     try:
