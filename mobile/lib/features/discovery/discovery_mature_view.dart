@@ -111,6 +111,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           field: field,
           focus: _DiscoveryFocusPane(
             item: focused,
+            baseUri: widget.baseUri,
             onClose: () => setState(() => _focusedCandidateKey = null),
             onOpen: () => widget.onOpen(focused),
           ),
@@ -530,20 +531,22 @@ class _DiscoveryUnit extends StatelessWidget {
 }
 
 class _DiscoveryMedia extends StatelessWidget {
-  const _DiscoveryMedia({required this.item});
+  const _DiscoveryMedia({required this.item, this.baseUri});
 
   final DiscoveryItemPresentation item;
+  final Uri? baseUri;
 
   @override
   Widget build(BuildContext context) {
     final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    final networkImage =
-        uri != null && (uri.scheme == 'https' || uri.scheme == 'http');
+    final resolved = uri == null ? null : (uri.hasScheme ? uri : baseUri?.resolveUri(uri));
+    final networkImage = resolved != null &&
+        (resolved.scheme == 'https' || resolved.scheme == 'http');
 
     Widget? child;
     if (networkImage) {
       child = Image.network(
-        item.imageUrl!,
+        resolved.toString(),
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) =>
             MakoloMediaPlaceholder(label: item.eyebrow ?? 'Média indisponible'),
@@ -578,9 +581,11 @@ class _DiscoveryFocusPane extends StatelessWidget {
     required this.item,
     required this.onClose,
     required this.onOpen,
+    this.baseUri,
   });
 
   final DiscoveryItemPresentation item;
+  final Uri? baseUri;
   final VoidCallback onClose;
   final VoidCallback onOpen;
 
@@ -599,7 +604,7 @@ class _DiscoveryFocusPane extends StatelessWidget {
           ),
           const SizedBox(height: MakoloSpacing.md),
           if (item.imageUrl != null || item.routeLabel != null) ...[
-            _DiscoveryMedia(item: item),
+            _DiscoveryMedia(item: item, baseUri: baseUri),
             const SizedBox(height: MakoloSpacing.lg),
           ],
           if (item.eyebrow != null)
