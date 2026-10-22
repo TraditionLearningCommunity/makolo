@@ -37,8 +37,8 @@ class Migration(migrations.Migration):
                     models.Index(fields=["occurrence", "state", "purpose"], name="mps_media_occ_state_purp_idx"),
                 ],
                 "constraints": [
-                    models.UniqueConstraint(fields=["activity", "asset", "purpose"], condition=Q(occurrence__isnull=True), name="mps_media_activity_asset_purpose_unique"),
-                    models.UniqueConstraint(fields=["occurrence", "asset", "purpose"], condition=Q(occurrence__isnull=False), name="mps_media_occ_asset_purpose_unique"),
+                    models.UniqueConstraint(fields=["activity", "asset", "purpose"], condition=Q(occurrence__isnull=True) & ~Q(state="retired"), name="mps_media_activity_asset_purpose_unique"),
+                    models.UniqueConstraint(fields=["occurrence", "asset", "purpose"], condition=Q(occurrence__isnull=False) & ~Q(state="retired"), name="mps_media_occ_asset_purpose_unique"),
                     models.CheckConstraint(condition=Q(state="published", published_at__isnull=False) | ~Q(state="published"), name="mps_media_published_has_date"),
                 ],
             },
