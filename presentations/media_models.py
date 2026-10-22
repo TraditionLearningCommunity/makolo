@@ -46,12 +46,12 @@ class PresentationMediaUse(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["activity", "asset", "purpose"],
-                condition=Q(occurrence__isnull=True),
+                condition=Q(occurrence__isnull=True) & ~Q(state="retired"),
                 name="mps_media_activity_asset_purpose_unique",
             ),
             models.UniqueConstraint(
                 fields=["occurrence", "asset", "purpose"],
-                condition=Q(occurrence__isnull=False),
+                condition=Q(occurrence__isnull=False) & ~Q(state="retired"),
                 name="mps_media_occ_asset_purpose_unique",
             ),
             models.CheckConstraint(
