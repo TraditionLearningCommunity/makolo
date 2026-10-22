@@ -200,6 +200,8 @@ void main() {
     expect(find.text(longSummary), findsOneWidget);
     expect(find.text('Voir moins'), findsOneWidget);
     expect(opened, isFalse);
+    await tester.ensureVisible(find.text('Voir moins'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Voir moins'));
     await tester.pump();
     expect(find.text(longSummary), findsNothing);
