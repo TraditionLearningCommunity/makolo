@@ -129,7 +129,7 @@ class PresentationMediaUseTests(TestCase):
             actor=self.owner, activity=self.activity, asset=a2,
             purpose=PresentationMediaPurpose.RECOGNIZE, alt_text="Deuxième affiche",
         )
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(1):
             public_presentation_media_for_activities([self.activity])
 
     def test_private_activity_not_exposed(self):
