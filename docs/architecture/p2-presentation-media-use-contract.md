@@ -21,7 +21,7 @@ Un `PresentationAsset` possède les octets et la provenance ; `ActivityPresentat
 
 ## Opérations et frontières
 
-`associate_presentation_media`, `publish_presentation_media`, `retire_presentation_media`, `reorder_presentation_media`, `replace_presentation_media` vérifient `ACTIVITY_MANAGE` côté serveur. Le modèle revalide l'ownership et le lien Occurrence/Activity. La publication vérifie les octets au stockage à cet instant, mais ne crée aucun statut `available` en BDD.
+`associate_presentation_media`, `publish_presentation_media`, `retire_presentation_media`, `reorder_presentation_media`, `replace_presentation_media` vérifient `ACTIVITY_MANAGE` côté serveur. L’association et la publication revalident aussi le droit d’utiliser l’asset : auteur de l’upload, Profil propriétaire ou `SPACE_MANAGE` du bon Espace. Un mandataire Activity seul ne peut pas divulguer un asset Espace importé par un tiers. Le modèle revalide l'ownership et le lien Occurrence/Activity. La publication vérifie les octets au stockage à cet instant, mais ne crée aucun statut `available` en BDD.
 
 `public_presentation_media_for_activities(activities, occurrences=(), purpose=...)` retourne les références de média publiées sous forme de DTOs, **sans URL de fichier**. Elle ne réexécute pas le moteur d'admission Discovery ni les règles Group/Privacy d'une possibilité ; l'appelant doit fournir des Activities déjà admissibles. Elle applique néanmoins un garde minimum : Activity `public` et `published`, usage `published`, occurrence explicitement fournie. Une seule requête groupée, `select_related("asset")`.
 
