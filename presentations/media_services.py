@@ -48,10 +48,11 @@ def publish_presentation_media(*, actor, media_use):
     _require_asset_use(actor, use.asset, use.activity)
     if use.state != PresentationMediaState.DRAFT:
         raise ValidationError("Seul un usage brouillon peut être publié.")
-    if not use.asset.file:
+    stored_file = use.asset.private_file if use.asset.private_file else use.asset.file
+    if not stored_file:
         raise ValidationError("L’asset doit posséder un fichier validé.")
     # Missing octets are an operational failure, not a new persistent status.
-    if not use.asset.file.storage.exists(use.asset.file.name):
+    if not stored_file.storage.exists(stored_file.name):
         raise ValidationError("Le fichier de l’asset est indisponible.")
     use.state = PresentationMediaState.PUBLISHED
     use.published_at = timezone.now()
