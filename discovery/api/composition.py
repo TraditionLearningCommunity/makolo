@@ -41,6 +41,7 @@ from discovery.unified import (
     public_service_discovery_items,
 )
 
+from .media_bindings import apply_recognition_media
 from .projections import (
     project_funding_possibility,
     project_occurrence_possibility,
@@ -1014,45 +1015,11 @@ def project_rows(rows, *, profile=None) -> list[dict]:
                 if family == "activity" and candidate.occurrence_id is not None
                 else None
             )
-            valid_media = [
-                media for media in presentation_uses.get(current_activity_id, [])
-                if media.occurrence_id is None or media.occurrence_id == current_occurrence_id
-            ]
-            # Specific Occurrence imagery wins; generic Activity imagery remains fallback.
-            if current_occurrence_id:
-                valid_media.sort(key=lambda media: (
-                    media.occurrence_id != current_occurrence_id,
-                    media.position, media.use_id,
-                ))
-            # Prevent an unbounded gallery from expanding a paginated Discovery response.
-            valid_media = valid_media[:6]
-            explicit_bindings = [
-                {
-                    "resource": {
-                        "kind": "presentation_media_use",
-                        "id": media.use_id,
-                        "url": reverse("presentations:published-media-file", kwargs={"use_id": media.use_id}),
-                        "mime_type": media.mime_type,
-                        "alt_text": media.alt_text,
-                    },
-                    "target": dict(finalized["identity"]["resource"]),
-                    "purpose": "RECOGNIZE",
-                }
-                for media in valid_media
-            ]
-            if explicit_bindings:
-                fallback_bindings = finalized.get("media_bindings", [])
-                finalized["media_bindings"] = [
-                    *explicit_bindings,
-                    *[
-                        binding for binding in fallback_bindings
-                        if binding["resource"].get("url") not in {
-                            item["resource"]["url"] for item in explicit_bindings
-                        }
-                    ],
-                ]
-                finalized["representation"]["image_url"] = explicit_bindings[0]["resource"]["url"]
-                finalized["representation"]["kind"] = "image"
+            apply_recognition_media(
+                finalized,
+                presentation_uses.get(current_activity_id, ()),
+                occurrence_id=current_occurrence_id,
+            )
         if family in {"activity", "service_activity"}:
             key = (
                 str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
