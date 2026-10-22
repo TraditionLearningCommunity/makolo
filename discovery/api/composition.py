@@ -1019,10 +1019,13 @@ def project_rows(rows, *, profile=None) -> list[dict]:
                 if media.occurrence_id is None or media.occurrence_id == current_occurrence_id
             ]
             # Specific Occurrence imagery wins; generic Activity imagery remains fallback.
-            valid_media.sort(key=lambda media: (
-                media.occurrence_id != current_occurrence_id,
-                media.position, media.use_id,
-            )) if current_occurrence_id else None
+            if current_occurrence_id:
+                valid_media.sort(key=lambda media: (
+                    media.occurrence_id != current_occurrence_id,
+                    media.position, media.use_id,
+                ))
+            # Prevent an unbounded gallery from expanding a paginated Discovery response.
+            valid_media = valid_media[:6]
             explicit_bindings = [
                 {
                     "resource": {
