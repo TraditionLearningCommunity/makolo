@@ -5,7 +5,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
-from django.utils import timezone
 
 
 class PresentationMediaPurpose(models.TextChoices):
@@ -80,6 +79,8 @@ class PresentationMediaUse(models.Model):
                     errors["asset"] = "L’asset Profil ne correspond pas au propriétaire de l’Activity."
             else:
                 errors["asset"] = "Un asset sans propriétaire explicite ne peut pas être associé."
+        if self.asset_id and self.asset.mime_type not in {"image/jpeg", "image/png"}:
+            errors["asset"] = "Seuls les assets image JPEG et PNG sont admis en P2."
         if self.state == PresentationMediaState.PUBLISHED and not self.published_at:
             errors["published_at"] = "La publication doit passer par le service."
         if not (self.alt_text or "").strip():
@@ -88,6 +89,8 @@ class PresentationMediaUse(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        if self._state.adding and self.state != PresentationMediaState.DRAFT:
+            raise ValidationError("Un nouvel usage doit commencer en brouillon.")
         if self.pk and not self._state.adding:
             previous = type(self).objects.filter(pk=self.pk).values("state").first()
             if previous and previous["state"] != self.state and not getattr(self, "_allow_state_transition", False):
