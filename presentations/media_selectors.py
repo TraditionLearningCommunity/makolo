@@ -1,7 +1,7 @@
 """Privacy-scoped, URL-free media projection candidates for P3."""
 from dataclasses import dataclass
 
-from activities.models import Activity, ActivityVisibility
+from activities.models import ActivityStatus, ActivityVisibility
 
 from .media_models import PresentationMediaPurpose, PresentationMediaState, PresentationMediaUse
 
@@ -26,7 +26,7 @@ def public_presentation_media_for_activities(activities, *, occurrences=(), purp
     """
     activities = list(activities)
     occurrences = list(occurrences)
-    ids = {a.pk for a in activities if a.visibility == ActivityVisibility.PUBLIC}
+    ids = {a.pk for a in activities if a.visibility == ActivityVisibility.PUBLIC and a.status == ActivityStatus.PUBLISHED}
     allowed_occurrence_ids = {o.pk for o in occurrences if o.activity_id in ids}
     result = {str(pk): [] for pk in ids}
     if not ids:
