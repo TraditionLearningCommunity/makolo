@@ -9,6 +9,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from accounts.models import UserProfile
 from activities.models import ActivityStatus
 from activities.services import create_activity, create_occurrence, update_activity_common
 from authorization.services import grant_activity_role
@@ -34,6 +35,7 @@ class PresentationMediaUseTests(TestCase):
         self.addCleanup(self.storage_override.disable)
         self.owner = User.objects.create_user(username="p2-owner", email="p2-owner@example.test", password="StrongPass2026!")
         self.other = User.objects.create_user(username="p2-other", email="p2-other@example.test", password="StrongPass2026!")
+        UserProfile.objects.update_or_create(user=self.owner, defaults={"public_profile": True, "searchable": True})
         self.activity = create_activity(
             owner_profile=self.owner, created_by=self.owner, title="Atelier P2",
             status=ActivityStatus.PUBLISHED,
