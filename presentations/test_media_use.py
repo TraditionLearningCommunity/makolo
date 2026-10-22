@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from activities.models import ActivityStatus
 from activities.services import create_activity, create_occurrence, update_activity_common
+from authorization.services import grant_activity_role
 from organizations.services import create_organization
 from .asset_models import PresentationAsset
 from .enums import Provenance
@@ -158,6 +159,33 @@ class PresentationMediaUseTests(TestCase):
                 purpose=PresentationMediaPurpose.RECOGNIZE,
                 alt_text="Asset appartenant à l’Espace",
             )
+
+    def test_activity_manager_cannot_publish_another_users_space_asset(self):
+        space = create_organization(creator=self.owner, name="Espace partagé P2")
+        shared = create_activity(
+            space=space, created_by=self.owner, title="Atelier Espace",
+            status=ActivityStatus.PUBLISHED,
+        )
+        grant_activity_role(profile=self.other, activity=shared, granted_by=self.owner)
+        asset = PresentationAsset(
+            provenance=Provenance.SPACE, owner_space=space,
+            uploaded_by=self.owner, mime_type="image/png", size=4,
+            checksum="c" * 64,
+        )
+        asset.file.save("shared.png", ContentFile(b"test"), save=False)
+        asset.save()
+        with self.assertRaises(PermissionDenied):
+            associate_presentation_media(
+                actor=self.other, activity=shared, asset=asset,
+                purpose=PresentationMediaPurpose.RECOGNIZE, alt_text="Confidentiel",
+            )
+        use = associate_presentation_media(
+            actor=self.owner, activity=shared, asset=asset,
+            purpose=PresentationMediaPurpose.RECOGNIZE, alt_text="Affiche autorisée",
+        )
+        with self.assertRaises(PermissionDenied):
+            publish_presentation_media(actor=self.other, media_use=use)
+        publish_presentation_media(actor=self.owner, media_use=use)
 
     def test_initial_published_state_cannot_bypass_service(self):
         with self.assertRaises(ValidationError):
