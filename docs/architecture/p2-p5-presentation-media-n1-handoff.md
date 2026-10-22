@@ -50,3 +50,8 @@ Un APK DEV généré par GitHub Actions référence l'API HTTPS prévue par `mob
 ## État et gates
 
 Implémentation sur #522 non fusionnée. Les contrôles CI et les tests pertinents restent obligatoires avant merge ; la demande utilisateur de reporter leur fermeture à après P5 ne transforme pas une CI rouge en validation. Aucun nouveau seed ni backfill artificiel.
+
+
+## Ajout P2 : stockage protégé des nouveaux médias N1
+
+La migration additive `presentations.0006_private_presentation_assets` conserve `PresentationAsset.file` pour les anciens rendus MPS et ajoute `PresentationAsset.private_file`, stocké hors du `MEDIA_ROOT` public via `PrivatePresentationStorage`. Le formulaire d'import N1 écrit seulement dans ce champ protégé. La publication et le téléchargement autorisé privilégient `private_file` et conservent une lecture de compatibilité des anciens assets `file`. Les anciens liens `editorial_data.hero_image` ne sont pas automatiquement migrés ; leur confidentialité reste à vérifier selon le routage serveur existant.
