@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../platform/sharing/share_gateway.dart';
 import '../../presentation/fields/geo_autocomplete_field.dart';
 import '../../presentation/fields/search_filter_bar.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
@@ -395,16 +394,6 @@ class PublicSpaceDetailScreen extends StatefulWidget {
   @override
   State<PublicSpaceDetailScreen> createState() =>
       _PublicSpaceDetailScreenState();
-}
-
-Uri? _validPublicWebsite(String website) {
-  final uri = Uri.tryParse(website);
-  if (uri == null ||
-      !{'http', 'https'}.contains(uri.scheme) ||
-      uri.host.isEmpty) {
-    return null;
-  }
-  return uri;
 }
 
 const _spaceArchetypes = <String, String>{
