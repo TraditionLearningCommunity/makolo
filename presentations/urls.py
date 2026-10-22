@@ -1,4 +1,5 @@
 from django.urls import path
+from .media_delivery import published_media_file
 
 from .library_views import ActivateTemplateVersionView, DuplicateTemplateView, ModerateTemplateView, PresentationLibraryView, SetSpaceDefaultView, SpacePresentationLibraryView, SubmitTemplateView, TemplateVersionPreviewView
 from .views import ActivityArtifactPresentationView, ActivityPresentationPreviewView, ActivityPresentationStudioView, ParticipantAccessPresentationView, ParticipantJourneyPresentationView, PublicActivityPresentationView
@@ -6,6 +7,7 @@ from .views import ActivityArtifactPresentationView, ActivityPresentationPreview
 app_name = "presentations"
 
 urlpatterns = [
+    path("media/uses/<uuid:use_id>/file/", published_media_file, name="published-media-file"),
     path("activity/<uuid:activity_id>/studio/", ActivityPresentationStudioView.as_view(), name="studio"),
     path("activity/<uuid:activity_id>/preview/", ActivityPresentationPreviewView.as_view(), name="preview"),
     path("activity/<uuid:activity_id>/artifact/<str:purpose>/", ActivityArtifactPresentationView.as_view(), name="activity-artifact"),
