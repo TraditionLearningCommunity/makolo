@@ -14,9 +14,23 @@ def _require_manage(actor, activity):
         raise PermissionDenied("Gestion des médias de cette Activity non autorisée.")
 
 
+def _require_asset_use(actor, asset, activity):
+    """Activity authority never implicitly grants rights to another owner's assets."""
+    if asset.uploaded_by_id == getattr(actor, "pk", None):
+        return
+    if asset.owner_profile_id and asset.owner_profile_id == getattr(actor, "pk", None):
+        return
+    if asset.owner_space_id and activity.space_id == asset.owner_space_id and can(
+        actor, PermissionCode.SPACE_MANAGE, space=activity.space
+    ):
+        return
+    raise PermissionDenied("Utilisation de cet asset non autorisée.")
+
+
 @transaction.atomic
 def associate_presentation_media(*, actor, activity, asset, purpose, occurrence=None, position=0, alt_text):
     _require_manage(actor, activity)
+    _require_asset_use(actor, asset, activity)
     if occurrence is not None and occurrence.activity_id != activity.pk:
         raise ValidationError({"occurrence": "Occurrence étrangère à l’Activity."})
     use = PresentationMediaUse(
@@ -31,6 +45,7 @@ def associate_presentation_media(*, actor, activity, asset, purpose, occurrence=
 def publish_presentation_media(*, actor, media_use):
     use = PresentationMediaUse.objects.select_for_update().select_related("activity", "asset", "occurrence").get(pk=media_use.pk)
     _require_manage(actor, use.activity)
+    _require_asset_use(actor, use.asset, use.activity)
     if use.state != PresentationMediaState.DRAFT:
         raise ValidationError("Seul un usage brouillon peut être publié.")
     if not use.asset.file:
