@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from activities.models import ActivityStatus
 from activities.services import create_activity, create_occurrence, update_activity_common
+from organizations.services import create_organization
 from .asset_models import PresentationAsset
 from .enums import Provenance
 from .media_models import PresentationMediaPurpose, PresentationMediaState, PresentationMediaUse
@@ -131,6 +132,47 @@ class PresentationMediaUseTests(TestCase):
         )
         with self.assertNumQueries(1):
             public_presentation_media_for_activities([self.activity])
+
+    def test_space_asset_requires_same_space(self):
+        space = create_organization(creator=self.owner, name="Espace P2")
+        space_activity = create_activity(
+            space=space, created_by=self.owner, title="Atelier collectif",
+            status=ActivityStatus.PUBLISHED,
+        )
+        space_asset = PresentationAsset(
+            provenance=Provenance.SPACE, owner_space=space,
+            uploaded_by=self.owner, mime_type="image/png", size=4,
+            checksum="b" * 64,
+        )
+        space_asset.file.save("space.png", ContentFile(b"test"), save=False)
+        space_asset.save()
+        use = associate_presentation_media(
+            actor=self.owner, activity=space_activity, asset=space_asset,
+            purpose=PresentationMediaPurpose.RECOGNIZE, alt_text="Affiche de l’Espace",
+        )
+        publish_presentation_media(actor=self.owner, media_use=use)
+        self.assertEqual(len(public_presentation_media_for_activities([space_activity])[str(space_activity.pk)]), 1)
+        with self.assertRaises(ValidationError):
+            associate_presentation_media(
+                actor=self.owner, activity=self.activity, asset=space_asset,
+                purpose=PresentationMediaPurpose.RECOGNIZE,
+                alt_text="Asset appartenant à l’Espace",
+            )
+
+    def test_initial_published_state_cannot_bypass_service(self):
+        with self.assertRaises(ValidationError):
+            PresentationMediaUse.objects.create(
+                activity=self.activity, asset=self.asset, created_by=self.owner,
+                purpose=PresentationMediaPurpose.RECOGNIZE, alt_text="Affiche",
+                state=PresentationMediaState.PUBLISHED, published_at=timezone.now(),
+            )
+
+    def test_retired_use_remains_unpublished(self):
+        use = self._associate()
+        publish_presentation_media(actor=self.owner, media_use=use)
+        retire_presentation_media(actor=self.owner, media_use=use)
+        with self.assertRaises(ValidationError):
+            publish_presentation_media(actor=self.owner, media_use=use)
 
     def test_private_activity_not_exposed(self):
         use = self._associate()
