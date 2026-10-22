@@ -262,7 +262,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       setState(() {
         _loading = false;
         _updatingCriteria = false;
-        _error = 'Les informations reçues ne peuvent pas être affichées.';
+        _error = 'Contrat Discovery incompatible : les informations reçues ne peuvent pas être affichées.';
       });
       _trace(
         'LOAD_FINISHED',
