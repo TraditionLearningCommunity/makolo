@@ -1,6 +1,6 @@
 """Domain-owned operations; no Discovery or client dependency."""
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.utils import timezone
 
 from authorization.constants import PermissionCode
