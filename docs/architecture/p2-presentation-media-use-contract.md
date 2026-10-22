@@ -47,4 +47,4 @@ Le stockage `PresentationAsset.file` historique et `editorial_data.hero_image` s
 
 `python manage.py makemigrations --check --dry-run`
 
-Migration additive `presentations.0004_presentationmediause` à valider sur PostgreSQL en CI. Aucune modification de données de démonstration, API Discovery ou Flutter.
+Migration additive `presentations.0005_presentationmediause` à valider sur PostgreSQL en CI. Aucune modification de données de démonstration, API Discovery ou Flutter.
