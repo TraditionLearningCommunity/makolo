@@ -44,6 +44,7 @@ class ActivityMediaUploadView(ActivityMediaAuthorityMixin, View):
             asset = create_presentation_asset(
                 actor=request.user, uploaded_file=uploaded,
                 activity=self.activity, owner_space=self.activity.space,
+                protected=True,
             )
             media = associate_presentation_media(
                 actor=request.user, activity=self.activity, asset=asset,
