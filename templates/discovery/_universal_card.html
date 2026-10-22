@@ -81,11 +81,6 @@
   </div>
   {% endif %}
   {% if card.participant_state and card.participant_state.label or card.participant_state and card.participant_state.secondary_label %}<div class="p-5 sm:p-6" aria-label="Mon état"><div class="rounded-2xl border p-4" style="border-color:var(--mk-border);background:var(--mk-surface-muted)">{% if card.participant_state.label %}<p class="text-sm font-bold">{{ card.participant_state.label }}</p>{% endif %}{% if card.participant_state.secondary_label %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ card.participant_state.secondary_label }}</p>{% endif %}</div></div>{% endif %}
-  {% if request.user.is_authenticated %}
-  <div class="hidden lg:block px-5 pt-3 sm:px-6">
-    <button type="button" class="mk-btn mk-btn-secondary mk-discovery-preview-action min-h-[44px] w-full justify-center" hx-get="{{ card.url }}" hx-target="#discover-preview-body" hx-select="#main-content" hx-swap="innerHTML" hx-push-url="false" hx-indicator="#discover-preview" aria-label="Aperçu"><i data-lucide="eye" class="h-4 w-4" aria-hidden="true"></i><span>Aperçu</span></button>
-  </div>
-  {% endif %}
   <div class="mt-5 grid grid-cols-3 gap-2 border-t p-3 sm:gap-3 sm:p-5" style="border-color:var(--mk-border)" aria-label="Interactions avec cette possibilité">
     <div class="min-w-0">
       {% if card.actions.save and card.actions.save.url %}
