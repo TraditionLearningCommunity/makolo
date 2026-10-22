@@ -865,6 +865,29 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     # public description. Bulk-load it for the selected page only.
     from activities.models import Activity
 
+    # Resolve published visual uses for this admitted page, in one bounded query.
+    # A document Resource is never promoted into a cover.
+    from groups.selectors import eligible_activity_ids_for_profile
+    from presentations.media_models import PresentationMediaPurpose
+    from presentations.media_selectors import public_presentation_media_for_activities
+
+    admitted_activity_ids = eligible_activity_ids_for_profile(profile, activity_ids)
+    presentation_activities = list(Activity.objects.filter(pk__in=admitted_activity_ids))
+    candidate_occurrence_ids = {
+        candidate.occurrence_id
+        for family, _, candidate in rows
+        if family == "activity" and candidate.occurrence_id is not None
+    }
+    from activities.models import Occurrence
+    presentation_occurrences = list(Occurrence.objects.filter(
+        pk__in=candidate_occurrence_ids,
+        activity_id__in=admitted_activity_ids,
+    ))
+    presentation_uses = public_presentation_media_for_activities(
+        presentation_activities,
+        occurrences=presentation_occurrences,
+        purpose=PresentationMediaPurpose.RECOGNIZE,
+    )
     descriptions_by_activity = {
         str(activity_id): description
         for activity_id, description in Activity.objects.filter(
@@ -982,6 +1005,51 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             )
             finalized["owner"] = facts.get("owner")
             finalized["date"] = facts.get("date")
+        if family in {"activity", "service_activity", "funding_activity"}:
+            current_activity_id = str(
+                candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id
+            )
+            current_occurrence_id = (
+                str(candidate.occurrence_id)
+                if family == "activity" and candidate.occurrence_id is not None
+                else None
+            )
+            valid_media = [
+                media for media in presentation_uses.get(current_activity_id, [])
+                if media.occurrence_id is None or media.occurrence_id == current_occurrence_id
+            ]
+            # Specific Occurrence imagery wins; generic Activity imagery remains fallback.
+            valid_media.sort(key=lambda media: (
+                media.occurrence_id != current_occurrence_id,
+                media.position, media.use_id,
+            )) if current_occurrence_id else None
+            explicit_bindings = [
+                {
+                    "resource": {
+                        "kind": "presentation_media_use",
+                        "id": media.use_id,
+                        "url": reverse("presentations:published-media-file", kwargs={"use_id": media.use_id}),
+                        "mime_type": media.mime_type,
+                        "alt_text": media.alt_text,
+                    },
+                    "target": dict(finalized["identity"]["resource"]),
+                    "purpose": "RECOGNIZE",
+                }
+                for media in valid_media
+            ]
+            if explicit_bindings:
+                fallback_bindings = finalized.get("media_bindings", [])
+                finalized["media_bindings"] = [
+                    *explicit_bindings,
+                    *[
+                        binding for binding in fallback_bindings
+                        if binding["resource"].get("url") not in {
+                            item["resource"]["url"] for item in explicit_bindings
+                        }
+                    ],
+                ]
+                finalized["representation"]["image_url"] = explicit_bindings[0]["resource"]["url"]
+                finalized["representation"]["kind"] = "image"
         if family in {"activity", "service_activity"}:
             key = (
                 str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
