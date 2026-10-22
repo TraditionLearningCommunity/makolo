@@ -137,7 +137,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         _loading = false;
         _updatingCriteria = false;
         _serviceUnavailable = true;
-        _error = 'Actualisation indisponible.';
+        _error = 'Impossible d’actualiser les Espaces publics.';
       });
     }
   }
