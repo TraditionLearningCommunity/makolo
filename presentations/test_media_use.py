@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -15,6 +16,7 @@ from activities.services import create_activity, create_occurrence, update_activ
 from authorization.services import grant_activity_role
 from organizations.services import create_organization
 from .asset_models import PresentationAsset
+from .asset_services import create_presentation_asset
 from .enums import Provenance
 from .media_models import PresentationMediaPurpose, PresentationMediaState, PresentationMediaUse
 from .media_selectors import public_presentation_media_for_activities
@@ -237,4 +239,34 @@ class PresentationMediaUseTests(TestCase):
         publish_presentation_media(actor=self.owner, media_use=use)
         use.asset.file.storage.delete(use.asset.file.name)
         url = reverse("presentations:published-media-file", kwargs={"use_id": use.pk})
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+
+    def test_private_import_uses_protected_storage_and_published_use_url(self):
+        uploaded = SimpleUploadedFile(
+            "sample.png", b"\\x89PNG\\r\\n\\x1a\\n" + b"test",
+            content_type="image/png",
+        )
+        asset = create_presentation_asset(
+            actor=self.owner, uploaded_file=uploaded,
+            activity=self.activity, protected=True,
+        )
+        self.addCleanup(lambda: asset.private_file.storage.delete(asset.private_file.name))
+        self.assertFalse(bool(asset.file))
+        self.assertTrue(bool(asset.private_file))
+        self.assertTrue(asset.private_file.storage.exists(asset.private_file.name))
+        with self.assertRaises(ValueError):
+            _ = asset.private_file.url
+        use = associate_presentation_media(
+            actor=self.owner, activity=self.activity, asset=asset,
+            purpose=PresentationMediaPurpose.RECOGNIZE,
+            alt_text="Image publiée depuis un fichier privé",
+        )
+        url = reverse("presentations:published-media-file", kwargs={"use_id": use.pk})
+        self.assertEqual(self.client.get(url).status_code, 404)
+        publish_presentation_media(actor=self.owner, media_use=use)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        response.close()
+        retire_presentation_media(actor=self.owner, media_use=use)
         self.assertEqual(self.client.get(url).status_code, 404)
