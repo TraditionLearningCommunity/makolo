@@ -108,9 +108,25 @@ void main() {
     expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
     expect(find.byKey(const Key('discover-wide-grid')), findsNothing);
     expect(find.text('Formation Data Science'), findsOneWidget);
+    // N1 scrolls a bounded page: off-screen cards are built on demand.
+    await tester.scrollUntilVisible(
+      find.text('Lubumbashi → Kolwezi'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Lubumbashi → Kolwezi'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Accompagnement à distance'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Accompagnement à distance'), findsOneWidget);
     expect(find.text('S’inscrire'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.textContaining('contenu de remplissage'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.textContaining('contenu de remplissage'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
