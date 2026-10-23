@@ -16,7 +16,7 @@ Option vidéo courte réelle si ffmpeg est disponible :
     python manage.py seed_discover_media_demo --operator USERNAME --activity-id ACTIVITY_UUID --with-video
 
 Effets bornés : deux PNG originaux associés à PresentationMediaUse/RECOGNIZE,
-un PDF réel, un CSV réel, un texte public et un texte PARTICIPANT non public.
+un PDF réel, un CSV réel, une image documentaire, un lien externe d’exemple.org, un texte public et un texte PARTICIPANT non public.
 La vidéo optionnelle est une Resource documentaire : elle ne devient pas couverture.
 Les assets Presentation sont stockés dans le stockage privé existant et délivrés
 par leur usage publié contrôlé côté serveur. Aucune base ni média existant

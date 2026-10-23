@@ -157,6 +157,10 @@ class Command(BaseCommand):
                  ResourceVisibility.PUBLIC, "application/pdf", pdf_data(activity)),
                 ("demo-planning-csv", "Planning de démonstration", ResourceKind.FILE,
                  ResourceVisibility.PUBLIC, "text/csv", csv_data(activity)),
+                ("demo-image-document", "Image documentaire de démonstration", ResourceKind.FILE,
+                 ResourceVisibility.PUBLIC, "image/png", image_data(activity, 3)),
+                ("demo-lien-externe", "Exemple de lien externe", ResourceKind.URL,
+                 ResourceVisibility.PUBLIC, None, "https://example.org/"),
                 ("demo-information", "Informations pratiques", ResourceKind.TEXT,
                  ResourceVisibility.PUBLIC, None, "Préparer les documents nécessaires."),
                 ("demo-note-privee", "Note réservée", ResourceKind.TEXT,
@@ -171,10 +175,12 @@ class Command(BaseCommand):
                 ).exists():
                     continue
                 if kind == ResourceKind.FILE:
-                    extension = {"application/pdf": "pdf", "text/csv": "csv", "video/mp4": "mp4"}[mime]
+                    extension = {"application/pdf": "pdf", "text/csv": "csv", "video/mp4": "mp4", "image/png": "png"}[mime]
                     payload = {"uploaded_file": SimpleUploadedFile(
                         f"{key}.{extension}", value, content_type=mime,
                     )}
+                elif kind == ResourceKind.URL:
+                    payload = {"external_url": value}
                 else:
                     payload = {"text_content": value}
                 resource = create_resource(
