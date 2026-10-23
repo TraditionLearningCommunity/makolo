@@ -33,11 +33,46 @@ def _participant_has_context(actor, resource):
     return queryset.exists()
 
 
+def _public_activity_resource_allowed(actor, activity):
+    """Published public Resource != authority to reveal a private Activity."""
+    from accounts.models import UserProfile
+    from activities.models import ActivityStatus, ActivityVisibility
+    from groups.selectors import eligible_activity_ids_for_profile
+    from organizations.models import SpaceLifecycle
+
+    if (
+        activity.status != ActivityStatus.PUBLISHED
+        or activity.visibility != ActivityVisibility.PUBLIC
+        or activity.pk not in eligible_activity_ids_for_profile(actor, [activity.pk])
+    ):
+        return False
+    if activity.space_id:
+        space = activity.space
+        return bool(
+            space.public_profile and space.searchable
+            and space.lifecycle == SpaceLifecycle.ACTIVE
+            and space.verification_status != "suspended"
+        )
+    return UserProfile.objects.filter(
+        user_id=activity.owner_profile_id,
+        public_profile=True,
+        searchable=True,
+        user__is_active=True,
+    ).exists()
+
+
 def can_view_resource(actor, resource):
     if resource.status != ResourceStatus.PUBLISHED:
         return bool(getattr(actor, "is_authenticated", False) and can(actor, PermissionCode.ACTIVITY_MANAGE, activity=resource.activity))
     if resource.visibility == ResourceVisibility.PUBLIC:
-        return True
+        if _public_activity_resource_allowed(actor, resource.activity):
+            return True
+        if getattr(actor, "is_authenticated", False):
+            return (
+                can(actor, PermissionCode.ACTIVITY_MANAGE, activity=resource.activity)
+                or _participant_has_context(actor, resource)
+            )
+        return False
     if not getattr(actor, "is_authenticated", False):
         return False
     if resource.visibility == ResourceVisibility.RESTRICTED:

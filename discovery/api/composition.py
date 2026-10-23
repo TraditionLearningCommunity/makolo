@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from urllib.parse import urlsplit
 
 from dataclasses import dataclass
 from types import SimpleNamespace
@@ -274,7 +275,19 @@ def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
                 "external_url": (
                     resource.external_url
                     if resource.kind == ResourceKind.URL
+                    and urlsplit(resource.external_url).scheme.lower() in {"https", "http"}
+                    and urlsplit(resource.external_url).netloc
                     else None
+                ),
+                "text_content": (
+                    resource.text_content[:2400]
+                    if resource.kind == ResourceKind.TEXT
+                    else None
+                ),
+                "text_truncated": (
+                    len(resource.text_content) > 2400
+                    if resource.kind == ResourceKind.TEXT
+                    else False
                 ),
                 "download_url": (
                     reverse(

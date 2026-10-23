@@ -115,6 +115,38 @@ class PreparationResourceM2Tests(TestCase):
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
         self.assertEqual(response["Cache-Control"], "private, no-store")
 
+    def test_missing_public_file_returns_404_without_storage_error(self):
+        upload = SimpleUploadedFile(
+            "public.pdf", b"%PDF-1.4\n%%EOF\n", content_type="application/pdf"
+        )
+        resource = create_resource(
+            activity=self.activity, actor=self.operator, key="missing-public",
+            title="Public PDF", kind=ResourceKind.FILE,
+            uploaded_file=upload, visibility=ResourceVisibility.PUBLIC,
+        )
+        publish_resource(resource=resource, actor=self.operator)
+        url = reverse("preparation:resource-download", kwargs={"resource_id": resource.pk})
+        resource.file.storage.delete(resource.file.name)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_unpublished_activity_never_grants_anonymous_public_download(self):
+        from activities.models import ActivityStatus, ActivityVisibility
+
+        upload = SimpleUploadedFile(
+            "private.pdf", b"%PDF-1.4\n%%EOF\n", content_type="application/pdf"
+        )
+        resource = create_resource(
+            activity=self.activity, actor=self.operator, key="not-discoverable",
+            title="Public-label only", kind=ResourceKind.FILE,
+            uploaded_file=upload, visibility=ResourceVisibility.PUBLIC,
+        )
+        publish_resource(resource=resource, actor=self.operator)
+        self.activity.status = ActivityStatus.DRAFT
+        self.activity.visibility = ActivityVisibility.PRIVATE
+        self.activity.save()
+        url = reverse("preparation:resource-download", kwargs={"resource_id": resource.pk})
+        self.assertEqual(self.client.get(url).status_code, 404)
+
     def test_invalid_file_signature_is_rejected(self):
         upload = SimpleUploadedFile("fake.pdf", b"not-a-pdf", content_type="application/pdf")
         with self.assertRaises(ValidationError):

@@ -344,6 +344,13 @@ def _web_discovery_card(item):
             for resource in (item.get("resources") or [])
             if resource.get("title")
         ),
+        gallery_media=tuple(
+            media
+            for media in (item.get("media_bindings") or [])
+            if (media.get("resource") or {}).get("mime_type", "").startswith("image/")
+            and (media.get("resource") or {}).get("url")
+            and (media.get("resource") or {}).get("url") != representation.get("image_url")
+        ),
         context_notes=tuple(
             fact.get("label")
             for fact in (item.get("assessment") or [])

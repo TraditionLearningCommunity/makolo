@@ -19,9 +19,29 @@ class ResourceDownloadView(View):
         resource = get_object_or_404(ActivityResource.objects.select_related("activity", "occurrence"), pk=resource_id)
         if resource.kind != ResourceKind.FILE or not resource.file or not can_view_resource(request.user, resource):
             raise Http404
-        handle = resource.file.open("rb")
-        response = FileResponse(handle, content_type=resource.mime_type or "application/octet-stream")
-        response["Content-Disposition"] = f'attachment; filename="resource-{resource.pk}.bin"'
+        if not resource.file.storage.exists(resource.file.name):
+            raise Http404
+        mime = (resource.mime_type or "").lower()
+        inline_types = {
+            "application/pdf": "pdf",
+            "image/png": "png",
+            "image/jpeg": "jpg",
+            "video/mp4": "mp4",
+            "audio/mpeg": "mp3",
+            "audio/wav": "wav",
+        }
+        suffix = inline_types.get(mime, "bin")
+        try:
+            handle = resource.file.open("rb")
+        except (OSError, ValueError):
+            raise Http404 from None
+        response = FileResponse(
+            handle, content_type=mime if suffix != "bin" else "application/octet-stream"
+        )
+        disposition = "inline" if suffix != "bin" else "attachment"
+        response["Content-Disposition"] = (
+            f'{disposition}; filename="resource-{resource.pk}.{suffix}"'
+        )
         response["X-Content-Type-Options"] = "nosniff"
         response["Cache-Control"] = "private, no-store"
         return response
