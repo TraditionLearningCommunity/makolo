@@ -480,7 +480,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               children: [
                 _ownerHeader(context),
                 const SizedBox(height: MakoloSpacing.sm),
-                Text(item.title, style: theme.textTheme.titleLarge),
+                InkWell(
+                  onTap: widget.onOpen,
+                  child: Text(item.title, style: theme.textTheme.titleLarge),
+                ),
                 const SizedBox(height: MakoloSpacing.xs),
                 Text(
                   item.representation?['vertical_label']?.toString() ??
@@ -529,7 +532,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     spacing: MakoloSpacing.sm,
                     runSpacing: MakoloSpacing.xs,
                     children: [
-                      for (final fact in _reliableFacts.take(2))
+                      for (final fact in _reliableFacts)
                         Text(
                           fact['value'] as String,
                           style: theme.textTheme.bodySmall?.copyWith(
