@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+
+from django.conf import settings
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -17,6 +21,37 @@ from .models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisi
 
 
 TERMINAL_UNSUCCESSFUL_JOURNEY_STATUSES = {"rejected", "cancelled", "expired"}
+
+
+def _validate_resource_upload(uploaded_file):
+    """Signature-check documentary CSV, MP4 and WAV without relaxing Journey."""
+    mime = (getattr(uploaded_file, "content_type", "") or "").split(";", 1)[0].strip().lower()
+    if mime not in {"text/csv", "video/mp4", "audio/wav"}:
+        return validate_artifact_upload(uploaded_file)
+    limit = int(getattr(settings, "DATA_UPLOAD_MAX_MEMORY_SIZE", 12 * 1024 * 1024))
+    size = int(getattr(uploaded_file, "size", 0) or 0)
+    if not 0 < size <= limit:
+        raise ValidationError("Fichier documentaire vide ou trop volumineux.")
+    uploaded_file.seek(0)
+    data = uploaded_file.read(limit + 1)
+    uploaded_file.seek(0)
+    if len(data) != size:
+        raise ValidationError("Taille du fichier documentaire incorrecte.")
+    if mime == "text/csv":
+        try:
+            text = data.decode("utf-8-sig")
+            valid = not any(ord(char) == 0 for char in text) and (
+                "\n" in text or "," in text or ";" in text
+            )
+        except UnicodeDecodeError:
+            valid = False
+    elif mime == "video/mp4":
+        valid = len(data) > 16 and data[4:8] == b"ftyp"
+    else:
+        valid = len(data) > 44 and data[:4] == b"RIFF" and data[8:12] == b"WAVE"
+    if not valid:
+        raise ValidationError("Signature de fichier documentaire invalide.")
+    return data, mime, hashlib.sha256(data).hexdigest()
 
 
 def _require_manage(actor, activity):
@@ -150,7 +185,7 @@ def create_resource(
         created_by=actor,
     )
     if kind == ResourceKind.FILE:
-        data, mime_type, content_hash = validate_artifact_upload(uploaded_file)
+        data, mime_type, content_hash = _validate_resource_upload(uploaded_file)
         resource.size = len(data)
         resource.mime_type = mime_type
         resource.content_hash = content_hash
@@ -199,7 +234,7 @@ def replace_resource(*, resource, actor, uploaded_file=None, **changes):
     if replacement.kind == ResourceKind.FILE:
         if uploaded_file is None:
             raise ValidationError("Une nouvelle version de fichier exige un nouveau fichier.")
-        file_data, mime_type, content_hash = validate_artifact_upload(uploaded_file)
+        file_data, mime_type, content_hash = _validate_resource_upload(uploaded_file)
         replacement.size = len(file_data)
         replacement.mime_type = mime_type
         replacement.content_hash = content_hash

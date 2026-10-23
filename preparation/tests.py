@@ -147,6 +147,26 @@ class PreparationResourceM2Tests(TestCase):
         url = reverse("preparation:resource-download", kwargs={"resource_id": resource.pk})
         self.assertEqual(self.client.get(url).status_code, 404)
 
+    def test_documentary_csv_is_signature_checked(self):
+        csv_file = SimpleUploadedFile(
+            "schedule.csv", b"date,place\\n2026-12-01,Lubumbashi\\n",
+            content_type="text/csv",
+        )
+        resource = create_resource(
+            activity=self.activity, actor=self.operator, key="public-csv",
+            title="Planning CSV", kind=ResourceKind.FILE,
+            uploaded_file=csv_file, visibility=ResourceVisibility.PUBLIC,
+        )
+        self.assertEqual(resource.mime_type, "text/csv")
+        with self.assertRaises(ValidationError):
+            create_resource(
+                activity=self.activity, actor=self.operator, key="fake-mp4",
+                title="Fausse video", kind=ResourceKind.FILE,
+                uploaded_file=SimpleUploadedFile(
+                    "movie.mp4", b"not-an-mp4", content_type="video/mp4"
+                ),
+            )
+
     def test_invalid_file_signature_is_rejected(self):
         upload = SimpleUploadedFile("fake.pdf", b"not-a-pdf", content_type="application/pdf")
         with self.assertRaises(ValidationError):
