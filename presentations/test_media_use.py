@@ -244,7 +244,7 @@ class PresentationMediaUseTests(TestCase):
 
     def test_private_import_uses_protected_storage_and_published_use_url(self):
         uploaded = SimpleUploadedFile(
-            "sample.png", b"\\x89PNG\\r\\n\\x1a\\n" + b"test",
+            "sample.png", bytes.fromhex("89504e470d0a1a0a") + b"test",
             content_type="image/png",
         )
         asset = create_presentation_asset(
