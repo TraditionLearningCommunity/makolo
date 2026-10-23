@@ -387,7 +387,21 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(visible, key: const Key('discover-description-text')),
+        if (expandable)
+          Semantics(
+            button: true,
+            label: _expanded ? 'Réduire la description' : 'Développer la description',
+            child: InkWell(
+              key: const Key('discover-description-tap'),
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+                child: Text(visible, key: const Key('discover-description-text')),
+              ),
+            ),
+          )
+        else
+          Text(visible, key: const Key('discover-description-text')),
         if (expandable)
           TextButton(
             key: const Key('discover-description-expand'),
@@ -527,7 +541,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     ),
                 ],
                 const SizedBox(height: MakoloSpacing.sm),
-                if (_reliableFacts.isNotEmpty)
+                if (_reliableFacts.isNotEmpty && !_expanded)
                   Wrap(
                     spacing: MakoloSpacing.sm,
                     runSpacing: MakoloSpacing.xs,
@@ -542,7 +556,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     ],
                   ),
                 if (_expanded) ...[
-                  const SizedBox(height: MakoloSpacing.sm),
+                  if (_reliableFacts.isNotEmpty)
+                    const SizedBox(height: MakoloSpacing.sm),
                   _facts(context),
                   _knowledge(context),
                 ],
