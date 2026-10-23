@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
@@ -74,6 +75,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
 class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   bool _saving = false;
   bool _expanded = false;
+  int _galleryPage = 0;
   bool? _confirmedSaved;
 
   @override
@@ -87,6 +89,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     }
     if (oldWidget.item.candidateKey != widget.item.candidateKey) {
       _expanded = false;
+      _galleryPage = 0;
     }
   }
 
@@ -167,52 +170,92 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return facts;
   }
 
-  List<String> get _resourceLabels {
-    final labels = <String>[];
+  List<Map<String, String?>> get _resourceEntries {
+    final entries = <Map<String, String?>>[];
     final resources = item.wire['resources'];
-    if (resources is List) {
-      for (final raw in resources) {
-        if (raw is! Map) continue;
-        final title = (raw['title'] ?? '').toString().trim();
-        if (title.isEmpty) continue;
-        final mime = (raw['mime_type'] ?? '').toString().toLowerCase();
-        final format = mime.contains('pdf')
-            ? 'PDF'
-            : mime.contains('spreadsheet') || mime.contains('excel')
-            ? 'Tableur'
-            : mime.startsWith('video/')
-            ? 'Vidéo'
-            : mime.startsWith('audio/')
-            ? 'Audio'
-            : raw['kind'] == 'file'
-            ? 'Document'
-            : 'Source';
-        labels.add('$format · $title');
-      }
-    }
-    for (final binding in item.mediaBindings) {
-      final resource = binding['resource'];
-      if (resource is! Map) continue;
-      final mime = (resource['mime_type'] ?? binding['mime_type'] ?? '')
-          .toString()
-          .toLowerCase();
-      final name = (resource['name'] ?? resource['title'] ?? '')
-          .toString()
-          .trim();
+    if (resources is! List) return entries;
+    for (final raw in resources) {
+      if (raw is! Map) continue;
+      final title = (raw['title'] ?? '').toString().trim();
+      if (title.isEmpty) continue;
+      final mime = (raw['mime_type'] ?? '').toString().toLowerCase();
       final format = mime.contains('pdf')
           ? 'PDF'
           : mime.contains('spreadsheet') || mime.contains('excel')
           ? 'Tableur'
+          : mime.startsWith('image/')
+          ? 'Image'
           : mime.startsWith('video/')
           ? 'Vidéo'
           : mime.startsWith('audio/')
           ? 'Audio'
-          : mime.contains('document')
+          : raw['kind'] == 'file'
           ? 'Document'
-          : null;
-      if (format != null) labels.add(name.isEmpty ? format : '$format · $name');
+          : raw['kind'] == 'text'
+          ? 'Texte'
+          : 'Source';
+      entries.add({
+        'label': '$format · $title',
+        'text': raw['kind'] == 'text'
+            ? raw['text_content']?.toString()
+            : null,
+        'url': raw['kind'] == 'file'
+            ? raw['download_url']?.toString()
+            : raw['kind'] == 'url'
+            ? raw['external_url']?.toString()
+            : null,
+      });
     }
-    return labels;
+    return entries;
+  }
+
+  Future<void> _openResource(String source) async {
+    final url = _publicImage(source);
+    if (url == null) return;
+    final opened = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impossible d’ouvrir cette ressource.')),
+      );
+    }
+  }
+
+  void _viewImage(String url, String label) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 5,
+              child: Center(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  semanticLabel: label,
+                  errorBuilder: (_, _, _) =>
+                      const Text('Image indisponible.'),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 4,
+              top: 4,
+              child: IconButton(
+                tooltip: 'Fermer l’image',
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String? _publicImage(String? source) {
@@ -229,37 +272,70 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   Widget _media(BuildContext context) {
-    final urls = <String>[];
+    final images = <Map<String, String>>[];
     final seen = <String>{};
-    void add(String? source) {
+    void add(String? source, String label) {
       final url = _publicImage(source);
-      if (url != null && seen.add(url)) urls.add(url);
+      if (url != null && seen.add(url)) {
+        images.add({'url': url, 'label': label});
+      }
     }
 
-    add(item.imageUrl);
+    add(item.imageUrl, 'Visuel de ${item.title}');
     for (final binding in item.mediaBindings) {
       final resource = binding['resource'];
       if (resource is! Map) continue;
-      final mime = (resource['mime_type'] ?? '').toString();
-      final purpose = (binding['purpose'] ?? '').toString();
-      if (mime.startsWith('image/') || purpose == 'RECOGNIZE') {
-        add(resource['url']?.toString());
-      }
+      final mime = (resource['mime_type'] ?? '').toString().toLowerCase();
+      if (!mime.startsWith('image/')) continue;
+      add(
+        resource['url']?.toString(),
+        (resource['alt_text'] ?? 'Visuel de ${item.title}').toString(),
+      );
     }
-    if (urls.isEmpty) return const SizedBox.shrink();
+    if (images.isEmpty) return const SizedBox.shrink();
+    if (images.length == 1) {
+      final image = images.first;
+      return InkWell(
+        onTap: () => _viewImage(image['url']!, image['label']!),
+        child: Image.network(
+          image['url']!,
+          width: double.infinity,
+          fit: BoxFit.fitWidth,
+          semanticLabel: image['label'],
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ),
+      );
+    }
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final url in urls)
-          AspectRatio(
-            aspectRatio: 4 / 3,
-            child: Image.network(
-              url,
-              fit: BoxFit.cover,
-              semanticLabel: 'Visuel de ${item.title}',
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
-            ),
+        AspectRatio(
+          aspectRatio: 4 / 3,
+          child: PageView.builder(
+            key: ValueKey('discover-gallery-${item.candidateKey}'),
+            itemCount: images.length,
+            onPageChanged: (index) => setState(() => _galleryPage = index),
+            itemBuilder: (context, index) {
+              final image = images[index];
+              return InkWell(
+                onTap: () => _viewImage(image['url']!, image['label']!),
+                child: Image.network(
+                  image['url']!,
+                  fit: BoxFit.contain,
+                  semanticLabel: image['label'],
+                  errorBuilder: (_, _, _) =>
+                      const Center(child: Text('Image indisponible.')),
+                ),
+              );
+            },
           ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+          child: Text(
+            '${_galleryPage + 1} / ${images.length} · Faire glisser pour parcourir',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
       ],
     );
   }
@@ -477,7 +553,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final canToggle =
         _confirmedSaved == null && (saved ? item.canUnsave : item.canSave);
 
-    final resources = _resourceLabels;
+    final resources = _resourceEntries;
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border(
@@ -526,16 +602,39 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   for (final resource in resources)
                     Padding(
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.description_outlined, size: 18),
-                          const SizedBox(width: MakoloSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              resource,
-                              style: theme.textTheme.bodySmall,
-                            ),
+                          Row(
+                            children: [
+                              const Icon(Icons.description_outlined, size: 18),
+                              const SizedBox(width: MakoloSpacing.xs),
+                              Expanded(
+                                child: Text(
+                                  resource['label'] ?? '',
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                              ),
+                              if (_publicImage(resource['url']) != null)
+                                IconButton(
+                                  tooltip: 'Ouvrir ${resource['label']}',
+                                  icon: const Icon(Icons.open_in_new, size: 19),
+                                  onPressed: () =>
+                                      _openResource(resource['url']!),
+                                ),
+                            ],
                           ),
+                          if (resource['text']?.isNotEmpty ?? false)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                left: 26,
+                                top: MakoloSpacing.xs,
+                              ),
+                              child: SelectableText(
+                                resource['text']!,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
                         ],
                       ),
                     ),
