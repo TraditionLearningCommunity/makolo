@@ -343,6 +343,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (images.length == 1) {
       final image = images.first;
       return InkWell(
+        key: const Key('discover-media-main'),
         onTap: () => _openReader([
           DiscoveryReaderItem(
             title: image['label']!,
@@ -360,6 +361,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       );
     }
     return Column(
+      key: const Key('discover-media-gallery'),
       children: [
         AspectRatio(
           aspectRatio: 4 / 3,
