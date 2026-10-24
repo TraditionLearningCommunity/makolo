@@ -50,6 +50,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   bool _saving = false;
   bool _expanded = false;
   int _galleryPage = 0;
+  bool _allResources = false;
   bool? _confirmedSaved;
 
   @override
@@ -64,6 +65,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (oldWidget.item.candidateKey != widget.item.candidateKey) {
       _expanded = false;
       _galleryPage = 0;
+      _allResources = false;
     }
   }
 
@@ -153,23 +155,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       final title = (raw['title'] ?? '').toString().trim();
       if (title.isEmpty) continue;
       final mime = (raw['mime_type'] ?? '').toString().toLowerCase();
-      final format = mime.contains('pdf')
-          ? 'PDF'
-          : mime.contains('spreadsheet') || mime.contains('excel')
-          ? 'Tableur'
-          : mime.startsWith('image/')
-          ? 'Image'
-          : mime.startsWith('video/')
-          ? 'Vidéo'
-          : mime.startsWith('audio/')
-          ? 'Audio'
-          : raw['kind'] == 'file'
-          ? 'Document'
-          : raw['kind'] == 'text'
-          ? 'Texte'
-          : 'Source';
       entries.add({
-        'label': '$format · $title',
+        'label': title,
         'mime': mime,
         'title': title,
         'kind': raw['kind']?.toString(),
@@ -412,16 +399,59 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
   Widget _dateLabel(BuildContext context) {
     final date = item.wire['date'];
-    if (date is! Map) return const SizedBox.shrink();
+    if (date is! Map || date['kind'] != 'added_at') {
+      return const SizedBox.shrink();
+    }
     final raw = date['value'];
-    final label = date['label'];
-    if (raw is! String || label is! String) return const SizedBox.shrink();
+    if (raw is! String) return const SizedBox.shrink();
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) return const SizedBox.shrink();
-    return Text(
-      '$label ${MaterialLocalizations.of(context).formatMediumDate(parsed.toLocal())}',
-      style: Theme.of(context).textTheme.labelSmall
-          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    final local = parsed.toLocal();
+    final now = DateTime.now();
+    final elapsed = now.difference(local);
+    final calendarDays = DateTime(now.year, now.month, now.day)
+        .difference(DateTime(local.year, local.month, local.day)).inDays;
+    final material = MaterialLocalizations.of(context);
+    final isFrench = Localizations.localeOf(context).languageCode == 'fr';
+    final exact = '${material.formatMediumDate(local)} · '
+        '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
+    String relative;
+    if (elapsed.isNegative || elapsed.inMinutes < 1) {
+      relative = isFrench ? 'à l’instant' : 'just now';
+    } else if (elapsed.inHours < 1) {
+      relative = isFrench
+          ? 'il y a ${elapsed.inMinutes} min'
+          : '${elapsed.inMinutes} min ago';
+    } else if (calendarDays == 0) {
+      relative = isFrench
+          ? 'il y a ${elapsed.inHours} h'
+          : '${elapsed.inHours} h ago';
+    } else if (calendarDays == 1) {
+      relative = isFrench ? 'hier' : 'yesterday';
+    } else if (calendarDays < 7) {
+      relative = isFrench
+          ? 'il y a $calendarDays jours'
+          : '$calendarDays days ago';
+    } else if (calendarDays < 35) {
+      final weeks = calendarDays ~/ 7;
+      relative = isFrench
+          ? 'il y a $weeks semaine${weeks > 1 ? 's' : ''}'
+          : '$weeks week${weeks > 1 ? 's' : ''} ago';
+    } else {
+      relative = material.formatMediumDate(local);
+    }
+    return Tooltip(
+      message: exact,
+      child: Semantics(
+        label: '${isFrench ? 'Ajouté' : 'Added'} $relative, $exact',
+        child: Text(
+          relative,
+          textAlign: TextAlign.end,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
     );
   }
 
@@ -472,8 +502,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     }
   }
 
-  static const int _previewCharacters = 240;
-
   String get _description {
     final summary = item.summary.trim();
     final raw = item.detailFacts?['description'];
@@ -486,46 +514,55 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   Widget _descriptionBody(BuildContext context) {
     final description = _description;
     if (description.isEmpty) return const SizedBox.shrink();
-    final summary = item.summary.trim();
-    final hasSupplement = summary.isNotEmpty && description != summary;
-    final truncated = description.length > _previewCharacters;
-    final expandable = hasSupplement || truncated;
-    final preview = hasSupplement ? summary : description;
-    final visible = _expanded
-        ? description
-        : preview.length > _previewCharacters
-        ? '${preview.substring(0, _previewCharacters).trimRight()}…'
-        : preview;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (expandable)
-          Semantics(
-            button: true,
-            label: _expanded
-                ? 'Réduire la description'
-                : 'Développer la description',
-            child: InkWell(
-              key: const Key('discover-description-tap'),
-              onTap: () => setState(() => _expanded = !_expanded),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final style = DefaultTextStyle.of(context).style;
+        final textDirection = Directionality.of(context);
+        final painter = TextPainter(
+          text: TextSpan(text: description, style: style),
+          maxLines: 3,
+          textDirection: textDirection,
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(maxWidth: constraints.maxWidth);
+        final expandable = painter.didExceedMaxLines;
+        final collapsed = !_expanded && expandable;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              button: expandable,
+              label: expandable
+                  ? (_expanded
+                      ? 'Réduire la description'
+                      : 'Développer la description')
+                  : null,
+              child: InkWell(
+                key: const Key('discover-description-tap'),
+                onTap: expandable
+                    ? () => setState(() => _expanded = !_expanded)
+                    : null,
                 child: Text(
-                  visible,
+                  description,
                   key: const Key('discover-description-text'),
+                  maxLines: collapsed ? 3 : null,
+                  overflow: collapsed ? TextOverflow.ellipsis : null,
                 ),
               ),
             ),
-          )
-        else
-          Text(visible, key: const Key('discover-description-text')),
-        if (expandable)
-          TextButton(
-            key: const Key('discover-description-expand'),
-            onPressed: () => setState(() => _expanded = !_expanded),
-            child: Text(_expanded ? 'Voir moins' : 'Voir plus'),
-          ),
-      ],
+            if (expandable)
+              TextButton(
+                key: const Key('discover-description-expand'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: const Size(48, 44),
+                  alignment: Alignment.centerLeft,
+                ),
+                onPressed: () => setState(() => _expanded = !_expanded),
+                child: Text(_expanded ? 'Voir moins' : 'Voir plus'),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -616,31 +653,79 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   child: Text(item.title, style: theme.textTheme.titleLarge),
                 ),
                 const SizedBox(height: MakoloSpacing.xs),
-                Text(
-                  item.representation?['vertical_label']?.toString() ??
-                      item.eyebrow ??
-                      '',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if ((item.representation?['vertical_label']
+                                      ?.toString() ??
+                                  item.eyebrow ??
+                                  '')
+                              .trim()
+                              .isNotEmpty)
+                            Text(
+                              item.representation?['vertical_label']
+                                      ?.toString() ??
+                                  item.eyebrow ??
+                                  '',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          if (item.participantPresentation?['label']
+                                  is String &&
+                              (item.participantPresentation!['label']
+                                      as String)
+                                  .trim()
+                                  .isNotEmpty &&
+                              item.participantPresentation!['label'] !=
+                                  item.representation?['vertical_label'] &&
+                              item.participantPresentation!['label'] !=
+                                  item.eyebrow)
+                            Text(
+                              item.participantPresentation!['label'] as String,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: MakoloSpacing.sm),
+                    Flexible(child: _dateLabel(context)),
+                  ],
                 ),
-                _dateLabel(context),
+                const SizedBox(height: MakoloSpacing.sm),
+                if (_reliableFacts.isNotEmpty && !_expanded)
+                  Wrap(
+                    spacing: MakoloSpacing.sm,
+                    runSpacing: MakoloSpacing.xs,
+                    children: [
+                      for (final fact in _reliableFacts)
+                        Text(
+                          fact['value'] as String,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                if (_expanded) ...[
+                  if (_reliableFacts.isNotEmpty)
+                    const SizedBox(height: MakoloSpacing.sm),
+                  _facts(context),
+                  _knowledge(context),
+                ],
                 if (_description.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   _descriptionBody(context),
                 ],
-                if (item.participantPresentation?['label'] is String &&
-                    (item.participantPresentation!['label'] as String)
-                        .isNotEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.sm),
-                  Text(
-                    item.participantPresentation!['label'] as String,
-                    style: theme.textTheme.labelMedium,
-                  ),
-                ],
                 if (resources.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
-                  for (final resource in resources)
+                  for (final resource in (_allResources ? resources : resources.take(3)))
                     Padding(
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
                       child: Column(
@@ -668,7 +753,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                                   ),
                                 ),
                               ),
-                            ],
+                              if (resources.length > 3)
+                    TextButton(
+                      key: const Key('discover-resources-expand'),
+                      onPressed: () =>
+                          setState(() => _allResources = !_allResources),
+                      child: Text(
+                        _allResources
+                            ? 'Voir moins de ressources'
+                            : 'Voir les ${resources.length} ressources',
+                      ),
+                    ),
+                ],
                           ),
                           if (resource['text']?.isNotEmpty ?? false)
                             Padding(
@@ -689,27 +785,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                         ],
                       ),
                     ),
-                ],
-                const SizedBox(height: MakoloSpacing.sm),
-                if (_reliableFacts.isNotEmpty && !_expanded)
-                  Wrap(
-                    spacing: MakoloSpacing.sm,
-                    runSpacing: MakoloSpacing.xs,
-                    children: [
-                      for (final fact in _reliableFacts)
-                        Text(
-                          fact['value'] as String,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                if (_expanded) ...[
-                  if (_reliableFacts.isNotEmpty)
-                    const SizedBox(height: MakoloSpacing.sm),
-                  _facts(context),
-                  _knowledge(context),
                 ],
                 if (item.variants.isNotEmpty || item.relations.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
