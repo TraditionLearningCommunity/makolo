@@ -753,18 +753,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                                   ),
                                 ),
                               ),
-                              if (resources.length > 3)
-                    TextButton(
-                      key: const Key('discover-resources-expand'),
-                      onPressed: () =>
-                          setState(() => _allResources = !_allResources),
-                      child: Text(
-                        _allResources
-                            ? 'Voir moins de ressources'
-                            : 'Voir les ${resources.length} ressources',
-                      ),
-                    ),
-                ],
+                            ],
                           ),
                           if (resource['text']?.isNotEmpty ?? false)
                             Padding(
@@ -783,6 +772,17 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                               ),
                             ),
                         ],
+                      ),
+                    ),
+                  if (resources.length > 3)
+                    TextButton(
+                      key: const Key('discover-resources-expand'),
+                      onPressed: () =>
+                          setState(() => _allResources = !_allResources),
+                      child: Text(
+                        _allResources
+                            ? 'Voir moins de ressources'
+                            : 'Voir les ${resources.length} ressources',
                       ),
                     ),
                 ],
