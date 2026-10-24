@@ -699,7 +699,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
       return _EmptyBody(
         icon: Icons.error_outline_rounded,
         title: 'Informations indisponibles.',
-                actionLabel: onRetry == null ? null : 'Réessayer',
+        actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
     }
@@ -714,8 +714,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
     if (states.contains(DiscoveryFieldState.serverUnavailableNoSnapshot)) {
       return _EmptyBody(
         icon: Icons.cloud_off_outlined,
-        title:
-            'Service momentanément indisponible.',
+        title: 'Service momentanément indisponible.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -733,14 +732,14 @@ class _DiscoveryEmptyState extends StatelessWidget {
       return _EmptyBody(
         icon: Icons.search_off_outlined,
         title: 'Aucun résultat pour ces critères.',
-                actionLabel: onResetCriteria == null ? null : 'Modifier mes critères',
+        actionLabel: onResetCriteria == null ? null : 'Modifier mes critères',
         onAction: onResetCriteria,
       );
     }
     return const _EmptyBody(
       icon: Icons.explore_outlined,
       title: 'Aucune opportunité disponible.',
-          );
+    );
   }
 }
 
