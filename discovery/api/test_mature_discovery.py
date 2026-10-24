@@ -35,6 +35,7 @@ from opportunities.models import (
     OpportunitySave,
 )
 from organizations.models import Organization
+from preparation.models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility
 from services.models import OpportunityPolicy, ServiceDetails, ServiceKind
 from topics.models import ProfileInterest
 from transport.models import TransportRoute, TransportRouteStop, TransportService
@@ -427,6 +428,48 @@ class MatureDiscoveryAPITests(TestCase):
             data["freshness"]["observed_at"],
         )
         self.assertEqual(data["freshness"]["fact_freshness"], "not_asserted")
+
+    def test_public_resources_are_not_capped_at_six_and_web_discloses_all(self):
+        for index in range(1, 9):
+            ActivityResource.objects.create(
+                activity=self.event_activity,
+                key=f"document-{index:02d}",
+                title=f"Document {index:02d}",
+                kind=ResourceKind.TEXT,
+                text_content=f"Contenu public {index}",
+                visibility=ResourceVisibility.PUBLIC,
+                status=ResourceStatus.PUBLISHED,
+                created_by=self.owner,
+                published_at=self.now,
+            )
+        ActivityResource.objects.create(
+            activity=self.event_activity,
+            key="private-document",
+            title="Document privé",
+            kind=ResourceKind.TEXT,
+            text_content="Ne pas rendre public",
+            visibility=ResourceVisibility.RESTRICTED,
+            status=ResourceStatus.PUBLISHED,
+            created_by=self.owner,
+            published_at=self.now,
+        )
+
+        rows = self._items(q="Z3 concert")["data"]["results"]
+        item = next(
+            row for row in rows
+            if row["identity"]["resource"]["id"] == str(self.event_activity.pk)
+        )
+        self.assertEqual(
+            [entry["title"] for entry in item["resources"]],
+            [f"Document {index:02d}" for index in range(1, 9)],
+        )
+        self.assertNotIn("Document privé", str(item))
+
+        web = self.client.get(reverse("discovery:home"), {"q": "Z3 concert"})
+        self.assertEqual(web.status_code, 200)
+        self.assertContains(web, "Voir les 8 ressources")
+        self.assertContains(web, "Document 08")
+        self.assertNotContains(web, "Document privé")
 
     def test_public_owner_object_comes_from_logical_activity_owner(self):
         data = self._items(q="Z3 concert")["data"]
