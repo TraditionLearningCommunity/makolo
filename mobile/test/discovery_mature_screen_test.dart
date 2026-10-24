@@ -183,6 +183,54 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 practical facts do not change when description expands', (
+    tester,
+  ) async {
+    final rich = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'steady-facts',
+      candidateKey: 'activity:steady-facts',
+      title: 'Une possibilité avec informations pratiques',
+      summary: List.filled(30, 'Description détaillée.').join(' '),
+      owner: 'Espace test',
+      price: '25 USD',
+      place: 'Lubumbashi',
+      availability: 'Disponible',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'presentation_facts': [
+          {'code': 'type', 'label': 'Type', 'value': 'Accompagnement'},
+          {'code': 'price', 'label': 'Prix', 'value': '25 USD'},
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) {},
+      ),
+    );
+    expect(find.byKey(const Key('discover-facts-section')), findsOneWidget);
+    expect(find.text('Prix'), findsOneWidget);
+    expect(find.text('25 USD'), findsOneWidget);
+    expect(find.text('Lubumbashi'), findsOneWidget);
+    expect(find.text('Disponible'), findsOneWidget);
+    expect(find.text('Accompagnement'), findsOneWidget);
+    expect(find.text('Type'), findsNothing);
+    await tester.tap(find.byKey(const Key('discover-description-tap')));
+    await tester.pump();
+    expect(find.byKey(const Key('discover-facts-section')), findsOneWidget);
+    expect(find.text('Prix'), findsOneWidget);
+    expect(find.text('25 USD'), findsOneWidget);
+    expect(find.text('Disponible'), findsOneWidget);
+    expect(find.text('Voir moins'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 places the addition date with the owner and merges type labels', (
     tester,
   ) async {
