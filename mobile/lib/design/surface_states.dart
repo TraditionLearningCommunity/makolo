@@ -80,7 +80,6 @@ class MakoloSurfaceStateView extends StatelessWidget {
     this.recoverableErrorMessage,
     this.blockingErrorMessage,
     this.preservedMessage,
-    this.compactRecoverable = false,
     this.onRetry,
     this.permissionDeniedMessage =
         'Vous n’avez pas l’autorisation nécessaire pour cette action.',
@@ -93,7 +92,6 @@ class MakoloSurfaceStateView extends StatelessWidget {
   final String? recoverableErrorMessage;
   final String? blockingErrorMessage;
   final String? preservedMessage;
-  final bool compactRecoverable;
   final VoidCallback? onRetry;
   final String permissionDeniedMessage;
 
@@ -140,37 +138,13 @@ class MakoloSurfaceStateView extends StatelessWidget {
     final cues = <Widget>[
       if (state.failure == MakoloFailureCue.recoverable &&
           recoverableErrorMessage != null)
-        if (compactRecoverable)
-          Semantics(
-            liveRegion: true,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: Theme.of(context).colorScheme.error, width: 2),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      recoverableErrorMessage!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  if (onRetry != null)
-                    TextButton(onPressed: onRetry, child: const Text('Réessayer')),
-                ],
-              ),
-            ),
-          )
-        else
-          MakoloNotice(
-            message: [recoverableErrorMessage!, ?preservedMessage].join(' '),
-            kind: MakoloNoticeKind.error,
-            behavior: MakoloNoticeBehavior.persistent,
-            actionLabel: onRetry == null ? null : 'Réessayer',
-            onAction: onRetry,
-          ),
+        MakoloNotice(
+          message: [recoverableErrorMessage!, ?preservedMessage].join(' '),
+          kind: MakoloNoticeKind.error,
+          behavior: MakoloNoticeBehavior.persistent,
+          actionLabel: onRetry == null ? null : 'Réessayer',
+          onAction: onRetry,
+        ),
       if (state.commit != MakoloCommitCue.none)
         MakoloCommitIndicator(commit: state.commit),
     ];
