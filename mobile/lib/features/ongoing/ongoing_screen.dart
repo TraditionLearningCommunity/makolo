@@ -366,7 +366,7 @@ class _OngoingFocusPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) => const MakoloFocusPane(
     child: Padding(
       padding: EdgeInsets.all(MakoloSpacing.lg),
-      child: Text('Sélectionnez une continuité pour voir ce qui continue.'),
+      child: Text('Choisissez une démarche.'),
     ),
   );
 }
