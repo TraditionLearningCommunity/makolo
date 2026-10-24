@@ -285,6 +285,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             ? 'Cette recherche doit être actualisée depuis le début.'
             : 'Impossible d’actualiser les possibilités.';
       });
+      if (_collection.items.isNotEmpty && !rejected) {
+        _notifyRefreshIssue('Actualisation indisponible.');
+      }
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=http_error');
     } on FormatException catch (error, stack) {
       _reportFailure('WIRE_OR_SELECT_ERROR', error, stack, revision: revision);
@@ -294,6 +297,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _updatingCriteria = false;
         _error = 'Contrat Discovery incompatible : les informations reçues ne peuvent pas être affichées.';
       });
+      if (_collection.items.isNotEmpty) {
+        _notifyRefreshIssue('Actualisation indisponible.');
+      }
       _trace(
         'LOAD_FINISHED',
         revision: revision,
@@ -307,6 +313,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _updatingCriteria = false;
         _error = 'L’actualisation prend trop de temps.';
       });
+      if (_collection.items.isNotEmpty) {
+        _notifyRefreshIssue('Connexion lente.');
+      }
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=timeout');
     } on Object catch (error, stack) {
       _reportFailure('LOAD_ERROR', error, stack, revision: revision);
@@ -319,8 +328,28 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
             ? 'Connexion à Makolo indisponible.'
             : 'Impossible d’actualiser les possibilités.';
       });
+      if (_collection.items.isNotEmpty) {
+        _notifyRefreshIssue('Actualisation indisponible.');
+      }
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=error');
     }
+  }
+
+  void _notifyRefreshIssue(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Réessayer',
+          onPressed: () => _retry(),
+        ),
+      ),
+    );
   }
 
   Future<void> _retry() => _continuationRejected ? _refresh() : _load();
@@ -608,8 +637,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
               ],
-              if (_error != null &&
-                  (!_serviceUnavailable || _collection.items.isEmpty)) ...[
+              if (_error != null && _collection.items.isEmpty) ...[
                 if (!_serviceUnavailable)
                   Padding(
                     padding: const EdgeInsets.symmetric(

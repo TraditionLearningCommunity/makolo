@@ -200,7 +200,27 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         _serviceUnavailable = true;
         _error = 'Impossible d’actualiser les Espaces publics.';
       });
+      if (_spaces.isNotEmpty) {
+        _notifyRefreshIssue('Actualisation indisponible.');
+      }
     }
+  }
+
+  void _notifyRefreshIssue(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        content: Text(message),
+        action: SnackBarAction(
+          label: 'Réessayer',
+          onPressed: () => _load(),
+        ),
+      ),
+    );
   }
 
   void _onCityEdited() {
@@ -420,7 +440,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                   ),
                 if (_loading && _spaces.isNotEmpty)
                   const Center(child: CircularProgressIndicator()),
-                if (_error != null && _page > 1) ...[
+                if (_error != null && _page > 1 && _spaces.isEmpty) ...[
                   Text(
                     _error!,
                     style: TextStyle(color: theme.colorScheme.error),
