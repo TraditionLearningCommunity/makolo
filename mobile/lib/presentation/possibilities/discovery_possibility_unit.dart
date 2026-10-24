@@ -433,52 +433,23 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) return const SizedBox.shrink();
     final local = parsed.toLocal();
-    final now = DateTime.now();
-    final elapsed = now.difference(local);
-    final calendarDays = DateTime.utc(
-      now.year,
-      now.month,
-      now.day,
-    ).difference(DateTime.utc(local.year, local.month, local.day)).inDays;
     final material = MaterialLocalizations.of(context);
     final isFrench = Localizations.localeOf(context).languageCode == 'fr';
+    final formatted = material.formatMediumDate(local);
     final exact =
-        '${material.formatMediumDate(local)} · '
-        '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
-    String relative;
-    if (elapsed.isNegative || elapsed.inMinutes < 1) {
-      relative = isFrench ? 'à l’instant' : 'just now';
-    } else if (elapsed.inHours < 1) {
-      relative = isFrench
-          ? 'il y a ${elapsed.inMinutes} min'
-          : '${elapsed.inMinutes} min ago';
-    } else if (calendarDays == 0) {
-      relative = isFrench
-          ? 'il y a ${elapsed.inHours} h'
-          : '${elapsed.inHours} h ago';
-    } else if (calendarDays == 1) {
-      relative = isFrench ? 'hier' : 'yesterday';
-    } else if (calendarDays < 7) {
-      relative = isFrench
-          ? 'il y a $calendarDays jours'
-          : '$calendarDays days ago';
-    } else if (calendarDays < 35) {
-      final weeks = calendarDays ~/ 7;
-      relative = isFrench
-          ? 'il y a $weeks semaine${weeks > 1 ? 's' : ''}'
-          : '$weeks week${weeks > 1 ? 's' : ''} ago';
-    } else {
-      relative = material.formatMediumDate(local);
-    }
+        '$formatted · ${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
     return Tooltip(
-      message: exact,
+      message: '${isFrench ? 'Ajouté le' : 'Added'} $exact',
       child: Semantics(
-        label: '${isFrench ? 'Ajouté' : 'Added'} $relative, $exact',
+        label: '${isFrench ? 'Ajouté le' : 'Added'} $exact',
         child: Text(
-          relative,
+          formatted,
+          maxLines: 2,
+          softWrap: true,
           textAlign: TextAlign.end,
-          style: Theme.of(context).textTheme.labelSmall
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
