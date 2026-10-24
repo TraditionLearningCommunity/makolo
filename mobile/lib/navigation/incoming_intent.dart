@@ -40,6 +40,11 @@ class IncomingIntentResolver {
   }) {
     final route = deepLinks.resolve(intent.destination);
     if (route == null) return null;
+    // A public, revocable Sharing URL remains readable before login.
+    // Private deliveries still require the recipient's authenticated session.
+    if (route.startsWith('/s/')) {
+      return IngressResolution(route: route, requiresAuthentication: false);
+    }
     if (authenticated) {
       return IngressResolution(route: route, requiresAuthentication: false);
     }

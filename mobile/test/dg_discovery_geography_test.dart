@@ -83,6 +83,7 @@ void main() {
             {
               'identity': {
                 'family': 'activity',
+                'candidate_key': 'occurrence:occurrence-b',
                 'resource': {'kind': 'activity', 'id': 'activity-b'},
                 'occurrence': {'kind': 'occurrence', 'id': 'occurrence-b'},
               },
@@ -99,6 +100,7 @@ void main() {
             {
               'identity': {
                 'family': 'activity',
+                'candidate_key': 'occurrence:occurrence-a',
                 'resource': {'kind': 'activity', 'id': 'activity-a'},
                 'occurrence': {'kind': 'occurrence', 'id': 'occurrence-a'},
               },
@@ -144,6 +146,7 @@ void main() {
             {
               'identity': {
                 'family': 'activity',
+                'candidate_key': 'occurrence:occurrence-known',
                 'resource': {'kind': 'activity', 'id': 'activity-known'},
                 'occurrence': {'kind': 'occurrence', 'id': 'occurrence-known'},
               },

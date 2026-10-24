@@ -168,6 +168,25 @@ def _discovery_fact(code, label, value, icon=None):
     return SimpleNamespace(code=code, label=label, value=value, icon=icon)
 
 
+def _discovery_first_person_action_label(label):
+    """Humanize a confirmed owner Web action without changing its capability."""
+    normalized = label.strip().casefold()
+    return {
+        "s'inscrire": "Je m'inscris",
+        "s’inscrire": "Je m’inscris",
+        "réserver": "Je réserve",
+        "payer": "Je paye",
+        "commander": "Je commande",
+        "candidater": "Je candidate",
+        "participer": "Je participe",
+        "acheter": "J’achète",
+        "louer": "Je loue",
+        "demander": "Je demande",
+        "contribuer": "Je contribue",
+        "postuler": "Je postule",
+    }.get(normalized, label)
+
+
 def _web_discovery_card(item):
     identity = item["identity"]
     representation = item["representation"]
@@ -189,49 +208,65 @@ def _web_discovery_card(item):
     place = item.get("place")
     price = item.get("price") or {}
     availability = item.get("availability") or {}
-    if not facts:
-        if timing.get("start_at"):
-            facts.append(_discovery_fact("when", "Quand", timing["start_at"], "calendar-clock"))
-        elif timing.get("start_date"):
-            facts.append(_discovery_fact("when", "Quand", timing["start_date"], "calendar-clock"))
+    # Presentation facts never suppress the independent canonical fields.
+    seen = {fact.code for fact in facts}
+    def add_fact(code, label, value, icon):
+        if value is None or code in seen:
+            return
+        facts.append(_discovery_fact(code, label, value, icon))
+        seen.add(code)
 
-        if place:
-            place_value = place.get("name") or place.get("locality")
-            if place.get("name") and place.get("locality") and place["locality"] != place["name"]:
-                place_value = f"{place['name']}, {place['locality']}"
-            if place_value:
-                facts.append(_discovery_fact("place", "Lieu", place_value, "map-pin"))
+    if timing.get("start_at"):
+        add_fact("when", "Quand", timing["start_at"], "calendar-clock")
+    elif timing.get("start_date"):
+        add_fact("when", "Quand", timing["start_date"], "calendar-clock")
 
-        if price.get("state") == "free":
-            facts.append(_discovery_fact("price", "Prix", "Gratuit", "wallet-cards"))
-        elif price.get("minimum") is not None:
-            value = str(price["minimum"])
-            if price.get("currency"):
-                value = f"{value} {price['currency']}"
-            facts.append(_discovery_fact("price", "Prix", value, "wallet-cards"))
+    if place:
+        place_value = place.get("name") or place.get("locality")
+        if place.get("name") and place.get("locality") and place["locality"] != place["name"]:
+            place_value = f"{place['name']}, {place['locality']}"
+        if place_value:
+            add_fact("place", "Lieu", place_value, "map-pin")
 
-        availability_state = availability.get("state")
-        if availability_state:
-            facts.append(
-                _discovery_fact(
-                    "availability",
-                    "Disponibilité",
-                    _AVAILABILITY_LABELS.get(availability_state, availability_state),
-                    "users",
-                )
-            )
+    if price.get("state") == "free":
+        add_fact("price", "Prix", "Gratuit", "wallet-cards")
+    elif price.get("minimum") is not None:
+        price_value = str(price["minimum"])
+        if (
+            price.get("state") == "range"
+            and price.get("maximum") is not None
+            and price["maximum"] != price["minimum"]
+        ):
+            price_value = f"{price_value} – {price['maximum']}"
+        elif price.get("state") in {"priced", "variant_dependent"}:
+            price_value = f"À partir de {price_value}"
+        if price.get("currency"):
+            price_value = f"{price_value} {price['currency']}"
+        add_fact("price", "Prix", price_value, "wallet-cards")
+
+    availability_state = availability.get("state")
+    if availability_state:
+        add_fact(
+            "availability",
+            "Disponibilité",
+            _AVAILABILITY_LABELS.get(availability_state, availability_state),
+            "users",
+        )
+    for fact in item.get("temporal_facts") or []:
+        kind = fact.get("kind") or ""
+        if kind in {"start_at", "start_date", "start_time"} and "when" in seen:
+            continue
+        if fact.get("value") is not None:
+            add_fact(kind, kind.replace("_", " ").capitalize(), fact["value"], "calendar-clock")
+
 
     save_action = None
-    if (
-        links.get("web_saved")
-        or "save" in item.get("capabilities", [])
-        or "unsave" in item.get("capabilities", [])
-    ):
+    if links.get("web_saved"):
         is_saved = saved.get("state") == "saved"
         save_action = SimpleNamespace(
             code="unsave" if is_saved else "save",
             role="save",
-            label="Enregistré" if is_saved else "Enregistrer",
+            label="Enregistré" if is_saved else "J’enregistre",
             icon="orbit",
             state="saved" if is_saved else "available",
             url=links.get("web_saved"),
@@ -244,12 +279,24 @@ def _web_discovery_card(item):
         primary_action = SimpleNamespace(
             code=engagement_presentation.get("capability") or "open",
             role="primary",
-            label=engagement_presentation.get("label") or "Continuer",
-            icon="arrow-right",
+            label=_discovery_first_person_action_label(engagement_presentation.get("label") or "Continuer"),
+            icon={
+                "start": "play-circle",
+                "reserve": "ticket",
+                "book": "ticket",
+                "register": "user-plus",
+                "contribute": "hand-heart",
+                "buy": "shopping-bag",
+                "apply": "send",
+            }.get(engagement_presentation.get("capability"), "external-link"),
             state="available",
             url=engagement_presentation["web"],
             emphasis="primary",
-            enabled=bool(engagement_presentation.get("enabled", True)),
+            enabled=bool(
+                engagement_presentation.get(
+                    "web_enabled", engagement_presentation.get("enabled", False)
+                )
+            ),
         )
 
     share_action = None
@@ -285,10 +332,32 @@ def _web_discovery_card(item):
         vertical_label=representation.get("vertical_label") or "Possibilité",
         title=representation["title"],
         summary=representation.get("summary") or "",
+        description=(item.get("detail") or {}).get("description") or "",
         operator_label=operator_label,
         operator_name=owner.get("display_name") or "",
+        owner=owner,
+        date=item.get("date"),
         representation=SimpleNamespace(**representation),
         facts=tuple(facts),
+        resources=tuple(
+            resource
+            for resource in (item.get("resources") or [])
+            if resource.get("title")
+        ),
+        gallery_media=tuple(
+            media
+            for media in (item.get("media_bindings") or [])
+            if (media.get("resource") or {}).get("mime_type", "").startswith("image/")
+            and (media.get("resource") or {}).get("url")
+            and (media.get("resource") or {}).get("url") != representation.get("image_url")
+        ),
+        context_notes=tuple(
+            fact.get("label")
+            for fact in (item.get("assessment") or [])
+            if fact.get("state") in {"limiting", "unknown"} and fact.get("label")
+        )[:2],
+        variant_count=len(item.get("variants") or []),
+        relation_count=len(item.get("relations") or []),
         participant_state=(
             SimpleNamespace(
                 participant_state=item["participant_presentation"].get("state"),

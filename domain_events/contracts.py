@@ -100,6 +100,7 @@ class DomainEventType:
     FORM_REOPENED = "form.reopened"
     RESOURCE_PUBLISHED = "resource.published"
     RESOURCE_REPLACED = "resource.replaced"
+    RESOURCE_RETIRED = "resource.retired"
 
     OPPORTUNITY_REVISION_PUBLISHED = "opportunity.revision.published"
     OPPORTUNITY_SOURCE_CHANGED = "opportunity.source.changed"

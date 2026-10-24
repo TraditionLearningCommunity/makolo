@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
+from urllib.parse import urlsplit
+
 from dataclasses import dataclass
 from types import SimpleNamespace
 
@@ -38,6 +42,7 @@ from discovery.unified import (
     public_service_discovery_items,
 )
 
+from .media_bindings import apply_recognition_media
 from .projections import (
     project_funding_possibility,
     project_occurrence_possibility,
@@ -65,7 +70,40 @@ def _authenticated(profile) -> bool:
     return bool(getattr(profile, "is_authenticated", False))
 
 
-def parse_page_params(params) -> tuple[int, int]:
+def _continuation_context(params, *, profile=None) -> str:
+    """Bind a cursor to the exact request criteria and authenticated viewer.
+
+    Page and continuation are navigation controls, not exploration criteria.
+    No client-provided profile or authority is ever trusted.
+    """
+    if hasattr(params, "lists"):
+        criteria = {
+            key: sorted(str(value) for value in values)
+            for key, values in params.lists()
+            if key not in {"page", "continuation"}
+        }
+    else:
+        criteria = {
+            str(key): [str(value)]
+            for key, value in params.items()
+            if key not in {"page", "continuation"}
+        }
+    viewer = (
+        str(profile.pk)
+        if _authenticated(profile)
+        else None
+    )
+    canonical = json.dumps(
+        {"criteria": criteria, "viewer": viewer},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def parse_page_params(params, *, profile=None) -> tuple[int, int]:
+    """A request without parameters is valid; a cursor must match its context."""
     try:
         continuation = params.get("continuation")
         if continuation:
@@ -74,6 +112,13 @@ def parse_page_params(params) -> tuple[int, int]:
                 salt=DISCOVERY_CONTINUATION_SALT,
                 max_age=60 * 60 * 24,
             )
+            if (
+                not isinstance(cursor, dict)
+                or cursor.get("context") != _continuation_context(
+                    params, profile=profile
+                )
+            ):
+                raise ValueError("Contexte de continuation incompatible.")
             page = max(int(cursor["page"]), 1)
         else:
             page = max(int(params.get("page") or 1), 1)
@@ -82,7 +127,7 @@ def parse_page_params(params) -> tuple[int, int]:
             DISCOVERY_API_MAX_PAGE_SIZE,
         )
     except (signing.BadSignature, KeyError, TypeError, ValueError) as exc:
-        raise ValidationError("Pagination invalide.") from exc
+        raise ValidationError("Pagination invalide ou continuation expiree.") from exc
     return page, page_size
 
 
@@ -230,7 +275,24 @@ def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
                 "external_url": (
                     resource.external_url
                     if resource.kind == ResourceKind.URL
+                    and urlsplit(resource.external_url).scheme.lower() in {"https", "http"}
+                    and urlsplit(resource.external_url).netloc
                     else None
+                ),
+                "read_url": (
+                    reverse("preparation:resource-text", kwargs={"resource_id": resource.pk})
+                    if resource.kind == ResourceKind.TEXT
+                    else None
+                ),
+                "text_content": (
+                    resource.text_content[:2400]
+                    if resource.kind == ResourceKind.TEXT
+                    else None
+                ),
+                "text_truncated": (
+                    len(resource.text_content) > 2400
+                    if resource.kind == ResourceKind.TEXT
+                    else False
                 ),
                 "download_url": (
                     reverse(
@@ -275,6 +337,128 @@ def _opportunity_source_previews(opportunity_ids) -> dict[str, list[dict]]:
             }
         )
     return result
+
+
+def _public_occurrence_facts_for_rows(rows) -> tuple[dict[str, list[dict]], dict[str, list[dict]]]:
+    """Resolve public occurrence-place roles for selected Activity candidates.
+
+    Only Occurrences already admitted by Discovery can be inspected here.
+    Reuse the same place-publication rule as Discovery's primary place.
+    The bounded wire contains locations, not inferred routes or coordinates.
+    """
+    from django.core.exceptions import ObjectDoesNotExist
+    from discovery.presentation import _space_place_is_public
+
+    selected = {}
+    for family, _, candidate in rows:
+        if family != "activity":
+            continue
+        selected[str(candidate.activity_id)] = set(candidate.matching_occurrence_ids)
+
+    if not selected:
+        return {}, {}
+    activity_ids = list(selected)
+    occurrence_ids = {oid for ids in selected.values() for oid in ids}
+    from activities.models import ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
+
+    # Exact identities have already passed the viewer-aware Discovery selector.
+    # Only load place relations here, not Commerce/Capacity prefetches.
+    queryset = (
+        Occurrence.objects.filter(
+            pk__in=occurrence_ids,
+            activity_id__in=activity_ids,
+            activity__status=ActivityStatus.PUBLISHED,
+            activity__visibility=ActivityVisibility.PUBLIC,
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        .exclude(activity__space__verification_status="suspended")
+        .select_related("activity", "activity__space", "activity__transport_service__route")
+        .prefetch_related(
+            "place_links__place",
+            "activity__space__space_places",
+            "activity__transport_service__route__stops__place",
+        )
+        .order_by("start_date", "start_time", "id")
+    )
+    facts = {activity_id: [] for activity_id in activity_ids}
+    variants = {activity_id: [] for activity_id in activity_ids}
+    for occurrence in queryset:
+        activity_id = str(occurrence.activity_id)
+        if str(occurrence.pk) not in selected.get(activity_id, set()):
+            continue
+        if len(variants[activity_id]) < 12:
+            variants[activity_id].append({
+                "occurrence": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "timing": {
+                    "kind": occurrence.timing_kind,
+                    "start_at": occurrence.start_at.isoformat() if occurrence.start_at else None,
+                    "end_at": occurrence.end_at.isoformat() if occurrence.end_at else None,
+                    "start_date": occurrence.start_date.isoformat() if occurrence.start_date else None,
+                    "end_date": occurrence.end_date.isoformat() if occurrence.end_date else None,
+                    "start_time": occurrence.start_time.isoformat() if occurrence.start_time else None,
+                    "end_time": occurrence.end_time.isoformat() if occurrence.end_time else None,
+                    "timezone": occurrence.timezone,
+                },
+            })
+        bucket = facts[activity_id]
+        if len(bucket) >= 12:
+            continue
+        for link in occurrence.place_links.all():
+            place = link.place
+            if not place.is_active or not _space_place_is_public(occurrence.activity, place):
+                continue
+            bucket.append({
+                "occurrence": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "role": link.role,
+                "place": {
+                    "id": str(place.pk),
+                    "name": place.name,
+                    "locality": place.locality,
+                    "latitude": float(place.latitude) if place.latitude is not None else None,
+                    "longitude": float(place.longitude) if place.longitude is not None else None,
+                },
+            })
+            if len(bucket) >= 12:
+                break
+
+        # Transport route stops are canonical multi-place facts even when an
+        # Occurrence has no explicit place_links. Their original positions
+        # determine departure/stopover/arrival; never reclassify after hiding
+        # a non-public stop.
+        if len(bucket) >= 12:
+            continue
+        try:
+            service = occurrence.activity.transport_service
+        except ObjectDoesNotExist:
+            service = None
+        if service is None:
+            continue
+        stops = list(service.route.stops.all())
+        for index, stop in enumerate(stops):
+            place = stop.place
+            if not place.is_active or not _space_place_is_public(occurrence.activity, place):
+                continue
+            role = (
+                "stop"
+                if len(stops) == 1
+                else "departure" if index == 0
+                else "arrival" if index == len(stops) - 1
+                else "stopover"
+            )
+            bucket.append({
+                "occurrence": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "role": role,
+                "place": {
+                    "id": str(place.pk),
+                    "name": place.name,
+                    "locality": place.locality,
+                    "latitude": float(place.latitude) if place.latitude is not None else None,
+                    "longitude": float(place.longitude) if place.longitude is not None else None,
+                },
+            })
+            if len(bucket) >= 12:
+                break
+    return facts, variants
 
 
 def _assessment(projection: dict) -> list[dict]:
@@ -346,6 +530,117 @@ def _assessment(projection: dict) -> list[dict]:
             }
         )
     return facts
+
+
+def _public_owner_facts(activity_ids, opportunity_ids) -> tuple[dict, dict]:
+    """Batch owner identity and date facts without inferring ownership from created_by."""
+    from accounts.models import UserProfile
+    from activities.models import Activity
+    from opportunities.models import Opportunity
+    from organizations.models import SpaceLifecycle
+
+    activities = list(
+        Activity.objects.filter(pk__in=activity_ids)
+        .select_related("space", "owner_profile")
+    )
+    profile_ids = [
+        activity.owner_profile_id
+        for activity in activities
+        if activity.owner_profile_id is not None
+    ]
+    public_profiles = set(
+        UserProfile.objects.filter(
+            user_id__in=profile_ids,
+            public_profile=True,
+            searchable=True,
+            user__is_active=True,
+        ).values_list("user_id", flat=True)
+    )
+    activity_facts = {}
+    for activity in activities:
+        owner = None
+        if activity.space_id is not None:
+            space = activity.space
+            if (
+                space.public_profile
+                and space.searchable
+                and space.lifecycle == SpaceLifecycle.ACTIVE
+                and space.verification_status != "suspended"
+            ):
+                owner = {
+                    "display_name": space.name,
+                    "identity": {"kind": "space", "id": str(space.pk)},
+                    "representation": {"name": space.name, "avatar_url": None},
+                    "context": {"city": space.city, "country": space.country},
+                    "links": {
+                        "public": reverse(
+                            "organizer_public:detail",
+                            kwargs={"slug": space.slug},
+                        ),
+                        "native": f"/spaces/{space.slug}",
+                    },
+                    "capabilities": ["view_public"],
+                }
+        elif activity.owner_profile_id in public_profiles:
+            person = activity.owner_profile
+            name = person.full_name or person.username
+            owner = {
+                "display_name": name,
+                "identity": {"kind": "profile", "id": str(person.pk)},
+                "representation": {
+                    "name": name,
+                    "avatar_url": person.avatar.url if person.avatar else None,
+                },
+                "context": {},
+                "links": {
+                    "public": reverse(
+                        "account:public-profile",
+                        kwargs={"profile_id": person.pk},
+                    ),
+                    "native": f"/people/{person.pk}",
+                },
+                "capabilities": ["view_public"],
+            }
+        activity_facts[str(activity.pk)] = {
+            "owner": owner,
+            "date": {
+                "kind": "added_at",
+                "label": "Ajouté le",
+                "value": activity.created_at.isoformat(),
+            },
+        }
+
+    opportunity_dates = {
+        str(pk): published_at.isoformat() if published_at else None
+        for pk, published_at in Opportunity.objects.filter(
+            pk__in=opportunity_ids,
+        ).values_list("pk", "published_at")
+    }
+    return activity_facts, opportunity_dates
+
+
+def _service_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
+    """A Service start is prevalidated and executed by Services, not Discovery."""
+    if not activity_ids or not _authenticated(profile):
+        return {}
+    from services.models import ServiceDetails
+
+    return {
+        str(service.activity_id): {
+            "state": "owner_api",
+            "owner": "services",
+            "capabilities": ["start"],
+            "links": {
+                "start": reverse(
+                    "services-api:start", kwargs={"pk": service.pk},
+                ),
+            },
+            "resource": {"kind": "service", "id": str(service.pk)},
+        }
+        for service in ServiceDetails.objects.filter(
+            activity_id__in=activity_ids,
+        )
+    }
 
 
 def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
@@ -423,6 +718,8 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
             "orders": reverse("ticket-orders-list"),
         }
         public_types = types_by_event.get(event.pk, [])
+        if public_types:
+            links["native"] = f"/events/{event.slug}/tickets"
         if authenticated and any(
             sold_out(ticket_type)
             for ticket_type in public_types
@@ -434,13 +731,24 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
             "owner": "events",
             "capabilities": capabilities,
             "links": links,
+            "resource": {
+                "kind": "event",
+                "id": str(event.pk),
+                "slug": event.slug,
+            },
         }
     return result
 
 
-def _handoff_for_projection(projection: dict, *, event_handoffs=None) -> dict:
+def _handoff_for_projection(
+    projection: dict, *, event_handoffs=None, service_handoffs=None
+) -> dict:
     resource = projection["identity"]["resource"]
     family = projection["identity"]["family"]
+    if family == "service_activity" and service_handoffs:
+        handoff = service_handoffs.get(resource["id"])
+        if handoff is not None:
+            return handoff
     if family == "activity" and event_handoffs:
         handoff = event_handoffs.get(resource["id"])
         if handoff is not None:
@@ -462,6 +770,7 @@ def _finalize_projection(
     *,
     card=None,
     event_handoffs=None,
+    service_handoffs=None,
     description="",
 ) -> dict:
     identity = projection["identity"]
@@ -513,18 +822,32 @@ def _finalize_projection(
                 "label": getattr(participant_state, "label", ""),
                 "secondary_label": getattr(participant_state, "secondary_label", ""),
             }
+    # Bind only owner-resolved public imagery already carried by the
+    # canonical representation; a document is not a visual cover.
+    image_url = projection["representation"].get("image_url")
+    if image_url:
+        projection["media_bindings"] = [{
+            "resource": {"url": image_url},
+            "target": dict(identity["resource"]),
+            "purpose": "RECOGNIZE",
+        }]
     projection["assessment"] = _assessment(projection)
     projection["engagement"] = _handoff_for_projection(
         projection,
         event_handoffs=event_handoffs,
+        service_handoffs=service_handoffs,
     )
     if card is not None and card.actions.primary is not None:
         primary = card.actions.primary
+        # A Web CTA may remain navigable without a matching owner API.
+        # Do not advertise executable authority from presentation alone.
+        executable = primary.code in projection["engagement"]["capabilities"]
         projection["engagement"]["presentation"] = {
             "label": primary.label,
             "capability": primary.code,
-            "enabled": bool(primary.enabled),
+            "enabled": bool(primary.enabled and executable),
             "web": primary.url,
+            "web_enabled": bool(primary.enabled and primary.url),
         }
     if description:
         projection["detail"] = {"description": description}
@@ -546,6 +869,50 @@ def project_rows(rows, *, profile=None) -> list[dict]:
         for family, _, candidate in rows
         if family == "opportunity"
     }
+    from commerce.offer_price_facts import offer_price_facts_many
+
+    price_contexts = {
+        (
+            str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
+            str(candidate.occurrence_id) if family == "activity" else None,
+        )
+        for family, _, candidate in rows
+        if family in {"activity", "service_activity"}
+    }
+    owner_prices = offer_price_facts_many(contexts=price_contexts)
+    # The collection and the existing detail API must expose the same
+    # public description. Bulk-load it for the selected page only.
+    from activities.models import Activity
+
+    # Resolve published visual uses for this admitted page, in one bounded query.
+    # A document Resource is never promoted into a cover.
+    from groups.selectors import eligible_activity_ids_for_profile
+    from presentations.media_models import PresentationMediaPurpose
+    from presentations.media_selectors import public_presentation_media_for_activities
+
+    admitted_activity_ids = eligible_activity_ids_for_profile(profile, activity_ids)
+    presentation_activities = list(Activity.objects.filter(pk__in=admitted_activity_ids))
+    candidate_occurrence_ids = {
+        candidate.occurrence_id
+        for family, _, candidate in rows
+        if family == "activity" and candidate.occurrence_id is not None
+    }
+    from activities.models import Occurrence
+    presentation_occurrences = list(Occurrence.objects.filter(
+        pk__in=candidate_occurrence_ids,
+        activity_id__in=admitted_activity_ids,
+    ))
+    presentation_uses = public_presentation_media_for_activities(
+        presentation_activities,
+        occurrences=presentation_occurrences,
+        purpose=PresentationMediaPurpose.RECOGNIZE,
+    )
+    descriptions_by_activity = {
+        str(activity_id): description
+        for activity_id, description in Activity.objects.filter(
+            pk__in=activity_ids
+        ).values_list("pk", "description")
+    }
     saved_activity_ids = _saved_activity_ids(profile, activity_ids)
     saved_opportunity_ids = _saved_opportunity_ids(profile, opportunity_ids)
     can_save = _authenticated(profile)
@@ -553,8 +920,13 @@ def project_rows(rows, *, profile=None) -> list[dict]:
         activity_ids,
         profile=profile,
     )
+    service_handoffs = _service_handoffs(activity_ids, profile=profile)
+    owner_facts, opportunity_dates = _public_owner_facts(
+        activity_ids, opportunity_ids,
+    )
     activity_resources = _activity_resource_previews(activity_ids)
     opportunity_resources = _opportunity_source_previews(opportunity_ids)
+    public_spatial_facts, occurrence_variants = _public_occurrence_facts_for_rows(rows)
 
     projections = []
     for family, _, candidate in rows:
@@ -612,12 +984,77 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             )
         else:
             continue
+        description = (
+            candidate.get("summary") or ""
+            if family == "opportunity"
+            else descriptions_by_activity.get(
+                str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
+                "",
+            )
+        )
         finalized = _finalize_projection(
             projection,
             card=card,
             event_handoffs=event_handoffs,
+            service_handoffs=service_handoffs,
+            description=description,
         )
+        if family == "opportunity":
+            issuer_name = (candidate.get("issuer_name") or "").strip()
+            finalized["owner"] = (
+                {
+                    "display_name": issuer_name,
+                    "identity": {"kind": "external_issuer"},
+                    "representation": {"name": issuer_name, "avatar_url": None},
+                    "context": {},
+                    "links": {},
+                    "capabilities": [],
+                }
+                if issuer_name else None
+            )
+            published = opportunity_dates.get(str(candidate["opportunity_id"]))
+            finalized["date"] = (
+                {"kind": "published_at", "label": "Publiée le", "value": published}
+                if published else None
+            )
+        else:
+            facts = owner_facts.get(
+                str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
+                {},
+            )
+            finalized["owner"] = facts.get("owner")
+            finalized["date"] = facts.get("date")
+        if family in {"activity", "service_activity", "funding_activity"}:
+            current_activity_id = str(
+                candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id
+            )
+            current_occurrence_id = (
+                str(candidate.occurrence_id)
+                if family == "activity" and candidate.occurrence_id is not None
+                else None
+            )
+            apply_recognition_media(
+                finalized,
+                presentation_uses.get(current_activity_id, ()),
+                occurrence_id=current_occurrence_id,
+            )
+        if family in {"activity", "service_activity"}:
+            key = (
+                str(candidate["activity_id"] if isinstance(candidate, dict) else candidate.activity_id),
+                str(candidate.occurrence_id) if family == "activity" else None,
+            )
+            owner_price = owner_prices.get(key)
+            if owner_price is not None and owner_price.state != "unknown":
+                finalized["price"] = owner_price.as_dict()
         resource = finalized["identity"]["resource"]
+        if family == "activity":
+            finalized["spatial_facts"] = public_spatial_facts.get(
+                str(candidate.activity_id), []
+            )
+            if candidate.matching_count > 1:
+                finalized["variants"] = occurrence_variants.get(
+                    str(candidate.activity_id), []
+                )
         if resource["kind"] == "activity":
             finalized["resources"] = activity_resources.get(resource["id"], [])
         elif resource["kind"] == "opportunity":
@@ -635,7 +1072,7 @@ def paginated_projection(
     include_internal_rows=False,
 ) -> dict:
     composition = compose_discovery(params, profile=profile)
-    page, page_size = parse_page_params(params)
+    page, page_size = parse_page_params(params, profile=profile)
     start = (page - 1) * page_size
     end = start + page_size
     page_rows = composition.rows[start:end]
@@ -648,9 +1085,12 @@ def paginated_projection(
     has_exploration = bool(
         composition.intent.raw_text or composition.intent.constraints
     )
-    is_empty = not results
+    # Empty *page* is not an empty *field*: an out-of-range page must not
+    # claim that the current criteria have no matching possibilities.
+    field_empty = count == 0
+    page_exhausted = count > 0 and not results
     selection_reason = None
-    if is_empty:
+    if field_empty:
         selection_reason = "no_match" if has_exploration else "no_current_proposal"
     payload = {
         "surface": "discover_me" if authenticated else "discover_public",
@@ -666,10 +1106,13 @@ def paginated_projection(
         ),
         "freshness": {
             "state": "fresh",
+            # Generation time, not proof that each owner fact was revalidated.
             "observed_at": observed_at.isoformat(),
+            "generated_at": observed_at.isoformat(),
+            "fact_freshness": "not_asserted",
         },
         "selection": {
-            "state": "empty" if is_empty else "ready",
+            "state": "empty" if field_empty else "ready",
             "reason": selection_reason,
         },
         "capabilities": [],
@@ -702,7 +1145,7 @@ def paginated_projection(
             "state": "more" if has_next else "end",
             "token": (
                 signing.dumps(
-                    {"page": page + 1},
+                    {"page": page + 1, "context": _continuation_context(params, profile=profile)},
                     salt=DISCOVERY_CONTINUATION_SALT,
                     compress=True,
                 )
@@ -719,7 +1162,7 @@ def paginated_projection(
             }
         },
         "terminal": {
-            "state": "empty" if is_empty else "ok",
+            "state": ("empty" if field_empty else "end_of_field" if page_exhausted else "ok"),
             "message": None,
         },
     }
@@ -776,28 +1219,8 @@ def detail_projection(family, item_id, *, profile=None) -> dict | None:
         profile=profile,
     )[0]
 
-    if family == "activity":
-        from activities.models import Activity
-
-        activity = Activity.objects.filter(pk=item_id).only("description").first()
-        description = activity.description if activity is not None else ""
-    elif family == "service_activity":
-        from services.models import ServiceDetails
-
-        service = (
-            ServiceDetails.objects.filter(activity_id=item_id)
-            .select_related("activity")
-            .only("activity__description")
-            .first()
-        )
-        description = service.activity.description if service is not None else ""
-    elif family == "funding_activity":
-        description = item["funding"].activity.description
-    else:
-        description = item.get("summary") or ""
-
-    if description:
-        projection["detail"] = {"description": description}
+    # The collection already carries the same authorized detail facts.
+    # This endpoint stays available for refresh and direct links.
     return projection
 
 

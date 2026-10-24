@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
 import '../discovery/discovery_selector.dart';
+import '../discovery/discovery_wire.dart';
 import 'public_shell.dart';
 
 /// Read-only, server-authorized guest depth. A personal operation always
@@ -53,11 +54,15 @@ class _PublicPossibilityDetailScreenState
         'api/v1/discovery/items/${Uri.encodeComponent(widget.family)}/'
         '${Uri.encodeComponent(widget.id)}/',
       );
-      final body = response.jsonObject()['data'];
-      if (body is! Map || body['item'] is! Map) {
-        throw const FormatException('Invalid item detail');
+      final raw = DiscoveryWire.receiveItem(
+        response.jsonObject(),
+        scope: 'public',
+      );
+      final identity = raw['identity'] as Map;
+      final resource = identity['resource'] as Map;
+      if (identity['family'] != widget.family || resource['id'] != widget.id) {
+        throw const FormatException('Unexpected Discovery detail identity');
       }
-      final raw = Map<String, dynamic>.from(body['item'] as Map);
       final item = _selector.publicItem(raw);
       if (item == null) throw const FormatException('Unknown possibility');
       if (!mounted) return;

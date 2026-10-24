@@ -7,15 +7,23 @@ import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
+import '../../network/makolo_api_client.dart';
+import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'discovery_selector.dart';
 
 typedef DiscoveryOpenItem = void Function(DiscoveryItemPresentation item);
+typedef DiscoverySaveItem = Future<void> Function(
+  DiscoveryItemPresentation item,
+);
 
 class DiscoveryExplorationView extends StatefulWidget {
   const DiscoveryExplorationView({
     super.key,
     required this.selection,
     required this.onOpen,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
     this.onPage,
     this.onRetry,
     this.onResetCriteria,
@@ -23,6 +31,9 @@ class DiscoveryExplorationView extends StatefulWidget {
 
   final DiscoveryFieldSelection selection;
   final DiscoveryOpenItem onOpen;
+  final DiscoverySaveItem? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
@@ -69,6 +80,9 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           return DiscoveryFieldView(
             selection: widget.selection,
             onOpen: widget.onOpen,
+            onSave: widget.onSave,
+            baseUri: widget.baseUri,
+            shareApi: widget.shareApi,
             onPage: widget.onPage,
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
@@ -78,6 +92,9 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
         final field = DiscoveryFieldView(
           selection: widget.selection,
           onOpen: widget.onOpen,
+          onSave: widget.onSave,
+          baseUri: widget.baseUri,
+          shareApi: widget.shareApi,
           onPage: widget.onPage,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
@@ -94,6 +111,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           field: field,
           focus: _DiscoveryFocusPane(
             item: focused,
+            baseUri: widget.baseUri,
             onClose: () => setState(() => _focusedCandidateKey = null),
             onOpen: () => widget.onOpen(focused),
           ),
@@ -109,6 +127,9 @@ class DiscoveryFieldView extends StatelessWidget {
     super.key,
     required this.selection,
     required this.onOpen,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
     this.onPage,
     this.onRetry,
     this.onResetCriteria,
@@ -120,6 +141,9 @@ class DiscoveryFieldView extends StatelessWidget {
 
   final DiscoveryFieldSelection selection;
   final DiscoveryOpenItem onOpen;
+  final DiscoverySaveItem? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
@@ -146,6 +170,9 @@ class DiscoveryFieldView extends StatelessWidget {
       content: _DiscoveryScrollableField(
         selection: selection,
         onOpen: onOpen,
+        onSave: onSave,
+        baseUri: baseUri,
+        shareApi: shareApi,
         onPage: onPage,
         selectedCandidateKey: selectedCandidateKey,
         onSelect: onSelect,
@@ -162,6 +189,9 @@ class DiscoverySpatialView extends StatefulWidget {
     required this.selection,
     required this.mapConfig,
     required this.onOpen,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
     this.onPage,
     this.onRetry,
   });
@@ -169,6 +199,9 @@ class DiscoverySpatialView extends StatefulWidget {
   final DiscoveryFieldSelection selection;
   final MakoloMapsConfig mapConfig;
   final DiscoveryOpenItem onOpen;
+  final DiscoverySaveItem? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
   final VoidCallback? onRetry;
 
@@ -201,19 +234,23 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         if (item.candidateKey == key) return item;
       }
     }
+    final anchorKeys = _selector
+        .spatialAnchorsFromCollection(widget.selection.collection)
+        .map((anchor) => anchor.candidateKey)
+        .toSet();
     for (final item in items) {
-      if (item.isMappable) return item;
+      if (anchorKeys.contains(item.candidateKey)) return item;
     }
     return items.first;
   }
 
   @override
   Widget build(BuildContext context) {
-    final points = _selector.mapPointsFromCollection(
+    final points = _selector.spatialAnchorsFromCollection(
       widget.selection.collection,
     );
     final selected = _selectedItem;
-    DiscoveryMapPoint? selectedPoint;
+    DiscoverySpatialAnchor? selectedPoint;
     if (selected != null) {
       for (final point in points) {
         if (point.candidateKey == selected.candidateKey) {
@@ -226,6 +263,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final field = DiscoveryFieldView(
       selection: widget.selection,
       onOpen: widget.onOpen,
+      onSave: widget.onSave,
+      baseUri: widget.baseUri,
+      shareApi: widget.shareApi,
       onPage: widget.onPage,
       onRetry: widget.onRetry,
       selectedCandidateKey: _selectedCandidateKey,
@@ -246,9 +286,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         children: [
           Positioned.fill(
             child: ConfiguredMakoloMapView(
-              key: ValueKey(
-                'discover-map-${anchor.candidateKey ?? anchor.occurrenceId}',
-              ),
+              key: ValueKey('discover-map-${anchor.candidateKey}'),
               config: widget.mapConfig,
               initialViewport: MapViewport(
                 center: MapCoordinate(anchor.latitude, anchor.longitude),
@@ -307,6 +345,9 @@ class _DiscoveryScrollableField extends StatelessWidget {
   const _DiscoveryScrollableField({
     required this.selection,
     required this.onOpen,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
     this.onPage,
     this.selectedCandidateKey,
     this.onSelect,
@@ -316,6 +357,9 @@ class _DiscoveryScrollableField extends StatelessWidget {
 
   final DiscoveryFieldSelection selection;
   final DiscoveryOpenItem onOpen;
+  final DiscoverySaveItem? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
@@ -341,6 +385,9 @@ class _DiscoveryScrollableField extends StatelessWidget {
               key: ValueKey('discover-unit-${item.candidateKey}'),
               item: item,
               selected: selectedCandidateKey == item.candidateKey,
+              baseUri: baseUri,
+              shareApi: shareApi,
+              onSave: onSave == null ? null : () => onSave!(item),
               onTap: () {
                 if (selectOnCardTap && onSelect != null) {
                   onSelect!(item);
@@ -384,24 +431,33 @@ class _DiscoveryScrollableField extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
-                  if (wide)
-                    MakoloAdaptiveGrid(
-                      key: const Key('discover-wide-grid'),
-                      minUnitWidth: MakoloLayout.unitMinWidth,
-                      maxColumns: 3,
-                      children: units,
-                    )
-                  else
-                    Column(
-                      key: const Key('discover-compact-field'),
-                      children: [
-                        for (var index = 0; index < units.length; index++) ...[
-                          units[index],
-                          if (index < units.length - 1)
-                            const SizedBox(height: MakoloSpacing.md),
-                        ],
-                      ],
-                    ),
+                ],
+              ),
+            ),
+            if (wide)
+              MakoloContentFrame(
+                child: MakoloAdaptiveGrid(
+                  key: const Key('discover-wide-grid'),
+                  minUnitWidth: MakoloLayout.unitMinWidth,
+                  maxColumns: 3,
+                  children: units,
+                ),
+              )
+            else
+              Column(
+                key: const Key('discover-compact-field'),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < units.length; index++) ...[
+                    units[index],
+                    if (index < units.length - 1)
+                      const SizedBox(height: MakoloSpacing.md),
+                  ],
+                ],
+              ),
+            MakoloContentFrame(
+              child: Column(
+                children: [
                   if (selection.states.contains(
                     DiscoveryFieldState.endOfField,
                   )) ...[
@@ -432,6 +488,9 @@ class _DiscoveryUnit extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    this.onSave,
+    this.baseUri,
+    this.shareApi,
     this.onSelect,
     this.selectionActionLabel,
   });
@@ -439,30 +498,14 @@ class _DiscoveryUnit extends StatelessWidget {
   final DiscoveryItemPresentation item;
   final bool selected;
   final VoidCallback onTap;
+  final Future<void> Function()? onSave;
+  final Uri? baseUri;
+  final MakoloApiClient? shareApi;
   final VoidCallback? onSelect;
   final String? selectionActionLabel;
 
-  bool get _hasContextualMedia =>
-      item.imageUrl != null || item.routeLabel != null;
-
   @override
   Widget build(BuildContext context) {
-    final metadata = <MakoloMetadataItem>[
-      if (item.owner != null)
-        MakoloMetadataItem(item.owner!, icon: Icons.business_outlined),
-      if (item.place != null)
-        MakoloMetadataItem(item.place!, icon: Icons.place_outlined),
-      if (item.distanceKm != null)
-        MakoloMetadataItem(
-          '${item.distanceKm! < 10 ? item.distanceKm!.toStringAsFixed(1) : item.distanceKm!.round()} km',
-          icon: Icons.near_me_outlined,
-        ),
-      if (item.timing != null)
-        MakoloMetadataItem(item.timing!, icon: Icons.schedule_outlined),
-      if (item.price != null)
-        MakoloMetadataItem(item.price!, icon: Icons.payments_outlined),
-    ];
-
     return DecoratedBox(
       decoration: selected
           ? BoxDecoration(
@@ -473,115 +516,40 @@ class _DiscoveryUnit extends StatelessWidget {
               borderRadius: BorderRadius.circular(MakoloRadii.card),
             )
           : const BoxDecoration(),
-      child: MakoloCard(
-        onTap: onTap,
-        semanticLabel: 'Possibilité. ${item.title}',
-        padding: EdgeInsets.zero,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_hasContextualMedia)
-              Padding(
-                padding: const EdgeInsets.all(MakoloSpacing.sm),
-                child: _DiscoveryMedia(item: item),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(MakoloSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (item.eyebrow != null)
-                    Text(
-                      item.eyebrow!,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  if (item.eyebrow != null)
-                    const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    item.title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (item.summary.isNotEmpty) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(
-                      item.summary,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  if (metadata.isNotEmpty) ...[
-                    const SizedBox(height: MakoloSpacing.md),
-                    MakoloMetadata(items: metadata),
-                  ],
-                  if (item.availability != null ||
-                      item.canSave ||
-                      item.canUnsave ||
-                      item.savedState == 'saved') ...[
-                    const SizedBox(height: MakoloSpacing.md),
-                    Row(
-                      children: [
-                        if (item.availability != null)
-                          MakoloStatus(label: item.availability!),
-                        const Spacer(),
-                        if (item.canSave ||
-                            item.canUnsave ||
-                            item.savedState == 'saved')
-                          Icon(
-                            item.savedState == 'saved'
-                                ? Icons.bookmark_rounded
-                                : Icons.bookmark_border_rounded,
-                            size: 20,
-                            color: item.savedState == 'saved'
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                          ),
-                      ],
-                    ),
-                  ],
-                  if (onSelect != null) ...[
-                    const SizedBox(height: MakoloSpacing.md),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        key: ValueKey(
-                          'discover-map-action-${item.candidateKey}',
-                        ),
-                        onPressed: onSelect,
-                        icon: const Icon(Icons.map_outlined),
-                        label: Text(selectionActionLabel ?? 'Sélectionner'),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+      child: DiscoveryPossibilityUnit(
+        item: item,
+        onOpen: onTap,
+        onSave: onSave,
+        baseUri: baseUri,
+        shareApi: shareApi,
+        shareAuthenticated: shareApi != null,
+        onSelect: onSelect,
+        selectionActionLabel: selectionActionLabel,
       ),
     );
   }
 }
 
 class _DiscoveryMedia extends StatelessWidget {
-  const _DiscoveryMedia({required this.item});
+  const _DiscoveryMedia({required this.item, this.baseUri});
 
   final DiscoveryItemPresentation item;
+  final Uri? baseUri;
 
   @override
   Widget build(BuildContext context) {
     final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
+    final resolved = uri == null
+        ? null
+        : (uri.hasScheme ? uri : baseUri?.resolveUri(uri));
     final networkImage =
-        uri != null && (uri.scheme == 'https' || uri.scheme == 'http');
+        resolved != null &&
+        (resolved.scheme == 'https' || resolved.scheme == 'http');
 
     Widget? child;
     if (networkImage) {
       child = Image.network(
-        item.imageUrl!,
+        resolved.toString(),
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) =>
             MakoloMediaPlaceholder(label: item.eyebrow ?? 'Média indisponible'),
@@ -616,9 +584,11 @@ class _DiscoveryFocusPane extends StatelessWidget {
     required this.item,
     required this.onClose,
     required this.onOpen,
+    this.baseUri,
   });
 
   final DiscoveryItemPresentation item;
+  final Uri? baseUri;
   final VoidCallback onClose;
   final VoidCallback onOpen;
 
@@ -637,7 +607,7 @@ class _DiscoveryFocusPane extends StatelessWidget {
           ),
           const SizedBox(height: MakoloSpacing.md),
           if (item.imageUrl != null || item.routeLabel != null) ...[
-            _DiscoveryMedia(item: item),
+            _DiscoveryMedia(item: item, baseUri: baseUri),
             const SizedBox(height: MakoloSpacing.lg),
           ],
           if (item.eyebrow != null)
@@ -698,11 +668,8 @@ class _DiscoveryFocusPane extends StatelessWidget {
                 if (item.canSave ||
                     item.canUnsave ||
                     item.savedState == 'saved')
-                  Icon(
-                    item.savedState == 'saved'
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    size: 22,
+                  DiscoveryOrbitIcon(
+                    saved: item.savedState == 'saved',
                     color: item.savedState == 'saved'
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -735,6 +702,23 @@ class _DiscoveryEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (states.contains(DiscoveryFieldState.contractError)) {
+      return _EmptyBody(
+        icon: Icons.error_outline_rounded,
+        title: 'Cette réponse Discovery n’est pas compatible.',
+        body: 'Les informations reçues ne peuvent pas être présentées de façon sûre.',
+        actionLabel: onRetry == null ? null : 'Réessayer',
+        onAction: onRetry,
+      );
+    }
+    if (states.contains(DiscoveryFieldState.continuationRejected)) {
+      return _EmptyBody(
+        icon: Icons.refresh_rounded,
+        title: 'La suite de cette recherche doit être actualisée.',
+        actionLabel: onRetry == null ? null : 'Actualiser la recherche',
+        onAction: onRetry,
+      );
+    }
     if (states.contains(DiscoveryFieldState.serverUnavailableNoSnapshot)) {
       return _EmptyBody(
         icon: Icons.cloud_off_outlined,

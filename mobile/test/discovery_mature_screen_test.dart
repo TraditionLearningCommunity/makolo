@@ -4,6 +4,7 @@ import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/discovery/discovery_mature_view.dart';
 import 'package:makolo_mobile/features/discovery/discovery_selector.dart';
+import 'package:makolo_mobile/features/discovery/discovery_share_sheet.dart';
 import 'package:makolo_mobile/platform/maps/map_runtime_config.dart';
 
 import 'support/presentation_harness.dart';
@@ -37,6 +38,15 @@ DiscoveryItemPresentation item(
     savedState: 'not_saved',
     capabilities: const {'view', 'save'},
     links: const {'detail': '/api/v1/discovery/items/activity/test/'},
+    wire: mappable
+        ? {
+            'place': {
+              'latitude': -11.66 + id.length / 100,
+              'longitude': 27.48 + id.length / 100,
+              'locality': 'Lubumbashi',
+            },
+          }
+        : const {},
   );
 }
 
@@ -98,10 +108,208 @@ void main() {
     expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
     expect(find.byKey(const Key('discover-wide-grid')), findsNothing);
     expect(find.text('Formation Data Science'), findsOneWidget);
+    // N1 scrolls a bounded page: off-screen cards are built on demand.
+    await tester.scrollUntilVisible(
+      find.text('Lubumbashi → Kolwezi'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Lubumbashi → Kolwezi'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Accompagnement à distance'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Accompagnement à distance'), findsOneWidget);
     expect(find.text('S’inscrire'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.textContaining('contenu de remplissage'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.textContaining('contenu de remplissage'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('N1 mobile shows price beside independent presentation facts', (
+    tester,
+  ) async {
+    final rich = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'service-n1',
+      candidateKey: 'service_activity:service-n1',
+      title: 'Accompagnement très détaillé',
+      summary: 'Une description utile du Service.',
+      owner: 'Espace conseil',
+      price: '25000 CDF',
+      availability: 'Disponible',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {
+        'detail': '/api/v1/discovery/items/service_activity/service-n1/',
+      },
+      wire: const {
+        'presentation_facts': [
+          {
+            'code': 'condition',
+            'label': 'Condition',
+            'value': 'Document requis',
+          },
+          {'code': 'duration', 'label': 'Durée', 'value': 'Une semaine'},
+        ],
+        'date': {
+          'kind': 'added_at',
+          'label': 'Ajouté le',
+          'value': '2026-10-10T10:30:00+02:00',
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) {},
+      ),
+    );
+
+    expect(find.text('Accompagnement très détaillé'), findsOneWidget);
+    expect(find.text('25000 CDF'), findsOneWidget);
+    expect(find.text('Document requis'), findsOneWidget);
+    expect(find.text('Une semaine'), findsOneWidget);
+    expect(find.byKey(const Key('discover-save-n1')), findsOneWidget);
+    expect(find.byKey(const Key('discover-primary-n1')), findsOneWidget);
+    expect(find.text('Voir plus'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('N1 long description expands inline without opening detail', (
+    tester,
+  ) async {
+    var opened = false;
+    final longSummary = List.filled(35, 'Une possibilité concrète.').join(' ');
+    final rich = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'inline',
+      candidateKey: 'activity:inline',
+      title: 'Description dépliable',
+      summary: longSummary,
+      owner: 'Espace test',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {},
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) => opened = true,
+      ),
+    );
+
+    expect(find.text('Voir plus'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('discover-description-text')))
+          .maxLines,
+      3,
+    );
+    await tester.tap(find.byKey(const Key('discover-description-tap')));
+    await tester.pump();
+    expect(find.text(longSummary), findsOneWidget);
+    expect(find.text('Voir moins'), findsOneWidget);
+    expect(opened, isFalse);
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-description-tap')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('discover-description-tap')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('discover-description-text')))
+          .maxLines,
+      3,
+    );
+    expect(find.text('Voir plus'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('discover-description-expand')));
+    await tester.pump();
+    expect(find.text(longSummary), findsOneWidget);
+    await tester.ensureVisible(find.text('Voir moins'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Voir moins'));
+    await tester.pump();
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('discover-description-text')))
+          .maxLines,
+      3,
+    );
+    expect(opened, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('N1 resources keep server order and reveal the full collection', (
+    tester,
+  ) async {
+    final rich = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'resources',
+      candidateKey: 'activity:resources',
+      title: 'Possibilité avec documents',
+      summary: 'Résumé court.',
+      owner: 'Espace test',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'resources': [
+          {
+            'title': 'Premier document',
+            'kind': 'file',
+            'mime_type': 'application/pdf',
+          },
+          {
+            'title': 'Deuxième document',
+            'kind': 'file',
+            'mime_type': 'image/png',
+          },
+          {
+            'title': 'Troisième document',
+            'kind': 'text',
+            'text_content': 'Texte court.',
+          },
+          {
+            'title': 'Quatrième document',
+            'kind': 'file',
+            'mime_type': 'text/csv',
+          },
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) {},
+      ),
+    );
+
+    expect(find.text('Premier document'), findsOneWidget);
+    expect(find.text('Deuxième document'), findsOneWidget);
+    expect(find.text('Troisième document'), findsOneWidget);
+    expect(find.text('Quatrième document'), findsNothing);
+    expect(find.text('Voir les 4 ressources'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-resources-expand')),
+    );
+    await tester.tap(find.byKey(const Key('discover-resources-expand')));
+    await tester.pump();
+    expect(find.text('Quatrième document'), findsOneWidget);
+    expect(find.text('Voir moins de ressources'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -193,7 +401,11 @@ void main() {
     final secondMapAction = find.byKey(
       const ValueKey('discover-map-action-activity:route'),
     );
-    await tester.ensureVisible(secondMapAction);
+    await tester.scrollUntilVisible(
+      secondMapAction,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pump();
     await tester.tap(secondMapAction);
     await tester.pump();
@@ -312,5 +524,40 @@ void main() {
     expect(find.text('Formation Data Science'), findsOneWidget);
     expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('guest share presents external choices without signing in', (
+    tester,
+  ) async {
+    final publicItem = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'public-one',
+      candidateKey: 'activity:public-one',
+      title: 'Possibilité publique',
+      summary: 'Une possibilité visible par tous.',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {
+        'web': '/discover/items/activity/public-one/',
+        'web_share': '/discovery/share/activity/public-one/',
+      },
+    );
+    var requestedSignIn = false;
+    await PresentationHarness.pump(
+      tester,
+      child: DiscoveryShareControl(
+        item: publicItem,
+        api: null,
+        authenticated: false,
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        onSignIn: () => requestedSignIn = true,
+      ),
+    );
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    expect(find.text('Partager avec…'), findsOneWidget);
+    expect(find.text('Copier le lien'), findsOneWidget);
+    expect(find.text('Afficher le QR'), findsOneWidget);
+    expect(find.text('Dans Makolo · connexion requise'), findsOneWidget);
+    expect(requestedSignIn, isFalse);
   });
 }

@@ -16,10 +16,15 @@ import '../features/day_of/day_of_routes.dart';
 import '../features/live/live_routes.dart';
 import '../features/discovery/discovery_routes.dart';
 import '../features/discovery/discovery_repository.dart';
+import '../features/discovery/discovery_shared_link_screen.dart';
+import '../features/discovery/discovery_event_tickets_screen.dart';
+import '../features/discovery/discovery_ticket_order_screen.dart';
+import '../features/services/service_start_screen.dart';
 import '../features/guest/public_discovery_map_screen.dart';
 import '../features/guest/public_home_screen.dart';
 import '../features/guest/public_possibility_detail_screen.dart';
 import '../features/guest/public_space_screens.dart';
+import '../features/guest/public_profile_screen.dart';
 import '../features/guest/guest_screen.dart';
 import '../features/interoperability/interoperability_routes.dart';
 import '../features/journey/journey_routes.dart';
@@ -72,7 +77,10 @@ GoRouter createMakoloRouter(
         path == '/discover/map' ||
         path == '/spaces' ||
         path.startsWith('/spaces/') ||
-        path.startsWith('/discover/items/')) {
+        path.startsWith('/people/') ||
+        path.startsWith('/events/') ||
+        path.startsWith('/discover/items/') ||
+        path.startsWith('/s/')) {
       return false;
     }
     if (MakoloDestination.forPath(path) != null) return true;
@@ -92,8 +100,11 @@ GoRouter createMakoloRouter(
     }
     return const [
       '/journeys/',
+      '/shares/',
       '/discover/items/',
       '/activities/',
+      '/services/',
+      '/tickets/orders/',
       '/occurrences/',
       '/space/occurrences/',
       '/space/relationships',
@@ -148,6 +159,20 @@ GoRouter createMakoloRouter(
       message: 'Cette page n’est pas disponible.',
     ),
     routes: [
+      GoRoute(
+        path: '/s/:token',
+        builder: (context, state) => DiscoverySharedLinkScreen(
+          runtime: runtime,
+          token: state.pathParameters['token']!,
+        ),
+      ),
+      GoRoute(
+        path: '/shares/:id',
+        builder: (context, state) => DiscoverySharedLinkScreen(
+          runtime: runtime,
+          deliveryId: state.pathParameters['id']!,
+        ),
+      ),
       if (runtime.isAuthenticated)
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) => AppShell(
@@ -227,6 +252,48 @@ GoRouter createMakoloRouter(
           ),
         ),
       ],
+      if (runtime.isAuthenticated) ...[
+        GoRoute(
+          path: '/spaces',
+          builder: (context, state) => PublicSpacesScreen(runtime: runtime),
+        ),
+        GoRoute(
+          path: '/spaces/:slug',
+          builder: (context, state) => PublicSpaceDetailScreen(
+            runtime: runtime,
+            slug: state.pathParameters['slug']!,
+          ),
+        ),
+        GoRoute(
+          path: '/services/:id/start',
+          builder: (context, state) => ServiceStartScreen(
+            runtime: runtime,
+            serviceId: state.pathParameters['id']!,
+          ),
+        ),
+      ],
+      GoRoute(
+        path: '/events/:slug/tickets',
+        builder: (context, state) => DiscoveryEventTicketsScreen(
+          runtime: runtime,
+          eventSlug: state.pathParameters['slug']!,
+        ),
+      ),
+      if (runtime.isAuthenticated)
+        GoRoute(
+          path: '/tickets/orders/:id',
+          builder: (context, state) => DiscoveryTicketOrderScreen(
+            runtime: runtime,
+            orderId: state.pathParameters['id']!,
+          ),
+        ),
+      GoRoute(
+        path: '/people/:id',
+        builder: (context, state) => PublicProfileScreen(
+          runtime: runtime,
+          profileId: state.pathParameters['id']!,
+        ),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => LoginScreen(

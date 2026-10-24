@@ -17,6 +17,29 @@ import 'detail_selector.dart';
 import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
 import 'discovery_selector.dart';
+import 'discovery_wire.dart';
+
+/// A confirmed owner mutation updates the detail snapshot first. Refresh the
+/// existing field opportunistically; a failed refresh does not negate a save.
+Future<void> _saveDiscoveryPossibility(
+  DiscoveryRepository repository,
+  DiscoveryItemPresentation item,
+  DiscoveryQuery query,
+) async {
+  final willSave = item.savedState != 'saved';
+  if (willSave && !item.canSave) {
+    throw StateError('Enregistrement indisponible pour cette possibilité.');
+  }
+  if (!willSave && !item.canUnsave) {
+    throw StateError('Suppression indisponible pour cette possibilité.');
+  }
+  await repository.setSaved(family: item.family, id: item.id, saved: willSave);
+  try {
+    await repository.refreshItems(query);
+  } on Object {
+    // The owner already confirmed the mutation; the snapshot can refresh later.
+  }
+}
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({
@@ -50,14 +73,21 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     try {
       final local = await widget.repository.readItems(_query);
       if (!mounted) return;
+      var locallyValid = local != null;
       if (local != null) {
-        await widget.repository.indexItemPreviews(_query);
+        try {
+          DiscoveryWire.validateData(local.payload);
+          await widget.repository.indexItemPreviews(_query);
+        } on FormatException {
+          locallyValid = false;
+        }
       }
       final source = await widget.repository.readSource(
         widget.repository.itemsSource(_query),
       );
       if (!mounted) return;
       if (local == null ||
+          !locallyValid ||
           DiscoveryRepository.discoveryFreshness.evaluate(
                 local,
                 now: DateTime.now(),
@@ -73,11 +103,19 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Future<void> _refreshItems() async {
     if (_refreshing || !mounted) return;
+    final current = _query;
     setState(() {
       _refreshing = true;
       _acquisitionFailed = false;
     });
     try {
+      final source = await widget.repository.readSource(
+        widget.repository.itemsSource(current),
+      );
+      if (!mounted || !identical(current, _query)) return;
+      if (source.lastErrorCode == 'continuation_rejected') {
+        setState(() => _query = current.copyWith(page: 1));
+      }
       await widget.repository.refreshItems(_query);
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
@@ -87,8 +125,30 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   void _movePage(int page) {
+    unawaited(_navigateToPage(page));
+  }
+
+  Future<void> _navigateToPage(int page) async {
     if (page < 1) return;
-    setState(() => _query = _query.copyWith(page: page));
+    final current = _query;
+    String? token;
+    var targetPage = page;
+    if (page == current.page + 1) {
+      final projection = await widget.repository.readItems(current);
+      try {
+        if (projection == null) {
+          targetPage = 1;
+        } else {
+          token = _selector.collection(projection).continuationToken;
+        }
+      } on FormatException {
+        targetPage = 1;
+      }
+    }
+    if (!mounted || !identical(current, _query)) return;
+    setState(
+      () => _query = current.copyWith(page: targetPage, continuation: token),
+    );
     unawaited(_acquire());
   }
 
@@ -159,12 +219,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                   : MakoloFailureCue.none,
               refreshing: _refreshing,
               serverUnavailable: serverUnavailable,
+              sourceErrorCode: sourceState.lastErrorCode,
             );
             return RefreshIndicator(
               onRefresh: _refreshItems,
               child: DiscoveryExplorationView(
                 selection: selection,
                 onOpen: _open,
+                onSave: (item) =>
+                    _saveDiscoveryPossibility(widget.repository, item, _query),
+                baseUri: widget.repository.api.baseUri,
+                shareApi: widget.repository.api,
                 onPage: _movePage,
                 onRetry: () => unawaited(_refreshItems()),
               ),
@@ -255,8 +320,28 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   void _movePage(int page) {
+    unawaited(_navigateToPage(page));
+  }
+
+  Future<void> _navigateToPage(int page) async {
     if (page < 1) return;
-    final query = _query.copyWith(page: page);
+    final current = _query;
+    String? token;
+    var targetPage = page;
+    if (page == current.page + 1) {
+      final projection = await widget.repository.readItems(current);
+      try {
+        if (projection == null) {
+          targetPage = 1;
+        } else {
+          token = _selector.collection(projection).continuationToken;
+        }
+      } on FormatException {
+        targetPage = 1;
+      }
+    }
+    if (!mounted || !identical(current, _query)) return;
+    final query = current.copyWith(page: targetPage, continuation: token);
     setState(() => _query = query);
     unawaited(_refreshPage(query));
   }
@@ -379,14 +464,31 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                               ? MakoloFailureCue.recoverable
                               : MakoloFailureCue.none,
                           refreshing: _refreshing,
+                          sourceErrorCode: sourceState.lastErrorCode,
                         );
                         return RefreshIndicator(
                           onRefresh: () => _refreshPage(_query),
                           child: DiscoveryExplorationView(
                             selection: selection,
                             onOpen: _open,
+                            onSave: (item) => _saveDiscoveryPossibility(
+                              widget.repository,
+                              item,
+                              _query,
+                            ),
+                            baseUri: widget.repository.api.baseUri,
+                            shareApi: widget.repository.api,
                             onPage: _movePage,
-                            onRetry: () => unawaited(_refreshPage(_query)),
+                            onRetry: () {
+                              if (sourceState.lastErrorCode ==
+                                  'continuation_rejected') {
+                                final reset = _query.copyWith(page: 1);
+                                setState(() => _query = reset);
+                                unawaited(_refreshPage(reset));
+                              } else {
+                                unawaited(_refreshPage(_query));
+                              }
+                            },
                             onResetCriteria: _resetCriteria,
                           ),
                         );
@@ -432,7 +534,15 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
 
   Future<void> _acquire() async {
     final local = await widget.repository.readItems(_query);
-    if (local == null) await _refresh();
+    if (local == null || local.schemaVersion != 1) {
+      await _refresh();
+      return;
+    }
+    try {
+      DiscoveryWire.validateData(local.payload);
+    } on FormatException {
+      await _refresh();
+    }
   }
 
   Future<void> _refresh() async {
@@ -471,6 +581,10 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
           return DiscoverySpatialView(
             selection: selection,
             mapConfig: widget.mapConfig,
+            onSave: (item) =>
+                _saveDiscoveryPossibility(widget.repository, item, _query),
+            baseUri: widget.repository.api.baseUri,
+            shareApi: widget.repository.api,
             onRetry: () => unawaited(_refresh()),
             onOpen: (item) {
               final occurrenceId = item.occurrenceId;
@@ -560,7 +674,13 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     return StreamBuilder<StoredProjection?>(
       stream: widget.repository.watchItem(widget.family, widget.id),
       builder: (context, snapshot) {
-        final item = _selector.detail(snapshot.data);
+        DiscoveryItemPresentation? item;
+        var invalidDetail = false;
+        try {
+          item = _selector.detail(snapshot.data);
+        } on FormatException {
+          invalidDetail = true;
+        }
         return Scaffold(
           appBar: AppBar(
             title: const Text('Possibilité'),
@@ -576,7 +696,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
               ? _refreshing
                     ? const MakoloLoadingState(label: 'Mise à jour…')
                     : MakoloErrorState(
-                        message: 'Ce contenu n’est pas disponible.',
+                        message: invalidDetail
+                            ? 'La réponse de cette possibilité est incompatible.'
+                            : 'Ce contenu n’est pas disponible.',
                         onRetry: _refresh,
                       )
               : ListView(
@@ -620,7 +742,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                         child: FilledButton.icon(
                           onPressed: _saving
                               ? null
-                              : () => _setSaved(item.canSave),
+                              : () => _setSaved(item!.canSave),
                           icon: Icon(
                             item.canUnsave
                                 ? Icons.bookmark_rounded

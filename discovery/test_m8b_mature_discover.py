@@ -16,6 +16,7 @@ from opportunities.models import (
 from .card_contract import present_opportunity_card
 from .candidate_identity import opportunity_candidate_key
 from .unified import public_opportunity_discovery_items
+from .views import _discovery_first_person_action_label, _web_discovery_card
 
 
 User = get_user_model()
@@ -142,6 +143,68 @@ class M8BMatureDiscoverTests(TestCase):
         self.assertContains(response, reverse("sharing:create-opportunity", args=[opportunity.pk]))
         self.assertContains(response, 'aria-pressed="true"')
         self.assertContains(response, "Enregistré")
+
+    def test_n1_action_row_uses_three_positions_and_existing_share_options(self):
+        opportunity, _ = self.published_opportunity(
+            "Bourse N1 complète",
+            opens_at=self.now - timedelta(days=1),
+            deadline_at=self.now + timedelta(days=10),
+        )
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("discovery:home"), {"q": "Bourse N1 complète"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["discovery_cards"]), 1)
+        self.assertContains(response, 'aria-label="Interactions avec cette possibilité"')
+        self.assertContains(response, "J’enregistre")
+        self.assertContains(response, reverse("opportunities:save-toggle", args=[opportunity.pk]))
+        self.assertContains(response, "data-share-internal")
+        self.assertContains(response, "data-share-person-search")
+        self.assertContains(response, "data-share-native")
+        self.assertContains(response, "data-share-copy")
+        self.assertContains(response, "data-share-qr-button")
+        self.assertNotContains(response, "mk-discovery-preview-action")
+
+    def test_n1_web_actions_preserve_distinct_web_and_api_authority(self):
+        projection = {
+            "identity": {
+                "family": "service_activity",
+                "candidate_key": "service_activity:example",
+                "resource": {"kind": "activity", "id": "example"},
+                "occurrence": None,
+            },
+            "representation": {
+                "title": "Atelier de formation",
+                "summary": "Atelier",
+                "kind": "service",
+            },
+            "owner": {"display_name": "Organisateur"},
+            "saved": {"state": "not_saved"},
+            "capabilities": ["save"],
+            "links": {"web": "/atelier/", "detail": "/api/detail/"},
+            "engagement": {
+                "presentation": {
+                    "label": "S'inscrire",
+                    "capability": "start",
+                    "enabled": False,
+                    "web_enabled": True,
+                    "web": "/inscription/",
+                },
+            },
+        }
+
+        card = _web_discovery_card(projection)
+        self.assertIsNone(card.actions.save)
+        self.assertIsNotNone(card.actions.primary)
+        self.assertTrue(card.actions.primary.enabled)
+        self.assertEqual(card.actions.primary.label, "Je m'inscris")
+        self.assertEqual(card.actions.primary.url, "/inscription/")
+        self.assertEqual(_discovery_first_person_action_label("Payer"), "Je paye")
+        self.assertEqual(_discovery_first_person_action_label("Voir mon billet"), "Voir mon billet")
+
+        projection["engagement"]["presentation"]["web_enabled"] = False
+        self.assertFalse(_web_discovery_card(projection).actions.primary.enabled)
 
     def test_discovery_cards_follow_the_common_paginated_candidate_sequence(self):
         first, _ = self.published_opportunity(

@@ -5,10 +5,13 @@ import 'package:drift/drift.dart';
 import '../../data/local/makolo_database.dart';
 import '../../data/local/profile_store.dart';
 import '../../network/makolo_api_client.dart';
+import '../../platform/location/discovery_location_context.dart';
 import '../../sync/freshness.dart';
 import '../../sync/projection_contract.dart';
 import '../../sync/sync_engine.dart';
 import '../../sync/sync_source.dart';
+import 'discovery_selector.dart';
+import 'discovery_wire.dart';
 
 class DiscoveryQuery {
   const DiscoveryQuery({
@@ -26,6 +29,7 @@ class DiscoveryQuery {
     this.radiusKm,
     this.page = 1,
     this.pageSize = 24,
+    this.continuation,
   });
 
   final String text;
@@ -43,6 +47,9 @@ class DiscoveryQuery {
   final int page;
   final int pageSize;
 
+  /// Opaque, signed server continuation; never decoded locally.
+  final String? continuation;
+
   DiscoveryQuery copyWith({
     String? text,
     String? place,
@@ -58,6 +65,8 @@ class DiscoveryQuery {
     double? radiusKm,
     int? page,
     int? pageSize,
+    String? continuation,
+    bool clearContinuation = false,
     bool clearLocation = false,
   }) {
     return DiscoveryQuery(
@@ -75,6 +84,7 @@ class DiscoveryQuery {
       radiusKm: clearLocation ? null : radiusKm ?? this.radiusKm,
       page: page ?? this.page,
       pageSize: pageSize ?? this.pageSize,
+      continuation: clearContinuation ? null : continuation,
     );
   }
 
@@ -92,8 +102,10 @@ class DiscoveryQuery {
       if (latitude != null) 'lat': latitude!.toString(),
       if (longitude != null) 'lon': longitude!.toString(),
       if (radiusKm != null) 'radius_km': radiusKm!.toString(),
+      ...DiscoveryLocationContext.parameters,
       'page': page.toString(),
       'page_size': pageSize.toString(),
+      'continuation': ?continuation,
     };
   }
 
@@ -126,7 +138,8 @@ class DiscoveryQuery {
   String get mapCanonicalQuery {
     final entries = Map<String, String>.from(parameters)
       ..remove('page')
-      ..remove('page_size');
+      ..remove('page_size')
+      ..remove('continuation');
     final sorted = entries.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     return Uri(queryParameters: Map.fromEntries(sorted)).query;
@@ -200,7 +213,7 @@ class DiscoveryRepository {
   final SyncEngine? sync;
 
   SyncSourceDefinition itemsSource(DiscoveryQuery query) {
-    return SyncSourceDefinition.projectionEnvelope(
+    return SyncSourceDefinition(
       sourceKey: 'discovery:${query.fingerprint}',
       owner: 'Discovery',
       path: query.path,
@@ -208,6 +221,26 @@ class DiscoveryRepository {
       resourceKey: query.fingerprint,
       category: SyncSourceCategory.collection,
       freshnessPolicy: discoveryFreshness,
+      parser: (response) {
+        final wire = DiscoveryWire.receive(
+          response.jsonObject(),
+          scope: 'personal',
+        );
+        final viewer = wire.data['viewer'];
+        if (viewer is! Map || viewer['id'] != profileId) {
+          throw const FormatException(
+            'Discovery viewer does not match Profile',
+          );
+        }
+        return AcquiredProjection(
+          schemaVersion: 1,
+          payload: wire.snapshotPayload,
+          sourceGeneratedAt: DateTime.tryParse(
+            wire.meta['generated_at'] as String? ?? '',
+          ),
+        );
+      },
+      applier: applyProjectionSnapshot,
     );
   }
 
@@ -229,7 +262,7 @@ class DiscoveryRepository {
   }
 
   SyncSourceDefinition itemSource(String family, String id) {
-    return SyncSourceDefinition.projectionEnvelope(
+    return SyncSourceDefinition(
       sourceKey: 'discovery-item:$family:$id',
       owner: 'Discovery',
       path: 'api/v1/discovery/items/$family/$id/',
@@ -237,6 +270,26 @@ class DiscoveryRepository {
       resourceKey: '$family:$id',
       category: SyncSourceCategory.keyedDetail,
       freshnessPolicy: detailFreshness,
+      parser: (response) {
+        final json = response.jsonObject();
+        final envelope = ProjectionEnvelope.parse(
+          json,
+          expectedProjection: itemProjectionKind,
+          expectedScope: 'personal',
+        );
+        final item = DiscoveryWire.receiveItem(json, scope: 'personal');
+        final identity = item['identity'] as Map;
+        final resource = identity['resource'] as Map;
+        if (identity['family'] != family || resource['id'] != id) {
+          throw const FormatException('Unexpected Discovery detail identity');
+        }
+        return AcquiredProjection(
+          schemaVersion: envelope.schemaVersion,
+          payload: {'item': item},
+          sourceGeneratedAt: envelope.generatedAt,
+        );
+      },
+      applier: applyProjectionSnapshot,
     );
   }
 
@@ -289,11 +342,87 @@ class DiscoveryRepository {
     );
   }
 
-  Stream<StoredProjection?> watchItems(DiscoveryQuery query) => store
-      .watchProjection(itemsProjectionKind, resourceKey: query.fingerprint);
+  /// A read-only logical field: each server page remains stored unchanged
+  /// under its own criteria/cursor key. Presentation receives reconciled
+  /// candidate identities, not a second persisted collection truth.
+  Stream<StoredProjection?> watchItems(DiscoveryQuery query) {
+    final updates = store.watchProjection(
+      itemsProjectionKind,
+      resourceKey: query.fingerprint,
+    );
+    if (query.page <= 1) return updates;
+    return updates.asyncMap(
+      (current) => _logicalItemsProjection(query, current),
+    );
+  }
 
-  Future<StoredProjection?> readItems(DiscoveryQuery query) =>
+  Future<StoredProjection?> _logicalItemsProjection(
+    DiscoveryQuery query,
+    StoredProjection? current,
+  ) async {
+    const selector = DiscoverySelector();
+    DiscoveryCollectionPresentation? field;
+    StoredProjection? last;
+    var earlierQuery = query.copyWith(page: 1);
+    try {
+      for (var page = 1; page <= query.page; page++) {
+        final projection = page == query.page
+            ? current
+            : await _readStoredItems(earlierQuery);
+        // A missing lot cannot be represented by its preceding lot.
+        // Keep the requested page absent (or return its own raw snapshot)
+        // rather than mislabelling an incomplete offline field.
+        if (projection == null) return current;
+        final viewer = projection.payload['viewer'];
+        if (viewer != null && (viewer is! Map || viewer['id'] != profileId)) {
+          throw const FormatException(
+            'Discovery snapshot belongs to another Profile',
+          );
+        }
+        final batch = selector.collection(projection);
+        if (batch.page != page) {
+          throw const FormatException('Unexpected Discovery snapshot page');
+        }
+        field = field == null ? batch : field.reconcile(batch);
+        last = projection;
+        if (page < query.page) {
+          earlierQuery = earlierQuery.copyWith(
+            page: page + 1,
+            continuation: batch.continuationToken,
+          );
+        }
+      }
+    } on FormatException {
+      // An incompatible historical prefix cannot contaminate the current
+      // server-owned page. The caller still sees its actual snapshot/error.
+      return current;
+    }
+    if (last == null || field == null) return current;
+    return StoredProjection(
+      kind: last.kind,
+      resourceKey: last.resourceKey,
+      schemaVersion: last.schemaVersion,
+      payload: field.wire,
+      receivedAt: last.receivedAt,
+      sourceGeneratedAt: last.sourceGeneratedAt,
+      sourceUpdatedAt: last.sourceUpdatedAt,
+      lastVerifiedOnlineAt: last.lastVerifiedOnlineAt,
+      freshUntil: last.freshUntil,
+      expiresAt: last.expiresAt,
+      freshnessPolicyId: last.freshnessPolicyId,
+    );
+  }
+
+  Future<StoredProjection?> _readStoredItems(DiscoveryQuery query) =>
       store.readProjection(itemsProjectionKind, resourceKey: query.fingerprint);
+
+  /// Keep one-shot offline reads consistent with the watched logical field.
+  /// Each raw server page remains the only persisted snapshot.
+  Future<StoredProjection?> readItems(DiscoveryQuery query) async {
+    final current = await _readStoredItems(query);
+    if (query.page <= 1) return current;
+    return _logicalItemsProjection(query, current);
+  }
 
   Stream<StoredProjection?> watchMap(DiscoveryQuery query) => store
       .watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
@@ -382,8 +511,13 @@ class DiscoveryRepository {
   }
 
   Future<void> refreshItems(DiscoveryQuery query) async {
-    await _refresh(itemsSource(query));
-    await indexItemPreviews(query);
+    final source = itemsSource(query);
+    await _refresh(source);
+    // A failed offline refresh retains the cached collection, but must not
+    // re-index it as if fresh server data had just been received.
+    if ((await readSource(source)).lastErrorCode == null) {
+      await indexItemPreviews(query);
+    }
   }
 
   Future<void> indexItemPreviews(DiscoveryQuery query) async {
@@ -398,7 +532,9 @@ class DiscoveryRepository {
       _refresh(itemSource(family, id));
 
   Future<void> refreshActivity(String id) async {
-    await _refresh(activitySource(id));
+    final source = activitySource(id);
+    await _refresh(source);
+    if ((await readSource(source)).lastErrorCode != null) return;
     final projection = await readActivity(id);
     if (projection != null) {
       await _indexActivityOccurrencePreviews(id, projection);
@@ -440,7 +576,12 @@ class DiscoveryRepository {
   }
 
   Future<void> _indexDiscoveryItemPreviews(StoredProjection projection) async {
-    final rawResults = projection.payload['results'];
+    if (projection.schemaVersion != 1) {
+      throw const FormatException('Unsupported Discovery snapshot version');
+    }
+    DiscoveryWire.validateData(projection.payload);
+    final rawResults =
+        projection.payload['results'] ?? projection.payload['items'];
     if (rawResults is! List) return;
 
     for (final raw in rawResults.whereType<Map>()) {

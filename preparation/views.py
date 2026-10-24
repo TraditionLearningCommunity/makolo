@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
@@ -19,11 +19,61 @@ class ResourceDownloadView(View):
         resource = get_object_or_404(ActivityResource.objects.select_related("activity", "occurrence"), pk=resource_id)
         if resource.kind != ResourceKind.FILE or not resource.file or not can_view_resource(request.user, resource):
             raise Http404
-        handle = resource.file.open("rb")
-        response = FileResponse(handle, content_type=resource.mime_type or "application/octet-stream")
-        response["Content-Disposition"] = f'attachment; filename="resource-{resource.pk}.bin"'
+        try:
+            if not resource.file.storage.exists(resource.file.name):
+                raise Http404
+        except (OSError, ValueError):
+            raise Http404 from None
+        mime = (resource.mime_type or "").lower()
+        inline_types = {
+            "application/pdf": "pdf",
+            "image/png": "png",
+            "image/jpeg": "jpg",
+            "video/mp4": "mp4",
+            "audio/mpeg": "mp3",
+            "audio/wav": "wav",
+            "text/plain": "txt",
+        }
+        downloadable_types = {
+            "text/csv": "csv",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+        }
+        suffix = inline_types.get(mime) or downloadable_types.get(mime, "bin")
+        try:
+            handle = resource.file.open("rb")
+        except (OSError, ValueError):
+            raise Http404 from None
+        response = FileResponse(
+            handle, content_type=mime if suffix != "bin" else "application/octet-stream"
+        )
+        disposition = "inline" if mime in inline_types else "attachment"
+        response["Content-Disposition"] = (
+            f'{disposition}; filename="resource-{resource.pk}.{suffix}"'
+        )
         response["X-Content-Type-Options"] = "nosniff"
         response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class ResourceTextReadView(View):
+    """Full text under the same canonical authorization as file delivery."""
+
+    def get(self, request, resource_id):
+        resource = get_object_or_404(
+            ActivityResource.objects.select_related(
+                "activity", "occurrence", "activity__space"
+            ),
+            pk=resource_id,
+        )
+        if resource.kind != ResourceKind.TEXT or not can_view_resource(
+            request.user, resource
+        ):
+            raise Http404
+        response = HttpResponse(resource.text_content, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = "inline"
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
         return response
 
 

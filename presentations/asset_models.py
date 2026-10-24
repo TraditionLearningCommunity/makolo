@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from .enums import Provenance
+from .storage import private_presentation_storage
 
 
 class PresentationAsset(models.Model):
@@ -13,7 +14,8 @@ class PresentationAsset(models.Model):
     owner_profile = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="presentation_assets", null=True, blank=True)
     owner_space = models.ForeignKey("organizations.Organization", on_delete=models.PROTECT, related_name="presentation_assets", null=True, blank=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="uploaded_presentation_assets")
-    file = models.FileField(upload_to="presentations/assets/%Y/%m/")
+    file = models.FileField(upload_to="presentations/assets/%Y/%m/", blank=True)
+    private_file = models.FileField(storage=private_presentation_storage, upload_to="presentations/assets/%Y/%m/", max_length=500, blank=True, null=True)
     mime_type = models.CharField(max_length=80)
     size = models.PositiveIntegerField()
     checksum = models.CharField(max_length=64)

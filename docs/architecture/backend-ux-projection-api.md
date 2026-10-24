@@ -1031,3 +1031,62 @@ Contrats principaux :
 - Payment, Access, Capacity, Form, Resource et Proof restent des liens/états de leurs domaines lorsqu’ils sont composés, jamais des copies Obtention.
 
 Le contrat métier complet est documenté dans [`obtention.md`](obtention.md).
+
+
+## Découvrir N1 — projection d'objets et continuation (19 octobre 2026)
+
+Cette section décrit le contrat d'implémentation de la branche de PR #522, sans
+anticiper sa fusion. Les invariants métier et le code effectif restent
+prioritaires ; elle ne crée aucun nouveau modèle `Possibility`.
+
+- L'identité de la possibilité demeure la `candidate_key` et ses références
+  `identity.resource/occurrence/revision`. La liste et le détail utilisent le
+  même `project_rows` ; aucun propriétaire n'est redéduit sur le client.
+- `owner.display_name` est conservé pour les consommateurs historiques.
+  Lorsqu'il existe un porteur public autorisé, `owner.identity` identifie un
+  `profile` ou un `space`, `owner.representation` décrit le nom et
+  l'avatar publiables, et `owner.links` expose des destinations explicites.
+  `links.native` ne vaut que pour les routes natives effectivement déclarées.
+  Une Activity sans `space` ni `owner_profile` public reçoit `owner=null` ;
+  `created_by` n'est jamais substitué. Les Opportunity externes conservent
+  leur émetteur, sans création de Profil ou Space.
+- `date.kind=added_at` sur Activity est dérivé de `Activity.created_at` ;
+  `date.kind=published_at` n'est utilisé pour Opportunity que lorsque sa
+  publication est connue. Ne pas assimiler ces dates à une Occurrence ni au
+  `generated_at` de la réponse.
+- `price` peut représenter `free`, `exact`, `range` ou `unknown`
+  lorsqu'il existe des Offers Commerce applicables à la fenêtre et au
+  contexte Activity/Occurrence. Le sélecteur propriétaire groupé
+  `offer_price_facts_many` minimise les requêtes N1 ; il ne calcule ni devis,
+  ni état de Capacity, ni paiement. Un montant de Funding n'est jamais un prix.
+- Les `presentation_facts` n'écrasent pas `price`, `timing`, `place`,
+  `availability` ni les faits temporels/spatiaux propres à la verticale.
+  Les ressources restent limitées à la visibilité publique du propriétaire.
+- `engagement` continue de distinguer présentation Web, capacités serveur
+  et liens réellement exécutables. Pour Service, un utilisateur authentifié
+  peut recevoir un handoff typé vers `ServiceDetails.pk`, jamais vers un
+  `Activity.pk` utilisé comme `service_id`. Le GET Services prévalide et
+  fournit, selon la politique, les Opportunities publiées recherchables ;
+  le POST Services vérifie les droits, l'idempotence et retourne une Journey
+  réelle. Les clients ne créent pas cette Journey.
+- Pour Event/Tickets, l'inspection des billets et leur commande utilisent
+  les APIs propriétaires Events et Tickets. Le client ne confirme ni Access ni
+  Payment à la création d'une commande. Les handoffs publics restent bornés
+  aux types de billets publiables. Le retour vers la commande appartient à
+  Tickets.
+- Une API native de Profil public expose uniquement les attributs déjà
+  publiables dans le Passeport canonique. Les Profiles non publics, non
+  cherchables ou inactifs restent inaccessibles. La route native `/people/:id`
+  consomme une identité typée, jamais un slug deviné.
+- En compact, N1 est bord à bord sans Card extérieure, avec marges internes
+  de lecture, titre dominant et trois colonnes d'actions à icônes seules
+  et libellés accessibles. Le grand écran conserve une grille et les libellés
+  appropriés. Les contenus longs et faits établis ne sont plus coupés à
+  deux ou trois lignes pour suivre une maquette historique.
+- Ces règles N1 remplacent les contraintes de hauteur et d'habillage des
+  exemples G03/G04/G05 antérieurs ; les invariants de navigation, recherche,
+  pagination, carte, local-first et permissions restent applicables.
+
+**Frontières :** la projection est un read model, pas un propriétaire
+d'Activity, Opportunity, Ticket, Service, Resource ou Permission. Les routes
+natives doivent revalider les capacités et les mutations côté serveur.

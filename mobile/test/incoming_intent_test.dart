@@ -21,6 +21,41 @@ void main() {
     expect(result?.requiresAuthentication, isFalse);
   });
 
+  test('public share link opens Discovery without requiring login', () {
+    final recovery = SessionRecoveryController();
+    final result = resolver.resolve(
+      intent: const IncomingIntent(
+        source: IncomingIntentSource.appLink,
+        destination: StructuredDestination(
+          kind: 'share_link',
+          id: 'public-token',
+        ),
+      ),
+      authenticated: false,
+      recovery: recovery,
+    );
+    expect(result?.route, '/s/public-token');
+    expect(result?.requiresAuthentication, isFalse);
+  });
+
+  test('direct share delivery requires the recipient account', () {
+    final recovery = SessionRecoveryController();
+    final result = resolver.resolve(
+      intent: const IncomingIntent(
+        source: IncomingIntentSource.push,
+        destination: StructuredDestination(
+          kind: 'share_delivery',
+          id: 'delivery-id',
+        ),
+      ),
+      authenticated: false,
+      recovery: recovery,
+    );
+    expect(result?.route, '/login');
+    expect(result?.requiresAuthentication, isTrue);
+    expect(recovery.initialLocation(), '/shares/delivery-id');
+  });
+
   test('protected ingress preserves route across authentication', () {
     final recovery = SessionRecoveryController();
     final result = resolver.resolve(

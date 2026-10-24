@@ -109,14 +109,26 @@ void main() {
     },
   );
 
-  test('Android host accepts share ingress without inventing app links', () {
-    final manifest = File('android/app/src/main/AndroidManifest.xml')
-        .readAsStringSync();
+  test(
+    'Android host accepts shares and only parameterized verified app links',
+    () {
+      final manifest = File('android/app/src/main/AndroidManifest.xml')
+          .readAsStringSync();
 
-    expect(manifest, contains('android.intent.action.SEND'));
-    expect(manifest, contains('android.intent.action.SEND_MULTIPLE'));
-    expect(manifest, contains('android:mimeType="*/*"'));
-    expect(manifest, isNot(contains('android.intent.action.VIEW')));
-    expect(manifest, isNot(contains('android:autoVerify="true"')));
-  });
+      expect(manifest, contains('android.intent.action.SEND'));
+      expect(manifest, contains('android.intent.action.SEND_MULTIPLE'));
+      expect(manifest, contains('android:mimeType="*/*"'));
+      // Link handling exists, but its scheme and host come from build configuration.
+      // The checked-in manifest must not claim a real deployment host.
+      expect(manifest, contains('android.intent.action.VIEW'));
+      expect(manifest, contains('android:autoVerify="true"'));
+      expect(
+        manifest,
+        contains('android:scheme="\u0024{makoloAppLinkScheme}"'),
+      );
+      expect(manifest, contains('android:host="\u0024{makoloAppLinkHost}"'));
+      expect(manifest, contains('android:pathPrefix="/s/"'));
+      expect(manifest, contains('android:pathPrefix="/shares/"'));
+    },
+  );
 }

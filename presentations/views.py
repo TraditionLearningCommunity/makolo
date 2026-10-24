@@ -181,6 +181,7 @@ class ActivityPresentationStudioView(ActivityPresentationAuthorityMixin, Templat
         context.update(
             {
                 "activity": self.activity,
+                "media_uses": list(self.activity.presentation_media_uses.select_related("asset", "occurrence").order_by("position", "created_at")),
                 "purpose": purpose,
                 "purposes": PresentationPurpose.choices,
                 "template_options": template_options,
