@@ -105,7 +105,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Possibilités à explorer'), findsOneWidget);
+    expect(find.text('Opportunités à découvrir'), findsOneWidget);
     expect(
       find.text('Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?'),
       findsNothing,
@@ -675,7 +675,7 @@ void main() {
     expect(
       find.text(
         'Nos serveurs sont momentanément inaccessibles. '
-        'Les possibilités publiques ne peuvent pas être actualisées pour le moment.',
+        'Service momentanément indisponible.',
       ),
       findsOneWidget,
     );
