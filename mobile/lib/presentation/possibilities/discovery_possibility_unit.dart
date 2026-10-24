@@ -604,6 +604,98 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     );
   }
 
+  Widget _resourceSection(
+    BuildContext context,
+    List<Map<String, String?>> resources,
+  ) {
+    final theme = Theme.of(context);
+    final visible = _allResources ? resources : resources.take(2);
+    return Padding(
+      key: const Key('discover-resources-section'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Documents et ressources',
+            style: theme.textTheme.titleSmall,
+          ),
+          const SizedBox(height: MakoloSpacing.sm),
+          for (final resource in visible)
+            Padding(
+              padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+              child: InkWell(
+                onTap: () => _openResource(resource),
+                borderRadius: BorderRadius.circular(MakoloRadii.small),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _resourceIcon(resource),
+                          size: 20,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: MakoloSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                resource['label'] ?? '',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.brightness == Brightness.dark
+                                      ? const Color(0xFFB6A5FF)
+                                      : theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (resource['text']?.isNotEmpty ?? false)
+                                Text(
+                                  resource['text']!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: MakoloSpacing.xs),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (resources.length > 2)
+            TextButton(
+              key: const Key('discover-resources-expand'),
+              style: TextButton.styleFrom(
+                minimumSize: const Size(48, 44),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                alignment: Alignment.centerLeft,
+              ),
+              onPressed: () => setState(() => _allResources = !_allResources),
+              child: Text(
+                _allResources
+                    ? 'Voir moins de ressources'
+                    : 'Voir les ${resources.length} ressources',
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _facts(BuildContext context) {
     final facts = _reliableFacts;
     if (facts.isEmpty) return const SizedBox.shrink();
@@ -773,88 +865,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   const SizedBox(height: MakoloSpacing.sm),
                   _descriptionBody(context),
                 ],
-                if (resources.isNotEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.sm),
-                  if (resources.length > 1)
-                    Divider(
-                      height: MakoloSpacing.sm,
-                      color: theme.colorScheme.outlineVariant,
-                    ),
-                  for (final resource
-                      in (_allResources ? resources : resources.take(3)))
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(_resourceIcon(resource), size: 18),
-                              const SizedBox(width: MakoloSpacing.xs),
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () => _openResource(resource),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: MakoloSpacing.xs,
-                                    ),
-                                    child: Text(
-                                      resource['label'] ?? '',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: theme.colorScheme.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (resource['text']?.isNotEmpty ?? false)
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                left: 26,
-                                top: MakoloSpacing.xs,
-                              ),
-                              child: InkWell(
-                                onTap: () => _openResource(resource),
-                                child: Text(
-                                  resource['text']!,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  if (resources.length > 3)
-                    TextButton(
-                      key: const Key('discover-resources-expand'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        alignment: Alignment.centerLeft,
-                      ),
-                      onPressed: () =>
-                          setState(() => _allResources = !_allResources),
-                      child: Text(
-                        _allResources
-                            ? 'Voir moins de ressources'
-                            : 'Voir les ${resources.length} ressources',
-                      ),
-                    ),
-                  if (resources.length > 1)
-                    Divider(
-                      height: MakoloSpacing.sm,
-                      color: theme.colorScheme.outlineVariant,
-                    ),
-                ],
               ],
             ),
           ),
           _media(context),
+          if (resources.isNotEmpty) _resourceSection(context, resources),
           ...[
             const Divider(height: 1),
             Padding(
