@@ -2,10 +2,13 @@
   <i data-lucide="file-text" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
   <div class="min-w-0">
     <p class="break-words text-sm font-semibold">{{ resource.title }}</p>
-    {% if resource.description %}<p class="mt-1 text-xs" style="color:var(--mk-muted)">{{ resource.description }}</p>{% endif %}
-    {% if resource.text_content %}
-      <p class="mt-2 whitespace-pre-line break-words text-sm">{{ resource.text_content }}</p>
-      {% if resource.text_truncated %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">Extrait de cette ressource</p>{% endif %}
+    {% if resource.description %}<p class="mt-1 line-clamp-2 break-words text-xs" style="color:var(--mk-muted)">{{ resource.description }}</p>{% endif %}
+    {% if resource.text_content and not resource.read_url %}
+      <details class="mt-2">
+        <summary class="min-h-[36px] cursor-pointer text-sm font-semibold underline">Consulter le texte</summary>
+        <p class="mt-2 whitespace-pre-line break-words text-sm">{{ resource.text_content }}</p>
+        {% if resource.text_truncated %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">Extrait de cette ressource</p>{% endif %}
+      </details>
     {% endif %}
     {% if resource.read_url %}
       <details class="mt-2">
