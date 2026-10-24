@@ -101,6 +101,13 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException('HTTP ${response.statusCode}');
       }
+      final expectedType = item.mimeType.toLowerCase();
+      final actualType = response.headers.contentType?.mimeType.toLowerCase();
+      if (actualType != null &&
+          expectedType != 'application/octet-stream' &&
+          expectedType != actualType) {
+        throw const FormatException('Type de fichier inattendu');
+      }
       const maxBytes = 20 * 1024 * 1024;
       if (response.contentLength > maxBytes) {
         throw const FormatException('Fichier trop volumineux');
@@ -391,12 +398,17 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
         ),
       );
     }
-    return Center(
-      child: TextButton.icon(
-        onPressed: _openWebsite,
-        icon: const Icon(Icons.open_in_browser),
-        label: const Text('Consulter dans Makolo'),
-      ),
+    if (type == 'text/html') {
+      return Center(
+        child: TextButton.icon(
+          onPressed: _openWebsite,
+          icon: const Icon(Icons.open_in_browser),
+          label: const Text('Consulter dans Makolo'),
+        ),
+      );
+    }
+    return const Center(
+      child: Text('Ce format ne possède pas encore de lecteur natif. Utilisez l’export.'),
     );
   }
 

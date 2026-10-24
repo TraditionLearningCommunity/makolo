@@ -32,6 +32,8 @@ class ResourceDownloadView(View):
             "video/mp4": "mp4",
             "audio/mpeg": "mp3",
             "audio/wav": "wav",
+            "text/csv": "csv",
+            "text/plain": "txt",
         }
         downloadable_types = {
             "text/csv": "csv",

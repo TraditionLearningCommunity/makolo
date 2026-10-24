@@ -127,6 +127,42 @@ vérifier le rendu Découvrir sur Web et Flutter et la navigation vers les
 documents, vidéos et audios réellement disponibles. L'absence d'images est
 un état valide.
 
+## Lecture dans Makolo (N1, branche PR #522)
+
+Les médias de représentation se consultent en restant dans la surface Discover :
+images et galerie en lecteur intégré avec zoom et compteur. Les ressources
+publiques PDF, CSV, texte, image, audio et vidéo ont une destination de
+consultation et un export explicite. Pour le texte, la projection Discover
+n'expose qu'un extrait borné : l'endpoint Preparation
+`/preparation/resources/<uuid>/text/` sert le texte intégral après contrôle
+`can_view_resource`. Les fichiers Preparation passent par leur route
+autorisée, jamais une URL de stockage privé.
+
+Sur Flutter, l'icône signet conserve volontairement **une copie locale des
+seules ressources publiques** (20 Mo maximum par document) dans le stockage
+interne de l'application. Cette copie peut être retirée depuis le lecteur ;
+l'icône téléchargement/export propose la feuille de partage native.
+Ne jamais réutiliser ce cache public comme stockage de documents privés
+pour un Profil. Les documents privés nécessitent un espace chiffré ou isolé
+par Profil, purge de session et revalidation d'autorité adaptée.
+La lecture Web est dépliable et reste sur la page ; le téléchargement est
+une action séparée. Les sites externes ne se prêtent pas toujours à une
+intégration iframe, et le navigateur intégré mobile est utilisé lorsqu'il
+est pris en charge par la plateforme.
+
+Contrôles locaux (pas de validation SDK Flutter depuis GitHub) :
+
+    python manage.py test preparation.tests discovery.api.test_resource_previews
+    cd mobile
+    bash tool/dart_format.sh write
+    bash tool/dart_format.sh check
+    flutter test test/discovery_reader_test.dart
+    flutter test test/discovery_mature_screen_test.dart
+
+Vérifier manuellement sur appareil : premier chargement en ligne, sauvegarde
+hors ligne, coupure réseau, réouverture, retrait de la copie, export système,
+retour de galerie, permissions 404 et lecture PDF/MP4/WAV.
+
 ## Import réel du ZIP de QA (sans nouveau dossier)
 
 Pour un scénario explicitement compatible avec `Clinique entrepreneuriale
