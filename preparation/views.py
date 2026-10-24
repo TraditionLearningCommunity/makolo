@@ -19,8 +19,11 @@ class ResourceDownloadView(View):
         resource = get_object_or_404(ActivityResource.objects.select_related("activity", "occurrence"), pk=resource_id)
         if resource.kind != ResourceKind.FILE or not resource.file or not can_view_resource(request.user, resource):
             raise Http404
-        if not resource.file.storage.exists(resource.file.name):
-            raise Http404
+        try:
+            if not resource.file.storage.exists(resource.file.name):
+                raise Http404
+        except (OSError, ValueError):
+            raise Http404 from None
         mime = (resource.mime_type or "").lower()
         inline_types = {
             "application/pdf": "pdf",
@@ -30,7 +33,12 @@ class ResourceDownloadView(View):
             "audio/mpeg": "mp3",
             "audio/wav": "wav",
         }
-        suffix = inline_types.get(mime, "bin")
+        downloadable_types = {
+            "text/csv": "csv",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+        }
+        suffix = inline_types.get(mime) or downloadable_types.get(mime, "bin")
         try:
             handle = resource.file.open("rb")
         except (OSError, ValueError):
@@ -38,7 +46,7 @@ class ResourceDownloadView(View):
         response = FileResponse(
             handle, content_type=mime if suffix != "bin" else "application/octet-stream"
         )
-        disposition = "inline" if suffix != "bin" else "attachment"
+        disposition = "inline" if mime in inline_types else "attachment"
         response["Content-Disposition"] = (
             f'{disposition}; filename="resource-{resource.pk}.{suffix}"'
         )

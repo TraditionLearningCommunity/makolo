@@ -140,7 +140,11 @@ class Command(BaseCommand):
                     activity=activity, asset=asset,
                     occurrence__isnull=True,
                     purpose=PresentationMediaPurpose.RECOGNIZE,
-                ).exclude(state=PresentationMediaState.RETIRED).first()
+                ).order_by("created_at", "pk").first()
+                # Re-running the seed must not undo a deliberate retirement.
+                if use is not None and use.state == PresentationMediaState.RETIRED:
+                    self.stdout.write(f"Présentation retirée conservée {activity.pk}: {use.pk}")
+                    continue
                 if use is None:
                     use = associate_presentation_media(
                         actor=actor, activity=activity, asset=asset,

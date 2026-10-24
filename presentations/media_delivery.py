@@ -52,8 +52,13 @@ def published_media_file(request, use_id):
     if use.asset.mime_type not in {"image/jpeg", "image/png"}:
         raise Http404
     file = use.asset.private_file if use.asset.private_file else use.asset.file
-    if not file or not file.storage.exists(file.name):
+    if not file:
         raise Http404
+    try:
+        if not file.storage.exists(file.name):
+            raise Http404
+    except (OSError, ValueError):
+        raise Http404 from None
     try:
         response = FileResponse(file.open("rb"), content_type=use.asset.mime_type)
     except (OSError, ValueError):

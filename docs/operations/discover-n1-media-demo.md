@@ -90,3 +90,39 @@ ni à la BDD ni aux fichiers. Les états `missing-bytes`,
 `missing-reference` et `storage-error` sont des anomalies à examiner.
 L'existence physique ne prouve pas l'autorisation HTTP : compléter
 par des essais visiteur, participant, gestionnaire et le rendu Web/Flutter.
+
+## Fermeture N1 : références de fichiers de démonstration cassées
+
+Le contrôle sur la copie locale a montré 132 images Presentation présentes
+et 228 fichiers de Resource `demo-*` publiés absents (anciens imports).
+Il ne faut ni les remplir avec des contenus inventés, ni les remplacer par
+une URL prise au hasard sur Internet, ni tenter de récupérer des octets sans
+provenance/droits vérifiés. Un lien public vérifié doit être une Resource URL,
+via les services Preparation ; il ne rend pas un ancien fichier FILE valide.
+
+Opération de réconciliation en deux étapes, **uniquement sur la BDD de démo**
+après sauvegarde :
+
+    python manage.py reconcile_discover_demo_files
+    python manage.py reconcile_discover_demo_files --apply --confirm-demo
+    python manage.py audit_discover_demo_storage
+
+La première commande ne modifie rien. La seconde retraite seulement les
+Resources `demo-*` de type FILE encore publiées dont le stockage ne contient
+plus les octets. Elle emploie `retire_resource` avec une autorité réelle,
+préserve les lignes, versions et fichiers, ne recrée aucune Activity, ne
+construit aucune URL, et saute les erreurs de stockage et les cas non autorisés.
+Relancer est idempotent. Elle ne restaure pas les fichiers perdus.
+
+La BDD de production future est neuve et séparée de cette BDD synthétique ;
+ne pas transférer ses fichiers, son stockage, ses utilisateurs de démo ou ses
+références de fichiers cassées. Le ZIP exemple est un jeu de QA, pas une
+source sémantique automatiquement pertinente pour les 157 Activities.
+Les medias des Occurrences suivent leur propre contexte et accès.
+
+Gates : `python manage.py test preparation.tests
+presentations.test_reconcile_discover_demo_files`, puis test manuel
+visiteur/participant/gestionnaire sur URL publique, privée, absente ;
+vérifier le rendu Découvrir sur Web et Flutter et la navigation vers les
+documents, vidéos et audios réellement disponibles. L'absence d'images est
+un état valide.

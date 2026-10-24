@@ -196,3 +196,21 @@ class PreparationResourceM2Tests(TestCase):
         self.assertTrue(ActivityResource.objects.filter(pk=resource.pk).exists())
         with self.assertRaises(ValidationError):
             retire_resource(resource=retired, actor=self.operator)
+
+    def test_csv_download_preserves_extension_and_is_attachment(self):
+        resource = create_resource(
+            activity=self.activity, actor=self.operator, key="schedule-csv",
+            title="Calendrier", kind=ResourceKind.FILE,
+            uploaded_file=SimpleUploadedFile(
+                "schedule.csv", b"date,place\\n2026-12-01,Kinshasa\\n", content_type="text/csv"
+            ), visibility=ResourceVisibility.PUBLIC,
+        )
+        publish_resource(resource=resource, actor=self.operator)
+        url = reverse("preparation:resource-download", kwargs={"resource_id": resource.pk})
+        self.client.force_login(self.operator)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn(".csv", response["Content-Disposition"])
+        self.assertTrue(response["Content-Disposition"].startswith("attachment;"))
+        response.close()
