@@ -554,7 +554,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 key: const Key('discover-description-expand'),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  minimumSize: const Size(48, 40),
+                  minimumSize: const Size(48, 36),
+                  visualDensity: VisualDensity.compact,
                   alignment: Alignment.centerLeft,
                 ),
                 onPressed: () => setState(() => _expanded = !_expanded),
