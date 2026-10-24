@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -305,6 +306,39 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     }
   }
 
+  Future<void> _shareLink() async {
+    final item = _item;
+    if (!discoverySafeDestination(item.uri)) return;
+    try {
+      await widget.sharing.shareText('${item.title}\n${item.uri}');
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Le partage n’a pas pu aboutir.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _copyLink() async {
+    final uri = _item.uri;
+    if (!discoverySafeDestination(uri)) return;
+    try {
+      await Clipboard.setData(ClipboardData(text: uri.toString()));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lien copié.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de copier le lien.')),
+        );
+      }
+    }
+  }
+
   Future<void> _openWebsite() async {
     final uri = _item.uri;
     if (!discoverySafeDestination(uri)) return;
@@ -454,6 +488,36 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
               tooltip: 'Exporter vers l’appareil',
               onPressed: _exporting ? null : _export,
               icon: const Icon(Icons.download_outlined),
+            ),
+          if (!website)
+            PopupMenuButton<String>(
+              tooltip: 'Partager cette ressource',
+              icon: const Icon(Icons.share_outlined),
+              onSelected: (action) {
+                if (action == 'copy') {
+                  _copyLink();
+                } else if (action == 'share') {
+                  _shareLink();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'copy',
+                  child: ListTile(
+                    leading: Icon(Icons.copy_outlined),
+                    title: Text('Copier le lien'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'share',
+                  child: ListTile(
+                    leading: Icon(Icons.share_outlined),
+                    title: Text('Partager avec…'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
             ),
           if (website)
             IconButton(
