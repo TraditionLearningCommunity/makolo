@@ -394,12 +394,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   CircleAvatar(
                     radius: 19,
                     foregroundImage: avatar == null ? null : NetworkImage(avatar),
-                    child: avatar == null ? Text(name[0].toUpperCase()) : null,
+                    child: avatar == null ? Text(name![0].toUpperCase()) : null,
                   ),
                   const SizedBox(width: MakoloSpacing.sm),
                   Expanded(
                     child: Text(
-                      name,
+                      name!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelLarge,
