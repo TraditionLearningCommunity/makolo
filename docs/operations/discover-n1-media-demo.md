@@ -126,3 +126,26 @@ visiteur/participant/gestionnaire sur URL publique, privée, absente ;
 vérifier le rendu Découvrir sur Web et Flutter et la navigation vers les
 documents, vidéos et audios réellement disponibles. L'absence d'images est
 un état valide.
+
+## Import réel du ZIP de QA (sans nouveau dossier)
+
+Pour un scénario explicitement compatible avec `Clinique entrepreneuriale
+Yaounde`, repérer une Activity publique publiée et son gestionnaire dans
+la BDD synthétique. Depuis la racine du projet :
+
+    python manage.py import_discover_demo_zip --zip "C:\\Users\\somaf\\Downloads\\makolo_decouvrir_n1_medias_demo.zip" --activity-id UUID --operator USERNAME
+
+La commande prévisualise sans écrire. Pour appliquer sur la seule BDD de démo :
+
+    python manage.py import_discover_demo_zip --zip "C:\\Users\\somaf\\Downloads\\makolo_decouvrir_n1_medias_demo.zip" --activity-id UUID --operator USERNAME --apply --confirm-demo
+
+Vérification des noms/manifeste, taille et scénario avant import ; lecture
+directe depuis l'archive, aucune extraction ni nouveau dossier de stockage.
+3 couvertures PNG via PresentationAsset/PresentationMediaUse ; PDF, CSV, PNG
+documentaire, MP4 et WAV via ActivityResource FILE ; texte public et note
+PARTICIPANT distincts. Le même fichier image ne crée pas trois usages
+identiques si ses octets sont identiques. Les fichiers sont servis par les
+contrôles d'accès métier. Rejouer est idempotent ; un usage retiré n'est
+pas réactivé. Ne jamais importer le ZIP dans une Activity sans lien avec
+son scénario. Les sites publics externes restent des Resources URL dont
+la source doit être vérifiée manuellement, pas des fichiers fictifs.
