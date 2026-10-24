@@ -153,7 +153,15 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     });
     final item = _item;
     final type = item.mimeType.toLowerCase();
-    final cached = type == 'text/html' ? null : await _offlineStore.retained(item.uri);
+    File? cached;
+    if (type != 'text/html') {
+      try {
+        cached = await _offlineStore.retained(item.uri);
+      } on Object {
+        // Path provider may be unavailable in tests or restricted environments.
+        cached = null;
+      }
+    }
     if (!mounted || generation != _generation) return;
     _retainedFile = cached;
     _offlineSaved = cached != null;
@@ -370,7 +378,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
                     ? value.position.inMilliseconds.toDouble().clamp(
                         0.0,
                         value.duration.inMilliseconds.toDouble(),
-                      )
+                      ).toDouble()
                     : 0,
                 max: value.duration.inMilliseconds > 0
                     ? value.duration.inMilliseconds.toDouble()

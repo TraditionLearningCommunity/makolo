@@ -167,6 +167,43 @@ class PreparationResourceM2Tests(TestCase):
                 ),
             )
 
+    def test_full_text_reader_uses_preparation_authorization(self):
+        resource = create_resource(
+            activity=self.activity,
+            actor=self.operator,
+            key="text-reader",
+            title="Guide texte",
+            kind=ResourceKind.TEXT,
+            text_content="Instructions completes pour le parcours.",
+            visibility=ResourceVisibility.PARTICIPANT,
+        )
+        publish_resource(resource=resource, actor=self.operator)
+        url = reverse("preparation:resource-text", kwargs={"resource_id": resource.pk})
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(self.participant)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Instructions completes", response.content)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+
+    def test_full_text_reader_never_exposes_file_or_url(self):
+        resource = create_resource(
+            activity=self.activity,
+            actor=self.operator,
+            key="external-reference",
+            title="Site externe",
+            kind=ResourceKind.URL,
+            external_url="https://example.org/",
+            visibility=ResourceVisibility.PUBLIC,
+        )
+        publish_resource(resource=resource, actor=self.operator)
+        self.client.force_login(self.operator)
+        url = reverse("preparation:resource-text", kwargs={"resource_id": resource.pk})
+        self.assertEqual(self.client.get(url).status_code, 404)
+
     def test_invalid_file_signature_is_rejected(self):
         upload = SimpleUploadedFile("fake.pdf", b"not-a-pdf", content_type="application/pdf")
         with self.assertRaises(ValidationError):
