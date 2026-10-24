@@ -27,3 +27,28 @@ et les resources accessibles. L'URL de la ressource PARTICIPANT doit retourner 4
 en visiteur. Vérifier sur Web et Flutter l'ouverture des documents et la galerie.
 Le contrôle réel sur Android et les fichiers locaux antérieurs restent à exécuter
 sur la machine possédant MEDIA_ROOT et le SDK Flutter.
+
+## Rééquilibrage après le seed homogène (base synthétique uniquement)
+
+La commande de seed existante a volontairement attribué deux images et six Resources
+à chaque Activity. Ce n'est **pas** une règle du produit. Pour rendre les galeries
+de démo moins uniformes, prévisualiser puis retirer seulement les usages
+Presentation correspondant exactement aux deux PNG synthétiques générés :
+
+    python manage.py rebalance_discover_demo_images
+    python manage.py rebalance_discover_demo_images --limit 5
+    python manage.py rebalance_discover_demo_images --apply
+
+Le rééquilibrage est déterministe par UUID ; il conserve 0, 1 ou 2 images de seed
+sur chaque Activity. Il vérifie le checksum exact, le texte alternatif et la
+permission de l'opérateur avant tout retrait. Il n'efface **aucun** fichier ou
+PresentationAsset, ne retire aucune image réelle et ne touche ni aux Resources,
+ni aux droits, ni aux médias des Occurrences. Le retrait passe par le service
+canonique et reste auditable. Dry-run par défaut.
+
+**Important** : ne pas relancer le seed homogène sur les mêmes Activities après
+ce rééquilibrage : la version actuelle du seed peut réassocier les images
+retirées. Les Resources générées restent présentes ; leur éventuelle
+diversification requiert une opération métier de retrait/versionnement explicite,
+sans suppression ORM directe. Aucune règle « toute Activity doit avoir un média »
+ne doit être introduite en production.
