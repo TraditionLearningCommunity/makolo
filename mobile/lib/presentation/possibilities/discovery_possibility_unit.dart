@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
 import '../../features/discovery/discovery_share_sheet.dart';
 import '../../features/discovery/discovery_selector.dart';
+import 'discovery_reader.dart';
 
 /// The existing Discovery projection rendered as one N1 unit.
 /// Facts and actions remain owned by the server; this widget only composes.
@@ -196,6 +196,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           : 'Source';
       entries.add({
         'label': '$format · $title',
+        'mime': mime,
+        'title': title,
+        'kind': raw['kind']?.toString(),
         'text': raw['kind'] == 'text' ? raw['text_content']?.toString() : null,
         'url': raw['kind'] == 'file'
             ? raw['download_url']?.toString()
@@ -207,50 +210,48 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return entries;
   }
 
-  Future<void> _openResource(String source) async {
-    final url = _publicImage(source);
-    if (url == null) return;
-    final opened = await launchUrl(
-      Uri.parse(url),
-      mode: LaunchMode.externalApplication,
+  void _openReader(List<DiscoveryReaderItem> items, {int index = 0}) {
+    if (items.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DiscoveryReader(items: items, initialIndex: index),
+      ),
     );
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d’ouvrir cette ressource.')),
-      );
-    }
   }
 
-  void _viewImage(String url, String label) {
+  void _openResource(Map<String, String?> resource) {
+    final source = resource['url'];
+    final raw = source == null ? null : _publicImage(source);
+    final title = resource['title'] ?? resource['label'] ?? 'Ressource';
+    if (raw != null) {
+      final uri = Uri.parse(raw);
+      if (!discoverySafeDestination(uri)) return;
+      _openReader([
+        DiscoveryReaderItem(
+          title: title,
+          uri: uri,
+          mimeType: resource['kind'] == 'url'
+              ? 'text/html'
+              : resource['mime']?.isNotEmpty == true
+              ? resource['mime']!
+              : 'application/octet-stream',
+        ),
+      ]);
+      return;
+    }
+    final text = resource['text'];
+    if (text == null || text.isEmpty) return;
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.all(12),
-        child: Stack(
-          children: [
-            InteractiveViewer(
-              minScale: 0.8,
-              maxScale: 5,
-              child: Center(
-                child: Image.network(
-                  url,
-                  fit: BoxFit.contain,
-                  semanticLabel: label,
-                  errorBuilder: (_, _, _) => const Text('Image indisponible.'),
-                ),
-              ),
-            ),
-            Positioned(
-              right: 4,
-              top: 4,
-              child: IconButton(
-                tooltip: 'Fermer l’image',
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                icon: const Icon(Icons.close),
-              ),
-            ),
-          ],
-        ),
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(child: SelectableText(text)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Fermer'),
+          ),
+        ],
       ),
     );
   }
@@ -293,7 +294,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (images.length == 1) {
       final image = images.first;
       return InkWell(
-        onTap: () => _viewImage(image['url']!, image['label']!),
+        onTap: () => _openReader([
+          DiscoveryReaderItem(
+            title: image['label']!,
+            uri: Uri.parse(image['url']!),
+            mimeType: 'image/png',
+          ),
+        ]),
         child: Image.network(
           image['url']!,
           width: double.infinity,
@@ -314,7 +321,17 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             itemBuilder: (context, index) {
               final image = images[index];
               return InkWell(
-                onTap: () => _viewImage(image['url']!, image['label']!),
+                onTap: () => _openReader(
+                  [
+                    for (final image in images)
+                      DiscoveryReaderItem(
+                        title: image['label']!,
+                        uri: Uri.parse(image['url']!),
+                        mimeType: 'image/png',
+                      ),
+                  ],
+                  index: index,
+                ),
                 child: Image.network(
                   image['url']!,
                   fit: BoxFit.contain,
@@ -622,7 +639,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                                   tooltip: 'Ouvrir ${resource['label']}',
                                   icon: const Icon(Icons.open_in_new, size: 19),
                                   onPressed: () =>
-                                      _openResource(resource['url']!),
+                                      _openResource(resource),
                                 ),
                             ],
                           ),
