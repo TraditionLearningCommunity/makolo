@@ -655,19 +655,24 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                               const Icon(Icons.description_outlined, size: 18),
                               const SizedBox(width: MakoloSpacing.xs),
                               Expanded(
-                                child: Text(
-                                  resource['label'] ?? '',
-                                  style: theme.textTheme.bodySmall,
+                                child: InkWell(
+                                  onTap: () => _openResource(resource),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: MakoloSpacing.xs,
+                                    ),
+                                    child: Text(
+                                      resource['label'] ?? '',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              if (_publicImage(resource['url']) != null ||
-                                  (resource['text']?.isNotEmpty ?? false))
-                                IconButton(
-                                  tooltip: 'Ouvrir ${resource['label']}',
-                                  icon: const Icon(Icons.open_in_new, size: 19),
-                                  onPressed: () =>
-                                      _openResource(resource),
-                                ),
                             ],
                           ),
                           if (resource['text']?.isNotEmpty ?? false)
