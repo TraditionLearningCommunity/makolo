@@ -192,6 +192,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 
   Future<void> _loadRevision(int revision) async {
     final query = _query;
+    final publicStore = widget.runtime.publicStore;
+    const cacheKind = 'public.discovery.items';
+    final cacheKey = query.fingerprint;
     _trace('SEARCH_START', revision: revision);
     if (mounted) {
       setState(() {
@@ -200,6 +203,21 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         _continuationRejected = false;
         _serviceUnavailable = false;
       });
+    }
+    try {
+      final cached = await publicStore?.readProjection(
+        cacheKind,
+        resourceKey: cacheKey,
+      );
+      if (cached != null && mounted && _searchCoordinator.isCurrent(revision)) {
+        final local = _selector.publicCollection(cached.payload);
+        setState(() {
+          _collection = local;
+          _loading = false;
+        });
+      }
+    } on Object {
+      // Missing or invalid local snapshots do not block remote refresh.
     }
     try {
       final api = widget.runtime.api;
@@ -242,6 +260,14 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       });
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=content');
       unawaited(_persistQuery(query, revision));
+      if (publicStore != null) {
+        unawaited(publicStore.putProjection(
+          kind: cacheKind,
+          resourceKey: cacheKey,
+          schemaVersion: 1,
+          payload: wire.snapshotPayload,
+        ).catchError((Object _) {}));
+      }
     } on MakoloApiError catch (error, stack) {
       _reportFailure('API_ERROR', error, stack, revision: revision);
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;

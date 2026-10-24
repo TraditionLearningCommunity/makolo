@@ -43,6 +43,8 @@ class AppRuntime {
     this.api,
     this.database,
     this.store,
+    this.publicDatabase,
+    this.publicStore,
     this.personal,
     this.interoperability,
     this.discovery,
@@ -85,6 +87,8 @@ class AppRuntime {
   final MakoloApiClient? api;
   final MakoloDatabase? database;
   final ProfileStore? store;
+  final MakoloDatabase? publicDatabase;
+  final ProfileStore? publicStore;
   final PersonalRepository? personal;
   final ProfileInteroperabilityRepository? interoperability;
   final DiscoveryRepository? discovery;
@@ -119,5 +123,6 @@ class AppRuntime {
     preferences?.dispose();
     actorContext?.dispose();
     await database?.close();
+    await publicDatabase?.close();
   }
 }

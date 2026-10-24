@@ -46,6 +46,10 @@ Future<AppRuntime> buildAppRuntime({
   );
   final interactions = await ResumableInteractionStore.open();
   final session = await tokens.readSession();
+  // Public snapshots live outside every personal Profile database.
+  const publicScope = '__makolo_public_v1__';
+  final publicDatabase = await MakoloDatabase.openForProfile(publicScope);
+  final publicStore = ProfileStore(publicDatabase, publicScope);
   final baseUri = config.api.baseUri;
   final api = baseUri == null
       ? null
@@ -64,6 +68,8 @@ Future<AppRuntime> buildAppRuntime({
       preferences: preferences,
       config: config,
       interactions: interactions,
+      publicDatabase: publicDatabase,
+      publicStore: publicStore,
       api: api,
       location: locationFactory(config),
       geoSearch: geoSearch,
@@ -135,6 +141,8 @@ Future<AppRuntime> buildAppRuntime({
     preferences: preferences,
     config: config,
     interactions: interactions,
+    publicDatabase: publicDatabase,
+    publicStore: publicStore,
     api: api,
     database: database,
     store: store,

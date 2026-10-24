@@ -73,24 +73,63 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
 
   Future<void> _loadRevision(int revision) async {
     final page = _page;
+    final publicStore = widget.runtime.publicStore;
+    const cacheKind = 'public.spaces.directory';
+    final query = Uri(
+      queryParameters: {
+        if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
+        if (_category.isNotEmpty) 'category': _category,
+        if (_city.text.trim().isNotEmpty)
+          'city': _selectedCity ?? _city.text.trim(),
+        'page': page.toString(),
+        'page_size': '20',
+      },
+    ).query;
     setState(() {
       _loading = true;
       _error = null;
       _serviceUnavailable = false;
     });
     try {
+      final cached = await publicStore?.readProjection(
+        cacheKind,
+        resourceKey: query,
+      );
+      if (cached != null && mounted && _searchCoordinator.isCurrent(revision)) {
+        final data = cached.payload;
+        final raw = data['results'];
+        if (raw is List) {
+          setState(() {
+            final incoming = raw.whereType<Map>().map(_object).toList();
+            if (page == 1) {
+              _spaces = incoming;
+            } else {
+              final seen = _spaces.map((space) => _field(space, 'slug')).toSet();
+              _spaces = [
+                ..._spaces,
+                ...incoming.where((space) => seen.add(_field(space, 'slug'))),
+              ];
+            }
+            final categoryRows = data['categories'];
+            if (categoryRows is List) {
+              _categories = categoryRows.whereType<Map>().map((row) => (
+                value: _field(_object(row), 'value'),
+                label: _field(_object(row), 'label'),
+              )).where((row) => row.value.isNotEmpty && row.label.isNotEmpty).toList();
+            }
+            _count = data['count'] is int ? data['count'] as int : _spaces.length;
+            _hasNext = data['has_next'] == true;
+            _loading = false;
+          });
+        }
+      }
+    } on Object {
+      // The UI can still load remotely when the local copy is unavailable.
+    }
+    try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Public API unavailable');
-      final query = Uri(
-        queryParameters: {
-          if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
-          if (_category.isNotEmpty) 'category': _category,
-          if (_city.text.trim().isNotEmpty)
-            'city': _selectedCity ?? _city.text.trim(),
-          'page': page.toString(),
-          'page_size': '20',
-        },
-      ).query;
+
       final response = await api.publicGet(
         'api/v1/organizations/public-spaces/?$query',
       );
@@ -131,6 +170,14 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         _updatingCriteria = false;
         _serviceUnavailable = false;
       });
+      if (publicStore != null) {
+        unawaited(publicStore.putProjection(
+          kind: cacheKind,
+          resourceKey: query,
+          schemaVersion: 1,
+          payload: data,
+        ).catchError((Object _) {}));
+      }
     } on Object {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
       setState(() {
