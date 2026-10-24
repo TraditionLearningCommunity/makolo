@@ -450,6 +450,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 preserves text, facts, media, annexes, then actions order', (
+    tester,
+  ) async {
+    final rich = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'ordered',
+      candidateKey: 'activity:ordered',
+      title: 'Possibilité illustrée',
+      summary: 'Une présentation claire.',
+      imageUrl: 'https://example.test/discovery-cover.png',
+      place: 'Lubumbashi',
+      owner: 'Espace test',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'resources': [
+          {'title': 'Guide public', 'kind': 'text', 'text_content': 'Guide de test'},
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) {},
+      ),
+    );
+
+    final title = find.text('Possibilité illustrée');
+    final description = find.byKey(const Key('discover-description-text'));
+    final facts = find.byKey(const Key('discover-facts-section'));
+    final media = find.byKey(const Key('discover-media-main'));
+    final annexes = find.byKey(const Key('discover-resources-section'));
+    final action = find.byKey(const Key('discover-primary-n1'));
+    expect(title, findsOneWidget);
+    expect(description, findsOneWidget);
+    expect(facts, findsOneWidget);
+    expect(media, findsOneWidget);
+    expect(annexes, findsOneWidget);
+    expect(action, findsOneWidget);
+    expect(tester.getTopLeft(title).dy, lessThan(tester.getTopLeft(description).dy));
+    expect(tester.getTopLeft(description).dy, lessThan(tester.getTopLeft(facts).dy));
+    expect(tester.getTopLeft(facts).dy, lessThan(tester.getTopLeft(media).dy));
+    expect(tester.getTopLeft(media).dy, lessThan(tester.getTopLeft(annexes).dy));
+    expect(tester.getTopLeft(annexes).dy, lessThan(tester.getTopLeft(action).dy));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('G04 wide uses the shared adaptive grid', (tester) async {
     await PresentationHarness.pump(
       tester,
