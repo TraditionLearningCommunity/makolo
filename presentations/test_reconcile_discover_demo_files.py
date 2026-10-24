@@ -25,7 +25,7 @@ class ReconcileDemoMissingFilesTests(TestCase):
             activity=self.activity, actor=self.actor, key=key,
             title=key, kind=ResourceKind.FILE,
             uploaded_file=SimpleUploadedFile(
-                "guide.pdf", b"%PDF-1.4\\n%%EOF\\n", content_type="application/pdf"
+                "guide.pdf", b"%PDF-1.4\n%%EOF\n", content_type="application/pdf"
             ), visibility=ResourceVisibility.PUBLIC,
         )
         publish_resource(resource=resource, actor=self.actor)

@@ -202,7 +202,7 @@ class PreparationResourceM2Tests(TestCase):
             activity=self.activity, actor=self.operator, key="schedule-csv",
             title="Calendrier", kind=ResourceKind.FILE,
             uploaded_file=SimpleUploadedFile(
-                "schedule.csv", b"date,place\\n2026-12-01,Kinshasa\\n", content_type="text/csv"
+                "schedule.csv", b"date,place\n2026-12-01,Kinshasa\n", content_type="text/csv"
             ), visibility=ResourceVisibility.PUBLIC,
         )
         publish_resource(resource=resource, actor=self.operator)

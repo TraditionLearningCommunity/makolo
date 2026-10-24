@@ -46,9 +46,9 @@ class ImportDiscoverZipTests(TestCase):
             for name in ("cover-1.png", "cover-2.png", "cover-3.png", "document-illustration.png"):
                 archive.writestr(name, image.getvalue())
             archive.writestr("guide.pdf", pdf_data(self.activity))
-            archive.writestr("planning.csv", "date,place\\n2026-12-01,Yaounde\\n")
-            archive.writestr("clip.mp4", b"\\x00\\x00\\x00\\x18ftypisom\\x00\\x00\\x02\\x00isom")
-            archive.writestr("extrait.wav", b"RIFF" + b"\\x00" * 4 + b"WAVEfmt " + b"\\x00" * 40)
+            archive.writestr("planning.csv", "date,place\n2026-12-01,Yaounde\n")
+            archive.writestr("clip.mp4", b"\x00\x00\x00\x18ftypisom\x00\x00\x02\x00isom")
+            archive.writestr("extrait.wav", b"RIFF" + b"\x00" * 4 + b"WAVEfmt " + b"\x00" * 40)
             archive.writestr("infos.txt", "Informations publiques de demonstration")
             archive.writestr("PRIVE-ne-pas-publier.txt", "Informations reservees")
 
