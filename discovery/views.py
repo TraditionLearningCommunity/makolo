@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+from django.utils.dateparse import parse_date, parse_datetime
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -195,26 +197,54 @@ def _web_discovery_card(item):
     engagement = item.get("engagement") or {}
     engagement_presentation = engagement.get("presentation") or {}
 
-    facts = [
-        _discovery_fact(
-            fact.get("code") or "fact",
-            fact.get("label") or "",
-            fact.get("value") or "",
-            fact.get("icon"),
-        )
-        for fact in item.get("presentation_facts", [])
-    ]
+    # Classification is rendered under the title, never as a practical fact.
+    type_labels = []
+    def add_type(value):
+        text = str(value or "").strip()
+        if text and text.casefold() not in {label.casefold() for label in type_labels}:
+            type_labels.append(text)
+
+    add_type(representation.get("vertical_label"))
+    add_type(representation.get("eyebrow"))
+    facts = []
+    seen = set()
+    seen_labels = set()
+
+    def canonical_code(code):
+        normalized = str(code or "").strip().lower()
+        return {
+            "capacity": "availability",
+            "start_at": "when",
+            "start_date": "when",
+            "place_primary": "place",
+        }.get(normalized, normalized)
+
+    def add_fact(code, label, value, icon):
+        key = canonical_code(code)
+        normalized_label = str(label or "").strip().casefold()
+        if (
+            value is None
+            or not str(value).strip()
+            or key in seen
+            or normalized_label in seen_labels
+        ):
+            return
+        seen.add(key)
+        seen_labels.add(normalized_label)
+        facts.append(_discovery_fact(key, label, value, icon))
+
+    for fact in item.get("presentation_facts") or []:
+        code = str(fact.get("code") or "fact")
+        label = str(fact.get("label") or "")
+        if code.casefold() == "type" or label.casefold() == "type":
+            add_type(fact.get("value"))
+        else:
+            add_fact(code, label, fact.get("value"), fact.get("icon"))
+
     timing = item.get("timing") or {}
     place = item.get("place")
     price = item.get("price") or {}
     availability = item.get("availability") or {}
-    # Presentation facts never suppress the independent canonical fields.
-    seen = {fact.code for fact in facts}
-    def add_fact(code, label, value, icon):
-        if value is None or code in seen:
-            return
-        facts.append(_discovery_fact(code, label, value, icon))
-        seen.add(code)
 
     if timing.get("start_at"):
         add_fact("when", "Quand", timing["start_at"], "calendar-clock")
@@ -245,7 +275,7 @@ def _web_discovery_card(item):
         add_fact("price", "Prix", price_value, "wallet-cards")
 
     availability_state = availability.get("state")
-    if availability_state:
+    if availability_state and availability_state != "unknown":
         add_fact(
             "availability",
             "Disponibilité",
@@ -320,6 +350,16 @@ def _web_discovery_card(item):
         "transport": "Opéré par",
     }.get(presentation_kind, "Proposé par")
 
+    added_date = None
+    date_info = item.get("date") or {}
+    if date_info.get("kind") == "added_at" and date_info.get("value"):
+        value = str(date_info["value"])
+        parsed = parse_datetime(value)
+        if parsed is not None:
+            added_date = timezone.localtime(parsed).date() if timezone.is_aware(parsed) else parsed.date()
+        else:
+            added_date = parse_date(value[:10])
+
     return SimpleNamespace(
         candidate_key=identity["candidate_key"],
         activity_id=(
@@ -330,6 +370,8 @@ def _web_discovery_card(item):
         occurrence_id=occurrence["id"] if occurrence else None,
         presentation_kind=presentation_kind,
         vertical_label=representation.get("vertical_label") or "Possibilité",
+        type_labels=tuple(type_labels),
+        date_display=added_date,
         title=representation["title"],
         summary=representation.get("summary") or "",
         description=(item.get("detail") or {}).get("description") or "",
