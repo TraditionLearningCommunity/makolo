@@ -699,31 +699,42 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   Widget _facts(BuildContext context) {
     final facts = _reliableFacts;
     if (facts.isEmpty) return const SizedBox.shrink();
-    return Wrap(
-      spacing: MakoloSpacing.md,
-      runSpacing: MakoloSpacing.sm,
-      children: [
-        for (final fact in facts)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 180),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  fact['label'] as String,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gutter = MakoloSpacing.compact;
+        final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+        final twoColumns = !largeText && constraints.maxWidth >= 260;
+        final itemWidth = twoColumns
+            ? (constraints.maxWidth - gutter) / 2
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: gutter,
+          runSpacing: MakoloSpacing.md,
+          children: [
+            for (final fact in facts)
+              SizedBox(
+                width: itemWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      fact['label'] as String,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: MakoloSpacing.micro),
+                    Text(
+                      fact['value'] as String,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
                 ),
-                Text(
-                  fact['value'] as String,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-      ],
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -790,12 +801,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                             '')
                         .trim();
                     final eyebrow = (item.eyebrow ?? '').trim();
-                    final participant = (item.participantPresentation?['label']
-                                ?.toString() ??
-                            '')
-                        .trim();
+                    final subtype = item.presentationFacts
+                        .where((fact) =>
+                            fact['code'] == 'type' || fact['label'] == 'Type')
+                        .map((fact) => (fact['value'] ?? '').toString().trim())
+                        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
                     final labels = <String>[];
-                    for (final candidate in [vertical, eyebrow, participant]) {
+                    for (final candidate in [vertical, eyebrow, subtype]) {
                       if (candidate.isNotEmpty &&
                           !labels.any((label) =>
                               label.toLowerCase() == candidate.toLowerCase())) {
@@ -828,42 +840,55 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     );
                   },
                 ),
-                const SizedBox(height: MakoloSpacing.sm),
-                if (_reliableFacts.isNotEmpty && !_expanded)
-                  Wrap(
-                    spacing: MakoloSpacing.sm,
-                    runSpacing: MakoloSpacing.xs,
-                    children: [
-                      for (final fact in _reliableFacts)
-                        Text(
-                          fact['value'] as String,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                if (_expanded) ...[
-                  if (_reliableFacts.isNotEmpty)
-                    const SizedBox(height: MakoloSpacing.sm),
-                  _facts(context),
-                  _knowledge(context),
-                ],
-                if (item.variants.isNotEmpty || item.relations.isNotEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    [
-                      if (item.variants.isNotEmpty)
-                        '${item.variants.length} variantes',
-                      if (item.relations.isNotEmpty)
-                        '${item.relations.length} relations',
-                    ].join(' · '),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
                 if (_description.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   _descriptionBody(context),
+                ],
+                if (_reliableFacts.isNotEmpty ||
+                    item.variants.isNotEmpty ||
+                    item.relations.isNotEmpty ||
+                    item.assessment.any((fact) =>
+                        fact['label'] is String &&
+                        {'favorable', 'limiting', 'unknown'}.contains(fact['state']))) ...[
+                  const SizedBox(height: MakoloSpacing.md),
+                  Container(
+                    key: const Key('discover-facts-section'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(MakoloSpacing.compact),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(MakoloRadii.small),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Informations pratiques',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        if (_reliableFacts.isNotEmpty) ...[
+                          const SizedBox(height: MakoloSpacing.sm),
+                          _facts(context),
+                        ],
+                        _knowledge(context),
+                        if (item.variants.isNotEmpty ||
+                            item.relations.isNotEmpty) ...[
+                          const SizedBox(height: MakoloSpacing.sm),
+                          Text(
+                            [
+                              if (item.variants.isNotEmpty)
+                                '${item.variants.length} variantes',
+                              if (item.relations.isNotEmpty)
+                                '${item.relations.length} relations',
+                            ].join(' · '),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ],
             ),
