@@ -35,7 +35,8 @@ class Command(BaseCommand):
             qs = qs[:options["limit"]]
         totals = Counter()
         examples = 0
-        for resource in qs.iterator():
+        # Snapshot rows before any status transitions (safe with SQLite cursors).
+        for resource in list(qs):
             if not resource.file or not resource.file.name:
                 totals["without_reference"] += 1
                 continue
