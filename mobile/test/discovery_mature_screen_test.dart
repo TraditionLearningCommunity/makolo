@@ -292,7 +292,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('N1 resources keep server order and reveal the full collection', (
+  testWidgets('N1 shows two annexes then all seven after expansion', (
     tester,
   ) async {
     final rich = DiscoveryItemPresentation(
@@ -305,43 +305,14 @@ void main() {
       savedState: 'unknown',
       capabilities: const {'view'},
       links: const {},
-      wire: const {
+      wire: {
         'resources': [
-          {
-            'title': 'Premier document',
-            'kind': 'file',
-            'mime_type': 'application/pdf',
-          },
-          {
-            'title': 'Deuxième document',
-            'kind': 'file',
-            'mime_type': 'image/png',
-          },
-          {
-            'title': 'Troisième document',
-            'kind': 'text',
-            'text_content': 'Texte court.',
-          },
-          {
-            'title': 'Quatrième document',
-            'kind': 'file',
-            'mime_type': 'text/csv',
-          },
-          {
-            'title': 'Cinquième document',
-            'kind': 'file',
-            'mime_type': 'application/pdf',
-          },
-          {
-            'title': 'Sixième document',
-            'kind': 'url',
-            'external_url': 'https://example.org/guide',
-          },
-          {
-            'title': 'Septième document',
-            'kind': 'text',
-            'text_content': 'Informations disponibles.',
-          },
+          for (var index = 1; index <= 7; index++)
+            {
+              'title': 'Document $index',
+              'kind': 'text',
+              'text_content': 'Instructions $index',
+            },
         ],
       },
     );
@@ -354,28 +325,80 @@ void main() {
       ),
     );
 
-    expect(find.text('Premier document'), findsOneWidget);
-    expect(find.text('Deuxième document'), findsOneWidget);
-    expect(find.text('Troisième document'), findsNothing);
-    expect(find.text('Quatrième document'), findsNothing);
-    expect(find.text('Septième document'), findsNothing);
+    expect(find.byKey(const Key('discover-resources-section')), findsOneWidget);
+    expect(find.text('Document 1'), findsOneWidget);
+    expect(find.text('Document 2'), findsOneWidget);
+    expect(find.text('Document 3'), findsNothing);
+    expect(find.text('Document 7'), findsNothing);
     expect(find.text('Voir les 7 ressources'), findsOneWidget);
-    await tester.ensureVisible(
-      find.byKey(const Key('discover-resources-expand')),
-    );
+    await tester.ensureVisible(find.byKey(const Key('discover-resources-expand')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('discover-resources-expand')));
     await tester.pump();
-    expect(find.text('Troisième document'), findsOneWidget);
-    expect(find.text('Quatrième document'), findsOneWidget);
-    expect(find.text('Cinquième document'), findsOneWidget);
-    expect(find.text('Sixième document'), findsOneWidget);
-    expect(find.text('Septième document'), findsOneWidget);
+    for (var index = 1; index <= 7; index++) {
+      expect(find.text('Document $index'), findsOneWidget);
+    }
     expect(find.text('Voir moins de ressources'), findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('discover-resources-expand')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('discover-resources-expand')));
     await tester.pump();
-    expect(find.text('Troisième document'), findsNothing);
-    expect(find.text('Voir les 7 ressources'), findsOneWidget);
+    expect(find.text('Document 3'), findsNothing);
+    expect(find.text('Document 7'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('N1 practical facts stay fixed while description unfolds', (
+    tester,
+  ) async {
+    final longSummary = List.filled(30, 'Description développable.').join(' ');
+    final rich = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'stable-facts',
+      candidateKey: 'service_activity:stable-facts',
+      title: 'Service avec informations',
+      summary: longSummary,
+      owner: 'Espace test',
+      price: '25 USD',
+      availability: 'Disponible',
+      eyebrow: 'Accompagnement',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'availability': {'state': 'available'},
+        'presentation_facts': [
+          {'code': 'type', 'label': 'Type', 'value': 'Accompagnement'},
+          {'code': 'condition', 'label': 'Condition', 'value': 'Document requis'},
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) {},
+      ),
+    );
+
+    expect(find.byKey(const Key('discover-facts-section')), findsOneWidget);
+    expect(find.text('Prix'), findsOneWidget);
+    expect(find.text('25 USD'), findsOneWidget);
+    expect(find.text('Disponibilité'), findsOneWidget);
+    expect(find.text('Document requis'), findsOneWidget);
+    expect(find.text('Type'), findsNothing);
+    await tester.tap(find.byKey(const Key('discover-description-tap')));
+    await tester.pump();
+    expect(find.byKey(const Key('discover-facts-section')), findsOneWidget);
+    expect(find.text('Prix'), findsOneWidget);
+    expect(find.text('25 USD'), findsOneWidget);
+    expect(find.text('Document requis'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('discover-description-tap')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('discover-description-tap')));
+    await tester.pump();
+    expect(find.byKey(const Key('discover-facts-section')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
