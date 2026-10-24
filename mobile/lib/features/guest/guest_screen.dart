@@ -604,7 +604,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
               ],
-              if (_error != null) ...[
+              if (_error != null && (!_serviceUnavailable || _collection.items.isEmpty)) ...[
                 if (!_serviceUnavailable)
                   Padding(
                     padding: const EdgeInsets.symmetric(

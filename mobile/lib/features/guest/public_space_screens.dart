@@ -350,7 +350,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                 ),
               ),
               const SizedBox(height: MakoloSpacing.md),
-              if (_error != null && _page == 1) ...[
+              if (_error != null && _page == 1 && _spaces.isEmpty) ...[
                 if (!_serviceUnavailable)
                   Text(
                     _error!,
