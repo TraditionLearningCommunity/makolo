@@ -17,11 +17,14 @@
           <span class="min-w-0 break-words text-sm">{{ card.operator_name }}</span>
         {% if card.owner.links.public %}</a>{% else %}</span>{% endif %}
         {% if card.owner.links.public %}<i data-lucide="external-link" class="h-4 w-4 shrink-0" aria-hidden="true"></i>{% endif %}
+        {% if card.date and card.date.value %}
+        <time datetime="{{ card.date.value }}" class="ml-auto shrink-0 text-right text-xs" style="color:var(--mk-subtle)" aria-label="{{ card.date.label }} {{ card.date.value|slice:":10" }}">{{ card.date.value|slice:":10" }}</time>
+        {% endif %}
       </div>
       {% endif %}
       <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs" style="color:var(--mk-subtle)">
         <span>{{ card.vertical_label }}</span>
-        {% if card.date and card.date.value %}<time datetime="{{ card.date.value }}">{{ card.date.label }} {{ card.date.value|slice:":10" }}</time>{% endif %}
+
       </div>
       {% if card.summary %}<p class="mt-4 whitespace-pre-line text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.summary }}</p>{% endif %}
       {% if card.description and card.description != card.summary %}<p class="mt-3 whitespace-pre-line text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.description }}</p>{% endif %}
