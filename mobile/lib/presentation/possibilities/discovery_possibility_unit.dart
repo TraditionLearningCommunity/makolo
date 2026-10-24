@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
@@ -221,6 +222,23 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     );
   }
 
+  Future<void> _openWebsite(Uri uri) async {
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cette page ne peut pas être ouverte ici.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cette page ne peut pas être ouverte ici.')),
+        );
+      }
+    }
+  }
+
   void _openResource(Map<String, String?> resource) {
     final source = resource['url'];
     final raw = source == null ? null : _publicImage(source);
@@ -228,6 +246,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (raw != null) {
       final uri = Uri.parse(raw);
       if (!discoverySafeDestination(uri)) return;
+      if (resource['kind'] == 'url') {
+        _openWebsite(uri);
+        return;
+      }
       _openReader([
         DiscoveryReaderItem(
           title: title,
