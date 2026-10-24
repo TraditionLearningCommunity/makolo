@@ -409,11 +409,15 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final local = parsed.toLocal();
     final now = DateTime.now();
     final elapsed = now.difference(local);
-    final calendarDays = DateTime.utc(now.year, now.month, now.day)
-        .difference(DateTime.utc(local.year, local.month, local.day)).inDays;
+    final calendarDays = DateTime.utc(
+      now.year,
+      now.month,
+      now.day,
+    ).difference(DateTime.utc(local.year, local.month, local.day)).inDays;
     final material = MaterialLocalizations.of(context);
     final isFrench = Localizations.localeOf(context).languageCode == 'fr';
-    final exact = '${material.formatMediumDate(local)} · '
+    final exact =
+        '${material.formatMediumDate(local)} · '
         '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
     String relative;
     if (elapsed.isNegative || elapsed.inMinutes < 1) {
@@ -447,9 +451,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         child: Text(
           relative,
           textAlign: TextAlign.end,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ),
     );
@@ -533,8 +536,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               button: expandable,
               label: expandable
                   ? (_expanded
-                      ? 'Réduire la description'
-                      : 'Développer la description')
+                        ? 'Réduire la description'
+                        : 'Développer la description')
                   : null,
               child: InkWell(
                 key: const Key('discover-description-tap'),
@@ -678,8 +681,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                             ),
                           if (item.participantPresentation?['label']
                                   is String &&
-                              (item.participantPresentation!['label']
-                                      as String)
+                              (item.participantPresentation!['label'] as String)
                                   .trim()
                                   .isNotEmpty &&
                               item.participantPresentation!['label'] !=
@@ -741,8 +743,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 if (resources.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   if (resources.length > 1)
-                    Divider(height: MakoloSpacing.sm, color: theme.colorScheme.outlineVariant),
-                  for (final resource in (_allResources ? resources : resources.take(3)))
+                    Divider(
+                      height: MakoloSpacing.sm,
+                      color: theme.colorScheme.outlineVariant,
+                    ),
+                  for (final resource
+                      in (_allResources ? resources : resources.take(3)))
                     Padding(
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
                       child: Column(
@@ -807,7 +813,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       ),
                     ),
                   if (resources.length > 1)
-                    Divider(height: MakoloSpacing.sm, color: theme.colorScheme.outlineVariant),
+                    Divider(
+                      height: MakoloSpacing.sm,
+                      color: theme.colorScheme.outlineVariant,
+                    ),
                 ],
               ],
             ),

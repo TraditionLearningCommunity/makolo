@@ -261,12 +261,16 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       _trace('LOAD_FINISHED', revision: revision, detail: 'state=content');
       unawaited(_persistQuery(query, revision));
       if (publicStore != null) {
-        unawaited(publicStore.putProjection(
-          kind: cacheKind,
-          resourceKey: cacheKey,
-          schemaVersion: 1,
-          payload: wire.snapshotPayload,
-        ).catchError((Object _) {}));
+        unawaited(
+          publicStore
+              .putProjection(
+                kind: cacheKind,
+                resourceKey: cacheKey,
+                schemaVersion: 1,
+                payload: wire.snapshotPayload,
+              )
+              .catchError((Object _) {}),
+        );
       }
     } on MakoloApiError catch (error, stack) {
       _reportFailure('API_ERROR', error, stack, revision: revision);
@@ -604,7 +608,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
               ],
-              if (_error != null && (!_serviceUnavailable || _collection.items.isEmpty)) ...[
+              if (_error != null &&
+                  (!_serviceUnavailable || _collection.items.isEmpty)) ...[
                 if (!_serviceUnavailable)
                   Padding(
                     padding: const EdgeInsets.symmetric(

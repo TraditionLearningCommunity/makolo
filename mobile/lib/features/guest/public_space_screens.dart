@@ -104,7 +104,9 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             if (page == 1) {
               _spaces = incoming;
             } else {
-              final seen = _spaces.map((space) => _field(space, 'slug')).toSet();
+              final seen = _spaces
+                  .map((space) => _field(space, 'slug'))
+                  .toSet();
               _spaces = [
                 ..._spaces,
                 ...incoming.where((space) => seen.add(_field(space, 'slug'))),
@@ -112,12 +114,20 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
             }
             final categoryRows = data['categories'];
             if (categoryRows is List) {
-              _categories = categoryRows.whereType<Map>().map((row) => (
-                value: _field(_object(row), 'value'),
-                label: _field(_object(row), 'label'),
-              )).where((row) => row.value.isNotEmpty && row.label.isNotEmpty).toList();
+              _categories = categoryRows
+                  .whereType<Map>()
+                  .map(
+                    (row) => (
+                      value: _field(_object(row), 'value'),
+                      label: _field(_object(row), 'label'),
+                    ),
+                  )
+                  .where((row) => row.value.isNotEmpty && row.label.isNotEmpty)
+                  .toList();
             }
-            _count = data['count'] is int ? data['count'] as int : _spaces.length;
+            _count = data['count'] is int
+                ? data['count'] as int
+                : _spaces.length;
             _hasNext = data['has_next'] == true;
             _loading = false;
           });
@@ -171,12 +181,16 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         _serviceUnavailable = false;
       });
       if (publicStore != null) {
-        unawaited(publicStore.putProjection(
-          kind: cacheKind,
-          resourceKey: query,
-          schemaVersion: 1,
-          payload: data,
-        ).catchError((Object _) {}));
+        unawaited(
+          publicStore
+              .putProjection(
+                kind: cacheKind,
+                resourceKey: query,
+                schemaVersion: 1,
+                payload: data,
+              )
+              .catchError((Object _) {}),
+        );
       }
     } on Object {
       if (!mounted || !_searchCoordinator.isCurrent(revision)) return;

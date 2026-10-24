@@ -211,7 +211,9 @@ void main() {
 
     expect(find.text('Voir plus'), findsOneWidget);
     expect(
-      tester.widget<Text>(find.byKey(const Key('discover-description-text'))).maxLines,
+      tester
+          .widget<Text>(find.byKey(const Key('discover-description-text')))
+          .maxLines,
       3,
     );
     await tester.tap(find.byKey(const Key('discover-description-tap')));
@@ -226,7 +228,9 @@ void main() {
     await tester.tap(find.byKey(const Key('discover-description-tap')));
     await tester.pump();
     expect(
-      tester.widget<Text>(find.byKey(const Key('discover-description-text'))).maxLines,
+      tester
+          .widget<Text>(find.byKey(const Key('discover-description-text')))
+          .maxLines,
       3,
     );
     expect(find.text('Voir plus'), findsOneWidget);
@@ -238,7 +242,9 @@ void main() {
     await tester.tap(find.text('Voir moins'));
     await tester.pump();
     expect(
-      tester.widget<Text>(find.byKey(const Key('discover-description-text'))).maxLines,
+      tester
+          .widget<Text>(find.byKey(const Key('discover-description-text')))
+          .maxLines,
       3,
     );
     expect(opened, isFalse);
@@ -260,10 +266,26 @@ void main() {
       links: const {},
       wire: const {
         'resources': [
-          {'title': 'Premier document', 'kind': 'file', 'mime_type': 'application/pdf'},
-          {'title': 'Deuxième document', 'kind': 'file', 'mime_type': 'image/png'},
-          {'title': 'Troisième document', 'kind': 'text', 'text_content': 'Texte court.'},
-          {'title': 'Quatrième document', 'kind': 'file', 'mime_type': 'text/csv'},
+          {
+            'title': 'Premier document',
+            'kind': 'file',
+            'mime_type': 'application/pdf',
+          },
+          {
+            'title': 'Deuxième document',
+            'kind': 'file',
+            'mime_type': 'image/png',
+          },
+          {
+            'title': 'Troisième document',
+            'kind': 'text',
+            'text_content': 'Texte court.',
+          },
+          {
+            'title': 'Quatrième document',
+            'kind': 'file',
+            'mime_type': 'text/csv',
+          },
         ],
       },
     );
@@ -281,7 +303,9 @@ void main() {
     expect(find.text('Troisième document'), findsOneWidget);
     expect(find.text('Quatrième document'), findsNothing);
     expect(find.text('Voir les 4 ressources'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const Key('discover-resources-expand')));
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-resources-expand')),
+    );
     await tester.tap(find.byKey(const Key('discover-resources-expand')));
     await tester.pump();
     expect(find.text('Quatrième document'), findsOneWidget);
