@@ -105,6 +105,11 @@ void main() {
       ),
     );
 
+    expect(find.text('Possibilités à explorer'), findsOneWidget);
+    expect(
+      find.text('Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?'),
+      findsNothing,
+    );
     expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
     expect(find.byKey(const Key('discover-wide-grid')), findsNothing);
     expect(find.text('Formation Data Science'), findsOneWidget);
