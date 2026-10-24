@@ -663,10 +663,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                                           ?.copyWith(
                                             color: theme.colorScheme.primary,
                                             fontWeight: FontWeight.w600,
-                                            decoration:
-                                                TextDecoration.underline,
-                                            decorationColor:
-                                                theme.colorScheme.primary,
                                           ),
                                     ),
                                   ),
