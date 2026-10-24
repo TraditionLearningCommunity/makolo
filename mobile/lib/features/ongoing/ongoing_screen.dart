@@ -84,8 +84,8 @@ class _OngoingScreenState extends State<OngoingScreen> {
                   sourceSnapshot.data?.lastErrorCode != null ||
                   syncStatus?.state == SyncVisualState.failed)) {
             return MakoloErrorState(
-              message: 'Vos éléments en cours n’ont pas pu être chargés.',
-              preservedMessage: 'Les données déjà enregistrées sur cet appareil sont conservées.',
+              message: 'Impossible d’afficher En cours.',
+              preservedMessage: '',
               onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
             );
           }
@@ -105,8 +105,8 @@ class _OngoingScreenState extends State<OngoingScreen> {
                 availability: MakoloAvailabilityCue.empty,
               ),
               empty: MakoloEmptyState(
-                title: 'Vos éléments en cours ne sont pas encore disponibles sur cet appareil.',
-                body: 'Une première connexion est nécessaire.',
+                title: 'En cours indisponible.',
+                body: 'Connectez-vous pour accéder à vos démarches.',
               ),
               content: SizedBox.shrink(),
             );
@@ -123,11 +123,11 @@ class _OngoingScreenState extends State<OngoingScreen> {
                     : MakoloFailureCue.recoverable,
               ),
               recoverableErrorMessage:
-                  'La mise à jour de vos éléments en cours a échoué.',
-              preservedMessage: 'Les données déjà enregistrées sur cet appareil sont conservées.',
+                  'Actualisation impossible.',
+              preservedMessage: '',
               onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
               empty: const MakoloEmptyState(
-                title: 'Rien en cours pour le moment.',
+                title: 'Aucune démarche en cours.',
               ),
               content: const SizedBox.shrink(),
             );
@@ -153,9 +153,9 @@ class _OngoingScreenState extends State<OngoingScreen> {
             ),
             recoverableErrorMessage: sourceSnapshot.data?.lastErrorCode == null
                 ? null
-                : 'La mise à jour de vos éléments en cours a échoué.',
+                : 'Actualisation impossible.',
             preservedMessage:
-                'Les données déjà enregistrées restent consultables.',
+                '',
             onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
             content: _OngoingAdaptiveView(
               items: items,
