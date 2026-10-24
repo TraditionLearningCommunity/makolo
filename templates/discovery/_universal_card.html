@@ -31,10 +31,10 @@
         {% endfor %}
       </div>
       {% endif %}
-      {% if card.description and card.description != card.summary %}
+      {% if card.description and card.description != card.summary or card.summary|length > 220 %}
         <details class="group mt-3" aria-label="Description de {{ card.title }}">
           <summary class="cursor-pointer list-none text-sm leading-relaxed" style="color:var(--mk-muted)">
-            <span class="whitespace-pre-line">{{ card.summary|default:card.description|truncatewords:42 }}</span>
+            <span class="block whitespace-pre-line line-clamp-3 group-open:line-clamp-none">{{ card.summary|default:card.description }}</span>
             <span class="mt-1 block font-semibold group-open:hidden" style="color:var(--mk-primary)">Voir plus</span>
             <span class="mt-1 hidden font-semibold group-open:block" style="color:var(--mk-primary)">Voir moins</span>
           </summary>
