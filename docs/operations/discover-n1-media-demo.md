@@ -73,3 +73,20 @@ Les fixtures modifiées ou sans opérateur autorisé sont ignorées. Ne pas rela
 l'ancien seed homogène ensuite ; il n'est pas adapté à ce rééquilibrage.
 Cette diversification ne crée ni MP4 ni WAV : l'import documenté du ZIP doit
 être développé séparément avec un lien sémantique explicite vers l'Activity.
+
+## Audit lecture seule : fichiers réellement présents
+
+Ne pas lancer un nouveau seed avant d'avoir mesuré les octets effectivement
+disponibles dans les stockages existants :
+
+    python manage.py audit_discover_demo_storage
+    python manage.py audit_discover_demo_storage --examples 20
+
+La commande audite par défaut toutes les Resources `demo-*`, y compris
+`retired`, et les PresentationMediaUse publiés. L'option
+`--all-resources` inclut les ressources non synthétiques. Elle vérifie
+`storage.exists` sans ouvrir les octets ni publier d'URL et ne touche
+ni à la BDD ni aux fichiers. Les états `missing-bytes`,
+`missing-reference` et `storage-error` sont des anomalies à examiner.
+L'existence physique ne prouve pas l'autorisation HTTP : compléter
+par des essais visiteur, participant, gestionnaire et le rendu Web/Flutter.
