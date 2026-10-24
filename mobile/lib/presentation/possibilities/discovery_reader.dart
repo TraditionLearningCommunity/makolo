@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../platform/media/private_media_views.dart';
 import '../../platform/sharing/share_gateway.dart';
+import 'discovery_offline_store.dart';
 
 /// A transient reader for already-authorized Discovery presentation destinations.
 /// This is not a permission grant or a replacement for the server-side checks.
@@ -54,6 +55,10 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   String? _failure;
   bool _loading = false;
   bool _exporting = false;
+  bool _offlineBusy = false;
+  bool _offlineSaved = false;
+  File? _retainedFile;
+  final DiscoveryOfflineStore _offlineStore = const DiscoveryOfflineStore();
   int _generation = 0;
 
   DiscoveryReaderItem get _item => widget.items[_index];
@@ -148,6 +153,14 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     });
     final item = _item;
     final type = item.mimeType.toLowerCase();
+    final cached = type == 'text/html' ? null : await _offlineStore.retained(item.uri);
+    if (!mounted || generation != _generation) return;
+    _retainedFile = cached;
+    _offlineSaved = cached != null;
+    if (type.startsWith('image/')) {
+      setState(() {});
+      return;
+    }
     if (type != 'application/pdf' &&
         type != 'text/plain' &&
         type != 'text/csv' &&
@@ -158,7 +171,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     setState(() => _loading = true);
     try {
       if (type.startsWith('video/') || type.startsWith('audio/')) {
-        final player = VideoPlayerController.networkUrl(item.uri);
+        final player = cached != null
+            ? VideoPlayerController.file(cached)
+            : VideoPlayerController.networkUrl(item.uri);
         await player.initialize();
         if (!mounted || generation != _generation) {
           await player.dispose();
@@ -166,20 +181,20 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
         }
         setState(() => _player = player);
       } else {
-        final file = await _fetchTemporary(item);
+        final file = cached ?? await _fetchTemporary(item);
         if (!mounted || generation != _generation) {
-          await file.delete();
+          if (cached == null) await file.delete();
           return;
         }
         if (type == 'text/plain' || type == 'text/csv') {
           final text = await file.readAsString(encoding: utf8);
           if (!mounted || generation != _generation) {
-            await file.delete();
+            if (cached == null) await file.delete();
             return;
           }
           setState(() => _text = text);
         }
-        _temporaryFile = file;
+        if (cached == null) _temporaryFile = file;
       }
     } on Object {
       if (mounted && generation == _generation) {
@@ -201,7 +216,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       // A Web page is not silently treated as a downloadable file.
       if (item.mimeType == 'text/html') return;
       final file = _temporaryFile;
-      generated = file ?? await _fetchTemporary(item);
+      generated = file ?? _retainedFile ?? await _fetchTemporary(item);
       await widget.sharing.shareFiles(paths: [generated.path]);
     } on Object {
       if (mounted) {
@@ -210,7 +225,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
         );
       }
     } finally {
-      if (generated != null && generated != _temporaryFile) {
+      if (generated != null &&
+          generated != _temporaryFile &&
+          generated != _retainedFile) {
         try {
           if (await generated.exists()) await generated.delete();
         } on FileSystemException {
@@ -218,6 +235,47 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
         }
       }
       if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _toggleOffline() async {
+    if (_offlineBusy || _item.mimeType == 'text/html') return;
+    final item = _item;
+    final generation = _generation;
+    setState(() => _offlineBusy = true);
+    File? temporary;
+    try {
+      if (_offlineSaved) {
+        await _offlineStore.remove(item.uri);
+        if (!mounted || generation != _generation) return;
+        _retainedFile = null;
+        _offlineSaved = false;
+        await _load();
+      } else {
+        final file = _temporaryFile ?? await _fetchTemporary(item);
+        if (file != _temporaryFile) temporary = file;
+        final retained = await _offlineStore.save(item.uri, file);
+        if (!mounted || generation != _generation) return;
+        _retainedFile = retained;
+        setState(() => _offlineSaved = true);
+      }
+    } on Object {
+      if (mounted && generation == _generation) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de modifier la copie hors ligne.')),
+        );
+      }
+    } finally {
+      if (temporary != null) {
+        try {
+          if (await temporary.exists()) await temporary.delete();
+        } on FileSystemException {
+          // Transient download cleanup.
+        }
+      }
+      if (mounted && generation == _generation) {
+        setState(() => _offlineBusy = false);
+      }
     }
   }
 
@@ -259,18 +317,25 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
         minScale: 0.7,
         maxScale: 6,
         child: Center(
-          child: Image.network(
-            item.uri.toString(),
-            fit: BoxFit.contain,
-            semanticLabel: item.title,
-            errorBuilder: (_, _, _) =>
-                const Text('Image indisponible.'),
-          ),
+          child: _retainedFile != null
+              ? Image.file(
+                  _retainedFile!,
+                  fit: BoxFit.contain,
+                  semanticLabel: item.title,
+                )
+              : Image.network(
+                  item.uri.toString(),
+                  fit: BoxFit.contain,
+                  semanticLabel: item.title,
+                  errorBuilder: (_, _, _) =>
+                      const Text('Image indisponible.'),
+                ),
         ),
       );
     }
-    if (type == 'application/pdf' && _temporaryFile != null) {
-      return PrivatePdfView(path: _temporaryFile!.path);
+    if (type == 'application/pdf' &&
+        (_temporaryFile != null || _retainedFile != null)) {
+      return PrivatePdfView(path: (_temporaryFile ?? _retainedFile)!.path);
     }
     if ((type == 'text/plain' || type == 'text/csv') && _text != null) {
       return SingleChildScrollView(
@@ -335,6 +400,16 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       appBar: AppBar(
         title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
+          if (!website)
+            IconButton(
+              tooltip: _offlineSaved
+                  ? 'Supprimer la copie hors ligne Makolo'
+                  : 'Garder hors ligne dans Makolo',
+              onPressed: _offlineBusy ? null : _toggleOffline,
+              icon: Icon(
+                _offlineSaved ? Icons.bookmark : Icons.bookmark_add_outlined,
+              ),
+            ),
           if (!website)
             IconButton(
               tooltip: 'Exporter vers l’appareil',
