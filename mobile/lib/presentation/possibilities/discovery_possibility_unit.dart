@@ -554,7 +554,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 key: const Key('discover-description-expand'),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  minimumSize: const Size(48, 44),
+                  minimumSize: const Size(48, 40),
                   alignment: Alignment.centerLeft,
                 ),
                 onPressed: () => setState(() => _expanded = !_expanded),
@@ -721,12 +721,26 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   _facts(context),
                   _knowledge(context),
                 ],
+                if (item.variants.isNotEmpty || item.relations.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(
+                    [
+                      if (item.variants.isNotEmpty)
+                        '${item.variants.length} variantes',
+                      if (item.relations.isNotEmpty)
+                        '${item.relations.length} relations',
+                    ].join(' · '),
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
                 if (_description.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   _descriptionBody(context),
                 ],
                 if (resources.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
+                  if (resources.length > 1)
+                    Divider(height: MakoloSpacing.sm, color: theme.colorScheme.outlineVariant),
                   for (final resource in (_allResources ? resources : resources.take(3)))
                     Padding(
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
@@ -766,9 +780,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                               child: InkWell(
                                 onTap: () => _openResource(resource),
                                 child: Text(
-                                  resource['text']!.length > 180
-                                      ? "${resource['text']!.substring(0, 180)}…"
-                                      : resource['text']!,
+                                  resource['text']!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: theme.textTheme.bodySmall,
                                 ),
                               ),
@@ -779,6 +793,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   if (resources.length > 3)
                     TextButton(
                       key: const Key('discover-resources-expand'),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        alignment: Alignment.centerLeft,
+                      ),
                       onPressed: () =>
                           setState(() => _allResources = !_allResources),
                       child: Text(
@@ -787,18 +805,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                             : 'Voir les ${resources.length} ressources',
                       ),
                     ),
-                ],
-                if (item.variants.isNotEmpty || item.relations.isNotEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.sm),
-                  Text(
-                    [
-                      if (item.variants.isNotEmpty)
-                        '${item.variants.length} variantes',
-                      if (item.relations.isNotEmpty)
-                        '${item.relations.length} relations',
-                    ].join(' · '),
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  if (resources.length > 1)
+                    Divider(height: MakoloSpacing.sm, color: theme.colorScheme.outlineVariant),
                 ],
               ],
             ),
