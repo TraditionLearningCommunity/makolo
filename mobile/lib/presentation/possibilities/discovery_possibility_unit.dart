@@ -604,6 +604,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     );
   }
 
+  bool _canOpenResource(Map<String, String?> resource) {
+    final url = _publicImage(resource['url']);
+    if (url != null && discoverySafeDestination(Uri.parse(url))) return true;
+    return resource['text']?.trim().isNotEmpty ?? false;
+  }
+
   Widget _resourceSection(
     BuildContext context,
     List<Map<String, String?>> resources,
@@ -625,7 +631,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             Padding(
               padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
               child: InkWell(
-                onTap: () => _openResource(resource),
+                onTap: _canOpenResource(resource)
+                    ? () => _openResource(resource)
+                    : null,
                 borderRadius: BorderRadius.circular(MakoloRadii.small),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 48),
@@ -664,12 +672,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: MakoloSpacing.xs),
-                        Icon(
-                          Icons.chevron_right,
-                          size: 18,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                        if (_canOpenResource(resource)) ...[
+                          const SizedBox(width: MakoloSpacing.xs),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ],
                       ],
                     ),
                   ),
