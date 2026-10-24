@@ -53,7 +53,7 @@ from .projections import (
 
 DISCOVERY_API_PAGE_SIZE = 20
 DISCOVERY_API_MAX_PAGE_SIZE = 50
-DISCOVERY_RESOURCE_PREVIEW_LIMIT = 6
+
 DISCOVERY_CONTINUATION_SALT = "makolo.discovery.items.v1"
 
 
@@ -263,8 +263,6 @@ def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
     for resource in rows:
         activity_id = str(resource.activity_id)
         bucket = result.setdefault(activity_id, [])
-        if len(bucket) >= DISCOVERY_RESOURCE_PREVIEW_LIMIT:
-            continue
         bucket.append(
             {
                 "id": str(resource.pk),
@@ -323,8 +321,6 @@ def _opportunity_source_previews(opportunity_ids) -> dict[str, list[dict]]:
     for source in sources:
         opportunity_id = str(source.opportunity_id)
         bucket = result.setdefault(opportunity_id, [])
-        if len(bucket) >= DISCOVERY_RESOURCE_PREVIEW_LIMIT:
-            continue
         bucket.append(
             {
                 "id": str(source.pk),
