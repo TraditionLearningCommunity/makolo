@@ -92,7 +92,8 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     if (!discoverySafeDestination(item.uri)) {
       throw const FormatException('Destination non autorisée');
     }
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
     File? output;
     try {
       final request = await client.getUrl(item.uri);
@@ -213,7 +214,10 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       }
     } on Object {
       if (mounted && generation == _generation) {
-        setState(() => _failure = 'Lecture indisponible. Vérifiez la connexion et les droits.');
+        setState(
+          () => _failure =
+              'Lecture indisponible. Vérifiez la connexion et les droits.',
+        );
       }
     } finally {
       if (mounted && generation == _generation) {
@@ -236,7 +240,11 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Export impossible. Vérifiez la connexion et les droits.')),
+          const SnackBar(
+            content: Text(
+              'Export impossible. Vérifiez la connexion et les droits.',
+            ),
+          ),
         );
       }
     } finally {
@@ -277,7 +285,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     } on Object {
       if (mounted && generation == _generation) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible de modifier la copie hors ligne.')),
+          const SnackBar(
+            content: Text('Impossible de modifier la copie hors ligne.'),
+          ),
         );
       }
     } finally {
@@ -301,13 +311,17 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
       if (!opened && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cette page ne peut pas être ouverte ici.')),
+          const SnackBar(
+            content: Text('Cette page ne peut pas être ouverte ici.'),
+          ),
         );
       }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cette page ne peut pas être ouverte ici.')),
+          const SnackBar(
+            content: Text('Cette page ne peut pas être ouverte ici.'),
+          ),
         );
       }
     }
@@ -342,8 +356,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
                   item.uri.toString(),
                   fit: BoxFit.contain,
                   semanticLabel: item.title,
-                  errorBuilder: (_, _, _) =>
-                      const Text('Image indisponible.'),
+                  errorBuilder: (_, _, _) => const Text('Image indisponible.'),
                 ),
         ),
       );
@@ -369,7 +382,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
             children: [
               if (type.startsWith('video/'))
                 AspectRatio(
-                  aspectRatio: value.aspectRatio > 0 ? value.aspectRatio : 16 / 9,
+                  aspectRatio: value.aspectRatio > 0
+                      ? value.aspectRatio
+                      : 16 / 9,
                   child: VideoPlayer(player),
                 )
               else
@@ -382,10 +397,10 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
               ),
               Slider(
                 value: value.duration.inMilliseconds > 0
-                    ? value.position.inMilliseconds.toDouble().clamp(
-                        0.0,
-                        value.duration.inMilliseconds.toDouble(),
-                      ).toDouble()
+                    ? value.position.inMilliseconds
+                          .toDouble()
+                          .clamp(0.0, value.duration.inMilliseconds.toDouble())
+                          .toDouble()
                     : 0,
                 max: value.duration.inMilliseconds > 0
                     ? value.duration.inMilliseconds.toDouble()
@@ -408,7 +423,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       );
     }
     return const Center(
-      child: Text('Ce format ne possède pas encore de lecteur natif. Utilisez l’export.'),
+      child: Text(
+        'Ce format ne possède pas encore de lecteur natif. Utilisez l’export.',
+      ),
     );
   }
 
@@ -457,10 +474,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
                         setState(() => _index = index);
                         _load();
                       },
-                      itemBuilder: (context, index) =>
-                          index == _index
-                              ? _content()
-                              : const SizedBox.shrink(),
+                      itemBuilder: (context, index) => index == _index
+                          ? _content()
+                          : const SizedBox.shrink(),
                     ),
                   ),
                   Padding(

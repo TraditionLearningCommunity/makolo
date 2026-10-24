@@ -40,7 +40,9 @@ class DiscoveryOfflineStore {
   Future<File> save(Uri url, File source) async {
     final size = await source.length();
     if (size <= 0 || size > maxItemBytes) {
-      throw const FileSystemException('Fichier indisponible ou trop volumineux');
+      throw const FileSystemException(
+        'Fichier indisponible ou trop volumineux',
+      );
     }
     final destination = await location(url);
     final staging = File('${destination.path}.part');

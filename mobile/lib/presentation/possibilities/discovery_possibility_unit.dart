@@ -227,13 +227,17 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
       if (!opened && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cette page ne peut pas être ouverte ici.')),
+          const SnackBar(
+            content: Text('Cette page ne peut pas être ouverte ici.'),
+          ),
         );
       }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cette page ne peut pas être ouverte ici.')),
+          const SnackBar(
+            content: Text('Cette page ne peut pas être ouverte ici.'),
+          ),
         );
       }
     }
@@ -347,17 +351,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             itemBuilder: (context, index) {
               final image = images[index];
               return InkWell(
-                onTap: () => _openReader(
-                  [
-                    for (final image in images)
-                      DiscoveryReaderItem(
-                        title: image['label']!,
-                        uri: Uri.parse(image['url']!),
-                        mimeType: 'image/png',
-                      ),
-                  ],
-                  index: index,
-                ),
+                onTap: () => _openReader([
+                  for (final image in images)
+                    DiscoveryReaderItem(
+                      title: image['label']!,
+                      uri: Uri.parse(image['url']!),
+                      mimeType: 'image/png',
+                    ),
+                ], index: index),
                 child: Image.network(
                   image['url']!,
                   fit: BoxFit.contain,
@@ -663,12 +664,15 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                                     ),
                                     child: Text(
                                       resource['label'] ?? '',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.primary,
-                                        fontWeight: FontWeight.w600,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: theme.colorScheme.primary,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                            decoration:
+                                                TextDecoration.underline,
+                                            decorationColor:
+                                                theme.colorScheme.primary,
+                                          ),
                                     ),
                                   ),
                                 ),
