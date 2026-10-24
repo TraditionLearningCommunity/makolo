@@ -409,8 +409,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final local = parsed.toLocal();
     final now = DateTime.now();
     final elapsed = now.difference(local);
-    final calendarDays = DateTime(now.year, now.month, now.day)
-        .difference(DateTime(local.year, local.month, local.day)).inDays;
+    final calendarDays = DateTime.utc(now.year, now.month, now.day)
+        .difference(DateTime.utc(local.year, local.month, local.day)).inDays;
     final material = MaterialLocalizations.of(context);
     final isFrench = Localizations.localeOf(context).languageCode == 'fr';
     final exact = '${material.formatMediumDate(local)} · '
@@ -695,7 +695,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       ),
                     ),
                     const SizedBox(width: MakoloSpacing.sm),
-                    Flexible(child: _dateLabel(context)),
+                    if (item.wire['date'] is Map &&
+                        (item.wire['date'] as Map)['kind'] == 'added_at')
+                      Flexible(child: _dateLabel(context)),
                   ],
                 ),
                 const SizedBox(height: MakoloSpacing.sm),

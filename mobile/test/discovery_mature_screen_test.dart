@@ -210,7 +210,10 @@ void main() {
     );
 
     expect(find.text('Voir plus'), findsOneWidget);
-    expect(find.text(longSummary), findsNothing);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('discover-description-text'))).maxLines,
+      3,
+    );
     await tester.tap(find.byKey(const Key('discover-description-tap')));
     await tester.pump();
     expect(find.text(longSummary), findsOneWidget);
@@ -222,7 +225,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('discover-description-tap')));
     await tester.pump();
-    expect(find.text(longSummary), findsNothing);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('discover-description-text'))).maxLines,
+      3,
+    );
     expect(find.text('Voir plus'), findsOneWidget);
     await tester.tap(find.byKey(const Key('discover-description-expand')));
     await tester.pump();
@@ -231,8 +237,55 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Voir moins'));
     await tester.pump();
-    expect(find.text(longSummary), findsNothing);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('discover-description-text'))).maxLines,
+      3,
+    );
     expect(opened, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('N1 resources keep server order and reveal the full collection', (
+    tester,
+  ) async {
+    final rich = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'resources',
+      candidateKey: 'activity:resources',
+      title: 'Possibilité avec documents',
+      summary: 'Résumé court.',
+      owner: 'Espace test',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'resources': [
+          {'title': 'Premier document', 'kind': 'file', 'mime_type': 'application/pdf'},
+          {'title': 'Deuxième document', 'kind': 'file', 'mime_type': 'image/png'},
+          {'title': 'Troisième document', 'kind': 'text', 'text_content': 'Texte court.'},
+          {'title': 'Quatrième document', 'kind': 'file', 'mime_type': 'text/csv'},
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) {},
+      ),
+    );
+
+    expect(find.text('Premier document'), findsOneWidget);
+    expect(find.text('Deuxième document'), findsOneWidget);
+    expect(find.text('Troisième document'), findsOneWidget);
+    expect(find.text('Quatrième document'), findsNothing);
+    expect(find.text('Voir les 4 ressources'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('discover-resources-expand')));
+    await tester.tap(find.byKey(const Key('discover-resources-expand')));
+    await tester.pump();
+    expect(find.text('Quatrième document'), findsOneWidget);
+    expect(find.text('Voir moins de ressources'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
