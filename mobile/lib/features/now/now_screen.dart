@@ -116,9 +116,9 @@ class _NowScreenState extends State<NowScreen> {
           source.lastErrorCode != null ||
           syncStatus?.state == SyncVisualState.failed) {
         return MakoloErrorState(
-          message: 'Now n’a pas pu être chargé.',
+          message: 'Impossible d’afficher Now.',
           preservedMessage:
-              'Les données déjà enregistrées sur cet appareil sont conservées.',
+              '',
           onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
         );
       }
@@ -135,7 +135,7 @@ class _NowScreenState extends State<NowScreen> {
       }
 
       return const MakoloEmptyState(
-        title: 'Now n’est pas disponible pour le moment.',
+        title: 'Now indisponible.',
         icon: Icons.adjust,
       );
     }
@@ -160,7 +160,7 @@ class _NowScreenState extends State<NowScreen> {
       profileId: widget.profileId,
       refreshErrorMessage: source.lastErrorCode == null
           ? null
-          : 'La mise à jour de Now a échoué.',
+          : 'Actualisation impossible.',
       onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
       onOpenOwner: (destination) => _openOwner(context, destination),
     );
@@ -303,7 +303,7 @@ class _NowViewState extends State<NowView> {
     final surface = MakoloSurfaceStateView(
       state: state,
       recoverableErrorMessage: widget.refreshErrorMessage,
-      preservedMessage: 'Les données déjà enregistrées restent consultables.',
+      preservedMessage: '',
       onRetry: widget.onRetry,
       empty: widget.selection.isCalm
           ? const _NowCalm()
@@ -948,7 +948,7 @@ class _NowUnavailable extends StatelessWidget {
       child: Center(
         child: Padding(
           padding: EdgeInsets.all(MakoloSpacing.inner),
-          child: Text('Now n’est pas disponible pour le moment.'),
+          child: Text('Now indisponible.'),
         ),
       ),
     );
