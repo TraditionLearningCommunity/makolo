@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
@@ -52,6 +52,27 @@ class ResourceDownloadView(View):
         )
         response["X-Content-Type-Options"] = "nosniff"
         response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class ResourceTextReadView(View):
+    """Full text under the same canonical authorization as file delivery."""
+
+    def get(self, request, resource_id):
+        resource = get_object_or_404(
+            ActivityResource.objects.select_related(
+                "activity", "occurrence", "activity__space"
+            ),
+            pk=resource_id,
+        )
+        if resource.kind != ResourceKind.TEXT or not can_view_resource(
+            request.user, resource
+        ):
+            raise Http404
+        response = HttpResponse(resource.text_content, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = "inline"
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
         return response
 
 

@@ -204,6 +204,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             ? raw['download_url']?.toString()
             : raw['kind'] == 'url'
             ? raw['external_url']?.toString()
+            : raw['kind'] == 'text'
+            ? raw['read_url']?.toString()
             : null,
       });
     }
@@ -232,6 +234,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           uri: uri,
           mimeType: resource['kind'] == 'url'
               ? 'text/html'
+              : resource['kind'] == 'text'
+              ? 'text/plain'
               : resource['mime']?.isNotEmpty == true
               ? resource['mime']!
               : 'application/octet-stream',

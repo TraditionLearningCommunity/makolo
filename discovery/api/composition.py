@@ -279,6 +279,11 @@ def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
                     and urlsplit(resource.external_url).netloc
                     else None
                 ),
+                "read_url": (
+                    reverse("preparation:resource-text", kwargs={"resource_id": resource.pk})
+                    if resource.kind == ResourceKind.TEXT
+                    else None
+                ),
                 "text_content": (
                     resource.text_content[:2400]
                     if resource.kind == ResourceKind.TEXT
