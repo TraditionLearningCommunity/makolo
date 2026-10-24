@@ -196,9 +196,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           : 'Source';
       entries.add({
         'label': '$format · $title',
-        'text': raw['kind'] == 'text'
-            ? raw['text_content']?.toString()
-            : null,
+        'text': raw['kind'] == 'text' ? raw['text_content']?.toString() : null,
         'url': raw['kind'] == 'file'
             ? raw['download_url']?.toString()
             : raw['kind'] == 'url'
@@ -238,8 +236,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   url,
                   fit: BoxFit.contain,
                   semanticLabel: label,
-                  errorBuilder: (_, _, _) =>
-                      const Text('Image indisponible.'),
+                  errorBuilder: (_, _, _) => const Text('Image indisponible.'),
                 ),
               ),
             ),
@@ -466,13 +463,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         if (expandable)
           Semantics(
             button: true,
-            label: _expanded ? 'Réduire la description' : 'Développer la description',
+            label: _expanded
+                ? 'Réduire la description'
+                : 'Développer la description',
             child: InkWell(
               key: const Key('discover-description-tap'),
               onTap: () => setState(() => _expanded = !_expanded),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
-                child: Text(visible, key: const Key('discover-description-text')),
+                child: Text(
+                  visible,
+                  key: const Key('discover-description-text'),
+                ),
               ),
             ),
           )

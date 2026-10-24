@@ -216,7 +216,9 @@ void main() {
     expect(find.text(longSummary), findsOneWidget);
     expect(find.text('Voir moins'), findsOneWidget);
     expect(opened, isFalse);
-    await tester.ensureVisible(find.byKey(const Key('discover-description-tap')));
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-description-tap')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('discover-description-tap')));
     await tester.pump();

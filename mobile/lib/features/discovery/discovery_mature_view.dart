@@ -539,8 +539,11 @@ class _DiscoveryMedia extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uri = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    final resolved = uri == null ? null : (uri.hasScheme ? uri : baseUri?.resolveUri(uri));
-    final networkImage = resolved != null &&
+    final resolved = uri == null
+        ? null
+        : (uri.hasScheme ? uri : baseUri?.resolveUri(uri));
+    final networkImage =
+        resolved != null &&
         (resolved.scheme == 'https' || resolved.scheme == 'http');
 
     Widget? child;
