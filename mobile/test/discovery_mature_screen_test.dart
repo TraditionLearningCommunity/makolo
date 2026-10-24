@@ -183,6 +183,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 places the addition date with the owner and merges type labels', (
+    tester,
+  ) async {
+    final rich = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'owner-date',
+      candidateKey: 'service_activity:owner-date',
+      title: 'Assistance création dossier',
+      summary: 'Une aide documentaire.',
+      owner: 'Mwangaza Services',
+      eyebrow: 'Accompagnement documentaire',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'owner': {'display_name': 'Mwangaza Services'},
+        'representation': {'vertical_label': 'Accompagnement'},
+        'date': {
+          'kind': 'added_at',
+          'label': 'Ajouté le',
+          'value': '2026-06-07T12:00:00+02:00',
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(320, 760),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [rich]),
+        onOpen: (_) {},
+      ),
+    );
+
+    expect(find.byKey(const Key('discover-owner-date-row')), findsOneWidget);
+    expect(find.byKey(const Key('discover-type-row')), findsOneWidget);
+    expect(find.text('Mwangaza Services'), findsOneWidget);
+    expect(find.text('Accompagnement'), findsOneWidget);
+    expect(find.text('Accompagnement documentaire'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 long description expands inline without opening detail', (
     tester,
   ) async {
