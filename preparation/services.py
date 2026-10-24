@@ -254,3 +254,18 @@ def replace_resource(*, resource, actor, uploaded_file=None, **changes):
     resource.save(update_fields=["status", "updated_at"])
     _emit(DomainEventType.RESOURCE_REPLACED, replacement, f"replaced:{resource.pk}")
     return replacement
+
+
+@transaction.atomic
+def retire_resource(*, resource, actor):
+    """Retire a published Resource without deleting its versions or stored bytes."""
+    _require_manage(actor, resource.activity)
+    current = ActivityResource.objects.select_for_update().select_related("activity").get(pk=resource.pk)
+    _require_manage(actor, current.activity)
+    if current.status != ResourceStatus.PUBLISHED:
+        raise ValidationError("Seule une Resource publiée peut être retirée.")
+    current.status = ResourceStatus.RETIRED
+    current._allow_status_transition = True
+    current.save(update_fields=["status", "updated_at"])
+    _emit(DomainEventType.RESOURCE_RETIRED, current, "retired")
+    return current

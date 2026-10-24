@@ -52,3 +52,24 @@ retirées. Les Resources générées restent présentes ; leur éventuelle
 diversification requiert une opération métier de retrait/versionnement explicite,
 sans suppression ORM directe. Aucune règle « toute Activity doit avoir un média »
 ne doit être introduite en production.
+
+## Diversification des Resources synthétiques
+
+Après les 157 Activities ensemencées, prévisualiser :
+
+    python manage.py rebalance_discover_demo_resources
+    python manage.py rebalance_discover_demo_resources --limit 5
+
+Puis, uniquement sur la base de démonstration sauvegardée :
+
+    python manage.py rebalance_discover_demo_resources --apply
+
+Les Resource gardées varient selon une empreinte stable de l'UUID. Le service
+`retire_resource` impose l'autorité Activity, ne retire que l'état published,
+préserve les versions/fichiers, et publie l'événement resource.retired. La commande
+ne touche qu'aux clés de seed dont titre, type, visibilité et contenu ou empreinte
+correspondent strictement au générateur. Elle ne fait aucune suppression physique.
+Les fixtures modifiées ou sans opérateur autorisé sont ignorées. Ne pas relancer
+l'ancien seed homogène ensuite ; il n'est pas adapté à ce rééquilibrage.
+Cette diversification ne crée ni MP4 ni WAV : l'import documenté du ZIP doit
+être développé séparément avec un lien sémantique explicite vers l'Activity.

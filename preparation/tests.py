@@ -12,7 +12,7 @@ from activities.services import create_activity
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 
 from .models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility
-from .services import create_resource, publish_resource, replace_resource, resources_for_journey
+from .services import create_resource, publish_resource, replace_resource, retire_resource, resources_for_journey
 
 
 User = get_user_model()
@@ -179,3 +179,20 @@ class PreparationResourceM2Tests(TestCase):
                 uploaded_file=upload,
             )
         self.assertFalse(ActivityResource.objects.filter(key="fake").exists())
+
+    def test_resource_retirement_requires_authority_and_keeps_history(self):
+        resource = create_resource(
+            activity=self.activity, actor=self.operator, key="demo-retire",
+            title="Document", kind=ResourceKind.TEXT, text_content="Example",
+            visibility=ResourceVisibility.PUBLIC,
+        )
+        publish_resource(resource=resource, actor=self.operator)
+        with self.assertRaises(PermissionDenied):
+            retire_resource(resource=resource, actor=self.other)
+        resource.refresh_from_db()
+        self.assertEqual(resource.status, ResourceStatus.PUBLISHED)
+        retired = retire_resource(resource=resource, actor=self.operator)
+        self.assertEqual(retired.status, ResourceStatus.RETIRED)
+        self.assertTrue(ActivityResource.objects.filter(pk=resource.pk).exists())
+        with self.assertRaises(ValidationError):
+            retire_resource(resource=retired, actor=self.operator)
