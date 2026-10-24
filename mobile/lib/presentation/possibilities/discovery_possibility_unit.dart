@@ -365,7 +365,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
   Widget _ownerHeader(BuildContext context) {
     final name = item.owner;
-    if (name == null || name.isEmpty) return const SizedBox.shrink();
+    final hasOwner = name != null && name.isNotEmpty;
+    if (!hasOwner && item.wire['date'] is! Map) {
+      return const SizedBox.shrink();
+    }
     final owner = item.ownerFacts;
     final representation = owner?['representation'];
     final ownerLinks = owner?['links'];
@@ -379,21 +382,44 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         nativePath is String &&
         (nativePath.startsWith('/spaces/') ||
             nativePath.startsWith('/people/'));
-    return InkWell(
-      onTap: navigable ? () => context.push(nativePath) : null,
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 19,
-            foregroundImage: avatar == null ? null : NetworkImage(avatar),
-            child: avatar == null ? Text(name[0].toUpperCase()) : null,
-          ),
-          const SizedBox(width: MakoloSpacing.sm),
+    return Row(
+      key: const Key('discover-owner-date-row'),
+      children: [
+        if (hasOwner)
           Expanded(
-            child: Text(name, style: Theme.of(context).textTheme.labelLarge),
+            child: InkWell(
+              onTap: navigable ? () => context.push(nativePath) : null,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 19,
+                    foregroundImage: avatar == null ? null : NetworkImage(avatar),
+                    child: avatar == null ? Text(name[0].toUpperCase()) : null,
+                  ),
+                  const SizedBox(width: MakoloSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (item.wire['date'] is Map &&
+            (item.wire['date'] as Map)['kind'] == 'added_at') ...[
+          if (hasOwner) const SizedBox(width: MakoloSpacing.sm),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _dateLabel(context),
+            ),
           ),
         ],
-      ),
+      ],
     );
   }
 
@@ -657,51 +683,50 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   child: Text(item.title, style: theme.textTheme.titleLarge),
                 ),
                 const SizedBox(height: MakoloSpacing.xs),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if ((item.representation?['vertical_label']
-                                      ?.toString() ??
-                                  item.eyebrow ??
-                                  '')
-                              .trim()
-                              .isNotEmpty)
-                            Text(
-                              item.representation?['vertical_label']
-                                      ?.toString() ??
-                                  item.eyebrow ??
-                                  '',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: theme.colorScheme.primary,
-                              ),
+                Builder(
+                  builder: (context) {
+                    final vertical = (item.representation?['vertical_label']
+                                ?.toString() ??
+                            '')
+                        .trim();
+                    final eyebrow = (item.eyebrow ?? '').trim();
+                    final participant = (item.participantPresentation?['label']
+                                ?.toString() ??
+                            '')
+                        .trim();
+                    final labels = <String>[];
+                    for (final candidate in [vertical, eyebrow, participant]) {
+                      if (candidate.isNotEmpty &&
+                          !labels.any((label) =>
+                              label.toLowerCase() == candidate.toLowerCase())) {
+                        labels.add(candidate);
+                      }
+                    }
+                    if (labels.isEmpty) return const SizedBox.shrink();
+                    final linkColor = theme.brightness == Brightness.dark
+                        ? const Color(0xFFB6A5FF)
+                        : theme.colorScheme.primary;
+                    return Wrap(
+                      key: const Key('discover-type-row'),
+                      spacing: MakoloSpacing.xs,
+                      runSpacing: MakoloSpacing.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        for (var i = 0; i < labels.length; i++) ...[
+                          if (i > 0)
+                            Text('·', style: theme.textTheme.labelMedium),
+                          Text(
+                            labels[i],
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: i == 0
+                                  ? linkColor
+                                  : theme.colorScheme.onSurfaceVariant,
                             ),
-                          if (item.participantPresentation?['label']
-                                  is String &&
-                              (item.participantPresentation!['label'] as String)
-                                  .trim()
-                                  .isNotEmpty &&
-                              item.participantPresentation!['label'] !=
-                                  item.representation?['vertical_label'] &&
-                              item.participantPresentation!['label'] !=
-                                  item.eyebrow)
-                            Text(
-                              item.participantPresentation!['label'] as String,
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
+                          ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: MakoloSpacing.sm),
-                    if (item.wire['date'] is Map &&
-                        (item.wire['date'] as Map)['kind'] == 'added_at')
-                      Flexible(child: _dateLabel(context)),
-                  ],
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: MakoloSpacing.sm),
                 if (_reliableFacts.isNotEmpty && !_expanded)
