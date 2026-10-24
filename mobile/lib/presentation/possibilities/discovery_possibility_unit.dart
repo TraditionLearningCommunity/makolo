@@ -634,7 +634,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                                   style: theme.textTheme.bodySmall,
                                 ),
                               ),
-                              if (_publicImage(resource['url']) != null)
+                              if (_publicImage(resource['url']) != null ||
+                                  (resource['text']?.isNotEmpty ?? false))
                                 IconButton(
                                   tooltip: 'Ouvrir ${resource['label']}',
                                   icon: const Icon(Icons.open_in_new, size: 19),
@@ -649,9 +650,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                                 left: 26,
                                 top: MakoloSpacing.xs,
                               ),
-                              child: SelectableText(
-                                resource['text']!,
-                                style: theme.textTheme.bodySmall,
+                              child: InkWell(
+                                onTap: () => _openResource(resource),
+                                child: Text(
+                                  resource['text']!.length > 180
+                                      ? "${resource['text']!.substring(0, 180)}…"
+                                      : resource['text']!,
+                                  style: theme.textTheme.bodySmall,
+                                ),
                               ),
                             ),
                         ],

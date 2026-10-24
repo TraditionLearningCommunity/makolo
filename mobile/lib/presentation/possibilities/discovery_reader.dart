@@ -61,7 +61,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   @override
   void initState() {
     super.initState();
-    _index = widget.initialIndex.clamp(0, widget.items.length - 1);
+    _index = widget.initialIndex.clamp(0, widget.items.length - 1).toInt();
     _page = PageController(initialPage: _index);
     _load();
   }
@@ -303,7 +303,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
               Slider(
                 value: value.duration.inMilliseconds > 0
                     ? value.position.inMilliseconds.toDouble().clamp(
-                        0,
+                        0.0,
                         value.duration.inMilliseconds.toDouble(),
                       )
                     : 0,
