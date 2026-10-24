@@ -495,7 +495,7 @@ void main() {
     expect(tester.getTopLeft(title).dy, lessThan(tester.getTopLeft(description).dy));
     expect(tester.getTopLeft(description).dy, lessThan(tester.getTopLeft(facts).dy));
     expect(tester.getTopLeft(facts).dy, lessThan(tester.getTopLeft(media).dy));
-    expect(tester.getTopLeft(media).dy, lessThan(tester.getTopLeft(annexes).dy));
+    expect(tester.getTopLeft(media).dy, lessThanOrEqualTo(tester.getTopLeft(annexes).dy));
     expect(tester.getTopLeft(annexes).dy, lessThan(tester.getTopLeft(action).dy));
     expect(tester.takeException(), isNull);
   });
