@@ -157,10 +157,10 @@ class DiscoveryFieldView extends StatelessWidget {
     return MakoloSurfaceStateView(
       state: selection.surface,
       blockingErrorMessage: 'Ce contenu n’est pas disponible.',
-      recoverableErrorMessage: onRetry == null
-          ? null
-          : 'Découvrir n’a pas pu être chargé.',
-      preservedMessage: 'Les possibilités déjà enregistrées sur cet appareil sont conservées.',
+      // The connectivity cue is already shown by the shell. Keep usable
+      // cached possibilities visible without a second verbose error notice.
+      recoverableErrorMessage: null,
+      preservedMessage: null,
       onRetry: onRetry,
       empty: _DiscoveryEmptyState(
         states: selection.states,
@@ -420,15 +420,8 @@ class _DiscoveryScrollableField extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Découvrir',
+                    'Possibilités à explorer',
                     style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
                 ],
