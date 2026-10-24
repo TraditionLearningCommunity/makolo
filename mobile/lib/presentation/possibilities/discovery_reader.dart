@@ -1,0 +1,380 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:video_player/video_player.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../platform/media/private_media_views.dart';
+import '../../platform/sharing/share_gateway.dart';
+
+/// A transient reader for already-authorized Discovery presentation destinations.
+/// This is not a permission grant or a replacement for the server-side checks.
+class DiscoveryReaderItem {
+  const DiscoveryReaderItem({
+    required this.title,
+    required this.uri,
+    required this.mimeType,
+  });
+
+  final String title;
+  final Uri uri;
+  final String mimeType;
+}
+
+bool discoverySafeDestination(Uri? uri) =>
+    uri != null &&
+    (uri.scheme == 'http' || uri.scheme == 'https') &&
+    uri.host.isNotEmpty &&
+    uri.userInfo.isEmpty;
+
+class DiscoveryReader extends StatefulWidget {
+  const DiscoveryReader({
+    super.key,
+    required this.items,
+    this.initialIndex = 0,
+    this.sharing = const SystemShareGateway(),
+  });
+
+  final List<DiscoveryReaderItem> items;
+  final int initialIndex;
+  final ShareGateway sharing;
+
+  @override
+  State<DiscoveryReader> createState() => _DiscoveryReaderState();
+}
+
+class _DiscoveryReaderState extends State<DiscoveryReader> {
+  late int _index;
+  late final PageController _page;
+  File? _temporaryFile;
+  VideoPlayerController? _player;
+  String? _text;
+  String? _failure;
+  bool _loading = false;
+  bool _exporting = false;
+  int _generation = 0;
+
+  DiscoveryReaderItem get _item => widget.items[_index];
+
+  @override
+  void initState() {
+    super.initState();
+    _index = widget.initialIndex.clamp(0, widget.items.length - 1);
+    _page = PageController(initialPage: _index);
+    _load();
+  }
+
+  Future<void> _disposeLoaded() async {
+    final player = _player;
+    _player = null;
+    await player?.dispose();
+    final previous = _temporaryFile;
+    _temporaryFile = null;
+    if (previous != null) {
+      try {
+        if (await previous.exists()) await previous.delete();
+      } on FileSystemException {
+        // The OS may still hold a transient viewer handle.
+      }
+    }
+  }
+
+  Future<File> _fetchTemporary(DiscoveryReaderItem item) async {
+    // Downloads are triggered only on opening a document or exporting it.
+    // Never follow a redirect to another origin or an untrusted scheme.
+    if (!discoverySafeDestination(item.uri)) {
+      throw const FormatException('Destination non autorisée');
+    }
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    File? output;
+    try {
+      final request = await client.getUrl(item.uri);
+      request.followRedirects = false;
+      final response = await request.close();
+      if (response.statusCode != HttpStatus.ok) {
+        throw HttpException('HTTP ${response.statusCode}');
+      }
+      const maxBytes = 20 * 1024 * 1024;
+      if (response.contentLength > maxBytes) {
+        throw const FormatException('Fichier trop volumineux');
+      }
+      final dir = await getTemporaryDirectory();
+      final ext = switch (item.mimeType.toLowerCase()) {
+        'application/pdf' => 'pdf',
+        'text/csv' => 'csv',
+        'text/plain' => 'txt',
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'video/mp4' => 'mp4',
+        'audio/mpeg' => 'mp3',
+        'audio/wav' => 'wav',
+        _ => 'bin',
+      };
+      output = File(
+        '${dir.path}/makolo-discovery-${DateTime.now().microsecondsSinceEpoch}.$ext',
+      );
+      final sink = output.openWrite();
+      var received = 0;
+      try {
+        await for (final chunk in response) {
+          received += chunk.length;
+          if (received > maxBytes) {
+            throw const FormatException('Fichier trop volumineux');
+          }
+          sink.add(chunk);
+        }
+      } finally {
+        await sink.close();
+      }
+      return output;
+    } on Object {
+      if (output != null && await output.exists()) await output.delete();
+      rethrow;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<void> _load() async {
+    final generation = ++_generation;
+    await _disposeLoaded();
+    if (!mounted || generation != _generation) return;
+    setState(() {
+      _loading = false;
+      _failure = null;
+      _text = null;
+    });
+    final item = _item;
+    final type = item.mimeType.toLowerCase();
+    if (type != 'application/pdf' &&
+        type != 'text/plain' &&
+        type != 'text/csv' &&
+        !type.startsWith('video/') &&
+        !type.startsWith('audio/')) {
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      if (type.startsWith('video/') || type.startsWith('audio/')) {
+        final player = VideoPlayerController.networkUrl(item.uri);
+        await player.initialize();
+        if (!mounted || generation != _generation) {
+          await player.dispose();
+          return;
+        }
+        setState(() => _player = player);
+      } else {
+        final file = await _fetchTemporary(item);
+        if (!mounted || generation != _generation) {
+          await file.delete();
+          return;
+        }
+        if (type == 'text/plain' || type == 'text/csv') {
+          final text = await file.readAsString(encoding: utf8);
+          if (!mounted || generation != _generation) {
+            await file.delete();
+            return;
+          }
+          setState(() => _text = text);
+        }
+        _temporaryFile = file;
+      }
+    } on Object {
+      if (mounted && generation == _generation) {
+        setState(() => _failure = 'Lecture indisponible. Vérifiez la connexion et les droits.');
+      }
+    } finally {
+      if (mounted && generation == _generation) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _export() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    File? generated;
+    try {
+      final item = _item;
+      // A Web page is not silently treated as a downloadable file.
+      if (item.mimeType == 'text/html') return;
+      final file = _temporaryFile;
+      generated = file ?? await _fetchTemporary(item);
+      await widget.sharing.shareFiles(paths: [generated.path]);
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Export impossible. Vérifiez la connexion et les droits.')),
+        );
+      }
+    } finally {
+      if (generated != null && generated != _temporaryFile) {
+        try {
+          if (await generated.exists()) await generated.delete();
+        } on FileSystemException {
+          // The receiving OS app may keep the handle temporarily.
+        }
+      }
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _openWebsite() async {
+    final uri = _item.uri;
+    if (!discoverySafeDestination(uri)) return;
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cette page ne peut pas être ouverte ici.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cette page ne peut pas être ouverte ici.')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _generation++;
+    _page.dispose();
+    // Dispose native media and ephemeral bytes without blocking navigation.
+    _disposeLoaded();
+    super.dispose();
+  }
+
+  Widget _content() {
+    if (_failure != null) return Center(child: Text(_failure!));
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    final item = _item;
+    final type = item.mimeType.toLowerCase();
+    if (type.startsWith('image/')) {
+      return InteractiveViewer(
+        minScale: 0.7,
+        maxScale: 6,
+        child: Center(
+          child: Image.network(
+            item.uri.toString(),
+            fit: BoxFit.contain,
+            semanticLabel: item.title,
+            errorBuilder: (_, _, _) =>
+                const Text('Image indisponible.'),
+          ),
+        ),
+      );
+    }
+    if (type == 'application/pdf' && _temporaryFile != null) {
+      return PrivatePdfView(path: _temporaryFile!.path);
+    }
+    if ((type == 'text/plain' || type == 'text/csv') && _text != null) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: SelectableText(_text!),
+      );
+    }
+    if ((type.startsWith('video/') || type.startsWith('audio/')) &&
+        _player != null) {
+      final player = _player!;
+      return Center(
+        child: ValueListenableBuilder<VideoPlayerValue>(
+          valueListenable: player,
+          builder: (context, value, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (type.startsWith('video/'))
+                AspectRatio(
+                  aspectRatio: value.aspectRatio > 0 ? value.aspectRatio : 16 / 9,
+                  child: VideoPlayer(player),
+                )
+              else
+                const Icon(Icons.audiotrack, size: 64),
+              IconButton.filledTonal(
+                tooltip: value.isPlaying ? 'Pause' : 'Lire',
+                onPressed: () =>
+                    value.isPlaying ? player.pause() : player.play(),
+                icon: Icon(value.isPlaying ? Icons.pause : Icons.play_arrow),
+              ),
+              Slider(
+                value: value.duration.inMilliseconds > 0
+                    ? value.position.inMilliseconds.toDouble().clamp(
+                        0,
+                        value.duration.inMilliseconds.toDouble(),
+                      )
+                    : 0,
+                max: value.duration.inMilliseconds > 0
+                    ? value.duration.inMilliseconds.toDouble()
+                    : 1,
+                onChanged: (position) =>
+                    player.seekTo(Duration(milliseconds: position.round())),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Center(
+      child: TextButton.icon(
+        onPressed: _openWebsite,
+        icon: const Icon(Icons.open_in_browser),
+        label: const Text('Consulter dans Makolo'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = _item;
+    final website = item.mimeType == 'text/html';
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          if (!website)
+            IconButton(
+              tooltip: 'Exporter vers l’appareil',
+              onPressed: _exporting ? null : _export,
+              icon: const Icon(Icons.download_outlined),
+            ),
+          if (website)
+            IconButton(
+              tooltip: 'Ouvrir la page',
+              onPressed: _openWebsite,
+              icon: const Icon(Icons.open_in_browser),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: widget.items.length == 1
+            ? _content()
+            : Column(
+                children: [
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _page,
+                      itemCount: widget.items.length,
+                      onPageChanged: (index) {
+                        setState(() => _index = index);
+                        _load();
+                      },
+                      itemBuilder: (context, index) =>
+                          index == _index
+                              ? _content()
+                              : const SizedBox.shrink(),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Text('${_index + 1} / ${widget.items.length}'),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
