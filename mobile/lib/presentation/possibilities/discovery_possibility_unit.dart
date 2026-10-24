@@ -95,13 +95,46 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
   DiscoveryItemPresentation get item => widget.item;
 
+  /// Fact values belong to the server. UI deduplicates presentation aliases,
+  /// never guesses an unknown price or capacity from editorial text.
   List<Map<String, dynamic>> get _reliableFacts {
     final facts = <Map<String, dynamic>>[];
-    final seen = <String>{};
+    final seenCodes = <String>{};
+    final seenLabels = <String>{};
+
+    String canonicalCode(String code) {
+      switch (code.toLowerCase().trim()) {
+        case 'availability':
+        case 'capacity':
+          return 'capacity';
+        case 'start_at':
+        case 'start_date':
+        case 'when':
+          return 'when';
+        case 'primary_place':
+        case 'place_primary':
+        case 'place':
+          return 'place';
+        default:
+          return code.toLowerCase().trim();
+      }
+    }
 
     void add(String code, String label, String? value) {
-      if (value == null || value.trim().isEmpty || !seen.add(code)) return;
-      facts.add({'code': code, 'label': label, 'value': value});
+      final normalizedValue = value?.trim() ?? '';
+      final normalizedLabel = label.trim().toLowerCase();
+      final normalizedCode = canonicalCode(code);
+      if (normalizedValue.isEmpty ||
+          normalizedLabel.isEmpty ||
+          normalizedCode == 'type' ||
+          normalizedLabel == 'type' ||
+          seenCodes.contains(normalizedCode) ||
+          seenLabels.contains(normalizedLabel)) {
+        return;
+      }
+      seenCodes.add(normalizedCode);
+      seenLabels.add(normalizedLabel);
+      facts.add({'code': normalizedCode, 'label': label, 'value': normalizedValue});
     }
 
     for (final fact in item.presentationFacts) {
@@ -114,7 +147,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     add('price', 'Prix', item.price);
     add('when', 'Quand', item.timing);
     add('place', 'Lieu', item.place);
-    add('capacity', 'Disponibilité', item.availability);
+    if (item.availabilityFacts?['state'] != 'unknown') {
+      add('capacity', 'Disponibilité', item.availability);
+    }
     add('route', 'Trajet', item.routeLabel);
     const dates = {
       'start_at': 'Début',
@@ -128,21 +163,23 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     for (final fact in item.temporalFacts) {
       final kind = fact['kind']?.toString() ?? '';
       final label = dates[kind];
-      if (kind.startsWith('start_') && seen.contains('when')) continue;
-      if (label != null) add(kind, label, fact['value']?.toString());
+      if (label != null) {
+        add(kind, label, fact['value']?.toString());
+      }
     }
     for (final fact in item.spatialFacts) {
       final role = fact['role']?.toString() ?? '';
-      if (role == 'primary' && seen.contains('place')) continue;
       final place = fact['place'];
       if (place is Map) {
         add(
-          'place_$role',
-          role.isEmpty ? 'Lieu' : role,
+          role == 'primary' ? 'place' : 'place_$role',
+          role == 'primary' || role.isEmpty ? 'Lieu' : role,
           place['name']?.toString(),
         );
       }
     }
+    final personal = (item.participantPresentation?['label'] ?? '').toString().trim();
+    if (personal.isNotEmpty) add('personal_state', 'Ma situation', personal);
     return facts;
   }
 
