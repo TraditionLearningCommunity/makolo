@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../platform/media/private_media_views.dart';
 import '../../platform/sharing/share_gateway.dart';
 import 'discovery_offline_store.dart';
+import 'discovery_save_icon.dart';
 
 /// A transient reader for already-authorized Discovery presentation destinations.
 /// This is not a permission grant or a replacement for the server-side checks.
@@ -443,8 +444,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
                   ? 'Supprimer la copie hors ligne Makolo'
                   : 'Garder hors ligne dans Makolo',
               onPressed: _offlineBusy ? null : _toggleOffline,
-              icon: Icon(
-                _offlineSaved ? Icons.bookmark : Icons.bookmark_add_outlined,
+              icon: DiscoveryOrbitIcon(
+                saved: _offlineSaved,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           if (!website)

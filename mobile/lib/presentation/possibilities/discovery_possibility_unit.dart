@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../design/makolo_theme.dart';
@@ -8,38 +7,12 @@ import '../../network/makolo_api_client.dart';
 import '../../features/discovery/discovery_share_sheet.dart';
 import '../../features/discovery/discovery_selector.dart';
 import 'discovery_reader.dart';
+import 'discovery_save_icon.dart';
+
+export 'discovery_save_icon.dart' show DiscoveryOrbitIcon;
 
 /// The existing Discovery projection rendered as one N1 unit.
 /// Facts and actions remain owned by the server; this widget only composes.
-class DiscoveryOrbitIcon extends StatelessWidget {
-  const DiscoveryOrbitIcon({
-    super.key,
-    required this.saved,
-    required this.color,
-  });
-
-  final bool saved;
-  final Color color;
-
-  static const _orbitAvailable = '''
-<svg viewBox="0 0 24 24"><path d="M5.2 17.6A8.7 8.7 0 0 1 16.9 5.1" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><path d="M18.4 7.2a8.6 8.6 0 0 1 .2 7.4" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round"/><circle cx="19.3" cy="17.6" r="1.45" fill="#000"/></svg>
-''';
-  static const _orbitSaved = '''
-<svg viewBox="0 0 24 24"><path d="M5.6 17.2a8.2 8.2 0 1 1 12.9-1.4" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="12" r="3.2" fill="#000"/><circle cx="19.2" cy="17.5" r="1.55" fill="#000"/></svg>
-''';
-
-  @override
-  Widget build(BuildContext context) {
-    return SvgPicture.string(
-      saved ? _orbitSaved : _orbitAvailable,
-      width: 21,
-      height: 21,
-      colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-      semanticsLabel: saved ? 'Enregistré' : 'Enregistrer',
-    );
-  }
-}
-
 class DiscoveryPossibilityUnit extends StatefulWidget {
   const DiscoveryPossibilityUnit({
     super.key,
@@ -241,6 +214,28 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         );
       }
     }
+  }
+
+  IconData _resourceIcon(Map<String, String?> resource) {
+    final kind = resource['kind'] ?? '';
+    final mime = (resource['mime'] ?? '').toLowerCase();
+    if (kind == 'url') return Icons.language_rounded;
+    if (mime.startsWith('image/')) return Icons.image_outlined;
+    if (mime.startsWith('video/')) return Icons.movie_outlined;
+    if (mime.startsWith('audio/')) return Icons.audiotrack_outlined;
+    if (mime == 'application/pdf') return Icons.picture_as_pdf_outlined;
+    if (mime.contains('spreadsheet') ||
+        mime.contains('excel') ||
+        mime == 'text/csv') {
+      return Icons.table_chart_outlined;
+    }
+    if (mime.contains('presentation') || mime.contains('powerpoint')) {
+      return Icons.slideshow_outlined;
+    }
+    if (kind == 'text' || mime.startsWith('text/')) {
+      return Icons.article_outlined;
+    }
+    return Icons.description_outlined;
   }
 
   void _openResource(Map<String, String?> resource) {
@@ -653,7 +648,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.description_outlined, size: 18),
+                              Icon(_resourceIcon(resource), size: 18),
                               const SizedBox(width: MakoloSpacing.xs),
                               Expanded(
                                 child: InkWell(
