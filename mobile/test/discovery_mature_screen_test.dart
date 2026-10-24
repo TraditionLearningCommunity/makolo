@@ -327,6 +327,21 @@ void main() {
             'kind': 'file',
             'mime_type': 'text/csv',
           },
+          {
+            'title': 'Cinquième document',
+            'kind': 'file',
+            'mime_type': 'application/pdf',
+          },
+          {
+            'title': 'Sixième document',
+            'kind': 'url',
+            'external_url': 'https://example.org/guide',
+          },
+          {
+            'title': 'Septième document',
+            'kind': 'text',
+            'text_content': 'Informations disponibles.',
+          },
         ],
       },
     );
@@ -341,16 +356,26 @@ void main() {
 
     expect(find.text('Premier document'), findsOneWidget);
     expect(find.text('Deuxième document'), findsOneWidget);
-    expect(find.text('Troisième document'), findsOneWidget);
+    expect(find.text('Troisième document'), findsNothing);
     expect(find.text('Quatrième document'), findsNothing);
-    expect(find.text('Voir les 4 ressources'), findsOneWidget);
+    expect(find.text('Septième document'), findsNothing);
+    expect(find.text('Voir les 7 ressources'), findsOneWidget);
     await tester.ensureVisible(
       find.byKey(const Key('discover-resources-expand')),
     );
     await tester.tap(find.byKey(const Key('discover-resources-expand')));
     await tester.pump();
+    expect(find.text('Troisième document'), findsOneWidget);
     expect(find.text('Quatrième document'), findsOneWidget);
+    expect(find.text('Cinquième document'), findsOneWidget);
+    expect(find.text('Sixième document'), findsOneWidget);
+    expect(find.text('Septième document'), findsOneWidget);
     expect(find.text('Voir moins de ressources'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('discover-resources-expand')));
+    await tester.tap(find.byKey(const Key('discover-resources-expand')));
+    await tester.pump();
+    expect(find.text('Troisième document'), findsNothing);
+    expect(find.text('Voir les 7 ressources'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
