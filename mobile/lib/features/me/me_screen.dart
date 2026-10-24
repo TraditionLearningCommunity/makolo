@@ -464,14 +464,14 @@ class _MeTerritory extends StatelessWidget {
 
   Widget _passport(BuildContext context) {
     if (!territory.hasContent) {
-      return _empty(context, 'Aucun Passeport disponible ici pour le moment.');
+      return _empty(context, 'Aucun passeport disponible.');
     }
 
     final firstItem = territory.items.isNotEmpty ? territory.items.first : null;
     final title = firstItem?.title ?? 'Disponible';
     final subtitle =
         firstItem?.subtitle ??
-        'Une vue de ce qui peut vous représenter selon le contexte.';
+        'Vos informations de profil.';
 
     return MakoloCard(
       onTap: firstItem == null ? null : () => onSelectItem(firstItem),
@@ -521,7 +521,7 @@ class _MeTerritory extends StatelessWidget {
 
   Widget _collectives(BuildContext context) {
     if (territory.items.isEmpty) {
-      return _empty(context, 'Aucun collectif lié pour le moment.');
+      return _empty(context, 'Aucun collectif associé.');
     }
 
     return Column(
@@ -534,7 +534,7 @@ class _MeTerritory extends StatelessWidget {
 
   Widget _resources(BuildContext context) {
     if (territory.items.isEmpty) {
-      return _empty(context, 'Aucune ressource disponible ici.');
+      return _empty(context, 'Aucune ressource disponible.');
     }
 
     return Column(
