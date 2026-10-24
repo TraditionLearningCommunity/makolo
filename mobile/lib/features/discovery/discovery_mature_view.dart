@@ -420,7 +420,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Possibilités à explorer',
+                    'Opportunités à découvrir',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
@@ -698,16 +698,15 @@ class _DiscoveryEmptyState extends StatelessWidget {
     if (states.contains(DiscoveryFieldState.contractError)) {
       return _EmptyBody(
         icon: Icons.error_outline_rounded,
-        title: 'Cette réponse Discovery n’est pas compatible.',
-        body: 'Les informations reçues ne peuvent pas être présentées de façon sûre.',
-        actionLabel: onRetry == null ? null : 'Réessayer',
+        title: 'Informations indisponibles.',
+                actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
     }
     if (states.contains(DiscoveryFieldState.continuationRejected)) {
       return _EmptyBody(
         icon: Icons.refresh_rounded,
-        title: 'La suite de cette recherche doit être actualisée.',
+        title: 'Recherche à actualiser.',
         actionLabel: onRetry == null ? null : 'Actualiser la recherche',
         onAction: onRetry,
       );
@@ -716,8 +715,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
       return _EmptyBody(
         icon: Icons.cloud_off_outlined,
         title:
-            'Nos serveurs sont momentanément inaccessibles. '
-            'Les possibilités publiques ne peuvent pas être actualisées pour le moment.',
+            'Service momentanément indisponible.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -726,7 +724,7 @@ class _DiscoveryEmptyState extends StatelessWidget {
         states.contains(DiscoveryFieldState.offlineWithSnapshot)) {
       return _EmptyBody(
         icon: Icons.info_outline_rounded,
-        title: 'Ce contenu n’est pas disponible pour le moment.',
+        title: 'Connexion indisponible.',
         actionLabel: onRetry == null ? null : 'Réessayer',
         onAction: onRetry,
       );
@@ -734,17 +732,15 @@ class _DiscoveryEmptyState extends StatelessWidget {
     if (states.contains(DiscoveryFieldState.noMatch)) {
       return _EmptyBody(
         icon: Icons.search_off_outlined,
-        title: 'Aucune possibilité ne correspond à ces critères.',
-        body: 'Modifiez la recherche, retirez une contrainte ou élargissez volontairement la zone.',
-        actionLabel: onResetCriteria == null ? null : 'Modifier mes critères',
+        title: 'Aucun résultat pour ces critères.',
+                actionLabel: onResetCriteria == null ? null : 'Modifier mes critères',
         onAction: onResetCriteria,
       );
     }
     return const _EmptyBody(
       icon: Icons.explore_outlined,
-      title: 'Aucune proposition pour le moment.',
-      body: 'Précisez ce que vous cherchez pour explorer autrement.',
-    );
+      title: 'Aucune opportunité disponible.',
+          );
   }
 }
 
