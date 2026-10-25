@@ -192,9 +192,9 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
               const SizedBox(height: 8),
               RadioGroup<String>(
                 groupValue: _selectedMode,
-                onChanged: _attempted
-                    ? null
-                    : (code) => setState(() => _selectedMode = code),
+                onChanged: (code) {
+                  if (!_attempted) setState(() => _selectedMode = code);
+                },
                 child: Column(
                   children: [
                     for (final mode in _modes)
