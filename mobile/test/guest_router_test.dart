@@ -14,6 +14,7 @@ import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/auth/login_screen.dart';
 import 'package:makolo_mobile/features/auth/signup_screen.dart';
+import 'package:makolo_mobile/features/discovery/discovery_event_tickets_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 import 'dio_testing.dart';
@@ -930,14 +931,16 @@ void main() {
     expect(find.byType(LoginScreen), findsNothing);
   });
 
-  testWidgets('guest N2 preserves the owner ticket action through login', (
+  testWidgets('guest N2 opens publicly browsable ticket offers before login', (
     tester,
   ) async {
     const id = '11111111-1111-4111-8111-111111111111';
     final recovery = SessionRecoveryController();
     final client = MockClient((request) async {
       expect(request.headers.containsKey('Authorization'), isFalse);
-      expect(request.url.path, '/api/v1/discovery/items/activity/$id/');
+      if (request.url.path != '/api/v1/discovery/items/activity/$id/') {
+        return const MockResponse('{"detail":"Unavailable"}', 404);
+      }
       return MockResponse(
         _mockResponseJson({
           'data': {
@@ -975,7 +978,62 @@ void main() {
     await tester.tap(action);
     await tester.pumpAndSettle();
 
-    expect(recovery.lastUsefulLocation, '/events/$id/tickets');
+    expect(find.byType(DiscoveryEventTicketsScreen), findsOneWidget);
+    expect(find.byType(LoginScreen), findsNothing);
+    expect(recovery.awaitingAuthentication, isFalse);
+  });
+
+  testWidgets('guest N2 keeps a protected Service start after login', (
+    tester,
+  ) async {
+    const id = '11111111-1111-4111-8111-111111111111';
+    final recovery = SessionRecoveryController();
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.url.path, '/api/v1/discovery/items/service_activity/$id/');
+      return MockResponse(
+        _mockResponseJson({
+          'data': {
+            'item': {
+              ..._item('Service public', id),
+              'identity': {
+                'family': 'service_activity',
+                'candidate_key': 'service_activity:$id',
+                'resource': {'kind': 'activity', 'id': id},
+              },
+              'engagement': {
+                'owner': 'services',
+                'state': 'owner_api',
+                'resource': {'kind': 'service', 'id': id},
+                'capabilities': ['start'],
+                'presentation': {'capability': 'start', 'enabled': true},
+                'primary_action': {
+                  'code': 'start',
+                  'label': 'Commencer',
+                  'destination': {
+                    'kind': 'native',
+                    'path': '/services/$id/start',
+                  },
+                },
+              },
+            },
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(_guestRuntime(recovery, client: client));
+    await _pump(tester, router);
+    router.go('/discover/items/service_activity/$id');
+    await tester.pumpAndSettle();
+    final action = find.byKey(const Key('discover-primary-n2'));
+    expect(action, findsOneWidget);
+    await tester.ensureVisible(action);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    expect(recovery.lastUsefulLocation, '/services/$id/start');
+    expect(recovery.awaitingAuthentication, isTrue);
     expect(find.byType(LoginScreen), findsOneWidget);
   });
 
