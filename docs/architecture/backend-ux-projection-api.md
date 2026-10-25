@@ -1177,13 +1177,31 @@ inversement. Les cibles tactiles et leurs libellés accessibles sont distincts.
 
 ### Référence runtime et critères de fermeture de #522
 
-Au moment de la décision, le serveur
-`discovery/api/composition.py::_primary_action_for_projection` propose
-`start` pour Service authentifié et validé, `inspect_offers` pour Event
-éligible, sinon `detail`. Flutter
-`discovery_possibility_unit.dart` ne supporte en natif que les deux
-routes vérifiées, sinon ouvre le détail ; le Web possède des actions
-propres explicites. **Les autres handoffs ne sont pas réputés livrés**.
+**État d'implémentation de la branche de #522 (25 octobre 2026) :**
+`discovery/api/composition.py::_primary_action_for_projection` expose
+`start` pour Service, `inspect_offers` pour Event,
+`contribute` pour Funding et `start_journey` pour Obtention, seulement
+lorsqu'un handoff propriétaire vérifié existe. Sinon, `detail`.
+Flutter possède une route distincte pour chacune de ces continuations :
+
+- Service : `/services/:id/start` et API Services ;
+- Event : `/events/:slug/tickets`, API Tickets, commande, paiement sandbox
+  et entrée en liste d'attente lorsque le ticket est réellement épuisé ;
+- Funding : `/funding/:id/contribute`, détail public autorisé,
+  contribution idempotente, puis PaymentObligation ;
+- Payment : `/payments/obligations/:id`, lecture des droits/états, création
+  et confirmation sandbox uniquement si le serveur l'active ;
+- Obtention : `/obtention/:id/choose`, modes publiés par l'owner,
+  création d'une Journey réelle puis profondeur `/journeys/:id` existante.
+
+**Aucune action centrale N1 Flutter n'ouvre une page Web.**
+La présentation Web continue d'utiliser ses propres routes et le même
+métier côté serveur. Les destinations mobiles non supportées se replient
+vers N2, sans action fictive ni transaction implicite. Ce tableau est un
+inventaire des raccordements écrits dans la PR, **pas une attestation de
+tests exécutés ou de paiement validé sur appareil**. Les intégrations
+métiers sans API ou destination native exploitable restent ouvertes et
+ne doivent jamais être présentées comme des actions exécutables.
 
 Critères ciblés à valider avant de considérer la colonne centrale close :
 
