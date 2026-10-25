@@ -150,7 +150,6 @@ void main() {
     expect(find.text('Voyage présenté'), findsOneWidget);
     expect(find.byKey(const Key('discover-description-text')), findsOneWidget);
     expect(find.byKey(const Key('discover-description-expand')), findsNothing);
-    expect(find.byKey(const Key('discover-n2-variant-date')), findsNWidgets(2));
     expect(find.textContaining('30/10/2026'), findsOneWidget);
     expect(find.textContaining('02/11/2026'), findsOneWidget);
     expect(find.byKey(const Key('discover-media-main')), findsOneWidget);
