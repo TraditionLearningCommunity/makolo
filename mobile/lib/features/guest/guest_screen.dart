@@ -9,6 +9,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/behavior_states.dart';
 import '../../network/api_error.dart';
 import '../../presentation/possibilities/public_possibility_card.dart';
+import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import '../../presentation/search/load_more_on_scroll.dart';
 import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
