@@ -76,7 +76,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   Future<void> _save() async {
-    if (_saving || widget.onSave == null) return;
+    if (_saving) return;
+    // A guest prompt is navigation, not an optimistic owner mutation.
+    if (widget.allowSavePrompt && widget.onSignIn != null) {
+      widget.onSignIn!();
+      return;
+    }
+    if (widget.onSave == null) return;
     final previousState = widget.item.savedState;
     setState(() => _saving = true);
     try {
@@ -1041,8 +1047,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       key: Key(widget.detailMode ? 'discover-save-n2' : 'discover-save-n1'),
                       onPressed:
                           !_saving &&
-                              widget.onSave != null &&
-                              (canToggle || widget.allowSavePrompt)
+                              ((widget.onSave != null && canToggle) ||
+                              (widget.allowSavePrompt && widget.onSignIn != null))
                           ? _save
                           : null,
                       tooltip: _saving
