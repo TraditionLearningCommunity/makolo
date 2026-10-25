@@ -332,50 +332,62 @@ class PossibilityProjectionContractTests(SimpleTestCase):
 
 
 class DiscoveryPrimaryActionHandoffTests(SimpleTestCase):
-    def _projection(self, web, capability="reserve", enabled=True):
-        return {
+    def test_web_only_owner_action_is_not_promoted_to_native(self):
+        projection = {
             "links": {"detail": "/api/v1/discovery/items/activity/example/"},
             "engagement": {
                 "owner": "activities",
                 "state": "owner_contract",
-                "capabilities": [],
+                "capabilities": ["reserve"],
                 "links": {},
                 "presentation": {
-                    "capability": capability,
+                    "capability": "reserve",
                     "label": "Réserver",
-                    "web": web,
-                    "web_enabled": enabled,
+                    "web": "/events/example/reserve/",
+                    "web_enabled": True,
                 },
             },
         }
+        action = _primary_action_for_projection(projection)
+        self.assertEqual(action["code"], "detail")
+        self.assertEqual(action["destination"]["kind"], "detail")
 
-    def test_existing_local_owner_web_action_is_exposed(self):
-        action = _primary_action_for_projection(
-            self._projection("/events/existing/reserve/")
-        )
-        self.assertEqual(action["code"], "reserve")
+    def test_funding_action_points_to_owner_native_route(self):
+        funding_id = str(uuid.uuid4())
+        projection = {
+            "links": {"detail": "/api/v1/discovery/items/funding_activity/example/"},
+            "engagement": {
+                "owner": "funding",
+                "state": "owner_api",
+                "capabilities": ["contribute"],
+                "resource": {"kind": "funding", "id": funding_id},
+                "links": {
+                    "native": f"/funding/{funding_id}/contribute",
+                    "contribute": f"/api/v1/funding/{funding_id}/contributions/",
+                },
+            },
+        }
+        action = _primary_action_for_projection(projection)
+        self.assertEqual(action["code"], "contribute")
         self.assertEqual(
             action["destination"],
-            {"kind": "web", "path": "/events/existing/reserve/"},
+            {"kind": "native", "path": f"/funding/{funding_id}/contribute"},
         )
 
-    def test_external_and_unsafe_web_paths_fall_back_to_detail(self):
-        for path in (
-            "https://elsewhere.invalid/payment",
-            "//elsewhere.invalid/checkout",
-            "/path/../checkout/",
-            "/checkout/?token=secret",
-            "/checkout/#fragment",
-            "/checkout/" + chr(92) + "unsafe",
-        ):
-            with self.subTest(path=path):
-                action = _primary_action_for_projection(self._projection(path))
-                self.assertEqual(action["code"], "detail")
-
-    def test_view_only_and_disabled_owner_actions_are_not_upgraded(self):
-        for capability, enabled in (("view", True), ("pay", False)):
-            with self.subTest(capability=capability):
-                action = _primary_action_for_projection(
-                    self._projection("/owner/detail/", capability, enabled)
-                )
-                self.assertEqual(action["destination"]["kind"], "detail")
+    def test_mismatched_funding_route_falls_back_to_detail(self):
+        projection = {
+            "links": {"detail": "/detail/"},
+            "engagement": {
+                "owner": "funding",
+                "state": "owner_api",
+                "capabilities": ["contribute"],
+                "resource": {"kind": "funding", "id": str(uuid.uuid4())},
+                "links": {
+                    "native": "/funding/other/contribute",
+                    "contribute": "/api/v1/funding/other/contributions/",
+                },
+            },
+        }
+        self.assertEqual(
+            _primary_action_for_projection(projection)["code"], "detail"
+        )
