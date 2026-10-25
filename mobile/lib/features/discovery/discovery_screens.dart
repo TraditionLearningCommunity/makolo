@@ -620,6 +620,14 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     unawaited(_acquire());
   }
 
+  @override
+  void didUpdateWidget(covariant DiscoveryItemDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.family != widget.family || oldWidget.id != widget.id) {
+      unawaited(_acquire());
+    }
+  }
+
   Future<void> _acquire() async {
     final local = await widget.repository.readItem(widget.family, widget.id);
     if (local == null) await _refresh();
@@ -698,7 +706,10 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                   key: const Key('discover-personal-n2'),
                   padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                   children: [
-                    DiscoveryPossibilityUnit(
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1040),
+                        child: DiscoveryPossibilityUnit(
                       item: item,
                       detailMode: true,
                       onOpen: () {},
@@ -708,6 +719,8 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                       shareApi: widget.repository.api,
                       shareAuthenticated: true,
                       baseUri: widget.repository.api.baseUri,
+                        ),
+                      ),
                     ),
                   ],
                 ),
