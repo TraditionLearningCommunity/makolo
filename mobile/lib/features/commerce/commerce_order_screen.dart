@@ -85,7 +85,14 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
-            Text('État : ${_order!['status'] ?? 'À vérifier'}'),
+            Text('État : ${switch (_order!['status']) {
+              'confirmed' => 'Confirmée',
+              'pending' => 'En attente',
+              'cancelled' => 'Annulée',
+              'expired' => 'Expirée',
+              'refunded' => 'Remboursée',
+              _ => 'À vérifier',
+            }}'),
             Text(
               'Montant : ${details['total'] ?? 'À vérifier'} '
               '${details['currency'] ?? ''}',
@@ -115,10 +122,12 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
               ),
             ] else ...[
               const SizedBox(height: 12),
-              const Text(
-                'Aucun paiement en ligne confirmé pour cette commande. '
-                'Sa suite dépend du mode de paiement et de son état.',
-              ),
+              Text(switch (details['payment_mode']) {
+                'none' => 'Aucun paiement requis pour cette commande.',
+                'on_site' => 'Paiement prévu sur place. Aucun règlement confirmé dans Makolo.',
+                'later' => 'Paiement différé. Aucun règlement confirmé.',
+                _ => 'L’état financier doit être vérifié auprès de Makolo.',
+              }),
             ],
           ],
           if (_error != null) ...[
