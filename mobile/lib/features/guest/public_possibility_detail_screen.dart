@@ -42,7 +42,18 @@ class _PublicPossibilityDetailScreenState
     unawaited(_load());
   }
 
+  @override
+  void didUpdateWidget(covariant PublicPossibilityDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.family != widget.family || oldWidget.id != widget.id) {
+      _item = null;
+      unawaited(_load());
+    }
+  }
+
   Future<void> _load() async {
+    final family = widget.family;
+    final id = widget.id;
     setState(() {
       _loading = true;
       _error = null;
@@ -60,18 +71,18 @@ class _PublicPossibilityDetailScreenState
       );
       final identity = raw['identity'] as Map;
       final resource = identity['resource'] as Map;
-      if (identity['family'] != widget.family || resource['id'] != widget.id) {
+      if (identity['family'] != family || resource['id'] != id) {
         throw const FormatException('Unexpected Discovery detail identity');
       }
       final item = _selector.publicItem(raw);
       if (item == null) throw const FormatException('Unknown possibility');
-      if (!mounted) return;
+      if (!mounted || widget.family != family || widget.id != id) return;
       setState(() {
         _item = item;
         _loading = false;
       });
     } on Object {
-      if (!mounted) return;
+      if (!mounted || widget.family != family || widget.id != id) return;
       setState(() {
         _loading = false;
         _error = 'Cette possibilité publique n’est pas disponible.';
@@ -123,7 +134,10 @@ class _PublicPossibilityDetailScreenState
             ),
             TextButton(onPressed: _load, child: const Text('Réessayer')),
           ] else if (item != null)
-            DiscoveryPossibilityUnit(
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: DiscoveryPossibilityUnit(
               item: item,
               detailMode: true,
               onOpen: () {},
@@ -137,6 +151,8 @@ class _PublicPossibilityDetailScreenState
               },
               shareApi: widget.runtime.api,
               baseUri: widget.runtime.api?.baseUri,
+                ),
+              ),
             ),
         ],
       ),
