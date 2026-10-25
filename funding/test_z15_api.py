@@ -64,6 +64,16 @@ class Z15FundingApiTests(TestCase):
         )
         self.assertEqual(contribution.status_code, 201, contribution.data)
         self.assertTrue(contribution.data["payment_obligation_id"])
+        lookup = self.client.get(
+            f"/api/v1/funding/{funding_id}/contributions/?client_reference=z15-contribution"
+        )
+        self.assertEqual(lookup.status_code, 200, lookup.data)
+        self.assertEqual(
+            lookup.data["contribution"]["id"], contribution.data["id"]
+        )
+        self.assertIsNone(self.client.get(
+            f"/api/v1/funding/{funding_id}/contributions/?client_reference=unknown"
+        ).data["contribution"])
         obligation_id = contribution.data["payment_obligation_id"]
         detail = self.client.get(f"/api/v1/payments/obligations/{obligation_id}/")
         self.assertEqual(detail.status_code, 200, detail.data)
@@ -105,6 +115,11 @@ class Z15FundingApiTests(TestCase):
             self.assertNotIn("pay", settled.data["capabilities"])
 
         self.client.force_authenticate(self.outsider)
+        private_lookup = self.client.get(
+            f"/api/v1/funding/{funding_id}/contributions/?client_reference=z15-contribution"
+        )
+        self.assertEqual(private_lookup.status_code, 200, private_lookup.data)
+        self.assertIsNone(private_lookup.data["contribution"])
         self.assertEqual(
             self.client.get(f"/api/v1/payments/obligations/{obligation_id}/").status_code,
             404,
