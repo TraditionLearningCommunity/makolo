@@ -455,6 +455,48 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 center action uses server detail when no native handoff exists', (
+    tester,
+  ) async {
+    var detailOpened = false;
+    final item = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'detail-action',
+      candidateKey: 'activity:detail-action',
+      title: 'Détails de la possibilité',
+      summary: 'Informations disponibles.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'primary_action': {
+            'code': 'detail',
+            'label': 'Détails',
+            'destination': {
+              'kind': 'detail',
+              'path': '/api/v1/discovery/items/activity/detail-action/',
+            },
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [item]),
+        onOpen: (_) => detailOpened = true,
+      ),
+    );
+    final primary = find.byKey(const Key('discover-primary-n1'));
+    expect(tester.widget<IconButton>(primary).tooltip, 'Détails');
+    await tester.tap(primary);
+    await tester.pump();
+    expect(detailOpened, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 preserves text, facts, media, annexes, then actions order', (
     tester,
   ) async {
