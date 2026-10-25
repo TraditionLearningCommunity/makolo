@@ -497,6 +497,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 center displays authorized Service start, not universal Start', (
+    tester,
+  ) async {
+    final item = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'service-item',
+      candidateKey: 'service_activity:service-item',
+      title: 'Accompagnement administratif',
+      summary: 'Aide à la constitution du dossier.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'owner': 'services',
+          'state': 'owner_api',
+          'capabilities': ['start'],
+          'resource': {'kind': 'service', 'id': 'service-id'},
+          'presentation': {
+            'capability': 'start',
+            'enabled': true,
+          },
+          'primary_action': {
+            'code': 'start',
+            'label': 'Commencer',
+            'destination': {
+              'kind': 'native',
+              'path': '/services/service-id/start',
+            },
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [item]),
+        onOpen: (_) {},
+      ),
+    );
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-primary-n1')),
+      ).tooltip,
+      'Commencer',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 center displays the owner-approved ticket action', (
     tester,
   ) async {
