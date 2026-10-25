@@ -25,6 +25,7 @@ class ObtentionChooseScreen extends StatefulWidget {
 class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
   Map<String, dynamic>? _obtention;
   List<Map<String, dynamic>> _modes = const [];
+  List<Map<String, dynamic>> _existing = const [];
   String? _selectedMode;
   bool _loading = true;
   bool _submitting = false;
@@ -36,6 +37,35 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
   void initState() {
     super.initState();
     unawaited(_load());
+  }
+
+  Map<String, dynamic>? get _existingForSelection {
+    for (final journey in _existing) {
+      if (journey['mode'] == _selectedMode && journey['id'] is String) {
+        return journey;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _readExisting() async {
+    if (!widget.runtime.isAuthenticated) return;
+    try {
+      final id = Uri.encodeComponent(widget.obtentionId);
+      final result = (await widget.runtime.api!.get(
+        'api/v1/obtention/$id/journeys/',
+      )).jsonObject();
+      final list = result['existing_journeys'];
+      if (list is List && mounted) {
+        setState(() {
+          _existing = list.whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .toList(growable: false);
+        });
+      }
+    } on Object {
+      // Never invent an existing Journey when the owner read fails.
+    }
   }
 
   Future<void> _load() async {
@@ -68,6 +98,7 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
         _selectedMode = modes.isEmpty ? null : modes.first['code'] as String;
         _loading = false;
       });
+      await _readExisting();
     } on Object {
       if (!mounted) return;
       setState(() {
@@ -78,12 +109,17 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
   }
 
   Future<void> _begin() async {
-    if (_submitting || _attempted || _selectedMode == null) return;
+    if (_submitting || _selectedMode == null) return;
     if (!widget.runtime.isAuthenticated) {
       widget.runtime.recovery.requireAuthentication(
         '/obtention/' + widget.obtentionId + '/choose',
       );
       context.push('/login');
+      return;
+    }
+    final existing = _existingForSelection;
+    if (existing != null && existing['id'] is String) {
+      context.push('/journeys/${Uri.encodeComponent(existing['id'] as String)}');
       return;
     }
     setState(() {
@@ -105,9 +141,16 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
       setState(() => _journeyId = journey['id'] as String);
       context.push('/journeys/' + Uri.encodeComponent(_journeyId!));
     } on Object {
+      await _readExisting();
       if (!mounted) return;
+      final existing = _existingForSelection;
+      if (existing != null && existing['id'] is String) {
+        context.push('/journeys/${Uri.encodeComponent(existing['id'] as String)}');
+        return;
+      }
       setState(() {
-        _error = 'Démarrage non confirmé. Vérifiez vos démarches avant une nouvelle demande.';
+        _attempted = false;
+        _error = 'Démarrage à vérifier. Réessayez si aucune démarche n’apparaît.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -167,14 +210,16 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
-                onPressed: _attempted || _submitting ? null : _begin,
+                onPressed: _submitting ? null : _begin,
                 icon: const Icon(Icons.play_arrow_rounded),
                 label: Text(
                   _submitting
                       ? 'Ouverture en cours…'
-                      : widget.runtime.isAuthenticated
-                          ? 'Ouvrir ma démarche'
-                          : 'Se connecter pour continuer',
+                      : _existingForSelection != null
+                          ? 'Continuer ma démarche'
+                          : widget.runtime.isAuthenticated
+                              ? 'Ouvrir ma démarche'
+                              : 'Se connecter pour continuer',
                 ),
               ),
               if (_journeyId case final id?) ...[
