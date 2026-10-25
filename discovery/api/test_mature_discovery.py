@@ -531,6 +531,11 @@ class MatureDiscoveryAPITests(TestCase):
             reverse("services-api:start", kwargs={"pk": self.service.pk}),
         )
         self.assertTrue(handoff["presentation"]["enabled"])
+        self.assertEqual(handoff["primary_action"]["code"], "start")
+        self.assertEqual(
+            handoff["primary_action"]["destination"],
+            {"kind": "native", "path": f"/services/{self.service.pk}/start"},
+        )
 
     def test_web_primary_action_is_not_an_unbacked_owner_capability(self):
         data = self._items(q="Z3 accompagnement")["data"]
@@ -546,6 +551,11 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertFalse(presentation["enabled"])
         self.assertTrue(presentation["web_enabled"])
         self.assertTrue(presentation["web"])
+        self.assertEqual(handoff["primary_action"]["code"], "detail")
+        self.assertEqual(
+            handoff["primary_action"]["destination"]["path"],
+            service["links"]["detail"],
+        )
 
     def test_authenticated_collection_exposes_discover_me_contract_and_cursor(self):
         self.client.force_login(self.participant)
@@ -883,6 +893,11 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertEqual(
             handoff["links"]["orders"],
             reverse("ticket-orders-list"),
+        )
+        self.assertEqual(handoff["primary_action"]["code"], "inspect_offers")
+        self.assertEqual(
+            handoff["primary_action"]["destination"],
+            {"kind": "native", "path": f"/events/{self.event.slug}/tickets"},
         )
         self.assertEqual(Journey.objects.count(), before)
 

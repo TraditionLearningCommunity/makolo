@@ -761,6 +761,63 @@ def _handoff_for_projection(
     }
 
 
+def _primary_action_for_projection(projection: dict) -> dict:
+    """Select navigation from an owner-verified handoff, never from a title or price.
+
+    Selection does not execute, reserve, charge or authorize anything. The
+    destination owner must re-check eligibility and permission on entry.
+    """
+    engagement = projection["engagement"]
+    capabilities = set(engagement.get("capabilities") or ())
+    links = engagement.get("links") or {}
+    resource = engagement.get("resource") or {}
+    presentation = engagement.get("presentation") or {}
+    if (
+        engagement.get("owner") == "services"
+        and engagement.get("state") == "owner_api"
+        and resource.get("kind") == "service"
+        and resource.get("id")
+        and "start" in capabilities
+        and presentation.get("capability") == "start"
+        and presentation.get("enabled") is True
+        and links.get("start")
+    ):
+        return {
+            "code": "start",
+            "label": presentation.get("label") or "Commencer",
+            "icon": "start",
+            "destination": {
+                "kind": "native",
+                "path": f"/services/{resource['id']}/start",
+            },
+        }
+    native = links.get("native")
+    if (
+        engagement.get("owner") == "events"
+        and engagement.get("state") == "owner_api"
+        and resource.get("kind") == "event"
+        and "inspect_offers" in capabilities
+        and isinstance(native, str)
+        and native.startswith("/events/")
+        and native.endswith("/tickets")
+    ):
+        return {
+            "code": "inspect_offers",
+            "label": "Voir les billets",
+            "icon": "ticket",
+            "destination": {"kind": "native", "path": native},
+        }
+    return {
+        "code": "detail",
+        "label": "Détails",
+        "icon": "arrow",
+        "destination": {
+            "kind": "detail",
+            "path": projection["links"]["detail"],
+        },
+    }
+
+
 def _finalize_projection(
     projection: dict,
     *,
@@ -845,6 +902,10 @@ def _finalize_projection(
             "web": primary.url,
             "web_enabled": bool(primary.enabled and primary.url),
         }
+    # One server-selected central action; old engagement fields remain stable.
+    projection["engagement"]["primary_action"] = _primary_action_for_projection(
+        projection
+    )
     if description:
         projection["detail"] = {"description": description}
     return projection
