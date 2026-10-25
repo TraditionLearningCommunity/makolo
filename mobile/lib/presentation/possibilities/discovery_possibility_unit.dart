@@ -245,9 +245,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           ? time.substring(0, time.length < 5 ? time.length : 5)
           : null;
       final timezone = timing['timezone'];
-      final zone = timezone is String && timezone.trim().isNotEmpty
-          ? timezone.trim()
-          : instant is String && instant.endsWith('Z') ? 'UTC' : null;
+      // UTC-serialized instants are not already in the event timezone.
+      final zone = instant is String && instant.endsWith('Z')
+          ? 'UTC'
+          : timezone is String && timezone.trim().isNotEmpty
+              ? timezone.trim()
+              : null;
       final label = [
         dateLabel,
         if (timeLabel != null) timeLabel,
