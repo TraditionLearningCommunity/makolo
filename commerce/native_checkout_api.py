@@ -31,6 +31,7 @@ ACTIVE_ORDER_STATUSES = {
 
 class CommerceCheckoutInput(serializers.Serializer):
     offer_id = serializers.UUIDField()
+    occurrence_id = serializers.UUIDField(required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1, max_value=10000)
     payment_mode = serializers.ChoiceField(choices=PaymentMode.choices)
     idempotency_key = serializers.CharField(max_length=128, allow_blank=False)

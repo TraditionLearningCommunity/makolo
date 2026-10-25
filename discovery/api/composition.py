@@ -788,6 +788,37 @@ def _funding_handoffs(rows) -> dict[str, dict]:
     return handoffs
 
 
+def _public_commerce_handoffs(activity_ids, *, profile=None):
+    """Owner-side offer admission; never infer a booking from a description."""
+    if not activity_ids:
+        return {}
+    from activities.models import Activity
+    from commerce.native_activity_checkout_api import (
+        activity_offer_choices, public_activity_for_commerce,
+    )
+    result = {}
+    for activity in Activity.objects.filter(pk__in=activity_ids).exclude(
+        event_vertical__isnull=False
+    ):
+        try:
+            public_activity_for_commerce(profile, activity.pk)
+        except Exception:
+            continue
+        if not activity_offer_choices(activity):
+            continue
+        result[str(activity.pk)] = {
+            "state": "owner_api",
+            "owner": "commerce",
+            "capabilities": ["inspect_offers"],
+            "resource": {"kind": "activity", "id": str(activity.pk)},
+            "links": {
+                "offers": reverse("commerce_api:activity-checkout", kwargs={"activity_id": activity.pk}),
+                "native": f"/commerce/activities/{activity.pk}/checkout",
+            },
+        }
+    return result
+
+
 def _personal_engagement_handoffs(activity_ids, *, profile=None):
     """Reuse the personal owner's confirmed Journey/Commerce relationships."""
     if not _authenticated(profile) or not activity_ids:
@@ -800,7 +831,7 @@ def _personal_engagement_handoffs(activity_ids, *, profile=None):
 def _handoff_for_projection(
     projection: dict, *, event_handoffs=None, service_handoffs=None,
     funding_handoffs=None, obtention_handoffs=None,
-    personal_handoffs=None,
+    personal_handoffs=None, commerce_handoffs=None,
 ) -> dict:
     resource = projection["identity"]["resource"]
     family = projection["identity"]["family"]
@@ -827,6 +858,10 @@ def _handoff_for_projection(
         handoff = funding_handoffs.get(resource["id"])
         if handoff is not None:
             return handoff
+    if family == "activity" and commerce_handoffs:
+        handoff = commerce_handoffs.get(resource["id"])
+        if handoff is not None:
+            return handoff
     return {
         "state": "owner_contract",
         "owner": {
@@ -850,6 +885,21 @@ def _primary_action_for_projection(projection: dict) -> dict:
     links = engagement.get("links") or {}
     resource = engagement.get("resource") or {}
     presentation = engagement.get("presentation") or {}
+    if (
+        engagement.get("owner") == "commerce"
+        and engagement.get("state") == "owner_api"
+        and resource.get("kind") == "activity"
+        and isinstance(resource.get("id"), str)
+        and "inspect_offers" in capabilities
+        and links.get("native") == f"/commerce/activities/{resource['id']}/checkout"
+        and links.get("offers")
+    ):
+        return {
+            "code": "inspect_offers",
+            "label": "Choisir une offre",
+            "icon": "shopping-bag",
+            "destination": {"kind": "native", "path": links["native"]},
+        }
     if (
         engagement.get("owner") == "commerce"
         and engagement.get("state") == "owner_api"
@@ -982,6 +1032,7 @@ def _finalize_projection(
     funding_handoffs=None,
     obtention_handoffs=None,
     personal_handoffs=None,
+    commerce_handoffs=None,
     description="",
 ) -> dict:
     identity = projection["identity"]
@@ -1050,6 +1101,7 @@ def _finalize_projection(
         funding_handoffs=funding_handoffs,
         obtention_handoffs=obtention_handoffs,
         personal_handoffs=personal_handoffs,
+        commerce_handoffs=commerce_handoffs,
     )
     if card is not None and card.actions.primary is not None:
         primary = card.actions.primary
@@ -1142,6 +1194,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     funding_handoffs = _funding_handoffs(rows)
     obtention_handoffs = _obtention_handoffs(rows)
     personal_handoffs = _personal_engagement_handoffs(activity_ids, profile=profile)
+    commerce_handoffs = _public_commerce_handoffs(activity_ids, profile=profile)
     owner_facts, opportunity_dates = _public_owner_facts(
         activity_ids, opportunity_ids,
     )
@@ -1221,6 +1274,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             funding_handoffs=funding_handoffs,
             obtention_handoffs=obtention_handoffs,
             personal_handoffs=personal_handoffs,
+            commerce_handoffs=commerce_handoffs,
             description=description,
         )
         if family == "opportunity":
