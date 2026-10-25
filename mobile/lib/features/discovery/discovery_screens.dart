@@ -10,6 +10,7 @@ import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../platform/location/location_capability.dart';
+import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../sync/freshness.dart';
 import '../../sync/sync_status.dart';
@@ -153,12 +154,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   void _open(DiscoveryItemPresentation item) {
-    if (item.family == 'activity' ||
-        item.family == 'service_activity' ||
-        item.family == 'funding_activity') {
-      widget.onOpenActivity(item.id);
-      return;
-    }
+    // The central owner action may skip N2. Opening the item itself always
+    // deepens the same possibility, including Activity-based verticals.
     widget.onOpenItem(item.family, item.id);
   }
 
@@ -358,12 +355,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   void _open(DiscoveryItemPresentation item) {
-    if (item.family == 'activity' ||
-        item.family == 'service_activity' ||
-        item.family == 'funding_activity') {
-      widget.onOpenActivity(item.id);
-      return;
-    }
+    // The central owner action may skip N2. Opening the item itself always
+    // deepens the same possibility, including Activity-based verticals.
     widget.onOpenItem(item.family, item.id);
   }
 
@@ -702,59 +695,20 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                         onRetry: _refresh,
                       )
               : ListView(
+                  key: const Key('discover-personal-n2'),
                   padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
                   children: [
-                    MakoloDetailHeader(
-                      eyebrow: item.eyebrow ?? 'Découvrir',
-                      title: item.title,
-                      subtitle: item.summary.isEmpty ? null : item.summary,
-                      status: item.availability == null
-                          ? null
-                          : MakoloStatus(label: item.availability!),
-                      metadata: [
-                        if (item.owner != null)
-                          MakoloMetadataItem(
-                            item.owner!,
-                            icon: Icons.business_outlined,
-                          ),
-                        if (item.place != null)
-                          MakoloMetadataItem(
-                            item.place!,
-                            icon: Icons.place_outlined,
-                          ),
-                        if (item.timing != null)
-                          MakoloMetadataItem(
-                            item.timing!,
-                            icon: Icons.schedule_outlined,
-                          ),
-                        if (item.price != null)
-                          MakoloMetadataItem(
-                            item.price!,
-                            icon: Icons.payments_outlined,
-                          ),
-                      ],
+                    DiscoveryPossibilityUnit(
+                      item: item,
+                      detailMode: true,
+                      onOpen: () {},
+                      onSave: item.canSave || item.canUnsave
+                          ? () => _setSaved(item!.canSave)
+                          : null,
+                      shareApi: widget.repository.api,
+                      shareAuthenticated: true,
+                      baseUri: widget.repository.api.baseUri,
                     ),
-                    if (item.canSave || item.canUnsave)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MakoloSpacing.inner,
-                        ),
-                        child: FilledButton.icon(
-                          onPressed: _saving
-                              ? null
-                              : () => _setSaved(item!.canSave),
-                          icon: Icon(
-                            item.canUnsave
-                                ? Icons.bookmark_rounded
-                                : Icons.bookmark_border_rounded,
-                          ),
-                          label: Text(
-                            item.canUnsave
-                                ? 'Retirer des favoris'
-                                : 'Enregistrer',
-                          ),
-                        ),
-                      ),
                   ],
                 ),
         );
