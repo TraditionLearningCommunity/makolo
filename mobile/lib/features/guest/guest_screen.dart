@@ -715,9 +715,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       context.push('/login');
                     },
                     onNativeAction: (nativePath) {
-                      // Retain the owner continuation itself across login.
-                      widget.runtime.recovery.requireAuthentication(nativePath);
-                      context.push('/login');
+                      if (discoveryOwnerDepthBrowsableByGuest(nativePath)) {
+                        context.push(nativePath);
+                      } else {
+                        widget.runtime.recovery.requireAuthentication(nativePath);
+                        context.push('/login');
+                      }
                     },
                     onTap: () => context.push(
                       '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
