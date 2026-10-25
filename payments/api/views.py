@@ -132,11 +132,17 @@ class PaymentObligationAPIView(APIView):
         serializer = ObligationPaymentInitiateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         values = dict(serializer.validated_data)
-        # Do not let an idempotent replay silently change payment method/provider.
+        if not _obligation_payment_actor_can_initiate(request.user, obligation):
+            raise PermissionDenied("Cette obligation ne peut pas être réglée par ce compte.")
+        # Do not let an idempotent replay bypass owner authority or change provider.
         prior = obligation.payments.filter(
             idempotency_key=values["idempotency_key"],
         ).first()
-        if prior and (prior.provider != values["provider"] or prior.method != values["method"]):
+        if prior and (
+            prior.initiated_by_id != request.user.pk
+            or prior.provider != values["provider"]
+            or prior.method != values["method"]
+        ):
             raise ValidationError({
                 "idempotency_key": "Cette référence correspond à une autre tentative."
             })
