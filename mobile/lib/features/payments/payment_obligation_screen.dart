@@ -196,7 +196,9 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
                   Text('Paiement confirmé'),
                 ],
               ),
-            ] else if (canPay && !terminal) ...[
+            ] else if (canPay &&
+                !terminal &&
+                _payment?['status'] != 'succeeded') ...[
               const SizedBox(height: 20),
               if (_sandboxAvailable)
                 FilledButton.icon(
