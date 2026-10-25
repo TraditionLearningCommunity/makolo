@@ -138,19 +138,18 @@ class _PublicPossibilityDetailScreenState
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1040),
                 child: DiscoveryPossibilityUnit(
-              item: item,
-              detailMode: true,
-              onOpen: () {},
-              allowSavePrompt: true,
-              onSignIn: _requireAuthentication,
-              onNativeAction: (nativePath) {
-                // Owner routes remain protected. A public capability is not
-                // an authorization to mutate without revalidation.
-                widget.runtime.recovery.requireAuthentication(nativePath);
-                context.push('/login');
-              },
-              shareApi: widget.runtime.api,
-              baseUri: widget.runtime.api?.baseUri,
+                  item: item,
+                  detailMode: true,
+                  onOpen: () {},
+                  allowSavePrompt: true,
+                  onSignIn: _requireAuthentication,
+                  onNativeAction: (nativePath) {
+                    // Owner routes remain protected and revalidate access.
+                    widget.runtime.recovery.requireAuthentication(nativePath);
+                    context.push('/login');
+                  },
+                  shareApi: widget.runtime.api,
+                  baseUri: widget.runtime.api?.baseUri,
                 ),
               ),
             ),
