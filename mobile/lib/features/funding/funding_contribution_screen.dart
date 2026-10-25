@@ -145,7 +145,7 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
     if (_submitting || _funding?['accepts_contributions'] != true) return;
     if (!widget.runtime.isAuthenticated) {
       widget.runtime.recovery.requireAuthentication(
-        '/funding/' + widget.fundingId + '/contribute',
+        '/funding/${widget.fundingId}/contribute',
       );
       context.push('/login');
       return;
@@ -204,7 +204,7 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
       if (store != null) {
         unawaited(store.clear(_interactionId).catchError((Object _) {}));
       }
-      context.push('/payments/obligations/' + Uri.encodeComponent(obligation));
+      context.push('/payments/obligations/${Uri.encodeComponent(obligation)}');
     } on Object {
       await _recoverContribution();
       if (!mounted || _obligationId != null) return;
@@ -239,17 +239,11 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
             ],
             const SizedBox(height: 20),
             Text(
-              'Réuni : ' +
-                  (funding['raised_amount']?.toString() ?? '0') +
-                  ' ' +
-                  (funding['currency']?.toString() ?? ''),
+              'Réuni : ${funding['raised_amount']?.toString() ?? '0'} ${funding['currency']?.toString() ?? ''}',
             ),
             if (funding['target_amount'] != null)
               Text(
-                'Objectif : ' +
-                    funding['target_amount'].toString() +
-                    ' ' +
-                    (funding['currency']?.toString() ?? ''),
+                'Objectif : ${funding['target_amount']} ${funding['currency']?.toString() ?? ''}',
               ),
             const SizedBox(height: 20),
             if (funding['accepts_contributions'] == true) ...[
@@ -263,10 +257,7 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText:
-                      'Montant (' +
-                      (funding['currency']?.toString() ?? '') +
-                      ')',
+                  labelText: 'Montant (${funding['currency']?.toString() ?? ''})',
                   helperText: _limitLabel(funding),
                 ),
               ),
@@ -288,7 +279,7 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
                 const SizedBox(height: 12),
                 OutlinedButton(
                   onPressed: () => context.push(
-                    '/payments/obligations/' + Uri.encodeComponent(id),
+                    '/payments/obligations/${Uri.encodeComponent(id)}',
                   ),
                   child: const Text('Voir mon paiement'),
                 ),
@@ -313,10 +304,10 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
     final maximum = data['maximum_contribution'];
     if (minimum == null && maximum == null) return null;
     if (minimum != null && maximum != null) {
-      return 'De ' + minimum.toString() + ' à ' + maximum.toString();
+      return 'De $minimum à $maximum';
     }
     return minimum != null
-        ? 'Minimum : ' + minimum.toString()
-        : 'Maximum : ' + maximum.toString();
+        ? 'Minimum : $minimum'
+        : 'Maximum : $maximum';
   }
 }

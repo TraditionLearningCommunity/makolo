@@ -185,13 +185,10 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Montant : ' +
-                  (obligation['amount']?.toString() ?? '') +
-                  ' ' +
-                  (obligation['currency']?.toString() ?? ''),
+              'Montant : ${obligation['amount']?.toString() ?? ''} ${obligation['currency']?.toString() ?? ''}',
             ),
             const SizedBox(height: 12),
-            Text('État : ' + status),
+            Text('État : $status'),
             if (status == 'satisfied') ...[
               const SizedBox(height: 16),
               const Row(
@@ -218,8 +215,7 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
             ],
             if (_payment != null)
               Text(
-                'Transaction : ' +
-                    (_payment!['status']?.toString() ?? 'À vérifier'),
+                'Transaction : ${_payment!['status']?.toString() ?? 'À vérifier'}',
               ),
           ],
           if (_error case final error?) ...[

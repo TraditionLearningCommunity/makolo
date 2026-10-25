@@ -112,7 +112,7 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
     if (_submitting || _selectedMode == null) return;
     if (!widget.runtime.isAuthenticated) {
       widget.runtime.recovery.requireAuthentication(
-        '/obtention/' + widget.obtentionId + '/choose',
+        '/obtention/${widget.obtentionId}/choose',
       );
       context.push('/login');
       return;
@@ -141,7 +141,7 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
       }
       if (!mounted) return;
       setState(() => _journeyId = journey['id'] as String);
-      context.push('/journeys/' + Uri.encodeComponent(_journeyId!));
+      context.push('/journeys/${Uri.encodeComponent(_journeyId!)}');
     } on Object {
       await _readExisting();
       if (!mounted) return;
@@ -235,7 +235,7 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
                 const SizedBox(height: 12),
                 OutlinedButton(
                   onPressed: () =>
-                      context.push('/journeys/' + Uri.encodeComponent(id)),
+                      context.push('/journeys/${Uri.encodeComponent(id)}'),
                   child: const Text('Voir ma démarche'),
                 ),
               ],

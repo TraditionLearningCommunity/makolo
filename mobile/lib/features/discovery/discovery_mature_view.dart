@@ -747,14 +747,12 @@ class _EmptyBody extends StatelessWidget {
   const _EmptyBody({
     required this.icon,
     required this.title,
-    this.body,
     this.actionLabel,
     this.onAction,
   });
 
   final IconData icon;
   final String title;
-  final String? body;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -772,14 +770,6 @@ class _EmptyBody extends StatelessWidget {
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        if (body != null && body!.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.sm),
-          Text(
-            body!,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-        ],
         if (actionLabel != null && onAction != null) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Center(

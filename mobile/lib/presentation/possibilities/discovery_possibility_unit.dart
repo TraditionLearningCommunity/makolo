@@ -272,11 +272,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           : timezone is String && timezone.trim().isNotEmpty
           ? timezone.trim()
           : null;
-      final label = [
-        dateLabel,
-        if (timeLabel != null) timeLabel,
-        if (zone != null) zone,
-      ].join(' · ');
+      final label = [dateLabel, ?timeLabel, ?zone].join(' · ');
       if (!labels.contains(label)) labels.add(label);
     }
     return labels.length > 1 ? labels : const [];
@@ -534,12 +530,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     foregroundImage: avatar == null
                         ? null
                         : NetworkImage(avatar),
-                    child: avatar == null ? Text(name![0].toUpperCase()) : null,
+                    child: avatar == null ? Text(name[0].toUpperCase()) : null,
                   ),
                   const SizedBox(width: MakoloSpacing.sm),
                   Expanded(
                     child: Text(
-                      name!,
+                      name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelLarge,

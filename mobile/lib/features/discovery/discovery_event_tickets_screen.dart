@@ -155,7 +155,7 @@ class _DiscoveryEventTicketsScreenState
     if (_joiningWaitlist) return;
     if (!widget.runtime.isAuthenticated) {
       widget.runtime.recovery.requireAuthentication(
-        '/events/' + widget.eventSlug + '/tickets',
+        '/events/${widget.eventSlug}/tickets',
       );
       context.push('/login');
       return;
