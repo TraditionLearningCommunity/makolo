@@ -151,9 +151,8 @@ class _OngoingScreenState extends State<OngoingScreen> {
                   ? MakoloFailureCue.recoverable
                   : MakoloFailureCue.none,
             ),
-            recoverableErrorMessage: sourceSnapshot.data?.lastErrorCode == null
-                ? null
-                : 'Actualisation impossible.',
+            // Keep existing journeys visible without an additional banner.
+            recoverableErrorMessage: null,
             preservedMessage:
                 '',
             onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
