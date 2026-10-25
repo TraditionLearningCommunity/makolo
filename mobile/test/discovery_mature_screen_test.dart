@@ -646,6 +646,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 center uses native Obtention and not universal Start', (
+    tester,
+  ) async {
+    final item = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'activity-obtention',
+      candidateKey: 'activity:activity-obtention',
+      title: 'Un équipement à obtenir',
+      summary: 'Choisir un mode d’obtention.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'owner': 'obtention',
+          'state': 'owner_api',
+          'capabilities': ['start_journey'],
+          'resource': {'kind': 'obtention', 'id': 'obtention-123'},
+          'links': {
+            'native': '/obtention/obtention-123/choose',
+            'start_journey': '/api/v1/obtention/obtention-123/journeys/',
+          },
+          'primary_action': {
+            'code': 'start_journey',
+            'label': 'Obtenir',
+            'destination': {
+              'kind': 'native',
+              'path': '/obtention/obtention-123/choose',
+            },
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [item]),
+        onOpen: (_) {},
+      ),
+    );
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-primary-n1')),
+      ).tooltip,
+      'Obtenir',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 center displays authorized Service start, not universal Start', (
     tester,
   ) async {
