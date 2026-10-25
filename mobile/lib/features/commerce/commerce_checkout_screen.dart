@@ -34,7 +34,7 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
   bool _submitting = false;
   bool _attempted = false;
   String? _error;
-  late final String _operationKey = _newKey();
+  String _operationKey = _newKey();
 
   static String _newKey() {
     final random = Random.secure();
@@ -79,10 +79,35 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
     return raw is List ? raw.whereType<String>().toList() : const [];
   }
 
+  String get _interactionId =>
+      'commerce.checkout:${widget.runtime.session?.profileId ?? 'guest'}:'
+      '${widget.journeyId ?? widget.activityId}';
+
+  Future<void> _initialize() async {
+    final store = widget.runtime.interactions;
+    if (widget.runtime.isAuthenticated && store != null) {
+      try {
+        final saved = await store.read(_interactionId);
+        final key = saved['idempotency_key'];
+        if (key is String && key.isNotEmpty) {
+          _operationKey = key;
+          _offerId = saved['offer_id'] as String?;
+          _occurrenceId = saved['occurrence_id'] as String?;
+          _paymentMode = saved['payment_mode'] as String?;
+          _quantity = saved['quantity'] is int ? saved['quantity'] as int : 1;
+          _attempted = true;
+        }
+      } on Object {
+        // The owner GET will still prevent duplicate active orders.
+      }
+    }
+    if (mounted) await _load();
+  }
+
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    unawaited(_initialize());
   }
 
   Future<Map<String, dynamic>?> _refreshOwner() async {
@@ -123,6 +148,10 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
 
   void _openOrder(String id) {
     if (!mounted) return;
+    final store = widget.runtime.interactions;
+    if (store != null) {
+      unawaited(store.clear(_interactionId).catchError((Object _) {}));
+    }
     context.push('/commerce/orders/${Uri.encodeComponent(id)}');
   }
 
@@ -179,6 +208,20 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
       _attempted = true;
       _error = null;
     });
+    final store = widget.runtime.interactions;
+    if (store != null) {
+      try {
+        await store.save(_interactionId, {
+          'idempotency_key': _operationKey,
+          'offer_id': _offerId,
+          'occurrence_id': _occurrenceId,
+          'payment_mode': _paymentMode,
+          'quantity': _quantity,
+        });
+      } on Object {
+        // The server still guarantees idempotence on this Journey/Activity.
+      }
+    }
     try {
       final response = await widget.runtime.api!.post(
         _endpoint,
