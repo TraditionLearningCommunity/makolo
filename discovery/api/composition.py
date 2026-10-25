@@ -816,7 +816,7 @@ def _primary_action_for_projection(projection: dict) -> dict:
         and isinstance(web, str)
         and web.startswith("/")
         and not web.startswith("//")
-        and "\\\\" not in web
+        and chr(92) not in web
         and not any(part == ".." for part in web.split("/"))
         and "?" not in web
         and "#" not in web
