@@ -530,11 +530,71 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return native;
   }
 
+  Map<String, dynamic>? get _serverPrimaryAction {
+    final value = item.engagement?['primary_action'];
+    if (value is! Map) return null;
+    return Map<String, dynamic>.from(value);
+  }
+
+  String? get _primaryNativePath {
+    final action = _serverPrimaryAction;
+    final destination = action?['destination'];
+    if (destination is! Map || destination['kind'] != 'native') return null;
+    final path = destination['path'];
+    if (path is! String || !path.startsWith('/') ||
+        path.contains('?') || path.contains('#') || path.contains('..')) {
+      return null;
+    }
+    final code = action?['code'];
+    // The owner-verified contract selects the action. Restrict navigation to
+    // the two native routes supported by this client.
+    if (code == 'start' && _canStartService) {
+      final service = item.engagement!['resource'] as Map;
+      return path == '/services/${service['id']}/start' ? path : null;
+    }
+    if (code == 'inspect_offers' && path == _nativeTicketChoices) {
+      return path;
+    }
+    return null;
+  }
+
+  String get _centralActionLabel {
+    final action = _serverPrimaryAction;
+    if (action == null) {
+      return _canStartService
+          ? 'Commencer'
+          : _nativeTicketChoices != null
+              ? 'Voir les billets'
+              : 'Détails';
+    }
+    if (_primaryNativePath == null) return 'Détails';
+    final label = action['label'];
+    return label is String && label.trim().isNotEmpty
+        ? label.trim()
+        : 'Continuer';
+  }
+
+  IconData get _centralActionIcon {
+    if (_primaryNativePath == null) {
+      return _serverPrimaryAction == null && _canStartService
+          ? Icons.play_circle_outline_rounded
+          : _serverPrimaryAction == null && _nativeTicketChoices != null
+              ? Icons.confirmation_number_outlined
+              : Icons.arrow_forward_rounded;
+    }
+    return _serverPrimaryAction?['code'] == 'start'
+        ? Icons.play_circle_outline_rounded
+        : Icons.confirmation_number_outlined;
+  }
+
   void _centralAction(BuildContext context) {
-    if (_canStartService) {
+    final path = _primaryNativePath;
+    if (path != null) {
+      context.push(path);
+    } else if (_serverPrimaryAction == null && _canStartService) {
       final service = item.engagement!['resource'] as Map;
       context.push('/services/${service['id']}/start');
-    } else if (_nativeTicketChoices != null) {
+    } else if (_serverPrimaryAction == null && _nativeTicketChoices != null) {
       context.push(_nativeTicketChoices!);
     } else {
       widget.onOpen();
@@ -940,18 +1000,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     child: IconButton(
                       key: const Key('discover-primary-n1'),
                       onPressed: () => _centralAction(context),
-                      tooltip: _canStartService
-                          ? 'Commencer'
-                          : _nativeTicketChoices != null
-                          ? 'Voir les billets'
-                          : 'Consulter dans Makolo',
-                      icon: Icon(
-                        _canStartService
-                            ? Icons.play_circle_outline_rounded
-                            : _nativeTicketChoices != null
-                            ? Icons.confirmation_number_outlined
-                            : Icons.arrow_forward_rounded,
-                      ),
+                      tooltip: _centralActionLabel,
+                      icon: Icon(_centralActionIcon),
                     ),
                   ),
                   Expanded(
