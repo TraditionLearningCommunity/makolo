@@ -33,7 +33,32 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   bool _attempted = false;
   String? _error;
   Map<String, dynamic>? _requirements;
-  late final String _operationKey = _newOperationKey();
+  String _operationKey = _newOperationKey();
+
+  String get _interactionId =>
+      'services.start:${widget.runtime.session?.profileId ?? 'guest'}:'
+      '${widget.serviceId}';
+
+  Future<void> _initialize() async {
+    if (widget.runtime.isAuthenticated &&
+        widget.runtime.interactions != null) {
+      try {
+        final previous = await widget.runtime.interactions!.read(_interactionId);
+        final key = previous['idempotency_key'];
+        if (key is String && key.isNotEmpty) {
+          _operationKey = key;
+          _objective.text = previous['objective'] is String
+              ? previous['objective'] as String : '';
+          _selectedOpportunity = previous['opportunity'] as String?;
+          _attempted = true;
+        }
+      } on Object {
+        // Idempotence is still enforced by the owner when a retry is possible.
+      }
+    }
+    if (mounted) await _prevalidate();
+  }
+
 
   static String _newOperationKey() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -44,7 +69,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_prevalidate());
+    unawaited(_initialize());
   }
 
   @override
@@ -141,6 +166,14 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       _attempted = true;
     });
     try {
+      final store = widget.runtime.interactions;
+      if (store != null) {
+        await store.save(_interactionId, {
+          'idempotency_key': _operationKey,
+          'objective': _objective.text.trim(),
+          'opportunity': _selectedOpportunity,
+        });
+      }
       final api = widget.runtime.api;
       if (api == null) throw StateError('Session unavailable');
       final response = await api.post(
@@ -159,6 +192,10 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
         throw const FormatException('Service start response invalid');
       }
       if (!mounted) return;
+      final store = widget.runtime.interactions;
+      if (store != null) {
+        unawaited(store.clear(_interactionId).catchError((Object _) {}));
+      }
       context.push('/journeys/${journey['id']}');
     } on Object {
       if (!mounted) return;
@@ -211,7 +248,7 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                   labelText: 'Rechercher une Opportunity',
                   suffixIcon: IconButton(
                     tooltip: 'Rechercher',
-                    onPressed: _searchingOpportunities
+                    onPressed: _searchingOpportunities || _attempted
                         ? null
                         : _searchOpportunities,
                     icon: const Icon(Icons.search),
@@ -228,6 +265,14 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                       : 'Opportunity (facultatif)',
                 ),
                 items: [
+                  if (_selectedOpportunity != null &&
+                      !_opportunities.any(
+                        (row) => row['id'] == _selectedOpportunity,
+                      ))
+                    DropdownMenuItem<String>(
+                      value: _selectedOpportunity,
+                      child: const Text('Choix précédent'),
+                    ),
                   if (!needsOpportunity)
                     const DropdownMenuItem<String>(
                       value: '',
@@ -257,7 +302,9 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                   ? null
                   : _start,
               icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(_submitting ? 'Démarrage…' : 'Commencer'),
+              label: Text(_submitting
+                  ? 'Démarrage…'
+                  : _attempted ? 'Reprendre la demande' : 'Commencer'),
             ),
           ],
           if (_error != null) ...[
