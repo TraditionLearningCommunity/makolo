@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -25,6 +26,49 @@ class _DiscoveryTicketOrderScreenState
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _order;
+  Map<String, dynamic>? _payment;
+  bool _sandboxAvailable = false;
+  bool _paying = false;
+  String? _paymentError;
+  final String _paymentKey = _newPaymentKey();
+
+  static String _newPaymentKey() {
+    final random = Random.secure();
+    return List.generate(32, (_) => random.nextInt(16).toRadixString(16)).join();
+  }
+
+  Future<void> _paySandbox() async {
+    if (_paying || !_sandboxAvailable || _order == null) return;
+    setState(() { _paying = true; _paymentError = null; });
+    try {
+      final api = widget.runtime.api!;
+      var payment = _payment;
+      if (payment == null) {
+        final response = await api.post('api/v1/payments/payments/', body: {
+          'order_id': widget.orderId,
+          'provider': 'sandbox',
+          'method': 'card',
+          'idempotency_key': _paymentKey,
+        });
+        payment = response.jsonObject();
+        if (payment['id'] is! String) throw const FormatException('Payment identity missing');
+        _payment = payment;
+      }
+      if (payment['status'] != 'succeeded') {
+        final id = Uri.encodeComponent(payment['id'] as String);
+        final response = await api.post('api/v1/payments/payments/$id/sandbox-complete/');
+        payment = response.jsonObject();
+        _payment = payment;
+      }
+      if (!mounted) return;
+      if (payment['status'] != 'succeeded') setState(() => _paymentError = 'Paiement à vérifier.');
+      await _load();
+    } on Object {
+      if (mounted) setState(() => _paymentError = 'Paiement non confirmé. Réessayer.');
+    } finally {
+      if (mounted) setState(() => _paying = false);
+    }
+  }
 
   @override
   void initState() {
@@ -42,12 +86,20 @@ class _DiscoveryTicketOrderScreenState
         'api/v1/tickets/orders/${Uri.encodeComponent(widget.orderId)}/',
       );
       final order = response.jsonObject();
+      var sandbox = false;
+      try {
+        final config = await widget.runtime.api!.get('api/v1/payments/configuration/');
+        sandbox = config.jsonObject()['sandbox_enabled'] == true;
+      } on Object {
+        // Failed configuration cannot enable sandbox.
+      }
       if (order['id'] != widget.orderId) {
         throw const FormatException('Order identity mismatch');
       }
       if (!mounted) return;
       setState(() {
         _order = order;
+        _sandboxAvailable = sandbox;
         _loading = false;
       });
     } on Object {
@@ -95,10 +147,20 @@ class _DiscoveryTicketOrderScreenState
               'Montant : ${order['total_amount'] ?? ''} ${order['currency'] ?? ''}',
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Une commande créée ne signifie pas qu’un paiement ou '
-              'un droit d’accès est confirmé. Son état est vérifié sur Makolo.',
-            ),
+            if (_sandboxAvailable &&
+                !{'paid', 'confirmed', 'cancelled', 'expired'}
+                    .contains(order['status']?.toString().toLowerCase())) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _paying ? null : _paySandbox,
+                icon: const Icon(Icons.credit_card_rounded),
+                label: Text(_paying ? 'Paiement en cours…' : 'Payer en sandbox'),
+              ),
+            ],
+            if (_payment != null)
+              Text('Paiement : ${_payment!['status'] ?? 'À vérifier'}'),
+            if (_paymentError != null)
+              Text(_paymentError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
         ],
       ),
