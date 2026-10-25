@@ -10,7 +10,8 @@ from django.utils import timezone
 from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
 from capacity.models import CapacityPool, CapacityReservation
 from commerce.models import CommerceOrder, Offer, OfferStatus, PaymentMode
-from journeys.models import Journey
+from journeys.models import Journey, WorkflowKind
+from journeys.services import create_journey
 from organizations.models import Organization
 from payments.models import Payment, PaymentObligation
 
@@ -88,6 +89,19 @@ class ActivityCheckoutAPITests(TestCase):
         self.assertEqual(conflict.status_code, 409)
         self.assertEqual(Journey.objects.count(), 1)
         self.assertEqual(CommerceOrder.objects.count(), 1)
+
+    def test_direct_checkout_reuses_existing_purchase_draft(self):
+        self.client.force_login(self.user)
+        existing = create_journey(
+            initiated_by=self.user, beneficiary=self.user,
+            activity=self.activity, occurrence=self.occurrence,
+            workflow=WorkflowKind.PURCHASE,
+        )
+        result = self.send()
+        self.assertEqual(result.status_code, 201)
+        order = CommerceOrder.objects.get()
+        self.assertEqual(order.journey_id, existing.pk)
+        self.assertEqual(Journey.objects.count(), 1)
 
     def test_replay_must_preserve_buyer_occurrence_and_quantity(self):
         self.client.force_login(self.user)

@@ -16,7 +16,7 @@ from commerce.selectors import currently_available_offers
 from commerce.services import create_order, confirm_order
 from events.models import Event
 from groups.selectors import eligible_activity_ids_for_profile
-from journeys.models import WorkflowKind
+from journeys.models import Journey, JourneyStatus, WorkflowKind
 from journeys.services import create_journey
 from organizations.models import SpaceLifecycle
 from payments.obligation_services import create_commerce_payment_obligation
@@ -167,11 +167,25 @@ class ActivityCommerceCheckoutAPIView(APIView):
         if matching is None:
             raise ValidationError({"offer_id": "Cette offre n’est plus disponible."})
         try:
-            journey = create_journey(
-                initiated_by=request.user, beneficiary=request.user,
-                activity=activity, occurrence=occurrence,
-                workflow=WorkflowKind.PURCHASE,
+            # An unfinished personal purchase Journey is the same domain
+            # context, not a reason to create a duplicate one.
+            journey = (
+                Journey.objects.select_for_update(of=("self",))
+                .filter(
+                    initiated_by=request.user, beneficiary=request.user,
+                    activity=activity, occurrence=occurrence,
+                    workflow=WorkflowKind.PURCHASE,
+                    status=JourneyStatus.DRAFT,
+                )
+                .order_by("-created_at", "-pk")
+                .first()
             )
+            if journey is None:
+                journey = create_journey(
+                    initiated_by=request.user, beneficiary=request.user,
+                    activity=activity, occurrence=occurrence,
+                    workflow=WorkflowKind.PURCHASE,
+                )
             order = create_order(
                 journey=journey, buyer=request.user,
                 selections=[{"offer": Offer.objects.get(pk=data["offer_id"]),
