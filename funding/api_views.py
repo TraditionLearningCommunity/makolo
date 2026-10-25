@@ -20,7 +20,7 @@ from .api_serializers import (
     FundingCreateSerializer,
     FundingUpdateSerializer,
 )
-from .models import FundingDetails
+from .models import FundingDetails, FundingContribution
 from .selectors import funding_accepts_contributions, funding_progress, public_fundings
 from .services import (
     can_manage_funding,
@@ -269,6 +269,44 @@ class FundingDetailAPIView(APIView):
 
 class FundingContributionAPIView(APIView):
     permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        # Recovery lookup is strictly scoped to the authenticated contributor.
+        # Neither Funding progress nor another contributor reveals this key.
+        funding = get_object_or_404(
+            FundingDetails.objects.select_related("activity"),
+            pk=pk, activity__status=ActivityStatus.PUBLISHED,
+        )
+        if funding.activity.visibility == ActivityVisibility.PRIVATE:
+            raise NotFound()
+        from groups.selectors import eligible_activity_ids_for_profile
+
+        if funding.activity_id not in eligible_activity_ids_for_profile(
+            request.user, [funding.activity_id],
+        ):
+            raise NotFound()
+        reference = (request.query_params.get("client_reference") or "").strip()
+        if not reference or len(reference) > 120:
+            raise ValidationError({"client_reference": "Référence requise."})
+        contribution = (
+            FundingContribution.objects.filter(
+                funding=funding,
+                contributor_profile=request.user,
+                client_reference=reference,
+            ).select_related("payment_obligation").first()
+        )
+        response = Response({
+            "contribution": (
+                {
+                    "id": str(contribution.pk),
+                    "funding_id": str(funding.pk),
+                    "amount": str(contribution.amount),
+                    "payment_obligation_id": str(contribution.payment_obligation_id),
+                } if contribution is not None else None
+            ),
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
 
     def post(self, request, pk):
         funding = get_object_or_404(

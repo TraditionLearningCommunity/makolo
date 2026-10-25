@@ -426,7 +426,7 @@ class ObtentionJourneyCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @staticmethod
-    def _active_for_actor(*, obtention, actor, mode=None, occurrence=None):
+    def _active_for_actor(*, obtention, actor, mode=None, occurrence=None, all_occurrences=False):
         queryset = (
             obtention_journey_queryset()
             .filter(activity_id=obtention.activity_id, beneficiary=actor)
@@ -437,10 +437,11 @@ class ObtentionJourneyCreateAPIView(APIView):
         )
         if mode is not None:
             queryset = queryset.filter(obtention_context__mode__code=mode)
-        if occurrence is not None:
-            queryset = queryset.filter(occurrence=occurrence)
-        else:
-            queryset = queryset.filter(occurrence__isnull=True)
+        if not all_occurrences:
+            if occurrence is not None:
+                queryset = queryset.filter(occurrence=occurrence)
+            else:
+                queryset = queryset.filter(occurrence__isnull=True)
         return queryset.order_by("-created_at", "-pk")
 
     def get(self, request, pk):
@@ -453,6 +454,7 @@ class ObtentionJourneyCreateAPIView(APIView):
             raise NotFound()
         journeys = list(self._active_for_actor(
             obtention=obtention, actor=request.user,
+            all_occurrences=True,
         ).select_related("obtention_context__mode")[:20])
         response = Response({
             "existing_journeys": [
