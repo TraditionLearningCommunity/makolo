@@ -574,6 +574,22 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         return path;
       }
     }
+    if (code == 'start_journey' &&
+        item.family == 'activity' &&
+        item.engagement?['owner'] == 'obtention' &&
+        item.engagement?['state'] == 'owner_api') {
+      final engagement = item.engagement!;
+      final caps = engagement['capabilities'];
+      final resource = engagement['resource'];
+      if (caps is List &&
+          caps.contains('start_journey') &&
+          resource is Map &&
+          resource['kind'] == 'obtention' &&
+          resource['id'] is String &&
+          path == '/obtention/${resource['id']}/choose') {
+        return path;
+      }
+    }
     return null;
   }
 
@@ -584,6 +600,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return switch (_serverPrimaryAction?['code']) {
       'start' => 'Commencer',
       'contribute' => 'Contribuer',
+      'start_journey' => 'Obtenir',
       _ => 'Voir les billets',
     };
   }
@@ -593,6 +610,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return switch (_serverPrimaryAction?['code']) {
       'start' => Icons.play_circle_outline_rounded,
       'contribute' => Icons.volunteer_activism_outlined,
+      'start_journey' => Icons.inventory_2_outlined,
       _ => Icons.confirmation_number_outlined,
     };
   }
