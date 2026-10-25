@@ -77,7 +77,8 @@ GoRouter createMakoloRouter(
   bool isProtectedPath(String path) {
     // These routes are public read-only projections, even when deep-linked.
     // The authenticated router still uses the canonical personal depths.
-    if (path == '/welcome' ||
+    if (path.startsWith('/commerce/activities/') ||
+        path == '/welcome' ||
         path == '/discover' ||
         path == '/discover/map' ||
         path == '/spaces' ||
@@ -300,6 +301,13 @@ GoRouter createMakoloRouter(
             obligationId: state.pathParameters['id']!,
           ),
         ),
+      GoRoute(
+        path: '/commerce/activities/:id/checkout',
+        builder: (context, state) => CommerceCheckoutScreen(
+          runtime: runtime,
+          activityId: state.pathParameters['id']!,
+        ),
+      ),
       if (runtime.isAuthenticated) ...[
         GoRoute(
           path: '/commerce/journeys/:id/checkout',

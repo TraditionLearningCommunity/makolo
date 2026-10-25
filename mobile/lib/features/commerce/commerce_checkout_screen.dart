@@ -6,17 +6,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
 
-/// Checkout of an existing personal Journey through the Commerce owner API.
+/// Commerce checkout for an Activity or its already-existing personal Journey.
 /// The client never computes prices, claims capacity, or creates payment truth.
 class CommerceCheckoutScreen extends StatefulWidget {
   const CommerceCheckoutScreen({
     super.key,
     required this.runtime,
-    required this.journeyId,
-  });
+    this.journeyId,
+    this.activityId,
+  }) : assert((journeyId == null) != (activityId == null));
 
   final AppRuntime runtime;
-  final String journeyId;
+  final String? journeyId;
+  final String? activityId;
 
   @override
   State<CommerceCheckoutScreen> createState() => _CommerceCheckoutScreenState();
@@ -25,6 +27,7 @@ class CommerceCheckoutScreen extends StatefulWidget {
 class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
   Map<String, dynamic>? _checkout;
   String? _offerId;
+  String? _occurrenceId;
   String? _paymentMode;
   int _quantity = 1;
   bool _loading = true;
@@ -41,8 +44,16 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
     ).join();
   }
 
-  String get _endpoint =>
-      'api/v1/commerce/journeys/${Uri.encodeComponent(widget.journeyId)}/checkout/';
+  String get _endpoint => widget.journeyId != null
+      ? 'api/v1/commerce/journeys/${Uri.encodeComponent(widget.journeyId!)}/checkout/'
+      : 'api/v1/commerce/activities/${Uri.encodeComponent(widget.activityId!)}/checkout/';
+
+  String _choiceId(Map<String, dynamic> row) =>
+      '${row['id']}|${row['occurrence_id'] ?? ''}';
+
+  String? get _selectedChoice => _offerId == null
+      ? null
+      : '$_offerId|${_occurrenceId ?? ''}';
 
   List<Map<String, dynamic>> get _offers {
     final raw = _checkout?['offers'];
@@ -55,7 +66,10 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
 
   Map<String, dynamic>? get _selected {
     for (final offer in _offers) {
-      if (offer['id'] == _offerId) return offer;
+      if (offer['id'] == _offerId &&
+          offer['occurrence_id'] == _occurrenceId) {
+        return offer;
+      }
     }
     return null;
   }
@@ -74,16 +88,31 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
   Future<Map<String, dynamic>?> _refreshOwner() async {
     final api = widget.runtime.api;
     if (api == null) throw StateError('Session unavailable');
-    final result = (await api.get(_endpoint)).jsonObject();
-    if (result['journey_id'] != widget.journeyId) {
-      throw const FormatException('Commerce Journey identity mismatch');
+    final response = widget.runtime.isAuthenticated
+        ? await api.get(_endpoint)
+        : await api.publicGet(_endpoint);
+    final result = response.jsonObject();
+    if (widget.journeyId != null) {
+      if (result['journey_id'] != widget.journeyId) {
+        throw const FormatException('Commerce Journey identity mismatch');
+      }
+    } else {
+      final activity = result['activity'];
+      if (activity is! Map || activity['id'] != widget.activityId) {
+        throw const FormatException('Commerce Activity identity mismatch');
+      }
     }
     if (!mounted) return null;
     setState(() {
       _checkout = result;
       final offers = _offers;
-      if (_offerId == null || !offers.any((row) => row['id'] == _offerId)) {
+      if (_offerId == null ||
+          !offers.any((row) =>
+              row['id'] == _offerId && row['occurrence_id'] == _occurrenceId)) {
         _offerId = offers.isEmpty ? null : offers.first['id'] as String?;
+        _occurrenceId = offers.isEmpty
+            ? null
+            : offers.first['occurrence_id'] as String?;
         final choice = _selected;
         _paymentMode = choice?['default_payment_mode'] as String?;
         _quantity = (choice?['min_quantity'] as int?) ?? 1;
@@ -115,15 +144,18 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Impossible de vérifier les offres pour cette démarche.';
+        _error = 'Impossible de vérifier les offres disponibles.';
       });
     }
   }
 
-  void _chooseOffer(String? offerId) {
-    if (_attempted || offerId == null) return;
+  void _chooseOffer(String? choiceId) {
+    if (_attempted || choiceId == null) return;
+    final choice = _offers.where((row) => _choiceId(row) == choiceId);
+    if (choice.isEmpty) return;
     setState(() {
-      _offerId = offerId;
+      _offerId = choice.first['id'] as String?;
+      _occurrenceId = choice.first['occurrence_id'] as String?;
       _paymentMode = _selected?['default_payment_mode'] as String?;
       _quantity = (_selected?['min_quantity'] as int?) ?? 1;
     });
@@ -131,6 +163,15 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
 
   Future<void> _createOrder() async {
     if (_loading || _submitting || _offerId == null || _paymentMode == null) {
+      return;
+    }
+    if (!widget.runtime.isAuthenticated) {
+      widget.runtime.recovery.requireAuthentication(
+        widget.journeyId != null
+            ? '/commerce/journeys/${widget.journeyId}/checkout'
+            : '/commerce/activities/${widget.activityId}/checkout',
+      );
+      context.push('/login');
       return;
     }
     setState(() {
@@ -143,6 +184,7 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
         _endpoint,
         body: {
           'offer_id': _offerId,
+          if (_occurrenceId != null) 'occurrence_id': _occurrenceId,
           'quantity': _quantity,
           'payment_mode': _paymentMode,
           'idempotency_key': _operationKey,
@@ -212,17 +254,19 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
             Text('Offres disponibles', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             RadioGroup<String>(
-              groupValue: _offerId,
+              groupValue: _selectedChoice,
               onChanged: _attempted ? null : _chooseOffer,
               child: Column(
                 children: [
                   for (final option in _offers)
                     RadioListTile<String>(
-                      value: option['id'] as String,
+                      value: _choiceId(option),
                       title: Text(option['label']?.toString() ?? 'Offre'),
-                      subtitle: Text(
-                        '${option['unit_price']} ${option['currency']}'
-                      ),
+                      subtitle: Text([
+                        if ((option['occurrence_label'] ?? '').toString().isNotEmpty)
+                          option['occurrence_label'].toString(),
+                        '${option['unit_price']} ${option['currency']}',
+                      ].join(' · ')),
                     ),
                 ],
               ),
@@ -278,9 +322,11 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
                 icon: const Icon(Icons.shopping_bag_outlined),
                 label: Text(_submitting
                     ? 'Vérification…'
-                    : _attempted
-                        ? 'Revérifier la commande'
-                        : 'Créer la commande'),
+                    : !widget.runtime.isAuthenticated
+                        ? 'Se connecter pour continuer'
+                        : _attempted
+                            ? 'Revérifier la commande'
+                            : 'Créer la commande'),
               ),
             ],
           ],

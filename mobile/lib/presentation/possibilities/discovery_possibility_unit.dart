@@ -550,13 +550,19 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     }
     final code = action?['code'];
     // The owner-verified contract selects the action. Restrict navigation to
-    // the two native routes supported by this client.
+    // the owner-backed native routes supported by this client.
     if (item.engagement?['state'] == 'owner_api' &&
         item.engagement?['owner'] == 'commerce') {
       final caps = item.engagement?['capabilities'];
       final resource = item.engagement?['resource'];
       if (caps is List && resource is Map && resource['id'] is String) {
         final id = resource['id'] as String;
+        if (code == 'inspect_offers' &&
+            caps.contains('inspect_offers') &&
+            resource['kind'] == 'activity' &&
+            path == '/commerce/activities/$id/checkout') {
+          return path;
+        }
         if (code == 'checkout' &&
             caps.contains('checkout') &&
             resource['kind'] == 'journey' &&
@@ -634,6 +640,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return switch (_serverPrimaryAction?['code']) {
       'start' => 'Commencer',
       'checkout' => 'Choisir une offre',
+      'inspect_offers' => 'Choisir une offre',
       'resume_order' => 'Ma commande',
       'continue' => 'Continuer',
       'contribute' => 'Contribuer',
@@ -647,6 +654,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return switch (_serverPrimaryAction?['code']) {
       'start' => Icons.play_circle_outline_rounded,
       'checkout' => Icons.shopping_bag_outlined,
+      'inspect_offers' => item.engagement?['owner'] == 'commerce'
+          ? Icons.shopping_bag_outlined
+          : Icons.confirmation_number_outlined,
       'resume_order' => Icons.receipt_long_outlined,
       'continue' => Icons.arrow_forward_rounded,
       'contribute' => Icons.volunteer_activism_outlined,
