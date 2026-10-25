@@ -75,7 +75,7 @@ class ActivityCheckoutAPITests(TestCase):
         self.client.force_login(self.user)
         first = self.send()
         self.assertEqual(first.status_code, 201)
-        self.assertEqual(first.json()["status"], "pending")
+        self.assertEqual(first.json()["status"], "confirmed")
         self.assertIsNone(first.json()["payment_obligation_id"])
         second = self.send()
         self.assertEqual(second.status_code, 200)

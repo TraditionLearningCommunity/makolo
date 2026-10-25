@@ -74,7 +74,7 @@ class PersonalCommerceCheckoutAPITests(TestCase):
         self.assertEqual(len(listing.json()["offers"]), 1)
         first = self.post()
         self.assertEqual(first.status_code, 201)
-        self.assertEqual(first.json()["status"], "pending")
+        self.assertEqual(first.json()["status"], "confirmed")
         self.assertEqual(first.json()["total"], "0.00")
         self.assertIsNone(first.json()["payment_obligation_id"])
         repeated = self.post()

@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 from activities.models import ActivityStatus, ActivityVisibility
 from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, PaymentMode
 from commerce.selectors import currently_available_offers
-from commerce.services import create_order
+from commerce.services import create_order, confirm_order
 from groups.community_services import profile_is_eligible_for_activity
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from payments.models import PaymentObligation
@@ -75,18 +75,38 @@ def _checkout_offers(journey):
 
 
 def _allowed_to_checkout(actor, journey):
+    allowed_states = {
+        WorkflowKind.PURCHASE: {
+            JourneyStatus.DRAFT, JourneyStatus.PENDING_PAYMENT,
+        },
+        WorkflowKind.ORDER_APPROVAL: {
+            JourneyStatus.APPROVED, JourneyStatus.PENDING_PAYMENT,
+        },
+        WorkflowKind.RESERVATION: {
+            JourneyStatus.DRAFT, JourneyStatus.SUBMITTED, JourneyStatus.APPROVED,
+        },
+    }
     if (
-        journey.workflow not in ALLOWED_WORKFLOWS
-        or journey.status in {
-            JourneyStatus.FULFILLED, JourneyStatus.REJECTED,
-            JourneyStatus.CANCELLED, JourneyStatus.EXPIRED,
-        }
+        journey.status not in allowed_states.get(journey.workflow, set())
         or journey.activity.status != ActivityStatus.PUBLISHED
         or journey.activity.visibility != ActivityVisibility.PUBLIC
         or not profile_is_eligible_for_activity(actor, journey.activity)
     ):
         return False
     return True
+
+
+def _journey_offer_modes(journey, offer):
+    modes = list(offer.allowed_payment_modes)
+    if journey.workflow == WorkflowKind.PURCHASE:
+        return [mode for mode in modes if mode != PaymentMode.AFTER_APPROVAL]
+    if journey.workflow == WorkflowKind.ORDER_APPROVAL:
+        return [mode for mode in modes if mode != PaymentMode.UPFRONT]
+    # Reservation Journey transitions do not support generic upfront payment.
+    return [
+        mode for mode in modes
+        if mode not in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL}
+    ]
 
 
 def personal_commerce_handoffs(activity_ids, *, actor):
@@ -124,7 +144,11 @@ def personal_commerce_handoffs(activity_ids, *, actor):
         elif (
             journey.workflow in ALLOWED_WORKFLOWS
             and _allowed_to_checkout(actor, journey)
-            and any(offer.is_currently_available() for offer in _checkout_offers(journey))
+            and any(
+                offer.is_currently_available()
+                and bool(_journey_offer_modes(journey, offer))
+                for offer in _checkout_offers(journey)
+            )
         ):
             result[activity_id] = {
                 "state": "owner_api",
@@ -162,6 +186,9 @@ class PersonalCommerceCheckoutAPIView(APIView):
             for offer in _checkout_offers(journey):
                 if not offer.is_currently_available():
                     continue
+                modes = _journey_offer_modes(journey, offer)
+                if not modes:
+                    continue
                 offers.append({
                     "id": str(offer.pk),
                     "label": offer.name,
@@ -170,8 +197,10 @@ class PersonalCommerceCheckoutAPIView(APIView):
                     "currency": offer.currency,
                     "min_quantity": offer.min_quantity,
                     "max_quantity": offer.max_quantity,
-                    "payment_modes": list(offer.allowed_payment_modes),
-                    "default_payment_mode": offer.payment_mode,
+                    "payment_modes": modes,
+                    "default_payment_mode": (
+                        offer.payment_mode if offer.payment_mode in modes else modes[0]
+                    ),
                     "occurrence_id": str(offer.occurrence_id) if offer.occurrence_id else None,
                 })
         response = Response({
@@ -220,7 +249,10 @@ class PersonalCommerceCheckoutAPIView(APIView):
             return response
 
         offer = get_object_or_404(_checkout_offers(journey), pk=data["offer_id"])
-        if not offer.is_currently_available() or not offer.allows_payment_mode(data["payment_mode"]):
+        if (
+            not offer.is_currently_available()
+            or data["payment_mode"] not in _journey_offer_modes(journey, offer)
+        ):
             raise ValidationError({"offer_id": "Cette offre n’est plus disponible dans ces conditions."})
         try:
             order = create_order(
@@ -237,6 +269,8 @@ class PersonalCommerceCheckoutAPIView(APIView):
                 and order.payment_mode in {PaymentMode.UPFRONT, PaymentMode.AFTER_APPROVAL}
             ):
                 create_commerce_payment_obligation(commerce_order=order, actor=request.user)
+            if order.total == 0 and order.payment_mode == PaymentMode.NONE and journey.workflow == WorkflowKind.PURCHASE:
+                confirm_order(order=order, actor=request.user)
         except DomainValidationError as exc:
             raise ValidationError({"detail": exc.messages}) from exc
         response = Response(_order_payload(order), status=status.HTTP_201_CREATED)

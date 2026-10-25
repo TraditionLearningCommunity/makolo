@@ -13,7 +13,7 @@ from accounts.models import UserProfile
 from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
 from commerce.models import CommerceOrder, Offer, PaymentMode
 from commerce.selectors import currently_available_offers
-from commerce.services import create_order
+from commerce.services import create_order, confirm_order
 from events.models import Event
 from groups.selectors import eligible_activity_ids_for_profile
 from journeys.models import WorkflowKind
@@ -181,6 +181,8 @@ class ActivityCommerceCheckoutAPIView(APIView):
             )
             if order.total > 0 and order.payment_mode == PaymentMode.UPFRONT:
                 create_commerce_payment_obligation(commerce_order=order, actor=request.user)
+            if order.total == 0 and order.payment_mode == PaymentMode.NONE:
+                confirm_order(order=order, actor=request.user)
         except DomainValidationError as exc:
             raise ValidationError({"detail": exc.messages}) from exc
         response = Response(_order_payload(order), status=status.HTTP_201_CREATED)
