@@ -1,0 +1,69 @@
+from django.test import SimpleTestCase
+
+from discovery.api.composition import _primary_action_for_projection
+
+
+class PersonalDiscoveryPrimaryActionTests(SimpleTestCase):
+    def _projection(self, engagement):
+        return {
+            "links": {"detail": "/api/v1/discovery/items/activity/known/"},
+            "engagement": engagement,
+        }
+
+    def test_commerce_checkout_uses_verified_journey(self):
+        engagement = {
+            "owner": "commerce", "state": "owner_api",
+            "capabilities": ["checkout"],
+            "resource": {"kind": "journey", "id": "journey-id"},
+            "links": {"checkout": "/api/v1/commerce/journeys/journey-id/checkout/",
+                      "native": "/commerce/journeys/journey-id/checkout"},
+        }
+        action = _primary_action_for_projection(self._projection(engagement))
+        self.assertEqual(action["code"], "checkout")
+        self.assertEqual(action["destination"]["path"],
+                         "/commerce/journeys/journey-id/checkout")
+
+    def test_existing_order_takes_priority_over_new_checkout(self):
+        engagement = {
+            "owner": "commerce", "state": "owner_api",
+            "capabilities": ["resume_order"],
+            "resource": {"kind": "commerce_order", "id": "order-id"},
+            "links": {"native": "/commerce/orders/order-id"},
+        }
+        self.assertEqual(
+            _primary_action_for_projection(self._projection(engagement))["code"],
+            "resume_order",
+        )
+
+    def test_existing_journey_can_continue(self):
+        engagement = {
+            "owner": "journeys", "state": "owner_api",
+            "capabilities": ["continue"],
+            "resource": {"kind": "journey", "id": "journey-id"},
+            "links": {"native": "/journeys/journey-id"},
+        }
+        self.assertEqual(
+            _primary_action_for_projection(self._projection(engagement))["code"],
+            "continue",
+        )
+
+    def test_untrusted_or_unavailable_owner_action_falls_back_to_detail(self):
+        for engagement in [
+            {
+                "owner": "commerce", "state": "owner_contract",
+                "capabilities": ["checkout"],
+                "resource": {"kind": "journey", "id": "journey-id"},
+                "links": {"native": "/commerce/journeys/journey-id/checkout"},
+            },
+            {
+                "owner": "commerce", "state": "owner_api",
+                "capabilities": [],
+                "resource": {"kind": "commerce_order", "id": "order-id"},
+                "links": {"native": "/commerce/orders/order-id"},
+            },
+        ]:
+            with self.subTest(engagement=engagement):
+                self.assertEqual(
+                    _primary_action_for_projection(self._projection(engagement))["code"],
+                    "detail",
+                )
