@@ -1053,7 +1053,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   const SizedBox(height: MakoloSpacing.xs),
                   for (final label in _variantTimingLabels)
                     Padding(
-                      key: const Key('discover-n2-variant-date'),
+                      key: ValueKey('discover-n2-variant-date-$label'),
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
                       child: Text(label, style: theme.textTheme.bodyMedium),
                     ),
