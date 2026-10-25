@@ -11,11 +11,24 @@ import 'discovery_save_icon.dart';
 
 export 'discovery_save_icon.dart' show DiscoveryOrbitIcon;
 
-/// Route availability only, never an authorization or mutation decision.
-/// These owner screens support public browsing and handle authentication
-/// themselves when a user actually submits a protected operation.
+/// This is route availability, not authorization. The owner checks any
+/// protected mutation when it is actually requested.
 bool discoveryOwnerDepthBrowsableByGuest(String path) {
-  return RegExp(r'^/events/[^/]+/tickets
+  final parts = path.split('/');
+  if (parts.isEmpty || parts.first.isNotEmpty) return false;
+  if (parts.length == 4) {
+    return parts[2].isNotEmpty &&
+        ((parts[1] == 'events' && parts[3] == 'tickets') ||
+            (parts[1] == 'funding' && parts[3] == 'contribute') ||
+            (parts[1] == 'obtention' && parts[3] == 'choose'));
+  }
+  return parts.length == 5 &&
+      parts[1] == 'commerce' &&
+      parts[2] == 'activities' &&
+      parts[3].isNotEmpty &&
+      parts[4] == 'checkout';
+}
+
 /// The existing Discovery projection rendered as one N1 unit.
 /// Facts and actions remain owned by the server; this widget only composes.
 class DiscoveryPossibilityUnit extends StatefulWidget {
