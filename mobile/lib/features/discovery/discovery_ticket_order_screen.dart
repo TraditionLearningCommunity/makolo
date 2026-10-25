@@ -39,32 +39,46 @@ class _DiscoveryTicketOrderScreenState
 
   Future<void> _paySandbox() async {
     if (_paying || !_sandboxAvailable || _order == null) return;
-    setState(() { _paying = true; _paymentError = null; });
+    setState(() {
+      _paying = true;
+      _paymentError = null;
+    });
     try {
       final api = widget.runtime.api!;
       var payment = _payment;
       if (payment == null) {
-        final response = await api.post('api/v1/payments/payments/', body: {
+        final response = await api.post(
+          'api/v1/payments/payments/',
+          body: {
           'order_id': widget.orderId,
           'provider': 'sandbox',
           'method': 'card',
-          'idempotency_key': _paymentKey,
-        });
+            'idempotency_key': _paymentKey,
+          },
+        );
         payment = response.jsonObject();
-        if (payment['id'] is! String) throw const FormatException('Payment identity missing');
+        if (payment['id'] is! String) {
+          throw const FormatException('Payment identity missing');
+        }
         _payment = payment;
       }
       if (payment['status'] != 'succeeded') {
         final id = Uri.encodeComponent(payment['id'] as String);
-        final response = await api.post('api/v1/payments/payments/$id/sandbox-complete/');
+        final response = await api.post(
+          'api/v1/payments/payments/$id/sandbox-complete/',
+        );
         payment = response.jsonObject();
         _payment = payment;
       }
       if (!mounted) return;
-      if (payment['status'] != 'succeeded') setState(() => _paymentError = 'Paiement à vérifier.');
+      if (payment['status'] != 'succeeded') {
+        setState(() => _paymentError = 'Paiement à vérifier.');
+      }
       await _load();
     } on Object {
-      if (mounted) setState(() => _paymentError = 'Paiement non confirmé. Réessayer.');
+      if (mounted) {
+        setState(() => _paymentError = 'Paiement non confirmé. Réessayer.');
+      }
     } finally {
       if (mounted) setState(() => _paying = false);
     }
@@ -88,7 +102,9 @@ class _DiscoveryTicketOrderScreenState
       final order = response.jsonObject();
       var sandbox = false;
       try {
-        final config = await widget.runtime.api!.get('api/v1/payments/configuration/');
+        final config = await widget.runtime.api!.get(
+          'api/v1/payments/configuration/',
+        );
         sandbox = config.jsonObject()['sandbox_enabled'] == true;
       } on Object {
         // Failed configuration cannot enable sandbox.
@@ -148,6 +164,7 @@ class _DiscoveryTicketOrderScreenState
             ),
             const SizedBox(height: 12),
             if (_sandboxAvailable &&
+                _payment?['status'] != 'succeeded' &&
                 !{'paid', 'confirmed', 'cancelled', 'expired'}
                     .contains(order['status']?.toString().toLowerCase())) ...[
               const SizedBox(height: 16),
@@ -160,7 +177,10 @@ class _DiscoveryTicketOrderScreenState
             if (_payment != null)
               Text('Paiement : ${_payment!['status'] ?? 'À vérifier'}'),
             if (_paymentError != null)
-              Text(_paymentError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _paymentError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
           ],
         ],
       ),
