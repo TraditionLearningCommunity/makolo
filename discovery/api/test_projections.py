@@ -374,6 +374,28 @@ class DiscoveryPrimaryActionHandoffTests(SimpleTestCase):
             {"kind": "native", "path": f"/funding/{funding_id}/contribute"},
         )
 
+    def test_obtention_action_uses_existing_native_journey_owner(self):
+        obtention_id = str(uuid.uuid4())
+        projection = {
+            "links": {"detail": "/api/v1/discovery/items/activity/example/"},
+            "engagement": {
+                "owner": "obtention",
+                "state": "owner_api",
+                "capabilities": ["start_journey"],
+                "resource": {"kind": "obtention", "id": obtention_id},
+                "links": {
+                    "native": f"/obtention/{obtention_id}/choose",
+                    "start_journey": f"/api/v1/obtention/{obtention_id}/journeys/",
+                },
+            },
+        }
+        action = _primary_action_for_projection(projection)
+        self.assertEqual(action["code"], "start_journey")
+        self.assertEqual(
+            action["destination"],
+            {"kind": "native", "path": f"/obtention/{obtention_id}/choose"},
+        )
+
     def test_mismatched_funding_route_falls_back_to_detail(self):
         projection = {
             "links": {"detail": "/detail/"},
