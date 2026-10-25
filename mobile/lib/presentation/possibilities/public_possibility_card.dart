@@ -13,6 +13,7 @@ class PublicPossibilityCard extends StatelessWidget {
     this.onSave,
     this.shareApi,
     this.onSignIn,
+    this.onNativeAction,
     this.baseUri,
     this.compact = false,
   });
@@ -22,6 +23,7 @@ class PublicPossibilityCard extends StatelessWidget {
   final Future<void> Function()? onSave;
   final MakoloApiClient? shareApi;
   final VoidCallback? onSignIn;
+  final ValueChanged<String>? onNativeAction;
   final Uri? baseUri;
   final bool compact;
 
@@ -33,6 +35,7 @@ class PublicPossibilityCard extends StatelessWidget {
       onSave: onSave,
       shareApi: shareApi,
       onSignIn: onSignIn,
+      onNativeAction: onNativeAction,
       allowSavePrompt: onSave != null,
       baseUri: baseUri,
       compact: compact,
