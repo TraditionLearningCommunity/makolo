@@ -5,6 +5,7 @@ import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/discovery/discovery_mature_view.dart';
 import 'package:makolo_mobile/features/discovery/discovery_selector.dart';
 import 'package:makolo_mobile/features/discovery/discovery_share_sheet.dart';
+import 'package:makolo_mobile/presentation/possibilities/discovery_possibility_unit.dart';
 import 'package:makolo_mobile/platform/maps/map_runtime_config.dart';
 
 import 'support/presentation_harness.dart';
@@ -93,6 +94,127 @@ DiscoveryFieldSelection selection({
 }
 
 void main() {
+  testWidgets('N2 shares media and resources with N1 without a second detail CTA', (
+    tester,
+  ) async {
+    final detailed = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'depth',
+      candidateKey: 'activity:depth',
+      title: 'Voyage présenté',
+      summary: 'Une option réelle.',
+      imageUrl: 'https://example.test/discovery-cover.png',
+      savedState: 'not_saved',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'detail': {
+          'description': 'Départ de Lubumbashi vers Kolwezi. Conditions et '
+              'modalités de transport établies par le propriétaire.',
+        },
+        'resources': [
+          {'title': 'Guide de bord', 'kind': 'text', 'text_content': 'Texte réel'},
+          {'title': 'Guide pratique', 'kind': 'text', 'text_content': 'Annexe'},
+          {'title': 'Règlement', 'kind': 'text', 'text_content': 'Conditions'},
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: SingleChildScrollView(
+        child: DiscoveryPossibilityUnit(
+          item: detailed,
+          detailMode: true,
+          onOpen: () => fail('Already in N2'),
+        ),
+      ),
+    );
+
+    expect(find.text('Voyage présenté'), findsOneWidget);
+    expect(find.byKey(const Key('discover-description-text')), findsOneWidget);
+    expect(find.byKey(const Key('discover-description-expand')), findsNothing);
+    expect(find.byKey(const Key('discover-media-main')), findsOneWidget);
+    expect(find.byKey(const Key('discover-resources-section')), findsOneWidget);
+    expect(find.byKey(const Key('discover-resources-expand')), findsNothing);
+    expect(find.byKey(const Key('discover-primary-n1')), findsNothing);
+    expect(find.byKey(const Key('discover-primary-n2')), findsNothing);
+  });
+
+  testWidgets('N2 owner action reuses the exact native continuation', (
+    tester,
+  ) async {
+    String? resumed;
+    final detailed = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'service-depth',
+      candidateKey: 'service_activity:service-depth',
+      title: 'Service',
+      summary: '',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'owner': 'services',
+          'state': 'owner_api',
+          'resource': {'kind': 'service', 'id': 'service-depth'},
+          'capabilities': ['start'],
+          'presentation': {'capability': 'start', 'enabled': true},
+          'primary_action': {
+            'code': 'start',
+            'label': 'Commencer',
+            'destination': {
+              'kind': 'native',
+              'path': '/services/service-depth/start',
+            },
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryPossibilityUnit(
+        item: detailed,
+        detailMode: true,
+        onOpen: () => fail('Do not fall back to N2'),
+        onNativeAction: (path) => resumed = path,
+      ),
+    );
+
+    final action = find.byKey(const Key('discover-primary-n2'));
+    expect(action, findsOneWidget);
+    expect(find.text('Commencer'), findsOneWidget);
+    await tester.tap(action);
+    await tester.pump();
+    expect(resumed, '/services/service-depth/start');
+    expect(find.byKey(const Key('discover-primary-n1')), findsNothing);
+  });
+
+  testWidgets('guest N2 save intent requests login, not an optimistic save', (
+    tester,
+  ) async {
+    var signInRequests = 0;
+    var saved = false;
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryPossibilityUnit(
+        item: item('guest-depth', 'Séance publique'),
+        detailMode: true,
+        onOpen: () {},
+        allowSavePrompt: true,
+        onSignIn: () => signInRequests++,
+        onSave: () async { saved = true; },
+      ),
+    );
+    await tester.tap(find.byKey(const Key('discover-save-n2')));
+    await tester.pump();
+    expect(signInRequests, 1);
+    expect(saved, isFalse);
+  });
+
   testWidgets('G03 compact renders a natural possibility field', (
     tester,
   ) async {
