@@ -14,6 +14,7 @@ from discovery.card_contract import (
     RepresentationPresentation,
 )
 
+from .composition import _primary_action_for_projection
 from .projections import (
     project_funding_possibility,
     project_occurrence_possibility,
@@ -328,3 +329,53 @@ class PossibilityProjectionContractTests(SimpleTestCase):
         self.assertNotIn("availability_label", keys)
         self.assertNotIn("label", projection["personal_relation"])
         self.assertNotIn("access_credential", keys)
+
+
+class DiscoveryPrimaryActionHandoffTests(SimpleTestCase):
+    def _projection(self, web, capability="reserve", enabled=True):
+        return {
+            "links": {"detail": "/api/v1/discovery/items/activity/example/"},
+            "engagement": {
+                "owner": "activities",
+                "state": "owner_contract",
+                "capabilities": [],
+                "links": {},
+                "presentation": {
+                    "capability": capability,
+                    "label": "Réserver",
+                    "web": web,
+                    "web_enabled": enabled,
+                },
+            },
+        }
+
+    def test_existing_local_owner_web_action_is_exposed(self):
+        action = _primary_action_for_projection(
+            self._projection("/events/existing/reserve/")
+        )
+        self.assertEqual(action["code"], "reserve")
+        self.assertEqual(
+            action["destination"],
+            {"kind": "web", "path": "/events/existing/reserve/"},
+        )
+
+    def test_external_and_unsafe_web_paths_fall_back_to_detail(self):
+        for path in (
+            "https://elsewhere.invalid/payment",
+            "//elsewhere.invalid/checkout",
+            "/path/../checkout/",
+            "/checkout/?token=secret",
+            "/checkout/#fragment",
+            "/checkout/" + chr(92) + "unsafe",
+        ):
+            with self.subTest(path=path):
+                action = _primary_action_for_projection(self._projection(path))
+                self.assertEqual(action["code"], "detail")
+
+    def test_view_only_and_disabled_owner_actions_are_not_upgraded(self):
+        for capability, enabled in (("view", True), ("pay", False)):
+            with self.subTest(capability=capability):
+                action = _primary_action_for_projection(
+                    self._projection("/owner/detail/", capability, enabled)
+                )
+                self.assertEqual(action["destination"]["kind"], "detail")
