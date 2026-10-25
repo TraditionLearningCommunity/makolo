@@ -518,13 +518,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final native = links is Map ? links['native'] : null;
     if (item.family != 'activity' ||
         handoff?['owner'] != 'events' ||
+        handoff?['state'] != 'owner_api' ||
         caps is! List ||
         !caps.contains('inspect_offers') ||
         resource is! Map ||
         resource['kind'] != 'event' ||
         native is! String ||
         !native.startsWith('/events/') ||
-        !native.endsWith('/tickets')) {
+        !native.endsWith('/tickets') ||
+        (resource['slug'] is String &&
+            native != '/events/${resource['slug']}/tickets')) {
       return null;
     }
     return native;
@@ -559,29 +562,17 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   String get _centralActionLabel {
-    final action = _serverPrimaryAction;
-    if (action == null) {
-      return _canStartService
-          ? 'Commencer'
-          : _nativeTicketChoices != null
-              ? 'Voir les billets'
-              : 'Détails';
-    }
-    if (_primaryNativePath == null) return 'Détails';
-    final label = action['label'];
-    return label is String && label.trim().isNotEmpty
-        ? label.trim()
-        : 'Continuer';
+    final path = _primaryNativePath;
+    if (path == null) return 'Détails';
+    final label = _serverPrimaryAction?['label'];
+    if (label is String && label.trim().isNotEmpty) return label.trim();
+    return _serverPrimaryAction?['code'] == 'start'
+        ? 'Commencer'
+        : 'Voir les billets';
   }
 
   IconData get _centralActionIcon {
-    if (_primaryNativePath == null) {
-      return _serverPrimaryAction == null && _canStartService
-          ? Icons.play_circle_outline_rounded
-          : _serverPrimaryAction == null && _nativeTicketChoices != null
-              ? Icons.confirmation_number_outlined
-              : Icons.arrow_forward_rounded;
-    }
+    if (_primaryNativePath == null) return Icons.arrow_forward_rounded;
     return _serverPrimaryAction?['code'] == 'start'
         ? Icons.play_circle_outline_rounded
         : Icons.confirmation_number_outlined;
@@ -591,12 +582,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final path = _primaryNativePath;
     if (path != null) {
       context.push(path);
-    } else if (_serverPrimaryAction == null && _canStartService) {
-      final service = item.engagement!['resource'] as Map;
-      context.push('/services/${service['id']}/start');
-    } else if (_serverPrimaryAction == null && _nativeTicketChoices != null) {
-      context.push(_nativeTicketChoices!);
     } else {
+      // N1 must not synthesize an actionable owner route from legacy fields.
       widget.onOpen();
     }
   }
