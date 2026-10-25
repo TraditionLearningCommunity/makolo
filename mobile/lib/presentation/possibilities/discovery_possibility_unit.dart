@@ -908,33 +908,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     );
   }
 
-  Widget _knowledge(BuildContext context) {
-    final significant = item.assessment
-        .where((fact) {
-          return fact['state'] == 'favorable' ||
-              fact['state'] == 'limiting' ||
-              fact['state'] == 'unknown';
-        })
-        .take(3);
-    if (significant.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final fact in significant)
-          if (fact['label'] is String && (fact['label'] as String).isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-              child: Text(
-                fact['label'] as String,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
