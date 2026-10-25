@@ -20,6 +20,7 @@ import '../features/discovery/discovery_shared_link_screen.dart';
 import '../features/discovery/discovery_event_tickets_screen.dart';
 import '../features/discovery/discovery_ticket_order_screen.dart';
 import '../features/funding/funding_contribution_screen.dart';
+import '../features/obtention/obtention_choose_screen.dart';
 import '../features/payments/payment_obligation_screen.dart';
 import '../features/services/service_start_screen.dart';
 import '../features/guest/public_discovery_map_screen.dart';
@@ -275,6 +276,13 @@ GoRouter createMakoloRouter(
           ),
         ),
       ],
+      GoRoute(
+        path: '/obtention/:id/choose',
+        builder: (context, state) => ObtentionChooseScreen(
+          runtime: runtime,
+          obtentionId: state.pathParameters['id']!,
+        ),
+      ),
       GoRoute(
         path: '/funding/:id/contribute',
         builder: (context, state) => FundingContributionScreen(
