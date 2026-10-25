@@ -930,6 +930,55 @@ void main() {
     expect(find.byType(LoginScreen), findsNothing);
   });
 
+  testWidgets('guest N2 preserves the owner ticket action through login', (
+    tester,
+  ) async {
+    const id = '11111111-1111-4111-8111-111111111111';
+    final recovery = SessionRecoveryController();
+    final client = MockClient((request) async {
+      expect(request.headers.containsKey('Authorization'), isFalse);
+      expect(request.url.path, '/api/v1/discovery/items/activity/$id/');
+      return MockResponse(
+        _mockResponseJson({
+          'data': {
+            'item': {
+              ..._item('Concert public', id),
+              'engagement': {
+                'owner': 'events',
+                'state': 'owner_api',
+                'resource': {'kind': 'event', 'id': id},
+                'capabilities': ['inspect_offers'],
+                'links': {'native': '/events/$id/tickets'},
+                'primary_action': {
+                  'code': 'inspect_offers',
+                  'label': 'Voir les billets',
+                  'destination': {
+                    'kind': 'native',
+                    'path': '/events/$id/tickets',
+                  },
+                },
+              },
+            },
+          },
+        }),
+        200,
+      );
+    });
+    final router = _router(_guestRuntime(recovery, client: client));
+    await _pump(tester, router);
+    router.go('/discover/items/activity/$id');
+    await tester.pumpAndSettle();
+
+    final action = find.byKey(const Key('discover-primary-n2'));
+    expect(action, findsOneWidget);
+    await tester.ensureVisible(action);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    expect(recovery.lastUsefulLocation, '/events/$id/tickets');
+    expect(find.byType(LoginScreen), findsOneWidget);
+  });
+
   testWidgets('public Space directory and details stay anonymous', (
     tester,
   ) async {
