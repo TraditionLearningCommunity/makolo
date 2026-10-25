@@ -20,6 +20,8 @@ import '../features/discovery/discovery_shared_link_screen.dart';
 import '../features/discovery/discovery_event_tickets_screen.dart';
 import '../features/discovery/discovery_ticket_order_screen.dart';
 import '../features/funding/funding_contribution_screen.dart';
+import '../features/commerce/commerce_checkout_screen.dart';
+import '../features/commerce/commerce_order_screen.dart';
 import '../features/obtention/obtention_choose_screen.dart';
 import '../features/payments/payment_obligation_screen.dart';
 import '../features/services/service_start_screen.dart';
@@ -298,6 +300,22 @@ GoRouter createMakoloRouter(
             obligationId: state.pathParameters['id']!,
           ),
         ),
+      if (runtime.isAuthenticated) ...[
+        GoRoute(
+          path: '/commerce/journeys/:id/checkout',
+          builder: (context, state) => CommerceCheckoutScreen(
+            runtime: runtime,
+            journeyId: state.pathParameters['id']!,
+          ),
+        ),
+        GoRoute(
+          path: '/commerce/orders/:id',
+          builder: (context, state) => CommerceOrderScreen(
+            runtime: runtime,
+            orderId: state.pathParameters['id']!,
+          ),
+        ),
+      ],
       GoRoute(
         path: '/events/:slug/tickets',
         builder: (context, state) => DiscoveryEventTicketsScreen(

@@ -551,6 +551,40 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final code = action?['code'];
     // The owner-verified contract selects the action. Restrict navigation to
     // the two native routes supported by this client.
+    if (item.engagement?['state'] == 'owner_api' &&
+        item.engagement?['owner'] == 'commerce') {
+      final caps = item.engagement?['capabilities'];
+      final resource = item.engagement?['resource'];
+      if (caps is List && resource is Map && resource['id'] is String) {
+        final id = resource['id'] as String;
+        if (code == 'checkout' &&
+            caps.contains('checkout') &&
+            resource['kind'] == 'journey' &&
+            path == '/commerce/journeys/$id/checkout') {
+          return path;
+        }
+        if (code == 'resume_order' &&
+            caps.contains('resume_order') &&
+            resource['kind'] == 'commerce_order' &&
+            path == '/commerce/orders/$id') {
+          return path;
+        }
+      }
+    }
+    if (code == 'continue' &&
+        item.engagement?['state'] == 'owner_api' &&
+        item.engagement?['owner'] == 'journeys') {
+      final caps = item.engagement?['capabilities'];
+      final resource = item.engagement?['resource'];
+      if (caps is List &&
+          caps.contains('continue') &&
+          resource is Map &&
+          resource['kind'] == 'journey' &&
+          resource['id'] is String &&
+          path == '/journeys/${resource['id']}') {
+        return path;
+      }
+    }
     if (code == 'start' && _canStartService) {
       final service = item.engagement!['resource'] as Map;
       return path == '/services/${service['id']}/start' ? path : null;
@@ -599,6 +633,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (label is String && label.trim().isNotEmpty) return label.trim();
     return switch (_serverPrimaryAction?['code']) {
       'start' => 'Commencer',
+      'checkout' => 'Choisir une offre',
+      'resume_order' => 'Ma commande',
+      'continue' => 'Continuer',
       'contribute' => 'Contribuer',
       'start_journey' => 'Obtenir',
       _ => 'Voir les billets',
@@ -609,6 +646,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (_primaryNativePath == null) return Icons.arrow_forward_rounded;
     return switch (_serverPrimaryAction?['code']) {
       'start' => Icons.play_circle_outline_rounded,
+      'checkout' => Icons.shopping_bag_outlined,
+      'resume_order' => Icons.receipt_long_outlined,
+      'continue' => Icons.arrow_forward_rounded,
       'contribute' => Icons.volunteer_activism_outlined,
       'start_journey' => Icons.inventory_2_outlined,
       _ => Icons.confirmation_number_outlined,
