@@ -1,3 +1,4 @@
+from .journey_invitation_api import PersonalJourneyInvitationAPIView
 from django.urls import path
 
 from .detail_views import (
@@ -9,6 +10,7 @@ from .detail_views import (
 app_name = "personal-detail-projections"
 
 urlpatterns = [
+    path("journeys/<uuid:pk>/invitation/", PersonalJourneyInvitationAPIView.as_view(), name="journey-invitation"),
     path(
         "journeys/<uuid:pk>/",
         PersonalJourneyDetailAPIView.as_view(),

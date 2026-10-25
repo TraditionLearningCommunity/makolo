@@ -319,6 +319,9 @@ def build_journey_detail(*, journey, readiness, profile, live=None):
         )
     if actionable_form_ids:
         capabilities.append("complete_form")
+    if journey.workflow == WorkflowKind.INVITATION and journey.status == JourneyStatus.SUBMITTED:
+        capabilities.extend(["accept_invitation", "decline_invitation"])
+        links["invitation"] = f"/api/v1/me/journeys/{journey.pk}/invitation/"
 
     return {
         "identity": {
