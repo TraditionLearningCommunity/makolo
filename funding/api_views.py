@@ -280,6 +280,12 @@ class FundingContributionAPIView(APIView):
         )
         if funding.activity.visibility == ActivityVisibility.PRIVATE:
             raise NotFound()
+        from groups.selectors import eligible_activity_ids_for_profile
+
+        if funding.activity_id not in eligible_activity_ids_for_profile(
+            request.user, [funding.activity_id],
+        ):
+            raise NotFound()
 
         serializer = FundingContributionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
