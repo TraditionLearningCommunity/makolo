@@ -72,7 +72,7 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
             ? Map<String, dynamic>.from(
                 obligation['active_payment'] as Map,
               )
-            : _payment;
+            : null;
         _sandboxAvailable = sandbox;
         _loading = false;
       });
@@ -135,8 +135,11 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
         setState(() => _error = 'Paiement à vérifier.');
       }
     } on Object {
-      if (mounted) {
-        setState(() => _error = 'Paiement non confirmé. Réessayer.');
+      // The request may have succeeded while its response was lost.
+      // Resolve the owner state before showing a failure or replaying.
+      await _load();
+      if (mounted && _obligation?['status'] != 'satisfied') {
+        setState(() => _error = 'Paiement à vérifier. Actualisez avant de réessayer.');
       }
     } finally {
       if (mounted) setState(() => _paying = false);

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -76,8 +77,10 @@ class _DiscoveryTicketOrderScreenState
       }
       await _load();
     } on Object {
-      if (mounted) {
-        setState(() => _paymentError = 'Paiement non confirmé. Réessayer.');
+      // Payment initiation may have committed despite a lost response.
+      await _load();
+      if (mounted && _payment?['status'] != 'succeeded') {
+        setState(() => _paymentError = 'Paiement à vérifier. Actualisez avant de réessayer.');
       }
     } finally {
       if (mounted) setState(() => _paying = false);
@@ -112,9 +115,42 @@ class _DiscoveryTicketOrderScreenState
       if (order['id'] != widget.orderId) {
         throw const FormatException('Order identity mismatch');
       }
+      Map<String, dynamic>? currentPayment;
+      final reference = order['reference'];
+      if (reference is String && reference.isNotEmpty) {
+        try {
+          final query = Uri.encodeQueryComponent(reference);
+          final paymentsResponse = await widget.runtime.api!.get(
+            'api/v1/payments/payments/?order=$query',
+          );
+          final decoded = jsonDecode(paymentsResponse.body);
+          final rows = decoded is List
+              ? decoded
+              : decoded is Map ? decoded['results'] : null;
+          if (rows is List) {
+            for (final raw in rows.whereType<Map>()) {
+              final relatedOrder = raw['order'];
+              if (relatedOrder is! Map ||
+                  relatedOrder['id'] != widget.orderId ||
+                  raw['id'] is! String) {
+                continue;
+              }
+              final candidate = Map<String, dynamic>.from(raw);
+              if (currentPayment == null ||
+                  candidate['status'] == 'succeeded') {
+                currentPayment = candidate;
+              }
+              if (candidate['status'] == 'succeeded') break;
+            }
+          }
+        } on Object {
+          // The authorized owner order still remains usable for inspection.
+        }
+      }
       if (!mounted) return;
       setState(() {
         _order = order;
+        _payment = currentPayment;
         _sandboxAvailable = sandbox;
         _loading = false;
       });
