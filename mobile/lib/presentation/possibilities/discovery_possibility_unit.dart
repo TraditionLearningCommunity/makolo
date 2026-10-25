@@ -219,6 +219,40 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return facts;
   }
 
+  /// Only observed Occurrence variants are displayed; the server owns timing.
+  List<String> get _variantTimingLabels {
+    final labels = <String>[];
+    for (final variant in item.variants) {
+      final timing = variant['timing'];
+      if (timing is! Map) continue;
+      final instant = timing['start_at'];
+      final date = instant is String && instant.length >= 16
+          ? instant.substring(0, 10)
+          : timing['start_date'];
+      final time = instant is String && instant.length >= 16
+          ? instant.substring(11, 16)
+          : timing['start_time'];
+      if (date is! String || date.trim().isEmpty) continue;
+      final dateLabel = date.length == 10 && date[4] == '-' && date[7] == '-'
+          ? '${date.substring(8, 10)}/${date.substring(5, 7)}/${date.substring(0, 4)}'
+          : date;
+      final timeLabel = time is String && time.isNotEmpty
+          ? time.substring(0, time.length < 5 ? time.length : 5)
+          : null;
+      final timezone = timing['timezone'];
+      final zone = timezone is String && timezone.trim().isNotEmpty
+          ? timezone.trim()
+          : instant is String && instant.endsWith('Z') ? 'UTC' : null;
+      final label = [
+        dateLabel,
+        if (timeLabel != null) timeLabel,
+        if (zone != null) zone,
+      ].join(' · ');
+      if (!labels.contains(label)) labels.add(label);
+    }
+    return labels.length > 1 ? labels : const [];
+  }
+
   List<Map<String, String?>> get _resourceEntries {
     final entries = <Map<String, String?>>[];
     final resources = item.wire['resources'];
@@ -1010,6 +1044,20 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   const SizedBox(height: MakoloSpacing.sm),
                   _descriptionBody(context),
                 ],
+                if (widget.detailMode && _variantTimingLabels.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.md),
+                  Text(
+                    item.routeLabel == null ? 'Dates proposées' : 'Départs proposés',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: MakoloSpacing.xs),
+                  for (final label in _variantTimingLabels)
+                    Padding(
+                      key: const Key('discover-n2-variant-date'),
+                      padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+                      child: Text(label, style: theme.textTheme.bodyMedium),
+                    ),
+                ],
                 if (_reliableFacts.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   Padding(
@@ -1044,7 +1092,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 children: [
                   Expanded(
                     child: IconButton(
-                      key: Key(widget.detailMode ? 'discover-save-n2' : 'discover-save-n1'),
+                      key: Key(
+                        widget.detailMode ? 'discover-save-n2' : 'discover-save-n1',
+                      ),
                       onPressed:
                           !_saving &&
                               ((widget.onSave != null && canToggle) ||
@@ -1064,13 +1114,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   ),
                   if (!widget.detailMode)
                     Expanded(
-                    child: IconButton(
-                      key: const Key('discover-primary-n1'),
-                      onPressed: () => _centralAction(context),
-                      tooltip: _centralActionLabel,
-                      icon: Icon(_centralActionIcon),
+                      child: IconButton(
+                        key: const Key('discover-primary-n1'),
+                        onPressed: () => _centralAction(context),
+                        tooltip: _centralActionLabel,
+                        icon: Icon(_centralActionIcon),
+                      ),
                     ),
-                  ),
                   Expanded(
                     child: DiscoveryShareControl(
                       item: item,
