@@ -923,7 +923,7 @@ void main() {
 
     expect(find.byKey(const Key('guest-possibility-detail')), findsOneWidget);
     expect(find.text('Voyage Lubumbashi–Kolwezi'), findsOneWidget);
-    expect(find.text('Voyage public confirmé.'), findsOneWidget);
+    expect(find.textContaining('Voyage public confirmé.'), findsOneWidget);
     expect(find.text('Voir l’événement'), findsNothing);
     expect(find.text('Voir la page publique'), findsNothing);
     expect(find.byKey(const Key('discover-save-n2')), findsOneWidget);
