@@ -158,9 +158,9 @@ class _NowScreenState extends State<NowScreen> {
       selection: selection,
       api: widget.api,
       profileId: widget.profileId,
-      refreshErrorMessage: source.lastErrorCode == null
-          ? null
-          : 'Actualisation impossible.',
+      // The shell already signals connectivity; do not repeat it above
+      // previously available Now content.
+      refreshErrorMessage: null,
       onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
       onOpenOwner: (destination) => _openOwner(context, destination),
     );
