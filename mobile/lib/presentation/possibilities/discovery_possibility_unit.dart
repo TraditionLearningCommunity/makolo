@@ -124,6 +124,30 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       final normalizedValue = value?.trim() ?? '';
       final normalizedLabel = label.trim().toLowerCase();
       final normalizedCode = canonicalCode(code);
+      final lowercaseValue = normalizedValue.toLowerCase();
+      // Missing/uncertain information is not a practical fact.
+      const placeholders = {
+        'unknown',
+        'inconnu',
+        'inconnue',
+        'non renseigné',
+        'non renseignée',
+        'non précisé',
+        'non précisée',
+        'à déterminer',
+        'à compléter',
+        'à confirmer',
+        'disponibilité à confirmer',
+        'indisponible',
+        'n/a',
+        '—',
+      };
+      if (placeholders.contains(lowercaseValue) ||
+          lowercaseValue.endsWith(' à confirmer') ||
+          lowercaseValue.endsWith(' à déterminer') ||
+          lowercaseValue.endsWith(' à compléter')) {
+        return;
+      }
       if (normalizedValue.isEmpty ||
           normalizedLabel.isEmpty ||
           normalizedCode == 'type' ||
@@ -990,50 +1014,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   const SizedBox(height: MakoloSpacing.sm),
                   _descriptionBody(context),
                 ],
-                if (_reliableFacts.isNotEmpty ||
-                    item.variants.isNotEmpty ||
-                    item.relations.isNotEmpty ||
-                    item.assessment.any((fact) =>
-                        fact['label'] is String &&
-                        {'favorable', 'limiting', 'unknown'}.contains(fact['state']))) ...[
-                  const SizedBox(height: MakoloSpacing.md),
-                  Container(
+                if (_reliableFacts.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Padding(
                     key: const Key('discover-facts-section'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(MakoloSpacing.compact),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(MakoloRadii.small),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Informations pratiques',
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        if (_reliableFacts.isNotEmpty) ...[
-                          const SizedBox(height: MakoloSpacing.sm),
-                          _facts(context),
-                        ],
-                        _knowledge(context),
-                        if (item.variants.isNotEmpty ||
-                            item.relations.isNotEmpty) ...[
-                          const SizedBox(height: MakoloSpacing.sm),
-                          Text(
-                            [
-                              if (item.variants.isNotEmpty)
-                                '${item.variants.length} variantes',
-                              if (item.relations.isNotEmpty)
-                                '${item.relations.length} relations',
-                            ].join(' · '),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+                    child: _facts(context),
                   ),
                 ],
               ],
