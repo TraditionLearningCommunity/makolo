@@ -41,6 +41,12 @@ Future<void> _pumpAction(
         ),
       ),
       GoRoute(
+        path: '/commerce/activities/:id/checkout',
+        builder: (context, state) => Scaffold(
+          body: Text('activity-checkout:${state.pathParameters['id']}'),
+        ),
+      ),
+      GoRoute(
         path: '/commerce/orders/:id',
         builder: (context, state) => Scaffold(
           body: Text('order:${state.pathParameters['id']}'),
@@ -86,6 +92,38 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('checkout:journey-123'), findsOneWidget);
     expect(detailCount, 0);
+  });
+
+  testWidgets('direct Activity Commerce action opens the native offer choice', (tester) async {
+    var details = 0;
+    await _pumpAction(
+      tester,
+      onDetail: () => details++,
+      engagement: {
+        'owner': 'commerce',
+        'state': 'owner_api',
+        'capabilities': ['inspect_offers'],
+        'resource': {'kind': 'activity', 'id': 'test-activity'},
+        'links': {
+          'native': '/commerce/activities/test-activity/checkout',
+          'offers': '/api/v1/commerce/activities/test-activity/checkout/',
+        },
+        'primary_action': {
+          'code': 'inspect_offers',
+          'label': 'Choisir une offre',
+          'destination': {
+            'kind': 'native',
+            'path': '/commerce/activities/test-activity/checkout',
+          },
+        },
+      },
+    );
+    final primary = find.byKey(const Key('discover-primary-n1'));
+    expect(tester.widget<IconButton>(primary).tooltip, 'Choisir une offre');
+    await tester.tap(primary);
+    await tester.pumpAndSettle();
+    expect(find.text('activity-checkout:test-activity'), findsOneWidget);
+    expect(details, 0);
   });
 
   testWidgets('an existing owner order resumes instead of recreating one', (tester) async {

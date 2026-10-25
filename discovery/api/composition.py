@@ -793,6 +793,7 @@ def _public_commerce_handoffs(activity_ids, *, profile=None):
     if not activity_ids:
         return {}
     from activities.models import Activity
+    from django.http import Http404
     from commerce.native_activity_checkout_api import (
         activity_offer_choices, public_activity_for_commerce,
     )
@@ -802,7 +803,7 @@ def _public_commerce_handoffs(activity_ids, *, profile=None):
     ):
         try:
             public_activity_for_commerce(profile, activity.pk)
-        except Exception:
+        except Http404:
             continue
         if not activity_offer_choices(activity):
             continue

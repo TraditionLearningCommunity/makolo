@@ -23,6 +23,23 @@ class PersonalDiscoveryPrimaryActionTests(SimpleTestCase):
         self.assertEqual(action["destination"]["path"],
                          "/commerce/journeys/journey-id/checkout")
 
+    def test_direct_activity_offer_action_is_owner_verified(self):
+        engagement = {
+            "owner": "commerce", "state": "owner_api",
+            "capabilities": ["inspect_offers"],
+            "resource": {"kind": "activity", "id": "activity-id"},
+            "links": {
+                "native": "/commerce/activities/activity-id/checkout",
+                "offers": "/api/v1/commerce/activities/activity-id/checkout/",
+            },
+        }
+        action = _primary_action_for_projection(self._projection(engagement))
+        self.assertEqual(action["code"], "inspect_offers")
+        self.assertEqual(action["label"], "Choisir une offre")
+        self.assertEqual(action["destination"], {
+            "kind": "native", "path": "/commerce/activities/activity-id/checkout",
+        })
+
     def test_existing_order_takes_priority_over_new_checkout(self):
         engagement = {
             "owner": "commerce", "state": "owner_api",
