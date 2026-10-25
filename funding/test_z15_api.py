@@ -91,6 +91,18 @@ class Z15FundingApiTests(TestCase):
             )
             self.assertEqual(replay.status_code, 201, replay.data)
             self.assertEqual(payment.data["id"], replay.data["id"])
+            confirmation = self.client.post(
+                f"/api/v1/payments/payments/{payment.data['id']}/sandbox-complete/",
+                {}, format="json",
+            )
+            self.assertEqual(confirmation.status_code, 200, confirmation.data)
+            self.assertEqual(confirmation.data["status"], "succeeded")
+            settled = self.client.get(
+                f"/api/v1/payments/obligations/{obligation_id}/"
+            )
+            self.assertEqual(settled.status_code, 200, settled.data)
+            self.assertEqual(settled.data["status"], "satisfied")
+            self.assertNotIn("pay", settled.data["capabilities"])
 
         self.client.force_authenticate(self.outsider)
         self.assertEqual(
