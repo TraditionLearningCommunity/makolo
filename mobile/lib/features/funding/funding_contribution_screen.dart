@@ -32,6 +32,7 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
   bool _submitting = false;
   String? _error;
   String? _obligationId;
+  String? _attemptedAmount;
 
   static String _newReference() {
     final random = Random.secure();
@@ -108,7 +109,12 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
       setState(() => _error = 'Montant hors des limites du financement.');
       return;
     }
+    if (_attemptedAmount != null && _attemptedAmount != value) {
+      setState(() => _error = 'Réessayez avec le montant initial.');
+      return;
+    }
     setState(() {
+      _attemptedAmount = value;
       _submitting = true;
       _error = null;
     });
@@ -178,7 +184,9 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
             if (funding['accepts_contributions'] == true) ...[
               TextField(
                 controller: _amount,
-                enabled: !_submitting && _obligationId == null,
+                enabled: !_submitting &&
+                    _obligationId == null &&
+                    _attemptedAmount == null,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
