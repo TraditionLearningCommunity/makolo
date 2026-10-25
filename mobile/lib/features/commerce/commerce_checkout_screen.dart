@@ -338,7 +338,9 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
             const SizedBox(height: 8),
             RadioGroup<String>(
               groupValue: _selectedChoice,
-              onChanged: _attempted ? null : _chooseOffer,
+              onChanged: (choice) {
+                if (!_attempted) _chooseOffer(choice);
+              },
               child: Column(
                 children: [
                   for (final option in _offers)
@@ -379,9 +381,9 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
               Text('Mode de paiement', style: Theme.of(context).textTheme.titleSmall),
               RadioGroup<String>(
                 groupValue: _paymentMode,
-                onChanged: _attempted
-                    ? null
-                    : (mode) => setState(() => _paymentMode = mode),
+                onChanged: (mode) {
+                  if (!_attempted) setState(() => _paymentMode = mode);
+                },
                 child: Column(
                   children: [
                     for (final mode in _modes)
