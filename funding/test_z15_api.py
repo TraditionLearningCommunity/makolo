@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -52,6 +52,10 @@ class Z15FundingApiTests(TestCase):
         self.assertEqual(listing.status_code, 200, listing.data)
         self.assertEqual([row["id"] for row in listing.data], [funding_id])
 
+        public = self.client.get(f"/api/v1/funding/public/{funding_id}/")
+        self.assertEqual(public.status_code, 200, public.data)
+        self.assertIn("contribute", public.data["capabilities"])
+
         self.client.force_authenticate(self.participant)
         contribution = self.client.post(
             f"/api/v1/funding/{funding_id}/contributions/",
@@ -60,6 +64,50 @@ class Z15FundingApiTests(TestCase):
         )
         self.assertEqual(contribution.status_code, 201, contribution.data)
         self.assertTrue(contribution.data["payment_obligation_id"])
+        obligation_id = contribution.data["payment_obligation_id"]
+        detail = self.client.get(f"/api/v1/payments/obligations/{obligation_id}/")
+        self.assertEqual(detail.status_code, 200, detail.data)
+        self.assertIn("pay", detail.data["capabilities"])
+
+        with override_settings(PAYMENTS_SANDBOX_ENABLED=True):
+            payment = self.client.post(
+                f"/api/v1/payments/obligations/{obligation_id}/",
+                {
+                    "provider": "sandbox",
+                    "method": "card",
+                    "idempotency_key": "z15-native-obligation-payment",
+                },
+                format="json",
+            )
+            self.assertEqual(payment.status_code, 201, payment.data)
+            replay = self.client.post(
+                f"/api/v1/payments/obligations/{obligation_id}/",
+                {
+                    "provider": "sandbox",
+                    "method": "card",
+                    "idempotency_key": "z15-native-obligation-payment",
+                },
+                format="json",
+            )
+            self.assertEqual(replay.status_code, 201, replay.data)
+            self.assertEqual(payment.data["id"], replay.data["id"])
+
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(
+            self.client.get(f"/api/v1/payments/obligations/{obligation_id}/").status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                f"/api/v1/payments/obligations/{obligation_id}/",
+                {
+                    "provider": "sandbox", "method": "card",
+                    "idempotency_key": "z15-unauthorized",
+                },
+                format="json",
+            ).status_code,
+            404,
+        )
 
         self.client.force_authenticate(self.outsider)
         self.assertEqual(
