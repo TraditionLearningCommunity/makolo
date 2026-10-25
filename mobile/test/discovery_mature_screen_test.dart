@@ -112,6 +112,22 @@ void main() {
           'description': 'Départ de Lubumbashi vers Kolwezi. Conditions et '
               'modalités de transport établies par le propriétaire.',
         },
+        'variants': [
+          {
+            'occurrence': {'kind': 'occurrence', 'id': 'first'},
+            'timing': {
+              'start_at': '2026-10-30T08:00:00+02:00',
+              'timezone': 'Africa/Lubumbashi',
+            },
+          },
+          {
+            'occurrence': {'kind': 'occurrence', 'id': 'second'},
+            'timing': {
+              'start_at': '2026-11-02T08:00:00+02:00',
+              'timezone': 'Africa/Lubumbashi',
+            },
+          },
+        ],
         'resources': [
           {'title': 'Guide de bord', 'kind': 'text', 'text_content': 'Texte réel'},
           {'title': 'Guide pratique', 'kind': 'text', 'text_content': 'Annexe'},
@@ -134,6 +150,9 @@ void main() {
     expect(find.text('Voyage présenté'), findsOneWidget);
     expect(find.byKey(const Key('discover-description-text')), findsOneWidget);
     expect(find.byKey(const Key('discover-description-expand')), findsNothing);
+    expect(find.byKey(const Key('discover-n2-variant-date')), findsNWidgets(2));
+    expect(find.textContaining('30/10/2026'), findsOneWidget);
+    expect(find.textContaining('02/11/2026'), findsOneWidget);
     expect(find.byKey(const Key('discover-media-main')), findsOneWidget);
     expect(find.byKey(const Key('discover-resources-section')), findsOneWidget);
     expect(find.byKey(const Key('discover-resources-expand')), findsNothing);
