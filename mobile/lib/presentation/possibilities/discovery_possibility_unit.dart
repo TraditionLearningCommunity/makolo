@@ -562,15 +562,23 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   Uri? get _verifiedWebContinuation {
+    final action = _serverPrimaryAction;
+    final destination = action?['destination'];
     final presentation = item.engagement?['presentation'];
-    if (presentation is! Map || presentation['web_enabled'] != true) {
+    if (destination is! Map || destination['kind'] != 'web' ||
+        presentation is! Map || presentation['web_enabled'] != true) {
       return null;
     }
-    final raw = presentation['web'];
+    final raw = destination['path'];
+    if (raw != presentation['web']) return null;
     final base = widget.baseUri;
     if (raw is! String || raw.trim().isEmpty || base == null ||
         (base.scheme != 'https' && base.scheme != 'http') ||
         base.host.isEmpty) {
+      return null;
+    }
+    if (!raw.startsWith('/') || raw.startsWith('//') ||
+        raw.contains('\\') || raw.contains('?') || raw.contains('#')) {
       return null;
     }
     final target = Uri.tryParse(raw.trim());
