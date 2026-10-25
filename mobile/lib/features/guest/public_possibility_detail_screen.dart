@@ -144,9 +144,13 @@ class _PublicPossibilityDetailScreenState
                   allowSavePrompt: true,
                   onSignIn: _requireAuthentication,
                   onNativeAction: (nativePath) {
-                    // Owner routes remain protected and revalidate access.
-                    widget.runtime.recovery.requireAuthentication(nativePath);
-                    context.push('/login');
+                    if (discoveryOwnerDepthBrowsableByGuest(nativePath)) {
+                      context.push(nativePath);
+                    } else {
+                      // Re-enter the protected owner depth after session recovery.
+                      widget.runtime.recovery.requireAuthentication(nativePath);
+                      context.push('/login');
+                    }
                   },
                   shareApi: widget.runtime.api,
                   baseUri: widget.runtime.api?.baseUri,
