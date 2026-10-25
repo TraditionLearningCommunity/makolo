@@ -192,7 +192,6 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
         throw const FormatException('Service start response invalid');
       }
       if (!mounted) return;
-      final store = widget.runtime.interactions;
       if (store != null) {
         unawaited(store.clear(_interactionId).catchError((Object _) {}));
       }
