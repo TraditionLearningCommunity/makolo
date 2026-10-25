@@ -131,9 +131,11 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
     setState(() {
       _checkout = result;
       final offers = _offers;
-      if (_offerId == null ||
-          !offers.any((row) =>
-              row['id'] == _offerId && row['occurrence_id'] == _occurrenceId)) {
+      final selectionAvailable = offers.any((row) =>
+          row['id'] == _offerId && row['occurrence_id'] == _occurrenceId);
+      // Never silently replace the subject of a previously submitted key:
+      // it might already have committed despite a lost response.
+      if (!selectionAvailable && !_attempted) {
         _offerId = offers.isEmpty ? null : offers.first['id'] as String?;
         _occurrenceId = offers.isEmpty
             ? null
@@ -175,6 +177,43 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
         _loading = false;
         _error = 'Impossible de vérifier les offres disponibles.';
       });
+    }
+  }
+
+  Future<void> _reviseChoice() async {
+    if (_loading || _submitting || !_attempted) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      // Confirm owner state before abandoning the previously attempted key.
+      final result = await _refreshOwner();
+      if (!mounted) return;
+      final existing = result?['existing_order'];
+      if (existing is Map && existing['id'] is String) {
+        _openOrder(existing['id'] as String);
+        return;
+      }
+      final store = widget.runtime.interactions;
+      if (store != null) await store.clear(_interactionId);
+      if (!mounted) return;
+      setState(() {
+        _operationKey = _newKey();
+        _attempted = false;
+        _offerId = null;
+        _occurrenceId = null;
+        _paymentMode = null;
+        _quantity = 1;
+      });
+      await _refreshOwner();
+    } on Object {
+      if (mounted) {
+        setState(() => _error =
+            'Impossible de vérifier la commande. Réessayez plus tard.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -267,6 +306,7 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
     final min = (offer?['min_quantity'] as int?) ?? 1;
     final max = (offer?['max_quantity'] as int?) ?? 10000;
     final canOrder = _checkout?['can_order'] == true;
+    final selectedModeAvailable = _modes.contains(_paymentMode);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Choisir une offre'),
@@ -361,7 +401,9 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: _submitting ? null : _createOrder,
+                onPressed: _submitting || !selectedModeAvailable
+                    ? null
+                    : _createOrder,
                 icon: const Icon(Icons.shopping_bag_outlined),
                 label: Text(_submitting
                     ? 'Vérification…'
@@ -371,6 +413,13 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
                             ? 'Revérifier la commande'
                             : 'Créer la commande'),
               ),
+              if (_attempted) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _loading || _submitting ? null : _reviseChoice,
+                  child: const Text('Modifier mon choix'),
+                ),
+              ],
             ],
           ],
           if (_error != null) ...[
