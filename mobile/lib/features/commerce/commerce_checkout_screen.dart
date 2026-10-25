@@ -413,13 +413,13 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
                             ? 'Revérifier la commande'
                             : 'Créer la commande'),
               ),
-              if (_attempted) ...[
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _loading || _submitting ? null : _reviseChoice,
-                  child: const Text('Modifier mon choix'),
-                ),
-              ],
+            ],
+            if (_attempted) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _loading || _submitting ? null : _reviseChoice,
+                child: const Text('Modifier mon choix'),
+              ),
             ],
           ],
           if (_error != null) ...[

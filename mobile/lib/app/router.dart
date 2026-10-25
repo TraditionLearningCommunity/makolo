@@ -111,6 +111,8 @@ GoRouter createMakoloRouter(
       '/activities/',
       '/services/',
       '/tickets/orders/',
+      '/commerce/journeys/',
+      '/commerce/orders/',
       '/payments/obligations/',
       '/occurrences/',
       '/space/occurrences/',
