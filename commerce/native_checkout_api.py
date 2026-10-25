@@ -219,9 +219,6 @@ class PersonalCommerceCheckoutAPIView(APIView):
         values.is_valid(raise_exception=True)
         data = values.validated_data
         journey = _journey_for_actor(request.user, journey_id, lock=True)
-        if not _allowed_to_checkout(request.user, journey):
-            raise ValidationError({"journey": "Cette démarche ne permet pas cette commande."})
-
         key = data["idempotency_key"].strip()
         existing_by_key = CommerceOrder.objects.filter(idempotency_key=key).first()
         if existing_by_key is not None:
@@ -239,6 +236,11 @@ class PersonalCommerceCheckoutAPIView(APIView):
             response["Cache-Control"] = "private, no-store"
             return response
 
+        # A confirmed order may have advanced the Journey since the first
+        # request. An exact, authenticated replay is still safe; a new order
+        # must be checked against the current owner state.
+        if not _allowed_to_checkout(request.user, journey):
+            raise ValidationError({"journey": "Cette démarche ne permet pas cette commande."})
         active = _active_order(journey)
         if active is not None:
             response = Response({
