@@ -255,7 +255,7 @@ class _MeFirstAvailability extends StatelessWidget {
   Widget build(BuildContext context) {
     final message = loading
         ? 'Chargement…'
-        : 'Ces informations ne sont pas disponibles pour le moment.';
+        : 'Profil indisponible.';
 
     return MakoloContentFrame(
       child: SingleChildScrollView(
@@ -471,7 +471,7 @@ class _MeTerritory extends StatelessWidget {
     final title = firstItem?.title ?? 'Disponible';
     final subtitle =
         firstItem?.subtitle ??
-        'Vos informations de profil.';
+        'Profil';
 
     return MakoloCard(
       onTap: firstItem == null ? null : () => onSelectItem(firstItem),
@@ -736,11 +736,7 @@ class _MeDepth extends StatelessWidget {
                   ],
                 ),
               ],
-              if (_contextMessage(item.destination.kind)
-                  case final message?) ...[
-                const SizedBox(height: MakoloSpacing.xl),
-                Text(message, style: Theme.of(context).textTheme.bodyMedium),
-              ],
+
             ],
           ),
         ),
@@ -748,20 +744,4 @@ class _MeDepth extends StatelessWidget {
     );
   }
 
-  String? _contextMessage(String kind) {
-    return switch (kind.toLowerCase()) {
-      'personal_asset' => null,
-      'proof' =>
-        'Cette preuve fait partie de ce qui '
-            'est déjà établi autour de vous.',
-      'credential' =>
-        'Ce titre fait partie de ce qui '
-            'vous a déjà été délivré.',
-      'group' || 'team' => 'Votre lien avec ce collectif est visible ici.',
-      'space' =>
-        'Ce contexte est visible ici selon '
-            'les droits déjà établis par Makolo.',
-      _ => null,
-    };
-  }
 }
