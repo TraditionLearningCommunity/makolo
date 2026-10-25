@@ -25,7 +25,7 @@ class FundingContributionScreen extends StatefulWidget {
 
 class _FundingContributionScreenState extends State<FundingContributionScreen> {
   final TextEditingController _amount = TextEditingController();
-  final String _reference = _newReference();
+  String _reference = _newReference();
 
   Map<String, dynamic>? _funding;
   bool _loading = true;
@@ -42,10 +42,33 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
     ).join();
   }
 
+  String get _interactionId =>
+      'funding.contribution:${widget.runtime.session?.profileId ?? 'guest'}:${widget.fundingId}';
+
+  Future<void> _initialize() async {
+    final store = widget.runtime.interactions;
+    if (widget.runtime.isAuthenticated && store != null) {
+      try {
+        final saved = await store.read(_interactionId);
+        final reference = saved['client_reference'];
+        final amount = saved['amount'];
+        if (reference is String && reference.isNotEmpty &&
+            amount is String && amount.isNotEmpty) {
+          _reference = reference;
+          _attemptedAmount = amount;
+          _amount.text = amount;
+        }
+      } on Object {
+        // Server can still validate the current Funding contribution.
+      }
+    }
+    if (mounted) await _load();
+  }
+
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    unawaited(_initialize());
   }
 
   @override
@@ -73,12 +96,46 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
         _funding = data;
         _loading = false;
       });
+      // The contribution may already exist if the previous response was lost.
+      if (widget.runtime.isAuthenticated && _attemptedAmount != null) {
+        await _recoverContribution();
+      }
     } on Object {
       if (!mounted) return;
       setState(() {
         _error = 'Ce financement n’est pas disponible.';
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _recoverContribution() async {
+    if (!widget.runtime.isAuthenticated) return;
+    final api = widget.runtime.api;
+    if (api == null) return;
+    try {
+      final id = Uri.encodeComponent(widget.fundingId);
+      final key = Uri.encodeQueryComponent(_reference);
+      final response = await api.get(
+        'api/v1/funding/$id/contributions/?client_reference=$key',
+      );
+      final result = response.jsonObject();
+      final contribution = result['contribution'];
+      if (contribution is Map) {
+        final obligation = contribution['payment_obligation_id'];
+        if (obligation is String && obligation.isNotEmpty && mounted) {
+          _obligationId = obligation;
+          final store = widget.runtime.interactions;
+          if (store != null) {
+            unawaited(store.clear(_interactionId).catchError((Object _) {}));
+          }
+          context.push(
+            '/payments/obligations/${Uri.encodeComponent(obligation)}',
+          );
+        }
+      }
+    } on Object {
+      // Unknown state: future attempts reuse the same client reference.
     }
   }
 
@@ -118,6 +175,17 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
       _submitting = true;
       _error = null;
     });
+    final store = widget.runtime.interactions;
+    if (store != null) {
+      try {
+        await store.save(_interactionId, {
+          'client_reference': _reference,
+          'amount': value,
+        });
+      } on Object {
+        // No financial success is inferred from a local write.
+      }
+    }
     try {
       final id = Uri.encodeComponent(widget.fundingId);
       final response = await widget.runtime.api!.post(
@@ -131,11 +199,15 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
       }
       _obligationId = obligation;
       if (!mounted) return;
+      if (store != null) {
+        unawaited(store.clear(_interactionId).catchError((Object _) {}));
+      }
       context.push('/payments/obligations/' + Uri.encodeComponent(obligation));
     } on Object {
-      if (!mounted) return;
+      await _recoverContribution();
+      if (!mounted || _obligationId != null) return;
       setState(() {
-        _error = 'Contribution non confirmée. Réessayez sans changer le montant.';
+        _error = 'Contribution à vérifier. Réessayez sans changer le montant.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
