@@ -354,6 +354,13 @@ class ObtentionDetailAPIView(APIView):
 
     def get(self, request, pk):
         obtention = public_obtentions().filter(pk=pk).first()
+        if obtention is not None:
+            from groups.selectors import eligible_activity_ids_for_profile
+
+            if obtention.activity_id not in eligible_activity_ids_for_profile(
+                request.user, [obtention.activity_id],
+            ):
+                obtention = None
         if obtention is None and getattr(request.user, "is_authenticated", False):
             try:
                 obtention = _managed_obtention(request.user, pk)
@@ -419,6 +426,12 @@ class ObtentionJourneyCreateAPIView(APIView):
 
     def post(self, request, pk):
         obtention = get_object_or_404(public_obtentions(), pk=pk)
+        from groups.selectors import eligible_activity_ids_for_profile
+
+        if obtention.activity_id not in eligible_activity_ids_for_profile(
+            request.user, [obtention.activity_id],
+        ):
+            raise NotFound()
         serializer = ObtentionJourneyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
