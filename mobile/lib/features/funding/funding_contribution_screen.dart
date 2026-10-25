@@ -257,7 +257,8 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Montant (${funding['currency']?.toString() ?? ''})',
+                  labelText:
+                      'Montant (${funding['currency']?.toString() ?? ''})',
                   helperText: _limitLabel(funding),
                 ),
               ),
@@ -306,8 +307,6 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
     if (minimum != null && maximum != null) {
       return 'De $minimum à $maximum';
     }
-    return minimum != null
-        ? 'Minimum : $minimum'
-        : 'Maximum : $maximum';
+    return minimum != null ? 'Minimum : $minimum' : 'Maximum : $maximum';
   }
 }
