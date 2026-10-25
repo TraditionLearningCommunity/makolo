@@ -736,8 +736,34 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
     return result
 
 
+def _funding_handoffs(rows) -> dict[str, dict]:
+    """Use already-admitted Funding candidates and their owner service."""
+    from funding.selectors import funding_accepts_contributions
+
+    handoffs = {}
+    for family, _, candidate in rows:
+        if family != "funding_activity":
+            continue
+        funding = candidate["funding"]
+        if not funding_accepts_contributions(funding):
+            continue
+        handoffs[str(candidate["activity_id"])] = {
+            "state": "owner_api",
+            "owner": "funding",
+            "capabilities": ["contribute"],
+            "links": {
+                "detail": reverse("funding_api:public-detail", kwargs={"pk": funding.pk}),
+                "contribute": reverse("funding_api:contribute", kwargs={"pk": funding.pk}),
+                "native": f"/funding/{funding.pk}/contribute",
+            },
+            "resource": {"kind": "funding", "id": str(funding.pk)},
+        }
+    return handoffs
+
+
 def _handoff_for_projection(
-    projection: dict, *, event_handoffs=None, service_handoffs=None
+    projection: dict, *, event_handoffs=None, service_handoffs=None,
+    funding_handoffs=None,
 ) -> dict:
     resource = projection["identity"]["resource"]
     family = projection["identity"]["family"]
@@ -747,6 +773,10 @@ def _handoff_for_projection(
             return handoff
     if family == "activity" and event_handoffs:
         handoff = event_handoffs.get(resource["id"])
+        if handoff is not None:
+            return handoff
+    if family == "funding_activity" and funding_handoffs:
+        handoff = funding_handoffs.get(resource["id"])
         if handoff is not None:
             return handoff
     return {
@@ -807,6 +837,22 @@ def _primary_action_for_projection(projection: dict) -> dict:
             "icon": "ticket",
             "destination": {"kind": "native", "path": native},
         }
+    if (
+        engagement.get("owner") == "funding"
+        and engagement.get("state") == "owner_api"
+        and resource.get("kind") == "funding"
+        and isinstance(resource.get("id"), str)
+        and "contribute" in capabilities
+        and isinstance(native, str)
+        and native == f"/funding/{resource['id']}/contribute"
+        and links.get("contribute")
+    ):
+        return {
+            "code": "contribute",
+            "label": "Contribuer",
+            "icon": "heart-handshake",
+            "destination": {"kind": "native", "path": native},
+        }
     # Reuse the real owner Web journey when no supported native route exists.
     # Only local paths are allowed: Discovery never upgrades an external
     # Opportunity source or an arbitrary URL into an actionable handoff.
@@ -845,6 +891,7 @@ def _finalize_projection(
     card=None,
     event_handoffs=None,
     service_handoffs=None,
+    funding_handoffs=None,
     description="",
 ) -> dict:
     identity = projection["identity"]
@@ -910,6 +957,7 @@ def _finalize_projection(
         projection,
         event_handoffs=event_handoffs,
         service_handoffs=service_handoffs,
+        funding_handoffs=funding_handoffs,
     )
     if card is not None and card.actions.primary is not None:
         primary = card.actions.primary
@@ -999,6 +1047,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
         profile=profile,
     )
     service_handoffs = _service_handoffs(activity_ids, profile=profile)
+    funding_handoffs = _funding_handoffs(rows)
     owner_facts, opportunity_dates = _public_owner_facts(
         activity_ids, opportunity_ids,
     )
@@ -1075,6 +1124,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             card=card,
             event_handoffs=event_handoffs,
             service_handoffs=service_handoffs,
+            funding_handoffs=funding_handoffs,
             description=description,
         )
         if family == "opportunity":
