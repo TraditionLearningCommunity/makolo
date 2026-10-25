@@ -717,7 +717,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                           onSave: (item.savedState == 'saved'
                                   ? item.canUnsave
                                   : item.canSave)
-                              ? () => _setSaved(item.savedState != 'saved')
+                              ? () => _setSaved(item!.savedState != 'saved')
                               : null,
                           shareApi: widget.repository.api,
                           shareAuthenticated: true,
