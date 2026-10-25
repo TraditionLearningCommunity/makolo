@@ -455,6 +455,85 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 center reuses a same-origin owner Web continuation', (
+    tester,
+  ) async {
+    final possibility = DiscoveryItemPresentation(
+      family: 'funding_activity',
+      id: 'funding-web',
+      candidateKey: 'funding_activity:funding-web',
+      title: 'Soutien au projet',
+      summary: 'Contribuer au projet.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'presentation': {
+            'label': 'Contribuer',
+            'web': '/funding/projects/public/contribute/',
+            'web_enabled': true,
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [possibility]),
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        onOpen: (_) {},
+      ),
+    );
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('discover-primary-n1')))
+          .tooltip,
+      'Contribuer',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('N1 center rejects foreign Web continuation and opens detail', (
+    tester,
+  ) async {
+    var opened = false;
+    final possibility = DiscoveryItemPresentation(
+      family: 'funding_activity',
+      id: 'foreign-web',
+      candidateKey: 'funding_activity:foreign-web',
+      title: 'Projet extérieur',
+      summary: 'Projet à examiner.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'presentation': {
+            'label': 'Payer',
+            'web': 'https://untrusted.invalid/checkout',
+            'web_enabled': true,
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [possibility]),
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        onOpen: (_) => opened = true,
+      ),
+    );
+    final button = find.byKey(const Key('discover-primary-n1'));
+    expect(tester.widget<IconButton>(button).tooltip, 'Détails');
+    await tester.tap(button);
+    await tester.pump();
+    expect(opened, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 center ignores an unsupported native action and opens details', (
     tester,
   ) async {
