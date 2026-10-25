@@ -558,6 +558,22 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (code == 'inspect_offers' && path == _nativeTicketChoices) {
       return path;
     }
+    if (code == 'contribute' &&
+        item.family == 'funding_activity' &&
+        item.engagement?['owner'] == 'funding' &&
+        item.engagement?['state'] == 'owner_api') {
+      final engagement = item.engagement!;
+      final caps = engagement['capabilities'];
+      final resource = engagement['resource'];
+      if (caps is List &&
+          caps.contains('contribute') &&
+          resource is Map &&
+          resource['kind'] == 'funding' &&
+          resource['id'] is String &&
+          path == '/funding/${resource['id']}/contribute') {
+        return path;
+      }
+    }
     return null;
   }
 
@@ -565,16 +581,20 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (_primaryNativePath == null) return 'Détails';
     final label = _serverPrimaryAction?['label'];
     if (label is String && label.trim().isNotEmpty) return label.trim();
-    return _serverPrimaryAction?['code'] == 'start'
-        ? 'Commencer'
-        : 'Voir les billets';
+    return switch (_serverPrimaryAction?['code']) {
+      'start' => 'Commencer',
+      'contribute' => 'Contribuer',
+      _ => 'Voir les billets',
+    };
   }
 
   IconData get _centralActionIcon {
     if (_primaryNativePath == null) return Icons.arrow_forward_rounded;
-    return _serverPrimaryAction?['code'] == 'start'
-        ? Icons.play_circle_outline_rounded
-        : Icons.confirmation_number_outlined;
+    return switch (_serverPrimaryAction?['code']) {
+      'start' => Icons.play_circle_outline_rounded,
+      'contribute' => Icons.volunteer_activism_outlined,
+      _ => Icons.confirmation_number_outlined,
+    };
   }
 
   void _centralAction(BuildContext context) {
