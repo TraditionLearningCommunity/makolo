@@ -60,8 +60,10 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
   final String? selectionActionLabel;
   final Uri? baseUri;
   final bool compact;
+
   /// Renders the same server-owned facts at N2 without repeating N1 chrome.
   final bool detailMode;
+
   /// Guest entry may resume the owner route after session recovery.
   final ValueChanged<String>? onNativeAction;
 
@@ -188,7 +190,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       }
       seenCodes.add(normalizedCode);
       seenLabels.add(normalizedLabel);
-      facts.add({'code': normalizedCode, 'label': label, 'value': normalizedValue});
+      facts.add({
+        'code': normalizedCode,
+        'label': label,
+        'value': normalizedValue,
+      });
     }
 
     for (final fact in item.presentationFacts) {
@@ -232,7 +238,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         );
       }
     }
-    final personal = (item.participantPresentation?['label'] ?? '').toString().trim();
+    final personal = (item.participantPresentation?['label'] ?? '')
+        .toString()
+        .trim();
     if (personal.isNotEmpty) add('personal_state', 'Ma situation', personal);
     return facts;
   }
@@ -262,8 +270,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       final zone = instant is String && instant.endsWith('Z')
           ? 'UTC'
           : timezone is String && timezone.trim().isNotEmpty
-              ? timezone.trim()
-              : null;
+          ? timezone.trim()
+          : null;
       final label = [
         dateLabel,
         if (timeLabel != null) timeLabel,
@@ -523,7 +531,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 children: [
                   CircleAvatar(
                     radius: 19,
-                    foregroundImage: avatar == null ? null : NetworkImage(avatar),
+                    foregroundImage: avatar == null
+                        ? null
+                        : NetworkImage(avatar),
                     child: avatar == null ? Text(name![0].toUpperCase()) : null,
                   ),
                   const SizedBox(width: MakoloSpacing.sm),
@@ -577,9 +587,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           maxLines: 2,
           softWrap: true,
           textAlign: TextAlign.end,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+          style: Theme.of(context).textTheme.labelSmall
+              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ),
     );
@@ -635,8 +644,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final destination = action?['destination'];
     if (destination is! Map || destination['kind'] != 'native') return null;
     final path = destination['path'];
-    if (path is! String || !path.startsWith('/') ||
-        path.contains('?') || path.contains('#') || path.contains('..')) {
+    if (path is! String ||
+        !path.startsWith('/') ||
+        path.contains('?') ||
+        path.contains('#') ||
+        path.contains('..')) {
       return null;
     }
     final code = action?['code'];
@@ -745,9 +757,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return switch (_serverPrimaryAction?['code']) {
       'start' => Icons.play_circle_outline_rounded,
       'checkout' => Icons.shopping_bag_outlined,
-      'inspect_offers' => item.engagement?['owner'] == 'commerce'
-          ? Icons.shopping_bag_outlined
-          : Icons.confirmation_number_outlined,
+      'inspect_offers' =>
+        item.engagement?['owner'] == 'commerce'
+            ? Icons.shopping_bag_outlined
+            : Icons.confirmation_number_outlined,
       'resume_order' => Icons.receipt_long_outlined,
       'continue' => Icons.arrow_forward_rounded,
       'contribute' => Icons.volunteer_activism_outlined,
@@ -846,17 +859,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     List<Map<String, String?>> resources,
   ) {
     final theme = Theme.of(context);
-    final visible = widget.detailMode || _allResources ? resources : resources.take(2);
+    final visible = widget.detailMode || _allResources
+        ? resources
+        : resources.take(2);
     return Padding(
       key: const Key('discover-resources-section'),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Documents et ressources',
-            style: theme.textTheme.titleSmall,
-          ),
+          Text('Documents et ressources', style: theme.textTheme.titleSmall),
           const SizedBox(height: MakoloSpacing.sm),
           for (final resource in visible)
             Padding(
@@ -869,7 +881,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 48),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: MakoloSpacing.xs,
+                    ),
                     child: Row(
                       children: [
                         Icon(
@@ -1017,21 +1031,28 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 const SizedBox(height: MakoloSpacing.xs),
                 Builder(
                   builder: (context) {
-                    final vertical = (item.representation?['vertical_label']
-                                ?.toString() ??
-                            '')
-                        .trim();
+                    final vertical =
+                        (item.representation?['vertical_label']?.toString() ??
+                                '')
+                            .trim();
                     final eyebrow = (item.eyebrow ?? '').trim();
                     final subtype = item.presentationFacts
-                        .where((fact) =>
-                            fact['code'] == 'type' || fact['label'] == 'Type')
+                        .where(
+                          (fact) =>
+                              fact['code'] == 'type' || fact['label'] == 'Type',
+                        )
                         .map((fact) => (fact['value'] ?? '').toString().trim())
-                        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+                        .firstWhere(
+                          (value) => value.isNotEmpty,
+                          orElse: () => '',
+                        );
                     final labels = <String>[];
                     for (final candidate in [vertical, eyebrow, subtype]) {
                       if (candidate.isNotEmpty &&
-                          !labels.any((label) =>
-                              label.toLowerCase() == candidate.toLowerCase())) {
+                          !labels.any(
+                            (label) =>
+                                label.toLowerCase() == candidate.toLowerCase(),
+                          )) {
                         labels.add(candidate);
                       }
                     }
@@ -1068,7 +1089,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 if (widget.detailMode && _variantTimingLabels.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.md),
                   Text(
-                    item.routeLabel == null ? 'Dates proposées' : 'Départs proposés',
+                    item.routeLabel == null
+                        ? 'Dates proposées'
+                        : 'Départs proposés',
                     style: theme.textTheme.titleSmall,
                   ),
                   const SizedBox(height: MakoloSpacing.xs),
@@ -1083,7 +1106,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   const SizedBox(height: MakoloSpacing.sm),
                   Padding(
                     key: const Key('discover-facts-section'),
-                    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: MakoloSpacing.xs,
+                    ),
                     child: _facts(context),
                   ),
                 ],
@@ -1114,12 +1139,15 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   Expanded(
                     child: IconButton(
                       key: Key(
-                        widget.detailMode ? 'discover-save-n2' : 'discover-save-n1',
+                        widget.detailMode
+                            ? 'discover-save-n2'
+                            : 'discover-save-n1',
                       ),
                       onPressed:
                           !_saving &&
                               ((widget.onSave != null && canToggle) ||
-                              (widget.allowSavePrompt && widget.onSignIn != null))
+                                  (widget.allowSavePrompt &&
+                                      widget.onSignIn != null))
                           ? _save
                           : null,
                       tooltip: _saving

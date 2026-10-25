@@ -253,9 +253,7 @@ class _MeFirstAvailability extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final message = loading
-        ? 'Chargement…'
-        : 'Profil indisponible.';
+    final message = loading ? 'Chargement…' : 'Profil indisponible.';
 
     return MakoloContentFrame(
       child: SingleChildScrollView(
@@ -469,9 +467,7 @@ class _MeTerritory extends StatelessWidget {
 
     final firstItem = territory.items.isNotEmpty ? territory.items.first : null;
     final title = firstItem?.title ?? 'Disponible';
-    final subtitle =
-        firstItem?.subtitle ??
-        'Profil';
+    final subtitle = firstItem?.subtitle ?? 'Profil';
 
     return MakoloCard(
       onTap: firstItem == null ? null : () => onSelectItem(firstItem),

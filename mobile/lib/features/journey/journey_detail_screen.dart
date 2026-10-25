@@ -123,11 +123,14 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       final current = (await widget.api!.get(endpoint)).jsonObject();
       final actions = current['capabilities'];
       if (current['journey_id'] != widget.journeyId ||
-          actions is! List || !actions.contains(decision)) {
+          actions is! List ||
+          !actions.contains(decision)) {
         await _refresh();
         if (mounted) {
-          setState(() => _invitationNotice =
-              'Cette invitation a changé. Consultez son état actuel.');
+          setState(
+            () => _invitationNotice =
+                'Cette invitation a changé. Consultez son état actuel.',
+          );
         }
         return;
       }
@@ -142,9 +145,11 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       }
       await _refresh();
       if (mounted) {
-        setState(() => _invitationNotice = decision == 'accept'
-            ? 'Invitation acceptée.'
-            : 'Invitation refusée.');
+        setState(
+          () => _invitationNotice = decision == 'accept'
+              ? 'Invitation acceptée.'
+              : 'Invitation refusée.',
+        );
       }
     } on Object {
       // Even a lost response may follow a successful owner mutation.
@@ -157,16 +162,20 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
         await _refresh();
         if (mounted) {
           final status = current['status'];
-          setState(() => _invitationNotice = status == 'confirmed'
-              ? 'Invitation acceptée.'
-              : status == 'cancelled'
-                  ? 'Invitation refusée.'
-                  : 'Vérifiez votre invitation avant de réessayer.');
+          setState(
+            () => _invitationNotice = status == 'confirmed'
+                ? 'Invitation acceptée.'
+                : status == 'cancelled'
+                ? 'Invitation refusée.'
+                : 'Vérifiez votre invitation avant de réessayer.',
+          );
         }
       } on Object {
         if (mounted) {
-          setState(() => _invitationNotice =
-              'Action à vérifier. Réessayez lorsque la connexion revient.');
+          setState(
+            () => _invitationNotice =
+                'Action à vérifier. Réessayez lorsque la connexion revient.',
+          );
         }
       }
     } finally {
@@ -240,7 +249,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   onRetry: _refresh,
                   content: _JourneyContent(
                     presentation: presentation,
-                    invitationEnabled: widget.api != null && !_respondingInvitation,
+                    invitationEnabled:
+                        widget.api != null && !_respondingInvitation,
                     invitationNotice: _invitationNotice,
                     onInvitationDecision: _respondToInvitation,
                     onOpenForm: widget.onOpenForm,
@@ -323,8 +333,10 @@ class _JourneyContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Votre invitation',
-                      style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Votre invitation',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: MakoloSpacing.md),
                     Wrap(
                       spacing: 12,
@@ -332,12 +344,14 @@ class _JourneyContent extends StatelessWidget {
                       children: [
                         FilledButton(
                           onPressed: invitationEnabled
-                              ? () => onInvitationDecision('accept') : null,
+                              ? () => onInvitationDecision('accept')
+                              : null,
                           child: const Text('Accepter'),
                         ),
                         OutlinedButton(
                           onPressed: invitationEnabled
-                              ? () => onInvitationDecision('decline') : null,
+                              ? () => onInvitationDecision('decline')
+                              : null,
                           child: const Text('Refuser'),
                         ),
                       ],
@@ -348,10 +362,13 @@ class _JourneyContent extends StatelessWidget {
             ),
           ),
         ],
-        if (invitationNotice != null) Padding(
-          padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
-          child: Text(invitationNotice!),
-        ),
+        if (invitationNotice != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: Text(invitationNotice!),
+          ),
         if (presentation.nextActionLabel != null) ...[
           Padding(
             padding: const EdgeInsets.symmetric(

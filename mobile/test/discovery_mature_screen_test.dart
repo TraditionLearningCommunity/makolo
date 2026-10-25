@@ -94,70 +94,93 @@ DiscoveryFieldSelection selection({
 }
 
 void main() {
-  testWidgets('N2 shares media and resources with N1 without a second detail CTA', (
-    tester,
-  ) async {
-    final detailed = DiscoveryItemPresentation(
-      family: 'activity',
-      id: 'depth',
-      candidateKey: 'activity:depth',
-      title: 'Voyage présenté',
-      summary: 'Une option réelle.',
-      imageUrl: 'https://example.test/discovery-cover.png',
-      savedState: 'not_saved',
-      capabilities: const {'view'},
-      links: const {},
-      wire: const {
-        'detail': {
-          'description': 'Départ de Lubumbashi vers Kolwezi. Conditions et '
-              'modalités de transport établies par le propriétaire.',
+  testWidgets(
+    'N2 shares media and resources with N1 without a second detail CTA',
+    (tester) async {
+      final detailed = DiscoveryItemPresentation(
+        family: 'activity',
+        id: 'depth',
+        candidateKey: 'activity:depth',
+        title: 'Voyage présenté',
+        summary: 'Une option réelle.',
+        imageUrl: 'https://example.test/discovery-cover.png',
+        savedState: 'not_saved',
+        capabilities: const {'view'},
+        links: const {},
+        wire: const {
+          'detail': {
+            'description':
+                'Départ de Lubumbashi vers Kolwezi. Conditions et '
+                'modalités de transport établies par le propriétaire.',
+          },
+          'variants': [
+            {
+              'occurrence': {'kind': 'occurrence', 'id': 'first'},
+              'timing': {
+                'start_at': '2026-10-30T08:00:00+02:00',
+                'timezone': 'Africa/Lubumbashi',
+              },
+            },
+            {
+              'occurrence': {'kind': 'occurrence', 'id': 'second'},
+              'timing': {
+                'start_at': '2026-11-02T08:00:00+02:00',
+                'timezone': 'Africa/Lubumbashi',
+              },
+            },
+          ],
+          'resources': [
+            {
+              'title': 'Guide de bord',
+              'kind': 'text',
+              'text_content': 'Texte réel',
+            },
+            {
+              'title': 'Guide pratique',
+              'kind': 'text',
+              'text_content': 'Annexe',
+            },
+            {
+              'title': 'Règlement',
+              'kind': 'text',
+              'text_content': 'Conditions',
+            },
+          ],
         },
-        'variants': [
-          {
-            'occurrence': {'kind': 'occurrence', 'id': 'first'},
-            'timing': {
-              'start_at': '2026-10-30T08:00:00+02:00',
-              'timezone': 'Africa/Lubumbashi',
-            },
-          },
-          {
-            'occurrence': {'kind': 'occurrence', 'id': 'second'},
-            'timing': {
-              'start_at': '2026-11-02T08:00:00+02:00',
-              'timezone': 'Africa/Lubumbashi',
-            },
-          },
-        ],
-        'resources': [
-          {'title': 'Guide de bord', 'kind': 'text', 'text_content': 'Texte réel'},
-          {'title': 'Guide pratique', 'kind': 'text', 'text_content': 'Annexe'},
-          {'title': 'Règlement', 'kind': 'text', 'text_content': 'Conditions'},
-        ],
-      },
-    );
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: SingleChildScrollView(
-        child: DiscoveryPossibilityUnit(
-          item: detailed,
-          detailMode: true,
-          onOpen: () => fail('Already in N2'),
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: SingleChildScrollView(
+          child: DiscoveryPossibilityUnit(
+            item: detailed,
+            detailMode: true,
+            onOpen: () => fail('Already in N2'),
+          ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Voyage présenté'), findsOneWidget);
-    expect(find.byKey(const Key('discover-description-text')), findsOneWidget);
-    expect(find.byKey(const Key('discover-description-expand')), findsNothing);
-    expect(find.textContaining('30/10/2026'), findsOneWidget);
-    expect(find.textContaining('02/11/2026'), findsOneWidget);
-    expect(find.byKey(const Key('discover-media-main')), findsOneWidget);
-    expect(find.byKey(const Key('discover-resources-section')), findsOneWidget);
-    expect(find.byKey(const Key('discover-resources-expand')), findsNothing);
-    expect(find.byKey(const Key('discover-primary-n1')), findsNothing);
-    expect(find.byKey(const Key('discover-primary-n2')), findsNothing);
-  });
+      expect(find.text('Voyage présenté'), findsOneWidget);
+      expect(
+        find.byKey(const Key('discover-description-text')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('discover-description-expand')),
+        findsNothing,
+      );
+      expect(find.textContaining('30/10/2026'), findsOneWidget);
+      expect(find.textContaining('02/11/2026'), findsOneWidget);
+      expect(find.byKey(const Key('discover-media-main')), findsOneWidget);
+      expect(
+        find.byKey(const Key('discover-resources-section')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('discover-resources-expand')), findsNothing);
+      expect(find.byKey(const Key('discover-primary-n1')), findsNothing);
+      expect(find.byKey(const Key('discover-primary-n2')), findsNothing);
+    },
+  );
 
   testWidgets('N2 owner action reuses the exact native continuation', (
     tester,
@@ -224,7 +247,9 @@ void main() {
         onOpen: () {},
         allowSavePrompt: true,
         onSignIn: () => signInRequests++,
-        onSave: () async { saved = true; },
+        onSave: () async {
+          saved = true;
+        },
       ),
     );
     await tester.tap(find.byKey(const Key('discover-save-n2')));
@@ -247,7 +272,9 @@ void main() {
 
     expect(find.text('Opportunités à découvrir'), findsOneWidget);
     expect(
-      find.text('Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?'),
+      find.text(
+        'Qu’est-ce que je pourrais avoir envie de vivre, faire ou obtenir ?',
+      ),
       findsNothing,
     );
     expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
@@ -376,46 +403,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('N1 places the addition date with the owner and merges type labels', (
-    tester,
-  ) async {
-    final rich = DiscoveryItemPresentation(
-      family: 'service_activity',
-      id: 'owner-date',
-      candidateKey: 'service_activity:owner-date',
-      title: 'Assistance création dossier',
-      summary: 'Une aide documentaire.',
-      owner: 'Mwangaza Services',
-      eyebrow: 'Accompagnement documentaire',
-      savedState: 'not_saved',
-      capabilities: const {'view'},
-      links: const {},
-      wire: const {
-        'owner': {'display_name': 'Mwangaza Services'},
-        'representation': {'vertical_label': 'Accompagnement'},
-        'date': {
-          'kind': 'added_at',
-          'label': 'Ajouté le',
-          'value': '2026-06-07T12:00:00+02:00',
+  testWidgets(
+    'N1 places the addition date with the owner and merges type labels',
+    (tester) async {
+      final rich = DiscoveryItemPresentation(
+        family: 'service_activity',
+        id: 'owner-date',
+        candidateKey: 'service_activity:owner-date',
+        title: 'Assistance création dossier',
+        summary: 'Une aide documentaire.',
+        owner: 'Mwangaza Services',
+        eyebrow: 'Accompagnement documentaire',
+        savedState: 'not_saved',
+        capabilities: const {'view'},
+        links: const {},
+        wire: const {
+          'owner': {'display_name': 'Mwangaza Services'},
+          'representation': {'vertical_label': 'Accompagnement'},
+          'date': {
+            'kind': 'added_at',
+            'label': 'Ajouté le',
+            'value': '2026-06-07T12:00:00+02:00',
+          },
         },
-      },
-    );
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(320, 760),
-      child: DiscoveryExplorationView(
-        selection: selection(items: [rich]),
-        onOpen: (_) {},
-      ),
-    );
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(320, 760),
+        child: DiscoveryExplorationView(
+          selection: selection(items: [rich]),
+          onOpen: (_) {},
+        ),
+      );
 
-    expect(find.byKey(const Key('discover-owner-date-row')), findsOneWidget);
-    expect(find.byKey(const Key('discover-type-row')), findsOneWidget);
-    expect(find.text('Mwangaza Services'), findsOneWidget);
-    expect(find.text('Accompagnement'), findsOneWidget);
-    expect(find.text('Accompagnement documentaire'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.byKey(const Key('discover-owner-date-row')), findsOneWidget);
+      expect(find.byKey(const Key('discover-type-row')), findsOneWidget);
+      expect(find.text('Mwangaza Services'), findsOneWidget);
+      expect(find.text('Accompagnement'), findsOneWidget);
+      expect(find.text('Accompagnement documentaire'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('N1 long description expands inline without opening detail', (
     tester,
@@ -524,7 +552,9 @@ void main() {
     expect(find.text('Document 3'), findsNothing);
     expect(find.text('Document 7'), findsNothing);
     expect(find.text('Voir les 7 ressources'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const Key('discover-resources-expand')));
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-resources-expand')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('discover-resources-expand')));
     await tester.pump();
@@ -532,7 +562,9 @@ void main() {
       expect(find.text('Document $index'), findsOneWidget);
     }
     expect(find.text('Voir moins de ressources'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const Key('discover-resources-expand')));
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-resources-expand')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('discover-resources-expand')));
     await tester.pump();
@@ -562,7 +594,11 @@ void main() {
         'availability': {'state': 'available'},
         'presentation_facts': [
           {'code': 'type', 'label': 'Type', 'value': 'Accompagnement'},
-          {'code': 'condition', 'label': 'Condition', 'value': 'Document requis'},
+          {
+            'code': 'condition',
+            'label': 'Condition',
+            'value': 'Document requis',
+          },
         ],
       },
     );
@@ -587,7 +623,9 @@ void main() {
     expect(find.text('Prix'), findsOneWidget);
     expect(find.text('25 USD'), findsOneWidget);
     expect(find.text('Document requis'), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const Key('discover-description-tap')));
+    await tester.ensureVisible(
+      find.byKey(const Key('discover-description-tap')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('discover-description-tap')));
     await tester.pump();
@@ -676,7 +714,8 @@ void main() {
       ),
     );
     expect(
-      tester.widget<IconButton>(find.byKey(const Key('discover-primary-n1')))
+      tester
+          .widget<IconButton>(find.byKey(const Key('discover-primary-n1')))
           .tooltip,
       'Détails',
     );
@@ -734,51 +773,50 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('N1 center ignores an unsupported native action and opens details', (
-    tester,
-  ) async {
-    var openedDetail = false;
-    final item = DiscoveryItemPresentation(
-      family: 'funding_activity',
-      id: 'funding-item',
-      candidateKey: 'funding_activity:funding-item',
-      title: 'Financement professionnel',
-      summary: 'Modalités du financement.',
-      savedState: 'unknown',
-      capabilities: const {'view'},
-      links: const {},
-      wire: const {
-        'engagement': {
-          'owner': 'funding',
-          'state': 'owner_contract',
-          'capabilities': ['pay'],
-          'primary_action': {
-            'code': 'pay',
-            'label': 'Payer',
-            'destination': {'kind': 'native', 'path': '/payments/unknown'},
+  testWidgets(
+    'N1 center ignores an unsupported native action and opens details',
+    (tester) async {
+      var openedDetail = false;
+      final item = DiscoveryItemPresentation(
+        family: 'funding_activity',
+        id: 'funding-item',
+        candidateKey: 'funding_activity:funding-item',
+        title: 'Financement professionnel',
+        summary: 'Modalités du financement.',
+        savedState: 'unknown',
+        capabilities: const {'view'},
+        links: const {},
+        wire: const {
+          'engagement': {
+            'owner': 'funding',
+            'state': 'owner_contract',
+            'capabilities': ['pay'],
+            'primary_action': {
+              'code': 'pay',
+              'label': 'Payer',
+              'destination': {'kind': 'native', 'path': '/payments/unknown'},
+            },
           },
         },
-      },
-    );
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: DiscoveryExplorationView(
-        selection: selection(items: [item]),
-        onOpen: (_) => openedDetail = true,
-      ),
-    );
-    final primary = find.byKey(const Key('discover-primary-n1'));
-    expect(tester.widget<IconButton>(primary).tooltip, 'Détails');
-    await tester.tap(primary);
-    await tester.pump();
-    expect(openedDetail, isTrue);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: DiscoveryExplorationView(
+          selection: selection(items: [item]),
+          onOpen: (_) => openedDetail = true,
+        ),
+      );
+      final primary = find.byKey(const Key('discover-primary-n1'));
+      expect(tester.widget<IconButton>(primary).tooltip, 'Détails');
+      await tester.tap(primary);
+      await tester.pump();
+      expect(openedDetail, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('N1 center offers native Funding contribution', (
-    tester,
-  ) async {
+  testWidgets('N1 center offers native Funding contribution', (tester) async {
     final item = DiscoveryItemPresentation(
       family: 'funding_activity',
       id: 'activity-funding',
@@ -818,9 +856,9 @@ void main() {
       ),
     );
     expect(
-      tester.widget<IconButton>(
-        find.byKey(const Key('discover-primary-n1')),
-      ).tooltip,
+      tester
+          .widget<IconButton>(find.byKey(const Key('discover-primary-n1')))
+          .tooltip,
       'Contribuer',
     );
     expect(tester.takeException(), isNull);
@@ -868,63 +906,61 @@ void main() {
       ),
     );
     expect(
-      tester.widget<IconButton>(
-        find.byKey(const Key('discover-primary-n1')),
-      ).tooltip,
+      tester
+          .widget<IconButton>(find.byKey(const Key('discover-primary-n1')))
+          .tooltip,
       'Obtenir',
     );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('N1 center displays authorized Service start, not universal Start', (
-    tester,
-  ) async {
-    final item = DiscoveryItemPresentation(
-      family: 'service_activity',
-      id: 'service-item',
-      candidateKey: 'service_activity:service-item',
-      title: 'Accompagnement administratif',
-      summary: 'Aide à la constitution du dossier.',
-      savedState: 'unknown',
-      capabilities: const {'view'},
-      links: const {},
-      wire: const {
-        'engagement': {
-          'owner': 'services',
-          'state': 'owner_api',
-          'capabilities': ['start'],
-          'resource': {'kind': 'service', 'id': 'service-id'},
-          'presentation': {
-            'capability': 'start',
-            'enabled': true,
-          },
-          'primary_action': {
-            'code': 'start',
-            'label': 'Commencer',
-            'destination': {
-              'kind': 'native',
-              'path': '/services/service-id/start',
+  testWidgets(
+    'N1 center displays authorized Service start, not universal Start',
+    (tester) async {
+      final item = DiscoveryItemPresentation(
+        family: 'service_activity',
+        id: 'service-item',
+        candidateKey: 'service_activity:service-item',
+        title: 'Accompagnement administratif',
+        summary: 'Aide à la constitution du dossier.',
+        savedState: 'unknown',
+        capabilities: const {'view'},
+        links: const {},
+        wire: const {
+          'engagement': {
+            'owner': 'services',
+            'state': 'owner_api',
+            'capabilities': ['start'],
+            'resource': {'kind': 'service', 'id': 'service-id'},
+            'presentation': {'capability': 'start', 'enabled': true},
+            'primary_action': {
+              'code': 'start',
+              'label': 'Commencer',
+              'destination': {
+                'kind': 'native',
+                'path': '/services/service-id/start',
+              },
             },
           },
         },
-      },
-    );
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: DiscoveryExplorationView(
-        selection: selection(items: [item]),
-        onOpen: (_) {},
-      ),
-    );
-    expect(
-      tester.widget<IconButton>(
-        find.byKey(const Key('discover-primary-n1')),
-      ).tooltip,
-      'Commencer',
-    );
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: DiscoveryExplorationView(
+          selection: selection(items: [item]),
+          onOpen: (_) {},
+        ),
+      );
+      expect(
+        tester
+            .widget<IconButton>(find.byKey(const Key('discover-primary-n1')))
+            .tooltip,
+        'Commencer',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('N1 center displays the owner-approved ticket action', (
     tester,
@@ -965,55 +1001,56 @@ void main() {
       ),
     );
     expect(
-      tester.widget<IconButton>(
-        find.byKey(const Key('discover-primary-n1')),
-      ).tooltip,
+      tester
+          .widget<IconButton>(find.byKey(const Key('discover-primary-n1')))
+          .tooltip,
       'Voir les billets',
     );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('N1 center action uses server detail when no native handoff exists', (
-    tester,
-  ) async {
-    var detailOpened = false;
-    final item = DiscoveryItemPresentation(
-      family: 'activity',
-      id: 'detail-action',
-      candidateKey: 'activity:detail-action',
-      title: 'Détails de la possibilité',
-      summary: 'Informations disponibles.',
-      savedState: 'unknown',
-      capabilities: const {'view'},
-      links: const {},
-      wire: const {
-        'engagement': {
-          'primary_action': {
-            'code': 'detail',
-            'label': 'Détails',
-            'destination': {
-              'kind': 'detail',
-              'path': '/api/v1/discovery/items/activity/detail-action/',
+  testWidgets(
+    'N1 center action uses server detail when no native handoff exists',
+    (tester) async {
+      var detailOpened = false;
+      final item = DiscoveryItemPresentation(
+        family: 'activity',
+        id: 'detail-action',
+        candidateKey: 'activity:detail-action',
+        title: 'Détails de la possibilité',
+        summary: 'Informations disponibles.',
+        savedState: 'unknown',
+        capabilities: const {'view'},
+        links: const {},
+        wire: const {
+          'engagement': {
+            'primary_action': {
+              'code': 'detail',
+              'label': 'Détails',
+              'destination': {
+                'kind': 'detail',
+                'path': '/api/v1/discovery/items/activity/detail-action/',
+              },
             },
           },
         },
-      },
-    );
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: DiscoveryExplorationView(
-        selection: selection(items: [item]),
-        onOpen: (_) => detailOpened = true,
-      ),
-    );
-    final primary = find.byKey(const Key('discover-primary-n1'));
-    expect(tester.widget<IconButton>(primary).tooltip, 'Détails');
-    await tester.tap(primary);
-    await tester.pump();
-    expect(detailOpened, isTrue);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: DiscoveryExplorationView(
+          selection: selection(items: [item]),
+          onOpen: (_) => detailOpened = true,
+        ),
+      );
+      final primary = find.byKey(const Key('discover-primary-n1'));
+      expect(tester.widget<IconButton>(primary).tooltip, 'Détails');
+      await tester.tap(primary);
+      await tester.pump();
+      expect(detailOpened, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('N1 preserves text, facts, media, annexes, then actions order', (
     tester,
@@ -1032,7 +1069,11 @@ void main() {
       links: const {},
       wire: const {
         'resources': [
-          {'title': 'Guide public', 'kind': 'text', 'text_content': 'Guide de test'},
+          {
+            'title': 'Guide public',
+            'kind': 'text',
+            'text_content': 'Guide de test',
+          },
         ],
       },
     );
@@ -1057,11 +1098,23 @@ void main() {
     expect(media, findsOneWidget);
     expect(annexes, findsOneWidget);
     expect(action, findsOneWidget);
-    expect(tester.getTopLeft(title).dy, lessThan(tester.getTopLeft(description).dy));
-    expect(tester.getTopLeft(description).dy, lessThan(tester.getTopLeft(facts).dy));
+    expect(
+      tester.getTopLeft(title).dy,
+      lessThan(tester.getTopLeft(description).dy),
+    );
+    expect(
+      tester.getTopLeft(description).dy,
+      lessThan(tester.getTopLeft(facts).dy),
+    );
     expect(tester.getTopLeft(facts).dy, lessThan(tester.getTopLeft(media).dy));
-    expect(tester.getTopLeft(media).dy, lessThanOrEqualTo(tester.getTopLeft(annexes).dy));
-    expect(tester.getTopLeft(annexes).dy, lessThan(tester.getTopLeft(action).dy));
+    expect(
+      tester.getTopLeft(media).dy,
+      lessThanOrEqualTo(tester.getTopLeft(annexes).dy),
+    );
+    expect(
+      tester.getTopLeft(annexes).dy,
+      lessThan(tester.getTopLeft(action).dy),
+    );
     expect(tester.takeException(), isNull);
   });
 

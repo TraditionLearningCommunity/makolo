@@ -345,10 +345,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
         content: Text(message),
-        action: SnackBarAction(
-          label: 'Réessayer',
-          onPressed: () => _retry(),
-        ),
+        action: SnackBarAction(label: 'Réessayer', onPressed: () => _retry()),
       ),
     );
   }
@@ -719,7 +716,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       if (discoveryOwnerDepthBrowsableByGuest(nativePath)) {
                         context.push(nativePath);
                       } else {
-                        widget.runtime.recovery.requireAuthentication(nativePath);
+                        widget.runtime.recovery.requireAuthentication(
+                          nativePath,
+                        );
                         context.push('/login');
                       }
                     },

@@ -326,9 +326,8 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     try {
       await Clipboard.setData(ClipboardData(text: uri.toString()));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lien copié.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Lien copié.')));
       }
     } on Object {
       if (mounted) {

@@ -714,7 +714,8 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                           item: item,
                           detailMode: true,
                           onOpen: () {},
-                          onSave: (item.savedState == 'saved'
+                          onSave:
+                              (item.savedState == 'saved'
                                   ? item.canUnsave
                                   : item.canSave)
                               ? () => _setSaved(item!.savedState != 'saved')

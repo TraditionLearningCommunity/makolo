@@ -35,7 +35,10 @@ class _DiscoveryTicketOrderScreenState
 
   static String _newPaymentKey() {
     final random = Random.secure();
-    return List.generate(32, (_) => random.nextInt(16).toRadixString(16)).join();
+    return List.generate(
+      32,
+      (_) => random.nextInt(16).toRadixString(16),
+    ).join();
   }
 
   Future<void> _paySandbox() async {
@@ -51,9 +54,9 @@ class _DiscoveryTicketOrderScreenState
         final response = await api.post(
           'api/v1/payments/payments/',
           body: {
-          'order_id': widget.orderId,
-          'provider': 'sandbox',
-          'method': 'card',
+            'order_id': widget.orderId,
+            'provider': 'sandbox',
+            'method': 'card',
             'idempotency_key': _paymentKey,
           },
         );
@@ -80,7 +83,10 @@ class _DiscoveryTicketOrderScreenState
       // Payment initiation may have committed despite a lost response.
       await _load();
       if (mounted && _payment?['status'] != 'succeeded') {
-        setState(() => _paymentError = 'Paiement à vérifier. Actualisez avant de réessayer.');
+        setState(
+          () => _paymentError =
+              'Paiement à vérifier. Actualisez avant de réessayer.',
+        );
       }
     } finally {
       if (mounted) setState(() => _paying = false);
@@ -126,7 +132,9 @@ class _DiscoveryTicketOrderScreenState
           final decoded = jsonDecode(paymentsResponse.body);
           final rows = decoded is List
               ? decoded
-              : decoded is Map ? decoded['results'] : null;
+              : decoded is Map
+              ? decoded['results']
+              : null;
           if (rows is List) {
             for (final raw in rows.whereType<Map>()) {
               final relatedOrder = raw['order'];
@@ -201,13 +209,19 @@ class _DiscoveryTicketOrderScreenState
             const SizedBox(height: 12),
             if (_sandboxAvailable &&
                 _payment?['status'] != 'succeeded' &&
-                !{'paid', 'confirmed', 'cancelled', 'expired'}
-                    .contains(order['status']?.toString().toLowerCase())) ...[
+                !{
+                  'paid',
+                  'confirmed',
+                  'cancelled',
+                  'expired',
+                }.contains(order['status']?.toString().toLowerCase())) ...[
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: _paying ? null : _paySandbox,
                 icon: const Icon(Icons.credit_card_rounded),
-                label: Text(_paying ? 'Paiement en cours…' : 'Payer en sandbox'),
+                label: Text(
+                  _paying ? 'Paiement en cours…' : 'Payer en sandbox',
+                ),
               ),
             ],
             if (_payment != null)

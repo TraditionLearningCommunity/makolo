@@ -117,8 +117,7 @@ class _NowScreenState extends State<NowScreen> {
           syncStatus?.state == SyncVisualState.failed) {
         return MakoloErrorState(
           message: 'Now indisponible.',
-          preservedMessage:
-              '',
+          preservedMessage: '',
           onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
         );
       }

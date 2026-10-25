@@ -122,13 +122,10 @@ class _OngoingScreenState extends State<OngoingScreen> {
                     ? MakoloFailureCue.none
                     : MakoloFailureCue.recoverable,
               ),
-              recoverableErrorMessage:
-                  'Actualisation impossible.',
+              recoverableErrorMessage: 'Actualisation impossible.',
               preservedMessage: '',
               onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
-              empty: const MakoloEmptyState(
-                title: 'Aucune démarche en cours.',
-              ),
+              empty: const MakoloEmptyState(title: 'Aucune démarche en cours.'),
               content: const SizedBox.shrink(),
             );
           }
@@ -153,8 +150,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
             ),
             // Keep existing journeys visible without an additional banner.
             recoverableErrorMessage: null,
-            preservedMessage:
-                '',
+            preservedMessage: '',
             onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
             content: _OngoingAdaptiveView(
               items: items,

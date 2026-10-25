@@ -40,15 +40,17 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
       '${widget.serviceId}';
 
   Future<void> _initialize() async {
-    if (widget.runtime.isAuthenticated &&
-        widget.runtime.interactions != null) {
+    if (widget.runtime.isAuthenticated && widget.runtime.interactions != null) {
       try {
-        final previous = await widget.runtime.interactions!.read(_interactionId);
+        final previous = await widget.runtime.interactions!.read(
+          _interactionId,
+        );
         final key = previous['idempotency_key'];
         if (key is String && key.isNotEmpty) {
           _operationKey = key;
           _objective.text = previous['objective'] is String
-              ? previous['objective'] as String : '';
+              ? previous['objective'] as String
+              : '';
           _selectedOpportunity = previous['opportunity'] as String?;
           _attempted = true;
         }
@@ -58,7 +60,6 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
     }
     if (mounted) await _prevalidate();
   }
-
 
   static String _newOperationKey() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -301,9 +302,13 @@ class _ServiceStartScreenState extends State<ServiceStartScreen> {
                   ? null
                   : _start,
               icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(_submitting
-                  ? 'Démarrage…'
-                  : _attempted ? 'Reprendre la demande' : 'Commencer'),
+              label: Text(
+                _submitting
+                    ? 'Démarrage…'
+                    : _attempted
+                    ? 'Reprendre la demande'
+                    : 'Commencer',
+              ),
             ),
           ],
           if (_error != null) ...[

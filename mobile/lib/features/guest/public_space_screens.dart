@@ -215,10 +215,7 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
         content: Text(message),
-        action: SnackBarAction(
-          label: 'Réessayer',
-          onPressed: () => _load(),
-        ),
+        action: SnackBarAction(label: 'Réessayer', onPressed: () => _load()),
       ),
     );
   }

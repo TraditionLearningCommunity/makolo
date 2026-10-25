@@ -52,8 +52,10 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
         final saved = await store.read(_interactionId);
         final reference = saved['client_reference'];
         final amount = saved['amount'];
-        if (reference is String && reference.isNotEmpty &&
-            amount is String && amount.isNotEmpty) {
+        if (reference is String &&
+            reference.isNotEmpty &&
+            amount is String &&
+            amount.isNotEmpty) {
           _reference = reference;
           _attemptedAmount = amount;
           _amount.text = amount;
@@ -225,10 +227,7 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (funding == null)
-            OutlinedButton(
-              onPressed: _load,
-              child: const Text('Réessayer'),
-            )
+            OutlinedButton(onPressed: _load, child: const Text('Réessayer'))
           else ...[
             Text(
               funding['title']?.toString() ?? 'Financement',
@@ -256,14 +255,16 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
             if (funding['accepts_contributions'] == true) ...[
               TextField(
                 controller: _amount,
-                enabled: !_submitting &&
+                enabled:
+                    !_submitting &&
                     _obligationId == null &&
                     _attemptedAmount == null,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Montant (' +
+                  labelText:
+                      'Montant (' +
                       (funding['currency']?.toString() ?? '') +
                       ')',
                   helperText: _limitLabel(funding),
@@ -279,8 +280,8 @@ class _FundingContributionScreenState extends State<FundingContributionScreen> {
                   _submitting
                       ? 'Contribution en cours…'
                       : widget.runtime.isAuthenticated
-                          ? 'Continuer vers le paiement'
-                          : 'Se connecter pour contribuer',
+                      ? 'Continuer vers le paiement'
+                      : 'Se connecter pour contribuer',
                 ),
               ),
               if (_obligationId case final id?) ...[

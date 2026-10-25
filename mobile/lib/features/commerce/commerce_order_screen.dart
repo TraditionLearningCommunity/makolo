@@ -85,14 +85,16 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
-            Text('État : ${switch (_order!['status']) {
-              'confirmed' => 'Confirmée',
-              'pending' => 'En attente',
-              'cancelled' => 'Annulée',
-              'expired' => 'Expirée',
-              'refunded' => 'Remboursée',
-              _ => 'À vérifier',
-            }}'),
+            Text(
+              'État : ${switch (_order!['status']) {
+                'confirmed' => 'Confirmée',
+                'pending' => 'En attente',
+                'cancelled' => 'Annulée',
+                'expired' => 'Expirée',
+                'refunded' => 'Remboursée',
+                _ => 'À vérifier',
+              }}',
+            ),
             Text(
               'Montant : ${details['total'] ?? 'À vérifier'} '
               '${details['currency'] ?? ''}',

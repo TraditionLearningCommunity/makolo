@@ -106,7 +106,9 @@ class _PublicPossibilityDetailScreenState
         padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
             child: Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -126,7 +128,9 @@ class _PublicPossibilityDetailScreenState
             const Center(child: CircularProgressIndicator())
           else if (_error != null && item == null) ...[
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+              ),
               child: Text(
                 _error!,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),

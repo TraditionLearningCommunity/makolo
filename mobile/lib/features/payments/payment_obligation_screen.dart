@@ -69,9 +69,7 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
       setState(() {
         _obligation = obligation;
         _payment = obligation['active_payment'] is Map
-            ? Map<String, dynamic>.from(
-                obligation['active_payment'] as Map,
-              )
+            ? Map<String, dynamic>.from(obligation['active_payment'] as Map)
             : null;
         _sandboxAvailable = sandbox;
         _loading = false;
@@ -139,7 +137,9 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
       // Resolve the owner state before showing a failure or replaying.
       await _load();
       if (mounted && _obligation?['status'] != 'satisfied') {
-        setState(() => _error = 'Paiement à vérifier. Actualisez avant de réessayer.');
+        setState(
+          () => _error = 'Paiement à vérifier. Actualisez avant de réessayer.',
+        );
       }
     } finally {
       if (mounted) setState(() => _paying = false);
@@ -150,10 +150,15 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
   Widget build(BuildContext context) {
     final obligation = _obligation;
     final status = obligation?['status']?.toString() ?? '';
-    final canPay = obligation?['capabilities'] is List &&
+    final canPay =
+        obligation?['capabilities'] is List &&
         (obligation!['capabilities'] as List).contains('pay');
     final terminal = {
-      'satisfied', 'waived', 'expired', 'cancelled', 'refunded',
+      'satisfied',
+      'waived',
+      'expired',
+      'cancelled',
+      'refunded',
     }.contains(status);
     return Scaffold(
       appBar: AppBar(
@@ -172,10 +177,7 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (obligation == null)
-            OutlinedButton(
-              onPressed: _load,
-              child: const Text('Réessayer'),
-            )
+            OutlinedButton(onPressed: _load, child: const Text('Réessayer'))
           else ...[
             Text(
               obligation['label']?.toString() ?? 'Paiement',
@@ -215,8 +217,10 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
                 const Text('Aucun moyen de paiement disponible.'),
             ],
             if (_payment != null)
-              Text('Transaction : ' +
-                  (_payment!['status']?.toString() ?? 'À vérifier')),
+              Text(
+                'Transaction : ' +
+                    (_payment!['status']?.toString() ?? 'À vérifier'),
+              ),
           ],
           if (_error case final error?) ...[
             const SizedBox(height: 12),

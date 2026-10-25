@@ -201,7 +201,8 @@ class JourneyDetailSelector {
           ? _string(links['live'])
           : null,
       capabilities: capabilities,
-      canRespondInvitation: capabilities.contains('accept_invitation') &&
+      canRespondInvitation:
+          capabilities.contains('accept_invitation') &&
           capabilities.contains('decline_invitation') &&
           _string(links['invitation']) != null,
       freshness: base.freshness,

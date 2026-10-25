@@ -175,7 +175,9 @@ class _DiscoveryEventTicketsScreenState
         throw const FormatException('Waitlist entry missing');
       }
       if (!mounted) return;
-      setState(() => _waitlistNotice = 'Inscription sur liste d’attente enregistrée.');
+      setState(
+        () => _waitlistNotice = 'Inscription sur liste d’attente enregistrée.',
+      );
     } on Object {
       if (!mounted) return;
       setState(() => _error = 'Liste d’attente indisponible.');
@@ -239,7 +241,8 @@ class _DiscoveryEventTicketsScreenState
                         '${ticket['price'] ?? ''} ${ticket['currency'] ?? ''}'
                         '${ticket['is_on_sale'] == true ? '' : ' · Non disponible'}',
                       ),
-                      secondary: ticket['is_on_sale'] != true &&
+                      secondary:
+                          ticket['is_on_sale'] != true &&
                               ticket['available_quantity'] == 0 &&
                               ticket['is_active'] == true &&
                               ticket['is_public'] == true
@@ -247,8 +250,8 @@ class _DiscoveryEventTicketsScreenState
                               onPressed: _joiningWaitlist
                                   ? null
                                   : () => _joinWaitlist(
-                                        ticket['id']?.toString() ?? '',
-                                      ),
+                                      ticket['id']?.toString() ?? '',
+                                    ),
                               child: const Text('Attendre une place'),
                             )
                           : null,

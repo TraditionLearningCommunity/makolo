@@ -51,9 +51,8 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
   String _choiceId(Map<String, dynamic> row) =>
       '${row['id']}|${row['occurrence_id'] ?? ''}';
 
-  String? get _selectedChoice => _offerId == null
-      ? null
-      : '$_offerId|${_occurrenceId ?? ''}';
+  String? get _selectedChoice =>
+      _offerId == null ? null : '$_offerId|${_occurrenceId ?? ''}';
 
   List<Map<String, dynamic>> get _offers {
     final raw = _checkout?['offers'];
@@ -66,8 +65,7 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
 
   Map<String, dynamic>? get _selected {
     for (final offer in _offers) {
-      if (offer['id'] == _offerId &&
-          offer['occurrence_id'] == _occurrenceId) {
+      if (offer['id'] == _offerId && offer['occurrence_id'] == _occurrenceId) {
         return offer;
       }
     }
@@ -131,8 +129,9 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
     setState(() {
       _checkout = result;
       final offers = _offers;
-      final selectionAvailable = offers.any((row) =>
-          row['id'] == _offerId && row['occurrence_id'] == _occurrenceId);
+      final selectionAvailable = offers.any(
+        (row) => row['id'] == _offerId && row['occurrence_id'] == _occurrenceId,
+      );
       // Never silently replace the subject of a previously submitted key:
       // it might already have committed despite a lost response.
       if (!selectionAvailable && !_attempted) {
@@ -209,8 +208,10 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
       await _refreshOwner();
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'Impossible de vérifier la commande. Réessayez plus tard.');
+        setState(
+          () => _error =
+              'Impossible de vérifier la commande. Réessayez plus tard.',
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -330,11 +331,16 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
           if (_checkout != null && !canOrder)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('Aucune nouvelle commande disponible pour cette démarche.'),
+              child: Text(
+                'Aucune nouvelle commande disponible pour cette démarche.',
+              ),
             ),
           if (canOrder) ...[
             const SizedBox(height: 20),
-            Text('Offres disponibles', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Offres disponibles',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             RadioGroup<String>(
               groupValue: _selectedChoice,
@@ -347,11 +353,15 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
                     RadioListTile<String>(
                       value: _choiceId(option),
                       title: Text(option['label']?.toString() ?? 'Offre'),
-                      subtitle: Text([
-                        if ((option['occurrence_label'] ?? '').toString().isNotEmpty)
-                          option['occurrence_label'].toString(),
-                        '${option['unit_price']} ${option['currency']}',
-                      ].join(' · ')),
+                      subtitle: Text(
+                        [
+                          if ((option['occurrence_label'] ?? '')
+                              .toString()
+                              .isNotEmpty)
+                            option['occurrence_label'].toString(),
+                          '${option['unit_price']} ${option['currency']}',
+                        ].join(' · '),
+                      ),
                     ),
                 ],
               ),
@@ -378,7 +388,10 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
                   ),
                 ],
               ),
-              Text('Mode de paiement', style: Theme.of(context).textTheme.titleSmall),
+              Text(
+                'Mode de paiement',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
               RadioGroup<String>(
                 groupValue: _paymentMode,
                 onChanged: (mode) {
@@ -407,13 +420,15 @@ class _CommerceCheckoutScreenState extends State<CommerceCheckoutScreen> {
                     ? null
                     : _createOrder,
                 icon: const Icon(Icons.shopping_bag_outlined),
-                label: Text(_submitting
-                    ? 'Vérification…'
-                    : !widget.runtime.isAuthenticated
-                        ? 'Se connecter pour continuer'
-                        : _attempted
-                            ? 'Revérifier la commande'
-                            : 'Créer la commande'),
+                label: Text(
+                  _submitting
+                      ? 'Vérification…'
+                      : !widget.runtime.isAuthenticated
+                      ? 'Se connecter pour continuer'
+                      : _attempted
+                      ? 'Revérifier la commande'
+                      : 'Créer la commande',
+                ),
               ),
             ],
             if (_attempted) ...[

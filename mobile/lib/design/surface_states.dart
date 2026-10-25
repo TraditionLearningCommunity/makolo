@@ -213,13 +213,12 @@ class MakoloFreshnessNotice extends StatelessWidget {
     return switch (freshness) {
       MakoloFreshnessCue.unknown => '',
       MakoloFreshnessCue.current => '',
-      MakoloFreshnessCue.oldObservation =>
-        'Informations à actualiser.',
-      MakoloFreshnessCue.refreshRecommended =>
-        'Actualisation disponible.',
+      MakoloFreshnessCue.oldObservation => 'Informations à actualiser.',
+      MakoloFreshnessCue.refreshRecommended => 'Actualisation disponible.',
       MakoloFreshnessCue.revalidationRequired =>
         'Vérification nécessaire avant de continuer.',
-      MakoloFreshnessCue.expired => 'Informations expirées. Vérifiez avant de continuer.',
+      MakoloFreshnessCue.expired =>
+        'Informations expirées. Vérifiez avant de continuer.',
     };
   }
 

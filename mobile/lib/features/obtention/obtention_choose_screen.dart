@@ -18,8 +18,7 @@ class ObtentionChooseScreen extends StatefulWidget {
   final String obtentionId;
 
   @override
-  State<ObtentionChooseScreen> createState() =>
-      _ObtentionChooseScreenState();
+  State<ObtentionChooseScreen> createState() => _ObtentionChooseScreenState();
 }
 
 class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
@@ -58,7 +57,8 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
       final list = result['existing_journeys'];
       if (list is List && mounted) {
         setState(() {
-          _existing = list.whereType<Map>()
+          _existing = list
+              .whereType<Map>()
               .map((row) => Map<String, dynamic>.from(row))
               .toList(growable: false);
         });
@@ -119,7 +119,9 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
     }
     final existing = _existingForSelection;
     if (existing != null && existing['id'] is String) {
-      context.push('/journeys/${Uri.encodeComponent(existing['id'] as String)}');
+      context.push(
+        '/journeys/${Uri.encodeComponent(existing['id'] as String)}',
+      );
       return;
     }
     setState(() {
@@ -145,12 +147,15 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
       if (!mounted) return;
       final existing = _existingForSelection;
       if (existing != null && existing['id'] is String) {
-        context.push('/journeys/${Uri.encodeComponent(existing['id'] as String)}');
+        context.push(
+          '/journeys/${Uri.encodeComponent(existing['id'] as String)}',
+        );
         return;
       }
       setState(() {
         _attempted = false;
-        _error = 'Démarrage à vérifier. Réessayez si aucune démarche n’apparaît.';
+        _error =
+            'Démarrage à vérifier. Réessayez si aucune démarche n’apparaît.';
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -174,12 +179,15 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
           else ...[
             Text(
               (obtention['activity'] is Map
-                      ? (obtention['activity'] as Map)['title']
-                      : null)
-                  ?.toString() ?? 'Obtention',
+                          ? (obtention['activity'] as Map)['title']
+                          : null)
+                      ?.toString() ??
+                  'Obtention',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
-            if ((configuration['result_label'] ?? '').toString().isNotEmpty) ...[
+            if ((configuration['result_label'] ?? '')
+                .toString()
+                .isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(configuration['result_label'].toString()),
             ],
@@ -187,8 +195,10 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
             if (_modes.isEmpty)
               const Text('Aucun mode disponible.')
             else ...[
-              Text('Comment souhaitez-vous l’obtenir ?',
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Comment souhaitez-vous l’obtenir ?',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               RadioGroup<String>(
                 groupValue: _selectedMode,
@@ -201,8 +211,7 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
                       RadioListTile<String>(
                         value: mode['code'] as String,
                         title: Text(
-                          mode['label']?.toString() ??
-                              mode['code'].toString(),
+                          mode['label']?.toString() ?? mode['code'].toString(),
                         ),
                       ),
                   ],
@@ -216,18 +225,17 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
                   _submitting
                       ? 'Ouverture en cours…'
                       : _existingForSelection != null
-                          ? 'Continuer ma démarche'
-                          : widget.runtime.isAuthenticated
-                              ? 'Ouvrir ma démarche'
-                              : 'Se connecter pour continuer',
+                      ? 'Continuer ma démarche'
+                      : widget.runtime.isAuthenticated
+                      ? 'Ouvrir ma démarche'
+                      : 'Se connecter pour continuer',
                 ),
               ),
               if (_journeyId case final id?) ...[
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: () => context.push(
-                    '/journeys/' + Uri.encodeComponent(id),
-                  ),
+                  onPressed: () =>
+                      context.push('/journeys/' + Uri.encodeComponent(id)),
                   child: const Text('Voir ma démarche'),
                 ),
               ],
@@ -235,7 +243,10 @@ class _ObtentionChooseScreenState extends State<ObtentionChooseScreen> {
           ],
           if (_error case final error?) ...[
             const SizedBox(height: 12),
-            Text(error, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              error,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
         ],
       ),

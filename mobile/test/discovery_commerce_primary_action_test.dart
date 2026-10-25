@@ -36,9 +36,8 @@ Future<void> _pumpAction(
       ),
       GoRoute(
         path: '/commerce/journeys/:id/checkout',
-        builder: (context, state) => Scaffold(
-          body: Text('checkout:${state.pathParameters['id']}'),
-        ),
+        builder: (context, state) =>
+            Scaffold(body: Text('checkout:${state.pathParameters['id']}')),
       ),
       GoRoute(
         path: '/commerce/activities/:id/checkout',
@@ -48,15 +47,13 @@ Future<void> _pumpAction(
       ),
       GoRoute(
         path: '/commerce/orders/:id',
-        builder: (context, state) => Scaffold(
-          body: Text('order:${state.pathParameters['id']}'),
-        ),
+        builder: (context, state) =>
+            Scaffold(body: Text('order:${state.pathParameters['id']}')),
       ),
       GoRoute(
         path: '/journeys/:id',
-        builder: (context, state) => Scaffold(
-          body: Text('journey:${state.pathParameters['id']}'),
-        ),
+        builder: (context, state) =>
+            Scaffold(body: Text('journey:${state.pathParameters['id']}')),
       ),
     ],
   );
@@ -65,7 +62,9 @@ Future<void> _pumpAction(
 }
 
 void main() {
-  testWidgets('a verified Commerce offer continuation stays native', (tester) async {
+  testWidgets('a verified Commerce offer continuation stays native', (
+    tester,
+  ) async {
     var detailCount = 0;
     await _pumpAction(
       tester,
@@ -94,7 +93,9 @@ void main() {
     expect(detailCount, 0);
   });
 
-  testWidgets('direct Activity Commerce action opens the native offer choice', (tester) async {
+  testWidgets('direct Activity Commerce action opens the native offer choice', (
+    tester,
+  ) async {
     var details = 0;
     await _pumpAction(
       tester,
@@ -126,7 +127,9 @@ void main() {
     expect(details, 0);
   });
 
-  testWidgets('an existing owner order resumes instead of recreating one', (tester) async {
+  testWidgets('an existing owner order resumes instead of recreating one', (
+    tester,
+  ) async {
     await _pumpAction(
       tester,
       onDetail: () {},
@@ -151,7 +154,9 @@ void main() {
     expect(find.text('order:order-123'), findsOneWidget);
   });
 
-  testWidgets('a forged native Commerce destination opens details instead', (tester) async {
+  testWidgets('a forged native Commerce destination opens details instead', (
+    tester,
+  ) async {
     var detailCount = 0;
     await _pumpAction(
       tester,
