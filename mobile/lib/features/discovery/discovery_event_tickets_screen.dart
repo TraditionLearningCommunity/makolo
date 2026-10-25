@@ -30,6 +30,8 @@ class _DiscoveryEventTicketsScreenState
   final _email = TextEditingController();
   bool _loading = true;
   bool _submitting = false;
+  bool _joiningWaitlist = false;
+  String? _waitlistNotice;
   String? _error;
   String? _eventId;
   String _eventTitle = '';
@@ -149,6 +151,39 @@ class _DiscoveryEventTicketsScreenState
     }
   }
 
+  Future<void> _joinWaitlist(String ticketTypeId) async {
+    if (_joiningWaitlist) return;
+    if (!widget.runtime.isAuthenticated) {
+      widget.runtime.recovery.requireAuthentication(
+        '/events/' + widget.eventSlug + '/tickets',
+      );
+      context.push('/login');
+      return;
+    }
+    setState(() {
+      _joiningWaitlist = true;
+      _error = null;
+      _waitlistNotice = null;
+    });
+    try {
+      final response = await widget.runtime.api!.post(
+        'api/v1/tickets/waitlist/',
+        body: {'ticket_type_id': ticketTypeId, 'quantity': 1},
+      );
+      final entry = response.jsonObject();
+      if (entry['id'] is! String) {
+        throw const FormatException('Waitlist entry missing');
+      }
+      if (!mounted) return;
+      setState(() => _waitlistNotice = 'Inscription sur liste d’attente enregistrée.');
+    } on Object {
+      if (!mounted) return;
+      setState(() => _error = 'Liste d’attente indisponible.');
+    } finally {
+      if (mounted) setState(() => _joiningWaitlist = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chosen = _types.where(
@@ -204,6 +239,19 @@ class _DiscoveryEventTicketsScreenState
                         '${ticket['price'] ?? ''} ${ticket['currency'] ?? ''}'
                         '${ticket['is_on_sale'] == true ? '' : ' · Non disponible'}',
                       ),
+                      secondary: ticket['is_on_sale'] != true &&
+                              ticket['available_quantity'] == 0 &&
+                              ticket['is_active'] == true &&
+                              ticket['is_public'] == true
+                          ? TextButton(
+                              onPressed: _joiningWaitlist
+                                  ? null
+                                  : () => _joinWaitlist(
+                                        ticket['id']?.toString() ?? '',
+                                      ),
+                              child: const Text('Attendre une place'),
+                            )
+                          : null,
                     ),
                 ],
               ),
@@ -256,6 +304,10 @@ class _DiscoveryEventTicketsScreenState
                 ),
               ),
             ],
+          ],
+          if (_waitlistNotice != null) ...[
+            const SizedBox(height: 12),
+            Text(_waitlistNotice!),
           ],
           if (_error != null) ...[
             const SizedBox(height: 12),
