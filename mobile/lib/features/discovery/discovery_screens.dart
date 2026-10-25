@@ -629,8 +629,9 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   }
 
   Future<void> _acquire() async {
-    final local = await widget.repository.readItem(widget.family, widget.id);
-    if (local == null) await _refresh();
+    // Stale-while-revalidate: cached facts can render immediately, but the
+    // server must re-evaluate actions and private visibility on N2 entry.
+    await _refresh();
   }
 
   Future<void> _refresh() async {
@@ -710,15 +711,17 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 1040),
                         child: DiscoveryPossibilityUnit(
-                      item: item,
-                      detailMode: true,
-                      onOpen: () {},
-                      onSave: item.canSave || item.canUnsave
-                          ? () => _setSaved(item!.canSave)
-                          : null,
-                      shareApi: widget.repository.api,
-                      shareAuthenticated: true,
-                      baseUri: widget.repository.api.baseUri,
+                          item: item,
+                          detailMode: true,
+                          onOpen: () {},
+                          onSave: (item.savedState == 'saved'
+                                  ? item.canUnsave
+                                  : item.canSave)
+                              ? () => _setSaved(item.savedState != 'saved')
+                              : null,
+                          shareApi: widget.repository.api,
+                          shareAuthenticated: true,
+                          baseUri: widget.repository.api.baseUri,
                         ),
                       ),
                     ),
