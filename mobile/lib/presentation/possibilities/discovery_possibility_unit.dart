@@ -27,6 +27,8 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
     this.selectionActionLabel,
     this.baseUri,
     this.compact = false,
+    this.detailMode = false,
+    this.onNativeAction,
   });
 
   final DiscoveryItemPresentation item;
@@ -40,6 +42,10 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
   final String? selectionActionLabel;
   final Uri? baseUri;
   final bool compact;
+  /// Renders the same server-owned facts at N2 without repeating N1 chrome.
+  final bool detailMode;
+  /// Guest entry may resume the owner route after session recovery.
+  final ValueChanged<String>? onNativeAction;
 
   @override
   State<DiscoveryPossibilityUnit> createState() =>
@@ -692,7 +698,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   void _centralAction(BuildContext context) {
     final path = _primaryNativePath;
     if (path != null) {
-      context.push(path);
+      if (widget.onNativeAction != null) {
+        widget.onNativeAction!(path);
+      } else {
+        context.push(path);
+      }
     } else {
       // No Web escape hatch: a missing native journey must be built in Flutter.
       widget.onOpen();
@@ -721,7 +731,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           textDirection: textDirection,
           textScaler: MediaQuery.textScalerOf(context),
         )..layout(maxWidth: constraints.maxWidth);
-        final expandable = painter.didExceedMaxLines;
+        final expandable = !widget.detailMode && painter.didExceedMaxLines;
         final collapsed = !_expanded && expandable;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -775,7 +785,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     List<Map<String, String?>> resources,
   ) {
     final theme = Theme.of(context);
-    final visible = _allResources ? resources : resources.take(2);
+    final visible = widget.detailMode || _allResources ? resources : resources.take(2);
     return Padding(
       key: const Key('discover-resources-section'),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -846,7 +856,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 ),
               ),
             ),
-          if (resources.length > 2)
+          if (!widget.detailMode && resources.length > 2)
             TextButton(
               key: const Key('discover-resources-expand'),
               style: TextButton.styleFrom(
@@ -917,11 +927,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
     final resources = _resourceEntries;
     return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
-      ),
+      decoration: widget.detailMode
+          ? const BoxDecoration()
+          : BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+              ),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -933,8 +945,13 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 _ownerHeader(context),
                 const SizedBox(height: MakoloSpacing.sm),
                 InkWell(
-                  onTap: widget.onOpen,
-                  child: Text(item.title, style: theme.textTheme.titleLarge),
+                  onTap: widget.detailMode ? null : widget.onOpen,
+                  child: Text(
+                    item.title,
+                    style: widget.detailMode
+                        ? theme.textTheme.headlineSmall
+                        : theme.textTheme.titleLarge,
+                  ),
                 ),
                 const SizedBox(height: MakoloSpacing.xs),
                 Builder(
@@ -1000,6 +1017,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           ),
           _media(context),
           if (resources.isNotEmpty) _resourceSection(context, resources),
+          if (widget.detailMode && _primaryNativePath != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: FilledButton.icon(
+                key: const Key('discover-primary-n2'),
+                onPressed: () => _centralAction(context),
+                icon: Icon(_centralActionIcon),
+                label: Text(_centralActionLabel),
+              ),
+            ),
           ...[
             const Divider(height: 1),
             Padding(
@@ -1011,7 +1038,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 children: [
                   Expanded(
                     child: IconButton(
-                      key: const Key('discover-save-n1'),
+                      key: Key(widget.detailMode ? 'discover-save-n2' : 'discover-save-n1'),
                       onPressed:
                           !_saving &&
                               widget.onSave != null &&
@@ -1029,7 +1056,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       ),
                     ),
                   ),
-                  Expanded(
+                  if (!widget.detailMode)
+                    Expanded(
                     child: IconButton(
                       key: const Key('discover-primary-n1'),
                       onPressed: () => _centralAction(context),
@@ -1058,7 +1086,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               icon: const Icon(Icons.map_outlined),
               label: Text(widget.selectionActionLabel ?? 'Voir sur la carte'),
             ),
-          Container(height: 10, color: theme.colorScheme.surfaceContainerLow),
+          if (!widget.detailMode)
+            Container(height: 10, color: theme.colorScheme.surfaceContainerLow),
         ],
       ),
     );
