@@ -455,6 +455,95 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 center ignores an unsupported native action and opens details', (
+    tester,
+  ) async {
+    var openedDetail = false;
+    final item = DiscoveryItemPresentation(
+      family: 'funding_activity',
+      id: 'funding-item',
+      candidateKey: 'funding_activity:funding-item',
+      title: 'Financement professionnel',
+      summary: 'Modalités du financement.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'owner': 'funding',
+          'state': 'owner_contract',
+          'capabilities': ['pay'],
+          'primary_action': {
+            'code': 'pay',
+            'label': 'Payer',
+            'destination': {'kind': 'native', 'path': '/payments/unknown'},
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [item]),
+        onOpen: (_) => openedDetail = true,
+      ),
+    );
+    final primary = find.byKey(const Key('discover-primary-n1'));
+    expect(tester.widget<IconButton>(primary).tooltip, 'Détails');
+    await tester.tap(primary);
+    await tester.pump();
+    expect(openedDetail, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('N1 center displays the owner-approved ticket action', (
+    tester,
+  ) async {
+    final item = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'event-item',
+      candidateKey: 'activity:event-item',
+      title: 'Conférence professionnelle',
+      summary: 'Inscription et billets.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'owner': 'events',
+          'state': 'owner_api',
+          'capabilities': ['inspect_offers'],
+          'resource': {'kind': 'event', 'id': 'event-id', 'slug': 'conf-2026'},
+          'links': {'native': '/events/conf-2026/tickets'},
+          'primary_action': {
+            'code': 'inspect_offers',
+            'label': 'Voir les billets',
+            'destination': {
+              'kind': 'native',
+              'path': '/events/conf-2026/tickets',
+            },
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [item]),
+        onOpen: (_) {},
+      ),
+    );
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-primary-n1')),
+      ).tooltip,
+      'Voir les billets',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 center action uses server detail when no native handoff exists', (
     tester,
   ) async {
