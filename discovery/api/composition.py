@@ -736,6 +736,33 @@ def _event_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
     return result
 
 
+def _obtention_handoffs(rows) -> dict[str, dict]:
+    """Native Obtention routes only for admitted published Activity candidates."""
+    from obtention.selectors import public_obtentions
+
+    admitted = {
+        str(candidate.activity_id)
+        for family, _, candidate in rows
+        if family == "activity"
+    }
+    if not admitted:
+        return {}
+    return {
+        str(obtention.activity_id): {
+            "state": "owner_api",
+            "owner": "obtention",
+            "capabilities": ["start_journey"],
+            "links": {
+                "detail": reverse("obtention_api:detail", kwargs={"pk": obtention.pk}),
+                "start_journey": reverse("obtention_api:journey-create", kwargs={"pk": obtention.pk}),
+                "native": f"/obtention/{obtention.pk}/choose",
+            },
+            "resource": {"kind": "obtention", "id": str(obtention.pk)},
+        }
+        for obtention in public_obtentions().filter(activity_id__in=admitted)
+    }
+
+
 def _funding_handoffs(rows) -> dict[str, dict]:
     """Use already-admitted Funding candidates and their owner service."""
     from funding.selectors import funding_accepts_contributions
@@ -763,7 +790,7 @@ def _funding_handoffs(rows) -> dict[str, dict]:
 
 def _handoff_for_projection(
     projection: dict, *, event_handoffs=None, service_handoffs=None,
-    funding_handoffs=None,
+    funding_handoffs=None, obtention_handoffs=None,
 ) -> dict:
     resource = projection["identity"]["resource"]
     family = projection["identity"]["family"]
@@ -773,6 +800,10 @@ def _handoff_for_projection(
             return handoff
     if family == "activity" and event_handoffs:
         handoff = event_handoffs.get(resource["id"])
+        if handoff is not None:
+            return handoff
+    if family == "activity" and obtention_handoffs:
+        handoff = obtention_handoffs.get(resource["id"])
         if handoff is not None:
             return handoff
     if family == "funding_activity" and funding_handoffs:
@@ -853,6 +884,22 @@ def _primary_action_for_projection(projection: dict) -> dict:
             "icon": "heart-handshake",
             "destination": {"kind": "native", "path": native},
         }
+    if (
+        engagement.get("owner") == "obtention"
+        and engagement.get("state") == "owner_api"
+        and resource.get("kind") == "obtention"
+        and isinstance(resource.get("id"), str)
+        and "start_journey" in capabilities
+        and isinstance(native, str)
+        and native == f"/obtention/{resource['id']}/choose"
+        and links.get("start_journey")
+    ):
+        return {
+            "code": "start_journey",
+            "label": "Obtenir",
+            "icon": "package-check",
+            "destination": {"kind": "native", "path": native},
+        }
     # Web uses the owner's presentation link independently. Discovery's
     # primary_action is for a verified in-app native route or N2 detail.
     return {
@@ -873,6 +920,7 @@ def _finalize_projection(
     event_handoffs=None,
     service_handoffs=None,
     funding_handoffs=None,
+    obtention_handoffs=None,
     description="",
 ) -> dict:
     identity = projection["identity"]
@@ -939,6 +987,7 @@ def _finalize_projection(
         event_handoffs=event_handoffs,
         service_handoffs=service_handoffs,
         funding_handoffs=funding_handoffs,
+        obtention_handoffs=obtention_handoffs,
     )
     if card is not None and card.actions.primary is not None:
         primary = card.actions.primary
@@ -1029,6 +1078,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     )
     service_handoffs = _service_handoffs(activity_ids, profile=profile)
     funding_handoffs = _funding_handoffs(rows)
+    obtention_handoffs = _obtention_handoffs(rows)
     owner_facts, opportunity_dates = _public_owner_facts(
         activity_ids, opportunity_ids,
     )
@@ -1106,6 +1156,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             event_handoffs=event_handoffs,
             service_handoffs=service_handoffs,
             funding_handoffs=funding_handoffs,
+            obtention_handoffs=obtention_handoffs,
             description=description,
         )
         if family == "opportunity":
