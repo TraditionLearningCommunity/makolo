@@ -469,6 +469,14 @@ void main() {
       links: const {},
       wire: const {
         'engagement': {
+          'primary_action': {
+            'code': 'contribute',
+            'label': 'Contribuer',
+            'destination': {
+              'kind': 'web',
+              'path': '/funding/projects/public/contribute/',
+            },
+          },
           'presentation': {
             'label': 'Contribuer',
             'web': '/funding/projects/public/contribute/',
@@ -509,6 +517,14 @@ void main() {
       links: const {},
       wire: const {
         'engagement': {
+          'primary_action': {
+            'code': 'pay',
+            'label': 'Payer',
+            'destination': {
+              'kind': 'web',
+              'path': 'https://untrusted.invalid/checkout',
+            },
+          },
           'presentation': {
             'label': 'Payer',
             'web': 'https://untrusted.invalid/checkout',
