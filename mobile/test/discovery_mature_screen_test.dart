@@ -455,6 +455,46 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 omits unknown practical information entirely', (
+    tester,
+  ) async {
+    final possibility = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'unknown-practical',
+      candidateKey: 'service_activity:unknown-practical',
+      title: 'Service sans horaire établi',
+      summary: 'Une proposition à découvrir.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      availability: 'Disponibilité à confirmer',
+      wire: const {
+        'availability': {'state': 'unknown'},
+        'assessment': [
+          {'state': 'unknown', 'label': 'Disponibilité à confirmer'},
+        ],
+        'presentation_facts': [
+          {'code': 'price', 'label': 'Prix', 'value': 'À déterminer'},
+          {'code': 'when', 'label': 'Heure', 'value': 'À compléter'},
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [possibility]),
+        onOpen: (_) {},
+      ),
+    );
+    expect(find.text('Informations pratiques'), findsNothing);
+    expect(find.text('Disponibilité à confirmer'), findsNothing);
+    expect(find.text('À déterminer'), findsNothing);
+    expect(find.text('À compléter'), findsNothing);
+    expect(find.byKey(const Key('discover-facts-section')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 center never opens an owner Web page inside Flutter', (
     tester,
   ) async {
