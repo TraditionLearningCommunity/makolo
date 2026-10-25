@@ -561,53 +561,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return null;
   }
 
-  Uri? get _verifiedWebContinuation {
-    final action = _serverPrimaryAction;
-    final destination = action?['destination'];
-    final presentation = item.engagement?['presentation'];
-    if (destination is! Map || destination['kind'] != 'web' ||
-        presentation is! Map || presentation['web_enabled'] != true) {
-      return null;
-    }
-    final raw = destination['path'];
-    if (raw != presentation['web']) return null;
-    final base = widget.baseUri;
-    if (raw is! String || raw.trim().isEmpty || base == null ||
-        (base.scheme != 'https' && base.scheme != 'http') ||
-        base.host.isEmpty) {
-      return null;
-    }
-    if (!raw.startsWith('/') || raw.startsWith('//') ||
-        raw.contains('\\') || raw.contains('?') || raw.contains('#')) {
-      return null;
-    }
-    final target = Uri.tryParse(raw.trim());
-    if (target == null || target.userInfo.isNotEmpty ||
-        target.hasFragment || target.pathSegments.contains('..')) {
-      return null;
-    }
-    // Reuse only a server-advertised route on the configured Makolo origin.
-    // Never open an arbitrary external site as a business continuation.
-    final uri = base.resolveUri(target);
-    if (uri.origin != base.origin ||
-        (uri.scheme != 'https' && uri.scheme != 'http')) {
-      return null;
-    }
-    return uri;
-  }
-
   String get _centralActionLabel {
-    final path = _primaryNativePath;
-    if (path == null) {
-      final web = _verifiedWebContinuation;
-      final presentation = item.engagement?['presentation'];
-      if (web != null && presentation is Map &&
-          presentation['label'] is String &&
-          (presentation['label'] as String).trim().isNotEmpty) {
-        return (presentation['label'] as String).trim();
-      }
-      return web == null ? 'Détails' : 'Continuer';
-    }
+    if (_primaryNativePath == null) return 'Détails';
     final label = _serverPrimaryAction?['label'];
     if (label is String && label.trim().isNotEmpty) return label.trim();
     return _serverPrimaryAction?['code'] == 'start'
@@ -616,11 +571,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   IconData get _centralActionIcon {
-    if (_primaryNativePath == null) {
-      return _verifiedWebContinuation == null
-          ? Icons.arrow_forward_rounded
-          : Icons.open_in_browser_rounded;
-    }
+    if (_primaryNativePath == null) return Icons.arrow_forward_rounded;
     return _serverPrimaryAction?['code'] == 'start'
         ? Icons.play_circle_outline_rounded
         : Icons.confirmation_number_outlined;
@@ -630,9 +581,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final path = _primaryNativePath;
     if (path != null) {
       context.push(path);
-    } else if (_verifiedWebContinuation case final uri?) {
-      _openWebsite(uri);
     } else {
+      // No Web escape hatch: a missing native journey must be built in Flutter.
       widget.onOpen();
     }
   }
