@@ -236,11 +236,8 @@ class PersonalCommerceCheckoutAPIView(APIView):
             response["Cache-Control"] = "private, no-store"
             return response
 
-        # A confirmed order may have advanced the Journey since the first
-        # request. An exact, authenticated replay is still safe; a new order
-        # must be checked against the current owner state.
-        if not _allowed_to_checkout(request.user, journey):
-            raise ValidationError({"journey": "Cette démarche ne permet pas cette commande."})
+        # An exact replay is safe even if the Journey advanced; reject any
+        # second order before checking new-checkout eligibility.
         active = _active_order(journey)
         if active is not None:
             response = Response({
@@ -250,6 +247,8 @@ class PersonalCommerceCheckoutAPIView(APIView):
             response["Cache-Control"] = "private, no-store"
             return response
 
+        if not _allowed_to_checkout(request.user, journey):
+            raise ValidationError({"journey": "Cette démarche ne permet pas cette commande."})
         offer = get_object_or_404(_checkout_offers(journey), pk=data["offer_id"])
         if (
             not offer.is_currently_available
