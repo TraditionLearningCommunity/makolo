@@ -145,7 +145,7 @@ def personal_commerce_handoffs(activity_ids, *, actor):
             journey.workflow in ALLOWED_WORKFLOWS
             and _allowed_to_checkout(actor, journey)
             and any(
-                offer.is_currently_available()
+                offer.is_currently_available
                 and bool(_journey_offer_modes(journey, offer))
                 for offer in _checkout_offers(journey)
             )
@@ -184,7 +184,7 @@ class PersonalCommerceCheckoutAPIView(APIView):
         offers = []
         if allowed and order is None:
             for offer in _checkout_offers(journey):
-                if not offer.is_currently_available():
+                if not offer.is_currently_available:
                     continue
                 modes = _journey_offer_modes(journey, offer)
                 if not modes:
@@ -252,7 +252,7 @@ class PersonalCommerceCheckoutAPIView(APIView):
 
         offer = get_object_or_404(_checkout_offers(journey), pk=data["offer_id"])
         if (
-            not offer.is_currently_available()
+            not offer.is_currently_available
             or data["payment_mode"] not in _journey_offer_modes(journey, offer)
         ):
             raise ValidationError({"offer_id": "Cette offre n’est plus disponible dans ces conditions."})

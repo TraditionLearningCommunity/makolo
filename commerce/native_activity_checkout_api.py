@@ -66,7 +66,7 @@ def activity_offer_choices(activity):
         for offer in currently_available_offers(
             activity=activity, occurrence=occurrence,
         ).prefetch_related("payment_options"):
-            if not offer.is_currently_available():
+            if not offer.is_currently_available:
                 continue
             # after_approval requires a separately approved owner Journey.
             modes = [mode for mode in offer.allowed_payment_modes
