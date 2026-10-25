@@ -1,5 +1,6 @@
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
@@ -16,7 +17,7 @@ from journeys.collaboration_services import (
     start_participant_step,
     start_step,
 )
-from journeys.models import JourneyStep
+from journeys.models import JourneyStatus, JourneyStep
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission, can
 from organizations.models import Organization
@@ -424,6 +425,50 @@ class ObtentionDetailAPIView(APIView):
 class ObtentionJourneyCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @staticmethod
+    def _active_for_actor(*, obtention, actor, mode=None, occurrence=None):
+        queryset = (
+            obtention_journey_queryset()
+            .filter(activity_id=obtention.activity_id, beneficiary=actor)
+            .exclude(status__in={
+                JourneyStatus.FULFILLED, JourneyStatus.REJECTED,
+                JourneyStatus.CANCELLED, JourneyStatus.EXPIRED,
+            })
+        )
+        if mode is not None:
+            queryset = queryset.filter(obtention_context__mode__code=mode)
+        if occurrence is not None:
+            queryset = queryset.filter(occurrence=occurrence)
+        else:
+            queryset = queryset.filter(occurrence__isnull=True)
+        return queryset.order_by("-created_at", "-pk")
+
+    def get(self, request, pk):
+        obtention = get_object_or_404(public_obtentions(), pk=pk)
+        from groups.selectors import eligible_activity_ids_for_profile
+
+        if obtention.activity_id not in eligible_activity_ids_for_profile(
+            request.user, [obtention.activity_id],
+        ):
+            raise NotFound()
+        journeys = list(self._active_for_actor(
+            obtention=obtention, actor=request.user,
+        ).select_related("obtention_context__mode")[:20])
+        response = Response({
+            "existing_journeys": [
+                {
+                    "id": str(journey.pk),
+                    "mode": journey.obtention_context.mode.code,
+                    "status": journey.status,
+                }
+                for journey in journeys
+                if hasattr(journey, "obtention_context")
+            ],
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    @transaction.atomic
     def post(self, request, pk):
         obtention = get_object_or_404(public_obtentions(), pk=pk)
         from groups.selectors import eligible_activity_ids_for_profile
@@ -443,6 +488,22 @@ class ObtentionJourneyCreateAPIView(APIView):
                 pk=occurrence_id,
                 activity=obtention.activity,
             )
+        # Serialize same-Obtention starts so a lost response cannot create
+        # a second active Journey when the client repeats the operation.
+        ObtentionDetails.objects.select_for_update().get(pk=obtention.pk)
+        prior = self._active_for_actor(
+            obtention=obtention,
+            actor=request.user,
+            mode=data["mode"],
+            occurrence=occurrence,
+        ).first()
+        if prior is not None:
+            response = Response(
+                _journey_payload(_journey_for_actor(request.user, prior.pk), request.user),
+                status=200,
+            )
+            response["Cache-Control"] = "private, no-store"
+            return response
         try:
             journey = create_obtention_journey(
                 obtention=obtention,
