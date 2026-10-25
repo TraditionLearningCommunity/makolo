@@ -793,12 +793,23 @@ def _public_commerce_handoffs(activity_ids, *, profile=None):
     if not activity_ids:
         return {}
     from activities.models import Activity
+    from commerce.models import Offer, OfferStatus
     from django.http import Http404
     from commerce.native_activity_checkout_api import (
         activity_offer_choices, public_activity_for_commerce,
     )
+    # Discovery may contain many non-Commerce possibilities. Preselect the
+    # owner-backed candidates before the more expensive capacity checks.
+    offer_activity_ids = set(
+        Offer.objects.filter(
+            activity_id__in=activity_ids,
+            status=OfferStatus.ACTIVE,
+        ).values_list("activity_id", flat=True)
+    )
+    if not offer_activity_ids:
+        return {}
     result = {}
-    for activity in Activity.objects.filter(pk__in=activity_ids).exclude(
+    for activity in Activity.objects.filter(pk__in=offer_activity_ids).exclude(
         event_vertical__isnull=False
     ):
         try:
