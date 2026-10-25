@@ -455,9 +455,10 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('N1 center reuses a same-origin owner Web continuation', (
+  testWidgets('N1 center never opens an owner Web page inside Flutter', (
     tester,
   ) async {
+    var openedDetail = false;
     final possibility = DiscoveryItemPresentation(
       family: 'funding_activity',
       id: 'funding-web',
@@ -491,14 +492,17 @@ void main() {
       child: DiscoveryExplorationView(
         selection: selection(items: [possibility]),
         baseUri: Uri.parse('https://makolo.invalid/'),
-        onOpen: (_) {},
+        onOpen: (_) => openedDetail = true,
       ),
     );
     expect(
       tester.widget<IconButton>(find.byKey(const Key('discover-primary-n1')))
           .tooltip,
-      'Contribuer',
+      'Détails',
     );
+    await tester.tap(find.byKey(const Key('discover-primary-n1')));
+    await tester.pump();
+    expect(openedDetail, isTrue);
     expect(tester.takeException(), isNull);
   });
 
@@ -589,6 +593,56 @@ void main() {
     await tester.tap(primary);
     await tester.pump();
     expect(openedDetail, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('N1 center offers native Funding contribution', (
+    tester,
+  ) async {
+    final item = DiscoveryItemPresentation(
+      family: 'funding_activity',
+      id: 'activity-funding',
+      candidateKey: 'funding_activity:activity-funding',
+      title: 'Financer une bibliothèque',
+      summary: 'Contribution ouverte.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'owner': 'funding',
+          'state': 'owner_api',
+          'capabilities': ['contribute'],
+          'resource': {'kind': 'funding', 'id': 'funding-123'},
+          'links': {
+            'native': '/funding/funding-123/contribute',
+            'contribute': '/api/v1/funding/funding-123/contributions/',
+          },
+          'primary_action': {
+            'code': 'contribute',
+            'label': 'Contribuer',
+            'destination': {
+              'kind': 'native',
+              'path': '/funding/funding-123/contribute',
+            },
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [item]),
+        onOpen: (_) {},
+      ),
+    );
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-primary-n1')),
+      ).tooltip,
+      'Contribuer',
+    );
     expect(tester.takeException(), isNull);
   });
 
