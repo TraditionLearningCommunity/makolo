@@ -853,27 +853,8 @@ def _primary_action_for_projection(projection: dict) -> dict:
             "icon": "heart-handshake",
             "destination": {"kind": "native", "path": native},
         }
-    # Reuse the real owner Web journey when no supported native route exists.
-    # Only local paths are allowed: Discovery never upgrades an external
-    # Opportunity source or an arbitrary URL into an actionable handoff.
-    web = presentation.get("web")
-    if (
-        presentation.get("web_enabled") is True
-        and isinstance(web, str)
-        and web.startswith("/")
-        and not web.startswith("//")
-        and chr(92) not in web
-        and not any(part == ".." for part in web.split("/"))
-        and "?" not in web
-        and "#" not in web
-        and presentation.get("capability") not in {"view", "detail", "open"}
-    ):
-        return {
-            "code": presentation.get("capability") or "continue",
-            "label": presentation.get("label") or "Continuer",
-            "icon": "external-link",
-            "destination": {"kind": "web", "path": web},
-        }
+    # Web uses the owner's presentation link independently. Discovery's
+    # primary_action is for a verified in-app native route or N2 detail.
     return {
         "code": "detail",
         "label": "Détails",
