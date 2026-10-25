@@ -788,12 +788,29 @@ def _funding_handoffs(rows) -> dict[str, dict]:
     return handoffs
 
 
+def _personal_engagement_handoffs(activity_ids, *, profile=None):
+    """Reuse the personal owner's confirmed Journey/Commerce relationships."""
+    if not _authenticated(profile) or not activity_ids:
+        return {}
+    from commerce.native_checkout_api import personal_commerce_handoffs
+
+    return personal_commerce_handoffs(activity_ids, actor=profile)
+
+
 def _handoff_for_projection(
     projection: dict, *, event_handoffs=None, service_handoffs=None,
     funding_handoffs=None, obtention_handoffs=None,
+    personal_handoffs=None,
 ) -> dict:
     resource = projection["identity"]["resource"]
     family = projection["identity"]["family"]
+    if family in {"activity", "service_activity", "funding_activity"} and personal_handoffs:
+        handoff = personal_handoffs.get(resource["id"])
+        if handoff is not None:
+            occurrence = projection["identity"].get("occurrence")
+            candidate_occurrence_id = occurrence.get("id") if isinstance(occurrence, dict) else None
+            if not handoff.get("occurrence_id") or handoff["occurrence_id"] == candidate_occurrence_id:
+                return handoff
     if family == "service_activity" and service_handoffs:
         handoff = service_handoffs.get(resource["id"])
         if handoff is not None:
@@ -833,6 +850,49 @@ def _primary_action_for_projection(projection: dict) -> dict:
     links = engagement.get("links") or {}
     resource = engagement.get("resource") or {}
     presentation = engagement.get("presentation") or {}
+    if (
+        engagement.get("owner") == "commerce"
+        and engagement.get("state") == "owner_api"
+        and resource.get("kind") == "commerce_order"
+        and isinstance(resource.get("id"), str)
+        and "resume_order" in capabilities
+        and links.get("native") == f"/commerce/orders/{resource['id']}"
+    ):
+        return {
+            "code": "resume_order",
+            "label": "Ma commande",
+            "icon": "receipt",
+            "destination": {"kind": "native", "path": links["native"]},
+        }
+    if (
+        engagement.get("owner") == "commerce"
+        and engagement.get("state") == "owner_api"
+        and resource.get("kind") == "journey"
+        and isinstance(resource.get("id"), str)
+        and "checkout" in capabilities
+        and links.get("native") == f"/commerce/journeys/{resource['id']}/checkout"
+        and links.get("checkout")
+    ):
+        return {
+            "code": "checkout",
+            "label": "Choisir une offre",
+            "icon": "shopping-bag",
+            "destination": {"kind": "native", "path": links["native"]},
+        }
+    if (
+        engagement.get("owner") == "journeys"
+        and engagement.get("state") == "owner_api"
+        and resource.get("kind") == "journey"
+        and isinstance(resource.get("id"), str)
+        and "continue" in capabilities
+        and links.get("native") == f"/journeys/{resource['id']}"
+    ):
+        return {
+            "code": "continue",
+            "label": "Continuer",
+            "icon": "arrow",
+            "destination": {"kind": "native", "path": links["native"]},
+        }
     if (
         engagement.get("owner") == "services"
         and engagement.get("state") == "owner_api"
@@ -921,6 +981,7 @@ def _finalize_projection(
     service_handoffs=None,
     funding_handoffs=None,
     obtention_handoffs=None,
+    personal_handoffs=None,
     description="",
 ) -> dict:
     identity = projection["identity"]
@@ -988,6 +1049,7 @@ def _finalize_projection(
         service_handoffs=service_handoffs,
         funding_handoffs=funding_handoffs,
         obtention_handoffs=obtention_handoffs,
+        personal_handoffs=personal_handoffs,
     )
     if card is not None and card.actions.primary is not None:
         primary = card.actions.primary
@@ -1079,6 +1141,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     service_handoffs = _service_handoffs(activity_ids, profile=profile)
     funding_handoffs = _funding_handoffs(rows)
     obtention_handoffs = _obtention_handoffs(rows)
+    personal_handoffs = _personal_engagement_handoffs(activity_ids, profile=profile)
     owner_facts, opportunity_dates = _public_owner_facts(
         activity_ids, opportunity_ids,
     )
@@ -1157,6 +1220,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
             service_handoffs=service_handoffs,
             funding_handoffs=funding_handoffs,
             obtention_handoffs=obtention_handoffs,
+            personal_handoffs=personal_handoffs,
             description=description,
         )
         if family == "opportunity":

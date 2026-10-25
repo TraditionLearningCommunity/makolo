@@ -88,6 +88,66 @@ def _allowed_to_checkout(actor, journey):
     return True
 
 
+def personal_commerce_handoffs(activity_ids, *, actor):
+    """Owner-scoped continuation; only the beneficiary may see their Journey."""
+    if not getattr(actor, "is_authenticated", False) or not activity_ids:
+        return {}
+    terminal = {
+        JourneyStatus.FULFILLED, JourneyStatus.REJECTED,
+        JourneyStatus.CANCELLED, JourneyStatus.EXPIRED,
+    }
+    journeys = (
+        Journey.objects.filter(beneficiary=actor, activity_id__in=activity_ids)
+        .exclude(status__in=terminal)
+        .select_related("activity", "occurrence")
+        .order_by("-created_at", "-pk")
+    )
+    result = {}
+    for journey in journeys:
+        activity_id = str(journey.activity_id)
+        if activity_id in result:
+            continue
+        order = _active_order(journey)
+        if order is not None:
+            result[activity_id] = {
+                "state": "owner_api",
+                "owner": "commerce",
+                "capabilities": ["resume_order"],
+                "resource": {"kind": "commerce_order", "id": str(order.pk)},
+                "links": {
+                    "native": f"/commerce/orders/{order.pk}",
+                    "detail": f"/api/v1/me/orders/{order.pk}/",
+                },
+                "occurrence_id": str(journey.occurrence_id) if journey.occurrence_id else None,
+            }
+        elif (
+            journey.workflow in ALLOWED_WORKFLOWS
+            and _allowed_to_checkout(actor, journey)
+            and any(offer.is_currently_available() for offer in _checkout_offers(journey))
+        ):
+            result[activity_id] = {
+                "state": "owner_api",
+                "owner": "commerce",
+                "capabilities": ["checkout"],
+                "resource": {"kind": "journey", "id": str(journey.pk)},
+                "links": {
+                    "native": f"/commerce/journeys/{journey.pk}/checkout",
+                    "checkout": f"/api/v1/commerce/journeys/{journey.pk}/checkout/",
+                },
+                "occurrence_id": str(journey.occurrence_id) if journey.occurrence_id else None,
+            }
+        else:
+            result[activity_id] = {
+                "state": "owner_api",
+                "owner": "journeys",
+                "capabilities": ["continue"],
+                "resource": {"kind": "journey", "id": str(journey.pk)},
+                "links": {"native": f"/journeys/{journey.pk}"},
+                "occurrence_id": str(journey.occurrence_id) if journey.occurrence_id else None,
+            }
+    return result
+
+
 class PersonalCommerceCheckoutAPIView(APIView):
     """Browse eligible offers and create at most one active order per Journey."""
     permission_classes = [IsAuthenticated]
