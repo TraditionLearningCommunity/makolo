@@ -69,14 +69,17 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       _confirmation = null;
     });
     try {
-      await widget.api.patch('api/v1/accounts/auth/profile/update/', body: {
-        'first_name': _firstName.text.trim(),
-        'last_name': _lastName.text.trim(),
-        'profession': _profession.text.trim(),
-        'city': _city.text.trim(),
-        'country': _country.text.trim(),
-        'bio': _bio.text.trim(),
-      });
+      await widget.api.patch(
+        'api/v1/accounts/auth/profile/update/',
+        body: {
+          'first_name': _firstName.text.trim(),
+          'last_name': _lastName.text.trim(),
+          'profession': _profession.text.trim(),
+          'city': _city.text.trim(),
+          'country': _country.text.trim(),
+          'bio': _bio.text.trim(),
+        },
+      );
     } on Object {
       if (!mounted) return;
       setState(() {
@@ -92,7 +95,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     try {
       final response = await widget.api.get('api/v1/me/');
       final envelope = ProjectionEnvelope.parse(
-        response.jsonObject(), expectedProjection: 'personal.me',
+        response.jsonObject(),
+        expectedProjection: 'personal.me',
       );
       final actor = envelope.data['actor'];
       if (actor is! Map ||
@@ -121,7 +125,12 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   @override
   void dispose() {
     for (final controller in [
-      _firstName, _lastName, _profession, _city, _country, _bio,
+      _firstName,
+      _lastName,
+      _profession,
+      _city,
+      _country,
+      _bio,
     ]) {
       controller.dispose();
     }
@@ -135,25 +144,37 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator.adaptive())
           : !_loaded
-              ? Center(child: TextButton.icon(
-                  onPressed: _read,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Réessayer'),
-                ))
-              : ListView(
+          ? Center(
+              child: TextButton.icon(
+                onPressed: _read,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Réessayer'),
+              ),
+            )
+          : ListView(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 44),
               children: [
                 if (_error != null) ...[
-                  Text(_error!, style: TextStyle(
-                    color: Theme.of(context).colorScheme.error)),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   if (!_saving && _confirmation == null)
-                    TextButton(onPressed: _read,
-                      child: const Text('Réessayer')),
+                    TextButton(
+                      onPressed: _read,
+                      child: const Text('Réessayer'),
+                    ),
                 ],
                 if (_confirmation != null) ...[
-                  Text(_confirmation!, style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary)),
+                  Text(
+                    _confirmation!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                 ],
                 _field('Prénom', _firstName),
@@ -172,15 +193,20 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     );
   }
 
-  Widget _field(String label, TextEditingController controller, {int lines = 1}) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: TextField(
-          controller: controller,
-          maxLines: lines,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(labelText: label, border:
-            const OutlineInputBorder()),
-        ),
-      );
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    int lines = 1,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: TextField(
+      controller: controller,
+      maxLines: lines,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+    ),
+  );
 }
