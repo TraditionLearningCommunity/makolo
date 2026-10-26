@@ -35,6 +35,7 @@ import '../features/interoperability/interoperability_routes.dart';
 import '../features/journey/journey_routes.dart';
 import '../features/mark/mark_routes.dart';
 import '../features/me/me_routes.dart';
+import '../features/me/me_group_screen.dart';
 import '../features/now/now_routes.dart';
 import '../features/ongoing/ongoing_routes.dart';
 import '../features/preparation/preparation_routes.dart';
@@ -607,9 +608,15 @@ GoRouter createMakoloRouter(
         path: '/groups/:id',
         builder: (context, state) {
           runtime.recovery.rememberLocation(state.uri.toString());
-          return const MakoloSecondaryScreen(
-            title: 'Makolo',
-            message: 'Aucun détail supplémentaire à afficher pour le moment.',
+          if (runtime.api == null) {
+            return const MakoloSecondaryScreen(
+              title: 'Groupe',
+              message: 'Ce groupe est momentanément indisponible.',
+            );
+          }
+          return MeGroupScreen(
+            api: runtime.api!,
+            groupId: state.pathParameters['id']!,
           );
         },
       ),
