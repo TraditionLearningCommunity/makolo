@@ -499,6 +499,26 @@ void main() {
     expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
+  test('Passport and Group use explicit native owner destinations', () {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()), now: now,
+    );
+    final passport = selection.territories.singleWhere(
+      (t) => t.presentation.key == 'passport',
+    );
+    expect(passport.items.single.destination.kind, 'passport');
+    expect(passport.items.single.canOpen, isTrue);
+
+    final collectives = selection.territories.singleWhere(
+      (t) => t.presentation.key == 'collectives',
+    );
+    final groups = collectives.items.where(
+      (item) => item.destination.kind == 'group',
+    );
+    expect(groups, isNotEmpty);
+    expect(groups.every((item) => item.canOpen), isTrue);
+  });
+
   testWidgets('identity edit uses an explicit owner destination', (
     tester,
   ) async {
