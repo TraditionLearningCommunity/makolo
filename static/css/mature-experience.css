@@ -251,3 +251,50 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 .mk-ongoing-unit__actions :is(a,button,summary):focus-visible{outline:3px solid var(--mk-brand);outline-offset:2px}
 @media(max-width:420px){.mk-ongoing-unit__actions{gap:4px}.mk-ongoing-unit__actions :is(button,a,summary){padding:8px 5px;font-size:.72rem}}
 @media(prefers-reduced-motion:reduce){.mk-ongoing-unit__more summary svg{transition:none}}
+
+
+/* Maintenant N2 — focus is opened only by deliberate selection. */
+.mk-now-n2-layout{width:100%;max-width:840px;min-width:0}
+.mk-now-n2-field{min-width:0;display:flex;flex-direction:column;gap:18px}
+.mk-now-n2-focus[hidden]{display:none!important}
+.mk-now-n2-focus{min-width:0;background:var(--mk-surface-solid);border:1px solid var(--mk-border);border-radius:28px;padding:clamp(20px,3vw,32px);box-shadow:var(--mk-shadow-sm)}
+.mk-now-n2-close{display:inline-flex;align-items:center;min-height:44px;margin-bottom:20px;padding:0 6px;color:var(--mk-brand);font-weight:750;font-size:.86rem}
+.mk-now-n2-close:focus-visible,.mk-now-n2-trigger:focus-visible{outline:3px solid var(--mk-brand);outline-offset:3px;border-radius:10px}
+.mk-now-n2-trigger{display:inline-flex;align-items:center;align-self:flex-start;gap:8px;min-height:44px;padding:7px 12px;margin-top:6px;border:1px solid var(--mk-border);border-radius:999px;background:var(--mk-surface-solid);color:var(--mk-brand);font-size:.86rem;font-weight:780;cursor:pointer}
+.mk-now-n2-trigger[aria-expanded="true"]{border-color:var(--mk-brand);background:color-mix(in srgb,var(--mk-brand) 8%,var(--mk-surface-solid))}
+.mk-now-n2-pane{display:grid;gap:clamp(16px,2vw,24px);align-content:start}
+.mk-now-n2-header h2{font-size:clamp(1.45rem,3vw,1.95rem);font-weight:850;letter-spacing:-.04em;color:var(--mk-text);margin:10px 0 8px}
+.mk-now-n2-header .mk-now-n2-meaning{color:var(--mk-text);font-size:clamp(1rem,1.4vw,1.2rem);line-height:1.47;font-weight:620;max-width:52ch}
+.mk-now-n2-section{display:grid;gap:7px;max-width:65ch}
+.mk-now-n2-section h3{font-size:.82rem;font-weight:800;letter-spacing:.015em;color:var(--mk-text)}
+.mk-now-n2-section p{font-size:.95rem;line-height:1.55;color:var(--mk-muted)}
+.mk-now-n2-wait{border-left:3px solid var(--mk-brand);padding:12px 16px;background:var(--mk-surface-muted);border-radius:0 14px 14px 0}
+.mk-now-n2-relations{padding:0;list-style:none;display:grid;gap:9px}
+.mk-now-n2-relations li{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--mk-border);border-radius:14px}
+.mk-now-n2-relations strong{font-weight:780;font-size:.9rem}
+.mk-now-n2-relations span{color:var(--mk-muted);font-size:.83rem}
+.mk-now-n2-media{margin:0;overflow:hidden;border:1px solid var(--mk-border);border-radius:18px;background:var(--mk-surface-muted)}
+.mk-now-n2-media img{display:block;width:100%;max-height:430px;object-fit:contain}
+.mk-now-n2-media iframe,.mk-now-n2-media video{display:block;width:100%;height:min(45vh,420px)}
+.mk-now-n2-media audio{display:block;width:100%;padding:18px}
+.mk-now-n2-media figcaption{padding:8px 14px;color:var(--mk-muted);font-size:.75rem}
+.mk-now-n2-resources{display:grid;gap:10px}
+.mk-now-n2-resource{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--mk-border)}
+.mk-now-n2-resource a{font-size:.84rem;color:var(--mk-brand);font-weight:740}
+.mk-now-n2-pane .mk-now-business-actions{display:flex;gap:10px;flex-wrap:wrap}
+.mk-now-n2-pane .mk-now-cta{margin-top:0;justify-self:start}
+@media(min-width:960px){
+  .mk-now-n2-layout.is-focused{display:grid;grid-template-columns:minmax(305px,350px) minmax(440px,640px);gap:24px;max-width:1050px;align-items:start}
+  .mk-now-n2-layout.is-focused .mk-now-n2-field{min-width:0}
+  .mk-now-n2-layout.is-focused .mk-now-n2-focus{display:block;position:sticky;top:24px;max-height:calc(100vh - 48px);overflow:auto}
+  .mk-now-n2-layout.is-focused .mk-now-primary{padding:20px}
+  .mk-now-n2-layout.is-focused .mk-now-primary h2{font-size:1.26rem}
+}
+@media(max-width:959px){
+  .mk-now-n2-layout.is-focused .mk-now-n2-field{display:none}
+  .mk-now-n2-layout.is-focused .mk-now-n2-focus{display:block;min-height:calc(100dvh - 150px);border:none;box-shadow:none;border-radius:0;padding:20px 0 32px}
+}
+@media(prefers-reduced-motion:no-preference){
+  .mk-now-n2-focus:not([hidden]){animation:mk-now-focus-enter .2s ease-out both}
+  @keyframes mk-now-focus-enter{from{opacity:.6;transform:translateY(7px)}to{opacity:1;transform:none}}
+}
