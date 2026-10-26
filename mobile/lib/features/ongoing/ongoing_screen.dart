@@ -259,7 +259,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
               stale: stale,
               onSelect: onSelect,
               baseUri: baseUri,
-        api: api,
+              api: api,
               onMore: onMore,
               moreBusy: moreBusy,
               moreError: moreError,
@@ -534,6 +534,7 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
   }
   @override
   Widget build(BuildContext context) => FutureBuilder<Uint8List>(
+    key: ValueKey(widget.imageUrl),
     future: _bytes,
     builder: (context, snapshot) {
       if (snapshot.hasData) {
@@ -541,7 +542,7 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
           snapshot.data!,
           fit: BoxFit.cover,
           semanticLabel: widget.label,
-          gaplessPlayback: true,
+          gaplessPlayback: false,
           errorBuilder: (context, error, stackTrace) =>
               const Center(child: Icon(Icons.image_not_supported_outlined)),
         );
