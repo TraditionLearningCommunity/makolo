@@ -220,6 +220,36 @@ class MatureDiscoveryAPITests(TestCase):
                     if primary is not None:
                         self.assertFalse(primary["enabled"])
 
+    def test_public_service_exposes_login_continuation_not_start_authority(self):
+        self.client.logout()
+        rows = self._items(q="Z3 accompagnement", page_size=20)["data"]["results"]
+        service = next(row for row in rows if row["identity"]["family"] == "service_activity")
+        engagement = service["engagement"]
+        self.assertEqual(engagement["owner"], "services")
+        self.assertEqual(engagement["state"], "owner_api")
+        self.assertEqual(engagement["capabilities"], ["start_after_auth"])
+        self.assertNotIn("start", engagement["capabilities"])
+        self.assertTrue(engagement["presentation"]["requires_auth"])
+        self.assertFalse(engagement["presentation"]["enabled"])
+        self.assertEqual(engagement["primary_action"]["code"], "start")
+        self.assertEqual(
+            engagement["primary_action"]["destination"],
+            {"kind": "native", "path": f"/services/{self.service.pk}/start"},
+        )
+        # No private personal relation or start authorization leaks to guests.
+        self.assertNotIn("journey", engagement)
+
+        self.client.force_login(self.participant)
+        personal_rows = self._items(
+            q="Z3 accompagnement", page_size=20
+        )["data"]["results"]
+        personal = next(
+            row for row in personal_rows
+            if row["identity"]["family"] == "service_activity"
+        )
+        self.assertIn("start", personal["engagement"]["capabilities"])
+        self.assertNotIn("start_after_auth", personal["engagement"]["capabilities"])
+
     def test_wire_exposes_only_known_owner_facts_and_empty_collections(self):
         rows = self._items(q="Z3", page_size=20)["data"]["results"]
         by_family = {row["identity"]["family"]: row for row in rows}
