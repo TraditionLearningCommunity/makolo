@@ -237,6 +237,48 @@ void main() {
     );
   });
 
+  test('N1 uses owner counts, not locally inferred item totals', () {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    final byKey = {
+      for (final territory in selection.territories)
+        territory.presentation.key: territory,
+    };
+    expect(byKey['considerations']!.totalCount, 1);
+    expect(byKey['collectives']!.totalCount, 3);
+    expect(byKey['resources']!.totalCount, 3);
+    expect(selection.identityAvatarUrl, isNull);
+  });
+
+  testWidgets('N1 avatar has a legible local-first fallback', (tester) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(tester, child: MeView(selection: selection));
+    expect(find.text('GB'), findsOneWidget);
+    expect(find.text('Gilbert Bemwiz'), findsOneWidget);
+  });
+
+  testWidgets('wide large text stays in one readable territory column', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(900, 900),
+      textScale: 1.6,
+      child: MeView(selection: selection),
+    );
+    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    expect(find.byKey(const Key('me-territories-wide')), findsNothing);
+  });
+
   test('support is conditional on runtime availability', () {
     final withoutSupport = selector.select(
       projection: _projection(_fullPayload()),
@@ -357,12 +399,12 @@ void main() {
     await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
     expect(
-      find.text('Aucun Passeport disponible ici pour le moment.'),
+      find.text('Aucun passeport disponible.'),
       findsOneWidget,
     );
     expect(find.text('Rien de déclaré pour le moment.'), findsOneWidget);
-    expect(find.text('Aucun collectif lié pour le moment.'), findsOneWidget);
-    expect(find.text('Aucune ressource disponible ici.'), findsOneWidget);
+    expect(find.text('Aucun collectif associé.'), findsOneWidget);
+    expect(find.text('Aucune ressource disponible.'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
