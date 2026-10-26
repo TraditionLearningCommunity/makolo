@@ -705,7 +705,7 @@ class _MeTerritory extends StatelessWidget {
             child: _body(context),
           )
         else
-          ColoredBox(
+          Material(
             color: color.surface,
             child: Padding(
               padding: EdgeInsets.symmetric(
