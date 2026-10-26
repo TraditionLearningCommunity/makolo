@@ -4,7 +4,7 @@
 {% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/me-n1.css' %}">
-<main class="mk-me-n1" data-mk-surface="me">
+<main class="mk-me-n1" data-mk-surface="me" data-me-profile="{{ me_projection.actor.id }}">
   <header class="mk-me-n1-identity">
     <div class="mk-me-n1-avatar" aria-hidden="true">
       {% if me_projection.identity.avatar_url %}
