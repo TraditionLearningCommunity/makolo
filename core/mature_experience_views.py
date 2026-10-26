@@ -242,6 +242,22 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
             "place": n1.get("place_label"),
             "image_url": media.get("url"),
             "image_alt": media.get("alt_text") or "",
+            "media_gallery": [
+                binding["resource"]
+                for binding in item.get("media_bindings") or []
+                if binding.get("purpose") == "RECOGNIZE"
+                and isinstance(binding.get("resource"), dict)
+                and binding["resource"].get("mime_type") in {"image/jpeg", "image/png"}
+                and binding["resource"].get("url")
+            ],
+            "resources": [
+                resource for resource in item.get("resources") or []
+                if isinstance(resource, dict) and resource.get("title")
+            ],
+            "temporal_facts": [
+                fact for fact in item.get("temporal_facts") or []
+                if isinstance(fact, dict) and (fact.get("at") or fact.get("date"))
+            ],
             "url": links.get("web"),
             "possibility": n1.get("possibility"),
             "can_save": bool(n1.get("possibility") and (
