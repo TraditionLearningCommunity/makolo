@@ -355,3 +355,15 @@ a[aria-label="Revenir à Mon espace"]{display:none}
   .mk-ongoing-card__media{flex:auto;width:100%;height:auto}
   .mk-ongoing-unit__actions{gap:0}
 }
+
+/* Ongoing calendar: same facts as the native client, progressive disclosure. */
+.mk-ongoing-calendar{position:relative;margin-left:auto}
+.mk-ongoing-calendar>summary{display:flex;gap:8px;align-items:center;min-height:44px;cursor:pointer;color:var(--mk-brand);list-style:none;font-weight:700}
+.mk-ongoing-calendar>summary::-webkit-details-marker{display:none}
+.mk-ongoing-calendar>summary svg{width:19px;height:19px}
+.mk-ongoing-calendar__panel{position:absolute;top:calc(100% + 8px);right:0;z-index:50;width:min(390px,calc(100vw - 32px));max-height:min(65vh,550px);overflow:auto;padding:14px;border:1px solid var(--mk-border);border-radius:18px;background:var(--mk-surface-solid);box-shadow:0 12px 30px rgba(15,23,42,.13)}
+.mk-ongoing-calendar__panel ol{margin:0;padding:0;list-style:none}
+.mk-ongoing-calendar__panel li+li{border-top:1px solid var(--mk-border)}
+.mk-ongoing-calendar__panel button{width:100%;min-height:44px;text-align:left;white-space:normal}
+.mk-ongoing-calendar__panel p{margin:4px 0;color:var(--mk-subtle)}
+.mk-ongoing-calendar__panel [hidden]{display:none!important}
