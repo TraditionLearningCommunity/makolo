@@ -829,6 +829,10 @@ def _access_ongoing_item(access, *, profile):
             else None
         ),
         "timing": _occurrence_timing(access.occurrence),
+        "access_window": {
+            "valid_from": _iso(access.valid_from) if access.valid_from else None,
+            "valid_until": _iso(access.valid_until) if access.valid_until else None,
+        },
         "place": _occurrence_place(access.occurrence),
         "capabilities": ["open_access"] + (["open_day_of"] if access.occurrence_id else []),
         "links": {
@@ -1376,6 +1380,18 @@ def _ongoing_temporal_facts(item):
             "at": expires_at,
             "source": source,
         })
+    access_window = item.get("access_window") or {}
+    for field, label in (
+        ("valid_from", "Accès utilisable dès"),
+        ("valid_until", "Accès valable jusqu'au"),
+    ):
+        if access_window.get(field):
+            facts.append({
+                "kind": field,
+                "label": label,
+                "at": access_window[field],
+                "source": source,
+            })
     seen = {(fact.get("at"), fact.get("date")) for fact in facts}
     for intervention in item.get("actor_interventions") or []:
         window = intervention.get("timing") or {}
