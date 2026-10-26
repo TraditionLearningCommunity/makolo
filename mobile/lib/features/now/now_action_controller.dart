@@ -254,10 +254,16 @@ class _NowActionGroupState extends State<NowActionGroup> {
                   : direct
                   ? () => unawaited(_execute(action))
                   : widget.onOpenOwner;
-              final label = nowDisplayActionLabel(
-                action.label,
-                widget.situation.humanContext,
-              );
+              final label = widget.compact && !direct
+                  ? nowDisplayHandoffLabel(
+                      action.label,
+                      widget.situation.meaning,
+                      widget.situation.humanContext,
+                    )
+                  : nowDisplayActionLabel(
+                      action.label,
+                      widget.situation.humanContext,
+                    );
               if (index == 0) {
                 return widget.compact
                     ? TextButton.icon(
