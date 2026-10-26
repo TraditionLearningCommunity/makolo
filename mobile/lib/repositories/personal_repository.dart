@@ -101,8 +101,9 @@ class PersonalRepository {
     final latest = await store.readProjection('personal.me');
     if (latest == null ||
         latest.sourceGeneratedAt != current.sourceGeneratedAt ||
-        latest.schemaVersion != current.schemaVersion)
+        latest.schemaVersion != current.schemaVersion) {
       return;
+    }
     final latestTerritory = latest.payload[territory];
     if (latestTerritory is! Map || latestTerritory[family] is! Map) return;
     final latestItems = (latestTerritory[family] as Map)['items'];
@@ -110,8 +111,9 @@ class PersonalRepository {
     if (latestItems is! List ||
         (latestSource['next_offset'] is int
             ? latestSource['next_offset'] != offset
-            : latestItems.length != offset))
+            : latestItems.length != offset)) {
       return;
+    }
 
     final seen = <String>{};
     final combined = <Map<String, dynamic>>[];
