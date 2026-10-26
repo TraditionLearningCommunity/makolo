@@ -762,21 +762,30 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     unawaited(_acquire());
   }
 
-  Future<void> _acquire() async {
-    if (await widget.repository.readActivity(widget.activityId) == null) {
-      await _refresh();
+  @override
+  void didUpdateWidget(covariant ActivityDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.activityId != widget.activityId) {
+      unawaited(_acquire());
     }
   }
 
+  Future<void> _acquire() => _refresh();
+
   Future<void> _refresh() async {
     if (_refreshing) return;
+    final requestedId = widget.activityId;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshActivity(widget.activityId);
+      // Always revalidate N3 on entry even when an N1 preview exists.
+      await widget.repository.refreshActivity(requestedId);
     } on Object {
-      // Scoped errors are recorded by SyncSource.
+      // The owner source records errors and discards revoked keyed details.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted) {
+        setState(() => _refreshing = false);
+        if (widget.activityId != requestedId) unawaited(_refresh());
+      }
     }
   }
 
@@ -925,21 +934,29 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
     unawaited(_acquire());
   }
 
-  Future<void> _acquire() async {
-    if (await widget.repository.readOccurrence(widget.occurrenceId) == null) {
-      await _refresh();
+  @override
+  void didUpdateWidget(covariant OccurrenceDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.occurrenceId != widget.occurrenceId) {
+      unawaited(_acquire());
     }
   }
 
+  Future<void> _acquire() => _refresh();
+
   Future<void> _refresh() async {
     if (_refreshing) return;
+    final requestedId = widget.occurrenceId;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshOccurrence(widget.occurrenceId);
+      await widget.repository.refreshOccurrence(requestedId);
     } on Object {
-      // Scoped errors are recorded by SyncSource.
+      // Owner checks access and current state on each N3 entry.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted) {
+        setState(() => _refreshing = false);
+        if (widget.occurrenceId != requestedId) unawaited(_refresh());
+      }
     }
   }
 
