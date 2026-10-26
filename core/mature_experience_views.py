@@ -244,6 +244,13 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
             "image_alt": media.get("alt_text") or "",
             "url": links.get("web"),
             "possibility": n1.get("possibility"),
+            "can_save": bool(n1.get("possibility") and (
+                {"save", "unsave"} & set(
+                    n1["possibility"].get("capabilities") or []
+                )
+            )),
+            "can_share": bool(n1.get("possibility") and
+                "share" in (n1["possibility"].get("capabilities") or [])),
             "details": tuple(
                 (label, tuple(value for value in entries if isinstance(value, str) and value.strip()))
                 for label, values in (
