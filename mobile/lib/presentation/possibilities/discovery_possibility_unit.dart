@@ -602,9 +602,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return item.family == 'service_activity' &&
         presentation is Map &&
         presentation['capability'] == 'start' &&
-        presentation['enabled'] == true &&
         caps is List &&
-        caps.contains('start') &&
+        ((presentation['enabled'] == true && caps.contains('start')) ||
+            (presentation['requires_auth'] == true &&
+                caps.contains('start_after_auth'))) &&
         resource is Map &&
         resource['kind'] == 'service' &&
         resource['id'] is String;
