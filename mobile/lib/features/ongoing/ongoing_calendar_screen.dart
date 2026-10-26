@@ -8,16 +8,37 @@ import 'ongoing_presentation.dart';
 
 /// Calendar of owner-established human moments for admitted personal pursuits.
 /// It consumes the same profile-bound local-first projection as En cours.
-class OngoingCalendarScreen extends StatelessWidget {
+class OngoingCalendarScreen extends StatefulWidget {
   const OngoingCalendarScreen({super.key, required this.repository});
 
   final PersonalRepository repository;
 
   @override
+  State<OngoingCalendarScreen> createState() => _OngoingCalendarScreenState();
+}
+
+class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
+  late Stream<StoredProjection?> _projectionStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _projectionStream = widget.repository.watchOngoing();
+  }
+
+  @override
+  void didUpdateWidget(covariant OngoingCalendarScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      _projectionStream = widget.repository.watchOngoing();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Calendrier')),
     body: StreamBuilder<StoredProjection?>(
-      stream: repository.watchOngoing(),
+      stream: _projectionStream,
       builder: (context, snapshot) {
         final projection = snapshot.data;
         if (projection == null) {
