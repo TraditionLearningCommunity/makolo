@@ -1365,17 +1365,20 @@ def _decorate_ongoing_semantics(item, *, observed_at):
     )
 
 
-def ongoing_continuation_offset(token):
+def ongoing_continuation_offset(token, *, profile):
+    """Decode an opaque, viewer-bound continuation. Never select a Profile."""
     if not token:
         return 0
     payload = signing.loads(
         token,
         salt=ONGOING_CONTINUATION_SALT,
-        max_age=60 * 60 * 24,
+        max_age=60 * 60,
     )
-    offset = int(payload["offset"])
-    if offset < 0:
-        raise ValueError("Invalid continuation offset.")
+    if not isinstance(payload, dict) or payload.get("viewer") != str(profile.pk):
+        raise ValueError("Continuation belongs to another viewer.")
+    offset = payload.get("offset")
+    if type(offset) is not int or offset < ONGOING_LIMIT or offset % ONGOING_LIMIT:
+        raise ValueError("Invalid Ongoing continuation offset.")
     return offset
 
 
@@ -1455,7 +1458,7 @@ def build_personal_ongoing_projection(
             "state": "more" if has_more else "end",
             "token": (
                 signing.dumps(
-                    {"offset": continuation_offset + ONGOING_LIMIT},
+                    {"offset": continuation_offset + ONGOING_LIMIT, "viewer": profile_id},
                     salt=ONGOING_CONTINUATION_SALT,
                     compress=True,
                 )
