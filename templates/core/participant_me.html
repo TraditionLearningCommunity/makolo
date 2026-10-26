@@ -79,7 +79,16 @@
             <h3>Enregistrés <span>{{ me_projection.considerations.bookmarks.count }}</span></h3>
             <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="bookmarks" data-me-owner-href="{% url 'discovery:bookmarks' %}" data-me-loaded="{{ me_projection.considerations.bookmarks.items|length }}" data-me-more="{{ me_projection.considerations.bookmarks.has_more|yesno:'true,false' }}">
               {% for row in me_projection.considerations.bookmarks.items %}
-                <a data-me-id="{{ row.id }}" href="{% url 'discovery:bookmarks' %}"><span class="mk-me-saved-orbit" role="img" aria-label="Enregistré"></span><span class="mk-me-n1-saved-title">{{ row.activity.title }}</span><span class="mk-me-n1-saved-chevron" aria-hidden="true">›</span></a>
+                <a data-me-id="{{ row.id }}" href="{% url 'discovery:bookmarks' %}">
+                  <span class="mk-me-saved-orbit" role="img" aria-label="Enregistré"></span>
+                  <span class="mk-me-n1-saved-title">{{ row.activity.title }}</span>
+                  {% with media=row.media_bindings.0 %}
+                    {% if media.purpose == 'RECOGNIZE' and media.resource.url %}
+                      <img class="mk-me-n1-recognition" src="{{ media.resource.url }}" alt="" loading="lazy" decoding="async" width="72" height="56">
+                    {% endif %}
+                  {% endwith %}
+                  <span class="mk-me-n1-saved-chevron" aria-hidden="true">›</span>
+                </a>
               {% endfor %}
             </div>
           </div>
