@@ -11,6 +11,7 @@ StatefulShellBranch ongoingBranch(AppRuntime runtime) => StatefulShellBranch(
       builder: (context, state) => OngoingScreen(
         repository: runtime.personal!,
         baseUri: runtime.api?.baseUri,
+        api: runtime.api,
       ),
     ),
   ],
