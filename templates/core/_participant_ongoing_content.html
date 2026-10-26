@@ -12,7 +12,7 @@
       {% endfor %}
     </div>
     <div id="ongoing-infinite" data-next-token="{{ ongoing_next_token|default:'' }}" data-state="{% if ongoing_next_token %}more{% else %}end{% endif %}" aria-live="polite">
-      <span id="ongoing-infinite-status">{% if ongoing_end_reached %}Vous avez tout exploré{% endif %}</span>
+      <span id="ongoing-infinite-status">{% if ongoing_end_reached %}Tout est affiché.{% endif %}</span>
     </div>
   {% else %}
     <section class="mk-calm-state">
