@@ -332,12 +332,14 @@ class OngoingHandoffPresentation {
 class OngoingPossibilityPresentation {
   const OngoingPossibilityPresentation({
     required this.id,
+    required this.family,
     required this.savedState,
     required this.canSave,
     required this.canShare,
     required this.shareUrl,
   });
   final String id;
+  final String family;
   final String savedState;
   final bool canSave;
   final bool canShare;
@@ -345,7 +347,9 @@ class OngoingPossibilityPresentation {
 
   static OngoingPossibilityPresentation? fromMap(Map<String, dynamic> raw) {
     final id = raw['id'];
-    if (raw['family'] != 'activity' || id is! String ||
+    final family = raw['family'];
+    if (!{'activity', 'service_activity', 'funding_activity'}.contains(family) ||
+        id is! String ||
         !RegExp(r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$').hasMatch(id)) {
       return null;
     }
@@ -355,10 +359,11 @@ class OngoingPossibilityPresentation {
     final share = links is Map ? links['share'] : null;
     return OngoingPossibilityPresentation(
       id: id,
+      family: family as String,
       savedState: raw['saved_state'] == 'saved' ? 'saved' : 'not_saved',
       canSave: allowed.contains('save') || allowed.contains('unsave'),
       canShare: allowed.contains('share') && share is String &&
-          share == '/api/v1/sharing/possibilities/activity/$id/',
+          share == '/api/v1/sharing/possibilities/$family/$id/',
       shareUrl: share is String ? share : null,
     );
   }
