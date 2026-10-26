@@ -125,21 +125,38 @@ class _MeScreenState extends State<MeScreen> {
     );
   }
 
-  void _loadNext(MeSelection selection) {
-    if (_loading != null || (_pageFailed && !_retryRequested) || widget.api == null || _last == null) return;
+  Future<void> _loadNext(MeSelection selection) async {
+    if (_loading != null || (_pageFailed && !_retryRequested) ||
+        widget.api == null || _last == null) return;
     _retryRequested = false;
-    final pending = selection.territories.where((t) =>
-      t.hasMore && const ['considerations','collectives','resources'].contains(t.presentation.key));
+    const families = ['considerations', 'collectives', 'resources'];
+    final pending = selection.territories.where((territory) =>
+        territory.hasMore && families.contains(territory.presentation.key));
     if (pending.isEmpty) return;
     final territory = pending.first.presentation.key;
+    final repository = widget.repository;
+    final current = _last!;
     setState(() => _loading = territory);
-    widget.repository.loadMoreMe(
-      api: widget.api!, current: _last!, territory: territory,
-    ).then((_) {
-      if (mounted) setState(() => _loading = null);
-    }).catchError((Object error) {
-      if (mounted) setState(() { _loading = null; _pageFailed = true; });
-    });
+    try {
+      await repository.loadMoreMe(
+        api: widget.api!, current: current, territory: territory,
+      );
+      // The next load must never be based on the old snapshot while the
+      // projection watcher is still delivering its update.
+      final latest = await repository.store.readProjection('personal.me');
+      if (!mounted || widget.repository != repository) return;
+      _last = latest;
+      setState(() {
+        _loading = null;
+        _pageFailed = false;
+      });
+    } on Object {
+      if (!mounted || widget.repository != repository) return;
+      setState(() {
+        _loading = null;
+        _pageFailed = true;
+      });
+    }
   }
 
   MakoloReachabilityCue _reachability(
