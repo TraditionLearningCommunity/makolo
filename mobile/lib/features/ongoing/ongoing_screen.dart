@@ -371,8 +371,10 @@ class _OngoingFieldState extends State<_OngoingField> {
       final item = widget.items[index];
       final expanded = _expanded.contains(item.id);
       final hasDetail = item.settled.isNotEmpty || item.mySide.isNotEmpty ||
-          item.elsewhere.isNotEmpty || item.next.isNotEmpty ||
-          item.blocker != null || item.waiting != null;
+          item.elsewhere.isNotEmpty || item.makolo.isNotEmpty ||
+          item.systemOrTime.isNotEmpty || item.next.isNotEmpty ||
+          item.blocker != null || item.waiting != null ||
+          item.unknown != null || _OngoingN1Details.routeFor(item) != null;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -409,7 +411,7 @@ class _OngoingN1Details extends StatelessWidget {
   const _OngoingN1Details({required this.item});
   final OngoingContinuityPresentation item;
 
-  String? get _ownerRoute {
+  static String? routeFor(OngoingContinuityPresentation item) {
     final kind = item.ownerKind;
     final id = item.ownerId;
     if (kind == null || id == null) return null;
@@ -440,13 +442,15 @@ class _OngoingN1Details extends StatelessWidget {
       ('De votre côté', item.mySide),
       ('En attente', item.elsewhere),
       ('Préparé par Makolo', item.makolo),
+      ('À venir', item.systemOrTime),
       ('À suivre', item.next),
       if (item.blocker != null) ('Ce qui bloque', [item.blocker!]),
+      if (item.unknown != null) ('À vérifier', [item.unknown!]),
     ];
     final seen = <String>{
       _ongoingKey(item.title), _ongoingKey(item.synthesis),
     };
-    final nativeOwnerRoute = _ownerRoute;
+    final nativeOwnerRoute = routeFor(item);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         MakoloSpacing.compact, 0, MakoloSpacing.compact, MakoloSpacing.md,
