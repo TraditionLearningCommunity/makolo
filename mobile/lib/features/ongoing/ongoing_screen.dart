@@ -194,6 +194,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
                   : null,
               moreBusy: _loadingMore,
               moreError: _moreError,
+              endReached: cursor is Map && cursor['state'] == 'end',
             ),
           );
         },
@@ -213,6 +214,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
     this.onMore,
     this.moreBusy = false,
     this.moreError,
+    this.endReached = false,
   });
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
@@ -223,6 +225,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
   final VoidCallback? onMore;
   final bool moreBusy;
   final String? moreError;
+  final bool endReached;
 
   @override
   Widget build(BuildContext context) => MakoloContentFrame(
@@ -238,6 +241,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
         onMore: onMore,
         moreBusy: moreBusy,
         moreError: moreError,
+        endReached: endReached,
       ),
       focus: selected == null
           ? const _OngoingFocusPlaceholder()
@@ -252,13 +256,14 @@ class _OngoingAdaptiveView extends StatelessWidget {
               onMore: onMore,
               moreBusy: moreBusy,
               moreError: moreError,
+              endReached: endReached,
             )
           : _OngoingFocus(item: selected!, onBack: onBack),
     ),
   );
 }
 
-class _OngoingField extends StatelessWidget {
+class _OngoingField extends StatefulWidget {
   const _OngoingField({
     required this.items,
     required this.selected,
@@ -268,7 +273,9 @@ class _OngoingField extends StatelessWidget {
     this.onMore,
     this.moreBusy = false,
     this.moreError,
+    this.endReached = false,
   });
+
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
   final bool stale;
@@ -277,49 +284,156 @@ class _OngoingField extends StatelessWidget {
   final VoidCallback? onMore;
   final bool moreBusy;
   final String? moreError;
+  final bool endReached;
+
+  @override
+  State<_OngoingField> createState() => _OngoingFieldState();
+}
+
+class _OngoingFieldState extends State<_OngoingField> {
+  final ScrollController _scroll = ScrollController();
+  final Set<String> _expanded = <String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_maybeMore);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeMore());
+  }
+
+  @override
+  void didUpdateWidget(covariant _OngoingField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.items.length != widget.items.length ||
+        oldWidget.moreBusy != widget.moreBusy ||
+        oldWidget.moreError != widget.moreError) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeMore());
+    }
+  }
+
+  void _maybeMore() {
+    if (!mounted || !_scroll.hasClients ||
+        widget.moreBusy || widget.moreError != null ||
+        widget.onMore == null) return;
+    if (_scroll.position.extentAfter < 480) widget.onMore?.call();
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => ListView.separated(
+    controller: _scroll,
     key: const PageStorageKey<String>('ongoing-field'),
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
-    itemCount: items.length + (onMore == null ? 0 : 1),
+    itemCount: widget.items.length + 1,
     separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.lg),
     itemBuilder: (context, index) {
-      if (index == items.length) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              OutlinedButton.icon(
-                onPressed: moreBusy ? null : onMore,
-                icon: moreBusy
-                    ? const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.arrow_downward_rounded),
-                label: const Text('Voir la suite'),
-              ),
-              if (moreError != null) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(moreError!, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ],
-          ),
-        );
+      if (index == widget.items.length) {
+        if (widget.moreError != null) {
+          return Center(
+            child: TextButton.icon(
+              onPressed: widget.onMore,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Réessayer'),
+            ),
+          );
+        }
+        if (widget.moreBusy) {
+          return const Center(child: Padding(
+            padding: EdgeInsets.all(MakoloSpacing.md),
+            child: CircularProgressIndicator.adaptive(),
+          ));
+        }
+        if (widget.endReached && !widget.stale && widget.items.isNotEmpty) {
+          return const Center(child: Padding(
+            padding: EdgeInsets.all(MakoloSpacing.md),
+            child: Text('Vous avez tout exploré'),
+          ));
+        }
+        return const SizedBox(height: MakoloSpacing.xl);
       }
-      final item = items[index];
-      final key = item.id;
-      final selectedKey = selected?.id;
-      return _OngoingRow(
-        item: item,
-        selected: key == selectedKey,
-        stale: stale,
-        onTap: () => onSelect(item),
-        baseUri: baseUri,
+      final item = widget.items[index];
+      final expanded = _expanded.contains(item.id);
+      final hasDetail = item.settled.isNotEmpty || item.mySide.isNotEmpty ||
+          item.elsewhere.isNotEmpty || item.next.isNotEmpty ||
+          item.blocker != null || item.waiting != null;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _OngoingRow(
+            item: item,
+            selected: item.id == widget.selected?.id,
+            stale: widget.stale,
+            onTap: () => widget.onSelect(item),
+            baseUri: widget.baseUri,
+          ),
+          if (hasDetail) ...[
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: () => setState(() {
+                  if (!_expanded.add(item.id)) _expanded.remove(item.id);
+                }),
+                icon: Icon(expanded
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded),
+                label: Text(expanded ? 'Voir moins' : 'Voir plus'),
+              ),
+            ),
+            if (expanded) _OngoingN1Details(item: item),
+          ],
+        ],
       );
     },
   );
+}
+
+class _OngoingN1Details extends StatelessWidget {
+  const _OngoingN1Details({required this.item});
+  final OngoingContinuityPresentation item;
+
+  @override
+  Widget build(BuildContext context) {
+    final groups = <(String, List<String>)>[
+      ('Déjà réglé', item.settled),
+      ('De votre côté', item.mySide),
+      ('En attente', item.elsewhere),
+      ('Préparé par Makolo', item.makolo),
+      ('À suivre', item.next),
+      if (item.blocker != null) ('Ce qui bloque', [item.blocker!]),
+    ];
+    final seen = <String>{
+      _ongoingKey(item.title), _ongoingKey(item.synthesis),
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.compact, 0, MakoloSpacing.compact, MakoloSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final (label, values) in groups)
+            if (values.any((value) => value.trim().isNotEmpty &&
+                !seen.contains(_ongoingKey(value)))) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Text(label, style: Theme.of(context).textTheme.titleSmall),
+              for (final value in values)
+                if (value.trim().isNotEmpty &&
+                    !_ongoingRedundant(value, item) &&
+                    seen.add(_ongoingKey(value)))
+                  Padding(
+                    padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                    child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+                  ),
+            ],
+        ],
+      ),
+    );
+  }
 }
 
 String _ongoingKey(String value) => value
