@@ -100,15 +100,14 @@ void main() {
       child: NowView(selection: contentSelection()),
     );
     expect(find.byType(Card), findsNothing);
-    expect(
-      find.byKey(const Key('now-unit-now:trip')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('now-unit-now:trip')), findsOneWidget);
     expect(find.text('Aussi maintenant'), findsOneWidget);
     expect(find.text('Vous avez tout exploré'), findsNothing);
   });
 
-  testWidgets('N1 separates the context from a repeated heading', (tester) async {
+  testWidgets('N1 separates the context from a repeated heading', (
+    tester,
+  ) async {
     final item = NowSituationPresentation(
       identity: 'now:conference',
       reference: const StructuredDestination(kind: 'now', id: 'conference'),
@@ -134,7 +133,6 @@ void main() {
       findsNothing,
     );
   });
-
 
   test('S5 requires consequence and a coherent owner response', () {
     final base = NowSituationPresentation(
