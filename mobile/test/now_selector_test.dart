@@ -51,6 +51,26 @@ StoredProjection projection({
 }
 
 void main() {
+  test('wire timestamps display as readable dates, not raw ISO', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:conference',
+            'human_context': 'Conférence cybersécurité',
+            'state_meaning': 'Vérifier la prochaine étape.',
+            'timing': {'starts_at': '2026-10-03T10:00:00+00:00'},
+          },
+        ],
+      ),
+      now: now,
+    );
+    final label = result.situations.single.metadata.single;
+    expect(label, matches(RegExp(r'^\d{2}/\d{2}/\d{4} · \d{2}:\d{2}$')));
+    expect(label, isNot(contains('T10:00:00')));
+  });
+
+
   const selector = NowSelector();
   final now = DateTime.utc(2026, 10, 3, 14);
 
