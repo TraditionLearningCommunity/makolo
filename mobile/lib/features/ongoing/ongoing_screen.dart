@@ -507,6 +507,8 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
     final possibility = widget.item.possibility;
     final route = _OngoingN1Details.routeFor(widget.item);
     final label = switch (widget.item.kind) {
+      'waitlist' when widget.item.capabilities.contains('accept') => 'Répondre',
+      'transfer' when widget.item.capabilities.contains('accept') => 'Répondre',
       'access' => 'Voir mon accès',
       'dossier' => 'Ouvrir le dossier',
       'project' => 'Voir le projet',
@@ -613,6 +615,12 @@ class _OngoingN1Details extends StatelessWidget {
           (character) => !'0123456789abcdefABCDEF'.contains(character),
         )) {
       return null;
+    }
+    // A decision is owned by Maintenant. N1 only hands off to the native
+    // decision surface; it never issues accept/decline or replays a mutation.
+    if ((kind == 'waitlist' || kind == 'ticket_transfer') &&
+        item.capabilities.contains('accept')) {
+      return '/now';
     }
     final canOpen = item.capabilities.contains('open_detail') ||
         (kind == 'access' && item.capabilities.contains('open_access'));
