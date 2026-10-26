@@ -95,9 +95,10 @@ class _NowScreenState extends State<NowScreen> {
   StoredProjection _withPages(StoredProjection projection) {
     if (_pagedItems.isEmpty) return projection;
     final original = projection.payload['items'];
+    final firstPage = original is List ? original : const <dynamic>[];
     final identities = <String>{};
     final merged = <dynamic>[];
-    for (final item in [...?original is List ? original : null, ..._pagedItems]) {
+    for (final item in [...firstPage, ..._pagedItems]) {
       if (item is! Map) continue;
       final identity = item['continuity_identity'] ?? item['id'];
       if (identity is String && !identities.add(identity)) continue;
