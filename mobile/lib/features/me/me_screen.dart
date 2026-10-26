@@ -447,7 +447,7 @@ class _MeAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final initials = name.trim().split(RegExp(r'\\s+'))
+    final initials = name.trim().split(RegExp(r'\s+'))
         .where((part) => part.isNotEmpty)
         .take(2)
         .map((part) => part.substring(0, 1).toUpperCase())
@@ -750,21 +750,19 @@ class _MeConsideration extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 48),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ),
-                if (item.subtitle != null)
+                Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
+                if (item.subtitle != null) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
                   Text(
                     item.subtitle!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
+                ],
               ],
             ),
           ),
