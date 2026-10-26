@@ -118,6 +118,51 @@ class PersonalRepository {
     );
   }
 
+  /// Reconcile a Discovery-confirmed save in the cached ongoing display only.
+  /// The bookmark is owned by Discovery; this does not create a new saved fact.
+  Future<void> reflectOngoingDiscoverySave({
+    required String activityId,
+    required bool saved,
+  }) async {
+    final snapshot = await store.readProjection('personal.ongoing');
+    if (snapshot == null) return;
+    final raw = snapshot.payload['items'];
+    if (raw is! List) return;
+    var changed = false;
+    final items = <Object>[];
+    for (final entry in raw) {
+      if (entry is! Map) {
+        items.add(entry);
+        continue;
+      }
+      final item = Map<String, dynamic>.from(entry);
+      final n1 = item['n1'];
+      if (n1 is Map && n1['possibility'] is Map &&
+          (n1['possibility'] as Map)['id'] == activityId) {
+        final possibility = Map<String, dynamic>.from(n1['possibility'] as Map)
+          ..['saved_state'] = saved ? 'saved' : 'not_saved'
+          ..['capabilities'] = [saved ? 'unsave' : 'save', 'share'];
+        item['n1'] = Map<String, dynamic>.from(n1)
+          ..['possibility'] = possibility;
+        changed = true;
+      }
+      items.add(item);
+    }
+    if (!changed) return;
+    await store.putProjection(
+      kind: 'personal.ongoing',
+      schemaVersion: snapshot.schemaVersion,
+      payload: Map<String, dynamic>.from(snapshot.payload)..['items'] = items,
+      receivedAt: snapshot.receivedAt,
+      sourceGeneratedAt: snapshot.sourceGeneratedAt,
+      sourceUpdatedAt: snapshot.sourceUpdatedAt,
+      lastVerifiedOnlineAt: snapshot.lastVerifiedOnlineAt,
+      freshUntil: snapshot.freshUntil,
+      expiresAt: snapshot.expiresAt,
+      freshnessPolicyId: snapshot.freshnessPolicyId,
+    );
+  }
+
   /// Continue the server-owned personal field without losing the cached prefix.
   /// Only one profile-scoped snapshot is persisted; this is not a second truth.
   Future<void> loadMoreOngoing({
