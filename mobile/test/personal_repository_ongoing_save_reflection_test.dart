@@ -67,7 +67,9 @@ void main() {
     expect(third['saved_state'], 'not_saved');
     expect(first['capabilities'], ['save']);
     expect(snapshot.payload['continuation'], {'token': 'opaque'});
-    expect(snapshot.sourceGeneratedAt, generatedAt);
+    // Drift/SQLite may restore the same instant in the local timezone.
+    expect(snapshot.sourceGeneratedAt, isNotNull);
+    expect(snapshot.sourceGeneratedAt!.isAtSameMomentAs(generatedAt), isTrue);
 
     await repository.reflectOngoingDiscoverySave(
       activityId: 'activity-1',
