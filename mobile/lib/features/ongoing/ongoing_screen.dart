@@ -1304,6 +1304,7 @@ class _OngoingFocus extends StatelessWidget {
       if (title is String && title.trim().isNotEmpty) usable.add(resource);
     }
     if (usable.isEmpty) return const SizedBox.shrink();
+    final ownerRoute = _OngoingN1Details.routeFor(item);
     return Padding(
       key: const Key('ongoing-n2-resources'),
       padding: const EdgeInsets.only(top: MakoloSpacing.lg),
@@ -1323,12 +1324,16 @@ class _OngoingFocus extends StatelessWidget {
               subtitle: resource['description'] is String
                   ? Text(resource['description'] as String)
                   : null,
-              trailing: (resource['kind'] == 'file' || resource['kind'] == 'text')
+              trailing: (resource['kind'] == 'file' ||
+                      resource['kind'] == 'text' ||
+                      (resource['kind'] == 'journey_artifact' && ownerRoute != null))
                   ? const Icon(Icons.chevron_right_rounded)
                   : null,
-              onTap: resource['kind'] == 'file' || resource['kind'] == 'text'
-                  ? () => _openPublicResource(context, resource)
-                  : null,
+              onTap: resource['kind'] == 'journey_artifact'
+                  ? (ownerRoute == null ? null : () => context.push(ownerRoute))
+                  : resource['kind'] == 'file' || resource['kind'] == 'text'
+                      ? () => _openPublicResource(context, resource)
+                      : null,
             ),
         ],
       ),
