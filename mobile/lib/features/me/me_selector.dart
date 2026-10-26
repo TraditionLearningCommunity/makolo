@@ -173,7 +173,7 @@ class MeSelector {
       presentation: MeTerritoryPresentation(
         key: 'passport',
         label: 'Passeport Makolo',
-        summary: 'Ce qui peut vous représenter selon le contexte.',
+        summary: 'Votre identité à partager, selon votre choix.',
         state: _sectionState(
           hasContent: available,
           malformed: malformed,
@@ -219,7 +219,7 @@ class MeSelector {
     return _territory(
       key: 'considerations',
       label: 'Ce qui compte pour moi',
-      summary: 'Intérêts, ouvertures et veilles déjà connus.',
+      summary: 'Intérêts, veilles et envies.',
       items: items,
       malformed: malformed,
       freshness: freshness,
@@ -249,7 +249,7 @@ class MeSelector {
     return _territory(
       key: 'collectives',
       label: 'Mes collectifs',
-      summary: 'Les collectifs auxquels votre Profil est relié.',
+      summary: 'Espaces, équipes et groupes.',
       items: items,
       malformed: malformed,
       freshness: freshness,
@@ -266,7 +266,7 @@ class MeSelector {
     return _territory(
       key: 'accesses',
       label: 'Mes accès',
-      summary: 'Les droits déjà accordés et leur prochain usage réel.',
+      summary: 'Vos droits et invitations.',
       items: const [
         MeItemPresentation(
           destination: StructuredDestination(
@@ -274,7 +274,7 @@ class MeSelector {
             id: 'mine',
           ),
           title: 'Voir mes droits disponibles',
-          subtitle: 'Access reste la source de vérité',
+          subtitle: 'Billets, invitations et droits',
         ),
       ],
       malformed: false,
@@ -298,8 +298,8 @@ class MeSelector {
             kind: 'resource_collection',
             id: 'mine',
           ),
-          title: 'Ouvrir Mes ressources',
-          subtitle: 'Bibliothèque, Proofs et Credentials',
+          title: 'Toutes mes ressources',
+          subtitle: 'Documents et attestations',
         ),
     ];
 
@@ -315,7 +315,7 @@ class MeSelector {
     return _territory(
       key: 'resources',
       label: 'Mes ressources',
-      summary: 'Ce qui est déjà disponible pour faciliter la suite.',
+      summary: 'Documents, preuves et attestations.',
       items: items,
       malformed: malformed,
       freshness: freshness,
@@ -359,7 +359,7 @@ class MeSelector {
     return _territory(
       key: 'support',
       label: 'Mes appuis',
-      summary: 'Des appuis déjà disponibles autour de vous.',
+      summary: 'Reconnaissances et relations.',
       items: items,
       malformed: false,
       freshness: freshness,
