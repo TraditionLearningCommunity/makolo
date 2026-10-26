@@ -20,3 +20,15 @@ String nowDisplayHeadline(String meaning, String humanContext) =>
 
 String nowDisplayActionLabel(String label, String humanContext) =>
     _withoutRepeatedContext(label, humanContext);
+
+String nowDisplayHandoffLabel(
+  String label,
+  String meaning,
+  String humanContext,
+) {
+  final shortened = nowDisplayActionLabel(label, humanContext);
+  return shortened.toLowerCase() ==
+          nowDisplayHeadline(meaning, humanContext).toLowerCase()
+      ? 'Voir les détails'
+      : shortened;
+}
