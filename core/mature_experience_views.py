@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core import signing
 from django.db import models
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -36,7 +37,10 @@ from trust.credential_selectors import credentials_for_profile
 from trust.selectors import proofs_for_profile
 
 from .participant_selectors import participant_active_accesses, participant_active_journeys
-from core.api.personal_projections import build_personal_ongoing_projection
+from core.api.personal_projections import (
+    build_personal_ongoing_projection,
+    ongoing_continuation_offset,
+)
 from core.api.me_projection import build_personal_me_data
 from .participant_presentation import occurrence_timing
 from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _primary_place
@@ -184,58 +188,49 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
 
     @staticmethod
     def _web_item(item):
+        """N1 web uses exactly the API's semantic and media projection."""
+        n1 = item.get("n1") or {}
+        media = next(
+            (
+                binding.get("resource") or {}
+                for binding in item.get("media_bindings") or []
+                if binding.get("purpose") == "RECOGNIZE"
+                and (binding.get("resource") or {}).get("url")
+            ),
+            {},
+        )
         links = item.get("links") or {}
-        blocker = item.get("blocker")
-        interventions = item.get("actor_interventions") or []
-        continuation = item.get("continuation")
-        ready = item.get("ready") or []
-        next_item = item.get("next")
-
-        summary = item.get("summary") or "Cette réalité continue."
-        if blocker:
-            tone = "attention"
-        elif interventions:
-            tone = "action"
-        elif continuation and continuation.get("state") == "waiting":
-            tone = "calm"
-        elif ready:
-            tone = "ready"
-        else:
-            tone = "calm"
-
-        next_action = ""
-        if interventions:
-            next_action = interventions[0].get("title") or ""
-        elif next_item:
-            next_action = next_item.get("title") or ""
-
-        timing = item.get("timing") or {}
-        compact_timing = ""
-        for key in ("start_at", "start_date", "due_at", "deadline_date", "expires_at"):
-            value = timing.get(key)
-            if value:
-                compact_timing = value
-                break
-
         return {
-            "kind": item.get("kind"),
-            "title": item.get("title") or "",
-            "summary": summary,
-            "tone": tone,
-            "next_action": next_action,
-            "timing": {"compact_label": compact_timing} if compact_timing else None,
-            "place": item.get("place"),
-            "url": links.get("web") or links.get("detail") or "#",
+            "id": item.get("id"),
+            "title": item.get("human_context") or item.get("title") or "",
+            "summary": item.get("synthesis") or item.get("summary") or "",
+            "tone": n1.get("tone") or "calm",
+            "cue": n1.get("cue"),
+            "next_action": n1.get("supporting"),
+            "when": n1.get("when_label"),
+            "place": n1.get("place_label"),
+            "image_url": media.get("url"),
+            "image_alt": media.get("alt_text") or "",
+            "url": links.get("web"),
         }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
         observed_at = get_request_context(self.request).observed_at
+        try:
+            offset = ongoing_continuation_offset(
+                self.request.GET.get("continuation")
+            )
+        except (signing.BadSignature, KeyError, TypeError, ValueError):
+            offset = 0
         data = build_personal_ongoing_projection(
             profile,
             observed_at=observed_at,
+            continuation_offset=offset,
         )
+        context["ongoing_next_token"] = (data.get("continuation") or {}).get("token")
+        context["ongoing_page_offset"] = offset
         items = data.get("items", [])
         ongoing_items = [self._web_item(item) for item in items]
         kinds = {item.get("kind") for item in items}
