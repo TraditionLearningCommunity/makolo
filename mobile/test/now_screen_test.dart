@@ -84,6 +84,14 @@ void main() {
       nowDisplayActionLabel('Accepter le transfert', 'Billet de concert'),
       'Accepter le transfert',
     );
+    expect(
+      nowDisplayHandoffLabel(
+        'Vérifier la prochaine étape — Conférence cybersécurité',
+        'Vérifier la prochaine étape — Conférence cybersécurité',
+        'Conférence cybersécurité',
+      ),
+      'Voir les détails',
+    );
   });
 
   testWidgets('N1 uses flat Discover units, not padded cards', (tester) async {
