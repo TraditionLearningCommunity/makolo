@@ -167,6 +167,18 @@ class DiscoverySourceState {
   final bool invalidated;
   final String? lastErrorCode;
 
+  /// A 403/404 owner reply invalidates the keyed detail and its N1 preview.
+  /// Transport failures alone must not discard an offline snapshot.
+  bool get ownerUnavailable =>
+      invalidated &&
+      const {
+        'permission_denied',
+        'not_found',
+        'api_error',
+        'http_403',
+        'http_404',
+      }.contains(lastErrorCode);
+
   ReachabilityState get reachability => reachabilityFromSource(
     lastSuccessAt: lastSuccessAt,
     lastErrorCode: lastErrorCode,
@@ -534,14 +546,30 @@ class DiscoveryRepository {
   Future<void> refreshActivity(String id) async {
     final source = activitySource(id);
     await _refresh(source);
-    if ((await readSource(source)).lastErrorCode != null) return;
+    final state = await readSource(source);
+    if (state.ownerUnavailable) {
+      await store.deleteProjection(
+        activityPreviewProjectionKind,
+        resourceKey: id,
+      );
+    }
+    if (state.lastErrorCode != null) return;
     final projection = await readActivity(id);
     if (projection != null) {
       await _indexActivityOccurrencePreviews(id, projection);
     }
   }
 
-  Future<void> refreshOccurrence(String id) => _refresh(occurrenceSource(id));
+  Future<void> refreshOccurrence(String id) async {
+    final source = occurrenceSource(id);
+    await _refresh(source);
+    if ((await readSource(source)).ownerUnavailable) {
+      await store.deleteProjection(
+        occurrencePreviewProjectionKind,
+        resourceKey: id,
+      );
+    }
+  }
 
   Future<void> refreshWatches() => _refresh(watchesSource());
 
