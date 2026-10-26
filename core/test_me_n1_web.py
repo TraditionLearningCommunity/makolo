@@ -39,3 +39,27 @@ class PersonalMeN1WebTests(TestCase):
     def test_anonymous_view_is_not_public(self):
         response = self.client.get(self.url)
         self.assertNotEqual(response.status_code, 200)
+
+    def test_preview_pages_are_private_and_bounded(self):
+        preview = reverse("personal-projections:me-preview", kwargs={"territory": "considerations"})
+        self.assertNotEqual(self.client.get(preview).status_code, 200)
+        self.client.force_login(self.profile)
+        response = self.client.get(preview, {"offset": "6", "limit": "24"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["meta"]["projection"], "personal.me.preview")
+        data = response.json()["data"]
+        self.assertEqual(data["territory"], "considerations")
+        self.assertEqual(data["offset"], 6)
+        self.assertEqual(data["collections"]["interests"]["items"], [])
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+    def test_preview_rejects_scope_override_and_unbounded_requests(self):
+        self.client.force_login(self.profile)
+        preview = reverse("personal-projections:me-preview", kwargs={"territory": "resources"})
+        self.assertEqual(self.client.get(preview, {"profile_id": "other"}).status_code, 400)
+        self.assertEqual(self.client.get(preview, {"offset": -1}).status_code, 400)
+        self.assertEqual(self.client.get(preview, {"limit": 1000}).status_code, 400)
+        self.assertEqual(
+            self.client.get(reverse("personal-projections:me-preview",
+                kwargs={"territory": "unknown"})).status_code, 400
+        )
