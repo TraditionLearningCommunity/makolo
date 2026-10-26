@@ -6,6 +6,8 @@
   const body = document.getElementById("now-n2-content");
   const close = document.getElementById("now-n2-close");
   if (!root || !focus || !body || !close) return;
+  if (root.dataset.n2Bound === "1") return;
+  root.dataset.n2Bound = "1";
 
   let activeKey = null;
   let sourceButton = null;
