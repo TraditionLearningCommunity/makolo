@@ -344,7 +344,9 @@ class NowSelector {
       relationMembers: List.unmodifiable(members),
       relations: List.unmodifiable(relations),
       makoloPreparation: List.unmodifiable(_strings(raw['makolo_preparation'])),
-      knowledgeState: _string(raw['knowledge_state']),
+      knowledgeState: _nestedString(
+        raw, 'knowledge_context', 'knowledge_state',
+      ) ?? _string(raw['knowledge_state']),
       emphasis: index == 0
           ? NowPresentationEmphasis.primary
           : NowPresentationEmphasis.secondary,
