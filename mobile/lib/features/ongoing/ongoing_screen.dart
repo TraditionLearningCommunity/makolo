@@ -1220,12 +1220,87 @@ class _OngoingFocus extends StatelessWidget {
     return metadata;
   }
 
+  Widget _mediaGallery(BuildContext context) {
+    final available = <(String, String)>[];
+    final seen = <String>{};
+    for (final binding in item.mediaBindings) {
+      if (binding['purpose'] != 'RECOGNIZE') continue;
+      final raw = binding['resource'];
+      if (raw is! Map) continue;
+      final mime = raw['mime_type'];
+      if (mime != 'image/jpeg' && mime != 'image/png') continue;
+      final url = ongoingRecognitionImageUrl(raw['url']?.toString(), baseUri);
+      if (url == null || !seen.add(url)) continue;
+      available.add((url, raw['alt_text']?.toString() ?? item.title));
+    }
+    if (available.isEmpty || api == null) return const SizedBox.shrink();
+    return Padding(
+      key: const Key('ongoing-n2-media-gallery'),
+      padding: const EdgeInsets.only(top: MakoloSpacing.md),
+      child: SizedBox(
+        height: 220,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: available.length,
+          separatorBuilder: (_, _) => const SizedBox(width: MakoloSpacing.sm),
+          itemBuilder: (context, index) {
+            final media = available[index];
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(MakoloRadii.card),
+              child: SizedBox(
+                width: MediaQuery.sizeOf(context).width < 500 ? 290 : 350,
+                child: _OngoingProtectedImage(
+                  api: api!,
+                  imageUrl: media.$1,
+                  label: media.$2,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _resources(BuildContext context) {
+    final usable = <Map<String, dynamic>>[];
+    for (final resource in item.resources) {
+      final title = resource['title'];
+      if (title is String && title.trim().isNotEmpty) usable.add(resource);
+    }
+    if (usable.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      key: const Key('ongoing-n2-resources'),
+      padding: const EdgeInsets.only(top: MakoloSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Documents et ressources', style: Theme.of(context).textTheme.titleSmall),
+          for (final resource in usable)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                resource['mime_type'] == 'application/pdf'
+                    ? Icons.picture_as_pdf_outlined
+                    : Icons.description_outlined,
+              ),
+              title: Text(resource['title'] as String),
+              subtitle: resource['description'] is String
+                  ? Text(resource['description'] as String)
+                  : null,
+              // A personal resource is not a public URL. Its owner must
+              // supply an authorized native operation before it opens.
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final showBack =
         MediaQuery.sizeOf(context).width < MakoloLayout.ongoingSplitMinWidth;
     final metadata = _humanMetadata();
-    final media = ongoingRecognitionImageUrl(item.mediaUrl, baseUri);
     final nativeOwnerRoute = _OngoingN1Details.routeFor(item);
     return SingleChildScrollView(
       key: ValueKey('ongoing-n2-scroll-${item.id}'),
@@ -1251,29 +1326,11 @@ class _OngoingFocus extends StatelessWidget {
                 ),
               ),
             ],
-            if (media != null && api != null) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(MakoloRadii.card),
-                child: SizedBox(
-                  height: 220,
-                  width: double.infinity,
-                  child: _OngoingProtectedImage(
-                    imageUrl: media,
-                    label: item.mediaAlt ?? item.title,
-                    api: api!,
-                  ),
-                ),
-              ),
-            ],
-            if (!_hasStructuredDetail) ...[
-              const SizedBox(height: MakoloSpacing.sm),
-              Text(
-                item.synthesis,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ],
+            const SizedBox(height: MakoloSpacing.xs),
+            Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
             ..._detailSections(context),
+            _mediaGallery(context),
+            _resources(context),
             if (nativeOwnerRoute != null) ...[
               const SizedBox(height: MakoloSpacing.xl),
               FilledButton(
