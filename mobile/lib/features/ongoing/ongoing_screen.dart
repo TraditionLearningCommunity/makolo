@@ -521,15 +521,28 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
       child: Row(
         children: [
           Expanded(
-            child: TextButton.icon(
+            child: TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+                minimumSize: const Size(0, 48),
+              ),
               onPressed: possibility?.canSave == true && widget.onSave != null && !_busy
                   ? _save : null,
-              icon: _busy
-                  ? const SizedBox(width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Icon(possibility?.savedState == 'saved'
-                      ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
-              label: Text(possibility?.savedState == 'saved' ? 'Enregistré' : 'Enregistrer'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_busy)
+                    const SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                  else
+                    Icon(possibility?.savedState == 'saved'
+                        ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
+                  const SizedBox(height: 2),
+                  Text(possibility?.savedState == 'saved' ? 'Enregistré' : 'Enregistrer',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: MakoloSpacing.xs),
@@ -543,10 +556,16 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
           const SizedBox(width: MakoloSpacing.xs),
           Expanded(
             child: sharedItem == null
-                ? const TextButton.icon(
+                ? const TextButton(
                     onPressed: null,
-                    icon: Icon(Icons.share_outlined),
-                    label: Text('Partager'),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.share_outlined),
+                        SizedBox(height: 2),
+                        Text('Partager', textAlign: TextAlign.center),
+                      ],
+                    ),
                   )
                 : DiscoveryShareControl(
                     item: sharedItem,
