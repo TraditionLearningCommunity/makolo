@@ -43,7 +43,8 @@
       if (host.classList.contains('mk-me-n1-chips')) {
         entry = node('span', '', label);
       } else {
-        const ownerHref = host.dataset.meOwnerHref;
+        const ownerHref = family === 'watches'
+          ? item.links?.web : host.dataset.meOwnerHref;
         entry = ownerHref && ownerHref.startsWith('/') && !ownerHref.startsWith('//')
           ? node('a', 'mk-me-n1-appended', label)
           : node('span', 'mk-me-n1-appended', label);
