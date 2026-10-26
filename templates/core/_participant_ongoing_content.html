@@ -3,8 +3,10 @@
     <h1>En cours</h1>
     <details class="mk-ongoing-calendar" id="ongoing-calendar">
       <summary><i data-lucide="calendar-days" aria-hidden="true"></i> Calendrier</summary>
-      <ol id="ongoing-calendar-moments" aria-label="Dates de mes continuités"></ol>
-      <p id="ongoing-calendar-empty">Aucune date à afficher pour le moment.</p>
+      <div class="mk-ongoing-calendar__panel">
+        <ol id="ongoing-calendar-moments" aria-label="Dates de mes continuités"></ol>
+        <p id="ongoing-calendar-empty">Aucune date à afficher pour le moment.</p>
+      </div>
     </details>
     {% if ongoing_page_offset %}<a href="?" class="mk-ongoing-back">Toutes mes continuités</a>{% endif %}
   </header>
