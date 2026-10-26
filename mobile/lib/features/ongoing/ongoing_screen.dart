@@ -13,6 +13,7 @@ import '../../design/surface_states.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../presentation/humanization.dart';
 import '../../repositories/personal_repository.dart';
+import '../../network/makolo_api_client.dart';
 import 'ongoing_presentation.dart';
 
 class OngoingScreen extends StatefulWidget {
@@ -21,10 +22,12 @@ class OngoingScreen extends StatefulWidget {
     required this.repository,
     this.projectionStream,
     this.baseUri,
+    this.api,
   });
   final PersonalRepository repository;
   final Stream<StoredProjection?>? projectionStream;
   final Uri? baseUri;
+  final MakoloApiClient? api;
   @override
   State<OngoingScreen> createState() => _OngoingScreenState();
 }
@@ -32,6 +35,8 @@ class OngoingScreen extends StatefulWidget {
 class _OngoingScreenState extends State<OngoingScreen> {
   String? _selectedOwnerKey;
   StoredProjection? _lastProjection;
+  bool _loadingMore = false;
+  String? _moreError;
   late Stream<StoredProjection?> _projectionStream;
   late Stream<OwnerSourceState> _sourceStream;
 
@@ -47,6 +52,8 @@ class _OngoingScreenState extends State<OngoingScreen> {
     if (oldWidget.repository != widget.repository ||
         oldWidget.projectionStream != widget.projectionStream) {
       _lastProjection = null;
+      _loadingMore = false;
+      _moreError = null;
       _bindStreams();
     }
   }
@@ -64,6 +71,26 @@ class _OngoingScreenState extends State<OngoingScreen> {
   void _clearSelection() => setState(() => _selectedOwnerKey = null);
 
   String _ownerKey(OngoingContinuityPresentation item) => item.id;
+
+  Future<void> _loadMore() async {
+    final current = _lastProjection;
+    final api = widget.api;
+    if (_loadingMore || current == null || api == null) return;
+    setState(() {
+      _loadingMore = true;
+      _moreError = null;
+    });
+    try {
+      await widget.repository.loadMoreOngoing(api: api, current: current);
+    } on Object {
+      if (mounted) {
+        setState(() => _moreError = 'La suite n’a pas pu être chargée.');
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) => MakoloRefreshBoundary(
@@ -134,6 +161,8 @@ class _OngoingScreenState extends State<OngoingScreen> {
             (item) => _ownerKey(item) == _selectedOwnerKey,
           );
           final selected = matches.isEmpty ? null : matches.first;
+          final cursor = projection.payload['continuation'];
+          final moreToken = cursor is Map ? cursor['token'] : null;
           final stale =
               projection.freshUntil != null &&
               projection.freshUntil!.isBefore(DateTime.now().toUtc());
@@ -160,6 +189,11 @@ class _OngoingScreenState extends State<OngoingScreen> {
               onSelect: _select,
               onBack: _clearSelection,
               baseUri: widget.baseUri,
+              onMore: widget.api != null && moreToken is String && moreToken.isNotEmpty
+                  ? () { _loadMore(); }
+                  : null,
+              moreBusy: _loadingMore,
+              moreError: _moreError,
             ),
           );
         },
@@ -176,6 +210,9 @@ class _OngoingAdaptiveView extends StatelessWidget {
     required this.onSelect,
     required this.onBack,
     this.baseUri,
+    this.onMore,
+    this.moreBusy = false,
+    this.moreError,
   });
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
@@ -183,6 +220,9 @@ class _OngoingAdaptiveView extends StatelessWidget {
   final ValueChanged<OngoingContinuityPresentation> onSelect;
   final VoidCallback onBack;
   final Uri? baseUri;
+  final VoidCallback? onMore;
+  final bool moreBusy;
+  final String? moreError;
 
   @override
   Widget build(BuildContext context) => MakoloContentFrame(
@@ -195,6 +235,9 @@ class _OngoingAdaptiveView extends StatelessWidget {
         stale: stale,
         onSelect: onSelect,
         baseUri: baseUri,
+        onMore: onMore,
+        moreBusy: moreBusy,
+        moreError: moreError,
       ),
       focus: selected == null
           ? const _OngoingFocusPlaceholder()
@@ -206,6 +249,9 @@ class _OngoingAdaptiveView extends StatelessWidget {
               stale: stale,
               onSelect: onSelect,
               baseUri: baseUri,
+              onMore: onMore,
+              moreBusy: moreBusy,
+              moreError: moreError,
             )
           : _OngoingFocus(item: selected!, onBack: onBack),
     ),
@@ -219,20 +265,49 @@ class _OngoingField extends StatelessWidget {
     required this.stale,
     required this.onSelect,
     this.baseUri,
+    this.onMore,
+    this.moreBusy = false,
+    this.moreError,
   });
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
   final bool stale;
   final ValueChanged<OngoingContinuityPresentation> onSelect;
   final Uri? baseUri;
+  final VoidCallback? onMore;
+  final bool moreBusy;
+  final String? moreError;
 
   @override
   Widget build(BuildContext context) => ListView.separated(
     key: const PageStorageKey<String>('ongoing-field'),
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
-    itemCount: items.length,
+    itemCount: items.length + (onMore == null ? 0 : 1),
     separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.lg),
     itemBuilder: (context, index) {
+      if (index == items.length) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              OutlinedButton.icon(
+                onPressed: moreBusy ? null : onMore,
+                icon: moreBusy
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.arrow_downward_rounded),
+                label: const Text('Voir la suite'),
+              ),
+              if (moreError != null) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(moreError!, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ],
+          ),
+        );
+      }
       final item = items[index];
       final key = item.id;
       final selectedKey = selected?.id;
