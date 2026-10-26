@@ -5,6 +5,7 @@ import '../../navigation/secondary_screen.dart';
 import '../resources/resource_detail_screen.dart';
 import '../resources/resources_screen.dart';
 import 'me_screen.dart';
+import 'me_passport_screen.dart';
 
 StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
@@ -14,6 +15,22 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         repository: runtime.personal!,
         api: runtime.api,
         onOpenDestination: (destination) {
+          if (destination.kind == 'passport') {
+            context.push('/me/passport');
+            return true;
+          }
+          if (destination.kind == 'activity') {
+            context.push('/discover/items/activity/${destination.id}');
+            return true;
+          }
+          if (destination.kind == 'profile') {
+            context.push('/people/${destination.id}');
+            return true;
+          }
+          if (destination.kind == 'space' && destination.link != null) {
+            context.push('/spaces/${Uri.encodeComponent(destination.link!)}');
+            return true;
+          }
           if (destination.kind == 'access_collection') {
             context.push('/accesses');
             return true;
@@ -30,6 +47,11 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         },
       ),
       routes: [
+        GoRoute(
+          path: 'passport',
+          builder: (context, state) =>
+              MePassportScreen(api: runtime.api),
+        ),
         GoRoute(
           path: 'resources',
           builder: (context, state) {
