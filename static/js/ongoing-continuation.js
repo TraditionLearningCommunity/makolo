@@ -5,6 +5,9 @@
   const stream = document.getElementById("ongoing-stream");
   const status = document.getElementById("ongoing-infinite-status");
   if (!sentinel || !stream || !status) return;
+  const gate = sentinel;
+  if (gate.dataset.autoloadBound === "1") return;
+  gate.dataset.autoloadBound = "1";
   let busy = false;
   let failed = false;
   let observer;
