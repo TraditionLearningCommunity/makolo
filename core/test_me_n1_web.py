@@ -8,8 +8,7 @@ class PersonalMeN1WebTests(TestCase):
     def setUp(self):
         self.profile = get_user_model().objects.create_user(
             username="me-n1-preview",
-            first_name="Amina",
-            last_name="Test",
+            full_name="Amina Test",
         )
         self.url = reverse("core:participant-me")
 
