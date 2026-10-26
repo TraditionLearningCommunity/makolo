@@ -1069,6 +1069,23 @@ class _OngoingFocus extends StatelessWidget {
       ..add(_ongoingKey(item.synthesis));
     final sections = <Widget>[];
 
+    // Human dates come from owner facts, never technical update timestamps.
+    final dates = <String>[];
+    for (final fact in item.temporalFacts) {
+      final raw = fact['at'] ?? fact['date'];
+      final parsed = MakoloHumanization.tryParseInstant(raw);
+      if (parsed == null) continue;
+      final label = fact['label'] is String ? fact['label'] as String : 'Date';
+      final formatted = fact['at'] == null
+          ? MakoloHumanization.formatShortDate(parsed)
+          : MakoloHumanization.formatDateTime(parsed, now: DateTime.now());
+      final text = '$label · $formatted';
+      if (!dates.contains(text)) dates.add(text);
+    }
+    if (dates.isNotEmpty) {
+      sections.add(_DimensionSection(title: 'Dates à retenir', values: dates));
+    }
+
     // Settled — what's already done
     final settledValues = unique(item.settled);
     if (settledValues.isNotEmpty) {
