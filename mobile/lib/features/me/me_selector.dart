@@ -55,7 +55,7 @@ class MeSelection {
   final String? identityAvatarUrl;
 
   int get contentfulTerritoryCount =>
-      territories.where((territory) => territory.hasContent).length;
+      territories.where((territory) => territory.hasContent && territory.presentation.key != 'accesses').length;
 }
 
 class MeSelector {
@@ -291,17 +291,7 @@ class MeSelector {
   }) {
     final section = _map(raw);
     var malformed = raw != null && section == null;
-    final items = <MeItemPresentation>[
-      if (ownerAvailable)
-        const MeItemPresentation(
-          destination: StructuredDestination(
-            kind: 'resource_collection',
-            id: 'mine',
-          ),
-          title: 'Toutes mes ressources',
-          subtitle: 'Documents et attestations',
-        ),
-    ];
+    final items = <MeItemPresentation>[];
 
     if (section != null) {
       malformed =
@@ -310,6 +300,21 @@ class MeSelector {
       malformed =
           _appendBounded(items, section, 'credentials', _credential) ||
           malformed;
+    }
+
+    // A collection link is not evidence that any resource exists.
+    if (ownerAvailable && items.isNotEmpty) {
+      items.insert(
+        0,
+        const MeItemPresentation(
+          destination: StructuredDestination(
+            kind: 'resource_collection',
+            id: 'mine',
+          ),
+          title: 'Toutes mes ressources',
+          subtitle: 'Documents et attestations',
+        ),
+      );
     }
 
     return _territory(
