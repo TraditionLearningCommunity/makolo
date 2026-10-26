@@ -1,123 +1,149 @@
-/* Moi N1 — private, progressive enhancement; no business state is created here. */
+/* Moi N1 — same private owner collections as Flutter; no synthetic depth. */
 (() => {
   'use strict';
   const root = document.querySelector('.mk-me-n1');
   const sentinel = document.getElementById('me-n1-scroll-sentinel');
-  if (!root || !sentinel) return;
-  const families = [...root.querySelectorAll('[data-me-territory][data-me-family]')]
-    .filter(el => el.dataset.meMore === 'true');
-  let loading = false;
-  let stopped = false;
-  let retryCount = 0;
+  if (!root || !sentinel || !('IntersectionObserver' in window)) return;
 
-  function safeText(value) { return typeof value === 'string' ? value : ''; }
-  function element(tag, className, value) {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    if (value !== undefined) node.textContent = safeText(value);
-    return node;
+  const all = [...root.querySelectorAll('[data-me-territory][data-me-family]')];
+  const expectedProfile = root.dataset.meProfile || '';
+  let busy = false;
+  let stopped = false;
+  let failed = false;
+
+  function node(tag, klass, label) {
+    const item = document.createElement(tag);
+    if (klass) item.className = klass;
+    if (label != null) item.textContent = String(label);
+    return item;
   }
 
-  function row(host, family, item) {
-    if (host.dataset.meTerritory === 'considerations') {
-      let title = '';
-      if (family === 'interests') title = item.topic?.label;
-      if (family === 'open_to') title = [item.label, item.topic?.label].filter(Boolean).join(' · ');
-      if (family === 'watches') title = item.name;
-      if (family === 'bookmarks') title = item.activity?.title;
-      if (family === 'followed_spaces') title = item.space?.name;
-      if (family === 'followed_profiles') title = item.profile?.display_name;
-      if (!title) return;
+  function labelFor(family, item) {
+    switch (family) {
+      case 'interests': return item.topic?.label;
+      case 'open_to': return [item.label, item.topic?.label].filter(Boolean).join(' · ');
+      case 'watches': return item.name;
+      case 'bookmarks': return item.activity?.title;
+      case 'followed_spaces': return item.space?.name;
+      case 'followed_profiles': return item.profile?.display_name;
+      default: return item.name || item.title || item.proof_type_label;
+    }
+  }
+
+  function render(host, item) {
+    const family = host.dataset.meFamily;
+    const id = String(item.id || '');
+    const label = labelFor(family, item);
+    if (!id || !label || [...host.parentElement.querySelectorAll('[data-me-id]')]
+      .some(el => el.closest('[data-me-family]') === host && el.dataset.meId === id)) return;
+    // Existing family roots contain the preview. Newly inserted rows retain
+    // identity as an attribute to suppress accidental duplicates.
+    const isConsiderations = host.dataset.meTerritory === 'considerations';
+    if (isConsiderations) {
+      let entry;
       if (host.classList.contains('mk-me-n1-chips')) {
-        host.append(element('span', '', title));
+        entry = node('span', '', label);
       } else {
-        // A deep link is provided only by the existing owner route in N1.
-        host.append(element('span', 'mk-me-n1-appended', title));
+        entry = node('span', 'mk-me-n1-appended', label);
       }
+      entry.dataset.meId = id;
+      host.append(entry);
       return;
     }
-    const wrapper = element('div', 'mk-me-n1-person-row');
-    const icon = element('span', 'mk-me-n1-monogram', (
-      safeText(item.name || item.title || item.proof_type_label).slice(0,1) || '•'
-    ).toUpperCase());
+    const row = node('div', 'mk-me-n1-person-row');
+    row.dataset.meId = id;
+    const icon = node('span', 'mk-me-n1-monogram',
+      (String(label).trim().slice(0, 1) || '•').toUpperCase());
     icon.setAttribute('aria-hidden', 'true');
-    const details = element('span', 'mk-me-n1-row-copy');
-    details.append(element('strong', '', item.name || item.title || item.proof_type_label));
-    const sub = item.space?.name || item.asset_kind_label || item.status_label ||
-      item.credential_type_label || '';
-    if (sub) details.append(element('small', '', sub));
-    wrapper.append(icon, details);
-    // Insert adjacent to the other family rows, not at the end of another family.
-    const nextGroup = host.nextElementSibling;
-    if (nextGroup) host.parentNode.insertBefore(wrapper, nextGroup);
-    else host.parentNode.append(wrapper);
+    const copy = node('span', 'mk-me-n1-row-copy');
+    copy.append(node('strong', '', label));
+    const detail = item.space?.name || item.asset_kind_label ||
+      item.credential_type_label || item.status_label;
+    if (detail) copy.append(node('small', '', detail));
+    row.append(icon, copy);
+    // H3 is the existing group header. Insert just before the next family,
+    // never between or ahead of rows already visible.
+    let next = host.nextElementSibling;
+    while (next && !next.matches('.mk-me-n1-group')) next = next.nextElementSibling;
+    host.parentElement.insertBefore(row, next);
   }
 
-  async function loadFamily(host) {
-    const territory = host.dataset.meTerritory;
-    const family = host.dataset.meFamily;
-    let count = Number(host.dataset.meLoaded || 6);
-    if (!Number.isInteger(count) || count < 0) count = 6;
-    const query = new URLSearchParams({offset: String(count), limit: '24'});
-    const response = await fetch('/api/v1/me/preview/' + encodeURIComponent(territory) + '/?' + query, {
-      credentials: 'same-origin',
-      headers: {'Accept': 'application/json'},
-      cache: 'no-store'
-    });
-    if (!response.ok) throw new Error('N1 continuation unavailable');
-    const data = (await response.json()).data;
-    const part = data?.collections?.[family];
-    if (data?.territory !== territory || data?.offset !== count || !Array.isArray(part?.items)) {
-      throw new Error('Invalid N1 continuation');
-    }
-    const items = part.items;
-    for (const item of items) row(host, family, item);
-    host.dataset.meLoaded = String(count + items.length);
-    host.dataset.meMore = part.has_more ? 'true' : 'false';
+  function hasMore() {
+    return all.some(host => host.dataset.meMore === 'true');
   }
 
-  async function load() {
-    if (loading || stopped) return;
-    const host = families.find(el => el.isConnected && el.dataset.meMore === 'true');
+  async function loadOne() {
+    if (busy || failed || stopped || document.hidden) return;
+    const host = all.find(el => el.isConnected && el.dataset.meMore === 'true');
     if (!host) {
       stopped = true;
       sentinel.textContent = 'Vous avez tout exploré';
       observer.disconnect();
       return;
     }
-    loading = true;
+    busy = true;
     sentinel.textContent = '';
+    const territory = host.dataset.meTerritory;
+    const family = host.dataset.meFamily;
+    const offset = Number(host.dataset.meLoaded);
     try {
-      await loadFamily(host);
-      retryCount = 0;
-    } catch (_) {
-      retryCount++;
-      // Never claim completion when the server cannot confirm exhaustion.
-      sentinel.textContent = 'Impossible de charger la suite.';
-      if (retryCount >= 2) {
-        stopped = true;
-        observer.disconnect();
-        const retry = element('button', 'mk-me-n1-retry', 'Réessayer');
-        retry.type = 'button';
-        retry.addEventListener('click', () => {
-          stopped = false;
-          retryCount = 0;
-          sentinel.textContent = '';
-          retry.remove();
-          observer.observe(sentinel);
-          void load();
-        }, {once: true});
-        sentinel.append(retry);
+      if (!Number.isSafeInteger(offset) || offset < 0) throw new Error('Bad prefix');
+      const query = new URLSearchParams({family, offset: String(offset), limit: '24'});
+      const result = await fetch(
+        '/api/v1/me/preview/' + encodeURIComponent(territory) + '/?' + query,
+        {credentials: 'same-origin', headers: {'Accept': 'application/json'}, cache: 'no-store'}
+      );
+      if (!result.ok) throw new Error('Owner unavailable');
+      const data = (await result.json()).data;
+      const part = data?.collection;
+      if (data?.actor?.type !== 'profile' ||
+          (expectedProfile && data?.actor?.id !== expectedProfile) ||
+          data?.territory !== territory || data?.family !== family ||
+          data?.offset !== offset || !Array.isArray(part?.items) ||
+          typeof part.has_more !== 'boolean' ||
+          !Number.isSafeInteger(part.count) ||
+          (part.has_more && part.items.length === 0)) {
+        throw new Error('Invalid owner continuation');
       }
+      const seen = new Set([...host.querySelectorAll('[data-me-id]')]
+        .map(el => el.dataset.meId));
+      for (const item of part.items) {
+        const id = String(item.id || '');
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        render(host, item);
+      }
+      host.dataset.meLoaded = String(offset + part.items.length);
+      host.dataset.meMore = String(part.has_more);
+    } catch (_) {
+      failed = true;
+      const retry = node('button', 'mk-me-n1-retry', 'Réessayer');
+      retry.type = 'button';
+      retry.addEventListener('click', () => {
+        failed = false;
+        sentinel.textContent = '';
+        void loadOne();
+      }, {once: true});
+      sentinel.replaceChildren(node('span', '', 'Impossible de charger la suite. '), retry);
     } finally {
-      loading = false;
+      busy = false;
     }
-    if (!stopped && sentinel.getBoundingClientRect().top < window.innerHeight + 480) {
-      queueMicrotask(() => { void load(); });
+    if (!failed && !stopped) {
+      if (!hasMore()) {
+        stopped = true;
+        sentinel.textContent = 'Vous avez tout exploré';
+        observer.disconnect();
+      } else if (sentinel.getBoundingClientRect().top < window.innerHeight + 480) {
+        queueMicrotask(() => void loadOne());
+      }
     }
   }
+
   const observer = new IntersectionObserver(entries => {
-    if (entries.some(entry => entry.isIntersecting)) void load();
+    if (entries.some(entry => entry.isIntersecting)) void loadOne();
   }, {rootMargin: '480px'});
   observer.observe(sentinel);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !stopped && !failed) void loadOne();
+  });
 })();
