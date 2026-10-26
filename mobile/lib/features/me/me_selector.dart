@@ -46,6 +46,7 @@ class MeSelection {
     this.identitySubtitle,
     this.identityDetail,
     this.identityAvatarUrl,
+    this.canOpenHistory = false,
   });
 
   final MePresentation presentation;
@@ -55,6 +56,7 @@ class MeSelection {
   final String? identitySubtitle;
   final String? identityDetail;
   final String? identityAvatarUrl;
+  final bool canOpenHistory;
 
   int get contentfulTerritoryCount =>
       territories.where((territory) => territory.hasContent && territory.presentation.key != 'accesses').length;
@@ -155,6 +157,7 @@ class MeSelector {
       identitySubtitle: _identitySubtitle(identityRaw),
       identityDetail: _string(identityRaw?['bio']),
       identityAvatarUrl: _string(identityRaw?['avatar_url']),
+      canOpenHistory: _string(links?['history']) != null,
     );
   }
 
