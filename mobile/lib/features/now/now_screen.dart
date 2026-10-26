@@ -476,9 +476,9 @@ class _NowViewState extends State<NowView> {
     );
     final cues = <Widget>[
       if (state.refreshing)
-        const Semantics(
+        Semantics(
           label: 'Actualisation en cours',
-          child: LinearProgressIndicator(minHeight: 2),
+          child: const LinearProgressIndicator(minHeight: 2),
         ),
       if (state.freshness != MakoloFreshnessCue.unknown &&
           state.freshness != MakoloFreshnessCue.current)
