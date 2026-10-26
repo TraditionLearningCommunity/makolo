@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
@@ -56,6 +57,9 @@ class _NeverUsedStore implements ProfileStore {
 }
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('fr');
+  });
   test('N1 only resolves same-origin owner media over HTTP(S)', () {
     final api = Uri.parse('https://api.example.test/');
     expect(
