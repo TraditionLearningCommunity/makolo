@@ -8,7 +8,10 @@ StatefulShellBranch ongoingBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
     GoRoute(
       path: '/ongoing',
-      builder: (context, state) => OngoingScreen(repository: runtime.personal!),
+      builder: (context, state) => OngoingScreen(
+        repository: runtime.personal!,
+        baseUri: runtime.api?.baseUri,
+      ),
     ),
   ],
 );
