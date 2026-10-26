@@ -602,31 +602,51 @@ class _MeTerritory extends StatelessWidget {
     }
 
     final firstItem = territory.items.isNotEmpty ? territory.items.first : null;
-    final title = firstItem?.title ?? 'Disponible';
-    final subtitle = firstItem?.subtitle ?? 'Profil';
-
-    return MakoloCard(
-      onTap: firstItem == null ? null : () => onSelectItem(firstItem),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.badge_outlined,
-            color: Theme.of(context).colorScheme.primary,
+    return Semantics(
+      label: 'Passeport Makolo disponible',
+      child: Container(
+        padding: const EdgeInsets.all(MakoloSpacing.md),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [MakoloColors.indigo, MakoloColors.deep],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(width: MakoloSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: MakoloSpacing.xs),
-                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-              ],
+          borderRadius: BorderRadius.circular(MakoloRadii.card),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.badge_outlined, color: Colors.white, size: 40),
+            const SizedBox(width: MakoloSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Votre passeport',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(
+                    'À partager selon votre choix',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (firstItem != null) const Icon(Icons.chevron_right_rounded),
-        ],
+            if (firstItem != null)
+              IconButton(
+                tooltip: 'Ouvrir le passeport',
+                onPressed: () => onSelectItem(firstItem),
+                icon: const Icon(Icons.arrow_forward, color: Colors.white),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -780,24 +800,26 @@ class _MeIdentityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
+    final initial = item.title.trim().isEmpty
+        ? 'M'
+        : item.title.trim().substring(0, 1).toUpperCase();
+
     return ListTile(
       contentPadding: EdgeInsets.zero,
       minVerticalPadding: MakoloSpacing.sm,
       onTap: onTap,
-      leading: Icon(_identityIcon(item.destination.kind)),
+      leading: CircleAvatar(
+        backgroundColor: color.primary.withValues(alpha: 0.10),
+        child: Text(
+          initial,
+          style: TextStyle(color: color.primary, fontWeight: FontWeight.w700),
+        ),
+      ),
       title: Text(item.title),
       subtitle: item.subtitle == null ? null : Text(item.subtitle!),
       trailing: const Icon(Icons.chevron_right_rounded),
     );
-  }
-
-  IconData _identityIcon(String kind) {
-    return switch (kind) {
-      'space' => Icons.business_outlined,
-      'team' => Icons.badge_outlined,
-      'group' => Icons.groups_outlined,
-      _ => Icons.group_outlined,
-    };
   }
 }
 
