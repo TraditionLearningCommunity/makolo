@@ -242,6 +242,15 @@
   flex: 1;
   overflow-wrap: anywhere;
 }
+.mk-me-n1-recognition {
+  display: block;
+  width: 72px;
+  height: 56px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 10px;
+  background: var(--me-tint);
+}
 .mk-me-n1-saved-chevron {
   margin-inline-start: auto;
   flex: none;
