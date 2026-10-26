@@ -1005,8 +1005,12 @@ void main() {
                 'owner': 'services',
                 'state': 'owner_api',
                 'resource': {'kind': 'service', 'id': id},
-                'capabilities': ['start'],
-                'presentation': {'capability': 'start', 'enabled': true},
+                'capabilities': ['start_after_auth'],
+                'presentation': {
+                  'capability': 'start',
+                  'enabled': false,
+                  'requires_auth': true,
+                },
                 'primary_action': {
                   'code': 'start',
                   'label': 'Commencer',
