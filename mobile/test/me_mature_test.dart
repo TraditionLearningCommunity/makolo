@@ -499,6 +499,29 @@ void main() {
     expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
+  testWidgets('identity edit uses an explicit owner destination', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()), now: now,
+    );
+    String? kind;
+    await PresentationHarness.pump(
+      tester,
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (destination) {
+          kind = destination.kind;
+          return true;
+        },
+      ),
+    );
+    await tester.tap(find.text('Modifier'));
+    await tester.pump();
+    expect(kind, 'profile_self');
+    expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
+  });
+
   testWidgets('unknown owner item cannot open an invented depth', (
     tester,
   ) async {
