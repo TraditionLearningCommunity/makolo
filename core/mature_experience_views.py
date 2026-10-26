@@ -40,6 +40,7 @@ from trust.selectors import proofs_for_profile
 from .participant_selectors import participant_active_accesses, participant_active_journeys
 from core.api.personal_projections import (
     build_personal_ongoing_projection,
+    _ongoing_n1_when,
     ongoing_continuation_offset,
 )
 from core.api.me_projection import build_personal_me_data
@@ -255,7 +256,15 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
                 if isinstance(resource, dict) and resource.get("title")
             ],
             "temporal_facts": [
-                fact for fact in item.get("temporal_facts") or []
+                {
+                    **fact,
+                    "display_when": _ongoing_n1_when({
+                        "start_at": fact.get("at"),
+                        "start_date": fact.get("date"),
+                        "timezone": fact.get("timezone"),
+                    }),
+                }
+                for fact in item.get("temporal_facts") or []
                 if isinstance(fact, dict) and (fact.get("at") or fact.get("date"))
             ],
             "url": links.get("web"),
