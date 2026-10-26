@@ -113,7 +113,7 @@
       loading = false;
     }
     if (!stopped && sentinel.getBoundingClientRect().top < window.innerHeight + 480) {
-      void load();
+      queueMicrotask(() => { void load(); });
     }
   }
   const observer = new IntersectionObserver(entries => {
