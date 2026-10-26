@@ -43,13 +43,21 @@
       if (host.classList.contains('mk-me-n1-chips')) {
         entry = node('span', '', label);
       } else {
-        entry = node('span', 'mk-me-n1-appended', label);
+        const ownerHref = host.dataset.meOwnerHref;
+        entry = ownerHref && ownerHref.startsWith('/') && !ownerHref.startsWith('//')
+          ? node('a', 'mk-me-n1-appended', label)
+          : node('span', 'mk-me-n1-appended', label);
+        if (entry.tagName === 'A') entry.href = ownerHref;
       }
       entry.dataset.meId = id;
       host.append(entry);
       return;
     }
-    const row = node('div', 'mk-me-n1-person-row');
+    const groupUrl = family === 'groups' ? item.links?.web : null;
+    const safeGroupUrl = typeof groupUrl === 'string' &&
+      groupUrl.startsWith('/') && !groupUrl.startsWith('//');
+    const row = node(safeGroupUrl ? 'a' : 'div', 'mk-me-n1-person-row');
+    if (safeGroupUrl) row.href = groupUrl;
     row.dataset.meId = id;
     const icon = node('span', 'mk-me-n1-monogram',
       (String(label).trim().slice(0, 1) || '•').toUpperCase());
