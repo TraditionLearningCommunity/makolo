@@ -48,13 +48,23 @@ class OngoingCalendarScreen extends StatelessWidget {
         if (events.isEmpty) {
           return const Center(child: Text('Aucune date à afficher pour le moment.'));
         }
+        final stale = projection.freshUntil != null &&
+            projection.freshUntil!.isBefore(DateTime.now().toUtc());
         return ListView.separated(
           key: const PageStorageKey<String>('ongoing-calendar'),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          itemCount: events.length,
+          itemCount: events.length + (stale ? 1 : 0),
           separatorBuilder: (_, _) => const Divider(height: 24),
           itemBuilder: (context, index) {
-            final event = events[index];
+            if (stale && index == 0) {
+              return const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.history_rounded),
+                title: Text('Dernières dates connues'),
+                subtitle: Text('À confirmer après actualisation.'),
+              );
+            }
+            final event = events[stale ? index - 1 : index];
             final date = event.hasTime
                 ? MakoloHumanization.formatDateTime(event.at, now: DateTime.now())
                 : MakoloHumanization.formatShortDate(event.at);
