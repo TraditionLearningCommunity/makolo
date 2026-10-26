@@ -69,7 +69,7 @@
             <h3>Veilles <span>{{ me_projection.considerations.watches.count }}</span></h3>
             <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="watches" data-me-owner-href="{% url 'discovery:watch-list' %}" data-me-loaded="{{ me_projection.considerations.watches.items|length }}" data-me-more="{{ me_projection.considerations.watches.has_more|yesno:'true,false' }}">
               {% for row in me_projection.considerations.watches.items %}
-                <a  data-me-id="{{ row.id }}" href="{% url 'discovery:watch-list' %}"><span>{{ row.name }}</span><span aria-hidden="true">›</span></a>
+                <a  data-me-id="{{ row.id }}" href="{% url 'discovery:watch-detail' row.id %}"><span>{{ row.name }}</span><span aria-hidden="true">›</span></a>
               {% endfor %}
             </div>
           </div>
