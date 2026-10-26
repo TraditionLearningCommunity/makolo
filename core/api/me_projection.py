@@ -68,14 +68,14 @@ def _display_name(profile):
     return _clean_text(profile.full_name) or _clean_text(profile.username) or str(profile.pk)
 
 
-def _bounded(queryset, serializer, *, limit):
-    rows = list(queryset[: limit + 1])
+def _bounded(queryset, serializer, *, limit, offset=0):
+    rows = list(queryset[offset : offset + limit + 1])
     has_more = len(rows) > limit
     if has_more:
         rows = rows[:limit]
         total = queryset.count()
     else:
-        total = len(rows)
+        total = offset + len(rows)
     return {
         "count": total,
         "items": [serializer(row) for row in rows],
@@ -212,7 +212,7 @@ def _profile_follow_item(row):
     }
 
 
-def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT):
+def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offset=0):
     """Private facts explicitly chosen by the Profile; no inferred preference."""
     interests = (
         ProfileInterest.objects.filter(profile=profile, topic__is_active=True)
@@ -245,12 +245,12 @@ def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT):
         .order_by("-followed_at", "id")
     )
     return {
-        "interests": _bounded(interests, _interest_item, limit=limit),
-        "open_to": _bounded(open_to, _open_to_item, limit=limit),
-        "watches": _bounded(watches, _watch_item, limit=limit),
-        "bookmarks": _bounded(bookmarks, _bookmark_item, limit=limit),
-        "followed_spaces": _bounded(followed_spaces, _space_follow_item, limit=limit),
-        "followed_profiles": _bounded(followed_profiles, _profile_follow_item, limit=limit),
+        "interests": _bounded(interests, _interest_item, limit=limit, offset=offset),
+        "open_to": _bounded(open_to, _open_to_item, limit=limit, offset=offset),
+        "watches": _bounded(watches, _watch_item, limit=limit, offset=offset),
+        "bookmarks": _bounded(bookmarks, _bookmark_item, limit=limit, offset=offset),
+        "followed_spaces": _bounded(followed_spaces, _space_follow_item, limit=limit, offset=offset),
+        "followed_profiles": _bounded(followed_profiles, _profile_follow_item, limit=limit, offset=offset),
     }
 
 
@@ -311,7 +311,7 @@ def _group_item(group):
     }
 
 
-def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT):
+def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT, offset=0):
     """Compose relationships without treating membership as authority."""
     spaces = authorized_spaces(profile).order_by("name", "id")
     team_memberships = (
@@ -325,9 +325,9 @@ def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT):
     )
     groups = groups_for_profile(profile).order_by("name", "id")
     return {
-        "authorized_spaces": _bounded(spaces, _authorized_space_item, limit=limit),
-        "teams": _bounded(team_memberships, _team_membership_item, limit=limit),
-        "groups": _bounded(groups, _group_item, limit=limit),
+        "authorized_spaces": _bounded(spaces, _authorized_space_item, limit=limit, offset=offset),
+        "teams": _bounded(team_memberships, _team_membership_item, limit=limit, offset=offset),
+        "groups": _bounded(groups, _group_item, limit=limit, offset=offset),
     }
 
 
@@ -408,7 +408,7 @@ def _credential_item(credential):
     }
 
 
-def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT):
+def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT, offset=0):
     latest = PersonalAssetVersion.objects.filter(asset_id=OuterRef("pk")).order_by(
         "-version",
         "-created_at",
@@ -426,9 +426,9 @@ def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT):
     proofs = proofs_for_profile(profile)
     credentials = credentials_for_profile(profile)
     return {
-        "documents": _bounded(assets, _asset_item, limit=limit),
-        "proofs": _bounded(proofs, _proof_item, limit=limit),
-        "credentials": _bounded(credentials, _credential_item, limit=limit),
+        "documents": _bounded(assets, _asset_item, limit=limit, offset=offset),
+        "proofs": _bounded(proofs, _proof_item, limit=limit, offset=offset),
+        "credentials": _bounded(credentials, _credential_item, limit=limit, offset=offset),
     }
 
 
@@ -553,7 +553,7 @@ def build_personal_partners_data(profile, *, limit=ME_SECTION_LIMIT):
         .order_by("organization__name", "name", "id")
     )
     return {
-        "relationships": _bounded(relationships, _partner_item, limit=limit),
+        "relationships": _bounded(relationships, _partner_item, limit=limit, offset=offset),
         "links": {
             "domain_api": "/api/v1/partners/partners/",
         },
