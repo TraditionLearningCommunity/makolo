@@ -64,6 +64,56 @@ class PersonalDiscoveryPrimaryActionTests(SimpleTestCase):
             "continue",
         )
 
+    def test_guest_service_start_is_visible_without_execution_permission(self):
+        engagement = {
+            "owner": "services",
+            "state": "owner_api",
+            "capabilities": ["start_after_auth"],
+            "resource": {"kind": "service", "id": "service-id"},
+            "links": {"start": "/api/v1/services/service-id/start/"},
+            "presentation": {
+                "capability": "start",
+                "label": "Commencer",
+                "enabled": False,
+                "requires_auth": True,
+            },
+        }
+        action = _primary_action_for_projection(self._projection(engagement))
+        self.assertEqual(action["code"], "start")
+        self.assertEqual(action["destination"], {
+            "kind": "native",
+            "path": "/services/service-id/start",
+        })
+        self.assertNotIn("start", engagement["capabilities"])
+        self.assertFalse(engagement["presentation"]["enabled"])
+
+    def test_guest_service_start_rejects_forged_auth_handoff(self):
+        for engagement in (
+            {
+                "owner": "services",
+                "state": "owner_contract",
+                "capabilities": ["start_after_auth"],
+                "resource": {"kind": "service", "id": "service-id"},
+                "links": {"start": "/api/v1/services/service-id/start/"},
+                "presentation": {
+                    "capability": "start", "requires_auth": True,
+                },
+            },
+            {
+                "owner": "services",
+                "state": "owner_api",
+                "capabilities": [],
+                "resource": {"kind": "service", "id": "service-id"},
+                "links": {"start": "/api/v1/services/service-id/start/"},
+                "presentation": {
+                    "capability": "start", "requires_auth": True,
+                },
+            },
+        ):
+            with self.subTest(engagement=engagement):
+                action = _primary_action_for_projection(self._projection(engagement))
+                self.assertEqual(action["code"], "detail")
+
     def test_untrusted_or_unavailable_owner_action_falls_back_to_detail(self):
         for engagement in [
             {
