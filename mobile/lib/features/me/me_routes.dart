@@ -68,13 +68,11 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
           path: 'profile',
           builder: (context, state) =>
               runtime.api == null || runtime.personal == null
-                  ? const MakoloSecondaryScreen(
-                      title: 'Mon profil',
-                      message: 'Profil momentanément indisponible.',
-                    )
-                  : MeProfileScreen(
-                      api: runtime.api!, personal: runtime.personal!,
-                    ),
+              ? const MakoloSecondaryScreen(
+                  title: 'Mon profil',
+                  message: 'Profil momentanément indisponible.',
+                )
+              : MeProfileScreen(api: runtime.api!, personal: runtime.personal!),
         ),
         GoRoute(
           path: 'passport',
