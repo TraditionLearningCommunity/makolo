@@ -5,6 +5,7 @@ import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/presentation_layout.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/me/me_screen.dart';
+import 'package:makolo_mobile/presentation/possibilities/discovery_save_icon.dart';
 import 'package:makolo_mobile/features/me/me_selector.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 import 'package:makolo_mobile/sync/owner_source_state.dart';
@@ -541,6 +542,45 @@ void main() {
     // No giant framed wrapper around the identity and territory content.
     expect(find.byType(Card), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('saved opportunities reuse the filled Discover icon', (
+    tester,
+  ) async {
+    final payload = _fullPayload();
+    final considerations = payload['considerations'] as Map<String, dynamic>;
+    considerations['bookmarks'] = {
+      'count': 1,
+      'items': [
+        {
+          'id': 'bookmark-1',
+          'activity': {
+            'id': 'activity-1',
+            'title': 'Possibilité conservée',
+          },
+        },
+      ],
+      'has_more': false,
+    };
+    final selection = selector.select(
+      projection: _projection(payload),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(selection: selection, onOpenDestination: (_) => true),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Possibilité conservée'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final saved = tester.widget<DiscoveryOrbitIcon>(
+      find.byType(DiscoveryOrbitIcon).first,
+    );
+    expect(saved.saved, isTrue);
+    expect(find.text('Enregistré'), findsNothing);
   });
 
   testWidgets('identity edit uses an explicit owner destination', (
