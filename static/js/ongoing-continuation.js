@@ -12,6 +12,46 @@
   let failed = false;
   let observer;
 
+  const calendar = document.getElementById("ongoing-calendar");
+  const calendarList = document.getElementById("ongoing-calendar-moments");
+  const calendarEmpty = document.getElementById("ongoing-calendar-empty");
+  const renderCalendar = () => {
+    if (!calendarList || !calendarEmpty) return;
+    const moments = Array.from(stream.querySelectorAll("[data-ongoing-calendar-moment]"))
+      .map((node) => ({
+        sort: node.dataset.ongoingSort || "",
+        when: node.dataset.ongoingWhen || "",
+        label: node.dataset.ongoingLabel || "",
+        title: node.dataset.ongoingTitle || "",
+        target: node.dataset.ongoingTarget || "",
+      }))
+      .filter((item) => item.sort && item.when && item.target)
+      .sort((a, b) => a.sort.localeCompare(b.sort) || a.title.localeCompare(b.title));
+    calendarList.replaceChildren();
+    const seen = new Set();
+    for (const item of moments) {
+      const key = [item.target, item.sort, item.label].join("|");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const row = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "mk-compact-action";
+      button.textContent = [item.when, item.title, item.label].filter(Boolean).join(" · ");
+      button.addEventListener("click", () => {
+        const trigger = Array.from(stream.querySelectorAll("[data-ongoing-focus-trigger]"))
+          .find((node) => node.dataset.ongoingFocusTrigger === item.target);
+        if (!trigger) return;
+        if (calendar) calendar.open = false;
+        trigger.click();
+      });
+      row.appendChild(button);
+      calendarList.appendChild(row);
+    }
+    calendarEmpty.hidden = seen.size > 0;
+  };
+  renderCalendar();
+
   // Save belongs to Discovery. The same saved Activity can appear through
   // several independent personal continuities; update each visible control.
   stream.addEventListener("click", async (event) => {
@@ -104,6 +144,7 @@
       if (state === "more" && count === 0) throw new Error("Stalled continuation");
       sentinel.dataset.state = state;
       sentinel.dataset.nextToken = next;
+      renderCalendar();
       if (window.htmx?.process) window.htmx.process(stream);
       document.dispatchEvent(new CustomEvent("makolo:fragment-inserted", { detail: { scope: stream } }));
       if (window.lucide?.createIcons) window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
