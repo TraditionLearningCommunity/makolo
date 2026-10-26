@@ -183,6 +183,10 @@ def _watch_item(row):
         "status_label": row.get_status_display(),
         "dossier": dossier,
         "updated_at": row.updated_at,
+        "links": {
+            "web": reverse("discovery:watch-detail",
+                kwargs={"watch_id": row.pk}),
+        },
     }
 
 
