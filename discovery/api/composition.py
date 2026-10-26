@@ -617,21 +617,33 @@ def _public_owner_facts(activity_ids, opportunity_ids) -> tuple[dict, dict]:
 
 def _service_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
     """A Service start is prevalidated and executed by Services, not Discovery."""
-    if not activity_ids or not _authenticated(profile):
+    if not activity_ids:
         return {}
     from services.models import ServiceDetails
 
+    authenticated = _authenticated(profile)
+    # The Activity has already passed public Discovery admission. Guests may
+    # see the existence of a start path, never acquire the start capability.
+    # Services remains the authority and revalidates upon authenticated entry.
     return {
         str(service.activity_id): {
             "state": "owner_api",
             "owner": "services",
-            "capabilities": ["start"],
+            "capabilities": ["start"] if authenticated else ["start_after_auth"],
             "links": {
                 "start": reverse(
                     "services-api:start", kwargs={"pk": service.pk},
                 ),
             },
             "resource": {"kind": "service", "id": str(service.pk)},
+            "presentation": (
+                {} if authenticated else {
+                    "capability": "start",
+                    "label": "Commencer",
+                    "enabled": False,
+                    "requires_auth": True,
+                }
+            ),
         }
         for service in ServiceDetails.objects.filter(
             activity_id__in=activity_ids,
@@ -960,9 +972,18 @@ def _primary_action_for_projection(projection: dict) -> dict:
         and engagement.get("state") == "owner_api"
         and resource.get("kind") == "service"
         and resource.get("id")
-        and "start" in capabilities
-        and presentation.get("capability") == "start"
-        and presentation.get("enabled") is True
+        and (
+            (
+                "start" in capabilities
+                and presentation.get("capability") == "start"
+                and presentation.get("enabled") is True
+            )
+            or (
+                "start_after_auth" in capabilities
+                and presentation.get("requires_auth") is True
+                and presentation.get("capability") == "start"
+            )
+        )
         and links.get("start")
     ):
         return {
@@ -1120,10 +1141,12 @@ def _finalize_projection(
         # A Web CTA may remain navigable without a matching owner API.
         # Do not advertise executable authority from presentation alone.
         executable = primary.code in projection["engagement"]["capabilities"]
+        owner_presentation = projection["engagement"].get("presentation") or {}
         projection["engagement"]["presentation"] = {
             "label": primary.label,
             "capability": primary.code,
             "enabled": bool(primary.enabled and executable),
+            "requires_auth": bool(owner_presentation.get("requires_auth")),
             "web": primary.url,
             "web_enabled": bool(primary.enabled and primary.url),
         }
