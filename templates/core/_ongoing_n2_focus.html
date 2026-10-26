@@ -1,0 +1,29 @@
+{# En cours N2 — composition de faits de continuité déjà autorisés. #}
+<section class="mk-ongoing-n2" aria-label="Comprendre {{ item.title }}">
+  <header>
+    <p class="mk-eyebrow">En cours</p>
+    <h2>{{ item.title }}</h2>
+    {% if item.cue %}<p class="mk-ongoing-n2-cue">{{ item.cue }}</p>{% endif %}
+    {% if item.summary %}<p class="mk-ongoing-n2-summary">{{ item.summary }}</p>{% endif %}
+  </header>
+  {% if item.image_url %}
+    <figure class="mk-ongoing-n2-media">
+      <img src="{{ item.image_url }}" alt="{{ item.image_alt|default:item.title }}" loading="lazy" decoding="async">
+    </figure>
+  {% endif %}
+  {% if item.when or item.place %}
+    <div class="mk-ongoing-n2-meta">
+      {% if item.when %}<span>{{ item.when }}</span>{% endif %}
+      {% if item.place %}<span>{{ item.place }}</span>{% endif %}
+    </div>
+  {% endif %}
+  {% for section, values in item.details %}
+    {% if values %}
+      <section class="mk-ongoing-n2-section">
+        <h3>{{ section }}</h3>
+        {% for value in values %}<p>{{ value }}</p>{% endfor %}
+      </section>
+    {% endif %}
+  {% endfor %}
+  {% if item.url %}<a class="mk-now-cta" href="{{ item.url }}">Ouvrir la démarche</a>{% endif %}
+</section>
