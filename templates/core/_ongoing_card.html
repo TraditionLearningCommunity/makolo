@@ -1,8 +1,8 @@
 {% if item.url %}
-<a href="{{ item.url }}" class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}"
+<a href="{{ item.url }}" data-ongoing-id="{{ item.id }}" data-ongoing-variant="{% if expanded %}expanded{% else %}compact{% endif %}" class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}"
    {% if expanded %}hx-get="{{ item.url }}" hx-target="#ongoing-detail-body" hx-select="#main-content" hx-swap="innerHTML" hx-push-url="false" hx-indicator="#ongoing-detail"{% endif %}>
 {% else %}
-<div class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}">
+<div data-ongoing-id="{{ item.id }}" data-ongoing-variant="{% if expanded %}expanded{% else %}compact{% endif %}" class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}">
 {% endif %}
   {% if item.image_url %}
     <div class="mk-ongoing-card__media">
