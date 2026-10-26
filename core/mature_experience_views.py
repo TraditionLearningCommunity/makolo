@@ -232,6 +232,7 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
             "image_url": media.get("url"),
             "image_alt": media.get("alt_text") or "",
             "url": links.get("web"),
+            "possibility": n1.get("possibility"),
             "details": tuple(
                 (label, tuple(value for value in entries if isinstance(value, str) and value.strip()))
                 for label, values in (
@@ -239,7 +240,10 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
                     ("De votre côté", item.get("my_side") or []),
                     ("En attente", item.get("elsewhere") or []),
                     ("Préparé par Makolo", item.get("makolo") or []),
+                    ("À venir", item.get("system_or_time") or []),
                     ("À suivre", item.get("next_items") or []),
+                    ("Ce qui bloque", [item["blocker"]] if item.get("blocker") else []),
+                    ("À vérifier", [item["unknown"]] if item.get("unknown") else []),
                 )
                 if (entries := [
                     entry if isinstance(entry, str)
