@@ -1,0 +1,18 @@
+<article class="mk-ongoing-unit" data-ongoing-unit data-ongoing-id="{{ item.id }}">
+  {% include "core/_ongoing_card.html" with expanded=False %}
+  {% include "core/_ongoing_card.html" with expanded=True %}
+  {% if item.details %}
+  <details class="mk-ongoing-unit__more">
+    <summary><span class="mk-ongoing-unit__closed">Voir plus</span><span class="mk-ongoing-unit__opened">Voir moins</span></summary>
+    <div class="mk-ongoing-unit__details">
+      {% for section, values in item.details %}
+      <section>
+        <h3>{{ section }}</h3>
+        {% for value in values %}<p>{{ value }}</p>{% endfor %}
+      </section>
+      {% endfor %}
+      {% if item.url %}<a class="mk-now-cta" href="{{ item.url }}">Ouvrir la démarche</a>{% endif %}
+    </div>
+  </details>
+  {% endif %}
+</article>
