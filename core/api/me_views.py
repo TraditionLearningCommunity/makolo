@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core.api.me_projection import (
+    build_personal_resources_data,
     PASSPORT_COMPLETE,
     build_personal_collectives_data,
     build_personal_considerations_data,
@@ -84,6 +85,37 @@ class PersonalMeAPIView(PersonalProjectionAPIView):
             observed_at=observed_at,
         )
         return self._response(data, observed_at=observed_at)
+
+
+class PersonalMeTerritoryPreviewAPIView(PersonalProjectionAPIView):
+    """Bounded continuation of existing private N1 territory collections."""
+
+    projection_code = "personal.me.preview"
+    page_size = 24
+    max_page_size = 50
+    builders = {
+        "considerations": build_personal_considerations_data,
+        "collectives": build_personal_collectives_data,
+        "resources": build_personal_resources_data,
+    }
+
+    def get(self, request, territory):
+        self._guard_personal_scope(request)
+        if territory not in self.builders:
+            raise ValidationError({"territory": "Territoire inconnu."})
+        try:
+            offset = int(request.query_params.get("offset", 6))
+            limit = int(request.query_params.get("limit", self.page_size))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"pagination": "Paramètres invalides."}) from exc
+        if offset < 0 or not 1 <= limit <= self.max_page_size:
+            raise ValidationError({"pagination": "Plage de chargement invalide."})
+        observed_at = timezone.now()
+        data = self.builders[territory](request.user, offset=offset, limit=limit)
+        return self._response(
+            {"territory": territory, "offset": offset, "limit": limit, "collections": data},
+            observed_at=observed_at,
+        )
 
 
 class PersonalConsiderationsAPIView(PersonalProjectionAPIView):
