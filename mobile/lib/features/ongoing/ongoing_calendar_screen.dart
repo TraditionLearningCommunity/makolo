@@ -3,15 +3,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../repositories/personal_repository.dart';
+import '../../network/makolo_api_client.dart';
 import '../../presentation/humanization.dart';
 import 'ongoing_presentation.dart';
 
 /// Calendar of owner-established human moments for admitted personal pursuits.
 /// It consumes the same profile-bound local-first projection as En cours.
 class OngoingCalendarScreen extends StatefulWidget {
-  const OngoingCalendarScreen({super.key, required this.repository});
+  const OngoingCalendarScreen({super.key, required this.repository, this.api});
 
   final PersonalRepository repository;
+  final MakoloApiClient? api;
 
   @override
   State<OngoingCalendarScreen> createState() => _OngoingCalendarScreenState();
@@ -19,6 +21,21 @@ class OngoingCalendarScreen extends StatefulWidget {
 
 class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
   late Stream<StoredProjection?> _projectionStream;
+  bool _loadingMore = false;
+  String? _loadError;
+
+  Future<void> _loadMore(StoredProjection current) async {
+    if (_loadingMore || widget.api == null) return;
+    setState(() { _loadingMore = true; _loadError = null; });
+    try {
+      await widget.repository.loadMoreOngoing(api: widget.api!, current: current);
+    } on Object {
+      if (mounted) setState(() => _loadError = 'Impossible de charger la suite.');
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
 
   @override
   void initState() {
@@ -66,7 +83,10 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
           final order = a.at.compareTo(b.at);
           return order != 0 ? order : a.title.compareTo(b.title);
         });
-        if (events.isEmpty) {
+        final continuation = projection.payload['continuation'];
+        final token = continuation is Map ? continuation['token'] : null;
+        final hasMore = token is String && token.isNotEmpty;
+        if (events.isEmpty && !hasMore) {
           return const Center(child: Text('Aucune date à afficher pour le moment.'));
         }
         final stale = projection.freshUntil != null &&
@@ -74,9 +94,20 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
         return ListView.separated(
           key: const PageStorageKey<String>('ongoing-calendar'),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          itemCount: events.length + (stale ? 1 : 0),
+          itemCount: events.length + (stale ? 1 : 0) + (hasMore ? 1 : 0),
           separatorBuilder: (_, _) => const Divider(height: 24),
           itemBuilder: (context, index) {
+            if (hasMore && index == events.length + (stale ? 1 : 0)) {
+              return Center(
+                child: _loadingMore
+                    ? const CircularProgressIndicator.adaptive()
+                    : TextButton.icon(
+                        onPressed: widget.api == null ? null : () => _loadMore(projection),
+                        icon: const Icon(Icons.expand_more_rounded),
+                        label: Text(_loadError ?? 'Afficher les autres dates'),
+                      ),
+              );
+            }
             if (stale && index == 0) {
               return const ListTile(
                 contentPadding: EdgeInsets.zero,
