@@ -177,6 +177,7 @@ class _MeViewState extends State<MeView> {
       builder: (context, constraints) {
         final useTwoTerritories =
             constraints.maxWidth >= MakoloLayout.meTwoColumnMinWidth &&
+            MediaQuery.textScalerOf(context).scale(16) <= 21 &&
             widget.selection.contentfulTerritoryCount >= 2;
         final selected = _selectedItem;
 
@@ -339,18 +340,7 @@ class _MeField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
       children: [
         _MeIdentity(selection: selection),
-        const SizedBox(height: MakoloSpacing.strong),
-        Text(
-          'Déjà en place',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
-        const SizedBox(height: MakoloSpacing.xs),
-        Text(
-          'Ce qui est déjà là pour faciliter la suite.',
-          style: Theme.of(context).textTheme.bodyMedium
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: MakoloSpacing.lg),
+        const SizedBox(height: MakoloSpacing.xl),
         if (useTwoTerritories)
           MakoloAdaptiveGrid(
             key: const Key('me-territories-wide'),
@@ -383,37 +373,118 @@ class _MeIdentity extends StatelessWidget {
   Widget build(BuildContext context) {
     if (selection.identityState.failure == MakoloFailureCue.blocking) {
       return const MakoloErrorState(
-        message:
-            'Votre identité ne peut pas être présentée '
-            'correctement pour le moment.',
+        message: 'Votre identité est momentanément indisponible.',
       );
     }
 
+    final theme = Theme.of(context);
+    final name = selection.presentation.identityLabel;
     return Semantics(
       container: true,
       header: true,
-      label: selection.presentation.identityLabel,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            selection.presentation.identityLabel,
-            style: Theme.of(context).textTheme.headlineLarge,
+      label: name,
+      child: Container(
+        padding: const EdgeInsets.all(MakoloSpacing.inner),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(MakoloRadii.large),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
           ),
-          if (selection.identitySubtitle != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              selection.identitySubtitle!,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _MeAvatar(name: name, imageUrl: selection.identityAvatarUrl),
+                const SizedBox(width: MakoloSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: theme.textTheme.headlineMedium,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (selection.identitySubtitle != null) ...[
+                        const SizedBox(height: MakoloSpacing.xs),
+                        Text(
+                          selection.identitySubtitle!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
+            if (selection.identityDetail != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                selection.identityDetail!,
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
           ],
-          if (selection.identityDetail != null) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            Text(selection.identityDetail!),
-          ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MeAvatar extends StatelessWidget {
+  const _MeAvatar({required this.name, this.imageUrl});
+
+  final String name;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final initials = name.trim().split(RegExp(r'\\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.substring(0, 1).toUpperCase())
+        .join();
+    final placeholder = Container(
+      width: 76,
+      height: 76,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.10),
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        initials.isEmpty ? 'M' : initials,
+        style: theme.textTheme.titleLarge?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+
+    final url = imageUrl;
+    final parsed = url == null ? null : Uri.tryParse(url);
+    if (parsed == null ||
+        !(parsed.scheme == 'https' || parsed.scheme == 'http') ||
+        parsed.host.isEmpty) {
+      return ExcludeSemantics(child: placeholder);
+    }
+    return ExcludeSemantics(
+      child: ClipOval(
+        child: Image.network(
+          url!,
+          width: 76,
+          height: 76,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => placeholder,
+        ),
       ),
     );
   }
@@ -429,13 +500,78 @@ class _MeTerritory extends StatelessWidget {
   Widget build(BuildContext context) {
     final presentation = territory.presentation;
 
-    return MakoloSection(
-      title: presentation.label,
-      description: presentation.summary,
-      padding: EdgeInsets.zero,
-      child: _body(context),
+    final colors = Theme.of(context).colorScheme;
+    final hasContent = territory.hasContent;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(MakoloRadii.control),
+              ),
+              child: Icon(_iconForTerritory(presentation.key), color: colors.primary, size: 22),
+            ),
+            const SizedBox(width: MakoloSpacing.compact),
+            Expanded(
+              child: Text(
+                presentation.label,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            if (territory.totalCount > 0)
+              Text(
+                '${territory.totalCount}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: MakoloSpacing.compact),
+        AnimatedContainer(
+          duration: MakoloMotion.effective(context, MakoloMotion.short),
+          decoration: BoxDecoration(
+            color: hasContent ? colors.surface : colors.surface.withValues(alpha: 0.56),
+            border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.65)),
+            borderRadius: BorderRadius.circular(MakoloRadii.card),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: MakoloSpacing.md,
+            vertical: MakoloSpacing.compact,
+          ),
+          child: _body(context),
+        ),
+        if (territory.hasMore) ...[
+          const SizedBox(height: MakoloSpacing.xs),
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: MakoloSpacing.sm),
+            child: Text(
+              'Aperçu',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
+
+  IconData _iconForTerritory(String key) => switch (key) {
+    'passport' => Icons.badge_outlined,
+    'considerations' => Icons.interests_outlined,
+    'collectives' => Icons.groups_outlined,
+    'accesses' => Icons.confirmation_number_outlined,
+    'resources' => Icons.folder_copy_outlined,
+    'support' => Icons.handshake_outlined,
+    _ => Icons.grid_view_outlined,
+  };
 
   Widget _body(BuildContext context) {
     final state = territory.presentation.state;
@@ -500,17 +636,32 @@ class _MeTerritory extends StatelessWidget {
       return _empty(context, 'Rien de déclaré pour le moment.');
     }
 
+    const families = <(String, List<String>)>[
+      ('Intérêts', ['topic']),
+      ('Ouvert à', ['open_to']),
+      ('Veilles', ['watch']),
+      ('Enregistrés', ['activity']),
+      ('Espaces suivis', ['space']),
+      ('Personnes suivies', ['profile']),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var index = 0; index < territory.items.length; index++) ...[
-          _MeConsideration(
-            item: territory.items[index],
-            onTap: () => onSelectItem(territory.items[index]),
-          ),
-          if (index != territory.items.length - 1)
-            const Divider(height: MakoloSpacing.lg),
-        ],
+        for (final family in families)
+          if (territory.items.any((item) => family.$2.contains(item.destination.kind))) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.sm, bottom: MakoloSpacing.xs),
+              child: Text(
+                family.$1,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final item in territory.items.where((item) => family.$2.contains(item.destination.kind)))
+              _MeConsideration(item: item, onTap: () => onSelectItem(item)),
+          ],
       ],
     );
   }
