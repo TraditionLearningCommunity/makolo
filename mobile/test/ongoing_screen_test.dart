@@ -51,6 +51,64 @@ class _NeverUsedStore implements ProfileStore {
 }
 
 void main() {
+  test('N1 only resolves same-origin owner media over HTTP(S)', () {
+    final api = Uri.parse('https://api.example.test/');
+    expect(
+      ongoingRecognitionImageUrl('/presentation/media/uses/u1/file/', api),
+      'https://api.example.test/presentation/media/uses/u1/file/',
+    );
+    expect(
+      ongoingRecognitionImageUrl('https://other.example.test/image.png', api),
+      isNull,
+    );
+    expect(ongoingRecognitionImageUrl('file:///private/qr.png', api), isNull);
+    expect(ongoingRecognitionImageUrl('javascript:alert(1)', api), isNull);
+    expect(ongoingRecognitionImageUrl('/missing', null), isNull);
+  });
+
+  testWidgets('N1 uses the server cue without decorating an empty media slot', (
+    tester,
+  ) async {
+    final projection = _projection(items: const [
+      {
+        'id': 'server-stable-identity',
+        'kind': 'journey',
+        'source': {'kind': 'journey', 'id': 'travel'},
+        'state': 'available',
+        'title': 'Lubumbashi → Kolwezi',
+        'summary': 'Place confirmée.',
+        'n1': {
+          'cue': 'Accès disponible',
+          'tone': 'ready',
+          'when_label': '12/11/2026 · 14:00',
+          'place_label': 'Lubumbashi',
+        },
+        'ready': [],
+        'actor_interventions': [],
+        'continuation': null,
+        'blocker': null,
+        'next': null,
+        'timing': {},
+        'place': {},
+        'media_bindings': [],
+        'capabilities': [],
+        'links': {},
+      },
+    ]);
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(projection),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Lubumbashi → Kolwezi'), findsOneWidget);
+    expect(find.text('Accès disponible'), findsOneWidget);
+    expect(find.text('12/11/2026 · 14:00'), findsOneWidget);
+    expect(find.byKey(const Key('ongoing-n1-recognition-media')), findsNothing);
+  });
+
   testWidgets(
     'a removed projection does not resurrect private cached content',
     (tester) async {
