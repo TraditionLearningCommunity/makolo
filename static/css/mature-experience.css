@@ -209,3 +209,17 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 #now-infinite{display:flex;min-height:44px;align-items:center;justify-content:center;gap:12px;color:var(--mk-subtle);font-size:.8rem;padding:16px;text-align:center}
 #now-infinite[data-state="more"] #now-infinite-status:empty{display:none}
 @media(prefers-reduced-motion:no-preference){.mk-now-unit__hero img{transition:transform .2s ease}.mk-now-unit__hero:hover img{transform:scale(1.015)}}
+
+/* En cours N1: one complete native semantic unit on mobile and wide Web. */
+.mk-ongoing-unit{min-width:0}
+.mk-ongoing-unit__more{border-bottom:1px solid var(--mk-border);padding:0 10px 14px}
+.mk-ongoing-unit__more summary{cursor:pointer;color:var(--mk-brand);font-size:.84rem;font-weight:780;padding:8px 0;list-style-position:inside}
+.mk-ongoing-unit__more summary:focus-visible{outline:3px solid var(--mk-brand);outline-offset:3px;border-radius:8px}
+.mk-ongoing-unit__more .mk-ongoing-unit__opened{display:none}
+.mk-ongoing-unit__more[open] .mk-ongoing-unit__closed{display:none}
+.mk-ongoing-unit__more[open] .mk-ongoing-unit__opened{display:inline}
+.mk-ongoing-unit__details{display:grid;gap:14px;padding:12px 0}
+.mk-ongoing-unit__details h3{font-size:.84rem;color:var(--mk-text);font-weight:780;margin:0 0 5px}
+.mk-ongoing-unit__details p{font-size:.88rem;color:var(--mk-muted);margin:4px 0;line-height:1.45}
+.mk-ongoing-unit__details .mk-now-cta{justify-self:start;margin-top:0}
+#ongoing-infinite{display:flex;align-items:center;justify-content:center;gap:12px;min-height:52px;padding:14px;text-align:center;color:var(--mk-subtle);font-size:.8rem}
