@@ -519,6 +519,27 @@ void main() {
     expect(groups.every((item) => item.canOpen), isTrue);
   });
 
+  testWidgets('compact Moi shows a single Passport card and concise saved items', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()), now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(selection: selection, onOpenDestination: (_) => true),
+    );
+    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    expect(find.text('Mon passeport'), findsOneWidget);
+    expect(find.text('Enregistré'), findsNothing);
+    expect(find.text('Passeport.pdf'), findsOneWidget);
+
+    // No giant framed wrapper around the identity and territory content.
+    expect(find.byType(Card), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('identity edit uses an explicit owner destination', (
     tester,
   ) async {
@@ -536,7 +557,7 @@ void main() {
         },
       ),
     );
-    await tester.tap(find.text('Modifier'));
+    await tester.tap(find.byTooltip('Modifier mon profil'));
     await tester.pump();
     expect(kind, 'profile_self');
     expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
