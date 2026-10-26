@@ -33,6 +33,91 @@ class PersonalRepository {
     sourceKey: 'personal.me',
   );
 
+  /// Append one bounded N1 territory continuation to the existing local
+  /// personal.me snapshot. The server remains the only source of facts.
+  Future<void> loadMoreMe({
+    required MakoloApiClient api,
+    required StoredProjection current,
+    required String territory,
+  }) async {
+    const keys = <String, List<String>>{
+      'considerations': [
+        'interests', 'open_to', 'watches', 'bookmarks',
+        'followed_spaces', 'followed_profiles',
+      ],
+      'collectives': ['authorized_spaces', 'teams', 'groups'],
+      'resources': ['documents', 'proofs', 'credentials'],
+    };
+    final collections = current.payload[territory];
+    final names = keys[territory];
+    if (names == null || collections is! Map) return;
+    final owned = Map<String, dynamic>.from(collections);
+    final more = names.where((key) {
+      final collection = owned[key];
+      return collection is Map && collection['has_more'] == true;
+    }).toList();
+    if (more.isEmpty) return;
+    final offsets = more.map((key) {
+      final items = (owned[key] as Map)['items'];
+      return items is List ? items.length : 0;
+    }).toList();
+    // Each family has its own offset; query individual families at their
+    // exact next index so uneven datasets cannot duplicate or skip rows.
+    for (var i = 0; i < more.length; i++) {
+      final key = more[i];
+      final offset = offsets[i];
+      final uri = Uri(
+        path: 'api/v1/me/preview/$territory/',
+        queryParameters: {'offset': '$offset', 'limit': '24'},
+      );
+      final response = await api.get(uri.toString());
+      final envelope = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.me.preview',
+      );
+      final data = envelope.data;
+      if (data['territory'] != territory || data['offset'] != offset) {
+        throw const FormatException('Invalid personal.me continuation');
+      }
+      final page = data['collections'];
+      if (page is! Map) throw const FormatException('Invalid Me page');
+      // This endpoint pages each family with the given offset. Only merge
+      // the requested family; the rest are returned but not applied here.
+      final part = page[key];
+      if (part is! Map || part['items'] is! List) {
+        throw const FormatException('Invalid Me family');
+      }
+      final previous = owned[key] as Map;
+      final priorItems = previous['items'];
+      if (priorItems is! List) throw const FormatException('Invalid Me cache');
+      final combined = <Object>[];
+      final ids = <String>{};
+      for (final row in [...priorItems, ...(part['items'] as List)]) {
+        if (row is! Map || row['id'] == null) {
+          throw const FormatException('Invalid Me row identity');
+        }
+        final id = row['id'].toString();
+        if (ids.add(id)) combined.add(Map<String, dynamic>.from(row));
+      }
+      owned[key] = <String, dynamic>{
+        'items': combined,
+        'count': part['count'],
+        'has_more': part['has_more'],
+      };
+    }
+    final merged = Map<String, dynamic>.from(current.payload)
+      ..[territory] = owned;
+    await store.putProjection(
+      kind: 'personal.me',
+      schemaVersion: current.schemaVersion,
+      payload: merged,
+      receivedAt: DateTime.now().toUtc(),
+      sourceGeneratedAt: current.sourceGeneratedAt,
+      freshUntil: current.freshUntil,
+      freshnessPolicyId: current.freshnessPolicyId,
+    );
+  }
+
   /// Continue the server-owned personal field without losing the cached prefix.
   /// Only one profile-scoped snapshot is persisted; this is not a second truth.
   Future<void> loadMoreOngoing({
