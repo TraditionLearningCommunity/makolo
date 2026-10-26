@@ -285,6 +285,8 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
                     ("Préparé par Makolo", item.get("makolo") or []),
                     ("À venir", item.get("system_or_time") or []),
                     ("À suivre", item.get("next_items") or []),
+                    ("À relier", item.get("relation_projections") or []),
+                    ("Résultat", [item["outcome"]] if item.get("outcome") else []),
                     ("Ce qui bloque", [item["blocker"]] if item.get("blocker") else []),
                     ("À vérifier", [item["unknown"]] if item.get("unknown") else []),
                 )
