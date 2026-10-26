@@ -571,6 +571,11 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
                : possibility.canSave) &&
         widget.onSave != null && !_busy;
 
+    // A calm continuity needs no empty toolbar when no operation exists.
+    if (!canSave && !canShare && route == null) {
+      return const SizedBox.shrink();
+    }
+
     // Match Discover's balanced three-icon action strip. No permanent
     // text labels or oversized middle button on the compact surface.
     return Column(
