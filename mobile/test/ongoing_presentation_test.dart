@@ -248,6 +248,43 @@ void main() {
     expect(items.single.mediaUrl, isNull);
   });
 
+  test('a published Activity reuses its server-authorized Discovery commands', () {
+    final action = OngoingPossibilityPresentation.fromMap({
+      'family': 'activity',
+      'id': '11111111-2222-4333-8444-555555555555',
+      'saved_state': 'saved',
+      'capabilities': ['unsave', 'share'],
+      'links': {
+        'saved': '/api/v1/discovery/items/activity/11111111-2222-4333-8444-555555555555/saved/',
+        'share': '/api/v1/sharing/possibilities/activity/11111111-2222-4333-8444-555555555555/',
+      },
+    });
+    expect(action, isNotNull);
+    expect(action!.savedState, 'saved');
+    expect(action.canSave, isTrue);
+    expect(action.canShare, isTrue);
+  });
+
+  test('private or fabricated share controls never grant capability', () {
+    expect(OngoingPossibilityPresentation.fromMap({
+      'family': 'journey',
+      'id': '11111111-2222-4333-8444-555555555555',
+      'capabilities': ['share'],
+    }), isNull);
+    final action = OngoingPossibilityPresentation.fromMap({
+      'family': 'activity',
+      'id': '11111111-2222-4333-8444-555555555555',
+      'capabilities': ['save', 'share'],
+      'links': {'share': 'https://other.example/private'},
+    });
+    expect(action?.canSave, isTrue);
+    expect(action?.canShare, isFalse);
+    expect(OngoingPossibilityPresentation.fromMap({
+      'family': 'activity', 'id': 'not-a-uuid',
+      'capabilities': ['save', 'share'],
+    }), isNull);
+  });
+
   test('true empty has no synthetic suggestion', () {
     expect(
       OngoingContinuityPresentation.fromProjection(_projection(const [])),
