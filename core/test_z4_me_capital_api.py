@@ -107,6 +107,47 @@ class PersonalMeCapitalAPIContractTests(TestCase):
         self.assertIn("/media/uses/", binding["resource"]["url"])
         self.assertNotIn("file_path", str(binding))
 
+    def test_saved_media_is_also_available_on_bounded_continuation(self):
+        from activities.models import ActivityVisibility
+
+        activities = []
+        for index in range(7):
+            activity = Activity.objects.create(
+                owner_profile=self.user,
+                created_by=self.user,
+                title=f"Possibilité {index}",
+                status=ActivityStatus.PUBLISHED,
+                visibility=ActivityVisibility.PUBLIC,
+            )
+            ActivityBookmark.objects.create(user=self.user, activity=activity)
+            activities.append(activity)
+        oldest = activities[0]
+        media = SimpleNamespace(
+            use_id="ea1a8fe1-3549-4ad1-86a2-bad932f2a235",
+            mime_type="image/png",
+            alt_text="Lieu de la possibilité",
+        )
+        with patch(
+            "presentations.media_selectors.public_presentation_media_for_activities",
+            return_value={str(oldest.pk): [media]},
+        ):
+            root = self.client.get("/api/v1/me/")
+            page = self.client.get(
+                "/api/v1/me/preview/considerations/",
+                {"family": "bookmarks", "offset": 6, "limit": 24},
+            )
+        self.assertEqual(root.status_code, 200)
+        self.assertEqual(page.status_code, 200)
+        initial = root.json()["data"]["considerations"]["bookmarks"]
+        self.assertEqual(initial["next_offset"], 6)
+        self.assertTrue(initial["has_more"])
+        continued = page.json()["data"]["collection"]
+        self.assertEqual(len(continued["items"]), 1)
+        self.assertFalse(continued["has_more"])
+        row = continued["items"][0]
+        self.assertEqual(row["activity"]["id"], str(oldest.pk))
+        self.assertEqual(row["media_bindings"][0]["purpose"], "RECOGNIZE")
+
     def test_private_bookmark_does_not_reveal_media(self):
         from activities.models import ActivityVisibility
 
