@@ -366,8 +366,10 @@ class _NowViewState extends State<NowView> {
   }
 
   void _maybeLoadMore() {
-    if (!mounted || !_fieldController.hasClients ||
-        widget.loadingMore || widget.loadMoreFailed ||
+    if (!mounted ||
+        !_fieldController.hasClients ||
+        widget.loadingMore ||
+        widget.loadMoreFailed ||
         widget.selection.continuation.state != NowContinuationState.more) {
       return;
     }
@@ -379,7 +381,8 @@ class _NowViewState extends State<NowView> {
   @override
   void didUpdateWidget(covariant NowView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selection.situations.length != widget.selection.situations.length ||
+    if (oldWidget.selection.situations.length !=
+            widget.selection.situations.length ||
         oldWidget.loadingMore != widget.loadingMore ||
         oldWidget.loadMoreFailed != widget.loadMoreFailed) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
@@ -581,10 +584,7 @@ class _NowField extends StatelessWidget {
               MakoloSpacing.md,
               MakoloSpacing.sm,
             ),
-            child: Text(
-              'Aussi maintenant',
-              style: theme.textTheme.titleMedium,
-            ),
+            child: Text('Aussi maintenant', style: theme.textTheme.titleMedium),
           ),
           for (final item in secondary)
             _NowSituationUnit(
@@ -926,11 +926,13 @@ class _NowSituationUnit extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => onOpenOwner!(owner),
                     icon: const Icon(Icons.arrow_forward_rounded),
-                    label: Text(nowDisplayHandoffLabel(
-                      situation.responseLabel!,
-                      situation.meaning,
-                      situation.humanContext,
-                    )),
+                    label: Text(
+                      nowDisplayHandoffLabel(
+                        situation.responseLabel!,
+                        situation.meaning,
+                        situation.humanContext,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -970,7 +972,8 @@ class _NowDepth extends StatelessWidget {
   Widget build(BuildContext context) {
     final topology = topologyFor(situation);
     final ownerDestination = situation.ownerDestination;
-    final canOpenOwner = ownerDestination != null &&
+    final canOpenOwner =
+        ownerDestination != null &&
         NowScreen.ownerPathFor(ownerDestination) != null &&
         situation.responseLabel != null &&
         onOpenOwner != null &&
@@ -986,7 +989,8 @@ class _NowDepth extends StatelessWidget {
       situation.meaning,
       situation.whyNow,
     ]);
-    final firstVisual = topology == NowTopology.media ||
+    final firstVisual =
+        topology == NowTopology.media ||
         topology == NowTopology.waiting ||
         topology == NowTopology.composition;
     final detail = _NowSemanticContent(
@@ -1031,10 +1035,8 @@ class _NowDepth extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.md),
               detail,
             ],
-            if (consequence != null)
-              _section('Ce que ça change', consequence),
-            if (whyNow != null)
-              _section('Pourquoi maintenant', whyNow),
+            if (consequence != null) _section('Ce que ça change', consequence),
+            if (whyNow != null) _section('Pourquoi maintenant', whyNow),
             if (!firstVisual) ...[
               const SizedBox(height: MakoloSpacing.md),
               detail,
@@ -1057,28 +1059,31 @@ class _NowDepth extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final item in situation.makoloPreparation)
-                      Text(item),
+                    for (final item in situation.makoloPreparation) Text(item),
                   ],
                 ),
               ),
             ],
             if (situation.metadata.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.lg),
-              MakoloMetadata(items: [
-                for (final item in situation.metadata)
-                  MakoloMetadataItem(item),
-              ]),
+              MakoloMetadata(
+                items: [
+                  for (final item in situation.metadata)
+                    MakoloMetadataItem(item),
+                ],
+              ),
             ],
             if (canOpenOwner) ...[
               const SizedBox(height: MakoloSpacing.xl),
               FilledButton(
                 onPressed: () => onOpenOwner!(ownerDestination),
-                child: Text(nowDisplayHandoffLabel(
-                  situation.responseLabel!,
-                  situation.meaning,
-                  situation.humanContext,
-                )),
+                child: Text(
+                  nowDisplayHandoffLabel(
+                    situation.responseLabel!,
+                    situation.meaning,
+                    situation.humanContext,
+                  ),
+                ),
               ),
             ],
           ],
