@@ -34,8 +34,7 @@
     const family = host.dataset.meFamily;
     const id = String(item.id || '');
     const label = labelFor(family, item);
-    if (!id || !label || [...host.parentElement.querySelectorAll('[data-me-id]')]
-      .some(el => el.closest('[data-me-family]') === host && el.dataset.meId === id)) return;
+    if (!id || !label) return;
     // Existing family roots contain the preview. Newly inserted rows retain
     // identity as an attribute to suppress accidental duplicates.
     const isConsiderations = host.dataset.meTerritory === 'considerations';
@@ -66,6 +65,22 @@
     let next = host.nextElementSibling;
     while (next && !next.matches('.mk-me-n1-group')) next = next.nextElementSibling;
     host.parentElement.insertBefore(row, next);
+  }
+
+  function renderedIds(host) {
+    const seen = new Set();
+    if (host.matches('.mk-me-n1-group')) {
+      let next = host.nextElementSibling;
+      while (next && !next.matches('.mk-me-n1-group')) {
+        if (next.dataset.meId) seen.add(next.dataset.meId);
+        next = next.nextElementSibling;
+      }
+    } else {
+      host.querySelectorAll('[data-me-id]').forEach(el => {
+        if (el.dataset.meId) seen.add(el.dataset.meId);
+      });
+    }
+    return seen;
   }
 
   function hasMore() {
@@ -102,18 +117,19 @@
           data?.offset !== offset || !Array.isArray(part?.items) ||
           typeof part.has_more !== 'boolean' ||
           !Number.isSafeInteger(part.count) ||
+          !Number.isSafeInteger(part.next_offset) ||
+          part.next_offset < offset ||
           (part.has_more && part.items.length === 0)) {
         throw new Error('Invalid owner continuation');
       }
-      const seen = new Set([...host.querySelectorAll('[data-me-id]')]
-        .map(el => el.dataset.meId));
+      const seen = renderedIds(host);
       for (const item of part.items) {
         const id = String(item.id || '');
         if (!id || seen.has(id)) continue;
         seen.add(id);
         render(host, item);
       }
-      host.dataset.meLoaded = String(offset + part.items.length);
+      host.dataset.meLoaded = String(part.next_offset);
       host.dataset.meMore = String(part.has_more);
     } catch (_) {
       failed = true;
