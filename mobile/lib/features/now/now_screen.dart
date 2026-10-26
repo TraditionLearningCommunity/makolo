@@ -657,9 +657,8 @@ class _NowSemanticContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final topology = topologyFor(situation);
     final theme = Theme.of(context);
-    final dominantMedia = topology == NowTopology.media
-        ? situation.mediaBindings.firstWhere((media) => media.canDominate)
-        : null;
+    // Never promote a media reference to the lead visual unless the
+    // authenticated reader can actually open it on this device.
     final readable = situation.mediaBindings
         .where(
           (media) =>
@@ -668,6 +667,13 @@ class _NowSemanticContent extends StatelessWidget {
               nowAuthorizedMediaPath(media) != null,
         )
         .toList(growable: false);
+    NowMediaBindingPresentation? dominantMedia;
+    for (final media in readable) {
+      if (media.canDominate) {
+        dominantMedia = media;
+        break;
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,17 +722,43 @@ class _NowSemanticContent extends StatelessWidget {
           ),
         ],
         if (topology == NowTopology.composition) ...[
-          for (final relation in situation.relations)
-            if (relation.summary != null)
-              Text(relation.summary!, style: theme.textTheme.titleMedium),
-          for (final member in situation.relationMembers)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.account_tree_outlined),
-              title: Text(member.label),
-              subtitle: member.subtext == null ? null : Text(member.subtext!),
+          if (!compact)
+            for (final relation in situation.relations)
+              if (_distinctPresentationText(relation.summary, [
+                    situation.meaning,
+                    situation.whyNow,
+                    situation.consequence,
+                  ]) case final summary?)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                  child: Text(summary, style: theme.textTheme.bodyMedium),
+                ),
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Wrap(
+              spacing: MakoloSpacing.sm,
+              runSpacing: MakoloSpacing.xs,
+              children: [
+                for (final member in situation.relationMembers)
+                  Chip(
+                    visualDensity: VisualDensity.compact,
+                    label: Text(member.label),
+                  ),
+              ],
             ),
+          ),
         ],
+        if (situation.knowledgeState case final knowledge?)
+          if (knowledge != 'known' && knowledge != 'fresh')
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+              child: Text(
+                'Information à vérifier',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
         if (topology == NowTopology.waiting)
           Row(
             children: [
