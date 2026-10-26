@@ -1409,6 +1409,42 @@ def _ongoing_temporal_facts(item):
     return facts
 
 
+def _attach_ongoing_private_journey_resources(items, *, viewer):
+    """Project metadata only when the beneficiary may export the artifact.
+
+    No raw file URL, private storage key, QR, or secret enters this read model.
+    Export warnings and authorization remain owned by JourneyArtifact.
+    """
+    from journeys.collaboration_models import JourneyArtifact
+    from sharing.document_services import can_export_journey_artifact
+
+    journey_ids = {
+        item["source"]["id"]
+        for item in items
+        if item["source"]["kind"] == "journey"
+    }
+    if not journey_ids:
+        return
+    grouped = {}
+    for artifact in (
+        JourneyArtifact.objects.filter(journey_id__in=journey_ids)
+        .select_related("journey")
+        .order_by("journey_id", "title", "-version", "id")
+    ):
+        if not can_export_journey_artifact(viewer, artifact, "download").allowed:
+            continue
+        grouped.setdefault(str(artifact.journey_id), []).append({
+            "kind": "journey_artifact",
+            "title": artifact.title,
+            "mime_type": artifact.mime_type,
+            "description": artifact.get_status_display(),
+            "owner": {"kind": "journey", "id": str(artifact.journey_id)},
+        })
+    for item in items:
+        if item["source"]["kind"] == "journey":
+            item["resources"].extend(grouped.get(item["source"]["id"], []))
+
+
 def _decorate_ongoing_semantics(item, *, observed_at):
     """Add Mature continuity semantics without becoming an owner domain."""
 
@@ -1572,6 +1608,7 @@ def build_personal_ongoing_projection(
         _decorate_ongoing_semantics(item, observed_at=observed_at)
 
     _attach_ongoing_recognition_media(entries, items, viewer=profile)
+    _attach_ongoing_private_journey_resources(items, viewer=profile)
 
     is_empty = not items
     profile_id = str(profile.pk)
