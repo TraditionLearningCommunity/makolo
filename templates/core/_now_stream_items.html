@@ -34,6 +34,10 @@
   {% elif item.url %}
     <a class="mk-now-cta" href="{{ item.url }}">{{ item.action_label }}</a>
   {% endif %}
+  <button type="button" class="mk-now-n2-trigger" data-now-focus-trigger="{{ item.identity }}" aria-controls="now-n2-focus" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+  <template data-now-focus="{{ item.identity }}">
+    {% include "core/_now_n2_focus.html" with item=item %}
+  </template>
   {% if item.why_now or item.consequence or item.preparation or item.relation_members or item.inline_media %}
     <details class="mk-now-unit__more">
       <summary><span class="mk-now-unit__closed">Voir plus</span><span class="mk-now-unit__opened">Voir moins</span></summary>
