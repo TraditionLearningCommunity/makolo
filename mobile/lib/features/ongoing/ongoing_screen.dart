@@ -20,9 +20,11 @@ class OngoingScreen extends StatefulWidget {
     super.key,
     required this.repository,
     this.projectionStream,
+    this.baseUri,
   });
   final PersonalRepository repository;
   final Stream<StoredProjection?>? projectionStream;
+  final Uri? baseUri;
   @override
   State<OngoingScreen> createState() => _OngoingScreenState();
 }
@@ -61,8 +63,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
       setState(() => _selectedOwnerKey = _ownerKey(item));
   void _clearSelection() => setState(() => _selectedOwnerKey = null);
 
-  String _ownerKey(OngoingContinuityPresentation item) =>
-      '${item.ownerKind ?? item.kind}:${item.ownerId ?? item.title}';
+  String _ownerKey(OngoingContinuityPresentation item) => item.id;
 
   @override
   Widget build(BuildContext context) => MakoloRefreshBoundary(
@@ -158,6 +159,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
               stale: stale,
               onSelect: _select,
               onBack: _clearSelection,
+              baseUri: widget.baseUri,
             ),
           );
         },
@@ -173,12 +175,14 @@ class _OngoingAdaptiveView extends StatelessWidget {
     required this.stale,
     required this.onSelect,
     required this.onBack,
+    this.baseUri,
   });
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
   final bool stale;
   final ValueChanged<OngoingContinuityPresentation> onSelect;
   final VoidCallback onBack;
+  final Uri? baseUri;
 
   @override
   Widget build(BuildContext context) => MakoloContentFrame(
@@ -190,6 +194,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
         selected: selected,
         stale: stale,
         onSelect: onSelect,
+        baseUri: baseUri,
       ),
       focus: selected == null
           ? const _OngoingFocusPlaceholder()
@@ -200,6 +205,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
               selected: selected,
               stale: stale,
               onSelect: onSelect,
+              baseUri: baseUri,
             )
           : _OngoingFocus(item: selected!, onBack: onBack),
     ),
@@ -212,11 +218,13 @@ class _OngoingField extends StatelessWidget {
     required this.selected,
     required this.stale,
     required this.onSelect,
+    this.baseUri,
   });
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
   final bool stale;
   final ValueChanged<OngoingContinuityPresentation> onSelect;
+  final Uri? baseUri;
 
   @override
   Widget build(BuildContext context) => ListView.separated(
@@ -226,16 +234,14 @@ class _OngoingField extends StatelessWidget {
     separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.lg),
     itemBuilder: (context, index) {
       final item = items[index];
-      final key =
-          '${item.ownerKind ?? item.kind}:${item.ownerId ?? item.title}';
-      final selectedKey = selected == null
-          ? null
-          : '${selected!.ownerKind ?? selected!.kind}:${selected!.ownerId ?? selected!.title}';
+      final key = item.id;
+      final selectedKey = selected?.id;
       return _OngoingRow(
         item: item,
         selected: key == selectedKey,
         stale: stale,
         onTap: () => onSelect(item),
+        baseUri: baseUri,
       );
     },
   );
@@ -279,74 +285,220 @@ bool _ongoingRedundant(String value, OngoingContinuityPresentation item) {
   return reduced == 'À confirmer' || reduced == 'À vérifier';
 }
 
+/// Published N1 images are delivered by the same API origin that owns the
+/// projection. No third-party tracking URL or client-generated picture.
+String? ongoingRecognitionImageUrl(String? source, Uri? baseUri) {
+  final value = source?.trim();
+  if (value == null || value.isEmpty) return null;
+  final raw = Uri.tryParse(value);
+  if (raw == null) return null;
+  final resolved = raw.hasScheme ? raw : baseUri?.resolveUri(raw);
+  if (resolved == null ||
+      (resolved.scheme != 'http' && resolved.scheme != 'https') ||
+      resolved.host.isEmpty ||
+      (baseUri != null && resolved.origin != baseUri.origin)) {
+    return null;
+  }
+  return resolved.toString();
+}
+
 class _OngoingRow extends StatelessWidget {
   const _OngoingRow({
     required this.item,
     required this.selected,
     required this.stale,
     required this.onTap,
+    this.baseUri,
   });
   final OngoingContinuityPresentation item;
   final bool selected;
   final bool stale;
   final VoidCallback onTap;
+  final Uri? baseUri;
 
-  String? _supportingLine(OngoingContinuityPresentation item) {
-    final candidate = item.mySide.isNotEmpty
-        ? item.mySide.first
-        : item.next.isNotEmpty
-        ? item.next.first
-        : null;
+  String? _supportingLine() {
+    final candidate = item.supporting ??
+        (item.mySide.isNotEmpty
+            ? item.mySide.first
+            : item.next.isNotEmpty
+                ? item.next.first
+                : null);
     if (candidate == null || _ongoingRedundant(candidate, item)) return null;
     return candidate;
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.makoloSurfaces;
     final summary = _ongoingSummary(item.title, item.synthesis);
-    final supporting = _supportingLine(item);
-    final hasBlocker = item.blocker != null;
-    final hasMySide = item.mySide.isNotEmpty;
+    final supporting = _supportingLine();
+    final imageUrl = ongoingRecognitionImageUrl(item.mediaUrl, baseUri);
+    final cue = item.cue;
+    final cueColor = switch (item.cueTone) {
+      'action' => colors.brand,
+      'attention' => MakoloColors.pulse,
+      'ready' => colors.success,
+      _ => Theme.of(context).colorScheme.onSurfaceVariant,
+    };
+    final textTheme = Theme.of(context).textTheme;
     return Semantics(
       button: true,
       selected: selected,
-      label: [item.title, ?summary, ?supporting].join('. '),
+      label: [
+        item.title,
+        ?summary,
+        ?supporting,
+      ].join('. '),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(MakoloRadii.card),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-          child: Column(
+        borderRadius: BorderRadius.circular(MakoloRadii.large),
+        child: AnimatedContainer(
+          duration: MakoloMotion.effective(context, MakoloMotion.short),
+          padding: const EdgeInsets.all(MakoloSpacing.compact),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(MakoloRadii.large),
+            border: Border.all(
+              color: selected ? colors.brand : colors.border,
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(item.title, style: Theme.of(context).textTheme.titleLarge),
-              if (summary != null) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(summary, style: Theme.of(context).textTheme.bodyLarge),
-              ],
-              if (supporting != null) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(supporting, style: Theme.of(context).textTheme.bodyMedium),
-              ],
-              if (hasBlocker || hasMySide) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                MakoloStatus(
-                  label: hasBlocker ? 'Bloqué' : 'Action de votre côté',
-                  tone: hasBlocker
-                      ? MakoloStatusTone.warning
-                      : MakoloStatusTone.neutral,
-                  icon: hasBlocker
-                      ? Icons.block_outlined
-                      : Icons.person_outline_rounded,
+              if (imageUrl != null) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(MakoloRadii.card),
+                  child: SizedBox(
+                    width: 92,
+                    height: 108,
+                    child: Image.network(
+                      imageUrl,
+                      key: const Key('ongoing-n1-recognition-media'),
+                      fit: BoxFit.cover,
+                      semanticLabel: item.mediaAlt ?? item.title,
+                      errorBuilder: (context, error, stackTrace) =>
+                          ColoredBox(
+                            color: colors.low,
+                            child: const Center(
+                              child: Icon(Icons.image_not_supported_outlined),
+                            ),
+                          ),
+                    ),
+                  ),
                 ),
+                const SizedBox(width: MakoloSpacing.compact),
               ],
-              if (stale) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(
-                  'Dernière information connue',
-                  style: Theme.of(context).textTheme.bodySmall,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (cue != null || item.whenLabel != null) ...[
+                      Wrap(
+                        spacing: MakoloSpacing.sm,
+                        runSpacing: MakoloSpacing.xs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (cue != null)
+                            DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: cueColor.withValues(alpha: 0.09),
+                                borderRadius: BorderRadius.circular(
+                                  MakoloRadii.pill,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: MakoloSpacing.sm,
+                                  vertical: MakoloSpacing.xs,
+                                ),
+                                child: Text(
+                                  cue,
+                                  style: textTheme.labelSmall?.copyWith(
+                                    color: cueColor,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (item.whenLabel != null)
+                            Text(
+                              item.whenLabel!,
+                              style: textTheme.labelSmall?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: MakoloSpacing.sm),
+                    ],
+                    Text(
+                      item.title,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.25,
+                      ),
+                    ),
+                    if (summary != null) ...[
+                      const SizedBox(height: MakoloSpacing.xs),
+                      Text(
+                        summary,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    if (supporting != null) ...[
+                      const SizedBox(height: MakoloSpacing.sm),
+                      Text(
+                        supporting,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colors.brand,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    if (item.placeLabel != null) ...[
+                      const SizedBox(height: MakoloSpacing.sm),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.place_outlined,
+                              size: 14,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          const SizedBox(width: MakoloSpacing.xs),
+                          Flexible(
+                            child: Text(
+                              item.placeLabel!,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (stale) ...[
+                      const SizedBox(height: MakoloSpacing.sm),
+                      Text(
+                        'Dernière information connue',
+                        style: textTheme.bodySmall,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
+              ),
+              const SizedBox(width: MakoloSpacing.xs),
+              Padding(
+                padding: const EdgeInsets.only(top: MakoloSpacing.inner),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ),
             ],
           ),
         ),
