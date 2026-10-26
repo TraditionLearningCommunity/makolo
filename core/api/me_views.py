@@ -99,21 +99,39 @@ class PersonalMeTerritoryPreviewAPIView(PersonalProjectionAPIView):
         "resources": build_personal_resources_data,
     }
 
+    families = {
+        "considerations": frozenset((
+            "interests", "open_to", "watches", "bookmarks",
+            "followed_spaces", "followed_profiles",
+        )),
+        "collectives": frozenset(("authorized_spaces", "teams", "groups")),
+        "resources": frozenset(("documents", "proofs", "credentials")),
+    }
+
     def get(self, request, territory):
         self._guard_personal_scope(request)
-        if territory not in self.builders:
-            raise ValidationError({"territory": "Territoire inconnu."})
+        builder = self.builders.get(territory)
+        family = request.query_params.get("family")
+        if builder is None or family not in self.families.get(territory, ()):
+            raise ValidationError({"family": "Collection inconnue."})
         try:
-            offset = int(request.query_params.get("offset", 6))
+            offset = int(request.query_params.get("offset", 0))
             limit = int(request.query_params.get("limit", self.page_size))
         except (TypeError, ValueError) as exc:
             raise ValidationError({"pagination": "Paramètres invalides."}) from exc
         if offset < 0 or not 1 <= limit <= self.max_page_size:
             raise ValidationError({"pagination": "Plage de chargement invalide."})
         observed_at = timezone.now()
-        data = self.builders[territory](request.user, offset=offset, limit=limit)
+        collection = builder(request.user, offset=offset, limit=limit, family=family)[family]
         return self._response(
-            {"territory": territory, "offset": offset, "limit": limit, "collections": data},
+            {
+                "actor": {"type": "profile", "id": str(request.user.pk)},
+                "territory": territory,
+                "family": family,
+                "offset": offset,
+                "limit": limit,
+                "collection": collection,
+            },
             observed_at=observed_at,
         )
 
