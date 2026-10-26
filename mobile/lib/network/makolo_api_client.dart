@@ -328,6 +328,10 @@ class MakoloApiClient {
   /// transport. Widgets do not access bearer tokens, raw storage or Web.
   /// These bytes are only held in memory for the current presentation.
   Future<Uint8List> getPresentationImage(String path) async {
+    final uri = Uri.tryParse(path);
+    if (uri == null || uri.hasScheme || uri.hasAuthority || !path.startsWith('/')) {
+      throw const FormatException('Only same-origin media paths are permitted');
+    }
     Future<Response<List<int>>> request(String bearer) async {
       try {
         return await _dio.get<List<int>>(
