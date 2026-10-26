@@ -40,6 +40,7 @@ class _MeScreenState extends State<MeScreen> {
   StoredProjection? _last;
   String? _loading;
   bool _pageFailed = false;
+  bool _retryRequested = false;
 
   @override
   void initState() {
@@ -117,13 +118,16 @@ class _MeScreenState extends State<MeScreen> {
       selection: selection,
       onOpenDestination: widget.onOpenDestination,
       loadingMore: _loading != null,
+      loadFailed: _pageFailed,
+      onRetry: () { setState(() { _pageFailed = false; _retryRequested = true; }); _loadNext(selection); },
       onReachEnd: widget.api == null || syncStatus?.state == SyncVisualState.offline
           ? null : () => _loadNext(selection),
     );
   }
 
   void _loadNext(MeSelection selection) {
-    if (_loading != null || _pageFailed || widget.api == null || _last == null) return;
+    if (_loading != null || (_pageFailed && !_retryRequested) || widget.api == null || _last == null) return;
+    _retryRequested = false;
     final pending = selection.territories.where((t) =>
       t.hasMore && const ['considerations','collectives','resources'].contains(t.presentation.key));
     if (pending.isEmpty) return;
@@ -157,12 +161,14 @@ class _MeScreenState extends State<MeScreen> {
 
 class MeView extends StatefulWidget {
   const MeView({super.key, required this.selection, this.onOpenDestination,
-    this.onReachEnd, this.loadingMore = false});
+    this.onReachEnd, this.onRetry, this.loadingMore = false, this.loadFailed = false});
 
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;
   final VoidCallback? onReachEnd;
+  final VoidCallback? onRetry;
   final bool loadingMore;
+  final bool loadFailed;
 
   @override
   State<MeView> createState() => _MeViewState();
@@ -236,6 +242,8 @@ class _MeViewState extends State<MeView> {
             useTwoTerritories: useTwoTerritories,
             onSelectItem: _selectItem,
             loadingMore: widget.loadingMore,
+            loadFailed: widget.loadFailed,
+            onRetry: widget.onRetry,
             hasMore: widget.selection.territories.any((t) => t.hasMore),
           ),
         );
@@ -376,6 +384,8 @@ class _MeField extends StatelessWidget {
     required this.useTwoTerritories,
     required this.onSelectItem,
     required this.loadingMore,
+    required this.loadFailed,
+    required this.onRetry,
     required this.hasMore,
   });
 
@@ -384,6 +394,8 @@ class _MeField extends StatelessWidget {
   final bool useTwoTerritories;
   final ValueChanged<MeItemPresentation> onSelectItem;
   final bool loadingMore;
+  final bool loadFailed;
+  final VoidCallback? onRetry;
   final bool hasMore;
 
   @override
@@ -420,6 +432,7 @@ class _MeField extends StatelessWidget {
           ),
         const SizedBox(height: MakoloSpacing.xl),
         if (loadingMore) const Center(child: CircularProgressIndicator.adaptive())
+        else if (loadFailed) Center(child: TextButton(onPressed: onRetry, child: const Text('Réessayer')))
         else if (!hasMore) Center(child: Text('Vous avez tout exploré', style: Theme.of(context).textTheme.bodySmall)),
       ],
     );
