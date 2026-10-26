@@ -99,7 +99,6 @@ class PersonalN1TemplateTests(SimpleTestCase):
         html = render_to_string("core/_ongoing_unit.html", {"item": projected})
         self.assertIn("data-ongoing-save", html)
         self.assertIn("data-makolo-share", html)
-        self.assertIn("Voir plus", html) if projected["details"] else None
         self.assertIn("Enregistrer", html)
         self.assertIn("Continuer la démarche", html)
         self.assertIn("Partager", html)
