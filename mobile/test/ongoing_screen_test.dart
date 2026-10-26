@@ -37,7 +37,10 @@ StoredProjection _projection({
 }) => StoredProjection(
   kind: 'personal.ongoing',
   schemaVersion: 1,
-  payload: {'items': items, if (continuation != null) 'continuation': continuation},
+  payload: {
+    'items': items,
+    if (continuation != null) 'continuation': continuation,
+  },
   receivedAt: DateTime.utc(2026, 10, 3),
   freshUntil: DateTime.utc(2026, 12, 1),
 );
@@ -70,32 +73,34 @@ void main() {
   testWidgets('N1 uses the server cue without decorating an empty media slot', (
     tester,
   ) async {
-    final projection = _projection(items: const [
-      {
-        'id': 'server-stable-identity',
-        'kind': 'journey',
-        'source': {'kind': 'journey', 'id': 'travel'},
-        'state': 'available',
-        'title': 'Lubumbashi → Kolwezi',
-        'summary': 'Place confirmée.',
-        'n1': {
-          'cue': 'Accès disponible',
-          'tone': 'ready',
-          'when_label': '12/11/2026 · 14:00',
-          'place_label': 'Lubumbashi',
+    final projection = _projection(
+      items: const [
+        {
+          'id': 'server-stable-identity',
+          'kind': 'journey',
+          'source': {'kind': 'journey', 'id': 'travel'},
+          'state': 'available',
+          'title': 'Lubumbashi → Kolwezi',
+          'summary': 'Place confirmée.',
+          'n1': {
+            'cue': 'Accès disponible',
+            'tone': 'ready',
+            'when_label': '12/11/2026 · 14:00',
+            'place_label': 'Lubumbashi',
+          },
+          'ready': [],
+          'actor_interventions': [],
+          'continuation': null,
+          'blocker': null,
+          'next': null,
+          'timing': {},
+          'place': {},
+          'media_bindings': [],
+          'capabilities': [],
+          'links': {},
         },
-        'ready': [],
-        'actor_interventions': [],
-        'continuation': null,
-        'blocker': null,
-        'next': null,
-        'timing': {},
-        'place': {},
-        'media_bindings': [],
-        'capabilities': [],
-        'links': {},
-      },
-    ]);
+      ],
+    );
     await PresentationHarness.pump(
       tester,
       child: OngoingScreen(
@@ -117,13 +122,16 @@ void main() {
       tester,
       child: OngoingScreen(
         repository: _UnusedRepository(),
-        projectionStream: Stream.value(_projection(
-          continuation: {'state': 'end', 'token': null},
-        )),
+        projectionStream: Stream.value(
+          _projection(continuation: {'state': 'end', 'token': null}),
+        ),
       ),
     );
     await tester.pump();
-    expect(find.byKey(const Key('ongoing-n1-discover-actions')), findsOneWidget);
+    expect(
+      find.byKey(const Key('ongoing-n1-discover-actions')),
+      findsOneWidget,
+    );
     final save = tester.widget<IconButton>(
       find.byKey(const Key('ongoing-n1-save')),
     );
@@ -141,49 +149,55 @@ void main() {
     expect(find.text('Frais réglés'), findsOneWidget);
   });
 
-  testWidgets('compact media is full width above the title, never a side thumbnail', (
-    tester,
-  ) async {
-    final projection = _projection(items: const [
-      {
-        'id': 'media-continuity',
-        'kind': 'journey',
-        'source': {'kind': 'journey', 'id': 'media'},
-        'state': 'waiting',
-        'title': 'Mon voyage',
-        'summary': 'Départ confirmé.',
-        'media_bindings': [
+  testWidgets(
+    'compact media is full width above the title, never a side thumbnail',
+    (tester) async {
+      final projection = _projection(
+        items: const [
           {
-            'purpose': 'RECOGNIZE',
-            'resource': {
-              'url': '/presentation/media/uses/abc/file/',
-              'alt_text': 'Véhicule',
-            },
+            'id': 'media-continuity',
+            'kind': 'journey',
+            'source': {'kind': 'journey', 'id': 'media'},
+            'state': 'waiting',
+            'title': 'Mon voyage',
+            'summary': 'Départ confirmé.',
+            'media_bindings': [
+              {
+                'purpose': 'RECOGNIZE',
+                'resource': {
+                  'url': '/presentation/media/uses/abc/file/',
+                  'alt_text': 'Véhicule',
+                },
+              },
+            ],
+            'capabilities': [],
+            'links': {},
           },
         ],
-        'capabilities': [],
-        'links': {},
-      },
-    ]);
-    await PresentationHarness.pump(
-      tester,
-      child: OngoingScreen(
-        repository: _UnusedRepository(),
-        projectionStream: Stream.value(projection),
-        baseUri: Uri.parse('https://api.example.test/'),
-      ),
-    );
-    await tester.pump();
-    final media = find.byKey(const Key('ongoing-n1-full-width-media'));
-    final title = find.text('Mon voyage');
-    expect(media, findsOneWidget);
-    expect(title, findsOneWidget);
-    final mediaRect = tester.getRect(media);
-    final titleRect = tester.getRect(title);
-    expect(mediaRect.bottom, lessThanOrEqualTo(titleRect.top));
-    expect(mediaRect.width, greaterThan(titleRect.width));
-    expect(find.byKey(const Key('ongoing-n1-discover-actions')), findsOneWidget);
-  });
+      );
+      await PresentationHarness.pump(
+        tester,
+        child: OngoingScreen(
+          repository: _UnusedRepository(),
+          projectionStream: Stream.value(projection),
+          baseUri: Uri.parse('https://api.example.test/'),
+        ),
+      );
+      await tester.pump();
+      final media = find.byKey(const Key('ongoing-n1-full-width-media'));
+      final title = find.text('Mon voyage');
+      expect(media, findsOneWidget);
+      expect(title, findsOneWidget);
+      final mediaRect = tester.getRect(media);
+      final titleRect = tester.getRect(title);
+      expect(mediaRect.bottom, lessThanOrEqualTo(titleRect.top));
+      expect(mediaRect.width, greaterThan(titleRect.width));
+      expect(
+        find.byKey(const Key('ongoing-n1-discover-actions')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets(
     'a removed projection does not resurrect private cached content',
