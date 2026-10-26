@@ -9,6 +9,7 @@ import '../../design/presentation_layout.dart';
 import '../../design/surface_states.dart';
 import '../../navigation/destination.dart';
 import '../../network/makolo_api_client.dart';
+import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
@@ -979,10 +980,12 @@ class _MeConsideration extends StatelessWidget {
               child: Row(
                 children: [
                   if (isSaved) ...[
-                    Icon(
-                      Icons.bookmark_border_rounded,
-                      color: scheme.primary,
-                      size: 19,
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Center(
+                        child: _MeSavedOrbit(),
+                      ),
                     ),
                     const SizedBox(width: MakoloSpacing.compact),
                   ],
@@ -1022,6 +1025,18 @@ class _MeConsideration extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MeSavedOrbit extends StatelessWidget {
+  const _MeSavedOrbit();
+
+  @override
+  Widget build(BuildContext context) {
+    return DiscoveryOrbitIcon(
+      saved: true,
+      color: Theme.of(context).colorScheme.primary,
     );
   }
 }
