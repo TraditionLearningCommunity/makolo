@@ -199,7 +199,7 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
         token = request.GET.get("continuation")
         if token:
             try:
-                ongoing_continuation_offset(token)
+                ongoing_continuation_offset(token, profile=request.user)
             except (signing.BadSignature, KeyError, ValueError, TypeError):
                 return HttpResponseBadRequest("Suite de résultats indisponible.")
         response = super().get(request, *args, **kwargs)
@@ -257,7 +257,8 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
         observed_at = get_request_context(self.request).observed_at
         try:
             offset = ongoing_continuation_offset(
-                self.request.GET.get("continuation")
+                self.request.GET.get("continuation"),
+                profile=profile,
             )
         except (signing.BadSignature, KeyError, TypeError, ValueError):
             offset = 0
