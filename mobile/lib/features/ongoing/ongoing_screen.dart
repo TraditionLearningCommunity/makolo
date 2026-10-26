@@ -34,12 +34,14 @@ class OngoingScreen extends StatefulWidget {
     this.baseUri,
     this.api,
     this.discovery,
+    this.initialContinuityId,
   });
   final PersonalRepository repository;
   final Stream<StoredProjection?>? projectionStream;
   final Uri? baseUri;
   final MakoloApiClient? api;
   final DiscoveryRepository? discovery;
+  final String? initialContinuityId;
   @override
   State<OngoingScreen> createState() => _OngoingScreenState();
 }
@@ -55,12 +57,16 @@ class _OngoingScreenState extends State<OngoingScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedOwnerKey = widget.initialContinuityId;
     _bindStreams();
   }
 
   @override
   void didUpdateWidget(covariant OngoingScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialContinuityId != widget.initialContinuityId) {
+      _selectedOwnerKey = widget.initialContinuityId;
+    }
     if (oldWidget.repository != widget.repository ||
         oldWidget.projectionStream != widget.projectionStream) {
       _lastProjection = null;
