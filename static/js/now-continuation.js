@@ -5,6 +5,9 @@
   const stream = document.getElementById("now-stream");
   const status = document.getElementById("now-infinite-status");
   if (!footer || !stream || !status) return;
+  const gate = footer;
+  if (gate.dataset.autoloadBound === "1") return;
+  gate.dataset.autoloadBound = "1";
 
   let loading = false;
   let failed = false;
