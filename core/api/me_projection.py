@@ -73,13 +73,24 @@ def _bounded(queryset, serializer, *, limit, offset=0):
     has_more = len(rows) > limit
     if has_more:
         rows = rows[:limit]
-        total = queryset.count()
-    else:
-        total = offset + len(rows)
+    total = queryset.count()
     return {
         "count": total,
         "items": [serializer(row) for row in rows],
         "has_more": has_more,
+    }
+
+
+def _family_slice(sources, *, limit, offset, family):
+    """Keep the root preview unchanged while paging exactly one owner family."""
+    if family is not None:
+        if family not in sources:
+            raise ValueError("Famille inconnue.")
+        queryset, serializer = sources[family]
+        return {family: _bounded(queryset, serializer, limit=limit, offset=offset)}
+    return {
+        name: _bounded(queryset, serializer, limit=limit, offset=offset)
+        for name, (queryset, serializer) in sources.items()
     }
 
 
@@ -212,7 +223,7 @@ def _profile_follow_item(row):
     }
 
 
-def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offset=0):
+def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offset=0, family=None):
     """Private facts explicitly chosen by the Profile; no inferred preference."""
     interests = (
         ProfileInterest.objects.filter(profile=profile, topic__is_active=True)
@@ -244,15 +255,19 @@ def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offse
         .select_related("organizer_profile")
         .order_by("-followed_at", "id")
     )
-    return {
-        "interests": _bounded(interests, _interest_item, limit=limit, offset=offset),
-        "open_to": _bounded(open_to, _open_to_item, limit=limit, offset=offset),
-        "watches": _bounded(watches, _watch_item, limit=limit, offset=offset),
-        "bookmarks": _bounded(bookmarks, _bookmark_item, limit=limit, offset=offset),
-        "followed_spaces": _bounded(followed_spaces, _space_follow_item, limit=limit, offset=offset),
-        "followed_profiles": _bounded(followed_profiles, _profile_follow_item, limit=limit, offset=offset),
-    }
-
+    return _family_slice(
+        {
+            "interests": (interests, _interest_item),
+            "open_to": (open_to, _open_to_item),
+            "watches": (watches, _watch_item),
+            "bookmarks": (bookmarks, _bookmark_item),
+            "followed_spaces": (followed_spaces, _space_follow_item),
+            "followed_profiles": (followed_profiles, _profile_follow_item),
+        },
+        limit=limit,
+        offset=offset,
+        family=family,
+    )
 
 def _authorized_space_item(space):
     return {
@@ -311,7 +326,7 @@ def _group_item(group):
     }
 
 
-def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT, offset=0):
+def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT, offset=0, family=None):
     """Compose relationships without treating membership as authority."""
     spaces = authorized_spaces(profile).order_by("name", "id")
     team_memberships = (
@@ -324,12 +339,16 @@ def build_personal_collectives_data(profile, *, limit=ME_SECTION_LIMIT, offset=0
         .order_by("team__organization__name", "team__name", "id")
     )
     groups = groups_for_profile(profile).order_by("name", "id")
-    return {
-        "authorized_spaces": _bounded(spaces, _authorized_space_item, limit=limit, offset=offset),
-        "teams": _bounded(team_memberships, _team_membership_item, limit=limit, offset=offset),
-        "groups": _bounded(groups, _group_item, limit=limit, offset=offset),
-    }
-
+    return _family_slice(
+        {
+            "authorized_spaces": (spaces, _authorized_space_item),
+            "teams": (team_memberships, _team_membership_item),
+            "groups": (groups, _group_item),
+        },
+        limit=limit,
+        offset=offset,
+        family=family,
+    )
 
 def _asset_item(asset):
     latest_payload = None
@@ -408,7 +427,7 @@ def _credential_item(credential):
     }
 
 
-def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT, offset=0):
+def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT, offset=0, family=None):
     latest = PersonalAssetVersion.objects.filter(asset_id=OuterRef("pk")).order_by(
         "-version",
         "-created_at",
@@ -425,12 +444,16 @@ def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT, offset=0):
     )
     proofs = proofs_for_profile(profile)
     credentials = credentials_for_profile(profile)
-    return {
-        "documents": _bounded(assets, _asset_item, limit=limit, offset=offset),
-        "proofs": _bounded(proofs, _proof_item, limit=limit, offset=offset),
-        "credentials": _bounded(credentials, _credential_item, limit=limit, offset=offset),
-    }
-
+    return _family_slice(
+        {
+            "documents": (assets, _asset_item),
+            "proofs": (proofs, _proof_item),
+            "credentials": (credentials, _credential_item),
+        },
+        limit=limit,
+        offset=offset,
+        family=family,
+    )
 
 def _passport_interest(row):
     return {
@@ -553,7 +576,7 @@ def build_personal_partners_data(profile, *, limit=ME_SECTION_LIMIT):
         .order_by("organization__name", "name", "id")
     )
     return {
-        "relationships": _bounded(relationships, _partner_item, limit=limit, offset=offset),
+        "relationships": _bounded(relationships, _partner_item, limit=limit),
         "links": {
             "domain_api": "/api/v1/partners/partners/",
         },
