@@ -363,7 +363,7 @@ class _OngoingFieldState extends State<_OngoingField> {
         if (widget.endReached && !widget.stale && widget.items.isNotEmpty) {
           return const Center(child: Padding(
             padding: EdgeInsets.all(MakoloSpacing.md),
-            child: Text('Tout est affiché.'),
+            child: Text('Vous avez tout exploré'),
           ));
         }
         return const SizedBox(height: MakoloSpacing.xl);
