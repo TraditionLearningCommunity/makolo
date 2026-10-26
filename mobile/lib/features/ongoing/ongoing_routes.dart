@@ -12,6 +12,7 @@ StatefulShellBranch ongoingBranch(AppRuntime runtime) => StatefulShellBranch(
         repository: runtime.personal!,
         baseUri: runtime.api?.baseUri,
         api: runtime.api,
+        discovery: runtime.discovery,
       ),
     ),
   ],
