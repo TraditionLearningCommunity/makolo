@@ -138,8 +138,9 @@ class _MeScreenState extends State<MeScreen> {
     if (_loading != null ||
         (_pageFailed && !_retryRequested) ||
         widget.api == null ||
-        _last == null)
+        _last == null) {
       return;
+    }
     _retryRequested = false;
     const families = ['considerations', 'collectives', 'resources'];
     final pending = selection.territories.where(
