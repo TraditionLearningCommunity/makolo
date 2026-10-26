@@ -1059,17 +1059,6 @@ class _OngoingFocus extends StatelessWidget {
   final MakoloApiClient? api;
   final Uri? baseUri;
 
-  bool get _hasStructuredDetail =>
-      item.settled.isNotEmpty ||
-      item.mySide.isNotEmpty ||
-      item.elsewhere.isNotEmpty ||
-      item.next.isNotEmpty ||
-      item.makolo.isNotEmpty ||
-      item.systemOrTime.isNotEmpty ||
-      item.waiting != null ||
-      item.blocker != null ||
-      item.unknown != null;
-
   List<Widget> _detailSections(BuildContext context) {
     final seen = <String>{};
     List<String> unique(Iterable<String> values) => [
