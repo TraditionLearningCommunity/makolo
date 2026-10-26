@@ -18,6 +18,7 @@ export '../../presentation/contracts/now_presentation.dart'
     show NowTopology, topologyFor;
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
+import '../../sync/projection_contract.dart';
 import '../../sync/sync_engine.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
@@ -64,6 +65,120 @@ class NowScreen extends StatefulWidget {
 class _NowScreenState extends State<NowScreen> {
   late Stream<StoredProjection?> _projectionStream;
   late Stream<OwnerSourceState> _sourceStream;
+  DateTime? _pagedBaseReceivedAt;
+  String? _pagedActorId;
+  final List<Map<String, dynamic>> _pagedItems = [];
+  Map<String, dynamic>? _pageContinuation;
+  bool _paging = false;
+  bool _pageFailed = false;
+
+  void _resetPages() {
+    _pagedBaseReceivedAt = null;
+    _pagedActorId = null;
+    _pagedItems.clear();
+    _pageContinuation = null;
+    _paging = false;
+    _pageFailed = false;
+  }
+
+  void _matchBase(StoredProjection projection) {
+    final actor = projection.payload['actor'];
+    final actorId = actor is Map ? actor['id']?.toString() : null;
+    if (_pagedBaseReceivedAt != projection.receivedAt ||
+        _pagedActorId != actorId) {
+      _resetPages();
+      _pagedBaseReceivedAt = projection.receivedAt;
+      _pagedActorId = actorId;
+    }
+  }
+
+  StoredProjection _withPages(StoredProjection projection) {
+    if (_pagedItems.isEmpty) return projection;
+    final original = projection.payload['items'];
+    final identities = <String>{};
+    final merged = <dynamic>[];
+    for (final item in [...?original is List ? original : null, ..._pagedItems]) {
+      if (item is! Map) continue;
+      final identity = item['continuity_identity'] ?? item['id'];
+      if (identity is String && !identities.add(identity)) continue;
+      merged.add(item);
+    }
+    return StoredProjection(
+      kind: projection.kind,
+      resourceKey: projection.resourceKey,
+      schemaVersion: projection.schemaVersion,
+      payload: {
+        ...projection.payload,
+        'items': merged,
+        if (_pageContinuation != null) 'continuation': _pageContinuation,
+      },
+      receivedAt: projection.receivedAt,
+      sourceGeneratedAt: projection.sourceGeneratedAt,
+      sourceUpdatedAt: projection.sourceUpdatedAt,
+      lastVerifiedOnlineAt: projection.lastVerifiedOnlineAt,
+      freshUntil: projection.freshUntil,
+      expiresAt: projection.expiresAt,
+      freshnessPolicyId: projection.freshnessPolicyId,
+    );
+  }
+
+  Future<void> _loadMore(StoredProjection base) async {
+    if (_paging || _pageFailed || widget.api == null || !mounted) return;
+    _matchBase(base);
+    final rawContinuation = _pageContinuation ?? base.payload['continuation'];
+    if (rawContinuation is! Map || rawContinuation['state'] != 'more') {
+      return;
+    }
+    final token = rawContinuation['token'];
+    if (token is! String || token.isEmpty) return;
+    final baseReceivedAt = base.receivedAt;
+    final actorId = _pagedActorId;
+    setState(() => _paging = true);
+    try {
+      final query = Uri(queryParameters: {'continuation': token}).query;
+      final response = await widget.api!.get('api/v1/me/now/?$query');
+      final envelope = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.now',
+        expectedScope: 'personal',
+      );
+      final data = envelope.data;
+      final actor = data['actor'];
+      final items = data['items'];
+      final next = data['continuation'];
+      if (actor is! Map ||
+          actor['id'] != actorId ||
+          items is! List ||
+          next is! Map ||
+          !const ['more', 'end'].contains(next['state']) ||
+          (next['state'] == 'more' &&
+              (items.isEmpty || next['token'] == token))) {
+        throw const FormatException('Invalid Now continuation page');
+      }
+      if (!mounted ||
+          _pagedBaseReceivedAt != baseReceivedAt ||
+          _pagedActorId != actorId) {
+        return;
+      }
+      setState(() {
+        _pagedItems.addAll(
+          items.whereType<Map>().map((item) => Map<String, dynamic>.from(item)),
+        );
+        _pageContinuation = Map<String, dynamic>.from(next);
+        _pageFailed = false;
+      });
+    } on Object {
+      if (mounted &&
+          _pagedBaseReceivedAt == baseReceivedAt &&
+          _pagedActorId == actorId) {
+        setState(() => _pageFailed = true);
+      }
+    } finally {
+      if (mounted && _pagedBaseReceivedAt == baseReceivedAt) {
+        setState(() => _paging = false);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -74,7 +189,9 @@ class _NowScreenState extends State<NowScreen> {
   @override
   void didUpdateWidget(covariant NowScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository) {
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.profileId != widget.profileId) {
+      _resetPages();
       _bindStreams();
     }
   }
@@ -139,8 +256,9 @@ class _NowScreenState extends State<NowScreen> {
       );
     }
 
+    _matchBase(projection);
     final selection = const NowSelector().select(
-      projection: projection,
+      projection: _withPages(projection),
       now: (widget.now?.call() ?? DateTime.now()).toUtc(),
       reachability: _reachability(source, syncStatus),
       failure:
@@ -162,6 +280,13 @@ class _NowScreenState extends State<NowScreen> {
       refreshErrorMessage: null,
       onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
       onOpenOwner: (destination) => _openOwner(context, destination),
+      onLoadMore: () => _loadMore(projection),
+      loadingMore: _paging,
+      loadMoreFailed: _pageFailed,
+      onRetryMore: () {
+        setState(() => _pageFailed = false);
+        _loadMore(projection);
+      },
     );
     final sync = widget.sync;
     return sync == null
@@ -204,9 +329,17 @@ class NowView extends StatefulWidget {
     this.profileId,
     this.refreshErrorMessage,
     this.onRetry,
+    this.onLoadMore,
+    this.onRetryMore,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
   });
 
   final NowSelection selection;
+  final VoidCallback? onLoadMore;
+  final VoidCallback? onRetryMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final String? refreshErrorMessage;
   final VoidCallback? onRetry;
   final String? initialSelectedKey;
@@ -226,11 +359,29 @@ class _NowViewState extends State<NowView> {
   void initState() {
     super.initState();
     _selectedKey = widget.initialSelectedKey;
+    _fieldController.addListener(_maybeLoadMore);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
+  }
+
+  void _maybeLoadMore() {
+    if (!mounted || !_fieldController.hasClients ||
+        widget.loadingMore || widget.loadMoreFailed ||
+        widget.selection.continuation.state != NowContinuationState.more) {
+      return;
+    }
+    if (_fieldController.position.extentAfter < 480) {
+      widget.onLoadMore?.call();
+    }
   }
 
   @override
   void didUpdateWidget(covariant NowView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.selection.situations.length != widget.selection.situations.length ||
+        oldWidget.loadingMore != widget.loadingMore ||
+        oldWidget.loadMoreFailed != widget.loadMoreFailed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
+    }
     if (_selectedKey != null &&
         !_situations.any((item) => _keyOf(item) == _selectedKey)) {
       _selectedKey = null;
@@ -265,6 +416,10 @@ class _NowViewState extends State<NowView> {
       onOpenOwner: widget.onOpenOwner,
       api: widget.api,
       profileId: widget.profileId,
+      continuation: widget.selection.continuation,
+      loadingMore: widget.loadingMore,
+      loadMoreFailed: widget.loadMoreFailed,
+      onRetryMore: widget.onRetryMore,
     );
 
     final content = selected == null
@@ -363,8 +518,16 @@ class _NowField extends StatelessWidget {
     required this.onOpenOwner,
     required this.api,
     required this.profileId,
+    required this.continuation,
+    required this.loadingMore,
+    required this.loadMoreFailed,
+    required this.onRetryMore,
   });
 
+  final NowContinuationPresentation continuation;
+  final bool loadingMore;
+  final bool loadMoreFailed;
+  final VoidCallback? onRetryMore;
   final List<NowSituationPresentation> situations;
   final ScrollController controller;
   final String? selectedKey;
@@ -409,6 +572,24 @@ class _NowField extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.md),
           ],
         ],
+        if (loadingMore)
+          const Padding(
+            padding: EdgeInsets.all(MakoloSpacing.lg),
+            child: Center(child: CircularProgressIndicator.adaptive()),
+          )
+        else if (loadMoreFailed)
+          Center(
+            child: TextButton.icon(
+              onPressed: onRetryMore,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Réessayer'),
+            ),
+          )
+        else if (continuation.state == NowContinuationState.end)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+            child: Center(child: Text('Vous avez tout exploré')),
+          ),
       ],
     );
   }
