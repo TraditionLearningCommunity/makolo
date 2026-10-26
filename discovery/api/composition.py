@@ -1152,7 +1152,7 @@ def _finalize_projection(
                 owner_presentation.get("capability") if requires_auth
                 else primary.code
             ),
-            "enabled": bool(primary.enabled and executable),
+            "enabled": bool(not requires_auth and primary.enabled and executable),
             "requires_auth": requires_auth,
             "web": primary.url,
             "web_enabled": bool(primary.enabled and primary.url),
