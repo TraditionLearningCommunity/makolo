@@ -1,4 +1,12 @@
 <article class="mk-ongoing-unit" data-ongoing-unit data-ongoing-id="{{ item.id }}">
+  {% for fact in item.temporal_facts %}
+    <span hidden data-ongoing-calendar-moment
+      data-ongoing-sort="{{ fact.at|default:fact.date }}"
+      data-ongoing-when="{{ fact.display_when }}"
+      data-ongoing-label="{{ fact.label }}"
+      data-ongoing-title="{{ item.title }}"
+      data-ongoing-target="{{ item.id }}"></span>
+  {% endfor %}
   {% include "core/_ongoing_card.html" with expanded=False %}
   {% include "core/_ongoing_card.html" with expanded=True %}
 
