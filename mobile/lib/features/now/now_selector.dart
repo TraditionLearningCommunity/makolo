@@ -384,69 +384,11 @@ class NowSelector {
         : 'Échéance : $formatted';
   }
 
-  // Presentation only: never expose ISO wire timestamps as visible copy.
-  // The underlying server timestamp and timezone remain unchanged.
+  // Dates are display-only; server timestamps remain authoritative.
   String _readableTiming(String raw) {
     final instant = DateTime.tryParse(raw);
     if (instant == null) return raw;
-    if (RegExp(r'^\\d{4}-\\d{2}-\\d{2}
-    final value = payload[parent];
-    return value is Map ? _string(value[child]) : null;
-  }
-
-  String? _semanticString(Object? value, String field) {
-    if (value is Map) return _string(value[field]);
-    return _string(value);
-  }
-
-  NowContinuationPresentation _continuation(Object? raw) {
-    if (raw == null) {
-      return const NowContinuationPresentation(state: NowContinuationState.end);
-    }
-    if (raw is! Map) {
-      return const NowContinuationPresentation(
-        state: NowContinuationState.unknown,
-      );
-    }
-    final state = switch (_string(raw['state'])?.toLowerCase()) {
-      'more' => NowContinuationState.more,
-      'end' => NowContinuationState.end,
-      _ => NowContinuationState.unknown,
-    };
-    return NowContinuationPresentation(
-      state: state,
-      token: state == NowContinuationState.more ? _string(raw['token']) : null,
-    );
-  }
-
-  String? _string(Object? value) {
-    if (value is! String) return null;
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
-  List<String> _strings(Object? value) {
-    if (value is! List) return const [];
-    return value
-        .whereType<String>()
-        .map((item) => item.trim())
-        .where((item) => item.isNotEmpty)
-        .toList(growable: false);
-  }
-
-  MakoloFreshnessCue _freshnessCue(FreshnessState state) {
-    return switch (state) {
-      FreshnessState.fresh => MakoloFreshnessCue.current,
-      FreshnessState.usableButOld => MakoloFreshnessCue.oldObservation,
-      FreshnessState.refreshRecommended =>
-        MakoloFreshnessCue.refreshRecommended,
-      FreshnessState.revalidationRequired =>
-        MakoloFreshnessCue.revalidationRequired,
-      FreshnessState.expired => MakoloFreshnessCue.expired,
-    };
-  }
-}
-).hasMatch(raw)) {
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(raw)) {
       return DateFormat('dd/MM/yyyy').format(instant);
     }
     return DateFormat('dd/MM/yyyy · HH:mm').format(instant.toLocal());
