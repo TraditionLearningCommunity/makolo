@@ -362,8 +362,9 @@ class _MeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final edge = MakoloLayout.edgePaddingFor(width);
+    final edge = useTwoTerritories
+        ? 0.0
+        : MakoloLayout.edgeCompact;
     final territories = [
       for (final territory in selection.territories)
         _MeTerritory(
