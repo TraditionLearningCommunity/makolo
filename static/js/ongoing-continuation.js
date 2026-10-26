@@ -9,6 +9,50 @@
   let failed = false;
   let observer;
 
+  // Save belongs to Discovery. The same saved Activity can appear through
+  // several independent personal continuities; update each visible control.
+  stream.addEventListener("click", async (event) => {
+    const button = event.target.closest?.("[data-ongoing-save-toggle]");
+    if (!button) return;
+    const form = button.closest("[data-ongoing-save]");
+    if (!form || button.disabled || !form.dataset.saveUrl) return;
+    button.disabled = true;
+    const saved = form.dataset.saveState === "saved";
+    const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || "";
+    const feedback = form.querySelector("[data-ongoing-save-feedback]");
+    try {
+      const response = await fetch(form.dataset.saveUrl, {
+        method: saved ? "DELETE" : "PUT",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "X-CSRFToken": csrf,
+          Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+      if (!response.ok) throw new Error("Saving rejected");
+      const payload = await response.json();
+      if (payload?.projection !== "discovery.saved") {
+        throw new Error("Invalid saved confirmation");
+      }
+      const state = saved ? "not_saved" : "saved";
+      stream.querySelectorAll("[data-ongoing-save]").forEach((other) => {
+        if (other.dataset.ongoingActivity !== form.dataset.ongoingActivity) return;
+        other.dataset.saveState = state;
+        const toggle = other.querySelector("[data-ongoing-save-toggle]");
+        const label = other.querySelector("[data-ongoing-save-label]");
+        if (toggle) toggle.setAttribute("aria-pressed", state === "saved" ? "true" : "false");
+        if (label) label.textContent = state === "saved" ? "Enregistré" : "Enregistrer";
+      });
+      if (feedback) feedback.textContent = saved ? "Enregistrement retiré." : "Possibilité enregistrée.";
+    } catch (_) {
+      if (feedback) feedback.textContent = "Enregistrement non confirmé. Réessayez.";
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   const complete = () => {
     sentinel.dataset.state = "end";
     sentinel.dataset.nextToken = "";
@@ -53,6 +97,7 @@
       sentinel.dataset.state = state;
       sentinel.dataset.nextToken = next;
       if (window.htmx?.process) window.htmx.process(stream);
+      document.dispatchEvent(new CustomEvent("makolo:fragment-inserted", { detail: { scope: stream } }));
       if (window.lucide?.createIcons) window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
       if (state === "end") complete();
       else status.textContent = "";
