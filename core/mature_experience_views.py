@@ -245,110 +245,56 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
 
 
 class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
+    """Web N1 consumes the same bounded private projection as Flutter."""
+
     template_name = "core/participant_me.html"
     login_url = "core:login"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
-        context["me_projection"] = build_personal_me_data(
+        me_projection = build_personal_me_data(
             profile=profile,
             request=self.request,
         )
+        context["me_projection"] = me_projection
+        context["passport_url"] = reverse("sharing:passport-me")
 
-        interests = list(
-            ProfileInterest.objects.filter(profile=profile)
-            .select_related("topic")
-            .order_by("topic__label", "created_at")[:ME_PREVIEW_LIMIT]
-        )
-        open_to = list(
-            ProfileOpenTo.objects.filter(profile=profile, is_active=True)
-            .select_related("topic")
-            .order_by("kind", "created_at")[:ME_PREVIEW_LIMIT]
-        )
-        watches = list(
-            DiscoveryWatch.objects.filter(owner=profile)
-            .select_related("dossier")
-            .order_by("-updated_at", "id")[:ME_PREVIEW_LIMIT]
-        )
-        bookmarks = list(
-            ActivityBookmark.objects.filter(user=profile)
-            .select_related("activity")
-            .order_by("-created_at")[:ME_PREVIEW_LIMIT]
-        )
-        followed_spaces = list(
-            OrganizationFollow.objects.filter(user=profile)
-            .select_related("organization")
-            .order_by("-followed_at")[:ME_PREVIEW_LIMIT]
-        )
-        followed_profiles = list(
-            ProfileFollow.objects.filter(user=profile)
-            .select_related("organizer_profile")
-            .order_by("-followed_at")[:ME_PREVIEW_LIMIT]
-        )
-        team_memberships = list(
-            TeamMembership.objects.filter(user=profile, status=TeamMembershipStatus.ACTIVE)
-            .select_related("team__organization")
-            .order_by("team__organization__name", "team__name")[:ME_PREVIEW_LIMIT]
-        )
-        spaces = list(authorized_spaces(profile)[:ME_PREVIEW_LIMIT])
-        groups = list(groups_for_profile(profile)[:ME_PREVIEW_LIMIT])
-        resources = list(personal_assets_for_controller(profile)[:ME_PREVIEW_LIMIT])
-        credentials = list(credentials_for_profile(profile)[:ME_PREVIEW_LIMIT])
-        proofs = list(proofs_for_profile(profile)[:ME_PREVIEW_LIMIT])
-
+        support = me_projection.get("support") or {}
         support_links = []
-        recognition_account = account_for_profile(profile)
-        if recognition_account is not None or redemptions_requiring_beneficiary_response(profile).exists():
+        if (support.get("recognition") or {}).get("available"):
             support_links.append(
                 {
                     "label": "Reconnaissance",
-                    "detail": "Voir ce que vos contributions ont rendu disponible.",
                     "url": reverse("recognition:dashboard"),
                 }
             )
-        if get_accounts_visible_to(profile).filter(user=profile).exists() or get_subscriptions_visible_to(profile).filter(user=profile).exists():
+        if (support.get("loyalty") or {}).get("available"):
             support_links.append(
                 {
                     "label": "Mes avantages",
-                    "detail": "Retrouver vos relations de fidélité organisation par organisation.",
                     "url": reverse("loyalty:dashboard"),
                 }
             )
-        personal_partners = list(
-            Partner.objects.filter(user=profile, status=PartnerStatus.ACTIVE)
-            .select_related("organization")
-            .order_by("organization__name", "name")[:ME_PREVIEW_LIMIT]
-        )
-        for partner in personal_partners:
-            support_links.append(
-                {
-                    "label": partner.organization.name,
-                    "detail": "Ma relation partenaire",
-                    "url": reverse("partners:my-detail", kwargs={"pk": partner.pk}),
-                }
+
+        # Partner details remain an owner route, not an API link or a
+        # second copy of the partnership in the N1 projection.
+        if (support.get("partners") or {}).get("available"):
+            personal_partners = (
+                Partner.objects.filter(user=profile, status=PartnerStatus.ACTIVE)
+                .select_related("organization")
+                .order_by("organization__name", "name")[:ME_PREVIEW_LIMIT]
             )
+            for partner in personal_partners:
+                support_links.append(
+                    {
+                        "label": partner.organization.name,
+                        "url": reverse("partners:my-detail", kwargs={"pk": partner.pk}),
+                    }
+                )
 
-        context.update(
-            {
-                "interests": interests,
-                "open_to": open_to,
-                "watches": watches,
-                "bookmarks": bookmarks,
-                "followed_spaces": followed_spaces,
-                "followed_profiles": followed_profiles,
-                "team_memberships": team_memberships,
-                "authorized_spaces": spaces,
-                "my_groups": groups,
-                "resources": resources,
-                "credentials": credentials,
-                "proofs": proofs,
-                "passport_url": reverse("sharing:passport-me"),
-                "support_links": support_links,
-            }
-        )
+        context["support_links"] = support_links
         return context
-
 
 class MakoloMarkView(LoginRequiredMixin, TemplateView):
     template_name = "core/makolo_mark.html"
