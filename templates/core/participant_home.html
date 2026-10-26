@@ -132,6 +132,9 @@
     <div id="now-n2-content" tabindex="-1"></div>
   </aside>
 </div>
+{% load static %}
+<script src="{% static 'js/now-n2-focus.js' %}"></script>
+<script src="{% static 'js/now-continuation.js' %}"></script>
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
