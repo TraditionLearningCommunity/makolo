@@ -249,7 +249,7 @@ def _web_now_item(item):
         state=item.get("state_meaning") or "",
         why_now=_display_value(item.get("why_now"), "meaning"),
         consequence=_consequence_text(item.get("consequence")),
-        turn=_display_value(item.get("turn"), "label", "type"),
+        turn=_display_value(item.get("turn"), "label"),
         response_type=response.get("type") or "",
         url=_handoff_url(item),
         status_label="",
