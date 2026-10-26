@@ -601,6 +601,7 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'group', id: id),
+      canOpen: true,
       title: title,
       subtitle: 'Groupe',
     );
