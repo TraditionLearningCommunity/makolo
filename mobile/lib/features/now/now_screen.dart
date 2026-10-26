@@ -1001,6 +1001,12 @@ class _NowSecondarySituation extends StatelessWidget {
           if (hasMore) ...[
             const SizedBox(height: MakoloSpacing.md),
             TextButton.icon(
+              onPressed: onSelect,
+              icon: const Icon(Icons.open_in_full_rounded),
+              label: const Text('Comprendre'),
+            ),
+            const SizedBox(height: MakoloSpacing.xs),
+            TextButton.icon(
               onPressed: onToggleExpanded,
               icon: Icon(expanded
                   ? Icons.expand_less_rounded
