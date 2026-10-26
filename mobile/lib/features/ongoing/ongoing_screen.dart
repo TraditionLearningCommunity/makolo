@@ -19,6 +19,9 @@ import '../../navigation/destination.dart';
 import '../../presentation/humanization.dart';
 import '../../repositories/personal_repository.dart';
 import '../../network/makolo_api_client.dart';
+import '../discovery/discovery_repository.dart';
+import '../discovery/discovery_selector.dart';
+import '../discovery/discovery_share_sheet.dart';
 import 'ongoing_presentation.dart';
 
 class OngoingScreen extends StatefulWidget {
@@ -28,11 +31,13 @@ class OngoingScreen extends StatefulWidget {
     this.projectionStream,
     this.baseUri,
     this.api,
+    this.discovery,
   });
   final PersonalRepository repository;
   final Stream<StoredProjection?>? projectionStream;
   final Uri? baseUri;
   final MakoloApiClient? api;
+  final DiscoveryRepository? discovery;
   @override
   State<OngoingScreen> createState() => _OngoingScreenState();
 }
@@ -76,6 +81,16 @@ class _OngoingScreenState extends State<OngoingScreen> {
   void _clearSelection() => setState(() => _selectedOwnerKey = null);
 
   String _ownerKey(OngoingContinuityPresentation item) => item.id;
+
+  Future<void> _setSaved(OngoingPossibilityPresentation action, bool saved) async {
+    final discovery = widget.discovery;
+    if (discovery == null) throw StateError('Discovery unavailable');
+    await discovery.setSaved(family: 'activity', id: action.id, saved: saved);
+    await widget.repository.reflectOngoingDiscoverySave(
+      activityId: action.id,
+      saved: saved,
+    );
+  }
 
   Future<void> _loadMore() async {
     final current = _lastProjection;
@@ -195,6 +210,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
               onBack: _clearSelection,
               baseUri: widget.baseUri,
               api: widget.api,
+              onSave: widget.discovery == null ? null : _setSaved,
               onMore: widget.api != null && moreToken is String && moreToken.isNotEmpty
                   ? () { _loadMore(); }
                   : null,
@@ -218,6 +234,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
     required this.onBack,
     this.baseUri,
     this.api,
+    this.onSave,
     this.onMore,
     this.moreBusy = false,
     this.moreError,
@@ -230,6 +247,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
   final VoidCallback onBack;
   final Uri? baseUri;
   final MakoloApiClient? api;
+  final Future<void> Function(OngoingPossibilityPresentation, bool)? onSave;
   final VoidCallback? onMore;
   final bool moreBusy;
   final String? moreError;
@@ -247,6 +265,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
         onSelect: onSelect,
         baseUri: baseUri,
         api: api,
+        onSave: onSave,
         onMore: onMore,
         moreBusy: moreBusy,
         moreError: moreError,
@@ -263,6 +282,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
               onSelect: onSelect,
               baseUri: baseUri,
               api: api,
+              onSave: onSave,
               onMore: onMore,
               moreBusy: moreBusy,
               moreError: moreError,
@@ -281,6 +301,7 @@ class _OngoingField extends StatefulWidget {
     required this.onSelect,
     this.baseUri,
     this.api,
+    this.onSave,
     this.onMore,
     this.moreBusy = false,
     this.moreError,
@@ -293,6 +314,7 @@ class _OngoingField extends StatefulWidget {
   final ValueChanged<OngoingContinuityPresentation> onSelect;
   final Uri? baseUri;
   final MakoloApiClient? api;
+  final Future<void> Function(OngoingPossibilityPresentation, bool)? onSave;
   final VoidCallback? onMore;
   final bool moreBusy;
   final String? moreError;
@@ -401,6 +423,12 @@ class _OngoingFieldState extends State<_OngoingField> {
             ),
             if (expanded) _OngoingN1Details(item: item),
           ],
+          _OngoingN1Actions(
+            item: item,
+            api: widget.api,
+            baseUri: widget.baseUri,
+            onSave: widget.onSave,
+          ),
         ],
       );
     },
