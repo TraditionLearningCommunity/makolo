@@ -1157,16 +1157,47 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
     from groups.selectors import eligible_activity_ids_for_profile
     from organizations.models import SpaceLifecycle
     from presentations.media_selectors import public_presentation_media_for_activities
+    from tickets.models import Ticket, TicketType
+
+    # Ticket offers and transfers are personal pursuits of Event Activities.
+    # Resolve their owner links in batches rather than per displayed row.
+    type_ids = {
+        entry.value.ticket_type_id
+        for entry in entries if entry.kind == "waitlist"
+    }
+    ticket_ids = {
+        entry.value.ticket_id
+        for entry in entries if entry.kind == "transfer"
+    }
+    type_activities = {
+        str(ticket_type.pk): ticket_type.event.activity_id
+        for ticket_type in TicketType.objects.filter(
+            pk__in=type_ids
+        ).select_related("event")
+    } if type_ids else {}
+    ticket_activities = {
+        str(ticket.pk): ticket.event.activity_id
+        for ticket in Ticket.objects.filter(
+            pk__in=ticket_ids
+        ).select_related("event")
+    } if ticket_ids else {}
 
     references = []
     activity_ids = set()
     occurrence_ids = set()
     for entry in entries:
-        if entry.kind not in {"journey", "access", "funding"}:
+        if entry.kind == "waitlist":
+            activity_id = type_activities.get(str(entry.value.ticket_type_id))
+            occurrence_id = None
+        elif entry.kind == "transfer":
+            activity_id = ticket_activities.get(str(entry.value.ticket_id))
+            occurrence_id = None
+        elif entry.kind in {"journey", "access", "funding"}:
+            activity_id = getattr(entry.value, "activity_id", None)
+            occurrence_id = getattr(entry.value, "occurrence_id", None)
+        else:
             references.append((None, None))
             continue
-        activity_id = getattr(entry.value, "activity_id", None)
-        occurrence_id = getattr(entry.value, "occurrence_id", None)
         references.append((str(activity_id) if activity_id else None,
                            str(occurrence_id) if occurrence_id else None))
         if activity_id:
