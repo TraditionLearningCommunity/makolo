@@ -138,3 +138,33 @@
 }
 .dark .mk-me-n1-chips span { background: #30244c; color: #ede6ff; }
 .dark .mk-me-n1-edit:hover { background: #3b2a74; }
+
+.mk-me-n1-appended {
+  display: block;
+  padding: 10px 2px;
+  border-top: 1px solid var(--me-border);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.mk-me-n1-end {
+  min-height: 32px;
+  margin-top: 28px;
+  color: var(--me-muted);
+  text-align: center;
+  font-size: 13px;
+}
+.mk-me-n1-retry {
+  appearance: none;
+  border: 1px solid var(--me-border);
+  border-radius: 999px;
+  background: var(--me-surface);
+  color: var(--me-primary);
+  padding: 9px 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mk-me-n1-retry:focus-visible {
+  outline: 3px solid var(--me-primary);
+  outline-offset: 3px;
+}
