@@ -456,7 +456,7 @@ void main() {
     expect(find.text('Pourquoi maintenant'), findsOneWidget);
     expect(find.text('Aussi maintenant'), findsNothing);
 
-    await tester.tap(find.text('Now'));
+    await tester.tap(find.text('Maintenant'));
     await tester.pump();
 
     expect(find.text('Aussi maintenant'), findsOneWidget);
