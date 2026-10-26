@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../repositories/personal_repository.dart';
@@ -66,6 +67,9 @@ class OngoingCalendarScreen extends StatelessWidget {
                 title: Text(event.title),
                 subtitle: Text(event.label),
                 trailing: Text(date, style: Theme.of(context).textTheme.labelMedium),
+                onTap: () => context.push(
+                  '/ongoing?continuity=${Uri.encodeQueryComponent(event.id)}',
+                ),
               ),
             );
           },
