@@ -78,6 +78,7 @@ def _bounded(queryset, serializer, *, limit, offset=0):
         "count": total,
         "items": [serializer(row) for row in rows],
         "has_more": has_more,
+        "next_offset": offset + len(rows),
     }
 
 
@@ -442,7 +443,7 @@ def build_personal_resources_data(profile, *, limit=ME_SECTION_LIMIT, offset=0, 
         )
         .order_by("-updated_at", "id")
     )
-    proofs = proofs_for_profile(profile)
+    proofs = proofs_for_profile(profile).order_by('-issued_at', 'id')
     credentials = credentials_for_profile(profile)
     return _family_slice(
         {
