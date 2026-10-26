@@ -408,6 +408,20 @@ class _MeField extends StatelessWidget {
         if (loadingMore) const Center(child: CircularProgressIndicator.adaptive())
         else if (loadFailed) Center(child: TextButton(onPressed: onRetry, child: const Text('Réessayer')))
         else if (!hasMore && canConfirmExhaustion) Center(child: Text('Vous avez tout exploré', style: Theme.of(context).textTheme.bodySmall)),
+        if (hasOwnerNavigation && selection.canOpenHistory) ...[
+          const SizedBox(height: MakoloSpacing.lg),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: () => onSelectItem(const MeItemPresentation(
+                destination: StructuredDestination(kind: 'history', id: 'me'),
+                title: 'Historique', canOpen: true,
+              )),
+              icon: const Icon(Icons.history_rounded),
+              label: const Text('Historique'),
+            ),
+          ),
+        ],
       ],
     );
   }
