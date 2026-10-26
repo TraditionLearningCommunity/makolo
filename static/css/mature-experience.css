@@ -318,11 +318,14 @@ a[aria-label="Revenir à Mon espace"]{display:none}
 .mk-ongoing-n2-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:var(--mk-subtle)}
 .mk-ongoing-n2 .mk-now-cta{margin-top:0;justify-self:start}
 .mk-workspace[data-workspace-layout="master-detail"]:has(#ongoing-detail[hidden]){display:block}
-@media(max-width:1199px){
+@media(max-width:959px){
   .mk-workspace.mk-ongoing-n2-active>.mk-workspace__primary{display:none}
   .mk-workspace.mk-ongoing-n2-active>#ongoing-detail{display:block;min-height:calc(100dvh - 170px);border:none;border-radius:0;box-shadow:none;margin-top:0;padding:10px 0 24px}
 }
-@media(min-width:1200px){
+@media(min-width:960px){
+  .mk-workspace[data-workspace-layout="master-detail"].mk-ongoing-n2-active{
+    display:grid;grid-template-columns:minmax(320px,360px) minmax(420px,1fr);gap:24px;align-items:start
+  }
   .mk-workspace.mk-ongoing-n2-active #ongoing-detail{display:block;min-width:0}
 }
 @media(prefers-reduced-motion:no-preference){
