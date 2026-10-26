@@ -26,7 +26,7 @@
   </template>
 
   <div class="mk-ongoing-unit__actions" role="group" aria-label="Actions pour {{ item.title }}">
-    {% if item.possibility and item.possibility.links.saved %}
+    {% if item.can_save and item.possibility.links.saved %}
       <form class="mk-ongoing-unit__save" data-ongoing-save data-save-url="{{ item.possibility.links.saved }}" data-save-state="{{ item.possibility.saved_state }}" data-ongoing-activity="{{ item.possibility.id }}">
         {% csrf_token %}
         <button type="button" data-ongoing-save-toggle aria-pressed="{% if item.possibility.saved_state == 'saved' %}true{% else %}false{% endif %}">
@@ -52,7 +52,7 @@
       </span>
     {% endif %}
 
-    {% if item.possibility and item.possibility.links.share %}
+    {% if item.can_share and item.possibility.links.share %}
       <div class="mk-ongoing-unit__share" data-makolo-share data-create-url="{{ item.possibility.links.share }}" data-profile-search-url="{% url 'sharing:profile-search' %}" data-share-title="{{ item.title }}" data-share-text="{{ item.summary }}">
         <form hidden aria-hidden="true">{% csrf_token %}<input type="hidden" name="intent" value="view"></form>
         <details>
