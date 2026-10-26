@@ -70,6 +70,40 @@ class PersonalN1TemplateTests(SimpleTestCase):
         self.assertIn("Enregistrer", html)
         self.assertIn("Partager", html)
 
+    def test_published_discovery_owner_reuses_n1_save_and_sharing(self):
+        activity_id = "11111111-2222-4333-8444-555555555555"
+        item = {
+            "id": "ongoing-public",
+            "kind": "journey",
+            "title": "Visite guidée",
+            "summary": "Départ confirmé.",
+            "links": {"web": "/me/ongoing/visite/"},
+            "n1": {
+                "possibility": {
+                    "family": "activity",
+                    "id": activity_id,
+                    "saved_state": "not_saved",
+                    "capabilities": ["save", "share"],
+                    "links": {
+                        "saved": (
+                            f"/api/v1/discovery/items/activity/{activity_id}/saved/"
+                        ),
+                        "share": (
+                            f"/api/v1/sharing/possibilities/activity/{activity_id}/"
+                        ),
+                    },
+                },
+            },
+        }
+        projected = MatureParticipantOngoingView._web_item(item)
+        html = render_to_string("core/_ongoing_unit.html", {"item": projected})
+        self.assertIn("data-ongoing-save", html)
+        self.assertIn("data-makolo-share", html)
+        self.assertIn("Voir plus", html) if projected["details"] else None
+        self.assertIn("Enregistrer", html)
+        self.assertIn("Continuer la démarche", html)
+        self.assertIn("Partager", html)
+
     def test_private_continuity_does_not_gain_public_share_or_save(self):
         item = {
             "id": "private",
