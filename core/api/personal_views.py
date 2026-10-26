@@ -43,7 +43,8 @@ class PersonalOngoingAPIView(PersonalProjectionAPIView):
         observed_at = timezone.now()
         try:
             offset = ongoing_continuation_offset(
-                request.query_params.get("continuation")
+                request.query_params.get("continuation"),
+                profile=request.user,
             )
         except (signing.BadSignature, KeyError, TypeError, ValueError) as exc:
             raise ValidationError(
