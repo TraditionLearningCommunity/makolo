@@ -170,6 +170,7 @@ void main() {
                 'resource': {
                   'url': '/presentation/media/uses/abc/file/',
                   'alt_text': 'Véhicule',
+                  'mime_type': 'image/png',
                 },
               },
             ],
@@ -201,6 +202,39 @@ void main() {
       );
     },
   );
+
+  testWidgets('owner dates are preserved in the N2 continuity', (tester) async {
+    final projection = _projection(items: const [
+      {
+        'id': 'time-continuity',
+        'kind': 'journey',
+        'source': {'kind': 'journey', 'id': 'time'},
+        'title': 'Voyage Nairobi',
+        'summary': 'Départ confirmé.',
+        'temporal_facts': [
+          {
+            'kind': 'occurrence_start',
+            'label': 'Début',
+            'date': '2026-11-12',
+          },
+        ],
+        'capabilities': [],
+        'links': {},
+      },
+    ]);
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(projection),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Voyage Nairobi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dates à retenir'), findsOneWidget);
+    expect(find.textContaining('Début'), findsWidgets);
+  });
 
   testWidgets(
     'a removed projection does not resurrect private cached content',
