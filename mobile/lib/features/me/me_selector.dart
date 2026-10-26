@@ -10,12 +10,14 @@ class MeItemPresentation {
     required this.title,
     this.subtitle,
     this.metadata = const [],
+    this.canOpen = false,
   });
 
   final StructuredDestination destination;
   final String title;
   final String? subtitle;
   final List<String> metadata;
+  final bool canOpen;
 }
 
 class MeTerritorySelection {
@@ -181,7 +183,12 @@ class MeSelector {
           reachability: reachability,
         ),
       ),
-      items: const [],
+      items: available ? const [
+        MeItemPresentation(
+          destination: StructuredDestination(kind: 'passport', id: 'me'),
+          title: 'Mon passeport', canOpen: true,
+        ),
+      ] : const [],
     );
   }
 
@@ -274,6 +281,7 @@ class MeSelector {
             id: 'mine',
           ),
           title: 'Voir mes droits disponibles',
+          canOpen: true,
           subtitle: 'Billets, invitations et droits',
         ),
       ],
@@ -313,6 +321,7 @@ class MeSelector {
           ),
           title: 'Toutes mes ressources',
           subtitle: 'Documents et attestations',
+          canOpen: true,
         ),
       );
     }
@@ -521,6 +530,7 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'activity', id: id),
+      canOpen: true,
       title: title,
       subtitle: 'Enregistré',
     );
@@ -534,7 +544,8 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'space', id: id),
+      destination: StructuredDestination(kind: 'space', id: id, link: _string(space?['slug'])),
+      canOpen: _string(space?['slug']) != null,
       title: title,
       subtitle: 'Espace suivi',
     );
@@ -549,6 +560,7 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'profile', id: id),
+      canOpen: true,
       title: title,
       subtitle: 'Profil suivi',
     );
@@ -561,7 +573,8 @@ class MeSelector {
       return null;
     }
     return MeItemPresentation(
-      destination: StructuredDestination(kind: 'space', id: id),
+      destination: StructuredDestination(kind: 'space', id: id, link: _string(raw['slug'])),
+      canOpen: _string(raw['slug']) != null,
       title: title,
       subtitle: raw['can_act'] == true ? 'Contexte autorisé' : 'Espace',
     );
@@ -601,6 +614,7 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'personal_asset', id: id),
+      canOpen: true,
       title: title,
       subtitle: _string(raw['asset_kind_label']) ?? 'Ressource',
       metadata: _metadata(_string(raw['sensitivity_label'])),
