@@ -388,8 +388,9 @@ class _OngoingFieldState extends State<_OngoingField> {
         !_scroll.hasClients ||
         widget.moreBusy ||
         widget.moreError != null ||
-        widget.onMore == null)
+        widget.onMore == null) {
       return;
+    }
     if (_scroll.position.extentAfter < 480) widget.onMore?.call();
   }
 
@@ -506,8 +507,9 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
 
   Future<void> _save() async {
     final action = widget.item.possibility;
-    if (_busy || action == null || !action.canSave || widget.onSave == null)
+    if (_busy || action == null || !action.canSave || widget.onSave == null) {
       return;
+    }
     setState(() => _busy = true);
     try {
       final saved = !(_confirmedSaved ?? (action.savedState == 'saved'));
