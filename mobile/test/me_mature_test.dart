@@ -531,6 +531,9 @@ void main() {
       child: MeView(selection: selection, onOpenDestination: (_) => true),
     );
     expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    final passport = find.byKey(const ValueKey('me-territory-passport'));
+    expect(passport, findsOneWidget);
+    expect(tester.getSize(passport).width, closeTo(430, 0.1));
     expect(find.text('Mon passeport'), findsOneWidget);
     expect(find.text('Enregistré'), findsNothing);
     expect(find.text('Passeport.pdf'), findsOneWidget);
