@@ -494,7 +494,7 @@ class MeSelector {
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'topic', id: id),
       title: label,
-      subtitle: 'Intérêt',
+
     );
   }
 
@@ -507,7 +507,7 @@ class MeSelector {
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'open_to', id: id),
       title: label,
-      subtitle: 'Ouvert à',
+
     );
   }
 
@@ -536,7 +536,7 @@ class MeSelector {
       destination: StructuredDestination(kind: 'activity', id: id),
       canOpen: true,
       title: title,
-      subtitle: 'Enregistré',
+
     );
   }
 
@@ -551,7 +551,7 @@ class MeSelector {
       destination: StructuredDestination(kind: 'space', id: id, link: _string(space?['slug'])),
       canOpen: _string(space?['slug']) != null,
       title: title,
-      subtitle: 'Espace suivi',
+
     );
   }
 
@@ -566,7 +566,7 @@ class MeSelector {
       destination: StructuredDestination(kind: 'profile', id: id),
       canOpen: true,
       title: title,
-      subtitle: 'Profil suivi',
+
     );
   }
 
@@ -593,7 +593,7 @@ class MeSelector {
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'team', id: id),
       title: title,
-      subtitle: 'Équipe',
+
     );
   }
 
@@ -607,7 +607,7 @@ class MeSelector {
       destination: StructuredDestination(kind: 'group', id: id),
       canOpen: true,
       title: title,
-      subtitle: 'Groupe',
+
     );
   }
 
