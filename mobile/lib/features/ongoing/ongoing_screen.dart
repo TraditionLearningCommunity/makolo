@@ -134,7 +134,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
               ),
               empty: MakoloEmptyState(
                 title: 'En cours indisponible.',
-                body: 'Connectez-vous pour consulter vos démarches.',
+                body: 'Vos informations ne sont pas encore disponibles sur cet appareil.',
               ),
               content: SizedBox.shrink(),
             );
@@ -153,7 +153,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
               recoverableErrorMessage: 'Actualisation impossible.',
               preservedMessage: '',
               onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
-              empty: const MakoloEmptyState(title: 'Aucune démarche en cours.'),
+              empty: const MakoloEmptyState(title: 'Rien en cours pour le moment.'),
               content: const SizedBox.shrink(),
             );
           }
