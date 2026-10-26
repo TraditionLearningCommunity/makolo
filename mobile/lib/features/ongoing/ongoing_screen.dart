@@ -1102,6 +1102,24 @@ class _OngoingFocus extends StatelessWidget {
       sections.add(_DimensionSection(title: 'Dates à retenir', values: dates));
     }
 
+    // Only owner-backed human descriptions are exposed, not relation IDs.
+    final related = unique([
+      for (final relation in item.relations)
+        if ((relation['summary'] ?? relation['label']) is String)
+          (relation['summary'] ?? relation['label']) as String,
+    ]);
+    if (related.isNotEmpty) {
+      sections.add(_DimensionSection(title: 'À relier', values: related));
+    }
+
+    final result = item.outcome['summary'] ?? item.outcome['title'];
+    if (result is String && result.trim().isNotEmpty) {
+      final outcomes = unique([result]);
+      if (outcomes.isNotEmpty) {
+        sections.add(_DimensionSection(title: 'Résultat', values: outcomes));
+      }
+    }
+
     // Settled — what's already done
     final settledValues = unique(item.settled);
     if (settledValues.isNotEmpty) {
