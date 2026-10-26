@@ -103,6 +103,23 @@ void main() {
     );
   });
 
+  test('uses canonical owner knowledge_context instead of guessing', () {
+    final result = selector.select(
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:document',
+            'human_context': 'Inscription',
+            'state': 'Document à vérifier',
+            'knowledge_context': {'knowledge_state': 'partial'},
+          },
+        ],
+      ),
+      now: now,
+    );
+    expect(result.situations.single.knowledgeState, 'partial');
+  });
+
   test('known empty projection is calm', () {
     final result = selector.select(
       projection: projection(items: const []),
