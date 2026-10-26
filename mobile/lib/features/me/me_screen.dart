@@ -375,7 +375,16 @@ class _MeField extends StatelessWidget {
       controller: controller,
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
       children: [
-        _MeIdentity(selection: selection),
+        _MeIdentity(
+          selection: selection,
+          onEdit: hasOwnerNavigation ? () => onSelectItem(
+            const MeItemPresentation(
+              destination: StructuredDestination(kind: 'profile_self', id: 'me'),
+              title: 'Mon profil',
+              canOpen: true,
+            ),
+          ) : null,
+        ),
         const SizedBox(height: MakoloSpacing.xl),
         if (useTwoTerritories)
           MakoloAdaptiveGrid(
@@ -405,9 +414,10 @@ class _MeField extends StatelessWidget {
 }
 
 class _MeIdentity extends StatelessWidget {
-  const _MeIdentity({required this.selection});
+  const _MeIdentity({required this.selection, this.onEdit});
 
   final MeSelection selection;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -469,6 +479,17 @@ class _MeIdentity extends StatelessWidget {
               Text(
                 selection.identityDetail!,
                 style: theme.textTheme.bodyMedium,
+              ),
+            ],
+            if (onEdit != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Modifier'),
+                ),
               ),
             ],
           ],
