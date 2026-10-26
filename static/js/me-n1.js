@@ -50,6 +50,17 @@
           : node('span', 'mk-me-n1-appended', label);
         if (entry.tagName === 'A') entry.href = ownerHref;
       }
+      if (family === 'bookmarks') {
+        // Same filled saved-orbit state as Discover. Icon conveys status,
+        // not a second save/un-save action owned by Discovery.
+        const status = node('span', 'mk-me-saved-orbit');
+        status.setAttribute('role', 'img');
+        status.setAttribute('aria-label', 'Enregistré');
+        const title = node('span', 'mk-me-n1-saved-title', label);
+        const chevron = node('span', 'mk-me-n1-saved-chevron', '›');
+        chevron.setAttribute('aria-hidden', 'true');
+        entry.replaceChildren(status, title, chevron);
+      }
       entry.dataset.meId = id;
       host.append(entry);
       return;
