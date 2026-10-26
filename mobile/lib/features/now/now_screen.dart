@@ -1054,14 +1054,24 @@ class _NowDepth extends StatelessWidget {
   final MakoloApiClient? api;
   final String? profileId;
 
+  Widget _section(String title, String content) => Padding(
+    padding: const EdgeInsets.only(top: MakoloSpacing.lg),
+    child: MakoloSection(
+      title: title,
+      padding: EdgeInsets.zero,
+      child: Text(content),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
+    final topology = topologyFor(situation);
     final ownerDestination = situation.ownerDestination;
-    final canOpenOwner =
-        ownerDestination != null &&
+    final canOpenOwner = ownerDestination != null &&
         NowScreen.ownerPathFor(ownerDestination) != null &&
         situation.responseLabel != null &&
-        onOpenOwner != null;
+        onOpenOwner != null &&
+        situation.businessActions.isEmpty;
     final contextLabel = _distinctPresentationText(situation.humanContext, [
       situation.meaning,
     ]);
@@ -1073,8 +1083,18 @@ class _NowDepth extends StatelessWidget {
       situation.meaning,
       situation.whyNow,
     ]);
+    final firstVisual = topology == NowTopology.media ||
+        topology == NowTopology.waiting ||
+        topology == NowTopology.composition;
+    final detail = _NowSemanticContent(
+      situation: situation,
+      api: api,
+      profileId: profileId,
+      onOpenOwner: onOpenOwner,
+    );
 
     return SingleChildScrollView(
+      key: ValueKey('now-n2-scroll-${situation.identity}'),
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
       child: MakoloFocusPane(
         child: Column(
@@ -1102,61 +1122,56 @@ class _NowDepth extends StatelessWidget {
               situation.meaning,
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            if (whyNow != null) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              MakoloSection(
-                title: 'Pourquoi maintenant',
-                padding: EdgeInsets.zero,
-                child: Text(whyNow),
-              ),
-            ],
-            if (consequence != null) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              MakoloSection(
-                title: 'Conséquence',
-                padding: EdgeInsets.zero,
-                child: Text(consequence),
-              ),
-            ],
-            _NowSemanticContent(
-              situation: situation,
-              api: api,
-              profileId: profileId,
-              onOpenOwner: onOpenOwner,
-            ),
-            if (situation.horizon != null &&
-                topologyFor(situation) == NowTopology.waiting) ...[
+            // S2, S4 and S5 lead with their evidence, waiting state or
+            // relation. S1 and S3 lead with meaning and consequences.
+            if (firstVisual) ...[
               const SizedBox(height: MakoloSpacing.md),
-              Text(situation.horizon!),
+              detail,
+            ],
+            if (consequence != null)
+              _section('Ce que ça change', consequence),
+            if (whyNow != null)
+              _section('Pourquoi maintenant', whyNow),
+            if (!firstVisual) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              detail,
+            ],
+            if (topology == NowTopology.waiting &&
+                situation.horizon != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                situation.horizon!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
             if (situation.makoloPreparation.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.lg),
               MakoloSection(
-                title: 'Préparé par Makolo',
+                title: 'Déjà préparé',
                 padding: EdgeInsets.zero,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final item in situation.makoloPreparation) Text(item),
+                    for (final item in situation.makoloPreparation)
+                      Text(item),
                   ],
                 ),
               ),
             ],
             if (situation.metadata.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.lg),
-              MakoloMetadata(
-                items: [
-                  for (final item in situation.metadata)
-                    MakoloMetadataItem(item),
-                ],
-              ),
+              MakoloMetadata(items: [
+                for (final item in situation.metadata)
+                  MakoloMetadataItem(item),
+              ]),
             ],
-            if (canOpenOwner &&
-                topologyFor(situation) != NowTopology.action) ...[
+            if (canOpenOwner) ...[
               const SizedBox(height: MakoloSpacing.xl),
-              OutlinedButton(
+              FilledButton(
                 onPressed: () => onOpenOwner!(ownerDestination),
-                child: Text(situation.responseLabel ?? 'Ouvrir la démarche'),
+                child: Text(situation.responseLabel!),
               ),
             ],
           ],
