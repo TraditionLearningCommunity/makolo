@@ -6,6 +6,7 @@ import '../resources/resource_detail_screen.dart';
 import '../resources/resources_screen.dart';
 import 'me_screen.dart';
 import 'me_passport_screen.dart';
+import 'me_profile_screen.dart';
 
 StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
@@ -15,6 +16,10 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         repository: runtime.personal!,
         api: runtime.api,
         onOpenDestination: (destination) {
+          if (destination.kind == 'profile_self') {
+            context.push('/me/profile');
+            return true;
+          }
           if (destination.kind == 'passport') {
             context.push('/me/passport');
             return true;
@@ -55,6 +60,18 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         },
       ),
       routes: [
+        GoRoute(
+          path: 'profile',
+          builder: (context, state) =>
+              runtime.api == null || runtime.personal == null
+                  ? const MakoloSecondaryScreen(
+                      title: 'Mon profil',
+                      message: 'Profil momentanément indisponible.',
+                    )
+                  : MeProfileScreen(
+                      api: runtime.api!, personal: runtime.personal!,
+                    ),
+        ),
         GoRoute(
           path: 'passport',
           builder: (context, state) => runtime.api == null
