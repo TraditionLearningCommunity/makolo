@@ -216,6 +216,37 @@
 }
 .mk-me-n1-stacks a span:first-child { min-width: 0; }
 .mk-me-n1-stacks a span:last-child { color: var(--me-primary); font-size: 19px; }
+.mk-me-n1-stacks[data-me-family="bookmarks"] a,
+.mk-me-n1-stacks[data-me-family="bookmarks"] .mk-me-n1-appended {
+  justify-content: flex-start;
+  gap: 12px;
+}
+.mk-me-saved-orbit {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  flex: none;
+  background-color: var(--me-primary);
+  -webkit-mask-image: var(--me-saved-orbit);
+  mask-image: var(--me-saved-orbit);
+  -webkit-mask-size: 21px 21px;
+  mask-size: 21px 21px;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.mk-me-n1-saved-title {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.mk-me-n1-saved-chevron {
+  margin-inline-start: auto;
+  flex: none;
+  color: var(--me-muted);
+}
 .mk-me-n1-person-row {
   display: flex;
   align-items: center;
