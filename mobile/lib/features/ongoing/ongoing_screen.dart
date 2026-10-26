@@ -388,7 +388,7 @@ class _OngoingFieldState extends State<_OngoingField> {
     key: const PageStorageKey<String>('ongoing-field'),
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
     itemCount: widget.items.length + 1,
-    separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.lg),
+    separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.md),
     itemBuilder: (context, index) {
       if (index == widget.items.length) {
         if (widget.moreError != null) {
@@ -407,10 +407,7 @@ class _OngoingFieldState extends State<_OngoingField> {
           ));
         }
         if (widget.endReached && !widget.stale && widget.items.isNotEmpty) {
-          return const Center(child: Padding(
-            padding: EdgeInsets.all(MakoloSpacing.md),
-            child: Text('Vous avez tout exploré'),
-          ));
+          return const SizedBox.shrink();
         }
         return const SizedBox(height: MakoloSpacing.xl);
       }
@@ -519,79 +516,83 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
       _ => 'Continuer',
     };
     final canShare = possibility?.canShare == true && widget.api != null;
-    final sharedItem = canShare ? DiscoveryItemPresentation(
-      family: possibility!.family,
-      id: possibility.id,
-      candidateKey: 'ongoing:' + possibility.id,
-      title: widget.item.title,
-      summary: widget.item.synthesis,
-      capabilities: const <String>{},
-      links: {'web_share': possibility.shareUrl!},
-      savedState: possibility.savedState,
-    ) : null;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.compact, MakoloSpacing.sm,
-        MakoloSpacing.compact, MakoloSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextButton(
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-                minimumSize: const Size(0, 48),
+    final sharedItem = canShare
+        ? DiscoveryItemPresentation(
+            family: possibility!.family,
+            id: possibility.id,
+            candidateKey: 'ongoing:${possibility.id}',
+            title: widget.item.title,
+            summary: widget.item.synthesis,
+            capabilities: const <String>{},
+            links: {'web_share': possibility.shareUrl!},
+            savedState: possibility.savedState,
+          )
+        : null;
+    final saved = possibility?.savedState == 'saved';
+    final canSave = possibility?.canSave == true &&
+        widget.onSave != null &&
+        !_busy;
+
+    // Match Discover's balanced three-icon action strip. No permanent
+    // text labels or oversized middle button on the compact surface.
+    return Column(
+      children: [
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: MakoloSpacing.xs,
+            vertical: MakoloSpacing.xs,
+          ),
+          child: Row(
+            key: const Key('ongoing-n1-discover-actions'),
+            children: [
+              Expanded(
+                child: IconButton(
+                  key: const Key('ongoing-n1-save'),
+                  onPressed: canSave ? _save : null,
+                  tooltip: saved ? 'Enregistré' : 'Enregistrer',
+                  icon: _busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          saved
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                ),
               ),
-              onPressed: possibility?.canSave == true && widget.onSave != null && !_busy
-                  ? _save : null,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_busy)
-                    const SizedBox(width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                  else
-                    Icon(possibility?.savedState == 'saved'
-                        ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
-                  const SizedBox(height: 2),
-                  Text(possibility?.savedState == 'saved' ? 'Enregistré' : 'Enregistrer',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelSmall),
-                ],
+              Expanded(
+                child: IconButton(
+                  key: const Key('ongoing-n1-primary'),
+                  onPressed: route == null ? null : () => context.push(route),
+                  tooltip: label,
+                  icon: const Icon(Icons.play_circle_outline_rounded),
+                ),
               ),
-            ),
+              Expanded(
+                child: sharedItem == null
+                    ? const IconButton(
+                        key: Key('ongoing-n1-share'),
+                        onPressed: null,
+                        tooltip: 'Partager',
+                        icon: Icon(Icons.share_outlined),
+                      )
+                    : DiscoveryShareControl(
+                        item: sharedItem,
+                        api: widget.api,
+                        authenticated: true,
+                        iconOnly: true,
+                        baseUri: widget.baseUri,
+                      ),
+              ),
+            ],
           ),
-          const SizedBox(width: MakoloSpacing.xs),
-          Expanded(
-            flex: 2,
-            child: FilledButton(
-              onPressed: route == null ? null : () => context.push(route),
-              child: Text(label, textAlign: TextAlign.center),
-            ),
-          ),
-          const SizedBox(width: MakoloSpacing.xs),
-          Expanded(
-            child: sharedItem == null
-                ? const TextButton(
-                    onPressed: null,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.share_outlined),
-                        SizedBox(height: 2),
-                        Text('Partager', textAlign: TextAlign.center),
-                      ],
-                    ),
-                  )
-                : DiscoveryShareControl(
-                    item: sharedItem,
-                    api: widget.api,
-                    authenticated: true,
-                    baseUri: widget.baseUri,
-                  ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -794,6 +795,8 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
   );
 }
 
+/// G06 mobile: the same open, vertical reading rhythm as Discover.
+/// A recognition image gets the available width; text never sits beside it.
 class _OngoingRow extends StatelessWidget {
   const _OngoingRow({
     required this.item,
@@ -803,6 +806,7 @@ class _OngoingRow extends StatelessWidget {
     this.baseUri,
     this.api,
   });
+
   final OngoingContinuityPresentation item;
   final bool selected;
   final bool stale;
@@ -824,6 +828,7 @@ class _OngoingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.makoloSurfaces;
+    final textTheme = Theme.of(context).textTheme;
     final summary = _ongoingSummary(item.title, item.synthesis);
     final supporting = _supportingLine();
     final imageUrl = ongoingRecognitionImageUrl(item.mediaUrl, baseUri);
@@ -834,169 +839,137 @@ class _OngoingRow extends StatelessWidget {
       'ready' => colors.success,
       _ => Theme.of(context).colorScheme.onSurfaceVariant,
     };
-    final textTheme = Theme.of(context).textTheme;
+
     return Semantics(
       button: true,
       selected: selected,
-      label: [
-        item.title,
-        ?summary,
-        ?supporting,
-      ].join('. '),
+      label: [item.title, ?summary, ?supporting].join('. '),
       child: InkWell(
+        key: const Key('ongoing-n1-open-unit'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(MakoloRadii.large),
-        child: AnimatedContainer(
-          duration: MakoloMotion.effective(context, MakoloMotion.short),
-          padding: const EdgeInsets.all(MakoloSpacing.compact),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            borderRadius: BorderRadius.circular(MakoloRadii.large),
-            border: Border.all(
-              color: selected ? colors.brand : colors.border,
-              width: selected ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (imageUrl != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(MakoloRadii.card),
-                  child: SizedBox(
-                    width: 92,
-                    height: 108,
-                    child: api == null
-                        ? Image.network(
-                            imageUrl,
-                            key: const Key('ongoing-n1-recognition-media'),
-                            fit: BoxFit.cover,
-                            semanticLabel: item.mediaAlt ?? item.title,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Center(child: Icon(Icons.image_not_supported_outlined)),
-                          )
-                        : _OngoingProtectedImage(
-                            key: const Key('ongoing-n1-recognition-media'),
-                            api: api!,
-                            imageUrl: imageUrl,
-                            label: item.mediaAlt ?? item.title,
-                          ),
-                  ),
-                ),
-                const SizedBox(width: MakoloSpacing.compact),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (cue != null || item.whenLabel != null) ...[
-                      Wrap(
-                        spacing: MakoloSpacing.sm,
-                        runSpacing: MakoloSpacing.xs,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (cue != null)
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: cueColor.withValues(alpha: 0.09),
-                                borderRadius: BorderRadius.circular(
-                                  MakoloRadii.pill,
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: MakoloSpacing.sm,
-                                  vertical: MakoloSpacing.xs,
-                                ),
-                                child: Text(
-                                  cue,
-                                  style: textTheme.labelSmall?.copyWith(
-                                    color: cueColor,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          if (item.whenLabel != null)
-                            Text(
-                              item.whenLabel!,
-                              style: textTheme.labelSmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (imageUrl != null)
+              AspectRatio(
+                key: const Key('ongoing-n1-full-width-media'),
+                aspectRatio: 16 / 9,
+                child: api == null
+                    ? Image.network(
+                        imageUrl,
+                        key: const Key('ongoing-n1-recognition-media'),
+                        fit: BoxFit.cover,
+                        semanticLabel: item.mediaAlt ?? item.title,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox.shrink(),
+                      )
+                    : _OngoingProtectedImage(
+                        key: const Key('ongoing-n1-recognition-media'),
+                        api: api!,
+                        imageUrl: imageUrl,
+                        label: item.mediaAlt ?? item.title,
                       ),
-                      const SizedBox(height: MakoloSpacing.sm),
-                    ],
+              ),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (cue != null || item.whenLabel != null) ...[
+                    Wrap(
+                      spacing: MakoloSpacing.sm,
+                      runSpacing: MakoloSpacing.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (cue != null)
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: cueColor.withValues(alpha: 0.09),
+                              borderRadius: BorderRadius.circular(
+                                MakoloRadii.pill,
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: MakoloSpacing.sm,
+                                vertical: MakoloSpacing.xs,
+                              ),
+                              child: Text(
+                                cue,
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: cueColor,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (item.whenLabel != null)
+                          Text(
+                            item.whenLabel!,
+                            style: textTheme.labelMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: MakoloSpacing.sm),
+                  ],
+                  Text(item.title, style: textTheme.titleLarge),
+                  if (summary != null) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
                     Text(
-                      item.title,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.25,
+                      summary,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (summary != null) ...[
-                      const SizedBox(height: MakoloSpacing.xs),
-                      Text(
-                        summary,
-                        style: textTheme.bodyMedium?.copyWith(
+                  ],
+                  if (supporting != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      supporting,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: colors.brand,
+                      ),
+                    ),
+                  ],
+                  if (item.placeLabel != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.place_outlined,
+                          size: 16,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                      ),
-                    ],
-                    if (supporting != null) ...[
-                      const SizedBox(height: MakoloSpacing.sm),
-                      Text(
-                        supporting,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colors.brand,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                    if (item.placeLabel != null) ...[
-                      const SizedBox(height: MakoloSpacing.sm),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.place_outlined,
-                              size: 14,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant),
-                          const SizedBox(width: MakoloSpacing.xs),
-                          Flexible(
-                            child: Text(
-                              item.placeLabel!,
-                              style: textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme.onSurfaceVariant,
-                              ),
+                        const SizedBox(width: MakoloSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            item.placeLabel!,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme.onSurfaceVariant,
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                    if (stale) ...[
-                      const SizedBox(height: MakoloSpacing.sm),
-                      Text(
-                        'Dernière information connue',
-                        style: textTheme.bodySmall,
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ],
-                ),
+                  if (stale) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      'Dernière information connue',
+                      style: textTheme.bodySmall,
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(width: MakoloSpacing.xs),
-              Padding(
-                padding: const EdgeInsets.only(top: MakoloSpacing.inner),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
