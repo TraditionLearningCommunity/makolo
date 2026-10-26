@@ -806,13 +806,25 @@ def _access_ongoing_item(access, *, profile):
     # Access is a different owner, but can continue the same personal Journey.
     # Never carry this identity across a transfer to another beneficiary.
     journey = access.journey if access.journey_id else None
-    anchor = (
+    ticket = getattr(access, "ticket", None)
+    order = ticket.order if ticket is not None else None
+    waitlist = getattr(order, "waitlist_entry", None) if order is not None else None
+    waitlist_anchor = (
+        {"kind": "waitlist", "id": str(waitlist.pk)}
+        if waitlist is not None and waitlist.user_id == profile.pk
+        else None
+    )
+    journey_anchor = (
         {"kind": "journey", "id": str(journey.pk)}
         if journey is not None and journey.beneficiary_id == profile.pk
         else None
     )
+    anchor = waitlist_anchor or journey_anchor
     return {
         "continuity_identity_anchor": anchor,
+        "continuity_related_basis": [
+            basis for basis in (waitlist_anchor, journey_anchor) if basis is not None
+        ],
         "kind": "access",
         "source": {"kind": "access", "id": str(access.pk)},
         "state": "available",
@@ -1463,7 +1475,7 @@ def _decorate_ongoing_semantics(item, *, observed_at):
             "id": identity,
             "continuity_identity": identity,
             "continuity_basis": [
-                *([item["continuity_identity_anchor"]] if item.get("continuity_identity_anchor") else []),
+                *(item.get("continuity_related_basis") or []),
                 source,
             ],
             "human_context": item["title"],
