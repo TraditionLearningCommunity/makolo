@@ -25,7 +25,7 @@
     <section class="mk-ongoing-n2-section">
       <h3>Dates à retenir</h3>
       {% for fact in item.temporal_facts %}
-        <p>{{ fact.label }} · {% if fact.at %}{{ fact.at }}{% else %}{{ fact.date }}{% endif %}</p>
+        <p>{{ fact.label }} · {{ fact.display_when }}</p>
       {% endfor %}
     </section>
   {% endif %}
