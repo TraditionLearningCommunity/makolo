@@ -598,76 +598,76 @@ class _MeAvatar extends StatelessWidget {
 }
 
 class _MeTerritory extends StatelessWidget {
-  const _MeTerritory({required this.territory, required this.onSelectItem,
-    required this.hasOwnerNavigation});
+  const _MeTerritory({
+    super.key,
+    required this.territory,
+    required this.onSelectItem,
+    required this.hasOwnerNavigation,
+    required this.edge,
+  });
 
   final MeTerritorySelection territory;
   final ValueChanged<MeItemPresentation> onSelectItem;
   final bool hasOwnerNavigation;
+  final double edge;
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
     final presentation = territory.presentation;
-
-    final colors = Theme.of(context).colorScheme;
-    final hasContent = territory.hasContent;
+    final isPassport = presentation.key == 'passport';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(MakoloRadii.control),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            edge, MakoloSpacing.sm, edge, MakoloSpacing.compact,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _iconForTerritory(presentation.key),
+                color: color.primary,
+                size: 23,
               ),
-              child: Icon(_iconForTerritory(presentation.key), color: colors.primary, size: 22),
-            ),
-            const SizedBox(width: MakoloSpacing.compact),
-            Expanded(
-              child: Text(
-                presentation.label,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            if (territory.totalCount > 0)
-              Text(
-                '${territory.totalCount}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colors.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: MakoloSpacing.compact),
+              Expanded(
+                child: Text(
+                  presentation.label,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-          ],
-        ),
-        const SizedBox(height: MakoloSpacing.compact),
-        AnimatedContainer(
-          duration: MakoloMotion.effective(context, MakoloMotion.short),
-          decoration: BoxDecoration(
-            color: hasContent ? colors.surface : colors.surface.withValues(alpha: 0.56),
-            border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.65)),
-            borderRadius: BorderRadius.circular(MakoloRadii.card),
+              if (territory.totalCount > 0) ...[
+                const SizedBox(width: MakoloSpacing.sm),
+                Text(
+                  territory.totalCount.toString(),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ],
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: MakoloSpacing.md,
-            vertical: MakoloSpacing.compact,
-          ),
-          child: _body(context),
         ),
-        if (territory.hasMore) ...[
-          const SizedBox(height: MakoloSpacing.xs),
+        if (isPassport)
           Padding(
-            padding: const EdgeInsetsDirectional.only(start: MakoloSpacing.sm),
-            child: Text(
-              'Aperçu',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.onSurfaceVariant,
+            padding: EdgeInsets.symmetric(horizontal: edge),
+            child: _body(context),
+          )
+        else
+          ColoredBox(
+            color: color.surface,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: edge,
+                vertical: MakoloSpacing.sm,
               ),
+              child: _body(context),
             ),
           ),
-        ],
       ],
     );
   }
@@ -683,17 +683,12 @@ class _MeTerritory extends StatelessWidget {
   };
 
   Widget _body(BuildContext context) {
-    final state = territory.presentation.state;
-
-    if (state.failure == MakoloFailureCue.blocking) {
+    if (territory.presentation.state.failure == MakoloFailureCue.blocking) {
       return const MakoloErrorState(
-        message:
-            'Cette section n’est pas disponible '
-            'pour le moment.',
+        message: 'Cette section est momentanément indisponible.',
       );
     }
-
-    final content = switch (territory.presentation.key) {
+    return switch (territory.presentation.key) {
       'passport' => _passport(context),
       'considerations' => _considerations(context),
       'collectives' => _collectives(context),
@@ -701,61 +696,79 @@ class _MeTerritory extends StatelessWidget {
       'support' => _support(context),
       _ => _generic(context),
     };
-
-    return content;
   }
 
   Widget _passport(BuildContext context) {
     if (!territory.hasContent) {
       return _empty(context, 'Aucun passeport disponible.');
     }
-
     final firstItem = territory.items.isNotEmpty ? territory.items.first : null;
+    final onOpen = firstItem != null && firstItem.canOpen && hasOwnerNavigation
+        ? () => onSelectItem(firstItem)
+        : null;
+    final textTheme = Theme.of(context).textTheme;
     return Semantics(
-      label: 'Passeport Makolo disponible',
-      child: Container(
-        padding: const EdgeInsets.all(MakoloSpacing.md),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [MakoloColors.indigo, MakoloColors.deep],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      button: onOpen != null,
+      label: 'Passeport Makolo. Ouvrir mon passeport.',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(MakoloRadii.card),
+        clipBehavior: Clip.antiAlias,
+        child: Ink(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [MakoloColors.indigo, MakoloColors.deep],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(MakoloRadii.card)),
           ),
-          borderRadius: BorderRadius.circular(MakoloRadii.card),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.badge_outlined, color: Colors.white, size: 40),
-            const SizedBox(width: MakoloSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          child: InkWell(
+            onTap: onOpen,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.md,
+                vertical: MakoloSpacing.md,
+              ),
+              child: Row(
                 children: [
-                  Text(
-                    'Votre passeport',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  const Icon(
+                    Icons.badge_outlined, color: Colors.white, size: 32,
+                  ),
+                  const SizedBox(width: MakoloSpacing.compact),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mon passeport',
+                          style: textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: MakoloSpacing.xs),
+                        Text(
+                          'À partager selon votre choix',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onOpen != null) ...[
+                    const SizedBox(width: MakoloSpacing.sm),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      size: 24,
                     ),
-                  ),
-                  const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    'À partager selon votre choix',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
-            if (firstItem != null)
-              IconButton(
-                tooltip: 'Ouvrir le passeport',
-                onPressed: firstItem.canOpen && hasOwnerNavigation
-                    ? () => onSelectItem(firstItem) : null,
-                icon: const Icon(Icons.arrow_forward, color: Colors.white),
-              ),
-          ],
+          ),
         ),
       ),
     );
@@ -765,7 +778,6 @@ class _MeTerritory extends StatelessWidget {
     if (territory.items.isEmpty) {
       return _empty(context, 'Rien de déclaré pour le moment.');
     }
-
     const families = <(String, List<String>)>[
       ('Intérêts', ['topic']),
       ('Ouvert à', ['open_to']),
@@ -774,24 +786,56 @@ class _MeTerritory extends StatelessWidget {
       ('Espaces suivis', ['space']),
       ('Personnes suivies', ['profile']),
     ];
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final family in families)
-          if (territory.items.any((item) => family.$2.contains(item.destination.kind))) ...[
+          if (territory.items.any(
+            (item) => family.$2.contains(item.destination.kind),
+          )) ...[
             Padding(
-              padding: const EdgeInsets.only(top: MakoloSpacing.sm, bottom: MakoloSpacing.xs),
+              padding: const EdgeInsets.only(
+                top: MakoloSpacing.compact,
+                bottom: MakoloSpacing.sm,
+              ),
               child: Text(
                 family.$1,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
-            for (final item in territory.items.where((item) => family.$2.contains(item.destination.kind)))
-              _MeConsideration(item: item, onTap: item.canOpen && hasOwnerNavigation
-                ? () => onSelectItem(item) : null),
+            if (family.$1 == 'Intérêts' || family.$1 == 'Ouvert à')
+              Wrap(
+                spacing: MakoloSpacing.sm,
+                runSpacing: MakoloSpacing.sm,
+                children: [
+                  for (final item in territory.items.where(
+                    (item) => family.$2.contains(item.destination.kind),
+                  ))
+                    _MeChip(
+                      item: item,
+                      onTap: item.canOpen && hasOwnerNavigation
+                          ? () => onSelectItem(item)
+                          : null,
+                    ),
+                ],
+              )
+            else
+              for (final item in territory.items.where(
+                (item) => family.$2.contains(item.destination.kind),
+              ))
+                _MeConsideration(
+                  key: ValueKey(
+                    'me-item-${item.destination.kind}-${item.destination.id}',
+                  ),
+                  item: item,
+                  onTap: item.canOpen && hasOwnerNavigation
+                      ? () => onSelectItem(item)
+                      : null,
+                ),
           ],
       ],
     );
@@ -801,12 +845,15 @@ class _MeTerritory extends StatelessWidget {
     if (territory.items.isEmpty) {
       return _empty(context, 'Aucun collectif associé.');
     }
-
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(item: item, onTap: item.canOpen && hasOwnerNavigation
-                ? () => onSelectItem(item) : null),
+          _MeIdentityRow(
+            item: item,
+            onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item)
+                : null,
+          ),
       ],
     );
   }
@@ -815,25 +862,30 @@ class _MeTerritory extends StatelessWidget {
     if (territory.items.isEmpty) {
       return _empty(context, 'Aucune ressource disponible.');
     }
-
     return Column(
       children: [
         for (final item in territory.items)
-          _MeResourceRow(item: item, onTap: item.canOpen && hasOwnerNavigation
-                ? () => onSelectItem(item) : null),
+          _MeResourceRow(
+            item: item,
+            onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item)
+                : null,
+          ),
       ],
     );
   }
 
   Widget _support(BuildContext context) {
-    if (territory.items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
+    if (territory.items.isEmpty) return const SizedBox.shrink();
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
+          _MeIdentityRow(
+            item: item,
+            onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item)
+                : null,
+          ),
       ],
     );
   }
@@ -842,61 +894,129 @@ class _MeTerritory extends StatelessWidget {
     if (territory.items.isEmpty) {
       return _empty(context, 'Rien ici pour le moment.');
     }
-
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
+          _MeIdentityRow(
+            item: item,
+            onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item)
+                : null,
+          ),
       ],
     );
   }
 
   Widget _empty(BuildContext context, String message) {
-    return Text(
-      message,
-      style: Theme.of(context).textTheme.bodyMedium
-          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
+      child: Text(
+        message,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }
 
-class _MeConsideration extends StatelessWidget {
-  const _MeConsideration({required this.item, required this.onTap});
+class _MeChip extends StatelessWidget {
+  const _MeChip({required this.item, this.onTap});
 
   final MeItemPresentation item;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final semanticLabel = [
-      item.title,
-      item.subtitle,
-    ].whereType<String>().join('. ');
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primary.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(MakoloRadii.pill),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(MakoloRadii.pill),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: MakoloSpacing.compact,
+            vertical: MakoloSpacing.sm,
+          ),
+          child: Text(
+            item.title,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: scheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
+class _MeConsideration extends StatelessWidget {
+  const _MeConsideration({super.key, required this.item, required this.onTap});
+
+  final MeItemPresentation item;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isSaved = item.destination.kind == 'activity';
     return Semantics(
       button: onTap != null,
-      label: semanticLabel,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(MakoloRadii.control),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
-                if (item.subtitle != null) ...[
-                  const SizedBox(height: MakoloSpacing.xs),
-                  Text(
-                    item.subtitle!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: MakoloSpacing.compact,
+              ),
+              child: Row(
+                children: [
+                  if (isSaved) ...[
+                    Icon(
+                      Icons.bookmark_border_rounded,
+                      color: scheme.primary,
+                      size: 19,
+                    ),
+                    const SizedBox(width: MakoloSpacing.compact),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (item.subtitle != null) ...[
+                          const SizedBox(height: MakoloSpacing.xs),
+                          Text(
+                            item.subtitle!,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  if (onTap != null) ...[
+                    const SizedBox(width: MakoloSpacing.sm),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 21,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -913,25 +1033,32 @@ class _MeIdentityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     final initial = item.title.trim().isEmpty
         ? 'M'
         : item.title.trim().substring(0, 1).toUpperCase();
-
     return ListTile(
+      dense: true,
+      minVerticalPadding: MakoloSpacing.xs,
       contentPadding: EdgeInsets.zero,
-      minVerticalPadding: MakoloSpacing.sm,
+      visualDensity: VisualDensity.compact,
       onTap: onTap,
       leading: CircleAvatar(
-        backgroundColor: color.primary.withValues(alpha: 0.10),
+        radius: 18,
+        backgroundColor: scheme.primary.withValues(alpha: 0.08),
         child: Text(
           initial,
-          style: TextStyle(color: color.primary, fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: scheme.primary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
-      title: Text(item.title),
+      title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
       subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
+      trailing: onTap == null
+          ? null
+          : const Icon(Icons.chevron_right_rounded, size: 21),
     );
   }
 }
@@ -944,25 +1071,31 @@ class _MeResourceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return ListTile(
+      dense: true,
+      minVerticalPadding: MakoloSpacing.xs,
       contentPadding: EdgeInsets.zero,
-      minVerticalPadding: MakoloSpacing.sm,
+      visualDensity: VisualDensity.compact,
       onTap: onTap,
-      leading: Icon(_iconFor(item.destination.kind)),
-      title: Text(item.title),
+      leading: Icon(
+        _iconFor(item.destination.kind),
+        size: 21,
+        color: scheme.primary,
+      ),
+      title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
       subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
+      trailing: onTap == null
+          ? null
+          : const Icon(Icons.chevron_right_rounded, size: 21),
     );
   }
 
-  IconData _iconFor(String kind) {
-    return switch (kind) {
-      'proof' => Icons.verified_outlined,
-      'credential' => Icons.workspace_premium_outlined,
-      'personal_asset' => Icons.folder_outlined,
-      'resource_collection' => Icons.inventory_2_outlined,
-      _ => Icons.description_outlined,
-    };
-  }
+  IconData _iconFor(String kind) => switch (kind) {
+    'proof' => Icons.verified_outlined,
+    'credential' => Icons.workspace_premium_outlined,
+    'personal_asset' => Icons.folder_outlined,
+    'resource_collection' => Icons.inventory_2_outlined,
+    _ => Icons.description_outlined,
+  };
 }
-
