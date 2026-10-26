@@ -47,6 +47,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
     this.compact = false,
     this.detailMode = false,
     this.onNativeAction,
+    this.onOwnerDepth,
   });
 
   final DiscoveryItemPresentation item;
@@ -66,6 +67,9 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
 
   /// Guest entry may resume the owner route after session recovery.
   final ValueChanged<String>? onNativeAction;
+
+  /// Optional N3 read-only owner depth. No action or authority is inferred.
+  final ValueChanged<String>? onOwnerDepth;
 
   @override
   State<DiscoveryPossibilityUnit> createState() =>
@@ -732,6 +736,25 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return null;
   }
 
+  /// Expose an existing owner detail only from a canonical Activity identity.
+  /// Owner routes re-check access on entry; this is never a substitute CTA.
+  String? get _readOnlyOwnerPath {
+    if (!widget.detailMode ||
+        widget.onOwnerDepth == null ||
+        _primaryNativePath != null ||
+        !const {'activity', 'service_activity', 'funding_activity'}.contains(item.family)) {
+      return null;
+    }
+    final resource = item.identity?['resource'];
+    if (resource is! Map ||
+        resource['kind'] != 'activity' ||
+        resource['id'] != item.id ||
+        item.id.isEmpty) {
+      return null;
+    }
+    return '/activities/${Uri.encodeComponent(item.id)}';
+  }
+
   String get _centralActionLabel {
     if (_primaryNativePath == null) return 'Détails';
     final label = _serverPrimaryAction?['label'];
@@ -1121,6 +1144,16 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 onPressed: () => _centralAction(context),
                 icon: Icon(_centralActionIcon),
                 label: Text(_centralActionLabel),
+              ),
+            ),
+          if (_readOnlyOwnerPath case final path?)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: OutlinedButton.icon(
+                key: const Key('discover-owner-n3'),
+                onPressed: () => widget.onOwnerDepth!(path),
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Voir l’activité'),
               ),
             ),
           ...[
