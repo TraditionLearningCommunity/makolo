@@ -220,7 +220,18 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
             {},
         )
         links = item.get("links") or {}
+        labels = {
+            "journey": "Continuer la démarche",
+            "access": "Voir mon accès",
+            "dossier": "Ouvrir le dossier",
+            "project": "Voir le projet",
+            "waitlist": "Suivre ma liste d’attente",
+            "transfer": "Voir le transfert",
+            "payment": "Suivre le paiement",
+            "funding": "Gérer le financement",
+        }
         return {
+            "primary_label": labels.get(item.get("kind"), "Voir la suite"),
             "id": item.get("id"),
             "title": item.get("human_context") or item.get("title") or "",
             "summary": item.get("synthesis") or item.get("summary") or "",
