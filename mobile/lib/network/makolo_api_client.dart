@@ -329,7 +329,10 @@ class MakoloApiClient {
   /// These bytes are only held in memory for the current presentation.
   Future<Uint8List> getPresentationImage(String path) async {
     final uri = Uri.tryParse(path);
-    if (uri == null || uri.hasScheme || uri.hasAuthority || !path.startsWith('/')) {
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        !path.startsWith('/')) {
       throw const FormatException('Only same-origin media paths are permitted');
     }
     Future<Response<List<int>>> request(String bearer) async {
@@ -360,8 +363,12 @@ class MakoloApiClient {
     if (status < 200 || status >= 300) {
       throw MakoloApiError.fromResponse(status, '');
     }
-    final mime = response.headers.value(Headers.contentTypeHeader)
-        ?.split(';').first.trim().toLowerCase();
+    final mime = response.headers
+        .value(Headers.contentTypeHeader)
+        ?.split(';')
+        .first
+        .trim()
+        .toLowerCase();
     if (mime != 'image/jpeg' && mime != 'image/png') {
       throw const FormatException('Unsupported presentation image type');
     }
