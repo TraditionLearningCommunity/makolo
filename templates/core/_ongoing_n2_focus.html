@@ -21,6 +21,14 @@
       {% if item.place %}<span>{{ item.place }}</span>{% endif %}
     </div>
   {% endif %}
+  {% if item.temporal_facts %}
+    <section class="mk-ongoing-n2-section">
+      <h3>Dates à retenir</h3>
+      {% for fact in item.temporal_facts %}
+        <p>{{ fact.label }} · {% if fact.at %}{{ fact.at }}{% else %}{{ fact.date }}{% endif %}</p>
+      {% endfor %}
+    </section>
+  {% endif %}
   {% for section, values in item.details %}
     {% if values %}
       <section class="mk-ongoing-n2-section">
