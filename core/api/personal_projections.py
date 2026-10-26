@@ -802,8 +802,17 @@ def _journey_ongoing_item(journey, readiness):
     }
 
 
-def _access_ongoing_item(access):
+def _access_ongoing_item(access, *, profile):
+    # Access is a different owner, but can continue the same personal Journey.
+    # Never carry this identity across a transfer to another beneficiary.
+    journey = access.journey if access.journey_id else None
+    anchor = (
+        {"kind": "journey", "id": str(journey.pk)}
+        if journey is not None and journey.beneficiary_id == profile.pk
+        else None
+    )
     return {
+        "continuity_identity_anchor": anchor,
         "kind": "access",
         "source": {"kind": "access", "id": str(access.pk)},
         "state": "available",
@@ -1095,7 +1104,7 @@ def _funding_ongoing_item(funding):
 
 
 def _ongoing_identity(item):
-    source = item["source"]
+    source = item.get("continuity_identity_anchor") or item["source"]
     material = f'{source["kind"]}:{source["id"]}'
     return hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
 
@@ -1401,7 +1410,10 @@ def _decorate_ongoing_semantics(item, *, observed_at):
         {
             "id": identity,
             "continuity_identity": identity,
-            "continuity_basis": [source],
+            "continuity_basis": [
+                *([item["continuity_identity_anchor"]] if item.get("continuity_identity_anchor") else []),
+                source,
+            ],
             "human_context": item["title"],
             "synthesis": item["summary"],
             # C0 human aliases remain available beside the structured Mature
@@ -1521,7 +1533,7 @@ def build_personal_ongoing_projection(
         if entry.kind == "journey":
             items.append(_journey_ongoing_item(entry.value, entry.readiness))
         elif entry.kind == "access":
-            items.append(_access_ongoing_item(entry.value))
+            items.append(_access_ongoing_item(entry.value, profile=profile))
         elif entry.kind == "dossier":
             items.append(
                 _dossier_ongoing_item(
