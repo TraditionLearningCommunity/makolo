@@ -25,6 +25,7 @@
     {% include "core/_ongoing_n2_focus.html" with item=item %}
   </template>
 
+  {% if item.can_save or item.url or item.can_share %}
   <div class="mk-ongoing-unit__actions" role="group" aria-label="Actions pour {{ item.title }}">
     {% if item.can_save and item.possibility.links.saved %}
       <form class="mk-ongoing-unit__save" data-ongoing-save data-save-url="{{ item.possibility.links.saved }}" data-save-state="{{ item.possibility.saved_state }}" data-ongoing-activity="{{ item.possibility.id }}">
@@ -88,4 +89,5 @@
       </span>
     {% endif %}
   </div>
+  {% endif %}
 </article>
