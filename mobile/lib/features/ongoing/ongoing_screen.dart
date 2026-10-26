@@ -435,6 +435,122 @@ class _OngoingFieldState extends State<_OngoingField> {
   );
 }
 
+/// The three useful commands share the existing Discovery and Sharing owners.
+class _OngoingN1Actions extends StatefulWidget {
+  const _OngoingN1Actions({
+    required this.item,
+    this.api,
+    this.baseUri,
+    this.onSave,
+  });
+  final OngoingContinuityPresentation item;
+  final MakoloApiClient? api;
+  final Uri? baseUri;
+  final Future<void> Function(OngoingPossibilityPresentation, bool)? onSave;
+
+  @override
+  State<_OngoingN1Actions> createState() => _OngoingN1ActionsState();
+}
+
+class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
+  bool _busy = false;
+
+  Future<void> _save() async {
+    final action = widget.item.possibility;
+    if (_busy || action == null || !action.canSave || widget.onSave == null) return;
+    setState(() => _busy = true);
+    try {
+      final saved = action.savedState != 'saved';
+      await widget.onSave!(action, saved);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(saved ? 'Possibilité enregistrée.' : 'Enregistrement retiré.'),
+        ));
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enregistrement non confirmé. Réessayez.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final possibility = widget.item.possibility;
+    final route = _OngoingN1Details.routeFor(widget.item);
+    final label = switch (widget.item.kind) {
+      'access' => 'Voir mon accès',
+      'dossier' => 'Ouvrir le dossier',
+      'project' => 'Voir le projet',
+      'waitlist' => 'Suivre ma liste',
+      'payment' => 'Suivre le paiement',
+      'transfer' => 'Voir le transfert',
+      'funding' => 'Gérer',
+      _ => 'Continuer',
+    };
+    final canShare = possibility?.canShare == true && widget.api != null;
+    final sharedItem = canShare ? DiscoveryItemPresentation(
+      family: 'activity',
+      id: possibility!.id,
+      candidateKey: 'ongoing:' + possibility.id,
+      title: widget.item.title,
+      summary: widget.item.synthesis,
+      capabilities: const <String>{},
+      links: {'web_share': possibility.shareUrl!},
+      savedState: possibility.savedState,
+    ) : null;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MakoloSpacing.compact, MakoloSpacing.sm,
+        MakoloSpacing.compact, MakoloSpacing.md,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextButton.icon(
+              onPressed: possibility?.canSave == true && widget.onSave != null && !_busy
+                  ? _save : null,
+              icon: _busy
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Icon(possibility?.savedState == 'saved'
+                      ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
+              label: Text(possibility?.savedState == 'saved' ? 'Enregistré' : 'Enregistrer'),
+            ),
+          ),
+          const SizedBox(width: MakoloSpacing.xs),
+          Expanded(
+            flex: 2,
+            child: FilledButton(
+              onPressed: route == null ? null : () => context.push(route),
+              child: Text(label, textAlign: TextAlign.center),
+            ),
+          ),
+          const SizedBox(width: MakoloSpacing.xs),
+          Expanded(
+            child: sharedItem == null
+                ? const TextButton.icon(
+                    onPressed: null,
+                    icon: Icon(Icons.share_outlined),
+                    label: Text('Partager'),
+                  )
+                : DiscoveryShareControl(
+                    item: sharedItem,
+                    api: widget.api,
+                    authenticated: true,
+                    baseUri: widget.baseUri,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _OngoingN1Details extends StatelessWidget {
   const _OngoingN1Details({required this.item});
   final OngoingContinuityPresentation item;
