@@ -217,9 +217,11 @@ void main() {
       final titleRect = tester.getRect(title);
       expect(mediaRect.top, greaterThanOrEqualTo(titleRect.bottom));
       expect(mediaRect.width, greaterThan(titleRect.width));
+      // This fixture has neither actions nor owner routes. The compact
+      // visual must not invent an empty action toolbar.
       expect(
         find.byKey(const Key('ongoing-n1-discover-actions')),
-        findsOneWidget,
+        findsNothing,
       );
     },
   );
