@@ -20,11 +20,15 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             return true;
           }
           if (destination.kind == 'activity') {
-            context.push('/discover/items/activity/${destination.id}');
+            context.push('/activities/${destination.id}');
             return true;
           }
           if (destination.kind == 'group') {
             context.push('/groups/${destination.id}');
+            return true;
+          }
+          if (destination.kind == 'watch') {
+            context.push('/discover/watches/${destination.id}');
             return true;
           }
           if (destination.kind == 'profile') {
