@@ -58,7 +58,9 @@ class PersonalRepository {
     final source = initial[family] as Map;
     final rows = source['items'];
     if (rows is! List) throw const FormatException('Invalid Me collection');
-    final offset = rows.length;
+    final serverOffset = source['next_offset'];
+    final offset = serverOffset is int && serverOffset >= rows.length
+        ? serverOffset : rows.length;
 
     final response = await api.get(Uri(
       path: 'api/v1/me/preview/$territory/',
@@ -74,7 +76,8 @@ class PersonalRepository {
         actor['id']?.toString() != store.profileId ||
         data['territory'] != territory || data['family'] != family ||
         data['offset'] != offset || next is! Map || next['items'] is! List ||
-        next['count'] is! int || next['has_more'] is! bool) {
+        next['count'] is! int || next['has_more'] is! bool ||
+        next['next_offset'] is! int || next['next_offset'] < offset) {
       throw const FormatException('Invalid Me continuation');
     }
 
@@ -86,7 +89,11 @@ class PersonalRepository {
     final latestTerritory = latest.payload[territory];
     if (latestTerritory is! Map || latestTerritory[family] is! Map) return;
     final latestItems = (latestTerritory[family] as Map)['items'];
-    if (latestItems is! List || latestItems.length != offset) return;
+    final latestSource = latestTerritory[family] as Map;
+    if (latestItems is! List ||
+        (latestSource['next_offset'] is int
+            ? latestSource['next_offset'] != offset
+            : latestItems.length != offset)) return;
 
     final seen = <String>{};
     final combined = <Map<String, dynamic>>[];
@@ -103,6 +110,7 @@ class PersonalRepository {
     final revised = Map<String, dynamic>.from(latestTerritory)
       ..[family] = {
         'items': combined, 'count': next['count'], 'has_more': next['has_more'],
+        'next_offset': next['next_offset'],
       };
     final updated = Map<String, dynamic>.from(latest.payload)
       ..[territory] = revised;
