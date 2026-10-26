@@ -20,7 +20,7 @@ class MaturePersonalExperienceTests(TestCase):
     def test_primary_personal_destinations_render(self):
         expectations = {
             "core:participant-home": "Tout est en ordre. ✓",
-            "core:participant-ongoing": "Ce qui continue",
+            "core:participant-ongoing": "<h1>En cours</h1>",
             "core:participant-me": "Passeport Makolo",
             "core:makolo-mark": "Qu’est-ce que vous avez en tête ?",
         }
