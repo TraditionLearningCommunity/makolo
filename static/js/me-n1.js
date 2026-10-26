@@ -59,7 +59,29 @@
         const title = node('span', 'mk-me-n1-saved-title', label);
         const chevron = node('span', 'mk-me-n1-saved-chevron', '›');
         chevron.setAttribute('aria-hidden', 'true');
-        entry.replaceChildren(status, title, chevron);
+        const imageBinding = item.media_bindings?.find(binding =>
+          binding?.purpose === 'RECOGNIZE' &&
+          binding?.target?.kind === 'activity' &&
+          String(binding?.target?.id) === String(item.activity?.id) &&
+          binding?.resource?.kind === 'presentation_media_use' &&
+          ['image/jpeg', 'image/png'].includes(binding?.resource?.mime_type) &&
+          typeof binding?.resource?.url === 'string' &&
+          binding.resource.url.startsWith('/') &&
+          !binding.resource.url.startsWith('//') &&
+          !binding.resource.url.includes('?')
+        );
+        if (imageBinding) {
+          const preview = node('img', 'mk-me-n1-recognition');
+          preview.src = imageBinding.resource.url;
+          preview.alt = '';
+          preview.width = 72;
+          preview.height = 56;
+          preview.loading = 'lazy';
+          preview.decoding = 'async';
+          entry.replaceChildren(status, title, preview, chevron);
+        } else {
+          entry.replaceChildren(status, title, chevron);
+        }
       }
       entry.dataset.meId = id;
       host.append(entry);
