@@ -26,6 +26,7 @@ import 'now_selector.dart';
 import 'now_media_viewer.dart';
 import 'now_inline_media_preview.dart';
 import 'now_action_controller.dart';
+import 'now_display_labels.dart';
 
 class NowScreen extends StatefulWidget {
   const NowScreen({
@@ -354,7 +355,6 @@ class NowView extends StatefulWidget {
 
 class _NowViewState extends State<NowView> {
   final ScrollController _fieldController = ScrollController();
-  final Set<String> _expandedKeys = <String>{};
   String? _selectedKey;
 
   @override
@@ -415,12 +415,6 @@ class _NowViewState extends State<NowView> {
       controller: _fieldController,
       selectedKey: _selectedKey,
       onSelect: _select,
-      expandedKeys: _expandedKeys,
-      onToggleExpanded: (identity) {
-        setState(() {
-          if (!_expandedKeys.add(identity)) _expandedKeys.remove(identity);
-        });
-      },
       onOpenOwner: widget.onOpenOwner,
       api: widget.api,
       profileId: widget.profileId,
@@ -431,10 +425,7 @@ class _NowViewState extends State<NowView> {
     );
 
     final content = selected == null
-        ? MakoloContentFrame(
-            maxContentWidth: MakoloLayout.calmMaxWidth,
-            child: field,
-          )
+        ? field
         : MakoloAdaptiveSplit(
             splitAt: MakoloLayout.nowFocusSplitMinWidth,
             field: MakoloContentFrame(child: field),
@@ -473,7 +464,11 @@ class _NowViewState extends State<NowView> {
       content: content,
     );
     final cues = <Widget>[
-      if (state.refreshing) const MakoloRefreshIndicator(),
+      if (state.refreshing)
+        const Semantics(
+          label: 'Actualisation en cours',
+          child: LinearProgressIndicator(minHeight: 2),
+        ),
       if (state.freshness != MakoloFreshnessCue.unknown &&
           state.freshness != MakoloFreshnessCue.current)
         MakoloFreshnessNotice(freshness: state.freshness),
@@ -523,8 +518,6 @@ class _NowField extends StatelessWidget {
     required this.controller,
     required this.selectedKey,
     required this.onSelect,
-    required this.expandedKeys,
-    required this.onToggleExpanded,
     required this.onOpenOwner,
     required this.api,
     required this.profileId,
@@ -542,8 +535,6 @@ class _NowField extends StatelessWidget {
   final ScrollController controller;
   final String? selectedKey;
   final ValueChanged<NowSituationPresentation> onSelect;
-  final Set<String> expandedKeys;
-  final ValueChanged<String> onToggleExpanded;
   final ValueChanged<StructuredDestination>? onOpenOwner;
   final MakoloApiClient? api;
   final String? profileId;
@@ -554,13 +545,18 @@ class _NowField extends StatelessWidget {
 
     final primary = situations.first;
     final secondary = situations.skip(1).toList(growable: false);
+    final theme = Theme.of(context);
 
     return ListView(
       key: const PageStorageKey<String>('now-field-scroll'),
       controller: controller,
-      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(
+        top: MakoloSpacing.sm,
+        bottom: MakoloSpacing.xl,
+      ),
       children: [
-        _NowPrimarySituation(
+        _NowSituationUnit(
           situation: primary,
           selected: selectedKey == _keyOf(primary),
           onSelect: () => onSelect(primary),
@@ -569,25 +565,28 @@ class _NowField extends StatelessWidget {
           profileId: profileId,
         ),
         if (secondary.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.strong),
-          Text(
-            'Aussi maintenant',
-            style: Theme.of(context).textTheme.titleLarge,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              MakoloSpacing.md,
+              MakoloSpacing.lg,
+              MakoloSpacing.md,
+              MakoloSpacing.sm,
+            ),
+            child: Text(
+              'Aussi maintenant',
+              style: theme.textTheme.titleMedium,
+            ),
           ),
-          const SizedBox(height: MakoloSpacing.md),
-          for (var index = 0; index < secondary.length; index++) ...[
-            _NowSecondarySituation(
-              situation: secondary[index],
-              onSelect: () => onSelect(secondary[index]),
-              expanded: expandedKeys.contains(secondary[index].identity),
-              onToggleExpanded: () => onToggleExpanded(secondary[index].identity),
+          for (final item in secondary)
+            _NowSituationUnit(
+              key: ValueKey('now-unit-${item.identity}'),
+              situation: item,
+              selected: selectedKey == _keyOf(item),
+              onSelect: () => onSelect(item),
+              onOpenOwner: onOpenOwner,
               api: api,
               profileId: profileId,
-              onOpenOwner: onOpenOwner,
             ),
-            if (index != secondary.length - 1)
-              const SizedBox(height: MakoloSpacing.md),
-          ],
         ],
         if (loadingMore)
           const Padding(
@@ -601,11 +600,6 @@ class _NowField extends StatelessWidget {
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Réessayer'),
             ),
-          )
-        else if (continuation.state == NowContinuationState.end)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-            child: Center(child: Text('Vous avez tout exploré')),
           ),
       ],
     );
@@ -641,12 +635,14 @@ class _NowSemanticContent extends StatelessWidget {
     required this.api,
     required this.profileId,
     required this.onOpenOwner,
+    this.compact = false,
   });
 
   final NowSituationPresentation situation;
   final MakoloApiClient? api;
   final String? profileId;
   final ValueChanged<StructuredDestination>? onOpenOwner;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -740,6 +736,7 @@ class _NowSemanticContent extends StatelessWidget {
           NowActionGroup(
             key: ValueKey('now-actions-${situation.identity}'),
             situation: situation,
+            compact: compact,
             api: api,
             onOpenOwner:
                 situation.ownerDestination != null &&
@@ -788,8 +785,11 @@ class _NowSemanticContent extends StatelessWidget {
   }
 }
 
-class _NowPrimarySituation extends StatelessWidget {
-  const _NowPrimarySituation({
+/// The same edge-to-edge, subtly separated N1 geometry as Discover.
+/// Situations remain owner-backed next steps, never arbitrary feed posts.
+class _NowSituationUnit extends StatelessWidget {
+  const _NowSituationUnit({
+    super.key,
     required this.situation,
     required this.selected,
     required this.onSelect,
@@ -807,233 +807,126 @@ class _NowPrimarySituation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ownerDestination = situation.ownerDestination;
-    final ownerPath = ownerDestination == null
-        ? null
-        : NowScreen.ownerPathFor(ownerDestination);
-    final canOpenOwner =
-        situation.responseLabel != null &&
-        ownerPath != null &&
-        onOpenOwner != null;
-    final contextLabel = _distinctPresentationText(situation.humanContext, [
-      situation.meaning,
-    ]);
-    final whyNow = _distinctPresentationText(situation.whyNow, [
-      situation.meaning,
-      situation.humanContext,
-    ]);
-    final consequence = _distinctPresentationText(situation.consequence, [
-      situation.meaning,
-      situation.humanContext,
-      situation.whyNow,
-    ]);
-    return Semantics(
-      container: true,
-      button: true,
-      selected: selected,
-      label: [
-        ?contextLabel,
-        situation.meaning,
-        ?consequence,
-        ?whyNow,
-      ].join('. '),
-      child: InkWell(
-        onTap: onSelect,
-        borderRadius: BorderRadius.circular(MakoloRadii.card),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (contextLabel != null) ...[
-                Text(
-                  contextLabel,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: MakoloSpacing.sm),
-              ],
-              Text(
-                situation.meaning,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              if (consequence != null) ...[
-                const SizedBox(height: MakoloSpacing.xs),
-                Text(
-                  consequence,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-              if (whyNow != null) ...[
-                const SizedBox(height: MakoloSpacing.md),
-                Text(
-                  whyNow,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-              _NowSemanticContent(
-                situation: situation,
-                api: api,
-                profileId: profileId,
-                onOpenOwner: onOpenOwner,
-              ),
-              if (situation.metadata.isNotEmpty) ...[
-                const SizedBox(height: MakoloSpacing.md),
-                MakoloMetadata(
-                  items: [
-                    for (final item in situation.metadata)
-                      MakoloMetadataItem(item),
-                  ],
-                ),
-              ],
-              if (canOpenOwner &&
-                  topologyFor(situation) != NowTopology.action) ...[
-                const SizedBox(height: MakoloSpacing.lg),
-                FilledButton(
-                  onPressed: () => onOpenOwner!(ownerDestination!),
-                  child: Text(situation.responseLabel ?? 'Ouvrir'),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NowSecondarySituation extends StatelessWidget {
-  const _NowSecondarySituation({
-    required this.situation,
-    required this.onSelect,
-    required this.expanded,
-    required this.onToggleExpanded,
-    required this.api,
-    required this.profileId,
-    required this.onOpenOwner,
-  });
-
-  final NowSituationPresentation situation;
-  final VoidCallback onSelect;
-  final bool expanded;
-  final VoidCallback onToggleExpanded;
-  final MakoloApiClient? api;
-  final String? profileId;
-  final ValueChanged<StructuredDestination>? onOpenOwner;
-
-  @override
-  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final contextLabel = _distinctPresentationText(situation.humanContext, [
       situation.meaning,
     ]);
+    final headline = nowDisplayHeadline(
+      situation.meaning,
+      situation.humanContext,
+    );
+    final title = contextLabel ?? headline;
+    final description = contextLabel == null
+        ? null
+        : _distinctPresentationText(headline, [title]);
     final whyNow = _distinctPresentationText(situation.whyNow, [
       situation.meaning,
       situation.humanContext,
+      headline,
     ]);
     final consequence = _distinctPresentationText(situation.consequence, [
       situation.meaning,
       situation.humanContext,
+      headline,
       situation.whyNow,
     ]);
-    final hasMore = whyNow != null || consequence != null ||
-        situation.makoloPreparation.isNotEmpty ||
-        situation.relationMembers.isNotEmpty;
     final owner = situation.ownerDestination;
-    final canOpenOwner = owner != null &&
+    final canOpenOwner =
+        owner != null &&
         onOpenOwner != null &&
         NowScreen.ownerPathFor(owner) != null &&
         situation.responseLabel != null &&
         situation.businessActions.isEmpty;
 
-    return MakoloCard(
-      onTap: hasMore ? onToggleExpanded : onSelect,
-      semanticLabel: [
-        ?contextLabel,
-        situation.meaning,
-        ?consequence,
-        hasMore ? (expanded ? 'Voir moins' : 'Voir plus') : 'Ouvrir',
-      ].join('. '),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (contextLabel != null) ...[
-            Text(contextLabel, style: theme.textTheme.titleMedium),
-            const SizedBox(height: MakoloSpacing.sm),
-          ],
-          Text(situation.meaning, style: theme.textTheme.titleLarge),
-          if (consequence != null && !expanded) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              consequence,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-          ],
-          _NowSemanticContent(
-            situation: situation,
-            api: api,
-            profileId: profileId,
-            onOpenOwner: onOpenOwner,
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      label: [title, ?description, ?consequence, ?whyNow].join('. '),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary.withValues(alpha: 0.04)
+              : null,
+          border: Border(
+            bottom: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
-          if (situation.metadata.isNotEmpty) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            MakoloMetadata(
-              items: [
-                for (final item in situation.metadata) MakoloMetadataItem(item),
-              ],
+        ),
+        child: InkWell(
+          onTap: onSelect,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.md,
+              vertical: MakoloSpacing.compact,
             ),
-          ],
-          if (canOpenOwner) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            FilledButton(
-              onPressed: () => onOpenOwner!(owner),
-              child: Text(situation.responseLabel!),
-            ),
-          ],
-          if (hasMore) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            TextButton.icon(
-              onPressed: onSelect,
-              icon: const Icon(Icons.open_in_full_rounded),
-              label: const Text('Comprendre'),
-            ),
-            const SizedBox(height: MakoloSpacing.xs),
-            TextButton.icon(
-              onPressed: onToggleExpanded,
-              icon: Icon(expanded
-                  ? Icons.expand_less_rounded
-                  : Icons.expand_more_rounded),
-              label: Text(expanded ? 'Voir moins' : 'Voir plus'),
-            ),
-            if (expanded) ...[
-              if (whyNow != null) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(whyNow, style: theme.textTheme.bodyMedium),
-              ],
-              if (consequence != null) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(
-                  consequence,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(title, style: theme.textTheme.titleLarge),
+                    ),
+                    const SizedBox(width: MakoloSpacing.sm),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
                 ),
+                if (description != null) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(description, style: theme.textTheme.bodyMedium),
+                ],
+                if (consequence != null) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Text(
+                    consequence,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+                if (whyNow != null) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Text(
+                    whyNow,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                _NowSemanticContent(
+                  situation: situation,
+                  compact: true,
+                  api: api,
+                  profileId: profileId,
+                  onOpenOwner: onOpenOwner,
+                ),
+                if (situation.metadata.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  MakoloMetadata(
+                    items: [
+                      for (final item in situation.metadata)
+                        MakoloMetadataItem(item),
+                    ],
+                  ),
+                ],
+                if (canOpenOwner) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  TextButton.icon(
+                    onPressed: () => onOpenOwner!(owner),
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: Text(nowDisplayActionLabel(
+                      situation.responseLabel!,
+                      situation.humanContext,
+                    )),
+                  ),
+                ],
               ],
-              for (final preparation in situation.makoloPreparation) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(preparation, style: theme.textTheme.bodyMedium),
-              ],
-            ],
-          ],
-        ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1119,7 +1012,7 @@ class _NowDepth extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.sm),
             ],
             Text(
-              situation.meaning,
+              nowDisplayHeadline(situation.meaning, situation.humanContext),
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             // S2, S4 and S5 lead with their evidence, waiting state or
@@ -1171,7 +1064,10 @@ class _NowDepth extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.xl),
               FilledButton(
                 onPressed: () => onOpenOwner!(ownerDestination),
-                child: Text(situation.responseLabel!),
+                child: Text(nowDisplayActionLabel(
+                  situation.responseLabel!,
+                  situation.humanContext,
+                )),
               ),
             ],
           ],
