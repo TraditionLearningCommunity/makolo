@@ -8,6 +8,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
 import '../../design/surface_states.dart';
 import '../../navigation/destination.dart';
+import '../../network/makolo_api_client.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
@@ -19,11 +20,13 @@ class MeScreen extends StatefulWidget {
   const MeScreen({
     super.key,
     required this.repository,
+    this.api,
     this.now,
     this.onOpenDestination,
   });
 
   final PersonalRepository repository;
+  final MakoloApiClient? api;
   final DateTime Function()? now;
   final bool Function(StructuredDestination destination)? onOpenDestination;
 
@@ -34,6 +37,9 @@ class MeScreen extends StatefulWidget {
 class _MeScreenState extends State<MeScreen> {
   late Stream<StoredProjection?> _projectionStream;
   late Stream<OwnerSourceState> _sourceStream;
+  StoredProjection? _last;
+  String? _loading;
+  bool _pageFailed = false;
 
   @override
   void initState() {
@@ -45,6 +51,9 @@ class _MeScreenState extends State<MeScreen> {
   void didUpdateWidget(covariant MeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
+      _last = null;
+      _loading = null;
+      _pageFailed = false;
       _bindStreams();
     }
   }
@@ -92,6 +101,7 @@ class _MeScreenState extends State<MeScreen> {
       );
     }
 
+    _last = projection;
     final selection = const MeSelector().select(
       projection: projection,
       now: (widget.now?.call() ?? DateTime.now()).toUtc(),
@@ -106,7 +116,26 @@ class _MeScreenState extends State<MeScreen> {
     return MeView(
       selection: selection,
       onOpenDestination: widget.onOpenDestination,
+      loadingMore: _loading != null,
+      onReachEnd: widget.api == null || syncStatus?.state == SyncVisualState.offline
+          ? null : () => _loadNext(selection),
     );
+  }
+
+  void _loadNext(MeSelection selection) {
+    if (_loading != null || _pageFailed || widget.api == null || _last == null) return;
+    final pending = selection.territories.where((t) =>
+      t.hasMore && const ['considerations','collectives','resources'].contains(t.presentation.key));
+    if (pending.isEmpty) return;
+    final territory = pending.first.presentation.key;
+    setState(() => _loading = territory);
+    widget.repository.loadMoreMe(
+      api: widget.api!, current: _last!, territory: territory,
+    ).then((_) {
+      if (mounted) setState(() => _loading = null);
+    }).catchError((Object error) {
+      if (mounted) setState(() { _loading = null; _pageFailed = true; });
+    });
   }
 
   MakoloReachabilityCue _reachability(
@@ -127,10 +156,13 @@ class _MeScreenState extends State<MeScreen> {
 }
 
 class MeView extends StatefulWidget {
-  const MeView({super.key, required this.selection, this.onOpenDestination});
+  const MeView({super.key, required this.selection, this.onOpenDestination,
+    this.onReachEnd, this.loadingMore = false});
 
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;
+  final VoidCallback? onReachEnd;
+  final bool loadingMore;
 
   @override
   State<MeView> createState() => _MeViewState();
@@ -138,6 +170,19 @@ class MeView extends StatefulWidget {
 
 class _MeViewState extends State<MeView> {
   final ScrollController _controller = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_checkEnd);
+  }
+
+  void _checkEnd() {
+    if (_controller.hasClients && !widget.loadingMore &&
+        _controller.position.extentAfter < 520) {
+      widget.onReachEnd?.call();
+    }
+  }
   StructuredDestination? _selectedDestination;
 
   MeItemPresentation? get _selectedItem {
@@ -160,6 +205,9 @@ class _MeViewState extends State<MeView> {
   @override
   void didUpdateWidget(covariant MeView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkEnd();
+    });
     if (_selectedDestination != null && _selectedItem == null) {
       _selectedDestination = null;
     }
@@ -187,9 +235,16 @@ class _MeViewState extends State<MeView> {
             controller: _controller,
             useTwoTerritories: useTwoTerritories,
             onSelectItem: _selectItem,
+            loadingMore: widget.loadingMore,
+            hasMore: widget.selection.territories.any((t) => t.hasMore),
           ),
         );
 
+        if (widget.onReachEnd != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _checkEnd();
+          });
+        }
         final content = selected == null
             ? field
             : MakoloAdaptiveSplit(
@@ -320,12 +375,16 @@ class _MeField extends StatelessWidget {
     required this.controller,
     required this.useTwoTerritories,
     required this.onSelectItem,
+    required this.loadingMore,
+    required this.hasMore,
   });
 
   final MeSelection selection;
   final ScrollController controller;
   final bool useTwoTerritories;
   final ValueChanged<MeItemPresentation> onSelectItem;
+  final bool loadingMore;
+  final bool hasMore;
 
   @override
   Widget build(BuildContext context) {
@@ -359,6 +418,9 @@ class _MeField extends StatelessWidget {
               ],
             ],
           ),
+        const SizedBox(height: MakoloSpacing.xl),
+        if (loadingMore) const Center(child: CircularProgressIndicator.adaptive())
+        else if (!hasMore) Center(child: Text('Vous avez tout exploré', style: Theme.of(context).textTheme.bodySmall)),
       ],
     );
   }
