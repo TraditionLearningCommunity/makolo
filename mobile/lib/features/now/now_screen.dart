@@ -687,7 +687,7 @@ class _NowSemanticContent extends StatelessWidget {
             child: InkWell(
               onTap:
                   api != null && nowAuthorizedMediaPath(dominantMedia) != null
-                  ? () => _openMedia(context, dominantMedia)
+                  ? () => _openMedia(context, dominantMedia!)
                   : null,
               child: MakoloMediaFrame(
                 aspect: switch (dominantMedia.kind) {
@@ -796,7 +796,7 @@ class _NowSemanticContent extends StatelessWidget {
             ),
         if (dominantMedia != null && readable.contains(dominantMedia))
           TextButton.icon(
-            onPressed: () => _openMedia(context, dominantMedia),
+            onPressed: () => _openMedia(context, dominantMedia!),
             icon: const Icon(Icons.open_in_full_outlined),
             label: const Text('Lire dans Makolo'),
           ),
