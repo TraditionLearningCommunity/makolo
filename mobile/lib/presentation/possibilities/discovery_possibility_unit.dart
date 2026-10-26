@@ -743,7 +743,8 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (!widget.detailMode ||
         widget.onOwnerDepth == null ||
         _primaryNativePath != null ||
-        !const {'activity', 'service_activity', 'funding_activity'}.contains(item.family)) {
+        !const {'activity', 'service_activity', 'funding_activity'}
+            .contains(item.family)) {
       return null;
     }
     final resource = item.identity?['resource'];
