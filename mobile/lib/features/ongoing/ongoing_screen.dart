@@ -22,6 +22,7 @@ import '../../network/makolo_api_client.dart';
 import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
 import '../discovery/discovery_share_sheet.dart';
+import '../../presentation/possibilities/discovery_save_icon.dart';
 import 'ongoing_presentation.dart';
 
 class OngoingScreen extends StatefulWidget {
@@ -431,17 +432,7 @@ class _OngoingFieldState extends State<_OngoingField> {
       }
       final item = widget.items[index];
       final expanded = _expanded.contains(item.id);
-      final hasDetail =
-          item.settled.isNotEmpty ||
-          item.mySide.isNotEmpty ||
-          item.elsewhere.isNotEmpty ||
-          item.makolo.isNotEmpty ||
-          item.systemOrTime.isNotEmpty ||
-          item.next.isNotEmpty ||
-          item.blocker != null ||
-          item.waiting != null ||
-          item.unknown != null ||
-          _OngoingN1Details.routeFor(item) != null;
+      final hasDetail = _ongoingVisibleDetailGroups(item).isNotEmpty;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -501,6 +492,17 @@ class _OngoingN1Actions extends StatefulWidget {
 
 class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
   bool _busy = false;
+  bool? _confirmedSaved;
+
+  @override
+  void didUpdateWidget(covariant _OngoingN1Actions oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.possibility?.savedState !=
+            widget.item.possibility?.savedState ||
+        oldWidget.item.possibility?.id != widget.item.possibility?.id) {
+      _confirmedSaved = null;
+    }
+  }
 
   Future<void> _save() async {
     final action = widget.item.possibility;
@@ -508,17 +510,9 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
       return;
     setState(() => _busy = true);
     try {
-      final saved = action.savedState != 'saved';
+      final saved = !(_confirmedSaved ?? (action.savedState == 'saved'));
       await widget.onSave!(action, saved);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              saved ? 'Possibilité enregistrée.' : 'Enregistrement retiré.',
-            ),
-          ),
-        );
-      }
+      if (mounted) setState(() => _confirmedSaved = saved);
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -561,9 +555,12 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
             savedState: possibility.savedState,
           )
         : null;
-    final saved = possibility?.savedState == 'saved';
+    final saved = _confirmedSaved ?? (possibility?.savedState == 'saved');
     final canSave =
-        possibility?.canSave == true && widget.onSave != null && !_busy;
+        possibility != null &&
+        (saved ? possibility.savedState == 'saved' || _confirmedSaved == true
+               : possibility.canSave) &&
+        widget.onSave != null && !_busy;
 
     // Match Discover's balanced three-icon action strip. No permanent
     // text labels or oversized middle button on the compact surface.
@@ -589,10 +586,8 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Icon(
-                          saved
-                              ? Icons.bookmark_rounded
-                              : Icons.bookmark_border_rounded,
+                      : DiscoveryOrbitIcon(
+                          saved: saved,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                 ),
@@ -669,58 +664,59 @@ class _OngoingN1Details extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final groups = <(String, List<String>)>[
-      ('Déjà réglé', item.settled),
-      ('De votre côté', item.mySide),
-      ('En attente', item.elsewhere),
-      ('Préparé par Makolo', item.makolo),
-      ('À venir', item.systemOrTime),
-      ('À suivre', item.next),
-      if (item.blocker != null) ('Ce qui bloque', [item.blocker!]),
-      if (item.unknown != null) ('À vérifier', [item.unknown!]),
-    ];
-    final seen = <String>{_ongoingKey(item.title), _ongoingKey(item.synthesis)};
-    final nativeOwnerRoute = routeFor(item);
+    final groups = _ongoingVisibleDetailGroups(item);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.compact,
-        0,
-        MakoloSpacing.compact,
-        MakoloSpacing.md,
+        16, 0, 16, MakoloSpacing.md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final (label, values) in groups)
-            if (values.any(
-              (value) =>
-                  value.trim().isNotEmpty && !seen.contains(_ongoingKey(value)),
-            )) ...[
-              const SizedBox(height: MakoloSpacing.sm),
-              Text(label, style: Theme.of(context).textTheme.titleSmall),
-              for (final value in values)
-                if (value.trim().isNotEmpty &&
-                    !_ongoingRedundant(value, item) &&
-                    seen.add(_ongoingKey(value)))
-                  Padding(
-                    padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                    child: Text(
-                      value,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-            ],
-          if (nativeOwnerRoute != null) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            FilledButton(
-              onPressed: () => context.push(nativeOwnerRoute),
-              child: const Text('Ouvrir la démarche'),
-            ),
+          for (final (label, values) in groups) ...[
+            const SizedBox(height: MakoloSpacing.sm),
+            Text(label, style: Theme.of(context).textTheme.titleSmall),
+            for (final value in values)
+              Padding(
+                padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+              ),
           ],
         ],
       ),
     );
   }
+}
+
+// Deduplicate before rendering headings: an empty section must never appear.
+List<(String, List<String>)> _ongoingVisibleDetailGroups(
+  OngoingContinuityPresentation item,
+) {
+  final groups = <(String, List<String>)>[
+    ('Déjà réglé', item.settled),
+    ('De votre côté', item.mySide),
+    ('En attente', item.elsewhere),
+    ('Préparé par Makolo', item.makolo),
+    ('À venir', item.systemOrTime),
+    ('À suivre', item.next),
+    if (item.blocker != null) ('Ce qui bloque', [item.blocker!]),
+    if (item.unknown != null) ('À vérifier', [item.unknown!]),
+  ];
+  final seen = <String>{_ongoingKey(item.title), _ongoingKey(item.synthesis)};
+  final visible = <(String, List<String>)>[];
+  for (final (heading, entries) in groups) {
+    final useful = <String>[];
+    for (final entry in entries) {
+      final value = entry.trim();
+      if (value.isNotEmpty &&
+          !_ongoingRedundant(value, item) &&
+          seen.add(_ongoingKey(value))) {
+        useful.add(value);
+      }
+    }
+    if (useful.isNotEmpty) visible.add((heading, useful));
+  }
+  return visible;
+}
 }
 
 String _ongoingKey(String value) => value
@@ -897,26 +893,6 @@ class _OngoingRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (imageUrl != null)
-              AspectRatio(
-                key: const Key('ongoing-n1-full-width-media'),
-                aspectRatio: 16 / 9,
-                child: api == null
-                    ? Image.network(
-                        imageUrl,
-                        key: const Key('ongoing-n1-recognition-media'),
-                        fit: BoxFit.cover,
-                        semanticLabel: item.mediaAlt ?? item.title,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const SizedBox.shrink(),
-                      )
-                    : _OngoingProtectedImage(
-                        key: const Key('ongoing-n1-recognition-media'),
-                        api: api!,
-                        imageUrl: imageUrl,
-                        label: item.mediaAlt ?? item.title,
-                      ),
-              ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
@@ -1015,6 +991,26 @@ class _OngoingRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (imageUrl != null)
+              AspectRatio(
+                key: const Key('ongoing-n1-full-width-media'),
+                aspectRatio: 16 / 9,
+                child: api == null
+                    ? Image.network(
+                        imageUrl,
+                        key: const Key('ongoing-n1-recognition-media'),
+                        fit: BoxFit.cover,
+                        semanticLabel: item.mediaAlt ?? item.title,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox.shrink(),
+                      )
+                    : _OngoingProtectedImage(
+                        key: const Key('ongoing-n1-recognition-media'),
+                        api: api!,
+                        imageUrl: imageUrl,
+                        label: item.mediaAlt ?? item.title,
+                      ),
+              ),
           ],
         ),
       ),
