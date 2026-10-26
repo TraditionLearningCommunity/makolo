@@ -399,10 +399,7 @@ void main() {
 
     await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
-    expect(
-      find.text('Aucun passeport disponible.'),
-      findsOneWidget,
-    );
+    expect(find.text('Aucun passeport disponible.'), findsOneWidget);
     expect(find.text('Rien de déclaré pour le moment.'), findsOneWidget);
     expect(find.text('Aucun collectif associé.'), findsOneWidget);
     expect(find.text('Aucune ressource disponible.'), findsOneWidget);
@@ -468,41 +465,44 @@ void main() {
     expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
-  testWidgets('owner handoff opens a real destination without a fake Moi depth', (
-    tester,
-  ) async {
-    final selection = selector.select(
-      projection: _projection(_fullPayload()), now: now,
-    );
-    String? openedKind;
-    String? openedId;
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(430, 932),
-      child: MeView(
-        selection: selection,
-        onOpenDestination: (destination) {
-          openedKind = destination.kind;
-          openedId = destination.id;
-          return true;
-        },
-      ),
-    );
+  testWidgets(
+    'owner handoff opens a real destination without a fake Moi depth',
+    (tester) async {
+      final selection = selector.select(
+        projection: _projection(_fullPayload()),
+        now: now,
+      );
+      String? openedKind;
+      String? openedId;
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(
+          selection: selection,
+          onOpenDestination: (destination) {
+            openedKind = destination.kind;
+            openedId = destination.id;
+            return true;
+          },
+        ),
+      );
 
-    await tester.ensureVisible(find.text('Passeport.pdf'));
-    await tester.pump();
-    await tester.tap(find.text('Passeport.pdf'));
-    await tester.pump();
+      await tester.ensureVisible(find.text('Passeport.pdf'));
+      await tester.pump();
+      await tester.tap(find.text('Passeport.pdf'));
+      await tester.pump();
 
-    expect(openedKind, 'personal_asset');
-    expect(openedId, isNotEmpty);
-    expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
-  });
+      expect(openedKind, 'personal_asset');
+      expect(openedId, isNotEmpty);
+      expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
+      expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    },
+  );
 
   test('Passport and Group use explicit native owner destinations', () {
     final selection = selector.select(
-      projection: _projection(_fullPayload()), now: now,
+      projection: _projection(_fullPayload()),
+      now: now,
     );
     final passport = selection.territories.singleWhere(
       (t) => t.presentation.key == 'passport',
@@ -520,29 +520,31 @@ void main() {
     expect(groups.every((item) => item.canOpen), isTrue);
   });
 
-  testWidgets('compact Moi shows a single Passport card and concise saved items', (
-    tester,
-  ) async {
-    final selection = selector.select(
-      projection: _projection(_fullPayload()), now: now,
-    );
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(430, 932),
-      child: MeView(selection: selection, onOpenDestination: (_) => true),
-    );
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
-    final passport = find.byKey(const ValueKey('me-territory-passport'));
-    expect(passport, findsOneWidget);
-    expect(tester.getSize(passport).width, closeTo(430, 0.1));
-    expect(find.text('Mon passeport'), findsOneWidget);
-    expect(find.text('Enregistré'), findsNothing);
-    expect(find.text('Passeport.pdf'), findsOneWidget);
+  testWidgets(
+    'compact Moi shows a single Passport card and concise saved items',
+    (tester) async {
+      final selection = selector.select(
+        projection: _projection(_fullPayload()),
+        now: now,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(selection: selection, onOpenDestination: (_) => true),
+      );
+      expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+      final passport = find.byKey(const ValueKey('me-territory-passport'));
+      expect(passport, findsOneWidget);
+      expect(tester.getSize(passport).width, closeTo(430, 0.1));
+      expect(find.text('Mon passeport'), findsOneWidget);
+      expect(find.text('Enregistré'), findsNothing);
+      expect(find.text('Passeport.pdf'), findsOneWidget);
 
-    // No giant framed wrapper around the identity and territory content.
-    expect(find.byType(Card), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+      // No giant framed wrapper around the identity and territory content.
+      expect(find.byType(Card), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('saved opportunities reuse the filled Discover icon', (
     tester,
@@ -554,10 +556,7 @@ void main() {
       'items': [
         {
           'id': 'bookmark-1',
-          'activity': {
-            'id': 'activity-1',
-            'title': 'Possibilité conservée',
-          },
+          'activity': {'id': 'activity-1', 'title': 'Possibilité conservée'},
         },
       ],
       'has_more': false,
@@ -587,7 +586,8 @@ void main() {
     tester,
   ) async {
     final selection = selector.select(
-      projection: _projection(_fullPayload()), now: now,
+      projection: _projection(_fullPayload()),
+      now: now,
     );
     String? kind;
     await PresentationHarness.pump(
@@ -610,14 +610,18 @@ void main() {
     tester,
   ) async {
     final selection = selector.select(
-      projection: _projection(_fullPayload()), now: now,
+      projection: _projection(_fullPayload()),
+      now: now,
     );
     var invocations = 0;
     await PresentationHarness.pump(
       tester,
       child: MeView(
         selection: selection,
-        onOpenDestination: (_) { invocations++; return true; },
+        onOpenDestination: (_) {
+          invocations++;
+          return true;
+        },
       ),
     );
     await tester.ensureVisible(find.text('Technologie'));
@@ -628,7 +632,7 @@ void main() {
     expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
   });
 
-    testWidgets('body starts with identity without repeating Moi', (
+  testWidgets('body starts with identity without repeating Moi', (
     tester,
   ) async {
     final selection = selector.select(
