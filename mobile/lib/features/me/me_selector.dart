@@ -11,6 +11,8 @@ class MeItemPresentation {
     this.subtitle,
     this.metadata = const [],
     this.canOpen = false,
+    this.mediaPath,
+    this.mediaAlt,
   });
 
   final StructuredDestination destination;
@@ -18,6 +20,8 @@ class MeItemPresentation {
   final String? subtitle;
   final List<String> metadata;
   final bool canOpen;
+  final String? mediaPath;
+  final String? mediaAlt;
 }
 
 class MeTerritorySelection {
@@ -564,13 +568,35 @@ class MeSelector {
     final activity = _map(raw['activity']);
     final id = _string(activity?['id']);
     final title = _string(activity?['title']);
-    if (id == null || title == null) {
-      return null;
+    if (id == null || title == null) return null;
+    String? mediaPath;
+    String? mediaAlt;
+    final bindings = raw['media_bindings'];
+    if (bindings is List) {
+      for (final candidate in bindings) {
+        final binding = _map(candidate);
+        final target = _map(binding?['target']);
+        final resource = _map(binding?['resource']);
+        final path = _string(resource?['url']);
+        if (binding?['purpose'] != 'RECOGNIZE' ||
+            target?['kind'] != 'activity' || target?['id'] != id ||
+            resource?['kind'] != 'presentation_media_use' ||
+            !{'image/jpeg', 'image/png'}.contains(resource?['mime_type']) ||
+            path == null || !path.startsWith('/') || path.startsWith('//') ||
+            Uri.tryParse(path)?.hasQuery == true) {
+          continue;
+        }
+        mediaPath = path;
+        mediaAlt = _string(resource?['alt_text']);
+        break;
+      }
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'activity', id: id),
       canOpen: true,
       title: title,
+      mediaPath: mediaPath,
+      mediaAlt: mediaAlt,
     );
   }
 
