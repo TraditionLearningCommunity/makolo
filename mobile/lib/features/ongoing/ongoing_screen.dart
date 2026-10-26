@@ -717,7 +717,6 @@ List<(String, List<String>)> _ongoingVisibleDetailGroups(
   }
   return visible;
 }
-}
 
 String _ongoingKey(String value) => value
     .trim()
