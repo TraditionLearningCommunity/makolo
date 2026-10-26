@@ -165,62 +165,65 @@ void main() {
     expect(items.first.hasParallelMovement, isTrue);
   });
 
-  test('N1 parses the same human cue, date and published recognition media', () {
-    final items = OngoingContinuityPresentation.fromProjection(
-      _projection([
-        {
-          'id': 'continuity:confirmed-travel',
-          'kind': 'journey',
-          'source': {'kind': 'journey', 'id': 'travel-1'},
-          'state': 'available',
-          'title': 'Lubumbashi → Kolwezi',
-          'summary': 'Place confirmée.',
-          'n1': {
-            'cue': 'Accès disponible',
-            'tone': 'ready',
-            'when_label': '12/11/2026 · 14:00',
-            'supporting': 'Départ prévu',
-            'place_label': 'Lubumbashi',
+  test(
+    'N1 parses the same human cue, date and published recognition media',
+    () {
+      final items = OngoingContinuityPresentation.fromProjection(
+        _projection([
+          {
+            'id': 'continuity:confirmed-travel',
+            'kind': 'journey',
+            'source': {'kind': 'journey', 'id': 'travel-1'},
+            'state': 'available',
+            'title': 'Lubumbashi → Kolwezi',
+            'summary': 'Place confirmée.',
+            'n1': {
+              'cue': 'Accès disponible',
+              'tone': 'ready',
+              'when_label': '12/11/2026 · 14:00',
+              'supporting': 'Départ prévu',
+              'place_label': 'Lubumbashi',
+            },
+            'ready': [],
+            'actor_interventions': [],
+            'continuation': null,
+            'blocker': null,
+            'next': null,
+            'timing': {},
+            'place': null,
+            'capabilities': [],
+            'links': {},
+            'media_bindings': [
+              {
+                'purpose': 'RECOGNIZE',
+                'resource': {
+                  'url': '/presentation/media/uses/abc/file/',
+                  'mime_type': 'image/jpeg',
+                  'alt_text': 'Véhicule du voyage',
+                },
+              },
+              {
+                'purpose': 'PREPARE',
+                'resource': {
+                  'url': '/private/document.pdf',
+                  'mime_type': 'application/pdf',
+                },
+              },
+            ],
           },
-          'ready': [],
-          'actor_interventions': [],
-          'continuation': null,
-          'blocker': null,
-          'next': null,
-          'timing': {},
-          'place': null,
-          'capabilities': [],
-          'links': {},
-          'media_bindings': [
-            {
-              'purpose': 'RECOGNIZE',
-              'resource': {
-                'url': '/presentation/media/uses/abc/file/',
-                'mime_type': 'image/jpeg',
-                'alt_text': 'Véhicule du voyage',
-              },
-            },
-            {
-              'purpose': 'PREPARE',
-              'resource': {
-                'url': '/private/document.pdf',
-                'mime_type': 'application/pdf',
-              },
-            },
-          ],
-        },
-      ]),
-    );
-    final item = items.single;
-    expect(item.id, 'continuity:confirmed-travel');
-    expect(item.cue, 'Accès disponible');
-    expect(item.cueTone, 'ready');
-    expect(item.whenLabel, '12/11/2026 · 14:00');
-    expect(item.supporting, 'Départ prévu');
-    expect(item.placeLabel, 'Lubumbashi');
-    expect(item.mediaUrl, '/presentation/media/uses/abc/file/');
-    expect(item.mediaAlt, 'Véhicule du voyage');
-  });
+        ]),
+      );
+      final item = items.single;
+      expect(item.id, 'continuity:confirmed-travel');
+      expect(item.cue, 'Accès disponible');
+      expect(item.cueTone, 'ready');
+      expect(item.whenLabel, '12/11/2026 · 14:00');
+      expect(item.supporting, 'Départ prévu');
+      expect(item.placeLabel, 'Lubumbashi');
+      expect(item.mediaUrl, '/presentation/media/uses/abc/file/');
+      expect(item.mediaAlt, 'Véhicule du voyage');
+    },
+  );
 
   test('old offline snapshots remain usable without N1 extensions', () {
     final items = OngoingContinuityPresentation.fromProjection(
@@ -248,22 +251,25 @@ void main() {
     expect(items.single.mediaUrl, isNull);
   });
 
-  test('a published Activity reuses its server-authorized Discovery commands', () {
-    final action = OngoingPossibilityPresentation.fromMap({
-      'family': 'activity',
-      'id': '11111111-2222-4333-8444-555555555555',
-      'saved_state': 'saved',
-      'capabilities': ['unsave', 'share'],
-      'links': {
-        'saved': '/api/v1/discovery/items/activity/11111111-2222-4333-8444-555555555555/saved/',
-        'share': '/api/v1/sharing/possibilities/activity/11111111-2222-4333-8444-555555555555/',
-      },
-    });
-    expect(action, isNotNull);
-    expect(action!.savedState, 'saved');
-    expect(action.canSave, isTrue);
-    expect(action.canShare, isTrue);
-  });
+  test(
+    'a published Activity reuses its server-authorized Discovery commands',
+    () {
+      final action = OngoingPossibilityPresentation.fromMap({
+        'family': 'activity',
+        'id': '11111111-2222-4333-8444-555555555555',
+        'saved_state': 'saved',
+        'capabilities': ['unsave', 'share'],
+        'links': {
+          'saved': '/api/v1/discovery/items/activity/11111111-2222-4333-8444-555555555555/saved/',
+          'share': '/api/v1/sharing/possibilities/activity/11111111-2222-4333-8444-555555555555/',
+        },
+      });
+      expect(action, isNotNull);
+      expect(action!.savedState, 'saved');
+      expect(action.canSave, isTrue);
+      expect(action.canShare, isTrue);
+    },
+  );
 
   test('services and fundings use their existing Discovery family', () {
     for (final family in ['service_activity', 'funding_activity']) {
@@ -273,9 +279,7 @@ void main() {
         'id': id,
         'saved_state': 'not_saved',
         'capabilities': ['save', 'share'],
-        'links': {
-          'share': '/api/v1/sharing/possibilities/$family/$id/',
-        },
+        'links': {'share': '/api/v1/sharing/possibilities/$family/$id/'},
       });
       expect(action?.family, family);
       expect(action?.canSave, isTrue);
@@ -284,11 +288,14 @@ void main() {
   });
 
   test('private or fabricated share controls never grant capability', () {
-    expect(OngoingPossibilityPresentation.fromMap({
-      'family': 'journey',
-      'id': '11111111-2222-4333-8444-555555555555',
-      'capabilities': ['share'],
-    }), isNull);
+    expect(
+      OngoingPossibilityPresentation.fromMap({
+        'family': 'journey',
+        'id': '11111111-2222-4333-8444-555555555555',
+        'capabilities': ['share'],
+      }),
+      isNull,
+    );
     final action = OngoingPossibilityPresentation.fromMap({
       'family': 'activity',
       'id': '11111111-2222-4333-8444-555555555555',
@@ -297,10 +304,14 @@ void main() {
     });
     expect(action?.canSave, isTrue);
     expect(action?.canShare, isFalse);
-    expect(OngoingPossibilityPresentation.fromMap({
-      'family': 'activity', 'id': 'not-a-uuid',
-      'capabilities': ['save', 'share'],
-    }), isNull);
+    expect(
+      OngoingPossibilityPresentation.fromMap({
+        'family': 'activity',
+        'id': 'not-a-uuid',
+        'capabilities': ['save', 'share'],
+      }),
+      isNull,
+    );
   });
 
   test('true empty has no synthetic suggestion', () {
