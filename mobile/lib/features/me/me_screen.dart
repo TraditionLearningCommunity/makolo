@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
@@ -117,6 +119,7 @@ class _MeScreenState extends State<MeScreen> {
 
     return MeView(
       selection: selection,
+      mediaApi: widget.api,
       onOpenDestination: widget.onOpenDestination,
       loadingMore: _loading != null,
       loadFailed: _pageFailed,
@@ -199,6 +202,7 @@ class MeView extends StatefulWidget {
     super.key,
     required this.selection,
     this.onOpenDestination,
+    this.mediaApi,
     this.onReachEnd,
     this.onRetry,
     this.loadingMore = false,
@@ -207,6 +211,7 @@ class MeView extends StatefulWidget {
 
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;
+  final MakoloApiClient? mediaApi;
   final VoidCallback? onReachEnd;
   final VoidCallback? onRetry;
   final bool loadingMore;
@@ -268,6 +273,7 @@ class _MeViewState extends State<MeView> {
           content: _MeField(
             selection: widget.selection,
             controller: _controller,
+            mediaApi: widget.mediaApi,
             useTwoTerritories: useTwoTerritories,
             onSelectItem: _selectItem,
             loadingMore: widget.loadingMore,
@@ -369,6 +375,7 @@ class _MeField extends StatelessWidget {
   const _MeField({
     required this.selection,
     required this.controller,
+    required this.mediaApi,
     required this.useTwoTerritories,
     required this.onSelectItem,
     required this.loadingMore,
@@ -381,6 +388,7 @@ class _MeField extends StatelessWidget {
 
   final MeSelection selection;
   final ScrollController controller;
+  final MakoloApiClient? mediaApi;
   final bool useTwoTerritories;
   final ValueChanged<MeItemPresentation> onSelectItem;
   final bool loadingMore;
@@ -400,6 +408,7 @@ class _MeField extends StatelessWidget {
           territory: territory,
           onSelectItem: onSelectItem,
           hasOwnerNavigation: hasOwnerNavigation,
+          mediaApi: mediaApi,
           edge: edge,
         ),
     ];
@@ -637,12 +646,14 @@ class _MeTerritory extends StatelessWidget {
     required this.territory,
     required this.onSelectItem,
     required this.hasOwnerNavigation,
+    required this.mediaApi,
     required this.edge,
   });
 
   final MeTerritorySelection territory;
   final ValueChanged<MeItemPresentation> onSelectItem;
   final bool hasOwnerNavigation;
+  final MakoloApiClient? mediaApi;
   final double edge;
 
   @override
@@ -870,6 +881,7 @@ class _MeTerritory extends StatelessWidget {
                     'me-item-${item.destination.kind}-${item.destination.id}',
                   ),
                   item: item,
+                  mediaApi: mediaApi,
                   onTap: item.canOpen && hasOwnerNavigation
                       ? () => onSelectItem(item)
                       : null,
@@ -989,10 +1001,11 @@ class _MeChip extends StatelessWidget {
 }
 
 class _MeConsideration extends StatelessWidget {
-  const _MeConsideration({super.key, required this.item, required this.onTap});
+  const _MeConsideration({super.key, required this.item, required this.onTap, this.mediaApi});
 
   final MeItemPresentation item;
   final VoidCallback? onTap;
+  final MakoloApiClient? mediaApi;
 
   @override
   Widget build(BuildContext context) {
@@ -1040,6 +1053,15 @@ class _MeConsideration extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (isSaved && mediaApi != null && item.mediaPath != null) ...[
+                    const SizedBox(width: MakoloSpacing.sm),
+                    _MeRecognitionThumbnail(
+                      key: ValueKey(item.mediaPath),
+                      api: mediaApi!,
+                      path: item.mediaPath!,
+                      alt: item.mediaAlt ?? item.title,
+                    ),
+                  ],
                   if (onTap != null) ...[
                     const SizedBox(width: MakoloSpacing.sm),
                     Icon(
@@ -1054,6 +1076,66 @@ class _MeConsideration extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Reuses the published-media transport; no token in a widget or raw file URL.
+class _MeRecognitionThumbnail extends StatefulWidget {
+  const _MeRecognitionThumbnail({
+    super.key,
+    required this.api,
+    required this.path,
+    required this.alt,
+  });
+
+  final MakoloApiClient api;
+  final String path;
+  final String alt;
+
+  @override
+  State<_MeRecognitionThumbnail> createState() => _MeRecognitionThumbnailState();
+}
+
+class _MeRecognitionThumbnailState extends State<_MeRecognitionThumbnail> {
+  late Future<Uint8List> _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _bytes = widget.api.getPresentationImage(widget.path);
+  }
+
+  @override
+  void didUpdateWidget(covariant _MeRecognitionThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.path != oldWidget.path || widget.api != oldWidget.api) {
+      _bytes = widget.api.getPresentationImage(widget.path);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List>(
+      future: _bytes,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return const SizedBox.shrink();
+        if (!snapshot.hasData) {
+          return const SizedBox(width: 72, height: 56);
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.memory(
+            snapshot.data!,
+            width: 72,
+            height: 56,
+            fit: BoxFit.cover,
+            semanticLabel: widget.alt,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        );
+      },
     );
   }
 }
