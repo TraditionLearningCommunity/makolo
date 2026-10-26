@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_primitives.dart';
@@ -714,6 +715,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                           item: item,
                           detailMode: true,
                           onOpen: () {},
+                          onOwnerDepth: (path) => context.push(path),
                           onSave:
                               (item.savedState == 'saved'
                                   ? item.canUnsave
