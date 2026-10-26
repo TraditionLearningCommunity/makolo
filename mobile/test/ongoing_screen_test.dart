@@ -6,6 +6,7 @@ import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/ongoing/ongoing_screen.dart';
+import 'package:makolo_mobile/presentation/possibilities/discovery_save_icon.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 
 import 'support/presentation_harness.dart';
@@ -136,6 +137,8 @@ void main() {
       find.byKey(const Key('ongoing-n1-save')),
     );
     expect(save.tooltip, 'Enregistrer');
+    expect(find.byType(DiscoveryOrbitIcon), findsOneWidget);
+    expect(tester.widget<DiscoveryOrbitIcon>(find.byType(DiscoveryOrbitIcon)).saved, isFalse);
     expect(save.onPressed, isNull);
     final primary = tester.widget<IconButton>(
       find.byKey(const Key('ongoing-n1-primary')),
@@ -150,7 +153,7 @@ void main() {
   });
 
   testWidgets(
-    'compact media is full width above the title, never a side thumbnail',
+    'compact media follows the title at full width, never a side thumbnail',
     (tester) async {
       final projection = _projection(
         items: const [
@@ -190,7 +193,7 @@ void main() {
       expect(title, findsOneWidget);
       final mediaRect = tester.getRect(media);
       final titleRect = tester.getRect(title);
-      expect(mediaRect.bottom, lessThanOrEqualTo(titleRect.top));
+      expect(mediaRect.top, greaterThanOrEqualTo(titleRect.bottom));
       expect(mediaRect.width, greaterThan(titleRect.width));
       expect(
         find.byKey(const Key('ongoing-n1-discover-actions')),
