@@ -13,6 +13,7 @@ StatefulShellBranch ongoingBranch(AppRuntime runtime) => StatefulShellBranch(
         baseUri: runtime.api?.baseUri,
         api: runtime.api,
         discovery: runtime.discovery,
+        initialContinuityId: state.uri.queryParameters['continuity'],
       ),
     ),
   ],
