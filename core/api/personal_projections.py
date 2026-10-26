@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from django.core import signing
 from django.db import models
@@ -1060,6 +1062,147 @@ def _ongoing_identity(item):
     return hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
 
 
+def _ongoing_n1_when(timing):
+    """Humanized owner date, never an internal timestamp."""
+    raw = timing.get("start_at") or timing.get("start_date") or timing.get("deadline_date")
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        if "T" in raw or " " in raw:
+            instant = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            zone = timing.get("timezone")
+            if zone and instant.tzinfo is not None:
+                instant = instant.astimezone(ZoneInfo(zone))
+            return instant.strftime("%d/%m/%Y · %H:%M")
+        return date.fromisoformat(raw).strftime("%d/%m/%Y")
+    except (TypeError, ValueError, OverflowError, KeyError):
+        return None
+
+
+def _ongoing_n1(item):
+    """A small, additive display projection shared by Web and mobile."""
+    blocker = item.get("blocker")
+    interventions = item.get("actor_interventions") or []
+    continuation = item.get("continuation") or {}
+    if blocker:
+        cue, tone = "Une étape bloquée", "attention"
+    elif interventions:
+        cue, tone = "De votre côté", "action"
+    elif continuation.get("state") == "waiting":
+        cue, tone = "En attente", "calm"
+    elif item.get("state") == "available":
+        cue, tone = "Accès disponible", "ready"
+    else:
+        cue, tone = None, "calm"
+    title = item.get("title") or ""
+    summary = item.get("summary") or ""
+    next_item = item.get("next") or {}
+    supporting = next_item.get("title")
+    if supporting and supporting.strip().casefold() in {
+        title.strip().casefold(), summary.strip().casefold()
+    }:
+        supporting = None
+    place = item.get("place") or {}
+    return {
+        "cue": cue,
+        "tone": tone,
+        "supporting": supporting,
+        "when_label": _ongoing_n1_when(item.get("timing") or {}),
+        "place_label": place.get("name") or place.get("locality"),
+    }
+
+
+def _attach_ongoing_recognition_media(entries, items, *, viewer):
+    """Batch resolve published media against the same authorization as delivery."""
+    from accounts.models import UserProfile
+    from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence
+    from groups.selectors import eligible_activity_ids_for_profile
+    from organizations.models import SpaceLifecycle
+    from presentations.media_selectors import public_presentation_media_for_activities
+
+    references = []
+    activity_ids = set()
+    occurrence_ids = set()
+    for entry in entries:
+        if entry.kind not in {"journey", "access", "funding"}:
+            references.append((None, None))
+            continue
+        activity_id = getattr(entry.value, "activity_id", None)
+        occurrence_id = getattr(entry.value, "occurrence_id", None)
+        references.append((str(activity_id) if activity_id else None,
+                           str(occurrence_id) if occurrence_id else None))
+        if activity_id:
+            activity_ids.add(activity_id)
+        if occurrence_id:
+            occurrence_ids.add(occurrence_id)
+    if not activity_ids:
+        return
+
+    activities = list(
+        Activity.objects.filter(
+            pk__in=activity_ids,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        ).select_related("space")
+    )
+    group_eligible = set(
+        eligible_activity_ids_for_profile(viewer, [a.pk for a in activities])
+    )
+    public_profiles = set(
+        UserProfile.objects.filter(
+            user_id__in=[a.owner_profile_id for a in activities if a.owner_profile_id],
+            public_profile=True, searchable=True, user__is_active=True,
+        ).values_list("user_id", flat=True)
+    )
+    allowed = [
+        a for a in activities
+        if a.pk in group_eligible and (
+            (
+                a.space_id is not None
+                and a.space.public_profile and a.space.searchable
+                and a.space.lifecycle == SpaceLifecycle.ACTIVE
+                and a.space.verification_status != "suspended"
+            ) or (
+                a.space_id is None and a.owner_profile_id in public_profiles
+            )
+        )
+    ]
+    if not allowed:
+        return
+    occurrences = Occurrence.objects.filter(
+        pk__in=occurrence_ids, activity_id__in=[a.pk for a in allowed]
+    )
+    media_by_activity = public_presentation_media_for_activities(
+        allowed, occurrences=occurrences
+    )
+    for item, (activity_id, occurrence_id) in zip(items, references):
+        if not activity_id:
+            continue
+        admissible = [
+            media for media in media_by_activity.get(activity_id, [])
+            if media.occurrence_id is None or media.occurrence_id == occurrence_id
+        ]
+        admissible.sort(key=lambda media: (
+            media.occurrence_id != occurrence_id, media.position, media.use_id
+        ))
+        item["media_bindings"] = [
+            {
+                "resource": {
+                    "kind": "presentation_media_use",
+                    "id": media.use_id,
+                    "url": reverse("presentations:published-media-file",
+                                   kwargs={"use_id": media.use_id}),
+                    "mime_type": media.mime_type,
+                    "alt_text": media.alt_text,
+                },
+                "target": {"kind": "ongoing_continuity", "id": item["id"]},
+                "purpose": "RECOGNIZE",
+            }
+            for media in admissible[:3]
+            if media.mime_type in {"image/jpeg", "image/png"}
+        ]
+
+
 def _decorate_ongoing_semantics(item, *, observed_at):
     """Add Mature continuity semantics without becoming an owner domain."""
 
@@ -1133,6 +1276,7 @@ def _decorate_ongoing_semantics(item, *, observed_at):
             "temporal_facts": [],
             "actions": list(item.get("actor_interventions", [])),
             "media_bindings": [],
+            "n1": _ongoing_n1(item),
             "owner_depth": {
                 "source": source,
                 "links": {
@@ -1213,6 +1357,8 @@ def build_personal_ongoing_projection(
 
     for item in items:
         _decorate_ongoing_semantics(item, observed_at=observed_at)
+
+    _attach_ongoing_recognition_media(entries, items, viewer=profile)
 
     is_empty = not items
     profile_id = str(profile.pk)
