@@ -24,6 +24,7 @@ List<RouteBase> ongoingRoutes(AppRuntime runtime) => [
     path: '/ongoing/calendar',
     builder: (context, state) => OngoingCalendarScreen(
       repository: runtime.personal!,
+      api: runtime.api,
     ),
   ),
 ];
