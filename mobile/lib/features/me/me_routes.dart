@@ -49,8 +49,12 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
       routes: [
         GoRoute(
           path: 'passport',
-          builder: (context, state) =>
-              MePassportScreen(api: runtime.api),
+          builder: (context, state) => runtime.api == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Passeport Makolo',
+                  message: 'Passeport momentanément indisponible.',
+                )
+              : MePassportScreen(api: runtime.api!),
         ),
         GoRoute(
           path: 'resources',
