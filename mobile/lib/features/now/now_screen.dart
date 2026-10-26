@@ -418,7 +418,6 @@ class _NowViewState extends State<NowView> {
       onOpenOwner: widget.onOpenOwner,
       api: widget.api,
       profileId: widget.profileId,
-      continuation: widget.selection.continuation,
       loadingMore: widget.loadingMore,
       loadMoreFailed: widget.loadMoreFailed,
       onRetryMore: widget.onRetryMore,
@@ -521,13 +520,11 @@ class _NowField extends StatelessWidget {
     required this.onOpenOwner,
     required this.api,
     required this.profileId,
-    required this.continuation,
     required this.loadingMore,
     required this.loadMoreFailed,
     required this.onRetryMore,
   });
 
-  final NowContinuationPresentation continuation;
   final bool loadingMore;
   final bool loadMoreFailed;
   final VoidCallback? onRetryMore;
