@@ -2,6 +2,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from topics.models import ProfileInterest, Topic
 
 
 class PersonalMeN1WebTests(TestCase):
@@ -65,3 +66,53 @@ class PersonalMeN1WebTests(TestCase):
             self.client.get(reverse("personal-projections:me-preview",
                 kwargs={"territory": "unknown"})).status_code, 400
         )
+
+    def test_every_declared_interest_is_seen_once_across_continuations(self):
+        topics = [
+            Topic.objects.create(code=f"me-topic-{n:02d}", label=f"Sujet {n:02d}")
+            for n in range(13)
+        ]
+        for topic in topics:
+            ProfileInterest.objects.create(profile=self.profile, topic=topic)
+        self.client.force_login(self.profile)
+        root = self.client.get(reverse("personal-projections:me")).json()["data"]
+        first = root["considerations"]["interests"]
+        self.assertEqual(first["count"], 13)
+        self.assertEqual(first["next_offset"], 6)
+        self.assertTrue(first["has_more"])
+        preview = reverse("personal-projections:me-preview",
+            kwargs={"territory": "considerations"})
+        ids = [row["id"] for row in first["items"]]
+        offset = first["next_offset"]
+        for _ in range(10):
+            response = self.client.get(preview, {
+                "family": "interests", "offset": offset, "limit": 3,
+            })
+            self.assertEqual(response.status_code, 200)
+            data = response.json()["data"]
+            self.assertEqual(data["actor"]["id"], str(self.profile.pk))
+            self.assertEqual(data["family"], "interests")
+            page = data["collection"]
+            ids.extend(row["id"] for row in page["items"])
+            self.assertEqual(page["next_offset"], offset + len(page["items"]))
+            offset = page["next_offset"]
+            if not page["has_more"]:
+                break
+        else:
+            self.fail("Pagination did not reach the real end")
+        self.assertEqual(len(ids), 13)
+        self.assertEqual(len(set(ids)), 13)
+        self.assertEqual(offset, 13)
+
+    def test_other_persons_interests_never_appear_on_my_continuation(self):
+        other = get_user_model().objects.create_user(
+            username="me-n1-other", full_name="Autre profil",
+        )
+        topic = Topic.objects.create(code="me-private-other", label="Sujet privé")
+        ProfileInterest.objects.create(profile=other, topic=topic)
+        self.client.force_login(self.profile)
+        preview = reverse("personal-projections:me-preview",
+            kwargs={"territory": "considerations"})
+        response = self.client.get(preview, {"family": "interests", "offset": 0})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["collection"]["items"], [])
