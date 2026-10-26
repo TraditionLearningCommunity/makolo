@@ -12,6 +12,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
       path: '/me',
       builder: (context, state) => MeScreen(
         repository: runtime.personal!,
+        api: runtime.api,
         onOpenDestination: (destination) {
           if (destination.kind == 'access_collection') {
             context.push('/accesses');
