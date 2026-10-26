@@ -10,6 +10,7 @@ from .me_views import (
     PersonalCollectivesAPIView,
     PersonalConsiderationsAPIView,
     PersonalMeAPIView,
+    PersonalMeTerritoryPreviewAPIView,
     PersonalPartnersAPIView,
     PersonalPassportAPIView,
     PersonalResourcesAPIView,
@@ -29,6 +30,7 @@ app_name = "personal-projections"
 
 urlpatterns = [
     path("", PersonalMeAPIView.as_view(), name="me"),
+    path("preview/<str:territory>/", PersonalMeTerritoryPreviewAPIView.as_view(), name="me-preview"),
     path("now/", PersonalNowAPIView.as_view(), name="now"),
     path(
         "now/media/journey-artifacts/<uuid:artifact_id>/",
