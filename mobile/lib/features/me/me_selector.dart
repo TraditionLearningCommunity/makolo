@@ -516,6 +516,7 @@ class MeSelector {
     }
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'watch', id: id),
+      canOpen: true,
       title: title,
       subtitle: _string(raw['status_label']) ?? 'Veille',
     );
