@@ -120,27 +120,43 @@ class _MeScreenState extends State<MeScreen> {
       onOpenDestination: widget.onOpenDestination,
       loadingMore: _loading != null,
       loadFailed: _pageFailed,
-      onRetry: () { setState(() { _pageFailed = false; _retryRequested = true; }); _loadNext(selection); },
-      onReachEnd: widget.api == null || syncStatus?.state == SyncVisualState.offline
-          ? null : () => _loadNext(selection),
+      onRetry: () {
+        setState(() {
+          _pageFailed = false;
+          _retryRequested = true;
+        });
+        _loadNext(selection);
+      },
+      onReachEnd:
+          widget.api == null || syncStatus?.state == SyncVisualState.offline
+          ? null
+          : () => _loadNext(selection),
     );
   }
 
   Future<void> _loadNext(MeSelection selection) async {
-    if (_loading != null || (_pageFailed && !_retryRequested) ||
-        widget.api == null || _last == null) return;
+    if (_loading != null ||
+        (_pageFailed && !_retryRequested) ||
+        widget.api == null ||
+        _last == null)
+      return;
     _retryRequested = false;
     const families = ['considerations', 'collectives', 'resources'];
-    final pending = selection.territories.where((territory) =>
-        territory.hasMore && families.contains(territory.presentation.key));
+    final pending = selection.territories.where(
+      (territory) =>
+          territory.hasMore && families.contains(territory.presentation.key),
+    );
     if (pending.isEmpty) return;
     final territory = pending.first.presentation.key;
     final repository = widget.repository;
     setState(() => _loading = territory);
     try {
-      final current = await repository.store.readProjection('personal.me') ?? _last!;
+      final current =
+          await repository.store.readProjection('personal.me') ?? _last!;
       await repository.loadMoreMe(
-        api: widget.api!, current: current, territory: territory,
+        api: widget.api!,
+        current: current,
+        territory: territory,
       );
       // The next load must never be based on the old snapshot while the
       // projection watcher is still delivering its update.
@@ -178,8 +194,15 @@ class _MeScreenState extends State<MeScreen> {
 }
 
 class MeView extends StatefulWidget {
-  const MeView({super.key, required this.selection, this.onOpenDestination,
-    this.onReachEnd, this.onRetry, this.loadingMore = false, this.loadFailed = false});
+  const MeView({
+    super.key,
+    required this.selection,
+    this.onOpenDestination,
+    this.onReachEnd,
+    this.onRetry,
+    this.loadingMore = false,
+    this.loadFailed = false,
+  });
 
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;
@@ -202,7 +225,9 @@ class _MeViewState extends State<MeView> {
   }
 
   void _checkEnd() {
-    if (_controller.hasClients && !widget.loadingMore && !widget.loadFailed &&
+    if (_controller.hasClients &&
+        !widget.loadingMore &&
+        !widget.loadFailed &&
         _controller.position.extentAfter < 520) {
       widget.onReachEnd?.call();
     }
@@ -226,33 +251,36 @@ class _MeViewState extends State<MeView> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final useTwoTerritories =
-          constraints.maxWidth >= MakoloLayout.meTwoColumnMinWidth &&
-          MediaQuery.textScalerOf(context).scale(16) <= 21 &&
-          widget.selection.contentfulTerritoryCount >= 2;
-      if (widget.onReachEnd != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _checkEnd();
-        });
-      }
-      return MakoloSurfaceStateView(
-        state: widget.selection.state,
-        content: _MeField(
-          selection: widget.selection,
-          controller: _controller,
-          useTwoTerritories: useTwoTerritories,
-          onSelectItem: _selectItem,
-          loadingMore: widget.loadingMore,
-          loadFailed: widget.loadFailed,
-          onRetry: widget.onRetry,
-          hasMore: widget.selection.territories.any((t) => t.hasMore),
-          hasOwnerNavigation: widget.onOpenDestination != null,
-          canConfirmExhaustion: widget.onReachEnd != null ||
-              widget.selection.territories.every((t) => !t.hasMore),
-        ),
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useTwoTerritories =
+            constraints.maxWidth >= MakoloLayout.meTwoColumnMinWidth &&
+            MediaQuery.textScalerOf(context).scale(16) <= 21 &&
+            widget.selection.contentfulTerritoryCount >= 2;
+        if (widget.onReachEnd != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _checkEnd();
+          });
+        }
+        return MakoloSurfaceStateView(
+          state: widget.selection.state,
+          content: _MeField(
+            selection: widget.selection,
+            controller: _controller,
+            useTwoTerritories: useTwoTerritories,
+            onSelectItem: _selectItem,
+            loadingMore: widget.loadingMore,
+            loadFailed: widget.loadFailed,
+            onRetry: widget.onRetry,
+            hasMore: widget.selection.territories.any((t) => t.hasMore),
+            hasOwnerNavigation: widget.onOpenDestination != null,
+            canConfirmExhaustion:
+                widget.onReachEnd != null ||
+                widget.selection.territories.every((t) => !t.hasMore),
+          ),
+        );
+      },
+    );
   }
 
   void _selectItem(MeItemPresentation item) {
@@ -363,9 +391,7 @@ class _MeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final edge = useTwoTerritories
-        ? 0.0
-        : MakoloLayout.edgeCompact;
+    final edge = useTwoTerritories ? 0.0 : MakoloLayout.edgeCompact;
     final territories = [
       for (final territory in selection.territories)
         _MeTerritory(
@@ -394,7 +420,8 @@ class _MeField extends StatelessWidget {
                 ? () => onSelectItem(
                     const MeItemPresentation(
                       destination: StructuredDestination(
-                        kind: 'profile_self', id: 'me',
+                        kind: 'profile_self',
+                        id: 'me',
                       ),
                       title: 'Mon profil',
                       canOpen: true,
@@ -455,9 +482,11 @@ class _MeField extends StatelessWidget {
                 onPressed: () => onSelectItem(
                   const MeItemPresentation(
                     destination: StructuredDestination(
-                      kind: 'history', id: 'me',
+                      kind: 'history',
+                      id: 'me',
                     ),
-                    title: 'Historique', canOpen: true,
+                    title: 'Historique',
+                    canOpen: true,
                   ),
                 ),
                 icon: const Icon(Icons.history_rounded),
@@ -556,7 +585,9 @@ class _MeAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final initials = name.trim().split(RegExp(r'\s+'))
+    final initials = name
+        .trim()
+        .split(RegExp(r'\s+'))
         .where((part) => part.isNotEmpty)
         .take(2)
         .map((part) => part.substring(0, 1).toUpperCase())
@@ -623,7 +654,10 @@ class _MeTerritory extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(
-            edge, MakoloSpacing.sm, edge, MakoloSpacing.compact,
+            edge,
+            MakoloSpacing.sm,
+            edge,
+            MakoloSpacing.compact,
           ),
           child: Row(
             children: [
@@ -636,9 +670,8 @@ class _MeTerritory extends StatelessWidget {
               Expanded(
                 child: Text(
                   presentation.label,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               if (territory.totalCount > 0) ...[
@@ -735,7 +768,9 @@ class _MeTerritory extends StatelessWidget {
               child: Row(
                 children: [
                   const Icon(
-                    Icons.badge_outlined, color: Colors.white, size: 32,
+                    Icons.badge_outlined,
+                    color: Colors.white,
+                    size: 32,
                   ),
                   const SizedBox(width: MakoloSpacing.compact),
                   Expanded(
@@ -914,9 +949,8 @@ class _MeTerritory extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
       child: Text(
         message,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     );
   }
@@ -944,10 +978,8 @@ class _MeChip extends StatelessWidget {
           ),
           child: Text(
             item.title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: scheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -983,9 +1015,7 @@ class _MeConsideration extends StatelessWidget {
                     const SizedBox(
                       width: 24,
                       height: 24,
-                      child: Center(
-                        child: _MeSavedOrbit(),
-                      ),
+                      child: Center(child: _MeSavedOrbit()),
                     ),
                     const SizedBox(width: MakoloSpacing.compact),
                   ],
@@ -995,17 +1025,15 @@ class _MeConsideration extends StatelessWidget {
                       children: [
                         Text(
                           item.title,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         if (item.subtitle != null) ...[
                           const SizedBox(height: MakoloSpacing.xs),
                           Text(
                             item.subtitle!,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
                           ),
                         ],
                       ],
@@ -1064,10 +1092,8 @@ class _MeIdentityRow extends StatelessWidget {
         backgroundColor: scheme.primary.withValues(alpha: 0.08),
         child: Text(
           initial,
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: scheme.primary,
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(context).textTheme.labelLarge
+              ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w800),
         ),
       ),
       title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
