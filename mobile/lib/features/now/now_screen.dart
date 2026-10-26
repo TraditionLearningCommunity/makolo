@@ -424,7 +424,19 @@ class _NowViewState extends State<NowView> {
     );
 
     final content = selected == null
-        ? field
+        ? LayoutBuilder(
+            builder: (context, constraints) {
+              // Discover-style full width on phones; calm reading width on
+              // tablets and desktop, without a double mobile outer gutter.
+              if (constraints.maxWidth < MakoloLayout.mediumMinWidth) {
+                return field;
+              }
+              return MakoloContentFrame(
+                maxContentWidth: MakoloLayout.calmMaxWidth,
+                child: field,
+              );
+            },
+          )
         : MakoloAdaptiveSplit(
             splitAt: MakoloLayout.nowFocusSplitMinWidth,
             field: MakoloContentFrame(child: field),
