@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
@@ -189,6 +191,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
               onSelect: _select,
               onBack: _clearSelection,
               baseUri: widget.baseUri,
+              api: widget.api,
               onMore: widget.api != null && moreToken is String && moreToken.isNotEmpty
                   ? () { _loadMore(); }
                   : null,
@@ -211,6 +214,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
     required this.onSelect,
     required this.onBack,
     this.baseUri,
+    this.api,
     this.onMore,
     this.moreBusy = false,
     this.moreError,
@@ -222,6 +226,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
   final ValueChanged<OngoingContinuityPresentation> onSelect;
   final VoidCallback onBack;
   final Uri? baseUri;
+  final MakoloApiClient? api;
   final VoidCallback? onMore;
   final bool moreBusy;
   final String? moreError;
@@ -238,6 +243,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
         stale: stale,
         onSelect: onSelect,
         baseUri: baseUri,
+        api: api,
         onMore: onMore,
         moreBusy: moreBusy,
         moreError: moreError,
@@ -253,6 +259,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
               stale: stale,
               onSelect: onSelect,
               baseUri: baseUri,
+        api: api,
               onMore: onMore,
               moreBusy: moreBusy,
               moreError: moreError,
@@ -270,6 +277,7 @@ class _OngoingField extends StatefulWidget {
     required this.stale,
     required this.onSelect,
     this.baseUri,
+    this.api,
     this.onMore,
     this.moreBusy = false,
     this.moreError,
@@ -281,6 +289,7 @@ class _OngoingField extends StatefulWidget {
   final bool stale;
   final ValueChanged<OngoingContinuityPresentation> onSelect;
   final Uri? baseUri;
+  final MakoloApiClient? api;
   final VoidCallback? onMore;
   final bool moreBusy;
   final String? moreError;
@@ -370,6 +379,7 @@ class _OngoingFieldState extends State<_OngoingField> {
             stale: widget.stale,
             onTap: () => widget.onSelect(item),
             baseUri: widget.baseUri,
+            api: widget.api,
           ),
           if (hasDetail) ...[
             Align(
@@ -491,6 +501,64 @@ String? ongoingRecognitionImageUrl(String? source, Uri? baseUri) {
   return resolved.toString();
 }
 
+class _OngoingProtectedImage extends StatefulWidget {
+  const _OngoingProtectedImage({
+    super.key,
+    required this.api,
+    required this.imageUrl,
+    required this.label,
+  });
+  final MakoloApiClient api;
+  final String imageUrl;
+  final String label;
+  @override
+  State<_OngoingProtectedImage> createState() => _OngoingProtectedImageState();
+}
+
+class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
+  late Future<Uint8List> _bytes;
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+  @override
+  void didUpdateWidget(covariant _OngoingProtectedImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl || oldWidget.api != widget.api) {
+      _load();
+    }
+  }
+  void _load() {
+    _bytes = widget.api.getPresentationImage(Uri.parse(widget.imageUrl).path);
+  }
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Uint8List>(
+    future: _bytes,
+    builder: (context, snapshot) {
+      if (snapshot.hasData) {
+        return Image.memory(
+          snapshot.data!,
+          fit: BoxFit.cover,
+          semanticLabel: widget.label,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) =>
+              const Center(child: Icon(Icons.image_not_supported_outlined)),
+        );
+      }
+      if (snapshot.hasError) {
+        return const Center(child: Icon(Icons.image_not_supported_outlined));
+      }
+      return const Center(
+        child: SizedBox(
+          width: 20, height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    },
+  );
+}
+
 class _OngoingRow extends StatelessWidget {
   const _OngoingRow({
     required this.item,
@@ -498,12 +566,14 @@ class _OngoingRow extends StatelessWidget {
     required this.stale,
     required this.onTap,
     this.baseUri,
+    this.api,
   });
   final OngoingContinuityPresentation item;
   final bool selected;
   final bool stale;
   final VoidCallback onTap;
   final Uri? baseUri;
+  final MakoloApiClient? api;
 
   String? _supportingLine() {
     final candidate = item.supporting ??
@@ -561,19 +631,21 @@ class _OngoingRow extends StatelessWidget {
                   child: SizedBox(
                     width: 92,
                     height: 108,
-                    child: Image.network(
-                      imageUrl,
-                      key: const Key('ongoing-n1-recognition-media'),
-                      fit: BoxFit.cover,
-                      semanticLabel: item.mediaAlt ?? item.title,
-                      errorBuilder: (context, error, stackTrace) =>
-                          ColoredBox(
-                            color: colors.low,
-                            child: const Center(
-                              child: Icon(Icons.image_not_supported_outlined),
-                            ),
+                    child: api == null
+                        ? Image.network(
+                            imageUrl,
+                            key: const Key('ongoing-n1-recognition-media'),
+                            fit: BoxFit.cover,
+                            semanticLabel: item.mediaAlt ?? item.title,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Center(child: Icon(Icons.image_not_supported_outlined)),
+                          )
+                        : _OngoingProtectedImage(
+                            key: const Key('ongoing-n1-recognition-media'),
+                            api: api!,
+                            imageUrl: imageUrl,
+                            label: item.mediaAlt ?? item.title,
                           ),
-                    ),
                   ),
                 ),
                 const SizedBox(width: MakoloSpacing.compact),
