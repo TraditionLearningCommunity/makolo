@@ -4,11 +4,6 @@
 {% else %}
 <div data-ongoing-id="{{ item.id }}" data-ongoing-variant="{% if expanded %}expanded{% else %}compact{% endif %}" class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}">
 {% endif %}
-  {% if item.image_url %}
-    <div class="mk-ongoing-card__media">
-      <img src="{{ item.image_url }}" alt="{{ item.image_alt }}" loading="lazy" decoding="async">
-    </div>
-  {% endif %}
   <div class="mk-ongoing-card__body">
     <div class="mk-ongoing-card__meta">
       {% if item.cue %}<span class="mk-ongoing-card__cue mk-ongoing-card__cue--{{ item.tone }}">{{ item.cue }}</span>{% endif %}
@@ -21,5 +16,10 @@
     {% endif %}
     {% if item.place %}<span class="mk-ongoing-card__place"><i data-lucide="map-pin" aria-hidden="true"></i>{{ item.place }}</span>{% endif %}
   </div>
+  {% if item.image_url %}
+    <div class="mk-ongoing-card__media">
+      <img src="{{ item.image_url }}" alt="{{ item.image_alt }}" loading="lazy" decoding="async">
+    </div>
+  {% endif %}
   {% if item.url %}<i class="mk-ongoing-card__chevron" data-lucide="chevron-right" aria-hidden="true"></i>{% endif %}
 {% if item.url %}</a>{% else %}</div>{% endif %}
