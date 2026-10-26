@@ -1247,6 +1247,10 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
     media_by_activity = public_presentation_media_for_activities(
         allowed, occurrences=occurrences
     )
+    # Share Discovery's published PUBLIC resources; private owner documents
+    # must use their own authorized endpoints and are never inferred here.
+    from discovery.api.composition import _activity_resource_previews
+    resources_by_activity = _activity_resource_previews([a.pk for a in allowed])
     # Reuse Discovery's public admission, not just a published Activity flag.
     # An Ongoing entry never transfers authority to share or save its owner.
     discoverable = {
@@ -1313,6 +1317,7 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
                     ),
                 },
             }
+        item["resources"] = list(resources_by_activity.get(activity_id, []))
         item["media_bindings"] = [
             {
                 "resource": {
@@ -1430,6 +1435,7 @@ def _decorate_ongoing_semantics(item, *, observed_at):
             "temporal_facts": _ongoing_temporal_facts(item),
             "actions": list(item.get("actor_interventions", [])),
             "media_bindings": [],
+            "resources": [],
             "n1": _ongoing_n1(item),
             "owner_depth": {
                 "source": source,
