@@ -23,6 +23,7 @@ import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
 import '../discovery/discovery_share_sheet.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
+import '../../presentation/possibilities/discovery_reader.dart';
 import 'ongoing_presentation.dart';
 
 class OngoingScreen extends StatefulWidget {
@@ -1262,6 +1263,29 @@ class _OngoingFocus extends StatelessWidget {
     );
   }
 
+  void _openPublicResource(BuildContext context, Map<String, dynamic> resource) {
+    final kind = resource['kind'];
+    final source = kind == 'file'
+        ? resource['download_url']
+        : kind == 'text'
+            ? resource['read_url']
+            : null;
+    if (source is! String || source.trim().isEmpty) return;
+    final uri = ongoingRecognitionImageUrl(source, baseUri);
+    if (uri == null) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => DiscoveryReader(items: [
+        DiscoveryReaderItem(
+          title: resource['title']?.toString() ?? 'Document',
+          uri: Uri.parse(uri),
+          mimeType: kind == 'text'
+              ? 'text/plain'
+              : resource['mime_type']?.toString() ?? 'application/octet-stream',
+        ),
+      ]),
+    ));
+  }
+
   Widget _resources(BuildContext context) {
     final usable = <Map<String, dynamic>>[];
     for (final resource in item.resources) {
@@ -1288,8 +1312,12 @@ class _OngoingFocus extends StatelessWidget {
               subtitle: resource['description'] is String
                   ? Text(resource['description'] as String)
                   : null,
-              // A personal resource is not a public URL. Its owner must
-              // supply an authorized native operation before it opens.
+              trailing: (resource['kind'] == 'file' || resource['kind'] == 'text')
+                  ? const Icon(Icons.chevron_right_rounded)
+                  : null,
+              onTap: resource['kind'] == 'file' || resource['kind'] == 'text'
+                  ? () => _openPublicResource(context, resource)
+                  : null,
             ),
         ],
       ),
