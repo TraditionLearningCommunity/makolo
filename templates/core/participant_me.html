@@ -4,7 +4,7 @@
 {% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/me-n1.css' %}">
-<main class="mk-me-n1" data-mk-surface="me" data-me-profile="{{ me_projection.actor.id }}">
+<main class="mk-me-n1" data-mk-surface="me" data-me-profile="{{ me_projection.actor.id }}" style="--me-saved-orbit: url('{% static 'icons/discovery-orbit-saved.svg' %}')">
   <header class="mk-me-n1-identity">
     <div class="mk-me-n1-avatar" aria-hidden="true">
       {% if me_projection.identity.avatar_url %}
@@ -79,7 +79,7 @@
             <h3>Enregistrés <span>{{ me_projection.considerations.bookmarks.count }}</span></h3>
             <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="bookmarks" data-me-owner-href="{% url 'discovery:bookmarks' %}" data-me-loaded="{{ me_projection.considerations.bookmarks.items|length }}" data-me-more="{{ me_projection.considerations.bookmarks.has_more|yesno:'true,false' }}">
               {% for row in me_projection.considerations.bookmarks.items %}
-                <a  data-me-id="{{ row.id }}" href="{% url 'discovery:bookmarks' %}"><span>{{ row.activity.title }}</span><span aria-hidden="true">›</span></a>
+                <a data-me-id="{{ row.id }}" href="{% url 'discovery:bookmarks' %}"><span class="mk-me-saved-orbit" role="img" aria-label="Enregistré"></span><span class="mk-me-n1-saved-title">{{ row.activity.title }}</span><span class="mk-me-n1-saved-chevron" aria-hidden="true">›</span></a>
               {% endfor %}
             </div>
           </div>
