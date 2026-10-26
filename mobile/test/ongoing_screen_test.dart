@@ -123,20 +123,66 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Enregistrer'), findsOneWidget);
-    expect(find.text('Continuer'), findsOneWidget);
-    expect(find.text('Partager'), findsOneWidget);
-    expect(find.text('Vous avez tout exploré'), findsOneWidget);
-    final disabledSave = tester.widget<TextButton>(
-      find.ancestor(
-        of: find.text('Enregistrer'), matching: find.byType(TextButton),
-      ).first,
+    expect(find.byKey(const Key('ongoing-n1-discover-actions')), findsOneWidget);
+    final save = tester.widget<IconButton>(
+      find.byKey(const Key('ongoing-n1-save')),
     );
-    expect(disabledSave.onPressed, isNull);
+    expect(save.tooltip, 'Enregistrer');
+    expect(save.onPressed, isNull);
+    final primary = tester.widget<IconButton>(
+      find.byKey(const Key('ongoing-n1-primary')),
+    );
+    expect(primary.tooltip, 'Continuer');
+    expect(find.text('Continuer'), findsNothing);
+    expect(find.text('Vous avez tout exploré'), findsNothing);
     await tester.tap(find.text('Voir plus'));
     await tester.pump();
     expect(find.text('Voir moins'), findsOneWidget);
     expect(find.text('Frais réglés'), findsOneWidget);
+  });
+
+  testWidgets('compact media is full width above the title, never a side thumbnail', (
+    tester,
+  ) async {
+    final projection = _projection(items: const [
+      {
+        'id': 'media-continuity',
+        'kind': 'journey',
+        'source': {'kind': 'journey', 'id': 'media'},
+        'state': 'waiting',
+        'title': 'Mon voyage',
+        'summary': 'Départ confirmé.',
+        'media_bindings': [
+          {
+            'purpose': 'RECOGNIZE',
+            'resource': {
+              'url': '/presentation/media/uses/abc/file/',
+              'alt_text': 'Véhicule',
+            },
+          },
+        ],
+        'capabilities': [],
+        'links': {},
+      },
+    ]);
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(projection),
+        baseUri: Uri.parse('https://api.example.test/'),
+      ),
+    );
+    await tester.pump();
+    final media = find.byKey(const Key('ongoing-n1-full-width-media'));
+    final title = find.text('Mon voyage');
+    expect(media, findsOneWidget);
+    expect(title, findsOneWidget);
+    final mediaRect = tester.getRect(media);
+    final titleRect = tester.getRect(title);
+    expect(mediaRect.bottom, lessThanOrEqualTo(titleRect.top));
+    expect(mediaRect.width, greaterThan(titleRect.width));
+    expect(find.byKey(const Key('ongoing-n1-discover-actions')), findsOneWidget);
   });
 
   testWidgets(
