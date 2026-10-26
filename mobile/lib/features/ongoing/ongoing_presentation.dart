@@ -22,6 +22,7 @@ class OngoingContinuityPresentation {
     required this.capabilities,
     required this.links,
     required this.handoffs,
+    required this.temporalFacts,
     required this.rawState,
     this.cue,
     this.cueTone = 'calm',
@@ -54,6 +55,7 @@ class OngoingContinuityPresentation {
   final List<String> capabilities;
   final Map<String, String> links;
   final List<OngoingHandoffPresentation> handoffs;
+  final List<Map<String, dynamic>> temporalFacts;
   final String rawState;
   final String? cue;
   final String cueTone;
@@ -211,6 +213,7 @@ class OngoingContinuityPresentation {
         for (final handoff in c0Handoffs)
           ?OngoingHandoffPresentation.fromMap(handoff),
       ]),
+      temporalFacts: List.unmodifiable(_maps(item['temporal_facts'])),
       rawState: rawState,
       cue:
           _text(n1['cue']) ??
