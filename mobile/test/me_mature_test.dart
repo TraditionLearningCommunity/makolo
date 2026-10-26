@@ -238,6 +238,53 @@ void main() {
     );
   });
 
+  test('saved media requires an owner-backed recognition use', () {
+    final payload = _fullPayload();
+    final considerations = payload['considerations'] as Map<String, dynamic>;
+    final bookmark = <String, dynamic>{
+      'id': 'bookmark-1',
+      'activity': {'id': 'activity-1', 'title': 'Formation'},
+      'media_bindings': [
+        {
+          'purpose': 'RECOGNIZE',
+          'target': {'kind': 'activity', 'id': 'activity-1'},
+          'resource': {
+            'kind': 'presentation_media_use',
+            'id': 'use-1',
+            'url': '/presentations/media/uses/use-1/file/',
+            'mime_type': 'image/jpeg',
+            'alt_text': 'Salle de formation',
+          },
+        },
+      ],
+    };
+    considerations['bookmarks'] = {
+      'count': 1, 'items': [bookmark], 'has_more': false,
+    };
+    MeItemPresentation savedItem() {
+      final selected = selector.select(
+        projection: _projection(payload), now: now,
+      );
+      return selected.territories.singleWhere(
+        (section) => section.presentation.key == 'considerations',
+      ).items.singleWhere((item) => item.destination.kind == 'activity');
+    }
+
+    expect(savedItem().mediaPath, '/presentations/media/uses/use-1/file/');
+    expect(savedItem().mediaAlt, 'Salle de formation');
+
+    (bookmark['media_bindings'] as List)[0]['target']['id'] = 'other-activity';
+    expect(savedItem().mediaPath, isNull);
+    (bookmark['media_bindings'] as List)[0]['target']['id'] = 'activity-1';
+    (bookmark['media_bindings'] as List)[0]['resource']['url'] =
+        'https://external.example/media.jpg';
+    expect(savedItem().mediaPath, isNull);
+    (bookmark['media_bindings'] as List)[0]['resource']['url'] =
+        '/presentations/media/uses/use-1/file/';
+    (bookmark['media_bindings'] as List)[0]['purpose'] = 'UNDERSTAND';
+    expect(savedItem().mediaPath, isNull);
+  });
+
   test('N1 uses owner counts, not locally inferred item totals', () {
     final selection = selector.select(
       projection: _projection(_fullPayload()),
