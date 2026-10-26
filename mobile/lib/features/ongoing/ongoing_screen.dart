@@ -255,8 +255,22 @@ class _OngoingAdaptiveView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MakoloContentFrame(
-    maxContentWidth: 1040,
-    child: MakoloAdaptiveSplit(
+    maxContentWidth: selected == null ? MakoloLayout.calmMaxWidth : 1040,
+    child: selected == null
+        ? _OngoingField(
+            items: items,
+            selected: selected,
+            stale: stale,
+            onSelect: onSelect,
+            baseUri: baseUri,
+            api: api,
+            onSave: onSave,
+            onMore: onMore,
+            moreBusy: moreBusy,
+            moreError: moreError,
+            endReached: endReached,
+          )
+        : MakoloAdaptiveSplit(
       splitAt: MakoloLayout.ongoingSplitMinWidth,
       field: _OngoingField(
         items: items,
