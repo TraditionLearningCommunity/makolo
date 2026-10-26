@@ -1158,6 +1158,9 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
     from organizations.models import SpaceLifecycle
     from presentations.media_selectors import public_presentation_media_for_activities
     from tickets.models import Ticket, TicketType
+    from discovery.models import ActivityBookmark
+    from discovery.search import public_occurrences_for_activities
+    from groups.selectors import filter_queryset_by_activity_group_eligibility
 
     # Ticket offers and transfers are personal pursuits of Event Activities.
     # Resolve their owner links in batches rather than per displayed row.
@@ -1244,6 +1247,21 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
     media_by_activity = public_presentation_media_for_activities(
         allowed, occurrences=occurrences
     )
+    # Reuse Discovery's public admission, not just a published Activity flag.
+    # An Ongoing entry never transfers authority to share or save its owner.
+    discoverable = {
+        str(occurrence.activity_id)
+        for occurrence in filter_queryset_by_activity_group_eligibility(
+            public_occurrences_for_activities([a.pk for a in allowed]),
+            viewer,
+        )
+    }
+    saved_ids = {
+        str(activity_id)
+        for activity_id in ActivityBookmark.objects.filter(
+            user=viewer, activity_id__in=discoverable
+        ).values_list("activity_id", flat=True)
+    }
     for item, (activity_id, occurrence_id) in zip(items, references):
         if not activity_id:
             continue
@@ -1254,6 +1272,26 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
         admissible.sort(key=lambda media: (
             media.occurrence_id != occurrence_id, media.position, media.use_id
         ))
+        if activity_id in discoverable:
+            # The mutation and Sharing endpoints independently reauthorize
+            # against Discovery at execution time. URLs are not credentials.
+            saved = activity_id in saved_ids
+            item["n1"]["possibility"] = {
+                "family": "activity",
+                "id": activity_id,
+                "saved_state": "saved" if saved else "not_saved",
+                "capabilities": ["unsave" if saved else "save", "share"],
+                "links": {
+                    "saved": reverse(
+                        "discovery_api:item-saved",
+                        kwargs={"family": "activity", "item_id": activity_id},
+                    ),
+                    "share": reverse(
+                        "sharing_api:possibility",
+                        kwargs={"family": "activity", "item_id": activity_id},
+                    ),
+                },
+            }
         item["media_bindings"] = [
             {
                 "resource": {
