@@ -265,6 +265,24 @@ void main() {
     expect(action.canShare, isTrue);
   });
 
+  test('services and fundings use their existing Discovery family', () {
+    for (final family in ['service_activity', 'funding_activity']) {
+      const id = '11111111-2222-4333-8444-555555555555';
+      final action = OngoingPossibilityPresentation.fromMap({
+        'family': family,
+        'id': id,
+        'saved_state': 'not_saved',
+        'capabilities': ['save', 'share'],
+        'links': {
+          'share': '/api/v1/sharing/possibilities/$family/$id/',
+        },
+      });
+      expect(action?.family, family);
+      expect(action?.canSave, isTrue);
+      expect(action?.canShare, isTrue);
+    }
+  });
+
   test('private or fabricated share controls never grant capability', () {
     expect(OngoingPossibilityPresentation.fromMap({
       'family': 'journey',
