@@ -128,6 +128,69 @@ class PersonalRepository {
     );
   }
 
+  /// Reflect a confirmed Discovery save in the already-cached Ongoing N1
+  /// projection. Discovery owns the mutation; this only updates its local
+  /// presentation, without creating another persistent bookmark.
+  Future<void> reflectOngoingDiscoverySave({
+    required String activityId,
+    required bool saved,
+  }) async {
+    final current = await store.readProjection('personal.ongoing');
+    if (current == null) return;
+    final rows = current.payload['items'];
+    if (rows is! List) return;
+
+    var changed = false;
+    final updatedRows = <Object>[];
+    for (final raw in rows) {
+      if (raw is! Map) {
+        updatedRows.add(raw);
+        continue;
+      }
+      final row = Map<String, dynamic>.from(raw);
+      final n1Raw = row['n1'];
+      final n1 = n1Raw is Map ? Map<String, dynamic>.from(n1Raw) : null;
+      final possibilityRaw = n1?['possibility'];
+      final possibility = possibilityRaw is Map
+          ? Map<String, dynamic>.from(possibilityRaw)
+          : null;
+      if (possibility != null &&
+          possibility['id'] == activityId &&
+          const {'activity', 'service_activity', 'funding_activity'}
+              .contains(possibility['family']) &&
+          possibility['saved_state'] != (saved ? 'saved' : 'not_saved')) {
+        n1!['possibility'] = {
+          ...possibility,
+          'saved_state': saved ? 'saved' : 'not_saved',
+        };
+        row['n1'] = n1;
+        changed = true;
+      }
+      updatedRows.add(row);
+    }
+    if (!changed) return;
+
+    // An intervening root refresh wins over this UI-only reflection.
+    final latest = await store.readProjection('personal.ongoing');
+    if (latest == null ||
+        latest.receivedAt != current.receivedAt ||
+        latest.sourceGeneratedAt != current.sourceGeneratedAt) {
+      return;
+    }
+    await store.putProjection(
+      kind: 'personal.ongoing',
+      schemaVersion: latest.schemaVersion,
+      payload: {...latest.payload, 'items': updatedRows},
+      receivedAt: latest.receivedAt,
+      sourceGeneratedAt: latest.sourceGeneratedAt,
+      sourceUpdatedAt: latest.sourceUpdatedAt,
+      lastVerifiedOnlineAt: latest.lastVerifiedOnlineAt,
+      freshUntil: latest.freshUntil,
+      expiresAt: latest.expiresAt,
+      freshnessPolicyId: latest.freshnessPolicyId,
+    );
+  }
+
   /// Continue the server-owned personal field without losing the cached prefix.
   /// Only one profile-scoped snapshot is persisted; this is not a second truth.
   Future<void> loadMoreOngoing({
