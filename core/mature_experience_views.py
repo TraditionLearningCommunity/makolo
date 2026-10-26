@@ -232,6 +232,23 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
             "image_url": media.get("url"),
             "image_alt": media.get("alt_text") or "",
             "url": links.get("web"),
+            "details": tuple(
+                (label, tuple(value for value in entries if isinstance(value, str) and value.strip()))
+                for label, values in (
+                    ("Déjà réglé", item.get("settled") or []),
+                    ("De votre côté", item.get("my_side") or []),
+                    ("En attente", item.get("elsewhere") or []),
+                    ("Préparé par Makolo", item.get("makolo") or []),
+                    ("À suivre", item.get("next_items") or []),
+                )
+                if (entries := [
+                    entry if isinstance(entry, str)
+                    else entry.get("label") or entry.get("title") or entry.get("summary")
+                    if isinstance(entry, dict) else None
+                    for entry in values
+                ])
+                and any(isinstance(value, str) and value.strip() for value in entries)
+            ),
         }
 
     def get_context_data(self, **kwargs):
