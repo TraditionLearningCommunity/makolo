@@ -23,6 +23,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   final _bio = TextEditingController();
 
   bool _loading = true;
+  bool _loaded = false;
   bool _saving = false;
   String? _error;
   String? _confirmation;
@@ -48,6 +49,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         _city.text = fields['city']?.toString() ?? '';
         _country.text = fields['country']?.toString() ?? '';
         _loading = false;
+        _loaded = true;
         _error = null;
       });
     } on Object {
@@ -132,7 +134,13 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       appBar: AppBar(title: const Text('Mon profil')),
       body: _loading
           ? const Center(child: CircularProgressIndicator.adaptive())
-          : ListView(
+          : !_loaded
+              ? Center(child: TextButton.icon(
+                  onPressed: _read,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Réessayer'),
+                ))
+              : ListView(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 44),
               children: [
                 if (_error != null) ...[
