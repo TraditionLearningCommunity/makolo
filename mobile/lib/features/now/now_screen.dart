@@ -953,12 +953,12 @@ class _NowSecondarySituation extends StatelessWidget {
         situation.businessActions.isEmpty;
 
     return MakoloCard(
-      onTap: onToggleExpanded,
+      onTap: hasMore ? onToggleExpanded : onSelect,
       semanticLabel: [
         ?contextLabel,
         situation.meaning,
         ?consequence,
-        expanded ? 'Voir moins' : 'Voir plus',
+        hasMore ? (expanded ? 'Voir moins' : 'Voir plus') : 'Ouvrir',
       ].join('. '),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
