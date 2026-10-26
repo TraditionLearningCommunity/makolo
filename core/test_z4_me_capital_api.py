@@ -1,4 +1,6 @@
 from django.test import TestCase
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from rest_framework.test import APIClient
 
@@ -73,6 +75,54 @@ class PersonalMeCapitalAPIContractTests(TestCase):
         self.assertEqual(data["bookmarks"]["items"][0]["activity"]["id"], str(activity.pk))
         self.assertEqual(data["watches"]["items"], [])
         self.assertNotIn("criteria", str(data["watches"]))
+
+    def test_bookmarked_media_reuses_published_recognition_only(self):
+        from activities.models import ActivityVisibility
+
+        activity = Activity.objects.create(
+            owner_profile=self.user,
+            created_by=self.user,
+            title="Formation reconnue",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        ActivityBookmark.objects.create(user=self.user, activity=activity)
+        media = SimpleNamespace(
+            use_id="ea1a8fe1-3549-4ad1-86a2-bad932f2a235",
+            mime_type="image/jpeg",
+            alt_text="Salle de formation",
+        )
+        with patch(
+            "presentations.media_selectors.public_presentation_media_for_activities",
+            return_value={str(activity.pk): [media]},
+        ):
+            response = self.client.get("/api/v1/me/")
+        self.assertEqual(response.status_code, 200)
+        row = response.json()["data"]["considerations"]["bookmarks"]["items"][0]
+        binding = row["media_bindings"][0]
+        self.assertEqual(binding["purpose"], "RECOGNIZE")
+        self.assertEqual(binding["target"], {"kind": "activity", "id": str(activity.pk)})
+        self.assertEqual(binding["resource"]["mime_type"], "image/jpeg")
+        self.assertEqual(binding["resource"]["alt_text"], "Salle de formation")
+        self.assertIn("/media/uses/", binding["resource"]["url"])
+        self.assertNotIn("file_path", str(binding))
+
+    def test_private_bookmark_does_not_reveal_media(self):
+        from activities.models import ActivityVisibility
+
+        activity = Activity.objects.create(
+            owner_profile=self.user,
+            created_by=self.user,
+            title="Contenu privé",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PRIVATE,
+        )
+        ActivityBookmark.objects.create(user=self.user, activity=activity)
+        response = self.client.get("/api/v1/me/")
+        self.assertEqual(response.status_code, 200)
+        row = response.json()["data"]["considerations"]["bookmarks"]["items"][0]
+        self.assertEqual(row["activity"]["title"], "Contenu privé")
+        self.assertNotIn("media_bindings", row)
 
     def test_team_membership_is_not_projected_as_authority(self):
         organization = Organization.objects.create(
