@@ -16,6 +16,10 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         repository: runtime.personal!,
         api: runtime.api,
         onOpenDestination: (destination) {
+          if (destination.kind == 'history') {
+            context.push('/history');
+            return true;
+          }
           if (destination.kind == 'profile_self') {
             context.push('/me/profile');
             return true;
