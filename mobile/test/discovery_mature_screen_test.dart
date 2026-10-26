@@ -94,6 +94,58 @@ DiscoveryFieldSelection selection({
 }
 
 void main() {
+  testWidgets('N1 public Service start enters the same N3 login handoff', (
+    tester,
+  ) async {
+    String? ownerPath;
+    var detailOpened = false;
+    final possibility = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'activity-id',
+      candidateKey: 'service_activity:activity-id',
+      title: 'Service visible sans connexion',
+      summary: '',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'engagement': {
+          'owner': 'services',
+          'state': 'owner_api',
+          'resource': {'kind': 'service', 'id': 'service-id'},
+          'capabilities': ['start_after_auth'],
+          'presentation': {
+            'capability': 'start',
+            'enabled': false,
+            'requires_auth': true,
+          },
+          'primary_action': {
+            'code': 'start',
+            'label': 'Commencer',
+            'destination': {
+              'kind': 'native',
+              'path': '/services/service-id/start',
+            },
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryPossibilityUnit(
+        item: possibility,
+        onOpen: () => detailOpened = true,
+        onNativeAction: (path) => ownerPath = path,
+      ),
+    );
+    final action = find.byKey(const Key('discover-primary-n1'));
+    expect(tester.widget<IconButton>(action).tooltip, 'Commencer');
+    await tester.tap(action);
+    expect(ownerPath, '/services/service-id/start');
+    expect(detailOpened, isFalse);
+  });
+
   testWidgets('N2 opens the existing Activity owner N3 without inventing an action', (
     tester,
   ) async {
