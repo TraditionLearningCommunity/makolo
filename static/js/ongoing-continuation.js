@@ -38,15 +38,15 @@
           (state === "more" && (!next || token === next))) {
         throw new Error("Invalid continuation");
       }
-      const seen = new Set(Array.from(stream.querySelectorAll("[data-ongoing-id]"),
-        (element) => element.dataset.ongoingId + ":" + element.dataset.ongoingVariant));
+      const seen = new Set(Array.from(stream.querySelectorAll("[data-ongoing-unit]"),
+        (element) => element.dataset.ongoingId));
       let count = 0;
       for (const element of Array.from(batch.children)) {
+        if (!element.hasAttribute("data-ongoing-unit")) continue;
         const id = element.dataset.ongoingId;
-        const identity = id + ":" + element.dataset.ongoingVariant;
-        if (!id || seen.has(identity)) continue;
+        if (!id || seen.has(id)) continue;
         stream.appendChild(element);
-        seen.add(identity);
+        seen.add(id);
         count += 1;
       }
       if (state === "more" && count === 0) throw new Error("Stalled continuation");
