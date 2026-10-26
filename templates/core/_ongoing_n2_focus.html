@@ -42,7 +42,9 @@
       <h3>Documents et ressources</h3>
       {% for resource in item.resources %}
         <div class="mk-ongoing-resource">
-          {% if resource.kind == "file" and resource.download_url %}
+          {% if resource.kind == "journey_artifact" and item.url %}
+            <a href="{{ item.url }}" aria-label="{{ resource.title }} · Dans la démarche">{{ resource.title }}</a>
+          {% elif resource.kind == "file" and resource.download_url %}
             <a href="{{ resource.download_url }}">{{ resource.title }}</a>
           {% elif resource.kind == "text" and resource.read_url %}
             <a href="{{ resource.read_url }}">{{ resource.title }}</a>
