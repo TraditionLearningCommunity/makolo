@@ -914,8 +914,9 @@ class _NowSituationUnit extends StatelessWidget {
                   TextButton.icon(
                     onPressed: () => onOpenOwner!(owner),
                     icon: const Icon(Icons.arrow_forward_rounded),
-                    label: Text(nowDisplayActionLabel(
+                    label: Text(nowDisplayHandoffLabel(
                       situation.responseLabel!,
+                      situation.meaning,
                       situation.humanContext,
                     )),
                   ),
@@ -1061,8 +1062,9 @@ class _NowDepth extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.xl),
               FilledButton(
                 onPressed: () => onOpenOwner!(ownerDestination),
-                child: Text(nowDisplayActionLabel(
+                child: Text(nowDisplayHandoffLabel(
                   situation.responseLabel!,
+                  situation.meaning,
                   situation.humanContext,
                 )),
               ),
