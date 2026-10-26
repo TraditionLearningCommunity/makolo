@@ -85,7 +85,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
   Future<void> _setSaved(OngoingPossibilityPresentation action, bool saved) async {
     final discovery = widget.discovery;
     if (discovery == null) throw StateError('Discovery unavailable');
-    await discovery.setSaved(family: 'activity', id: action.id, saved: saved);
+    await discovery.setSaved(family: action.family, id: action.id, saved: saved);
     await widget.repository.reflectOngoingDiscoverySave(
       activityId: action.id,
       saved: saved,
@@ -518,8 +518,8 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
     };
     final canShare = possibility?.canShare == true && widget.api != null;
     final sharedItem = canShare ? DiscoveryItemPresentation(
-      family: 'activity',
-      id: possibility!.id,
+      family: possibility!.family,
+      id: possibility.id,
       candidateKey: 'ongoing:' + possibility.id,
       title: widget.item.title,
       summary: widget.item.synthesis,
