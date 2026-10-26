@@ -116,7 +116,7 @@ void main() {
     expect(find.byKey(const Key('ongoing-n1-recognition-media')), findsNothing);
   });
 
-  testWidgets('each native N1 unit contains actions and truthful disclosure', (
+  testWidgets('calm N1 omits unavailable actions and retains real detail', (
     tester,
   ) async {
     await PresentationHarness.pump(
@@ -129,27 +129,44 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(
-      find.byKey(const Key('ongoing-n1-discover-actions')),
-      findsOneWidget,
-    );
-    final save = tester.widget<IconButton>(
-      find.byKey(const Key('ongoing-n1-save')),
-    );
-    expect(save.tooltip, 'Enregistrer');
-    expect(find.byType(DiscoveryOrbitIcon), findsOneWidget);
-    expect(tester.widget<DiscoveryOrbitIcon>(find.byType(DiscoveryOrbitIcon)).saved, isFalse);
-    expect(save.onPressed, isNull);
-    final primary = tester.widget<IconButton>(
-      find.byKey(const Key('ongoing-n1-primary')),
-    );
-    expect(primary.tooltip, 'Continuer');
-    expect(find.text('Continuer'), findsNothing);
+    expect(find.byKey(const Key('ongoing-n1-discover-actions')), findsNothing);
     expect(find.text('Vous avez tout exploré'), findsNothing);
     await tester.tap(find.text('Voir plus'));
     await tester.pump();
     expect(find.text('Voir moins'), findsOneWidget);
     expect(find.text('Frais réglés'), findsOneWidget);
+  });
+
+  testWidgets('available native action reuses the Discover orbit icon', (
+    tester,
+  ) async {
+    final projection = _projection(items: const [
+      {
+        'kind': 'journey',
+        'source': {
+          'kind': 'journey',
+          'id': '12345678-1234-1234-1234-123456789012',
+        },
+        'title': 'Voyage Kolwezi',
+        'summary': 'Une suite est prévue.',
+        'capabilities': ['open_detail'],
+        'links': {},
+      },
+    ]);
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(projection),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('ongoing-n1-discover-actions')), findsOneWidget);
+    expect(find.byType(DiscoveryOrbitIcon), findsOneWidget);
+    expect(tester.widget<DiscoveryOrbitIcon>(
+      find.byType(DiscoveryOrbitIcon),
+    ).saved, isFalse);
+    expect(find.text('Enregistré'), findsNothing);
   });
 
   testWidgets(
