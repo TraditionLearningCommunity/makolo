@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core import signing
+from django.http import HttpResponseBadRequest
 from django.db import models
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -186,6 +187,25 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
     fragment_template_name = "core/participant_ongoing_fragment.html"
     login_url = "core:login"
 
+    def get_template_names(self):
+        if (
+            self.request.GET.get("continuation")
+            and self.request.headers.get("X-Makolo-Continuation") == "1"
+        ):
+            return ["core/_ongoing_page_fragment.html"]
+        return super().get_template_names()
+
+    def get(self, request, *args, **kwargs):
+        token = request.GET.get("continuation")
+        if token:
+            try:
+                ongoing_continuation_offset(token)
+            except (signing.BadSignature, KeyError, ValueError, TypeError):
+                return HttpResponseBadRequest("Suite de résultats indisponible.")
+        response = super().get(request, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     @staticmethod
     def _web_item(item):
         """N1 web uses exactly the API's semantic and media projection."""
@@ -230,6 +250,7 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
             continuation_offset=offset,
         )
         context["ongoing_next_token"] = (data.get("continuation") or {}).get("token")
+        context["ongoing_end_reached"] = (data.get("continuation") or {}).get("state") == "end"
         context["ongoing_page_offset"] = offset
         items = data.get("items", [])
         ongoing_items = [self._web_item(item) for item in items]
