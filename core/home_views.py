@@ -2,13 +2,15 @@ from types import SimpleNamespace
 from uuid import UUID
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core import signing
+from django.http import HttpResponseBadRequest
 from django.urls import NoReverseMatch, reverse
 from django.utils.dateparse import parse_datetime
 from django.utils.formats import date_format
 from django.utils import timezone
 from django.views.generic import TemplateView
 
-from core.api.personal_projections import build_personal_now_projection
+from core.api.personal_projections import build_personal_now_projection, now_continuation_offset
 
 
 def _deadline_label(timing):
@@ -313,6 +315,7 @@ def _now_web_context(data):
         primary_attention=primary_attention,
         primary_action=None,
         action_items=tuple(projected[1:]),
+        page_items=tuple(projected),
         knowledge_items=(),
         upcoming=(),
         all_clear=is_calm,
@@ -323,6 +326,7 @@ def _now_web_context(data):
         terminal_message=terminal.get("message") or "",
         selection_reason=selection.get("reason") or "",
         continuation_state=continuation_state,
+        continuation_token=(continuation.get("token") if isinstance(continuation, dict) else None),
     )
 
 
@@ -330,12 +334,33 @@ class MatureParticipantHomeView(LoginRequiredMixin, TemplateView):
     template_name = "core/participant_home.html"
     login_url = "core:login"
 
+    def get_template_names(self):
+        if (
+            self.request.GET.get("continuation")
+            and self.request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        ):
+            return ["core/_now_page_fragment.html"]
+        return super().get_template_names()
+
+    def get(self, request, *args, **kwargs):
+        try:
+            self._now_offset = now_continuation_offset(
+                request.GET.get("continuation"),
+                profile=request.user,
+            )
+        except (signing.BadSignature, KeyError, ValueError, TypeError):
+            return HttpResponseBadRequest("Suite de résultats indisponible.")
+        response = super().get(request, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         observed_at = timezone.now()
         data = build_personal_now_projection(
             self.request.user,
             observed_at=observed_at,
+            continuation_offset=getattr(self, "_now_offset", 0),
         )
         context["home"] = _now_web_context(data)
         return context
