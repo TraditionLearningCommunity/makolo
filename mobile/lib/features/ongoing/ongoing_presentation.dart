@@ -23,6 +23,10 @@ class OngoingContinuityPresentation {
     required this.links,
     required this.handoffs,
     required this.temporalFacts,
+    required this.mediaBindings,
+    required this.resources,
+    required this.relations,
+    required this.knowledgeContext,
     required this.rawState,
     this.cue,
     this.cueTone = 'calm',
@@ -56,6 +60,10 @@ class OngoingContinuityPresentation {
   final Map<String, String> links;
   final List<OngoingHandoffPresentation> handoffs;
   final List<Map<String, dynamic>> temporalFacts;
+  final List<Map<String, dynamic>> mediaBindings;
+  final List<Map<String, dynamic>> resources;
+  final List<Map<String, dynamic>> relations;
+  final Map<String, dynamic> knowledgeContext;
   final String rawState;
   final String? cue;
   final String cueTone;
@@ -214,6 +222,10 @@ class OngoingContinuityPresentation {
           ?OngoingHandoffPresentation.fromMap(handoff),
       ]),
       temporalFacts: List.unmodifiable(_maps(item['temporal_facts'])),
+      mediaBindings: List.unmodifiable(_maps(item['media_bindings'])),
+      resources: List.unmodifiable(_maps(item['resources'])),
+      relations: List.unmodifiable(_maps(item['relation_projections'])),
+      knowledgeContext: Map.unmodifiable(_map(item['knowledge_context'])),
       rawState: rawState,
       cue:
           _text(n1['cue']) ??
