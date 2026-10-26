@@ -273,7 +273,12 @@ class _OngoingAdaptiveView extends StatelessWidget {
       ),
       focus: selected == null
           ? const _OngoingFocusPlaceholder()
-          : _OngoingFocus(item: selected!, onBack: onBack),
+          : _OngoingFocus(
+              item: selected!,
+              onBack: onBack,
+              api: api,
+              baseUri: baseUri,
+            ),
       narrow: selected == null
           ? _OngoingField(
               items: items,
@@ -288,7 +293,12 @@ class _OngoingAdaptiveView extends StatelessWidget {
               moreError: moreError,
               endReached: endReached,
             )
-          : _OngoingFocus(item: selected!, onBack: onBack),
+          : _OngoingFocus(
+              item: selected!,
+              onBack: onBack,
+              api: api,
+              baseUri: baseUri,
+            ),
     ),
   );
 }
@@ -964,16 +974,25 @@ class _OngoingFocusPlaceholder extends StatelessWidget {
 }
 
 class _OngoingFocus extends StatelessWidget {
-  const _OngoingFocus({required this.item, required this.onBack});
+  const _OngoingFocus({
+    required this.item,
+    required this.onBack,
+    this.api,
+    this.baseUri,
+  });
 
   final OngoingContinuityPresentation item;
   final VoidCallback onBack;
+  final MakoloApiClient? api;
+  final Uri? baseUri;
 
   bool get _hasStructuredDetail =>
       item.settled.isNotEmpty ||
       item.mySide.isNotEmpty ||
       item.elsewhere.isNotEmpty ||
       item.next.isNotEmpty ||
+      item.makolo.isNotEmpty ||
+      item.systemOrTime.isNotEmpty ||
       item.waiting != null ||
       item.blocker != null ||
       item.unknown != null;
@@ -1019,6 +1038,16 @@ class _OngoingFocus extends StatelessWidget {
       sections.add(
         _DimensionSection(title: 'Ailleurs', values: elsewhereValues),
       );
+    }
+
+    final prepared = unique(item.makolo);
+    if (prepared.isNotEmpty) {
+      sections.add(_DimensionSection(title: 'Déjà préparé', values: prepared));
+    }
+
+    final systemOrTime = unique(item.systemOrTime);
+    if (systemOrTime.isNotEmpty) {
+      sections.add(_DimensionSection(title: 'À venir', values: systemOrTime));
     }
 
     // Next — what follows
@@ -1122,7 +1151,10 @@ class _OngoingFocus extends StatelessWidget {
     final showBack =
         MediaQuery.sizeOf(context).width < MakoloLayout.ongoingSplitMinWidth;
     final metadata = _humanMetadata();
+    final media = ongoingRecognitionImageUrl(item.mediaUrl, baseUri);
+    final nativeOwnerRoute = _OngoingN1Details.routeFor(item);
     return SingleChildScrollView(
+      key: ValueKey('ongoing-n2-scroll-${item.id}'),
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
       child: MakoloFocusPane(
         child: Column(
@@ -1135,6 +1167,31 @@ class _OngoingFocus extends StatelessWidget {
                 label: const Text('En cours'),
               ),
             Text(item.title, style: Theme.of(context).textTheme.headlineMedium),
+            if (item.cue != null) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Text(
+                item.cue!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (media != null && api != null) ...[
+              const SizedBox(height: MakoloSpacing.lg),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(MakoloRadii.card),
+                child: SizedBox(
+                  height: 220,
+                  width: double.infinity,
+                  child: _OngoingProtectedImage(
+                    imageUrl: media,
+                    label: item.mediaAlt ?? item.title,
+                    api: api!,
+                  ),
+                ),
+              ),
+            ],
             if (!_hasStructuredDetail) ...[
               const SizedBox(height: MakoloSpacing.sm),
               Text(
@@ -1143,6 +1200,13 @@ class _OngoingFocus extends StatelessWidget {
               ),
             ],
             ..._detailSections(context),
+            if (nativeOwnerRoute != null) ...[
+              const SizedBox(height: MakoloSpacing.xl),
+              FilledButton(
+                onPressed: () => context.push(nativeOwnerRoute),
+                child: const Text('Ouvrir la démarche'),
+              ),
+            ],
             if (metadata.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: MakoloSpacing.lg),
