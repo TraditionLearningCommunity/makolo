@@ -1331,6 +1331,32 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
         ]
 
 
+def _ongoing_temporal_facts(item):
+    """Owner-established human dates only, never technical timestamps."""
+    facts = []
+    timing = item.get("timing") or {}
+    source = item["source"]
+    if timing.get("start_at") or timing.get("start_date"):
+        facts.append({
+            "kind": "occurrence_start",
+            "label": "Début",
+            "at": timing.get("start_at"),
+            "date": timing.get("start_date"),
+            "timezone": timing.get("timezone"),
+            "source": item.get("occurrence") or source,
+        })
+    next_item = item.get("next") or {}
+    due_at = (next_item.get("timing") or {}).get("due_at")
+    if due_at:
+        facts.append({
+            "kind": "next_due",
+            "label": next_item.get("title") or "Échéance",
+            "at": due_at,
+            "source": source,
+        })
+    return facts
+
+
 def _decorate_ongoing_semantics(item, *, observed_at):
     """Add Mature continuity semantics without becoming an owner domain."""
 
@@ -1401,7 +1427,7 @@ def _decorate_ongoing_semantics(item, *, observed_at):
                 "knowledge_state": "known",
             },
             "relation_projections": [],
-            "temporal_facts": [],
+            "temporal_facts": _ongoing_temporal_facts(item),
             "actions": list(item.get("actor_interventions", [])),
             "media_bindings": [],
             "n1": _ongoing_n1(item),
