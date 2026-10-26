@@ -73,8 +73,6 @@ void main() {
     expect(label, isNot(contains('T10:00:00')));
   });
 
-
-
   test('adapts real personal.now shape without re-ranking', () {
     final result = selector.select(
       projection: projection(
