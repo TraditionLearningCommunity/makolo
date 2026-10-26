@@ -165,6 +165,89 @@ void main() {
     expect(items.first.hasParallelMovement, isTrue);
   });
 
+  test('N1 parses the same human cue, date and published recognition media', () {
+    final items = OngoingContinuityPresentation.fromProjection(
+      _projection([
+        {
+          'id': 'continuity:confirmed-travel',
+          'kind': 'journey',
+          'source': {'kind': 'journey', 'id': 'travel-1'},
+          'state': 'available',
+          'title': 'Lubumbashi → Kolwezi',
+          'summary': 'Place confirmée.',
+          'n1': {
+            'cue': 'Accès disponible',
+            'tone': 'ready',
+            'when_label': '12/11/2026 · 14:00',
+            'supporting': 'Départ prévu',
+            'place_label': 'Lubumbashi',
+          },
+          'ready': [],
+          'actor_interventions': [],
+          'continuation': null,
+          'blocker': null,
+          'next': null,
+          'timing': {},
+          'place': null,
+          'capabilities': [],
+          'links': {},
+          'media_bindings': [
+            {
+              'purpose': 'RECOGNIZE',
+              'resource': {
+                'url': '/presentation/media/uses/abc/file/',
+                'mime_type': 'image/jpeg',
+                'alt_text': 'Véhicule du voyage',
+              },
+            },
+            {
+              'purpose': 'PREPARE',
+              'resource': {
+                'url': '/private/document.pdf',
+                'mime_type': 'application/pdf',
+              },
+            },
+          ],
+        },
+      ]),
+    );
+    final item = items.single;
+    expect(item.id, 'continuity:confirmed-travel');
+    expect(item.cue, 'Accès disponible');
+    expect(item.cueTone, 'ready');
+    expect(item.whenLabel, '12/11/2026 · 14:00');
+    expect(item.supporting, 'Départ prévu');
+    expect(item.placeLabel, 'Lubumbashi');
+    expect(item.mediaUrl, '/presentation/media/uses/abc/file/');
+    expect(item.mediaAlt, 'Véhicule du voyage');
+  });
+
+  test('old offline snapshots remain usable without N1 extensions', () {
+    final items = OngoingContinuityPresentation.fromProjection(
+      _projection([
+        {
+          'kind': 'waitlist',
+          'source': {'kind': 'waitlist', 'id': 'concert-wait'},
+          'state': 'waiting',
+          'title': 'Concert du samedi',
+          'summary': 'Vous attendez une place.',
+          'ready': [],
+          'actor_interventions': [],
+          'continuation': {'state': 'waiting'},
+          'blocker': null,
+          'next': null,
+          'timing': {},
+          'place': {},
+          'capabilities': [],
+          'links': {},
+        },
+      ]),
+    );
+    expect(items.single.title, 'Concert du samedi');
+    expect(items.single.cue, 'En attente');
+    expect(items.single.mediaUrl, isNull);
+  });
+
   test('true empty has no synthetic suggestion', () {
     expect(
       OngoingContinuityPresentation.fromProjection(_projection(const [])),
