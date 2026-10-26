@@ -1359,6 +1359,28 @@ def _ongoing_temporal_facts(item):
             "at": due_at,
             "source": source,
         })
+    expires_at = timing.get("offer_expires_at") or timing.get("expires_at")
+    if expires_at:
+        facts.append({
+            "kind": "decision_expires" if timing.get("offer_expires_at") else "expires",
+            "label": "Répondre avant" if timing.get("offer_expires_at") else "Expiration",
+            "at": expires_at,
+            "source": source,
+        })
+    seen = {(fact.get("at"), fact.get("date")) for fact in facts}
+    for intervention in item.get("actor_interventions") or []:
+        window = intervention.get("timing") or {}
+        for field in ("due_at", "expires_at"):
+            at = window.get(field)
+            if not at or (at, None) in seen:
+                continue
+            facts.append({
+                "kind": "intervention_due",
+                "label": intervention.get("title") or "Échéance",
+                "at": at,
+                "source": source,
+            })
+            seen.add((at, None))
     return facts
 
 
