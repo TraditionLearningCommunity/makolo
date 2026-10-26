@@ -311,6 +311,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
                 : _OngoingFocus(
                     item: selected!,
                     onBack: onBack,
+                    stale: stale,
                     api: api,
                     baseUri: baseUri,
                   ),
@@ -331,6 +332,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
                 : _OngoingFocus(
                     item: selected!,
                     onBack: onBack,
+                    stale: stale,
                     api: api,
                     baseUri: baseUri,
                   ),
@@ -1046,12 +1048,14 @@ class _OngoingFocus extends StatelessWidget {
   const _OngoingFocus({
     required this.item,
     required this.onBack,
+    required this.stale,
     this.api,
     this.baseUri,
   });
 
   final OngoingContinuityPresentation item;
   final VoidCallback onBack;
+  final bool stale;
   final MakoloApiClient? api;
   final Uri? baseUri;
 
@@ -1369,6 +1373,11 @@ class _OngoingFocus extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+            ],
+            if (stale) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              Text('Dernière information connue',
+                style: Theme.of(context).textTheme.bodySmall),
             ],
             const SizedBox(height: MakoloSpacing.xs),
             Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
