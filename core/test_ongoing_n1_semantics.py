@@ -1,8 +1,16 @@
 """OngoingMe N1: owner-backed cues and shared Web/Flutter display contract."""
+from types import SimpleNamespace
+from unittest.mock import patch
+from uuid import uuid4
+
 from django.test import SimpleTestCase
 from django.utils import timezone
 
-from core.api.personal_projections import _decorate_ongoing_semantics, _ongoing_n1_when
+from core.api.personal_projections import (
+    _attach_ongoing_recognition_media,
+    _decorate_ongoing_semantics,
+    _ongoing_n1_when,
+)
 from core.mature_experience_views import MatureParticipantOngoingView
 
 
@@ -70,3 +78,23 @@ class OngoingN1SemanticsTests(SimpleTestCase):
             "15/11/2026 · 15:30",
         )
         self.assertIsNone(_ongoing_n1_when({"start_at": "bad timestamp"}))
+
+    def test_private_activity_does_not_gain_share_save_or_media(self):
+        entry = SimpleNamespace(
+            kind="journey",
+            value=SimpleNamespace(activity_id=uuid4(), occurrence_id=None),
+        )
+        item = {
+            "id": "private-continuity",
+            "n1": {"cue": None},
+            "media_bindings": [],
+        }
+        with patch("activities.models.Activity.objects.filter") as candidates:
+            candidates.return_value.select_related.return_value = []
+            _attach_ongoing_recognition_media(
+                [entry], [item],
+                viewer=SimpleNamespace(pk=uuid4()),
+            )
+        self.assertNotIn("possibility", item["n1"])
+        self.assertEqual(item["media_bindings"], [])
+
