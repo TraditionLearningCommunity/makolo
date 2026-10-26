@@ -412,8 +412,29 @@ class _OngoingN1Details extends StatelessWidget {
   String? get _ownerRoute {
     final kind = item.ownerKind;
     final id = item.ownerId;
-    if (kind == null || id == null ||
-        !RegExp(r'^[0-9a-fA-F-]{36}
+    if (kind == null || id == null) return null;
+    final chunks = id.split('-');
+    if (chunks.length != 5 ||
+        chunks[0].length != 8 ||
+        chunks[1].length != 4 ||
+        chunks[2].length != 4 ||
+        chunks[3].length != 4 ||
+        chunks[4].length != 12 ||
+        id.replaceAll('-', '').split('').any(
+          (character) => !'0123456789abcdefABCDEF'.contains(character),
+        )) {
+      return null;
+    }
+    final canOpen = item.capabilities.contains('open_detail') ||
+        (kind == 'access' && item.capabilities.contains('open_access'));
+    if (!canOpen) return null;
+    return const DeepLinkResolver().resolve(
+      StructuredDestination(kind: kind, id: Uri.encodeComponent(id)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final groups = <(String, List<String>)>[
       ('Déjà réglé', item.settled),
       ('De votre côté', item.mySide),
@@ -425,6 +446,7 @@ class _OngoingN1Details extends StatelessWidget {
     final seen = <String>{
       _ongoingKey(item.title), _ongoingKey(item.synthesis),
     };
+    final nativeOwnerRoute = _ownerRoute;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         MakoloSpacing.compact, 0, MakoloSpacing.compact, MakoloSpacing.md,
@@ -446,10 +468,10 @@ class _OngoingN1Details extends StatelessWidget {
                     child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
                   ),
             ],
-          if (_ownerRoute case final path?) ...[
+          if (nativeOwnerRoute != null) ...[
             const SizedBox(height: MakoloSpacing.md),
             FilledButton(
-              onPressed: () => context.push(path),
+              onPressed: () => context.push(nativeOwnerRoute),
               child: const Text('Ouvrir la démarche'),
             ),
           ],
