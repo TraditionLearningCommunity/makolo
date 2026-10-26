@@ -42,8 +42,12 @@ class PersonalRepository {
   }) async {
     const families = <String, List<String>>{
       'considerations': [
-        'interests', 'open_to', 'watches', 'bookmarks',
-        'followed_spaces', 'followed_profiles',
+        'interests',
+        'open_to',
+        'watches',
+        'bookmarks',
+        'followed_spaces',
+        'followed_profiles',
       ],
       'collectives': ['authorized_spaces', 'teams', 'groups'],
       'resources': ['documents', 'proofs', 'credentials'],
@@ -51,8 +55,9 @@ class PersonalRepository {
     final names = families[territory];
     final initial = current.payload[territory];
     if (names == null || initial is! Map) return;
-    final target = names.where((key) =>
-        initial[key] is Map && (initial[key] as Map)['has_more'] == true);
+    final target = names.where(
+      (key) => initial[key] is Map && (initial[key] as Map)['has_more'] == true,
+    );
     if (target.isEmpty) return;
     final family = target.first;
     final source = initial[family] as Map;
@@ -60,32 +65,44 @@ class PersonalRepository {
     if (rows is! List) throw const FormatException('Invalid Me collection');
     final serverOffset = source['next_offset'];
     final offset = serverOffset is int && serverOffset >= rows.length
-        ? serverOffset : rows.length;
+        ? serverOffset
+        : rows.length;
 
-    final response = await api.get(Uri(
-      path: 'api/v1/me/preview/$territory/',
-      queryParameters: {'family': family, 'offset': '$offset', 'limit': '24'},
-    ).toString());
+    final response = await api.get(
+      Uri(
+        path: 'api/v1/me/preview/$territory/',
+        queryParameters: {'family': family, 'offset': '$offset', 'limit': '24'},
+      ).toString(),
+    );
     final envelope = ProjectionEnvelope.parse(
-      response.jsonObject(), expectedProjection: 'personal.me.preview',
+      response.jsonObject(),
+      expectedProjection: 'personal.me.preview',
     );
     final data = envelope.data;
     final actor = data['actor'];
     final next = data['collection'];
-    if (actor is! Map || actor['type'] != 'profile' ||
+    if (actor is! Map ||
+        actor['type'] != 'profile' ||
         actor['id']?.toString() != store.profileId ||
-        data['territory'] != territory || data['family'] != family ||
-        data['offset'] != offset || next is! Map || next['items'] is! List ||
-        next['count'] is! int || next['has_more'] is! bool ||
-        next['next_offset'] is! int || next['next_offset'] < offset) {
+        data['territory'] != territory ||
+        data['family'] != family ||
+        data['offset'] != offset ||
+        next is! Map ||
+        next['items'] is! List ||
+        next['count'] is! int ||
+        next['has_more'] is! bool ||
+        next['next_offset'] is! int ||
+        next['next_offset'] < offset) {
       throw const FormatException('Invalid Me continuation');
     }
 
     // Never write a continuation over a newly synchronized root or another
     // profile-local update that changed this family in the meantime.
     final latest = await store.readProjection('personal.me');
-    if (latest == null || latest.sourceGeneratedAt != current.sourceGeneratedAt ||
-        latest.schemaVersion != current.schemaVersion) return;
+    if (latest == null ||
+        latest.sourceGeneratedAt != current.sourceGeneratedAt ||
+        latest.schemaVersion != current.schemaVersion)
+      return;
     final latestTerritory = latest.payload[territory];
     if (latestTerritory is! Map || latestTerritory[family] is! Map) return;
     final latestItems = (latestTerritory[family] as Map)['items'];
@@ -93,7 +110,8 @@ class PersonalRepository {
     if (latestItems is! List ||
         (latestSource['next_offset'] is int
             ? latestSource['next_offset'] != offset
-            : latestItems.length != offset)) return;
+            : latestItems.length != offset))
+      return;
 
     final seen = <String>{};
     final combined = <Map<String, dynamic>>[];
@@ -109,7 +127,9 @@ class PersonalRepository {
     }
     final revised = Map<String, dynamic>.from(latestTerritory)
       ..[family] = {
-        'items': combined, 'count': next['count'], 'has_more': next['has_more'],
+        'items': combined,
+        'count': next['count'],
+        'has_more': next['has_more'],
         'next_offset': next['next_offset'],
       };
     final updated = Map<String, dynamic>.from(latest.payload)
@@ -156,8 +176,11 @@ class PersonalRepository {
           : null;
       if (possibility != null &&
           possibility['id'] == activityId &&
-          const {'activity', 'service_activity', 'funding_activity'}
-              .contains(possibility['family']) &&
+          const {
+            'activity',
+            'service_activity',
+            'funding_activity',
+          }.contains(possibility['family']) &&
           possibility['saved_state'] != (saved ? 'saved' : 'not_saved')) {
         n1!['possibility'] = {
           ...possibility,
@@ -254,5 +277,4 @@ class PersonalRepository {
       freshnessPolicyId: current.freshnessPolicyId,
     );
   }
-
 }
