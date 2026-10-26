@@ -82,10 +82,17 @@ class _OngoingScreenState extends State<OngoingScreen> {
 
   String _ownerKey(OngoingContinuityPresentation item) => item.id;
 
-  Future<void> _setSaved(OngoingPossibilityPresentation action, bool saved) async {
+  Future<void> _setSaved(
+    OngoingPossibilityPresentation action,
+    bool saved,
+  ) async {
     final discovery = widget.discovery;
     if (discovery == null) throw StateError('Discovery unavailable');
-    await discovery.setSaved(family: action.family, id: action.id, saved: saved);
+    await discovery.setSaved(
+      family: action.family,
+      id: action.id,
+      saved: saved,
+    );
     await widget.repository.reflectOngoingDiscoverySave(
       activityId: action.id,
       saved: saved,
@@ -110,7 +117,6 @@ class _OngoingScreenState extends State<OngoingScreen> {
       if (mounted) setState(() => _loadingMore = false);
     }
   }
-
 
   @override
   Widget build(BuildContext context) => MakoloRefreshBoundary(
@@ -173,7 +179,9 @@ class _OngoingScreenState extends State<OngoingScreen> {
               recoverableErrorMessage: 'Actualisation impossible.',
               preservedMessage: '',
               onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
-              empty: const MakoloEmptyState(title: 'Rien en cours pour le moment.'),
+              empty: const MakoloEmptyState(
+                title: 'Rien en cours pour le moment.',
+              ),
               content: const SizedBox.shrink(),
             );
           }
@@ -211,8 +219,13 @@ class _OngoingScreenState extends State<OngoingScreen> {
               baseUri: widget.baseUri,
               api: widget.api,
               onSave: widget.discovery == null ? null : _setSaved,
-              onMore: widget.api != null && moreToken is String && moreToken.isNotEmpty
-                  ? () { _loadMore(); }
+              onMore:
+                  widget.api != null &&
+                      moreToken is String &&
+                      moreToken.isNotEmpty
+                  ? () {
+                      _loadMore();
+                    }
                   : null,
               moreBusy: _loadingMore,
               moreError: _moreError,
@@ -271,30 +284,8 @@ class _OngoingAdaptiveView extends StatelessWidget {
             endReached: endReached,
           )
         : MakoloAdaptiveSplit(
-      splitAt: MakoloLayout.ongoingSplitMinWidth,
-      field: _OngoingField(
-        items: items,
-        selected: selected,
-        stale: stale,
-        onSelect: onSelect,
-        baseUri: baseUri,
-        api: api,
-        onSave: onSave,
-        onMore: onMore,
-        moreBusy: moreBusy,
-        moreError: moreError,
-        endReached: endReached,
-      ),
-      focus: selected == null
-          ? const _OngoingFocusPlaceholder()
-          : _OngoingFocus(
-              item: selected!,
-              onBack: onBack,
-              api: api,
-              baseUri: baseUri,
-            ),
-      narrow: selected == null
-          ? _OngoingField(
+            splitAt: MakoloLayout.ongoingSplitMinWidth,
+            field: _OngoingField(
               items: items,
               selected: selected,
               stale: stale,
@@ -306,14 +297,36 @@ class _OngoingAdaptiveView extends StatelessWidget {
               moreBusy: moreBusy,
               moreError: moreError,
               endReached: endReached,
-            )
-          : _OngoingFocus(
-              item: selected!,
-              onBack: onBack,
-              api: api,
-              baseUri: baseUri,
             ),
-    ),
+            focus: selected == null
+                ? const _OngoingFocusPlaceholder()
+                : _OngoingFocus(
+                    item: selected!,
+                    onBack: onBack,
+                    api: api,
+                    baseUri: baseUri,
+                  ),
+            narrow: selected == null
+                ? _OngoingField(
+                    items: items,
+                    selected: selected,
+                    stale: stale,
+                    onSelect: onSelect,
+                    baseUri: baseUri,
+                    api: api,
+                    onSave: onSave,
+                    onMore: onMore,
+                    moreBusy: moreBusy,
+                    moreError: moreError,
+                    endReached: endReached,
+                  )
+                : _OngoingFocus(
+                    item: selected!,
+                    onBack: onBack,
+                    api: api,
+                    baseUri: baseUri,
+                  ),
+          ),
   );
 }
 
@@ -370,9 +383,12 @@ class _OngoingFieldState extends State<_OngoingField> {
   }
 
   void _maybeMore() {
-    if (!mounted || !_scroll.hasClients ||
-        widget.moreBusy || widget.moreError != null ||
-        widget.onMore == null) return;
+    if (!mounted ||
+        !_scroll.hasClients ||
+        widget.moreBusy ||
+        widget.moreError != null ||
+        widget.onMore == null)
+      return;
     if (_scroll.position.extentAfter < 480) widget.onMore?.call();
   }
 
@@ -401,10 +417,12 @@ class _OngoingFieldState extends State<_OngoingField> {
           );
         }
         if (widget.moreBusy) {
-          return const Center(child: Padding(
-            padding: EdgeInsets.all(MakoloSpacing.md),
-            child: CircularProgressIndicator.adaptive(),
-          ));
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(MakoloSpacing.md),
+              child: CircularProgressIndicator.adaptive(),
+            ),
+          );
         }
         if (widget.endReached && !widget.stale && widget.items.isNotEmpty) {
           return const SizedBox.shrink();
@@ -413,11 +431,17 @@ class _OngoingFieldState extends State<_OngoingField> {
       }
       final item = widget.items[index];
       final expanded = _expanded.contains(item.id);
-      final hasDetail = item.settled.isNotEmpty || item.mySide.isNotEmpty ||
-          item.elsewhere.isNotEmpty || item.makolo.isNotEmpty ||
-          item.systemOrTime.isNotEmpty || item.next.isNotEmpty ||
-          item.blocker != null || item.waiting != null ||
-          item.unknown != null || _OngoingN1Details.routeFor(item) != null;
+      final hasDetail =
+          item.settled.isNotEmpty ||
+          item.mySide.isNotEmpty ||
+          item.elsewhere.isNotEmpty ||
+          item.makolo.isNotEmpty ||
+          item.systemOrTime.isNotEmpty ||
+          item.next.isNotEmpty ||
+          item.blocker != null ||
+          item.waiting != null ||
+          item.unknown != null ||
+          _OngoingN1Details.routeFor(item) != null;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -436,9 +460,11 @@ class _OngoingFieldState extends State<_OngoingField> {
                 onPressed: () => setState(() {
                   if (!_expanded.add(item.id)) _expanded.remove(item.id);
                 }),
-                icon: Icon(expanded
-                    ? Icons.expand_less_rounded
-                    : Icons.expand_more_rounded),
+                icon: Icon(
+                  expanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                ),
                 label: Text(expanded ? 'Voir moins' : 'Voir plus'),
               ),
             ),
@@ -478,20 +504,27 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
 
   Future<void> _save() async {
     final action = widget.item.possibility;
-    if (_busy || action == null || !action.canSave || widget.onSave == null) return;
+    if (_busy || action == null || !action.canSave || widget.onSave == null)
+      return;
     setState(() => _busy = true);
     try {
       final saved = action.savedState != 'saved';
       await widget.onSave!(action, saved);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(saved ? 'Possibilité enregistrée.' : 'Enregistrement retiré.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              saved ? 'Possibilité enregistrée.' : 'Enregistrement retiré.',
+            ),
+          ),
+        );
       }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enregistrement non confirmé. Réessayez.')),
+          const SnackBar(
+            content: Text('Enregistrement non confirmé. Réessayez.'),
+          ),
         );
       }
     } finally {
@@ -529,9 +562,8 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
           )
         : null;
     final saved = possibility?.savedState == 'saved';
-    final canSave = possibility?.canSave == true &&
-        widget.onSave != null &&
-        !_busy;
+    final canSave =
+        possibility?.canSave == true && widget.onSave != null && !_busy;
 
     // Match Discover's balanced three-icon action strip. No permanent
     // text labels or oversized middle button on the compact surface.
@@ -612,9 +644,12 @@ class _OngoingN1Details extends StatelessWidget {
         chunks[2].length != 4 ||
         chunks[3].length != 4 ||
         chunks[4].length != 12 ||
-        id.replaceAll('-', '').split('').any(
-          (character) => !'0123456789abcdefABCDEF'.contains(character),
-        )) {
+        id
+            .replaceAll('-', '')
+            .split('')
+            .any(
+              (character) => !'0123456789abcdefABCDEF'.contains(character),
+            )) {
       return null;
     }
     // A decision is owned by Maintenant. N1 only hands off to the native
@@ -623,7 +658,8 @@ class _OngoingN1Details extends StatelessWidget {
         item.capabilities.contains('accept')) {
       return '/now';
     }
-    final canOpen = item.capabilities.contains('open_detail') ||
+    final canOpen =
+        item.capabilities.contains('open_detail') ||
         (kind == 'access' && item.capabilities.contains('open_access'));
     if (!canOpen) return null;
     return const DeepLinkResolver().resolve(
@@ -643,20 +679,23 @@ class _OngoingN1Details extends StatelessWidget {
       if (item.blocker != null) ('Ce qui bloque', [item.blocker!]),
       if (item.unknown != null) ('À vérifier', [item.unknown!]),
     ];
-    final seen = <String>{
-      _ongoingKey(item.title), _ongoingKey(item.synthesis),
-    };
+    final seen = <String>{_ongoingKey(item.title), _ongoingKey(item.synthesis)};
     final nativeOwnerRoute = routeFor(item);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        MakoloSpacing.compact, 0, MakoloSpacing.compact, MakoloSpacing.md,
+        MakoloSpacing.compact,
+        0,
+        MakoloSpacing.compact,
+        MakoloSpacing.md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final (label, values) in groups)
-            if (values.any((value) => value.trim().isNotEmpty &&
-                !seen.contains(_ongoingKey(value)))) ...[
+            if (values.any(
+              (value) =>
+                  value.trim().isNotEmpty && !seen.contains(_ongoingKey(value)),
+            )) ...[
               const SizedBox(height: MakoloSpacing.sm),
               Text(label, style: Theme.of(context).textTheme.titleSmall),
               for (final value in values)
@@ -665,7 +704,10 @@ class _OngoingN1Details extends StatelessWidget {
                     seen.add(_ongoingKey(value)))
                   Padding(
                     padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                    child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+                    child: Text(
+                      value,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ),
             ],
           if (nativeOwnerRoute != null) ...[
@@ -757,6 +799,7 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
     super.initState();
     _load();
   }
+
   @override
   void didUpdateWidget(covariant _OngoingProtectedImage oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -764,9 +807,11 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
       _load();
     }
   }
+
   void _load() {
     _bytes = widget.api.getPresentationImage(Uri.parse(widget.imageUrl).path);
   }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<Uint8List>(
     key: ValueKey(widget.imageUrl),
@@ -787,7 +832,8 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
       }
       return const Center(
         child: SizedBox(
-          width: 20, height: 20,
+          width: 20,
+          height: 20,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       );
@@ -815,12 +861,13 @@ class _OngoingRow extends StatelessWidget {
   final MakoloApiClient? api;
 
   String? _supportingLine() {
-    final candidate = item.supporting ??
+    final candidate =
+        item.supporting ??
         (item.mySide.isNotEmpty
             ? item.mySide.first
             : item.next.isNotEmpty
-                ? item.next.first
-                : null);
+            ? item.next.first
+            : null);
     if (candidate == null || _ongoingRedundant(candidate, item)) return null;
     return candidate;
   }
@@ -871,10 +918,7 @@ class _OngoingRow extends StatelessWidget {
                       ),
               ),
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -911,7 +955,8 @@ class _OngoingRow extends StatelessWidget {
                             item.whenLabel!,
                             style: textTheme.labelMedium?.copyWith(
                               color: Theme.of(context)
-                                  .colorScheme.onSurfaceVariant,
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                       ],
@@ -952,7 +997,8 @@ class _OngoingRow extends StatelessWidget {
                             item.placeLabel!,
                             style: textTheme.bodyMedium?.copyWith(
                               color: Theme.of(context)
-                                  .colorScheme.onSurfaceVariant,
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ),
