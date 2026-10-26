@@ -8,8 +8,8 @@ from topics.models import ProfileInterest, Topic
 class PersonalMeN1WebTests(TestCase):
     def setUp(self):
         self.profile = get_user_model().objects.create_user(
-            username="me-n1-preview",
-            full_name="Amina Test",
+            username="me_n1_preview",
+            first_name="Amina", last_name="Test",
         )
         self.url = reverse("core:participant-me")
 
@@ -106,7 +106,7 @@ class PersonalMeN1WebTests(TestCase):
 
     def test_other_persons_interests_never_appear_on_my_continuation(self):
         other = get_user_model().objects.create_user(
-            username="me-n1-other", full_name="Autre profil",
+            username="me_n1_other", first_name="Autre", last_name="profil",
         )
         topic = Topic.objects.create(code="me-private-other", label="Sujet privé")
         ProfileInterest.objects.create(profile=other, topic=topic)
