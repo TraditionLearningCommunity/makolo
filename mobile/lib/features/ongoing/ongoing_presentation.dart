@@ -212,19 +212,23 @@ class OngoingContinuityPresentation {
           ?OngoingHandoffPresentation.fromMap(handoff),
       ]),
       rawState: rawState,
-      cue: _text(n1['cue']) ?? _fallbackCue(
-        blocker: blockerText,
-        mySide: mySide,
-        waiting: waitingText,
-        state: rawState,
-      ),
+      cue:
+          _text(n1['cue']) ??
+          _fallbackCue(
+            blocker: blockerText,
+            mySide: mySide,
+            waiting: waitingText,
+            state: rawState,
+          ),
       cueTone: _text(n1['tone']) ?? 'calm',
       supporting: _text(n1['supporting']),
       whenLabel: _text(n1['when_label']),
       placeLabel: _text(n1['place_label']),
       mediaUrl: mediaUrl,
       mediaAlt: mediaAlt,
-      possibility: OngoingPossibilityPresentation.fromMap(_map(n1['possibility'])),
+      possibility: OngoingPossibilityPresentation.fromMap(
+        _map(n1['possibility']),
+      ),
     );
   }
 
@@ -327,7 +331,6 @@ class OngoingHandoffPresentation {
   }
 }
 
-
 /// Server-admitted Discovery action on a public Activity; never Ongoing authority.
 class OngoingPossibilityPresentation {
   const OngoingPossibilityPresentation({
@@ -348,13 +351,20 @@ class OngoingPossibilityPresentation {
   static OngoingPossibilityPresentation? fromMap(Map<String, dynamic> raw) {
     final id = raw['id'];
     final family = raw['family'];
-    if (!{'activity', 'service_activity', 'funding_activity'}.contains(family) ||
+    if (!{
+          'activity',
+          'service_activity',
+          'funding_activity',
+        }.contains(family) ||
         id is! String ||
-        !RegExp(r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$').hasMatch(id)) {
+        !RegExp(r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$')
+            .hasMatch(id)) {
       return null;
     }
     final caps = raw['capabilities'];
-    final allowed = caps is List ? caps.whereType<String>().toSet() : <String>{};
+    final allowed = caps is List
+        ? caps.whereType<String>().toSet()
+        : <String>{};
     final links = raw['links'];
     final share = links is Map ? links['share'] : null;
     return OngoingPossibilityPresentation(
@@ -362,7 +372,9 @@ class OngoingPossibilityPresentation {
       family: family as String,
       savedState: raw['saved_state'] == 'saved' ? 'saved' : 'not_saved',
       canSave: allowed.contains('save') || allowed.contains('unsave'),
-      canShare: allowed.contains('share') && share is String &&
+      canShare:
+          allowed.contains('share') &&
+          share is String &&
           share == '/api/v1/sharing/possibilities/$family/$id/',
       shareUrl: share is String ? share : null,
     );
