@@ -1256,10 +1256,30 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
             viewer,
         )
     }
+    family_by_activity = {activity_id: "activity" for activity_id in discoverable}
+    allowed_ids = {str(activity.pk) for activity in allowed}
+    # Some canonical services and fundings have no public Occurrence. They
+    # still exist in Discovery, but only its own selector may admit them.
+    from discovery.api.composition import detail_candidate
+    for entry, (activity_id, _) in zip(entries, references):
+        if not activity_id or activity_id not in allowed_ids:
+            continue
+        if activity_id in family_by_activity:
+            continue
+        if entry.kind == "funding":
+            candidates = ("funding_activity",)
+        elif entry.kind in {"journey", "access"}:
+            candidates = ("service_activity",)
+        else:
+            continue
+        for family in candidates:
+            if detail_candidate(family, activity_id, profile=viewer) is not None:
+                family_by_activity[activity_id] = family
+                break
     saved_ids = {
         str(activity_id)
         for activity_id in ActivityBookmark.objects.filter(
-            user=viewer, activity_id__in=discoverable
+            user=viewer, activity_id__in=family_by_activity.keys()
         ).values_list("activity_id", flat=True)
     }
     for item, (activity_id, occurrence_id) in zip(items, references):
@@ -1272,23 +1292,24 @@ def _attach_ongoing_recognition_media(entries, items, *, viewer):
         admissible.sort(key=lambda media: (
             media.occurrence_id != occurrence_id, media.position, media.use_id
         ))
-        if activity_id in discoverable:
-            # The mutation and Sharing endpoints independently reauthorize
-            # against Discovery at execution time. URLs are not credentials.
+        family = family_by_activity.get(activity_id)
+        if family:
+            # Mutation and Sharing independently reauthorize this family at
+            # execution time. A presentation reference is never a mandate.
             saved = activity_id in saved_ids
             item["n1"]["possibility"] = {
-                "family": "activity",
+                "family": family,
                 "id": activity_id,
                 "saved_state": "saved" if saved else "not_saved",
                 "capabilities": ["unsave" if saved else "save", "share"],
                 "links": {
                     "saved": reverse(
                         "discovery_api:item-saved",
-                        kwargs={"family": "activity", "item_id": activity_id},
+                        kwargs={"family": family, "item_id": activity_id},
                     ),
                     "share": reverse(
                         "sharing_api:possibility",
-                        kwargs={"family": "activity", "item_id": activity_id},
+                        kwargs={"family": family, "item_id": activity_id},
                     ),
                 },
             }
