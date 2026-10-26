@@ -28,7 +28,8 @@ class _MeGroupScreenState extends State<MeGroupScreen> {
       'api/v1/me/collectives/groups/${Uri.encodeComponent(widget.groupId)}/',
     );
     final envelope = ProjectionEnvelope.parse(
-      result.jsonObject(), expectedProjection: 'personal.group.detail',
+      result.jsonObject(),
+      expectedProjection: 'personal.group.detail',
     );
     if (envelope.data['id']?.toString() != widget.groupId) {
       throw const FormatException('Invalid Group owner response');
@@ -45,11 +46,13 @@ class _MeGroupScreenState extends State<MeGroupScreen> {
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             if (snapshot.hasError) {
-              return Center(child: TextButton.icon(
-                onPressed: () => setState(() => _detail = _fetch()),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Réessayer'),
-              ));
+              return Center(
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _detail = _fetch()),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Réessayer'),
+                ),
+              );
             }
             return const Center(child: CircularProgressIndicator.adaptive());
           }
