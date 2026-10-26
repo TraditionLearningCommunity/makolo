@@ -354,6 +354,7 @@ class NowView extends StatefulWidget {
 
 class _NowViewState extends State<NowView> {
   final ScrollController _fieldController = ScrollController();
+  final Set<String> _expandedKeys = <String>{};
   String? _selectedKey;
 
   @override
@@ -414,6 +415,12 @@ class _NowViewState extends State<NowView> {
       controller: _fieldController,
       selectedKey: _selectedKey,
       onSelect: _select,
+      expandedKeys: _expandedKeys,
+      onToggleExpanded: (identity) {
+        setState(() {
+          if (!_expandedKeys.add(identity)) _expandedKeys.remove(identity);
+        });
+      },
       onOpenOwner: widget.onOpenOwner,
       api: widget.api,
       profileId: widget.profileId,
@@ -516,6 +523,8 @@ class _NowField extends StatelessWidget {
     required this.controller,
     required this.selectedKey,
     required this.onSelect,
+    required this.expandedKeys,
+    required this.onToggleExpanded,
     required this.onOpenOwner,
     required this.api,
     required this.profileId,
@@ -533,6 +542,8 @@ class _NowField extends StatelessWidget {
   final ScrollController controller;
   final String? selectedKey;
   final ValueChanged<NowSituationPresentation> onSelect;
+  final Set<String> expandedKeys;
+  final ValueChanged<String> onToggleExpanded;
   final ValueChanged<StructuredDestination>? onOpenOwner;
   final MakoloApiClient? api;
   final String? profileId;
@@ -568,6 +579,11 @@ class _NowField extends StatelessWidget {
             _NowSecondarySituation(
               situation: secondary[index],
               onSelect: () => onSelect(secondary[index]),
+              expanded: expandedKeys.contains(secondary[index].identity),
+              onToggleExpanded: () => onToggleExpanded(secondary[index].identity),
+              api: api,
+              profileId: profileId,
+              onOpenOwner: onOpenOwner,
             ),
             if (index != secondary.length - 1)
               const SizedBox(height: MakoloSpacing.md),
@@ -719,7 +735,7 @@ class _NowSemanticContent extends StatelessWidget {
               ),
             ],
           ),
-        if (topology == NowTopology.action) ...[
+        if (situation.businessActions.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.md),
           NowActionGroup(
             key: ValueKey('now-actions-${situation.identity}'),
@@ -896,13 +912,24 @@ class _NowSecondarySituation extends StatelessWidget {
   const _NowSecondarySituation({
     required this.situation,
     required this.onSelect,
+    required this.expanded,
+    required this.onToggleExpanded,
+    required this.api,
+    required this.profileId,
+    required this.onOpenOwner,
   });
 
   final NowSituationPresentation situation;
   final VoidCallback onSelect;
+  final bool expanded;
+  final VoidCallback onToggleExpanded;
+  final MakoloApiClient? api;
+  final String? profileId;
+  final ValueChanged<StructuredDestination>? onOpenOwner;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final contextLabel = _distinctPresentationText(situation.humanContext, [
       situation.meaning,
     ]);
@@ -910,75 +937,52 @@ class _NowSecondarySituation extends StatelessWidget {
       situation.meaning,
       situation.humanContext,
     ]);
-    final topology = topologyFor(situation);
-    final showTurnCue =
-        topology == NowTopology.waiting && situation.turnLabel != null;
-    final showActionCue =
-        topology == NowTopology.action &&
-        situation.businessActions.isNotEmpty &&
-        situation.responseLabel != null;
+    final consequence = _distinctPresentationText(situation.consequence, [
+      situation.meaning,
+      situation.humanContext,
+      situation.whyNow,
+    ]);
+    final hasMore = whyNow != null || consequence != null ||
+        situation.makoloPreparation.isNotEmpty ||
+        situation.relationMembers.isNotEmpty;
+    final owner = situation.ownerDestination;
+    final canOpenOwner = owner != null &&
+        onOpenOwner != null &&
+        NowScreen.ownerPathFor(owner) != null &&
+        situation.responseLabel != null &&
+        situation.businessActions.isEmpty;
 
     return MakoloCard(
-      onTap: onSelect,
+      onTap: onToggleExpanded,
       semanticLabel: [
         ?contextLabel,
         situation.meaning,
-        ?whyNow,
-        'Ouvrir le détail',
+        ?consequence,
+        expanded ? 'Voir moins' : 'Voir plus',
       ].join('. '),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (contextLabel != null) ...[
-            Text(contextLabel, style: Theme.of(context).textTheme.titleMedium),
+            Text(contextLabel, style: theme.textTheme.titleMedium),
             const SizedBox(height: MakoloSpacing.sm),
           ],
-          Text(
-            situation.meaning,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          if (whyNow != null) ...[
+          Text(situation.meaning, style: theme.textTheme.titleLarge),
+          if (consequence != null && !expanded) ...[
             const SizedBox(height: MakoloSpacing.sm),
             Text(
-              whyNow,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              consequence,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.primary,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
-          if (showTurnCue) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Row(
-              children: [
-                Icon(
-                  Icons.hourglass_top_outlined,
-                  size: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: MakoloSpacing.xs),
-                Flexible(
-                  child: Text(
-                    situation.turnLabel!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          if (showActionCue) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            MakoloStatus(
-              label: situation.responseLabel!,
-              tone: MakoloStatusTone.info,
-              icon: Icons.arrow_forward_rounded,
-            ),
-          ],
+          _NowSemanticContent(
+            situation: situation,
+            api: api,
+            profileId: profileId,
+            onOpenOwner: onOpenOwner,
+          ),
           if (situation.metadata.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.sm),
             MakoloMetadata(
@@ -986,6 +990,42 @@ class _NowSecondarySituation extends StatelessWidget {
                 for (final item in situation.metadata) MakoloMetadataItem(item),
               ],
             ),
+          ],
+          if (canOpenOwner) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            FilledButton(
+              onPressed: () => onOpenOwner!(owner),
+              child: Text(situation.responseLabel!),
+            ),
+          ],
+          if (hasMore) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            TextButton.icon(
+              onPressed: onToggleExpanded,
+              icon: Icon(expanded
+                  ? Icons.expand_less_rounded
+                  : Icons.expand_more_rounded),
+              label: Text(expanded ? 'Voir moins' : 'Voir plus'),
+            ),
+            if (expanded) ...[
+              if (whyNow != null) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(whyNow, style: theme.textTheme.bodyMedium),
+              ],
+              if (consequence != null) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(
+                  consequence,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+              for (final preparation in situation.makoloPreparation) ...[
+                const SizedBox(height: MakoloSpacing.sm),
+                Text(preparation, style: theme.textTheme.bodyMedium),
+              ],
+            ],
           ],
         ],
       ),
