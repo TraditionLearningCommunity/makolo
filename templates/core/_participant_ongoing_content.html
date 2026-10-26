@@ -5,17 +5,15 @@
   </header>
 
   {% if ongoing_items %}
-    <div class="mk-ongoing-list" aria-label="Ce qui continue pour moi">
+    <div class="mk-ongoing-list" id="ongoing-stream" aria-label="Ce qui continue pour moi">
       {% for item in ongoing_items %}
         {% include "core/_ongoing_card.html" with expanded=False %}
         {% include "core/_ongoing_card.html" with expanded=True %}
       {% endfor %}
     </div>
-    {% if ongoing_next_token %}
-      <nav class="mk-ongoing-pagination" aria-label="Continuer la liste">
-        <a href="?continuation={{ ongoing_next_token|urlencode }}">Voir la suite <i data-lucide="arrow-right" aria-hidden="true"></i></a>
-      </nav>
-    {% endif %}
+    <div id="ongoing-infinite" data-next-token="{{ ongoing_next_token|default:'' }}" data-state="{% if ongoing_next_token %}more{% else %}end{% endif %}" aria-live="polite">
+      <span id="ongoing-infinite-status">{% if ongoing_end_reached %}Vous avez tout exploré{% endif %}</span>
+    </div>
   {% else %}
     <section class="mk-calm-state">
       <span class="mk-calm-state__icon" aria-hidden="true"><i data-lucide="circle-check-big"></i></span>
