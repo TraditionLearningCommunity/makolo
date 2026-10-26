@@ -40,6 +40,9 @@ from core.personal_surface_orchestration import (
 from core.read_models import build_personal_ongoing_read_model
 
 
+NOW_LIMIT = 12
+NOW_CONTINUATION_SALT = "makolo.personal.now.v1"
+
 ONGOING_LIMIT = 18
 ONGOING_CONTINUATION_SALT = "makolo.personal.ongoing.v1"
 
@@ -411,7 +414,24 @@ def _decorate_now_semantics(
     )
 
 
-def build_personal_now_projection(profile, *, observed_at=None):
+def now_continuation_offset(token, *, profile):
+    """Return the next owner-scoped page; a token never selects the actor."""
+    if not token:
+        return 0
+    payload = signing.loads(
+        token,
+        salt=NOW_CONTINUATION_SALT,
+        max_age=60 * 60,
+    )
+    if not isinstance(payload, dict) or payload.get("viewer") != str(profile.pk):
+        raise ValueError("Continuation belongs to another viewer.")
+    offset = payload.get("offset")
+    if type(offset) is not int or offset < NOW_LIMIT or offset % NOW_LIMIT:
+        raise ValueError("Invalid Now continuation offset.")
+    return offset
+
+
+def build_personal_now_projection(profile, *, observed_at=None, continuation_offset=0):
     observed_at = observed_at or timezone.now()
     result, metadata = resolve_mature_home_contextual_actions(
         profile,
@@ -572,7 +592,13 @@ def build_personal_now_projection(profile, *, observed_at=None):
             serialized_items.append(composed)
         else:
             serialized_items[replace_at] = composed
+    # Page only after owner admission, permissions and composition.
+    if type(continuation_offset) is not int or continuation_offset < 0:
+        raise ValueError("Invalid Now continuation offset.")
     is_empty = not serialized_items
+    page = serialized_items[continuation_offset : continuation_offset + NOW_LIMIT + 1]
+    has_more = len(page) > NOW_LIMIT
+    page = page[:NOW_LIMIT]
     profile_id = str(profile.pk)
     return {
         "surface": "now_me",
@@ -586,8 +612,20 @@ def build_personal_now_projection(profile, *, observed_at=None):
         "actor_attention_state": "calm" if is_empty else "active",
         "capabilities": [],
         "handoffs": [],
-        "items": serialized_items,
-        "continuation": None,
+        "items": page,
+        "coverage_state": "partial" if has_more else "complete",
+        "continuation": (
+            None if is_empty else {
+                "state": "more" if has_more else "end",
+                "token": (
+                    signing.dumps(
+                        {"viewer": profile_id, "offset": continuation_offset + NOW_LIMIT},
+                        salt=NOW_CONTINUATION_SALT,
+                        compress=True,
+                    ) if has_more else None
+                ),
+            }
+        ),
         "terminal": {
             "state": "empty" if is_empty else "ok",
             # Human wording remains Presentation; the server owns the state.
