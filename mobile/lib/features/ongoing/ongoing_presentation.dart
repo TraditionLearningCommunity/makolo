@@ -27,6 +27,10 @@ class OngoingContinuityPresentation {
     required this.resources,
     required this.relations,
     required this.knowledgeContext,
+    required this.continuityBasis,
+    required this.blockerDetails,
+    required this.horizon,
+    required this.outcome,
     required this.rawState,
     this.cue,
     this.cueTone = 'calm',
@@ -64,6 +68,10 @@ class OngoingContinuityPresentation {
   final List<Map<String, dynamic>> resources;
   final List<Map<String, dynamic>> relations;
   final Map<String, dynamic> knowledgeContext;
+  final List<Map<String, dynamic>> continuityBasis;
+  final List<Map<String, dynamic>> blockerDetails;
+  final Map<String, dynamic> horizon;
+  final Map<String, dynamic> outcome;
   final String rawState;
   final String? cue;
   final String cueTone;
@@ -226,6 +234,10 @@ class OngoingContinuityPresentation {
       resources: List.unmodifiable(_maps(item['resources'])),
       relations: List.unmodifiable(_maps(item['relation_projections'])),
       knowledgeContext: Map.unmodifiable(_map(item['knowledge_context'])),
+      continuityBasis: List.unmodifiable(_maps(item['continuity_basis'])),
+      blockerDetails: List.unmodifiable(_maps(item['blockers'])),
+      horizon: Map.unmodifiable(_map(item['horizon'])),
+      outcome: Map.unmodifiable(_map(item['outcome'])),
       rawState: rawState,
       cue:
           _text(n1['cue']) ??
