@@ -51,25 +51,25 @@
         {% if me_projection.considerations.interests.items %}
           <div class="mk-me-n1-family">
             <h3>Intérêts <span>{{ me_projection.considerations.interests.count }}</span></h3>
-            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="interests" data-me-more="{{ me_projection.considerations.interests.has_more|yesno:'true,false' }}">
-              {% for row in me_projection.considerations.interests.items %}<span>{{ row.topic.label }}</span>{% endfor %}
+            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="interests" data-me-loaded="{{ me_projection.considerations.interests.items|length }}" data-me-more="{{ me_projection.considerations.interests.has_more|yesno:'true,false' }}">
+              {% for row in me_projection.considerations.interests.items %}<span data-me-id="{{ row.id }}" >{{ row.topic.label }}</span>{% endfor %}
             </div>
           </div>
         {% endif %}
         {% if me_projection.considerations.open_to.items %}
           <div class="mk-me-n1-family">
             <h3>Ouvert à <span>{{ me_projection.considerations.open_to.count }}</span></h3>
-            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="open_to" data-me-more="{{ me_projection.considerations.open_to.has_more|yesno:'true,false' }}">
-              {% for row in me_projection.considerations.open_to.items %}<span>{{ row.label }}{% if row.topic.label %} · {{ row.topic.label }}{% endif %}</span>{% endfor %}
+            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="open_to" data-me-loaded="{{ me_projection.considerations.open_to.items|length }}" data-me-more="{{ me_projection.considerations.open_to.has_more|yesno:'true,false' }}">
+              {% for row in me_projection.considerations.open_to.items %}<span data-me-id="{{ row.id }}" >{{ row.label }}{% if row.topic.label %} · {{ row.topic.label }}{% endif %}</span>{% endfor %}
             </div>
           </div>
         {% endif %}
         {% if me_projection.considerations.watches.items %}
           <div class="mk-me-n1-family">
             <h3>Veilles <span>{{ me_projection.considerations.watches.count }}</span></h3>
-            <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="watches" data-me-more="{{ me_projection.considerations.watches.has_more|yesno:'true,false' }}">
+            <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="watches" data-me-loaded="{{ me_projection.considerations.watches.items|length }}" data-me-more="{{ me_projection.considerations.watches.has_more|yesno:'true,false' }}">
               {% for row in me_projection.considerations.watches.items %}
-                <a href="{% url 'discovery:watch-list' %}"><span>{{ row.name }}</span><span aria-hidden="true">›</span></a>
+                <a  data-me-id="{{ row.id }}" href="{% url 'discovery:watch-list' %}"><span>{{ row.name }}</span><span aria-hidden="true">›</span></a>
               {% endfor %}
             </div>
           </div>
@@ -77,9 +77,9 @@
         {% if me_projection.considerations.bookmarks.items %}
           <div class="mk-me-n1-family">
             <h3>Enregistrés <span>{{ me_projection.considerations.bookmarks.count }}</span></h3>
-            <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="bookmarks" data-me-more="{{ me_projection.considerations.bookmarks.has_more|yesno:'true,false' }}">
+            <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="bookmarks" data-me-loaded="{{ me_projection.considerations.bookmarks.items|length }}" data-me-more="{{ me_projection.considerations.bookmarks.has_more|yesno:'true,false' }}">
               {% for row in me_projection.considerations.bookmarks.items %}
-                <a href="{% url 'discovery:bookmarks' %}"><span>{{ row.activity.title }}</span><span aria-hidden="true">›</span></a>
+                <a  data-me-id="{{ row.id }}" href="{% url 'discovery:bookmarks' %}"><span>{{ row.activity.title }}</span><span aria-hidden="true">›</span></a>
               {% endfor %}
             </div>
           </div>
@@ -87,13 +87,13 @@
         {% if me_projection.considerations.followed_spaces.items %}
           <div class="mk-me-n1-family">
             <h3>Espaces suivis <span>{{ me_projection.considerations.followed_spaces.count }}</span></h3>
-            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="followed_spaces" data-me-more="{{ me_projection.considerations.followed_spaces.has_more|yesno:'true,false' }}">{% for row in me_projection.considerations.followed_spaces.items %}<span>{{ row.space.name }}</span>{% endfor %}</div>
+            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="followed_spaces" data-me-loaded="{{ me_projection.considerations.followed_spaces.items|length }}" data-me-more="{{ me_projection.considerations.followed_spaces.has_more|yesno:'true,false' }}">{% for row in me_projection.considerations.followed_spaces.items %}<span data-me-id="{{ row.id }}" >{{ row.space.name }}</span>{% endfor %}</div>
           </div>
         {% endif %}
         {% if me_projection.considerations.followed_profiles.items %}
           <div class="mk-me-n1-family">
             <h3>Personnes suivies <span>{{ me_projection.considerations.followed_profiles.count }}</span></h3>
-            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="followed_profiles" data-me-more="{{ me_projection.considerations.followed_profiles.has_more|yesno:'true,false' }}">{% for row in me_projection.considerations.followed_profiles.items %}<span>{{ row.profile.display_name }}</span>{% endfor %}</div>
+            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="followed_profiles" data-me-loaded="{{ me_projection.considerations.followed_profiles.items|length }}" data-me-more="{{ me_projection.considerations.followed_profiles.has_more|yesno:'true,false' }}">{% for row in me_projection.considerations.followed_profiles.items %}<span data-me-id="{{ row.id }}" >{{ row.profile.display_name }}</span>{% endfor %}</div>
           </div>
         {% endif %}
         {% if not me_projection.considerations.interests.items and not me_projection.considerations.open_to.items and not me_projection.considerations.watches.items and not me_projection.considerations.bookmarks.items and not me_projection.considerations.followed_spaces.items and not me_projection.considerations.followed_profiles.items %}
@@ -109,27 +109,27 @@
       </div>
       <div class="mk-me-n1-panel">
         {% if me_projection.collectives.authorized_spaces.items %}
-          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="authorized_spaces" data-me-more="{{ me_projection.collectives.authorized_spaces.has_more|yesno:'true,false' }}">Espaces</h3>
+          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="authorized_spaces" data-me-loaded="{{ me_projection.collectives.authorized_spaces.items|length }}" data-me-more="{{ me_projection.collectives.authorized_spaces.has_more|yesno:'true,false' }}">Espaces</h3>
           {% for row in me_projection.collectives.authorized_spaces.items %}
-            <div class="mk-me-n1-person-row">
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
               <span class="mk-me-n1-monogram" aria-hidden="true">{{ row.name|first|upper }}</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong><small>Vous pouvez agir ici</small></span>
             </div>
           {% endfor %}
         {% endif %}
         {% if me_projection.collectives.teams.items %}
-          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="teams" data-me-more="{{ me_projection.collectives.teams.has_more|yesno:'true,false' }}">Équipes</h3>
+          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="teams" data-me-loaded="{{ me_projection.collectives.teams.items|length }}" data-me-more="{{ me_projection.collectives.teams.has_more|yesno:'true,false' }}">Équipes</h3>
           {% for row in me_projection.collectives.teams.items %}
-            <div class="mk-me-n1-person-row">
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
               <span class="mk-me-n1-monogram" aria-hidden="true">{{ row.name|first|upper }}</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong><small>{{ row.space.name }}</small></span>
             </div>
           {% endfor %}
         {% endif %}
         {% if me_projection.collectives.groups.items %}
-          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="groups" data-me-more="{{ me_projection.collectives.groups.has_more|yesno:'true,false' }}">Groupes</h3>
+          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="groups" data-me-loaded="{{ me_projection.collectives.groups.items|length }}" data-me-more="{{ me_projection.collectives.groups.has_more|yesno:'true,false' }}">Groupes</h3>
           {% for row in me_projection.collectives.groups.items %}
-            <a class="mk-me-n1-person-row" href="{% url 'groups:detail' row.slug %}">
+            <a data-me-id="{{ row.id }}" class="mk-me-n1-person-row" href="{% url 'groups:detail' row.slug %}">
               <span class="mk-me-n1-monogram" aria-hidden="true">{{ row.name|first|upper }}</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong><small>Groupe</small></span>
               <span aria-hidden="true">›</span>
@@ -162,27 +162,27 @@
       </div>
       <div class="mk-me-n1-panel">
         {% if me_projection.resources.documents.items %}
-          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="documents" data-me-more="{{ me_projection.resources.documents.has_more|yesno:'true,false' }}">Documents <span>{{ me_projection.resources.documents.count }}</span></h3>
+          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="documents" data-me-loaded="{{ me_projection.resources.documents.items|length }}" data-me-more="{{ me_projection.resources.documents.has_more|yesno:'true,false' }}">Documents <span>{{ me_projection.resources.documents.count }}</span></h3>
           {% for row in me_projection.resources.documents.items %}
-            <div class="mk-me-n1-person-row">
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
               <span class="mk-me-n1-document-icon" aria-hidden="true">▤</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.title }}</strong><small>{{ row.asset_kind_label }}</small></span>
             </div>
           {% endfor %}
         {% endif %}
         {% if me_projection.resources.proofs.items %}
-          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="proofs" data-me-more="{{ me_projection.resources.proofs.has_more|yesno:'true,false' }}">Preuves <span>{{ me_projection.resources.proofs.count }}</span></h3>
+          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="proofs" data-me-loaded="{{ me_projection.resources.proofs.items|length }}" data-me-more="{{ me_projection.resources.proofs.has_more|yesno:'true,false' }}">Preuves <span>{{ me_projection.resources.proofs.count }}</span></h3>
           {% for row in me_projection.resources.proofs.items %}
-            <div class="mk-me-n1-person-row">
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
               <span class="mk-me-n1-document-icon" aria-hidden="true">✓</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.proof_type_label }}</strong><small>{{ row.status_label }}</small></span>
             </div>
           {% endfor %}
         {% endif %}
         {% if me_projection.resources.credentials.items %}
-          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="credentials" data-me-more="{{ me_projection.resources.credentials.has_more|yesno:'true,false' }}">Attestations <span>{{ me_projection.resources.credentials.count }}</span></h3>
+          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="credentials" data-me-loaded="{{ me_projection.resources.credentials.items|length }}" data-me-more="{{ me_projection.resources.credentials.has_more|yesno:'true,false' }}">Attestations <span>{{ me_projection.resources.credentials.count }}</span></h3>
           {% for row in me_projection.resources.credentials.items %}
-            <div class="mk-me-n1-person-row">
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
               <span class="mk-me-n1-document-icon" aria-hidden="true">✧</span>
               <span class="mk-me-n1-row-copy"><strong>{{ row.title }}</strong><small>{{ row.credential_type_label }}{% if row.status_label %} · {{ row.status_label }}{% endif %}</small></span>
             </div>
