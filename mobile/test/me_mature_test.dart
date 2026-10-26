@@ -467,18 +467,25 @@ void main() {
     expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
-  testWidgets('resource N2 changes focus and back restores Moi', (
+  testWidgets('owner handoff opens a real destination without a fake Moi depth', (
     tester,
   ) async {
     final selection = selector.select(
-      projection: _projection(_fullPayload()),
-      now: now,
+      projection: _projection(_fullPayload()), now: now,
     );
-
+    String? openedKind;
+    String? openedId;
     await PresentationHarness.pump(
       tester,
       viewport: const Size(430, 932),
-      child: MeView(selection: selection),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (destination) {
+          openedKind = destination.kind;
+          openedId = destination.id;
+          return true;
+        },
+      ),
     );
 
     await tester.ensureVisible(find.text('Passeport.pdf'));
@@ -486,20 +493,35 @@ void main() {
     await tester.tap(find.text('Passeport.pdf'));
     await tester.pump();
 
-    expect(find.byKey(const Key('me-depth-scroll')), findsOneWidget);
-    expect(find.text('Privé'), findsOneWidget);
-    expect(find.textContaining('Son usage dépendra'), findsNothing);
-    expect(find.textContaining('Requirement'), findsNothing);
-    expect(find.textContaining('AccessCredential'), findsNothing);
-
-    await tester.tap(find.widgetWithText(TextButton, 'Moi'));
-    await tester.pump();
-
+    expect(openedKind, 'personal_asset');
+    expect(openedId, isNotEmpty);
     expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
     expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
-  testWidgets('body starts with identity without repeating Moi', (
+  testWidgets('unknown owner item cannot open an invented depth', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()), now: now,
+    );
+    var invocations = 0;
+    await PresentationHarness.pump(
+      tester,
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (_) { invocations++; return true; },
+      ),
+    );
+    await tester.ensureVisible(find.text('Technologie'));
+    await tester.pump();
+    await tester.tap(find.text('Technologie'));
+    await tester.pump();
+    expect(invocations, 0);
+    expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
+  });
+
+    testWidgets('body starts with identity without repeating Moi', (
     tester,
   ) async {
     final selection = selector.select(
