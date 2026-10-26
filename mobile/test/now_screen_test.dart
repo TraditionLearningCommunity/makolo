@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/now/now_screen.dart';
+import 'package:makolo_mobile/features/now/now_display_labels.dart';
 import 'package:makolo_mobile/features/now/now_selector.dart';
 import 'package:makolo_mobile/navigation/destination.dart';
 import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
@@ -64,6 +65,69 @@ NowSelection contentSelection({
 }
 
 void main() {
+  test('N1 copy removes repeated context without changing intent', () {
+    expect(
+      nowDisplayHeadline(
+        'Vérifier la prochaine étape — Conférence cybersécurité',
+        'Conférence cybersécurité',
+      ),
+      'Vérifier la prochaine étape',
+    );
+    expect(
+      nowDisplayActionLabel(
+        'Confirmer : Louer un véhicule à Kolwezi',
+        'Louer un véhicule à Kolwezi',
+      ),
+      'Confirmer',
+    );
+    expect(
+      nowDisplayActionLabel('Accepter le transfert', 'Billet de concert'),
+      'Accepter le transfert',
+    );
+  });
+
+  testWidgets('N1 uses flat Discover units, not padded cards', (tester) async {
+    await PresentationHarness.pump(
+      tester,
+      child: NowView(selection: contentSelection()),
+    );
+    expect(find.byType(Card), findsNothing);
+    expect(
+      find.byKey(const Key('now-unit-now:trip')),
+      findsOneWidget,
+    );
+    expect(find.text('Aussi maintenant'), findsOneWidget);
+    expect(find.text('Vous avez tout exploré'), findsNothing);
+  });
+
+  testWidgets('N1 separates the context from a repeated heading', (tester) async {
+    final item = NowSituationPresentation(
+      identity: 'now:conference',
+      reference: const StructuredDestination(kind: 'now', id: 'conference'),
+      humanContext: 'Conférence cybersécurité',
+      meaning: 'Vérifier la prochaine étape — Conférence cybersécurité',
+      emphasis: NowPresentationEmphasis.primary,
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: NowView(
+        selection: NowSelection(
+          situations: [item],
+          state: const MakoloSurfacePresentation(
+            availability: MakoloAvailabilityCue.content,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Conférence cybersécurité'), findsOneWidget);
+    expect(find.text('Vérifier la prochaine étape'), findsOneWidget);
+    expect(
+      find.text('Vérifier la prochaine étape — Conférence cybersécurité'),
+      findsNothing,
+    );
+  });
+
+
   test('S5 requires consequence and a coherent owner response', () {
     final base = NowSituationPresentation(
       identity: 'now:conflict',
