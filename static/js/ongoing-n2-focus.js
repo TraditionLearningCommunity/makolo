@@ -7,6 +7,8 @@
   const body = panel?.querySelector("#ongoing-detail-body");
   const close = panel?.querySelector("#ongoing-n2-close");
   if (!field || !workspace || !panel || !body || !close) return;
+  if (field.dataset.n2Bound === "1") return;
+  field.dataset.n2Bound = "1";
 
   let activeKey = null;
   let previousScroll = 0;
