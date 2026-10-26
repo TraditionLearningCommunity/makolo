@@ -47,6 +47,11 @@
         const label = other.querySelector("[data-ongoing-save-label]");
         if (toggle) toggle.setAttribute("aria-pressed", state === "saved" ? "true" : "false");
         if (label) label.textContent = state === "saved" ? "Enregistré" : "Enregistrer";
+        const availableIcon = other.querySelector("[data-ongoing-orbit-available]");
+        const savedIcon = other.querySelector("[data-ongoing-orbit-saved]");
+        if (availableIcon) availableIcon.hidden = state === "saved";
+        if (savedIcon) savedIcon.hidden = state !== "saved";
+        if (toggle) toggle.title = state === "saved" ? "Enregistré" : "Enregistrer";
       });
       if (feedback) feedback.textContent = saved ? "Enregistrement retiré." : "Possibilité enregistrée.";
     } catch (_) {
@@ -59,7 +64,7 @@
   const complete = () => {
     sentinel.dataset.state = "end";
     sentinel.dataset.nextToken = "";
-    status.textContent = "Vous avez tout exploré";
+    status.textContent = "";
     observer?.disconnect();
   };
 
