@@ -20,6 +20,11 @@
     </details>
   {% endif %}
 
+  <button type="button" class="mk-ongoing-n2-trigger" data-ongoing-focus-trigger="{{ item.id }}" aria-controls="ongoing-detail" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+  <template data-ongoing-focus="{{ item.id }}">
+    {% include "core/_ongoing_n2_focus.html" with item=item %}
+  </template>
+
   <div class="mk-ongoing-unit__actions" role="group" aria-label="Actions pour {{ item.title }}">
     {% if item.possibility and item.possibility.links.saved %}
       <form class="mk-ongoing-unit__save" data-ongoing-save data-save-url="{{ item.possibility.links.saved }}" data-save-state="{{ item.possibility.saved_state }}" data-ongoing-activity="{{ item.possibility.id }}">
