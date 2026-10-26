@@ -30,6 +30,7 @@ class OngoingContinuityPresentation {
     this.placeLabel,
     this.mediaUrl,
     this.mediaAlt,
+    this.possibility,
   });
 
   final String id;
@@ -61,6 +62,7 @@ class OngoingContinuityPresentation {
   final String? placeLabel;
   final String? mediaUrl;
   final String? mediaAlt;
+  final OngoingPossibilityPresentation? possibility;
 
   bool get hasParallelMovement {
     var movingDimensions = 0;
@@ -222,6 +224,7 @@ class OngoingContinuityPresentation {
       placeLabel: _text(n1['place_label']),
       mediaUrl: mediaUrl,
       mediaAlt: mediaAlt,
+      possibility: OngoingPossibilityPresentation.fromMap(_map(n1['possibility'])),
     );
   }
 
@@ -321,5 +324,42 @@ class OngoingHandoffPresentation {
     final id = OngoingContinuityPresentation._text(value['id']);
     if (type == null || target == null || id == null) return null;
     return OngoingHandoffPresentation(type: type, target: target, id: id);
+  }
+}
+
+
+/// Server-admitted Discovery action on a public Activity; never Ongoing authority.
+class OngoingPossibilityPresentation {
+  const OngoingPossibilityPresentation({
+    required this.id,
+    required this.savedState,
+    required this.canSave,
+    required this.canShare,
+    required this.shareUrl,
+  });
+  final String id;
+  final String savedState;
+  final bool canSave;
+  final bool canShare;
+  final String? shareUrl;
+
+  static OngoingPossibilityPresentation? fromMap(Map<String, dynamic> raw) {
+    final id = raw['id'];
+    if (raw['family'] != 'activity' || id is! String ||
+        !RegExp(r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$').hasMatch(id)) {
+      return null;
+    }
+    final caps = raw['capabilities'];
+    final allowed = caps is List ? caps.whereType<String>().toSet() : <String>{};
+    final links = raw['links'];
+    final share = links is Map ? links['share'] : null;
+    return OngoingPossibilityPresentation(
+      id: id,
+      savedState: raw['saved_state'] == 'saved' ? 'saved' : 'not_saved',
+      canSave: allowed.contains('save') || allowed.contains('unsave'),
+      canShare: allowed.contains('share') && share is String &&
+          share == '/api/v1/sharing/possibilities/activity/$id/',
+      shareUrl: share is String ? share : null,
+    );
   }
 }
