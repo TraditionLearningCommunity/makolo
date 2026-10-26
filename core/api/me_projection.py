@@ -228,6 +228,77 @@ def _profile_follow_item(row):
     }
 
 
+def _decorate_saved_recognition_media(profile, bookmarks):
+    """Only re-use already-published Discovery RECOGNIZE media in Moi.
+
+    Media is representation, not ownership or permission to share. Keep the
+    normal private bookmark title even when a public image is inadmissible.
+    """
+    rows = bookmarks.get("items") if isinstance(bookmarks, dict) else None
+    if not rows:
+        return
+
+    from accounts.models import UserProfile
+    from activities.models import Activity, ActivityStatus, ActivityVisibility
+    from groups.selectors import eligible_activity_ids_for_profile
+    from organizations.models import SpaceLifecycle
+    from presentations.media_selectors import public_presentation_media_for_activities
+
+    ids = [row["activity"]["id"] for row in rows if row.get("activity")]
+    candidates = list(
+        Activity.objects.filter(
+            pk__in=ids,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        ).select_related("space")
+    )
+    eligible = set(eligible_activity_ids_for_profile(profile, [a.pk for a in candidates]))
+    public_people = set(
+        UserProfile.objects.filter(
+            user_id__in=[a.owner_profile_id for a in candidates if a.owner_profile_id],
+            public_profile=True,
+            searchable=True,
+            user__is_active=True,
+        ).values_list("user_id", flat=True)
+    )
+    admitted = [
+        activity for activity in candidates
+        if activity.pk in eligible and (
+            (activity.space_id is not None
+             and activity.space.public_profile and activity.space.searchable
+             and activity.space.lifecycle == SpaceLifecycle.ACTIVE
+             and activity.space.verification_status != "suspended")
+            or
+            (activity.space_id is None and activity.owner_profile_id in public_people)
+        )
+    ]
+    published = public_presentation_media_for_activities(admitted)
+    for row in rows:
+        activity_id = row["activity"]["id"]
+        available = published.get(activity_id) or []
+        media = next(
+            (use for use in available
+             if use.mime_type in {"image/jpeg", "image/png"}),
+            None,
+        )
+        if media is None:
+            continue
+        row["media_bindings"] = [{
+            "resource": {
+                "kind": "presentation_media_use",
+                "id": media.use_id,
+                "url": reverse(
+                    "presentations:published-media-file",
+                    kwargs={"use_id": media.use_id},
+                ),
+                "mime_type": media.mime_type,
+                "alt_text": media.alt_text,
+            },
+            "target": {"kind": "activity", "id": activity_id},
+            "purpose": "RECOGNIZE",
+        }]
+
+
 def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offset=0, family=None):
     """Private facts explicitly chosen by the Profile; no inferred preference."""
     interests = (
@@ -260,7 +331,7 @@ def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offse
         .select_related("organizer_profile")
         .order_by("-followed_at", "id")
     )
-    return _family_slice(
+    collections = _family_slice(
         {
             "interests": (interests, _interest_item),
             "open_to": (open_to, _open_to_item),
@@ -273,6 +344,10 @@ def build_personal_considerations_data(profile, *, limit=ME_SECTION_LIMIT, offse
         offset=offset,
         family=family,
     )
+    # Same admission on initial 6 items and on every continuation page.
+    if "bookmarks" in collections:
+        _decorate_saved_recognition_media(profile, collections["bookmarks"])
+    return collections
 
 def _authorized_space_item(space):
     return {
