@@ -19,10 +19,17 @@ class MeItemPresentation {
 }
 
 class MeTerritorySelection {
-  const MeTerritorySelection({required this.presentation, required this.items});
+  const MeTerritorySelection({
+    required this.presentation,
+    required this.items,
+    this.totalCount = 0,
+    this.hasMore = false,
+  });
 
   final MeTerritoryPresentation presentation;
   final List<MeItemPresentation> items;
+  final int totalCount;
+  final bool hasMore;
 
   bool get hasContent =>
       presentation.state.availability == MakoloAvailabilityCue.content;
@@ -36,6 +43,7 @@ class MeSelection {
     required this.identityState,
     this.identitySubtitle,
     this.identityDetail,
+    this.identityAvatarUrl,
   });
 
   final MePresentation presentation;
@@ -44,6 +52,7 @@ class MeSelection {
   final MakoloSurfacePresentation identityState;
   final String? identitySubtitle;
   final String? identityDetail;
+  final String? identityAvatarUrl;
 
   int get contentfulTerritoryCount =>
       territories.where((territory) => territory.hasContent).length;
@@ -143,6 +152,7 @@ class MeSelector {
       identityState: identityState,
       identitySubtitle: _identitySubtitle(identityRaw),
       identityDetail: _string(identityRaw?['bio']),
+      identityAvatarUrl: _string(identityRaw?['avatar_url']),
     );
   }
 
@@ -214,6 +224,8 @@ class MeSelector {
       malformed: malformed,
       freshness: freshness,
       reachability: reachability,
+      totalCount: _collectionCount(section, ['interests','open_to','watches','bookmarks','followed_spaces','followed_profiles']),
+      hasMore: _collectionHasMore(section, ['interests','open_to','watches','bookmarks','followed_spaces','followed_profiles']),
     );
   }
 
@@ -242,6 +254,8 @@ class MeSelector {
       malformed: malformed,
       freshness: freshness,
       reachability: reachability,
+      totalCount: _collectionCount(section, ['authorized_spaces','teams','groups']),
+      hasMore: _collectionHasMore(section, ['authorized_spaces','teams','groups']),
     );
   }
 
@@ -306,6 +320,8 @@ class MeSelector {
       malformed: malformed,
       freshness: freshness,
       reachability: reachability,
+      totalCount: _collectionCount(section, ['documents','proofs','credentials']),
+      hasMore: _collectionHasMore(section, ['documents','proofs','credentials']),
     );
   }
 
@@ -359,8 +375,12 @@ class MeSelector {
     required bool malformed,
     required MakoloFreshnessCue freshness,
     required MakoloReachabilityCue reachability,
+    int totalCount = 0,
+    bool hasMore = false,
   }) {
     return MeTerritorySelection(
+      totalCount: totalCount,
+      hasMore: hasMore,
       presentation: MeTerritoryPresentation(
         key: key,
         label: label,
@@ -391,6 +411,26 @@ class MeSelector {
       reachability: reachability,
       failure: malformed ? MakoloFailureCue.blocking : MakoloFailureCue.none,
     );
+  }
+
+  int _collectionCount(Map<String, dynamic>? section, List<String> keys) {
+    if (section == null) return 0;
+    var total = 0;
+    for (final key in keys) {
+      final collection = _map(section[key]);
+      final count = collection?['count'];
+      if (count is int && count >= 0) {
+        total += count;
+      } else if (collection?['items'] is List) {
+        total += (collection!['items'] as List).length;
+      }
+    }
+    return total;
+  }
+
+  bool _collectionHasMore(Map<String, dynamic>? section, List<String> keys) {
+    if (section == null) return false;
+    return keys.any((key) => _map(section[key])?['has_more'] == true);
   }
 
   bool _appendBounded(
