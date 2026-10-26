@@ -11,6 +11,7 @@ import 'package:makolo_mobile/repositories/personal_repository.dart';
 import 'support/presentation_harness.dart';
 
 StoredProjection _projection({
+  Map<String, dynamic>? continuation,
   List<Object> items = const [
     {
       'kind': 'journey',
@@ -36,7 +37,7 @@ StoredProjection _projection({
 }) => StoredProjection(
   kind: 'personal.ongoing',
   schemaVersion: 1,
-  payload: {'items': items},
+  payload: {'items': items, if (continuation != null) 'continuation': continuation},
   receivedAt: DateTime.utc(2026, 10, 3),
   freshUntil: DateTime.utc(2026, 12, 1),
 );
@@ -107,6 +108,35 @@ void main() {
     expect(find.text('Accès disponible'), findsOneWidget);
     expect(find.text('12/11/2026 · 14:00'), findsOneWidget);
     expect(find.byKey(const Key('ongoing-n1-recognition-media')), findsNothing);
+  });
+
+  testWidgets('each native N1 unit contains actions and truthful disclosure', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(_projection(
+          continuation: {'state': 'end', 'token': null},
+        )),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Enregistrer'), findsOneWidget);
+    expect(find.text('Continuer'), findsOneWidget);
+    expect(find.text('Partager'), findsOneWidget);
+    expect(find.text('Vous avez tout exploré'), findsOneWidget);
+    final disabledSave = tester.widget<TextButton>(
+      find.ancestor(
+        of: find.text('Enregistrer'), matching: find.byType(TextButton),
+      ).first,
+    );
+    expect(disabledSave.onPressed, isNull);
+    await tester.tap(find.text('Voir plus'));
+    await tester.pump();
+    expect(find.text('Voir moins'), findsOneWidget);
+    expect(find.text('Frais réglés'), findsOneWidget);
   });
 
   testWidgets(
