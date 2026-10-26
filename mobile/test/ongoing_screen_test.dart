@@ -276,6 +276,10 @@ void main() {
     );
     await tester.pump();
 
+    // G07: no empty N2 pane before choosing a continuity.
+    expect(find.byKey(const Key('makolo-adaptive-split-row')), findsNothing);
+    await tester.tap(find.text('Visa Canada').first);
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('makolo-adaptive-split-row')), findsOneWidget);
   });
 }
