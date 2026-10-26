@@ -7,8 +7,7 @@
   {% if ongoing_items %}
     <div class="mk-ongoing-list" id="ongoing-stream" aria-label="Ce qui continue pour moi">
       {% for item in ongoing_items %}
-        {% include "core/_ongoing_card.html" with expanded=False %}
-        {% include "core/_ongoing_card.html" with expanded=True %}
+        {% include "core/_ongoing_unit.html" %}
       {% endfor %}
     </div>
     <div id="ongoing-infinite" data-next-token="{{ ongoing_next_token|default:'' }}" data-state="{% if ongoing_next_token %}more{% else %}end{% endif %}" aria-live="polite">
