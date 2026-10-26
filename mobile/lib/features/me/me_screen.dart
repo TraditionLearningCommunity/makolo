@@ -135,9 +135,9 @@ class _MeScreenState extends State<MeScreen> {
     if (pending.isEmpty) return;
     final territory = pending.first.presentation.key;
     final repository = widget.repository;
-    final current = _last!;
     setState(() => _loading = territory);
     try {
+      final current = await repository.store.readProjection('personal.me') ?? _last!;
       await repository.loadMoreMe(
         api: widget.api!, current: current, territory: territory,
       );
