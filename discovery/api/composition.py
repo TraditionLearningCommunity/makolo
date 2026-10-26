@@ -1144,7 +1144,10 @@ def _finalize_projection(
         owner_presentation = projection["engagement"].get("presentation") or {}
         requires_auth = bool(owner_presentation.get("requires_auth"))
         projection["engagement"]["presentation"] = {
-            "label": owner_presentation.get("label") if requires_auth else primary.label,
+            "label": (
+                owner_presentation.get("label") if requires_auth
+                else primary.label
+            ),
             "capability": (
                 owner_presentation.get("capability") if requires_auth
                 else primary.code
