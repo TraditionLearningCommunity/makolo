@@ -39,7 +39,7 @@ StoredProjection _projection({
   schemaVersion: 1,
   payload: {
     'items': items,
-    if (continuation != null) 'continuation': continuation,
+    'continuation': ?continuation,
   },
   receivedAt: DateTime.utc(2026, 10, 3),
   freshUntil: DateTime.utc(2026, 12, 1),
