@@ -322,7 +322,8 @@ def _group_item(group):
             "detail": reverse(
                 "personal-projections:group-detail",
                 kwargs={"pk": group.pk},
-            )
+            ),
+            "web": reverse("groups:detail", kwargs={"slug": group.slug}),
         },
     }
 
