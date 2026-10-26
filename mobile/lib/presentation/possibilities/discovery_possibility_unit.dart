@@ -1146,12 +1146,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 label: Text(_centralActionLabel),
               ),
             ),
-          if (_readOnlyOwnerPath case final path?)
+          if (_readOnlyOwnerPath != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: OutlinedButton.icon(
                 key: const Key('discover-owner-n3'),
-                onPressed: () => widget.onOwnerDepth!(path),
+                onPressed: () => widget.onOwnerDepth!(_readOnlyOwnerPath!),
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: const Text('Voir l’activité'),
               ),
