@@ -94,6 +94,135 @@ DiscoveryFieldSelection selection({
 }
 
 void main() {
+  testWidgets('N2 opens the existing Activity owner N3 without inventing an action', (
+    tester,
+  ) async {
+    String? ownerPath;
+    final possibility = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'activity-123',
+      candidateKey: 'service_activity:activity-123',
+      title: 'Service réel',
+      summary: '',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'identity': {
+          'family': 'service_activity',
+          'resource': {'kind': 'activity', 'id': 'activity-123'},
+        },
+        'engagement': {
+          'state': 'owner_contract',
+          'owner': 'services',
+          'capabilities': <String>[],
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryPossibilityUnit(
+        item: possibility,
+        detailMode: true,
+        onOpen: () => fail('N2 must not recursively open itself'),
+        onOwnerDepth: (path) => ownerPath = path,
+      ),
+    );
+
+    final action = find.byKey(const Key('discover-owner-n3'));
+    expect(action, findsOneWidget);
+    expect(find.byKey(const Key('discover-primary-n2')), findsNothing);
+    await tester.tap(action);
+    expect(ownerPath, '/activities/activity-123');
+  });
+
+  testWidgets('N2 never fabricates an Activity N3 for an external Opportunity', (
+    tester,
+  ) async {
+    final possibility = DiscoveryItemPresentation(
+      family: 'opportunity',
+      id: 'opportunity-123',
+      candidateKey: 'opportunity:opportunity-123',
+      title: 'Candidature externe',
+      summary: '',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'identity': {
+          'family': 'opportunity',
+          'resource': {'kind': 'opportunity', 'id': 'opportunity-123'},
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryPossibilityUnit(
+        item: possibility,
+        detailMode: true,
+        onOpen: () {},
+        onOwnerDepth: (_) => fail('No owner Activity for external Opportunity'),
+      ),
+    );
+    expect(find.byKey(const Key('discover-owner-n3')), findsNothing);
+    expect(find.byKey(const Key('discover-primary-n2')), findsNothing);
+  });
+
+  testWidgets('N2 prioritizes an owner-native action over generic Activity N3', (
+    tester,
+  ) async {
+    String? ownerPath;
+    final possibility = DiscoveryItemPresentation(
+      family: 'service_activity',
+      id: 'activity-123',
+      candidateKey: 'service_activity:activity-123',
+      title: 'Service avec démarrage',
+      summary: '',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'identity': {
+          'family': 'service_activity',
+          'resource': {'kind': 'activity', 'id': 'activity-123'},
+        },
+        'engagement': {
+          'owner': 'services',
+          'state': 'owner_api',
+          'resource': {'kind': 'service', 'id': 'service-123'},
+          'capabilities': ['start'],
+          'presentation': {'capability': 'start', 'enabled': true},
+          'primary_action': {
+            'code': 'start',
+            'label': 'Commencer',
+            'destination': {
+              'kind': 'native',
+              'path': '/services/service-123/start',
+            },
+          },
+        },
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryPossibilityUnit(
+        item: possibility,
+        detailMode: true,
+        onOpen: () {},
+        onNativeAction: (path) => ownerPath = path,
+        onOwnerDepth: (_) => fail('Native owner depth has priority'),
+      ),
+    );
+    expect(find.byKey(const Key('discover-owner-n3')), findsNothing);
+    final action = find.byKey(const Key('discover-primary-n2'));
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    expect(ownerPath, '/services/service-123/start');
+  });
+
   testWidgets(
     'N2 shares media and resources with N1 without a second detail CTA',
     (tester) async {
