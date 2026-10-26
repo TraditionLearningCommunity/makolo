@@ -25,5 +25,5 @@
       </section>
     {% endif %}
   {% endfor %}
-  {% if item.url %}<a class="mk-now-cta" href="{{ item.url }}">Ouvrir la démarche</a>{% endif %}
+  {% if item.url %}<a class="mk-now-cta" href="{{ item.url }}">{{ item.primary_label|default:"Ouvrir la démarche" }}</a>{% endif %}
 </section>
