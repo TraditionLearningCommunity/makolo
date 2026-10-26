@@ -184,38 +184,19 @@ class _MeViewState extends State<MeView> {
   }
 
   void _checkEnd() {
-    if (_controller.hasClients && !widget.loadingMore &&
+    if (_controller.hasClients && !widget.loadingMore && !widget.loadFailed &&
         _controller.position.extentAfter < 520) {
       widget.onReachEnd?.call();
     }
-  }
-  StructuredDestination? _selectedDestination;
-
-  MeItemPresentation? get _selectedItem {
-    final selected = _selectedDestination;
-    if (selected == null) {
-      return null;
-    }
-
-    for (final territory in widget.selection.territories) {
-      for (final item in territory.items) {
-        if (_sameDestination(item.destination, selected)) {
-          return item;
-        }
-      }
-    }
-
-    return null;
   }
 
   @override
   void didUpdateWidget(covariant MeView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _checkEnd();
-    });
-    if (_selectedDestination != null && _selectedItem == null) {
-      _selectedDestination = null;
+    if (widget.onReachEnd != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkEnd();
+      });
     }
   }
 
@@ -227,15 +208,19 @@ class _MeViewState extends State<MeView> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final useTwoTerritories =
-            constraints.maxWidth >= MakoloLayout.meTwoColumnMinWidth &&
-            MediaQuery.textScalerOf(context).scale(16) <= 21 &&
-            widget.selection.contentfulTerritoryCount >= 2;
-        final selected = _selectedItem;
-
-        final field = MakoloContentFrame(
+    return LayoutBuilder(builder: (context, constraints) {
+      final useTwoTerritories =
+          constraints.maxWidth >= MakoloLayout.meTwoColumnMinWidth &&
+          MediaQuery.textScalerOf(context).scale(16) <= 21 &&
+          widget.selection.contentfulTerritoryCount >= 2;
+      if (widget.onReachEnd != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _checkEnd();
+        });
+      }
+      return MakoloSurfaceStateView(
+        state: widget.selection.state,
+        content: MakoloContentFrame(
           child: _MeField(
             selection: widget.selection,
             controller: _controller,
@@ -245,62 +230,20 @@ class _MeViewState extends State<MeView> {
             loadFailed: widget.loadFailed,
             onRetry: widget.onRetry,
             hasMore: widget.selection.territories.any((t) => t.hasMore),
+            hasOwnerNavigation: widget.onOpenDestination != null,
+            canConfirmExhaustion: widget.onReachEnd != null ||
+                (widget.selection.territories.every((t) => !t.hasMore)),
           ),
-        );
-
-        if (widget.onReachEnd != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _checkEnd();
-          });
-        }
-        final content = selected == null
-            ? field
-            : MakoloAdaptiveSplit(
-                splitAt: MakoloLayout.meTwoColumnMinWidth,
-                field: field,
-                focus: MakoloContentFrame(
-                  child: _MeDepth(item: selected, onClose: _closeDepth),
-                ),
-                narrow: MakoloContentFrame(
-                  child: _MeDepth(item: selected, onClose: _closeDepth),
-                ),
-              );
-
-        return PopScope<Object?>(
-          canPop: _selectedDestination == null,
-          onPopInvokedWithResult: (didPop, result) {
-            if (!didPop && _selectedDestination != null) {
-              _closeDepth();
-            }
-          },
-          child: MakoloSurfaceStateView(
-            state: widget.selection.state,
-            content: content,
-          ),
-        );
-      },
-    );
+        ),
+      );
+    });
   }
 
   void _selectItem(MeItemPresentation item) {
-    if (widget.onOpenDestination?.call(item.destination) == true) {
-      return;
-    }
-    setState(() => _selectedDestination = item.destination);
-  }
-
-  void _closeDepth() {
-    if (_selectedDestination == null) {
-      return;
-    }
-    setState(() => _selectedDestination = null);
-  }
-
-  bool _sameDestination(
-    StructuredDestination left,
-    StructuredDestination right,
-  ) {
-    return left.kind == right.kind && left.id == right.id;
+    if (!item.canOpen) return;
+    widget.onOpenDestination?.call(item.destination);
+    // No generic fallback: the owner either opens its native route, or
+    // the N1 fact stays in place until that owner has a real client screen.
   }
 }
 
@@ -387,6 +330,8 @@ class _MeField extends StatelessWidget {
     required this.loadFailed,
     required this.onRetry,
     required this.hasMore,
+    required this.hasOwnerNavigation,
+    required this.canConfirmExhaustion,
   });
 
   final MeSelection selection;
@@ -397,12 +342,15 @@ class _MeField extends StatelessWidget {
   final bool loadFailed;
   final VoidCallback? onRetry;
   final bool hasMore;
+  final bool hasOwnerNavigation;
+  final bool canConfirmExhaustion;
 
   @override
   Widget build(BuildContext context) {
     final territories = [
       for (final territory in selection.territories)
-        _MeTerritory(territory: territory, onSelectItem: onSelectItem),
+        _MeTerritory(territory: territory, onSelectItem: onSelectItem,
+          hasOwnerNavigation: hasOwnerNavigation),
     ];
 
     return ListView(
@@ -433,7 +381,7 @@ class _MeField extends StatelessWidget {
         const SizedBox(height: MakoloSpacing.xl),
         if (loadingMore) const Center(child: CircularProgressIndicator.adaptive())
         else if (loadFailed) Center(child: TextButton(onPressed: onRetry, child: const Text('Réessayer')))
-        else if (!hasMore) Center(child: Text('Vous avez tout exploré', style: Theme.of(context).textTheme.bodySmall)),
+        else if (!hasMore && canConfirmExhaustion) Center(child: Text('Vous avez tout exploré', style: Theme.of(context).textTheme.bodySmall)),
       ],
     );
   }
@@ -566,10 +514,12 @@ class _MeAvatar extends StatelessWidget {
 }
 
 class _MeTerritory extends StatelessWidget {
-  const _MeTerritory({required this.territory, required this.onSelectItem});
+  const _MeTerritory({required this.territory, required this.onSelectItem,
+    required this.hasOwnerNavigation});
 
   final MeTerritorySelection territory;
   final ValueChanged<MeItemPresentation> onSelectItem;
+  final bool hasOwnerNavigation;
 
   @override
   Widget build(BuildContext context) {
@@ -717,7 +667,8 @@ class _MeTerritory extends StatelessWidget {
             if (firstItem != null)
               IconButton(
                 tooltip: 'Ouvrir le passeport',
-                onPressed: () => onSelectItem(firstItem),
+                onPressed: firstItem.canOpen && hasOwnerNavigation
+                    ? () => onSelectItem(firstItem) : null,
                 icon: const Icon(Icons.arrow_forward, color: Colors.white),
               ),
           ],
@@ -755,7 +706,8 @@ class _MeTerritory extends StatelessWidget {
               ),
             ),
             for (final item in territory.items.where((item) => family.$2.contains(item.destination.kind)))
-              _MeConsideration(item: item, onTap: () => onSelectItem(item)),
+              _MeConsideration(item: item, onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item) : null),
           ],
       ],
     );
@@ -769,7 +721,8 @@ class _MeTerritory extends StatelessWidget {
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
+          _MeIdentityRow(item: item, onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item) : null),
       ],
     );
   }
@@ -782,7 +735,8 @@ class _MeTerritory extends StatelessWidget {
     return Column(
       children: [
         for (final item in territory.items)
-          _MeResourceRow(item: item, onTap: () => onSelectItem(item)),
+          _MeResourceRow(item: item, onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item) : null),
       ],
     );
   }
@@ -826,7 +780,7 @@ class _MeConsideration extends StatelessWidget {
   const _MeConsideration({required this.item, required this.onTap});
 
   final MeItemPresentation item;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -836,7 +790,7 @@ class _MeConsideration extends StatelessWidget {
     ].whereType<String>().join('. ');
 
     return Semantics(
-      button: true,
+      button: onTap != null,
       label: semanticLabel,
       child: InkWell(
         onTap: onTap,
@@ -871,7 +825,7 @@ class _MeIdentityRow extends StatelessWidget {
   const _MeIdentityRow({required this.item, required this.onTap});
 
   final MeItemPresentation item;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -893,7 +847,7 @@ class _MeIdentityRow extends StatelessWidget {
       ),
       title: Text(item.title),
       subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-      trailing: const Icon(Icons.chevron_right_rounded),
+      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
     );
   }
 }
@@ -902,7 +856,7 @@ class _MeResourceRow extends StatelessWidget {
   const _MeResourceRow({required this.item, required this.onTap});
 
   final MeItemPresentation item;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -913,7 +867,7 @@ class _MeResourceRow extends StatelessWidget {
       leading: Icon(_iconFor(item.destination.kind)),
       title: Text(item.title),
       subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-      trailing: const Icon(Icons.chevron_right_rounded),
+      trailing: onTap == null ? null : const Icon(Icons.chevron_right_rounded),
     );
   }
 
@@ -928,60 +882,3 @@ class _MeResourceRow extends StatelessWidget {
   }
 }
 
-class _MeDepth extends StatelessWidget {
-  const _MeDepth({required this.item, required this.onClose});
-
-  final MeItemPresentation item;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      key: const Key('me-depth-scroll'),
-      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-      child: MakoloFocusPane(
-        child: FocusTraversalGroup(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  onPressed: onClose,
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  label: const Text('Moi'),
-                ),
-              ),
-              const SizedBox(height: MakoloSpacing.md),
-              Semantics(
-                header: true,
-                child: Text(
-                  item.title,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ),
-              if (item.subtitle != null) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(
-                  item.subtitle!,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-              if (item.metadata.isNotEmpty) ...[
-                const SizedBox(height: MakoloSpacing.lg),
-                MakoloMetadata(
-                  items: [
-                    for (final label in item.metadata)
-                      MakoloMetadataItem(label),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
