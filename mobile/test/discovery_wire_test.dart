@@ -97,43 +97,46 @@ Map<String, dynamic> envelope({
 void main() {
   const selector = DiscoverySelector();
 
-  test('N3 owner denial invalidates previews but network outage preserves them', () {
-    expect(
-      const DiscoverySourceState(
-        invalidated: true,
-        lastErrorCode: 'permission_denied',
-      ).ownerUnavailable,
-      isTrue,
-    );
-    expect(
-      const DiscoverySourceState(
-        invalidated: true,
-        lastErrorCode: 'not_found',
-      ).ownerUnavailable,
-      isTrue,
-    );
-    expect(
-      const DiscoverySourceState(
-        invalidated: true,
-        lastErrorCode: 'api_error',
-      ).ownerUnavailable,
-      isTrue,
-    );
-    expect(
-      const DiscoverySourceState(
-        invalidated: true,
-        lastErrorCode: 'timeout',
-      ).ownerUnavailable,
-      isFalse,
-    );
-    expect(
-      const DiscoverySourceState(
-        invalidated: false,
-        lastErrorCode: 'permission_denied',
-      ).ownerUnavailable,
-      isFalse,
-    );
-  });
+  test(
+    'N3 owner denial invalidates previews but network outage preserves them',
+    () {
+      expect(
+        const DiscoverySourceState(
+          invalidated: true,
+          lastErrorCode: 'permission_denied',
+        ).ownerUnavailable,
+        isTrue,
+      );
+      expect(
+        const DiscoverySourceState(
+          invalidated: true,
+          lastErrorCode: 'not_found',
+        ).ownerUnavailable,
+        isTrue,
+      );
+      expect(
+        const DiscoverySourceState(
+          invalidated: true,
+          lastErrorCode: 'api_error',
+        ).ownerUnavailable,
+        isTrue,
+      );
+      expect(
+        const DiscoverySourceState(
+          invalidated: true,
+          lastErrorCode: 'timeout',
+        ).ownerUnavailable,
+        isFalse,
+      );
+      expect(
+        const DiscoverySourceState(
+          invalidated: false,
+          lastErrorCode: 'permission_denied',
+        ).ownerUnavailable,
+        isFalse,
+      );
+    },
+  );
 
   test('B1 four families preserve identity and unknown owner facts', () {
     final wire = DiscoveryWire.receive(envelope(), scope: 'public');
