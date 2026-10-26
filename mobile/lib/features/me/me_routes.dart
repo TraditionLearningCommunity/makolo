@@ -23,6 +23,10 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
             context.push('/discover/items/activity/${destination.id}');
             return true;
           }
+          if (destination.kind == 'group') {
+            context.push('/groups/${destination.id}');
+            return true;
+          }
           if (destination.kind == 'profile') {
             context.push('/people/${destination.id}');
             return true;
