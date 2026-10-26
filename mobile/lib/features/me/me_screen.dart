@@ -237,20 +237,18 @@ class _MeViewState extends State<MeView> {
       }
       return MakoloSurfaceStateView(
         state: widget.selection.state,
-        content: MakoloContentFrame(
-          child: _MeField(
-            selection: widget.selection,
-            controller: _controller,
-            useTwoTerritories: useTwoTerritories,
-            onSelectItem: _selectItem,
-            loadingMore: widget.loadingMore,
-            loadFailed: widget.loadFailed,
-            onRetry: widget.onRetry,
-            hasMore: widget.selection.territories.any((t) => t.hasMore),
-            hasOwnerNavigation: widget.onOpenDestination != null,
-            canConfirmExhaustion: widget.onReachEnd != null ||
-                (widget.selection.territories.every((t) => !t.hasMore)),
-          ),
+        content: _MeField(
+          selection: widget.selection,
+          controller: _controller,
+          useTwoTerritories: useTwoTerritories,
+          onSelectItem: _selectItem,
+          loadingMore: widget.loadingMore,
+          loadFailed: widget.loadFailed,
+          onRetry: widget.onRetry,
+          hasMore: widget.selection.territories.any((t) => t.hasMore),
+          hasOwnerNavigation: widget.onOpenDestination != null,
+          canConfirmExhaustion: widget.onReachEnd != null ||
+              widget.selection.territories.every((t) => !t.hasMore),
         ),
       );
     });
@@ -364,66 +362,114 @@ class _MeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final edge = MakoloLayout.edgePaddingFor(width);
     final territories = [
       for (final territory in selection.territories)
-        _MeTerritory(territory: territory, onSelectItem: onSelectItem,
-          hasOwnerNavigation: hasOwnerNavigation),
+        _MeTerritory(
+          key: ValueKey('me-territory-${territory.presentation.key}'),
+          territory: territory,
+          onSelectItem: onSelectItem,
+          hasOwnerNavigation: hasOwnerNavigation,
+          edge: edge,
+        ),
     ];
 
-    return ListView(
+    final field = ListView(
       key: const PageStorageKey<String>('me-field-scroll'),
       controller: controller,
-      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(
+        top: MakoloSpacing.sm,
+        bottom: MakoloSpacing.xl,
+      ),
       children: [
-        _MeIdentity(
-          selection: selection,
-          onEdit: hasOwnerNavigation ? () => onSelectItem(
-            const MeItemPresentation(
-              destination: StructuredDestination(kind: 'profile_self', id: 'me'),
-              title: 'Mon profil',
-              canOpen: true,
-            ),
-          ) : null,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: edge),
+          child: _MeIdentity(
+            selection: selection,
+            onEdit: hasOwnerNavigation
+                ? () => onSelectItem(
+                    const MeItemPresentation(
+                      destination: StructuredDestination(
+                        kind: 'profile_self', id: 'me',
+                      ),
+                      title: 'Mon profil',
+                      canOpen: true,
+                    ),
+                  )
+                : null,
+          ),
         ),
-        const SizedBox(height: MakoloSpacing.xl),
+        const SizedBox(height: MakoloSpacing.inner),
         if (useTwoTerritories)
-          MakoloAdaptiveGrid(
-            key: const Key('me-territories-wide'),
-            minUnitWidth: 320,
-            maxColumns: 2,
-            children: territories,
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: edge),
+            child: MakoloAdaptiveGrid(
+              key: const Key('me-territories-wide'),
+              minUnitWidth: 320,
+              maxColumns: 2,
+              children: territories,
+            ),
           )
         else
           Column(
             key: const Key('me-territories-compact'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var index = 0; index < territories.length; index++) ...[
                 territories[index],
                 if (index != territories.length - 1)
-                  const SizedBox(height: MakoloSpacing.lg),
+                  const SizedBox(height: MakoloSpacing.inner),
               ],
             ],
           ),
-        const SizedBox(height: MakoloSpacing.xl),
-        if (loadingMore) const Center(child: CircularProgressIndicator.adaptive())
-        else if (loadFailed) Center(child: TextButton(onPressed: onRetry, child: const Text('Réessayer')))
-        else if (!hasMore && canConfirmExhaustion) Center(child: Text('Vous avez tout exploré', style: Theme.of(context).textTheme.bodySmall)),
+        const SizedBox(height: MakoloSpacing.lg),
+        if (loadingMore)
+          const Center(child: CircularProgressIndicator.adaptive())
+        else if (loadFailed)
+          Center(
+            child: TextButton(
+              onPressed: onRetry,
+              child: const Text('Réessayer'),
+            ),
+          )
+        else if (!hasMore && canConfirmExhaustion)
+          Center(
+            child: Text(
+              'Vous avez tout exploré',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         if (hasOwnerNavigation && selection.canOpenHistory) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton.icon(
-              onPressed: () => onSelectItem(const MeItemPresentation(
-                destination: StructuredDestination(kind: 'history', id: 'me'),
-                title: 'Historique', canOpen: true,
-              )),
-              icon: const Icon(Icons.history_rounded),
-              label: const Text('Historique'),
+          const SizedBox(height: MakoloSpacing.compact),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: edge),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: () => onSelectItem(
+                  const MeItemPresentation(
+                    destination: StructuredDestination(
+                      kind: 'history', id: 'me',
+                    ),
+                    title: 'Historique', canOpen: true,
+                  ),
+                ),
+                icon: const Icon(Icons.history_rounded),
+                label: const Text('Historique'),
+              ),
             ),
           ),
         ],
       ],
     );
+    if (useTwoTerritories) {
+      return MakoloContentFrame(child: field);
+    }
+    return field;
   }
 }
 
@@ -445,67 +491,53 @@ class _MeIdentity extends StatelessWidget {
     final name = selection.presentation.identityLabel;
     return Semantics(
       container: true,
-      header: true,
       label: name,
-      child: Container(
-        padding: const EdgeInsets.all(MakoloSpacing.inner),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(MakoloRadii.large),
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.65),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
+        child: Row(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _MeAvatar(name: name, imageUrl: selection.identityAvatarUrl),
-                const SizedBox(width: MakoloSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: theme.textTheme.headlineMedium,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (selection.identitySubtitle != null) ...[
-                        const SizedBox(height: MakoloSpacing.xs),
-                        Text(
-                          selection.identitySubtitle!,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ],
+            _MeAvatar(name: name, imageUrl: selection.identityAvatarUrl),
+            const SizedBox(width: MakoloSpacing.compact),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                  if (selection.identitySubtitle != null) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
+                    Text(
+                      selection.identitySubtitle!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (selection.identityDetail != null) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
+                    Text(
+                      selection.identityDetail!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ],
+              ),
             ),
-            if (selection.identityDetail != null) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              Text(
-                selection.identityDetail!,
-                style: theme.textTheme.bodyMedium,
+            if (onEdit != null)
+              IconButton(
+                tooltip: 'Modifier mon profil',
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined),
+                color: theme.colorScheme.primary,
               ),
-            ],
-            if (onEdit != null) ...[
-              const SizedBox(height: MakoloSpacing.md),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Modifier'),
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -528,8 +560,8 @@ class _MeAvatar extends StatelessWidget {
         .map((part) => part.substring(0, 1).toUpperCase())
         .join();
     final placeholder = Container(
-      width: 76,
-      height: 76,
+      width: 64,
+      height: 64,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.10),
@@ -555,8 +587,8 @@ class _MeAvatar extends StatelessWidget {
       child: ClipOval(
         child: Image.network(
           url!,
-          width: 76,
-          height: 76,
+          width: 64,
+          height: 64,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => placeholder,
         ),
