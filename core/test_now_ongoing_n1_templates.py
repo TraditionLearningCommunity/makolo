@@ -66,7 +66,9 @@ class PersonalN1TemplateTests(SimpleTestCase):
         self.assertIn("Dossier remis", html)
         self.assertIn("Valider le reçu", html)
         self.assertIn("Voir moins", html)
-        self.assertIn("Ouvrir la démarche", html)
+        self.assertIn("Continuer la démarche", html)
+        self.assertIn("Enregistrer", html)
+        self.assertIn("Partager", html)
 
     def test_private_continuity_does_not_gain_public_share_or_save(self):
         item = {
@@ -84,5 +86,8 @@ class PersonalN1TemplateTests(SimpleTestCase):
         html = render_to_string(
             "core/_ongoing_unit.html", {"item": projected}
         )
-        self.assertNotIn("Partager", html)
-        self.assertNotIn("Enregistrer", html)
+        self.assertIn("Partager", html)
+        self.assertIn("Enregistrer", html)
+        self.assertIn("mk-ongoing-unit__action-disabled", html)
+        self.assertNotIn("data-makolo-share", html)
+        self.assertNotIn("data-ongoing-save", html)
