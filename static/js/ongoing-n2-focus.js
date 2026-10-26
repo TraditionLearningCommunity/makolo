@@ -30,7 +30,7 @@
         "aria-expanded", String(trigger.dataset.ongoingFocusTrigger === key)
       );
     });
-    if (window.matchMedia("(max-width: 1199px)").matches) {
+    if (window.matchMedia("(max-width: 959px)").matches) {
       window.scrollTo({ top: 0, behavior: "instant" });
     }
     requestAnimationFrame(() => body.focus({ preventScroll: true }));
@@ -45,7 +45,7 @@
     field.querySelectorAll("[data-ongoing-focus-trigger]").forEach((button) => {
       button.setAttribute("aria-expanded", "false");
     });
-    if (window.matchMedia("(max-width: 1199px)").matches) {
+    if (window.matchMedia("(max-width: 959px)").matches) {
       window.scrollTo({ top: previousScroll, behavior: "instant" });
     }
     if (opener?.isConnected) opener.focus({ preventScroll: true });
