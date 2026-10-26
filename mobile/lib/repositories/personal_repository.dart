@@ -33,14 +33,14 @@ class PersonalRepository {
     sourceKey: 'personal.me',
   );
 
-  /// Append one bounded N1 territory continuation to the existing local
-  /// personal.me snapshot. The server remains the only source of facts.
+  /// Continue exactly one owner family and merge it into the profile-local
+  /// projection. No parallel array offsets and no second persistent truth.
   Future<void> loadMoreMe({
     required MakoloApiClient api,
     required StoredProjection current,
     required String territory,
   }) async {
-    const keys = <String, List<String>>{
+    const families = <String, List<String>>{
       'considerations': [
         'interests', 'open_to', 'watches', 'bookmarks',
         'followed_spaces', 'followed_profiles',
@@ -48,118 +48,75 @@ class PersonalRepository {
       'collectives': ['authorized_spaces', 'teams', 'groups'],
       'resources': ['documents', 'proofs', 'credentials'],
     };
-    final collections = current.payload[territory];
-    final names = keys[territory];
-    if (names == null || collections is! Map) return;
-    final owned = Map<String, dynamic>.from(collections);
-    final more = names.where((key) {
-      final collection = owned[key];
-      return collection is Map && collection['has_more'] == true;
-    }).toList();
-    if (more.isEmpty) return;
-    final offsets = more.map((key) {
-      final items = (owned[key] as Map)['items'];
-      return items is List ? items.length : 0;
-    }).toList();
-    // Each family has its own offset; query individual families at their
-    // exact next index so uneven datasets cannot duplicate or skip rows.
-    for (var i = 0; i < more.length; i++) {
-      final key = more[i];
-      final offset = offsets[i];
-      final uri = Uri(
-        path: 'api/v1/me/preview/$territory/',
-        queryParameters: {'offset': '$offset', 'limit': '24'},
-      );
-      final response = await api.get(uri.toString());
-      final envelope = ProjectionEnvelope.parse(
-        response.jsonObject(),
-        expectedProjection: 'personal.me.preview',
-      );
-      final data = envelope.data;
-      if (data['territory'] != territory || data['offset'] != offset) {
-        throw const FormatException('Invalid personal.me continuation');
-      }
-      final page = data['collections'];
-      if (page is! Map) throw const FormatException('Invalid Me page');
-      // This endpoint pages each family with the given offset. Only merge
-      // the requested family; the rest are returned but not applied here.
-      final part = page[key];
-      if (part is! Map || part['items'] is! List) {
-        throw const FormatException('Invalid Me family');
-      }
-      final previous = owned[key] as Map;
-      final priorItems = previous['items'];
-      if (priorItems is! List) throw const FormatException('Invalid Me cache');
-      final combined = <Object>[];
-      final ids = <String>{};
-      for (final row in [...priorItems, ...(part['items'] as List)]) {
-        if (row is! Map || row['id'] == null) {
-          throw const FormatException('Invalid Me row identity');
-        }
-        final id = row['id'].toString();
-        if (ids.add(id)) combined.add(Map<String, dynamic>.from(row));
-      }
-      owned[key] = <String, dynamic>{
-        'items': combined,
-        'count': part['count'],
-        'has_more': part['has_more'],
-      };
+    final names = families[territory];
+    final initial = current.payload[territory];
+    if (names == null || initial is! Map) return;
+    final target = names.where((key) =>
+        initial[key] is Map && (initial[key] as Map)['has_more'] == true);
+    if (target.isEmpty) return;
+    final family = target.first;
+    final source = initial[family] as Map;
+    final rows = source['items'];
+    if (rows is! List) throw const FormatException('Invalid Me collection');
+    final offset = rows.length;
+
+    final response = await api.get(Uri(
+      path: 'api/v1/me/preview/$territory/',
+      queryParameters: {'family': family, 'offset': '$offset', 'limit': '24'},
+    ).toString());
+    final envelope = ProjectionEnvelope.parse(
+      response.jsonObject(), expectedProjection: 'personal.me.preview',
+    );
+    final data = envelope.data;
+    final actor = data['actor'];
+    final next = data['collection'];
+    if (actor is! Map || actor['type'] != 'profile' ||
+        actor['id']?.toString() != store.profileId ||
+        data['territory'] != territory || data['family'] != family ||
+        data['offset'] != offset || next is! Map || next['items'] is! List ||
+        next['count'] is! int || next['has_more'] is! bool) {
+      throw const FormatException('Invalid Me continuation');
     }
-    final merged = Map<String, dynamic>.from(current.payload)
-      ..[territory] = owned;
+
+    // Never write a continuation over a newly synchronized root or another
+    // profile-local update that changed this family in the meantime.
+    final latest = await store.readProjection('personal.me');
+    if (latest == null || latest.sourceGeneratedAt != current.sourceGeneratedAt ||
+        latest.schemaVersion != current.schemaVersion) return;
+    final latestTerritory = latest.payload[territory];
+    if (latestTerritory is! Map || latestTerritory[family] is! Map) return;
+    final latestItems = (latestTerritory[family] as Map)['items'];
+    if (latestItems is! List || latestItems.length != offset) return;
+
+    final seen = <String>{};
+    final combined = <Map<String, dynamic>>[];
+    for (final row in [...latestItems, ...(next['items'] as List)]) {
+      if (row is! Map || row['id'] == null) {
+        throw const FormatException('Invalid Me row');
+      }
+      final id = row['id'].toString();
+      if (seen.add(id)) combined.add(Map<String, dynamic>.from(row));
+    }
+    if (next['has_more'] == true && (next['items'] as List).isEmpty) {
+      throw const FormatException('Me continuation did not advance');
+    }
+    final revised = Map<String, dynamic>.from(latestTerritory)
+      ..[family] = {
+        'items': combined, 'count': next['count'], 'has_more': next['has_more'],
+      };
+    final updated = Map<String, dynamic>.from(latest.payload)
+      ..[territory] = revised;
     await store.putProjection(
       kind: 'personal.me',
-      schemaVersion: current.schemaVersion,
-      payload: merged,
-      receivedAt: DateTime.now().toUtc(),
-      sourceGeneratedAt: current.sourceGeneratedAt,
-      freshUntil: current.freshUntil,
-      freshnessPolicyId: current.freshnessPolicyId,
-    );
-  }
-
-  /// Reconcile a Discovery-confirmed save in the cached ongoing display only.
-  /// The bookmark is owned by Discovery; this does not create a new saved fact.
-  Future<void> reflectOngoingDiscoverySave({
-    required String activityId,
-    required bool saved,
-  }) async {
-    final snapshot = await store.readProjection('personal.ongoing');
-    if (snapshot == null) return;
-    final raw = snapshot.payload['items'];
-    if (raw is! List) return;
-    var changed = false;
-    final items = <Object>[];
-    for (final entry in raw) {
-      if (entry is! Map) {
-        items.add(entry);
-        continue;
-      }
-      final item = Map<String, dynamic>.from(entry);
-      final n1 = item['n1'];
-      if (n1 is Map && n1['possibility'] is Map &&
-          (n1['possibility'] as Map)['id'] == activityId) {
-        final possibility = Map<String, dynamic>.from(n1['possibility'] as Map)
-          ..['saved_state'] = saved ? 'saved' : 'not_saved'
-          ..['capabilities'] = [saved ? 'unsave' : 'save', 'share'];
-        item['n1'] = Map<String, dynamic>.from(n1)
-          ..['possibility'] = possibility;
-        changed = true;
-      }
-      items.add(item);
-    }
-    if (!changed) return;
-    await store.putProjection(
-      kind: 'personal.ongoing',
-      schemaVersion: snapshot.schemaVersion,
-      payload: Map<String, dynamic>.from(snapshot.payload)..['items'] = items,
-      receivedAt: snapshot.receivedAt,
-      sourceGeneratedAt: snapshot.sourceGeneratedAt,
-      sourceUpdatedAt: snapshot.sourceUpdatedAt,
-      lastVerifiedOnlineAt: snapshot.lastVerifiedOnlineAt,
-      freshUntil: snapshot.freshUntil,
-      expiresAt: snapshot.expiresAt,
-      freshnessPolicyId: snapshot.freshnessPolicyId,
+      schemaVersion: latest.schemaVersion,
+      payload: updated,
+      receivedAt: latest.receivedAt,
+      sourceGeneratedAt: latest.sourceGeneratedAt,
+      sourceUpdatedAt: latest.sourceUpdatedAt,
+      lastVerifiedOnlineAt: latest.lastVerifiedOnlineAt,
+      freshUntil: latest.freshUntil,
+      expiresAt: latest.expiresAt,
+      freshnessPolicyId: latest.freshnessPolicyId,
     );
   }
 
