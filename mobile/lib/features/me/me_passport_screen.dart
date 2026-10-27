@@ -197,7 +197,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
           children: [
             _options(data),
             const SizedBox(height: 16),
-            _PassportBody(data: data),
+            _PassportBody(data: data, baseUri: widget.api.baseUri),
             if (_map(data['projection'])['public_profile_enabled'] == true &&
                 _text(_map(data['links'])['public_web']) != null)
               Padding(
@@ -216,8 +216,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
 }
 
 class _PassportBody extends StatelessWidget {
-  const _PassportBody({required this.data});
+  const _PassportBody({required this.data, required this.baseUri});
   final Map<String, dynamic> data;
+  final Uri baseUri;
 
   static Map<String, dynamic> _map(Object? raw) => raw is Map
       ? raw.map((key, item) => MapEntry(key.toString(), item))
@@ -241,6 +242,13 @@ class _PassportBody extends StatelessWidget {
     final profession = _text(identity['profession']);
     final location = _text(identity['location']);
     final avatar = _text(identity['avatar_url']);
+    final avatarUri = avatar == null ? null :
+        (avatar.startsWith('/') && !avatar.startsWith('//')
+            ? baseUri.resolve(avatar)
+            : Uri.tryParse(avatar));
+    final safeAvatar = avatarUri != null &&
+        (avatarUri.scheme == 'https' || avatarUri.scheme == 'http') &&
+        avatarUri.host == baseUri.host;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Container(
         padding: const EdgeInsets.all(22),
@@ -252,10 +260,10 @@ class _PassportBody extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            if (avatar != null && Uri.tryParse(avatar)?.hasScheme == true)
+            if (safeAvatar)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(avatar, width: 54, height: 54,
+                child: Image.network(avatarUri.toString(), width: 54, height: 54,
                   fit: BoxFit.cover,
                   errorBuilder: (_, _, _) => const Icon(
                     Icons.badge_outlined, color: Colors.white, size: 42),
