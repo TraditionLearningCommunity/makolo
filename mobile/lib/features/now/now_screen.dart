@@ -934,6 +934,14 @@ class _NowSituationUnit extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (situation.topology == NowTopology.media)
+                  _NowSemanticContent(
+                    situation: situation,
+                    compact: true,
+                    api: api,
+                    profileId: profileId,
+                    onOpenOwner: onOpenOwner,
+                  ),
                 if (description != null) ...[
                   const SizedBox(height: MakoloSpacing.xs),
                   Text(description, style: theme.textTheme.bodyMedium),
@@ -965,13 +973,14 @@ class _NowSituationUnit extends StatelessWidget {
                     ),
                   ),
                 ],
-                _NowSemanticContent(
-                  situation: situation,
-                  compact: true,
-                  api: api,
-                  profileId: profileId,
-                  onOpenOwner: onOpenOwner,
-                ),
+                if (situation.topology != NowTopology.media)
+                  _NowSemanticContent(
+                    situation: situation,
+                    compact: true,
+                    api: api,
+                    profileId: profileId,
+                    onOpenOwner: onOpenOwner,
+                  ),
                 if (situation.metadata.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   MakoloMetadata(
