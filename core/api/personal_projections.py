@@ -494,7 +494,7 @@ def build_personal_now_projection(profile, *, observed_at=None, continuation_off
     public_recognition_by_journey = {}
     if journey_ids:
         from accounts.models import UserProfile
-        from activities.models import Activity, ActivityStatus, ActivityVisibility
+        from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence
         from groups.selectors import eligible_activity_ids_for_profile
         from organizations.models import SpaceLifecycle
         from presentations.media_selectors import public_presentation_media_for_activities
@@ -529,14 +529,27 @@ def build_personal_now_projection(profile, *, observed_at=None, continuation_off
             )
         ]
         if allowed:
-            public_media = public_presentation_media_for_activities(allowed)
+            occurrence_ids = set(occurrence_by_journey.values())
+            occurrences = Occurrence.objects.filter(
+                pk__in=occurrence_ids,
+                activity_id__in=[activity.pk for activity in allowed],
+            )
+            public_media = public_presentation_media_for_activities(
+                allowed, occurrences=occurrences,
+            )
             for journey_id, activity_id in linked.items():
+                occurrence_id = occurrence_by_journey.get(journey_id)
                 images = [
                     media for media in public_media.get(str(activity_id), [])
-                    if media.occurrence_id is None
+                    if (media.occurrence_id is None or
+                        media.occurrence_id == str(occurrence_id))
                     and media.mime_type in {"image/jpeg", "image/png"}
                 ]
-                images.sort(key=lambda media: (media.position, media.use_id))
+                images.sort(key=lambda media: (
+                    media.occurrence_id != str(occurrence_id),
+                    media.position,
+                    media.use_id,
+                ))
                 if images:
                     media = images[0]
                     public_recognition_by_journey[journey_id] = {
