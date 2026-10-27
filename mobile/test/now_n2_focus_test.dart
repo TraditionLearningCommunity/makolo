@@ -107,9 +107,20 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Rendez-vous A'), findsOneWidget);
-    expect(find.text('Rendez-vous B'), findsOneWidget);
-    expect(find.text('Même horaire.'), findsOneWidget);
+    // Wide layout displays N1 and N2 together; check the focused pane.
+    final focus = find.byKey(const ValueKey('now-n2-scroll-n2-conflict'));
+    expect(
+      find.descendant(of: focus, matching: find.text('Rendez-vous A')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: focus, matching: find.text('Rendez-vous B')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: focus, matching: find.text('Même horaire.')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('makolo-adaptive-split-row')), findsOneWidget);
   });
 }
