@@ -110,7 +110,8 @@ void main() {
         expect(find.byType(MakoloSkeleton), findsNothing);
         expect(find.byType(MakoloErrorState), findsOneWidget);
         expect(find.text('Réessayer'), findsOneWidget);
-        expect(find.textContaining('conservées'), findsOneWidget);
+        // Without an offline snapshot, never claim any data was preserved.
+        expect(find.textContaining('conservées'), findsNothing);
         if (surface != 'discovery') {
           await tester.tap(find.text('Réessayer'));
           expect(retries, 1);
