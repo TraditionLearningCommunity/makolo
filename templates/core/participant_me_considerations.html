@@ -3,7 +3,7 @@
 {% block title %}Ce qui compte pour moi | Makolo{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/me-n1.css' %}">
-<main class="mk-me-n1 mk-me-choices">
+<main class="mk-me-n1 mk-me-choices" style="--me-saved-orbit: url('{% static 'icons/discovery-orbit-saved.svg' %}')">
   <header class="mk-me-n1-identity">
     <div class="mk-me-n1-person">
       <a class="mk-me-n1-heading-link" href="{% url 'core:participant-me' %}">‹ Moi</a>
@@ -63,7 +63,7 @@
     <section class="mk-me-n1-section">
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">◉</span>
-        <h2>Mes enregistrés</h2>
+        <h2>Mes enregistrements</h2>
         <a class="mk-me-n1-heading-link" href="{% url 'discovery:bookmarks' %}">Voir tout</a>
       </div>
       <div class="mk-me-n1-panel">
@@ -77,7 +77,7 @@
             {% endfor %}
           </div>
         {% else %}<p class="mk-me-n1-empty">Rien d'enregistré.</p>{% endif %}
-        <a class="mk-me-n1-see-all" href="{% url 'discovery:bookmarks' %}">Voir les {{ choices.bookmarks.count }} enregistrés ›</a>
+        <a class="mk-me-n1-see-all" href="{% url 'discovery:bookmarks' %}">Voir les {{ choices.bookmarks.count }} enregistrements ›</a>
       </div>
     </section>
     <section class="mk-me-n1-section">
