@@ -277,6 +277,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MakoloContentFrame(
     maxContentWidth: selected == null ? MakoloLayout.calmMaxWidth : 1040,
+    horizontalPadding: MediaQuery.sizeOf(context).width < 600 ? 0 : null,
     child: selected == null
         ? _OngoingField(
             items: items,
@@ -413,9 +414,9 @@ class _OngoingFieldState extends State<_OngoingField> {
   Widget build(BuildContext context) => ListView.separated(
     controller: _scroll,
     key: const PageStorageKey<String>('ongoing-field'),
-    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
+    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
     itemCount: widget.items.length + 1,
-    separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.md),
+    separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.sm),
     itemBuilder: (context, index) {
       if (index == widget.items.length) {
         if (widget.moreError != null) {
@@ -445,14 +446,13 @@ class _OngoingFieldState extends State<_OngoingField> {
       final hasDetail = _ongoingVisibleDetailGroups(item).isNotEmpty;
       // Keep one continuity, its recognition media, details and commands
       // within the same visual boundary. The actions always close the unit.
-      return Container(
+      return DecoratedBox(
         key: ValueKey<String>('ongoing-unit-${item.id}'),
-        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(MakoloRadii.large),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant,
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
           ),
         ),
         child: Column(
@@ -517,9 +517,9 @@ class _OngoingN1Resources extends StatelessWidget {
     return Padding(
       key: const Key('ongoing-n1-resources'),
       padding: const EdgeInsets.fromLTRB(
-        16,
+        12,
         MakoloSpacing.sm,
-        16,
+        12,
         MakoloSpacing.md,
       ),
       child: Column(
@@ -982,7 +982,7 @@ class _OngoingRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
