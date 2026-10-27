@@ -1422,7 +1422,7 @@ void main() {
     );
 
     expect(
-      find.text('Aucune possibilité ne correspond à ces critères.'),
+      find.text('Aucun résultat pour ces critères.'),
       findsOneWidget,
     );
     expect(find.text('Modifier mes critères'), findsOneWidget);
@@ -1446,11 +1446,11 @@ void main() {
     );
 
     expect(
-      find.text('Ce contenu n’est pas disponible pour le moment.'),
+      find.text('Connexion indisponible.'),
       findsOneWidget,
     );
     expect(
-      find.text('Aucune possibilité ne correspond à ces critères.'),
+      find.text('Aucun résultat pour ces critères.'),
       findsNothing,
     );
   });
@@ -1473,7 +1473,6 @@ void main() {
 
     expect(
       find.text(
-        'Nos serveurs sont momentanément inaccessibles. '
         'Service momentanément indisponible.',
       ),
       findsOneWidget,
