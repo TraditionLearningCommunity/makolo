@@ -283,15 +283,11 @@ def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
                     else None
                 ),
                 "text_content": (
-                    resource.text_content[:2400]
+                    resource.text_content
                     if resource.kind == ResourceKind.TEXT
                     else None
                 ),
-                "text_truncated": (
-                    len(resource.text_content) > 2400
-                    if resource.kind == ResourceKind.TEXT
-                    else False
-                ),
+                "text_truncated": False,
                 "download_url": (
                     reverse(
                         "preparation:resource-download",
