@@ -29,6 +29,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   final _phone = TextEditingController();
   final _website = TextEditingController();
   final _linkedin = TextEditingController();
+  final _facebook = TextEditingController();
+  final _instagram = TextEditingController();
+  final _tiktok = TextEditingController();
+  final _x = TextEditingController();
+  final _youtube = TextEditingController();
   final _company = TextEditingController();
   final _organization = TextEditingController();
   final _language = TextEditingController();
@@ -66,6 +71,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         _phone.text = user['phone']?.toString() ?? '';
         _website.text = user['website']?.toString() ?? '';
         _linkedin.text = user['linkedin_url']?.toString() ?? '';
+        _facebook.text = user['facebook_url']?.toString() ?? '';
+        _instagram.text = user['instagram_url']?.toString() ?? '';
+        _tiktok.text = user['tiktok_url']?.toString() ?? '';
+        _x.text = user['x_url']?.toString() ?? '';
+        _youtube.text = user['youtube_url']?.toString() ?? '';
         _company.text = fields['company_name']?.toString() ?? '';
         _organization.text = fields['organization_name']?.toString() ?? '';
         _language.text = user['language']?.toString() ?? '';
@@ -218,6 +228,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           'phone': _phone.text.trim(),
           'website': _website.text.trim(),
           'linkedin_url': _linkedin.text.trim(),
+          'facebook_url': _facebook.text.trim(),
+          'instagram_url': _instagram.text.trim(),
+          'tiktok_url': _tiktok.text.trim(),
+          'x_url': _x.text.trim(),
+          'youtube_url': _youtube.text.trim(),
           'company_name': _company.text.trim(),
           'organization_name': _organization.text.trim(),
           'language': _language.text.trim(),
@@ -256,7 +271,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       _city,
       _country,
       _bio,
-      _phone, _website, _linkedin, _company, _organization,
+      _phone, _website, _linkedin, _facebook, _instagram,
+      _tiktok, _x, _youtube, _company, _organization,
       _language, _address,
     ]) {
       controller.dispose();
@@ -313,6 +329,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 _field('Téléphone', _phone),
                 _field('Site web', _website),
                 _field('LinkedIn', _linkedin),
+                _field('Facebook', _facebook),
+                _field('Instagram', _instagram),
+                _field('TikTok', _tiktok),
+                _field('X', _x),
+                _field('YouTube', _youtube),
                 _field('Entreprise', _company),
                 _field('Organisation', _organization),
                 _field('Langue', _language),
