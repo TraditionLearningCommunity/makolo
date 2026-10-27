@@ -6,6 +6,7 @@ import '../../network/makolo_api_client.dart';
 import '../../platform/camera/system_media_picker.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
+import 'me_country_choices.dart';
 
 /// Passport editing mode backed by the existing Accounts owner API.
 class MeProfileScreen extends StatefulWidget {
@@ -40,6 +41,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   final _address = TextEditingController();
   bool _publicProfile = false;
   bool _searchable = false;
+  MakoloCountry? _selectedCountry;
 
   bool _avatarPickerScheduled = false;
   bool _loading = true;
@@ -68,6 +70,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         _profession.text = fields['profession']?.toString() ?? '';
         _city.text = fields['city']?.toString() ?? '';
         _country.text = fields['country']?.toString() ?? '';
+        _selectedCountry = countryForValue(_country.text);
         _phone.text = user['phone']?.toString() ?? '';
         _website.text = user['website']?.toString() ?? '';
         _linkedin.text = user['linkedin_url']?.toString() ?? '';
@@ -210,6 +213,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
 
   Future<void> _save() async {
     if (_saving || _loading) return;
+    if (_country.text.trim().isNotEmpty && _selectedCountry == null) {
+      setState(() => _error = 'Choisissez un pays dans les suggestions.');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -223,7 +230,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           'last_name': _lastName.text.trim(),
           'profession': _profession.text.trim(),
           'city': _city.text.trim(),
-          'country': _country.text.trim(),
+          'country': _selectedCountry?.code ?? '',
           'bio': _bio.text.trim(),
           'phone': _phone.text.trim(),
           'website': _website.text.trim(),
@@ -235,7 +242,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           'youtube_url': _youtube.text.trim(),
           'company_name': _company.text.trim(),
           'organization_name': _organization.text.trim(),
-          'language': _language.text.trim(),
+          'language': 'fr',
           'address': _address.text.trim(),
           'public_profile': _publicProfile,
           'searchable': _searchable,
@@ -320,28 +327,59 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   ),
                   const SizedBox(height: 12),
                 ],
+                _sectionTitle('Identité'),
                 _field('Prénom', _firstName),
                 _field('Nom', _lastName),
                 _field('Profession', _profession),
+                _field('À propos', _bio, lines: 3),
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : _changeAvatar,
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: const Text('Modifier la photo'),
+                ),
+                _sectionTitle('Localisation'),
+                _countryAutocomplete(),
                 _field('Ville', _city),
-                _field('Pays', _country),
-                _field('À propos', _bio, lines: 4),
+                _field('Adresse', _address),
+                _sectionTitle('Contact et activité'),
                 _field('Téléphone', _phone),
                 _field('Site web', _website),
-                _field('LinkedIn', _linkedin),
-                _field('Facebook', _facebook),
-                _field('Instagram', _instagram),
-                _field('TikTok', _tiktok),
-                _field('X', _x),
-                _field('YouTube', _youtube),
                 _field('Entreprise', _company),
                 _field('Organisation', _organization),
-                _field('Langue', _language),
-                _field('Adresse', _address),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: DropdownButtonFormField<String>(
+                    value: 'fr',
+                    decoration: const InputDecoration(
+                      labelText: 'Langue',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'fr', child: Text('Français')),
+                    ],
+                    onChanged: _saving ? null : (value) {
+                      _language.text = value ?? 'fr';
+                    },
+                  ),
+                ),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: const Text('Réseaux sociaux'),
+                  subtitle: const Text('Liens facultatifs'),
+                  children: [
+                    _field('LinkedIn', _linkedin),
+                    _field('Facebook', _facebook),
+                    _field('Instagram', _instagram),
+                    _field('TikTok', _tiktok),
+                    _field('X', _x),
+                    _field('YouTube', _youtube),
+                  ],
+                ),
+                _sectionTitle('Visibilité'),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Passeport public'),
-                  subtitle: const Text('Autoriser la présentation publique de mon profil'),
+                  subtitle: const Text('Autoriser la présentation publique'),
                   value: _publicProfile,
                   onChanged: _saving ? null : (value) =>
                       setState(() => _publicProfile = value),
@@ -353,11 +391,6 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   onChanged: _saving ? null : (value) =>
                       setState(() => _searchable = value),
                 ),
-                OutlinedButton.icon(
-                  onPressed: _saving ? null : _changeAvatar,
-                  icon: const Icon(Icons.photo_camera_outlined),
-                  label: const Text('Modifier la photo'),
-                ),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: _saving ? null : _save,
@@ -367,6 +400,60 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             ),
     );
   }
+
+  Widget _sectionTitle(String title) => Padding(
+    padding: const EdgeInsets.only(top: 24, bottom: 16),
+    child: Text(
+      title,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+
+  Widget _countryAutocomplete() => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Autocomplete<MakoloCountry>(
+      initialValue: TextEditingValue(
+        text: _selectedCountry?.label ?? _country.text,
+      ),
+      displayStringForOption: (country) => country.label,
+      optionsBuilder: (value) {
+        final query = value.text.trim().toLowerCase();
+        if (query.isEmpty) {
+          return makoloCountries.take(30);
+        }
+        return makoloCountries.where((country) =>
+          country.label.toLowerCase().contains(query) ||
+          country.code.toLowerCase().startsWith(query));
+      },
+      onSelected: (country) {
+        setState(() {
+          _selectedCountry = country;
+          _country.text = country.code;
+        });
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) =>
+          TextFormField(
+            controller: controller,
+            focusNode: focusNode,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Pays',
+              hintText: 'Rechercher un pays',
+              prefixIcon: Icon(Icons.public_outlined),
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              if (value != _selectedCountry?.label) {
+                _selectedCountry = null;
+                _country.clear();
+              }
+            },
+            onFieldSubmitted: (value) => onFieldSubmitted(),
+          ),
+    ),
+  );
 
   Widget _field(
     String label,
