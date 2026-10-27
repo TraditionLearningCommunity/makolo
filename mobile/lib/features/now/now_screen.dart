@@ -759,6 +759,20 @@ class _NowSemanticContent extends StatelessWidget {
                 ),
               ),
             ),
+        if (!compact && situation.makoloPreparation.isNotEmpty)
+          for (final prepared in situation.makoloPreparation)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Text(prepared, style: theme.textTheme.bodyMedium),
+            ),
+        if (topology == NowTopology.waiting && situation.exitCondition != null)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Text(
+              situation.exitCondition!,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
         if (topology == NowTopology.waiting)
           Row(
             children: [
@@ -871,6 +885,11 @@ class _NowSituationUnit extends StatelessWidget {
       headline,
       situation.whyNow,
     ]);
+    final delta = _distinctPresentationText(situation.delta, [
+      title,
+      headline,
+      situation.whyNow,
+    ]);
     final owner = situation.ownerDestination;
     final canOpenOwner =
         owner != null &&
@@ -918,6 +937,15 @@ class _NowSituationUnit extends StatelessWidget {
                 if (description != null) ...[
                   const SizedBox(height: MakoloSpacing.xs),
                   Text(description, style: theme.textTheme.bodyMedium),
+                ],
+                if (delta != null) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(
+                    delta,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
                 if (consequence != null) ...[
                   const SizedBox(height: MakoloSpacing.sm),
