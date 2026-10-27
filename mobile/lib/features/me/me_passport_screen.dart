@@ -351,24 +351,99 @@ class _PassportBody extends StatelessWidget {
     ]);
   }
 
-  Widget _stat(BuildContext context, String label, Object? value) =>
-      Chip(label: Text('$label · ${value is int ? value : 0}'));
+  Widget _stat(BuildContext context, String label, Object? value) {
+    final colors = Theme.of(context).colorScheme;
+    final count = value is int ? value : 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(100),
+        color: colors.primary.withValues(alpha: 0.07),
+      ),
+      child: Text('$label · $count',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: colors.onSurface,
+          fontWeight: FontWeight.w700,
+        )),
+    );
+  }
 
   Widget _section(BuildContext context, String title,
       List<Map<String, dynamic>> rows,
       String? Function(Map<String, dynamic>) label) {
-    final titles = rows.map(label).whereType<String>().toList();
+    final titles = rows.map(label).whereType<String>().toSet().toList();
     if (titles.isEmpty) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    final isInterest = title == 'Mes intérêts';
+    final isOpening = title == 'Ouvert à';
+    final isDeclared = isInterest || isOpening;
+    final icon = isInterest ? Icons.interests_outlined
+        : isOpening ? Icons.handshake_outlined
+        : title == 'Mes activités' ? Icons.event_available_outlined
+        : title == 'Faits établis' ? Icons.verified_outlined
+        : Icons.workspace_premium_outlined;
     return Padding(
-      padding: const EdgeInsets.only(top: 20),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 7),
-        for (final value in titles)
-          ListTile(dense: true, contentPadding: EdgeInsets.zero,
-            title: Text(value)),
+      padding: const EdgeInsets.only(top: 28),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, size: 21, color: colors.primary),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(title, style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800)),
+          ),
+          Text('${titles.length}', style: Theme.of(context).textTheme.labelLarge
+              ?.copyWith(color: colors.onSurfaceVariant)),
+        ]),
+        const SizedBox(height: 12),
+        if (isDeclared)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final value in titles)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13, vertical: 9),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(100),
+                    color: colors.primary.withValues(alpha: 0.07),
+                    border: Border.all(
+                      color: colors.primary.withValues(alpha: 0.15)),
+                  ),
+                  child: Text(value,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600)),
+                ),
+            ],
+          )
+        else
+          Column(
+            children: [
+              for (var index = 0; index < titles.length; index++) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, size: 18, color: colors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(titles[index],
+                      style: Theme.of(context).textTheme.bodyLarge)),
+                  ]),
+                ),
+                if (index != titles.length - 1)
+                  Divider(height: 1, color: colors.outlineVariant),
+              ],
+            ],
+          ),
       ]),
     );
   }
+
 }
