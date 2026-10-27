@@ -148,7 +148,8 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                 (row['activity'] as Map)['id'] != null)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const DiscoveryOrbitIcon(saved: true),
+                leading: DiscoveryOrbitIcon(saved: true,
+                  color: Theme.of(context).colorScheme.primary),
                 title: Text((row['activity'] as Map)['title']?.toString() ?? ''),
                 trailing: IconButton(
                   tooltip: 'Retirer des enregistrés',
