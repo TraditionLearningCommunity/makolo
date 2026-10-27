@@ -888,7 +888,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         : resources.take(2);
     return Padding(
       key: const Key('discover-resources-section'),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1143,7 +1143,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           if (resources.isNotEmpty) _resourceSection(context, resources),
           if (widget.detailMode && _primaryNativePath != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: FilledButton.icon(
                 key: const Key('discover-primary-n2'),
                 onPressed: () => _centralAction(context),
