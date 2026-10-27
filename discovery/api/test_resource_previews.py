@@ -5,7 +5,7 @@ from django.utils import timezone
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from preparation.models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility
 
-from .composition import DISCOVERY_RESOURCE_PREVIEW_LIMIT, _activity_resource_previews
+from .composition import _activity_resource_previews
 
 
 class DiscoveryDocumentaryPreviewTests(TestCase):
@@ -60,8 +60,13 @@ class DiscoveryDocumentaryPreviewTests(TestCase):
         self.assertEqual(by_id[str(approved.pk)]["external_url"], "https://example.org/")
         self.assertIsNone(by_id[str(legacy.pk)]["external_url"])
 
-    def test_resource_collection_is_bounded(self):
-        for number in range(DISCOVERY_RESOURCE_PREVIEW_LIMIT + 5):
-            self._resource(f"sample-{number}")
+    def test_resource_collection_has_no_silent_presentation_limit(self):
+        count = 13
+        for number in range(count):
+            self._resource(f"sample-{number:02d}")
         resources = _activity_resource_previews([self.activity.pk])[str(self.activity.pk)]
-        self.assertEqual(len(resources), DISCOVERY_RESOURCE_PREVIEW_LIMIT)
+        self.assertEqual(len(resources), count)
+        self.assertEqual(
+            {resource["title"] for resource in resources},
+            {f"sample-{number:02d}" for number in range(count)},
+        )
