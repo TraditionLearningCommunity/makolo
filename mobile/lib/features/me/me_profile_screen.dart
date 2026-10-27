@@ -26,6 +26,15 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   final _city = TextEditingController();
   final _country = TextEditingController();
   final _bio = TextEditingController();
+  final _phone = TextEditingController();
+  final _website = TextEditingController();
+  final _linkedin = TextEditingController();
+  final _company = TextEditingController();
+  final _organization = TextEditingController();
+  final _language = TextEditingController();
+  final _address = TextEditingController();
+  bool _publicProfile = false;
+  bool _searchable = false;
 
   bool _avatarPickerScheduled = false;
   bool _loading = true;
@@ -54,6 +63,15 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         _profession.text = fields['profession']?.toString() ?? '';
         _city.text = fields['city']?.toString() ?? '';
         _country.text = fields['country']?.toString() ?? '';
+        _phone.text = user['phone']?.toString() ?? '';
+        _website.text = user['website']?.toString() ?? '';
+        _linkedin.text = user['linkedin_url']?.toString() ?? '';
+        _company.text = fields['company_name']?.toString() ?? '';
+        _organization.text = fields['organization_name']?.toString() ?? '';
+        _language.text = user['language']?.toString() ?? '';
+        _address.text = fields['address']?.toString() ?? '';
+        _publicProfile = fields['public_profile'] == true;
+        _searchable = fields['searchable'] == true;
         _loading = false;
         _loaded = true;
         _error = null;
@@ -197,6 +215,15 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           'city': _city.text.trim(),
           'country': _country.text.trim(),
           'bio': _bio.text.trim(),
+          'phone': _phone.text.trim(),
+          'website': _website.text.trim(),
+          'linkedin_url': _linkedin.text.trim(),
+          'company_name': _company.text.trim(),
+          'organization_name': _organization.text.trim(),
+          'language': _language.text.trim(),
+          'address': _address.text.trim(),
+          'public_profile': _publicProfile,
+          'searchable': _searchable,
         },
       );
     } on Object {
@@ -229,6 +256,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       _city,
       _country,
       _bio,
+      _phone, _website, _linkedin, _company, _organization,
+      _language, _address,
     ]) {
       controller.dispose();
     }
@@ -281,6 +310,28 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 _field('Ville', _city),
                 _field('Pays', _country),
                 _field('À propos', _bio, lines: 4),
+                _field('Téléphone', _phone),
+                _field('Site web', _website),
+                _field('LinkedIn', _linkedin),
+                _field('Entreprise', _company),
+                _field('Organisation', _organization),
+                _field('Langue', _language),
+                _field('Adresse', _address),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Passeport public'),
+                  subtitle: const Text('Autoriser la présentation publique de mon profil'),
+                  value: _publicProfile,
+                  onChanged: _saving ? null : (value) =>
+                      setState(() => _publicProfile = value),
+                ),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Visible dans la recherche'),
+                  value: _searchable,
+                  onChanged: _saving ? null : (value) =>
+                      setState(() => _searchable = value),
+                ),
                 OutlinedButton.icon(
                   onPressed: _saving ? null : _changeAvatar,
                   icon: const Icon(Icons.photo_camera_outlined),
