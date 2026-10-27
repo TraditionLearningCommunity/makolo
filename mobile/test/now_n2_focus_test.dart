@@ -18,6 +18,33 @@ NowSelection _selection(NowSituationPresentation item) => NowSelection(
 const _reference = StructuredDestination(kind: 'now', id: 'n2-test');
 
 void main() {
+  testWidgets('Now N2 preserves owner subject delta and waiting exit', (
+    tester,
+  ) async {
+    const item = NowSituationPresentation(
+      identity: 'n2-semantic-wait',
+      reference: _reference,
+      humanContext: 'Démarche',
+      meaning: 'Une réponse est attendue.',
+      subject: 'Réservation',
+      delta: 'Le statut a changé.',
+      exitCondition: 'La réservation est confirmée.',
+      responseType: 'wait',
+      emphasis: NowPresentationEmphasis.primary,
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: NowView(
+        selection: _selection(item),
+        initialSelectedKey: item.identity,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Réservation'), findsOneWidget);
+    expect(find.text('Le statut a changé.'), findsOneWidget);
+    expect(find.text('La réservation est confirmée.'), findsOneWidget);
+  });
+
   testWidgets('Now S1 N2 leads with impact and keeps server meaning', (
     tester,
   ) async {
