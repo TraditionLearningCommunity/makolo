@@ -1,18 +1,18 @@
 {% extends 'base/app.html' %}
 {% load static %}
-{% block title %}Moi | Makolo<script src="{% static 'js/me-n1.js' %}" defer></script>
-{% endblock %}
+{% block title %}Moi | Makolo{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/me-n1.css' %}">
 <main class="mk-me-n1" data-mk-surface="me" data-me-profile="{{ me_projection.actor.id }}" style="--me-saved-orbit: url('{% static 'icons/discovery-orbit-saved.svg' %}')">
   <header class="mk-me-n1-identity">
-    <div class="mk-me-n1-avatar" aria-hidden="true">
+    <a class="mk-me-n1-avatar mk-me-n1-avatar-action" href="{% url 'account:profile' %}" aria-label="Modifier ma photo">
       {% if me_projection.identity.avatar_url %}
         <img src="{{ me_projection.identity.avatar_url }}" alt="" width="84" height="84" loading="eager" decoding="async">
       {% else %}
         <span>{{ me_projection.identity.display_name|first|upper }}</span>
       {% endif %}
-    </div>
+      <span class="mk-me-n1-camera" aria-hidden="true">📷</span>
+    </a>
     <div class="mk-me-n1-person">
       <p class="mk-me-n1-eyebrow">Moi</p>
       <h1>{{ me_projection.identity.display_name }}</h1>
@@ -45,9 +45,15 @@
     <section class="mk-me-n1-section" aria-labelledby="me-considerations">
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">◇</span>
-        <h2 id="me-considerations">Ce qui compte pour moi</h2>
+        <h2 id="me-considerations"><a href="{% url 'account:interests' %}">Ce qui compte pour moi</a></h2>
+        <a class="mk-me-n1-heading-link" href="{% url 'account:interests' %}" aria-label="Gérer mes intérêts">Gérer</a>
       </div>
       <div class="mk-me-n1-panel mk-me-n1-families">
+        <div class="mk-me-n1-direct-links">
+          <a href="{% url 'account:interests' %}">Intérêts</a>
+          <a href="{% url 'account:open-to' %}">Ouvert à</a>
+          <a href="{% url 'discovery:watch-list' %}">Veilles</a>
+        </div>
         {% if me_projection.considerations.interests.items %}
           <div class="mk-me-n1-family">
             <h3>Intérêts <span>{{ me_projection.considerations.interests.count }}</span></h3>
@@ -78,7 +84,7 @@
           <div class="mk-me-n1-family">
             <h3>Enregistrés <span>{{ me_projection.considerations.bookmarks.count }}</span></h3>
             <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="bookmarks" data-me-owner-href="{% url 'discovery:bookmarks' %}" data-me-loaded="{{ me_projection.considerations.bookmarks.items|length }}" data-me-more="{{ me_projection.considerations.bookmarks.has_more|yesno:'true,false' }}">
-              {% for row in me_projection.considerations.bookmarks.items %}
+              {% for row in me_projection.considerations.bookmarks.items|slice:":3" %}
                 <a data-me-id="{{ row.id }}" href="{% url 'discovery:bookmarks' %}">
                   <span class="mk-me-saved-orbit" role="img" aria-label="Enregistré"></span>
                   <span class="mk-me-n1-saved-title">{{ row.activity.title }}</span>
@@ -91,6 +97,7 @@
                 </a>
               {% endfor %}
             </div>
+            <a class="mk-me-n1-see-all" href="{% url 'discovery:bookmarks' %}">Voir les {{ me_projection.considerations.bookmarks.count }} enregistrés <span aria-hidden="true">›</span></a>
           </div>
         {% endif %}
         {% if me_projection.considerations.followed_spaces.items %}
@@ -203,6 +210,18 @@
       </div>
     </section>
 
+    <section class="mk-me-n1-section" aria-labelledby="me-history">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">↶</span>
+        <h2 id="me-history">Mon historique</h2>
+      </div>
+      <a class="mk-me-n1-panel mk-me-n1-handoff" href="{% url 'core:participant-history' %}">
+        <span class="mk-me-n1-handoff-icon" aria-hidden="true">↶</span>
+        <span class="mk-me-n1-row-copy"><strong>Retrouver mon parcours</strong></span>
+        <span class="mk-me-n1-arrow" aria-hidden="true">›</span>
+      </a>
+    </section>
+
     {% if support_links %}
       <section class="mk-me-n1-section" aria-labelledby="me-support">
         <div class="mk-me-n1-heading">
@@ -222,11 +241,6 @@
     {% endif %}
   </div>
 
-  <div id="me-n1-scroll-sentinel" aria-live="polite" class="mk-me-n1-end"></div>
-  <nav class="mk-me-n1-footer" aria-label="Autres espaces personnels">
-    <a href="{% url 'core:participant-history' %}">Historique</a>
-    <a href="{% url 'discovery:bookmarks' %}">Enregistrés</a>
-    <a href="{% url 'discovery:watch-list' %}">Veilles</a>
-  </nav>
+
 </main>
 {% endblock %}
