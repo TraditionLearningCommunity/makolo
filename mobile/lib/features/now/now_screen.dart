@@ -874,6 +874,11 @@ class _NowSituationUnit extends StatelessWidget {
     final description = contextLabel == null
         ? null
         : _distinctPresentationText(headline, [title]);
+    final subject = _distinctPresentationText(situation.subject, [
+      title,
+      headline,
+      situation.humanContext,
+    ]);
     final whyNow = _distinctPresentationText(situation.whyNow, [
       situation.meaning,
       situation.humanContext,
@@ -942,6 +947,15 @@ class _NowSituationUnit extends StatelessWidget {
                     profileId: profileId,
                     onOpenOwner: onOpenOwner,
                   ),
+                if (subject != null) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(
+                    subject,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 if (description != null) ...[
                   const SizedBox(height: MakoloSpacing.xs),
                   Text(description, style: theme.textTheme.bodyMedium),
