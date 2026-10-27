@@ -59,6 +59,33 @@ class PersonalN1TemplateTests(SimpleTestCase):
         ):
             self.assertFalse(_now_inline_media({"media_bindings": [altered]}))
 
+    def test_now_s2_renders_published_recognition_image(self):
+        use_id = "11111111-2222-4333-8444-555555555555"
+        situation = {
+            "id": "now-image",
+            "key": "now-image",
+            "human_context": "Voyage Kolwezi",
+            "state_meaning": "Le départ est à préparer.",
+            "response": {"type": "prepare", "label": "Préparer"},
+            "media_bindings": [{
+                "resource_ref": f"presentation_media_use:{use_id}",
+                "target": "subject", "purpose": "recognize", "kind": "image",
+                "url": f"/presentation/media/uses/{use_id}/file/",
+                "authorized": True, "presentation_rank": "primary",
+                "label": "Véhicule de la liaison",
+            }],
+        }
+        self.assertEqual(_now_topology(situation), "media")
+        home = _now_web_context({
+            "items": [situation], "selection": {"state": "ready"},
+            "freshness": {"state": "fresh"},
+            "actor_attention_state": "active",
+            "terminal": {"state": "ok"},
+        })
+        html = render_to_string("core/_now_page_fragment.html", {"home": home})
+        self.assertIn("mk-now-unit__hero", html)
+        self.assertIn(f"/presentation/media/uses/{use_id}/file/", html)
+
     def test_now_web_s5_preserves_relation_and_semantic_fields(self):
         situation = {
             "id": "now-composition",
