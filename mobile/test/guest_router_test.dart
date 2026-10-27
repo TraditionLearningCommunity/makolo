@@ -1387,7 +1387,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 1);
 
+    // The transient refresh SnackBar overlays the bottom of the directory.
+    // Dismiss it so the persistent inline retry is genuinely hit-testable.
+    ScaffoldMessenger.of(
+      tester.element(find.byKey(const Key('guest-spaces-page-retry'))),
+    ).removeCurrentSnackBar();
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('guest-spaces-page-retry')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('guest-spaces-page-retry')));
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 2);
