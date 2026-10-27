@@ -16,7 +16,7 @@ class MePassportScreen extends StatefulWidget {
 class _MePassportScreenState extends State<MePassportScreen> {
   String _variant = 'complete';
   String? _topic;
-  Set<String> _sections = {'interests', 'open_to'};
+  final Set<String> _sections = {'interests', 'open_to'};
   Set<String> _activities = {}, _proofs = {}, _credentials = {};
   Map<String, dynamic>? _full;
   late Future<Map<String, dynamic>> _future;
@@ -75,9 +75,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
     if (path == null || !path.startsWith('/') || path.startsWith('//')) return;
     final uri = widget.api.baseUri.resolve(path);
     await Clipboard.setData(ClipboardData(text: uri.toString()));
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Lien public copié.')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lien public copié.')),
+      );
+    }
   }
 
   void _toggle(Set<String> values, String id, bool enabled) {
@@ -115,7 +117,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
           const Text('Aucun thème disponible.')
         else
           DropdownButtonFormField<String>(
-            value: _topic,
+            initialValue: _topic,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Thème', border: OutlineInputBorder(),
@@ -185,10 +187,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
       future: _future,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          if (snapshot.hasError) return Center(child: TextButton.icon(
-            onPressed: () => setState(() => _future = _load()),
-            icon: const Icon(Icons.refresh), label: const Text('Réessayer'),
-          ));
+          if (snapshot.hasError) {
+            return Center(child: TextButton.icon(
+              onPressed: () => setState(() => _future = _load()),
+              icon: const Icon(Icons.refresh), label: const Text('Réessayer'),
+            ));
+          }
           return const Center(child: CircularProgressIndicator.adaptive());
         }
         final data = snapshot.data!;
