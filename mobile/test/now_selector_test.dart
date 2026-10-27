@@ -51,6 +51,28 @@ StoredProjection projection({
 }
 
 void main() {
+  test('preserves only owner-supplied subject, delta and exit condition', () {
+    final result = selector.select(
+      projection: projection(items: const [
+        {
+          'id': 'now:semantic',
+          'human_context': 'Voyage Kolwezi',
+          'state_meaning': 'Une réponse est attendue.',
+          'subject': {'label': 'Réservation'},
+          'delta': {'meaning': 'Le statut a changé.'},
+          'exit_condition': {'label': 'La réservation est confirmée.'},
+          'response': {'type': 'wait'},
+        },
+      ]),
+      now: now,
+    );
+    final situation = result.situations.single;
+    expect(situation.subject, 'Réservation');
+    expect(situation.delta, 'Le statut a changé.');
+    expect(situation.exitCondition, 'La réservation est confirmée.');
+    expect(situation.topology, NowTopology.waiting);
+  });
+
   const selector = NowSelector();
   final now = DateTime.utc(2026, 10, 3, 14);
 
