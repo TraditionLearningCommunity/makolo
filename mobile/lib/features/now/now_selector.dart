@@ -185,11 +185,10 @@ class NowSelector {
       whyNow ??= _string(timing['label']) ?? _string(timing['why_now']);
       // Only owner-provided deadline states may qualify a date. Never infer
       // overdue from a timestamp that could mean a start or observation.
-      switch (_string(timing['deadline_state'])) {
-        case 'overdue':
-          metadata.add('Échéance dépassée');
-        case 'due_today':
-          metadata.add('Échéance aujourd’hui');
+      if (_string(timing['deadline_state']) == 'overdue') {
+        metadata.add('Échéance dépassée');
+      } else if (_string(timing['deadline_state']) == 'due_today') {
+        metadata.add('Échéance aujourd’hui');
       }
       for (final key in const [
         'deadline_at',
