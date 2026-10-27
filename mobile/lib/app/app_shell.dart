@@ -239,6 +239,15 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         final identity = snapshot.data?.payload['identity'];
         final displayName = identity is Map ? identity['display_name'] : null;
         final profileUsername = identity is Map ? identity['username'] : null;
+        final avatarUrl = identity is Map ? identity['avatar_url'] : null;
+        final baseUri = widget.runtime.api?.baseUri;
+        final resolvedAvatar = avatarUrl is String && avatarUrl.isNotEmpty &&
+                baseUri != null
+            ? baseUri.resolve(avatarUrl)
+            : null;
+        final validAvatar = resolvedAvatar != null &&
+            (resolvedAvatar.scheme == 'https' || resolvedAvatar.scheme == 'http') &&
+            resolvedAvatar.host == baseUri!.host;
         final avatarLetter =
             displayName is String && displayName.trim().isNotEmpty
             ? displayName.trim().substring(0, 1).toUpperCase()
@@ -249,6 +258,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           appBar: MakoloPrimaryHeader(
             kind: _headerKind,
             avatarLetter: avatarLetter,
+            avatarUrl: validAvatar ? resolvedAvatar.toString() : null,
             profileUsername: profileUsername is String ? profileUsername : null,
             hasConversationAttention: _hasConversationAttention == true,
             hasUnreadNotifications: _hasUnreadNotifications == true,
