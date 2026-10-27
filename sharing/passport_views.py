@@ -121,8 +121,13 @@ class PassportViewMixin(TemplateView):
         if is_document and not projection.has_content:
             raise Http404("Ce Passeport ne contient encore rien à exporter.")
 
+        public_url = ""
         try:
             public_identifier = self.subject.public_identifier_record.identifier
+            if self.subject_is_public():
+                public_url = self.request.build_absolute_uri(
+                    reverse("public-passport", kwargs={"identifier": public_identifier})
+                )
         except (AttributeError, ObjectDoesNotExist):
             public_identifier = getattr(self.subject, "username", None) or getattr(self.subject, "slug", "")
 
@@ -142,6 +147,7 @@ class PassportViewMixin(TemplateView):
                 "is_document": is_document,
                 "auto_print": is_print_document,
                 "public_identifier": public_identifier,
+                "public_passport_url": public_url,
                 "passport_snapshot": snapshot,
                 "passport_verification_url": verification_url,
                 "passport_qr_data_uri": qr_data_uri,
