@@ -28,7 +28,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
   Timer? _debounce;
   String _activeQuery = '';
   String? _error;
-  List<Map<String, dynamic>> _topics = [], _openOptions = [];
+  List<Map<String, dynamic>> _topics = [], _openOptions = [], _selectedTopics = [];
   Set<String> _interests = {}, _openTo = {};
 
   @override
@@ -54,8 +54,10 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       if (!mounted) return;
       setState(() {
         _topics = _options(data['topics']);
+        _selectedTopics = _options(data['selected_topics']);
         _openOptions = _options(data['open_to_options']);
         _interests = (data['interests'] as List? ?? []).map((v) => '$v').toSet();
+        _selectedTopics = _options(data['selected_topics']);
         _openTo = (data['open_to'] as List? ?? []).map((v) => '$v').toSet();
         _loading = false; _searching = false; _error = null;
       });
@@ -127,25 +129,55 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
 
   Widget _choices(String title, List<Map<String, dynamic>> options,
       Set<String> selected, String family) {
+    final chosen = family == 'interests' ? _selectedTopics
+        : options.where((item) => selected.contains(item['id']?.toString())).toList();
+    final available = options.where((item) =>
+        item['id'] != null && item['label'] != null &&
+        !selected.contains(item['id'].toString())).toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(0, 18, 0, 10),
         child: Text(title, style: Theme.of(context).textTheme.titleLarge),
       ),
-      Wrap(spacing: 8, runSpacing: 6, children: [
-        for (final option in options)
-          if (option['id'] != null && option['label'] != null)
-            FilterChip(
+      Text('Mes choix', style: Theme.of(context).textTheme.labelLarge),
+      const SizedBox(height: 8),
+      if (chosen.isEmpty)
+        Text('Aucun choix pour le moment.',
+          style: Theme.of(context).textTheme.bodySmall)
+      else
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final option in chosen)
+            if (option['id'] != null && option['label'] != null)
+              InputChip(
+                label: Text(option['label'].toString()),
+                onDeleted: _saving ? null : () {
+                  final next = Set<String>.from(selected)
+                    ..remove(option['id'].toString());
+                  _save(family, next);
+                },
+                deleteIcon: const Icon(Icons.close_rounded, size: 17),
+                deleteButtonTooltipMessage: 'Retirer ${option['label']}',
+              ),
+        ]),
+      const SizedBox(height: 16),
+      Text('À ajouter', style: Theme.of(context).textTheme.labelLarge),
+      const SizedBox(height: 8),
+      if (available.isEmpty)
+        Text('Aucune autre proposition ici.',
+          style: Theme.of(context).textTheme.bodySmall)
+      else
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final option in available)
+            ActionChip(
+              avatar: const Icon(Icons.add_rounded, size: 17),
               label: Text(option['label'].toString()),
-              selected: selected.contains(option['id'].toString()),
-              onSelected: _saving ? null : (active) {
-                final next = Set<String>.from(selected);
-                final key = option['id'].toString();
-                if (active) { next.add(key); } else { next.remove(key); }
+              onPressed: _saving ? null : () {
+                final next = Set<String>.from(selected)
+                  ..add(option['id'].toString());
                 _save(family, next);
               },
             ),
-      ]),
+        ]),
     ]);
   }
 
