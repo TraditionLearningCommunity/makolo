@@ -8,11 +8,13 @@ import '../../sync/projection_contract.dart';
 /// Full owner-backed saved collection; the Moi root presents only three rows.
 class MeSavedScreen extends StatefulWidget {
   const MeSavedScreen({
-    super.key, required this.api, required this.personal, required this.onOpen,
+    super.key, required this.api, required this.personal,
+    required this.onOpen, required this.onDiscover,
   });
   final MakoloApiClient api;
   final PersonalRepository personal;
   final ValueChanged<String> onOpen;
+  final VoidCallback onDiscover;
 
   @override
   State<MeSavedScreen> createState() => _MeSavedScreenState();
@@ -136,7 +138,16 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Mes enregistrés')),
+    appBar: AppBar(
+      title: const Text('Mes enregistrés'),
+      actions: [
+        IconButton(
+          tooltip: 'Découvrir d’autres possibilités',
+          onPressed: widget.onDiscover,
+          icon: const Icon(Icons.add_rounded),
+        ),
+      ],
+    ),
     body: RefreshIndicator(
       onRefresh: () => _next(reset: true),
       child: ListView(
