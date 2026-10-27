@@ -466,8 +466,7 @@ class _OngoingFieldState extends State<_OngoingField> {
               baseUri: widget.baseUri,
               api: widget.api,
             ),
-            if (item.resources.isNotEmpty)
-              _OngoingN1Resources(item: item),
+            if (item.resources.isNotEmpty) _OngoingN1Resources(item: item),
             if (hasDetail) ...[
               Align(
                 alignment: AlignmentDirectional.centerStart,
@@ -518,7 +517,10 @@ class _OngoingN1Resources extends StatelessWidget {
     return Padding(
       key: const Key('ongoing-n1-resources'),
       padding: const EdgeInsets.fromLTRB(
-        16, MakoloSpacing.sm, 16, MakoloSpacing.md,
+        16,
+        MakoloSpacing.sm,
+        16,
+        MakoloSpacing.md,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

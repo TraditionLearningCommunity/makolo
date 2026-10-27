@@ -232,42 +232,44 @@ void main() {
   testWidgets('each ongoing unit owns its media, resources and action footer', (
     tester,
   ) async {
-    final projection = _projection(items: const [
-      {
-        'id': 'first',
-        'kind': 'journey',
-        'source': {'kind': 'journey', 'id': 'first'},
-        'title': 'Première continuité',
-        'summary': 'Une action est attendue.',
-        'media_bindings': [
-          {
-            'purpose': 'RECOGNIZE',
-            'resource': {
-              'url': '/presentation/media/uses/first/file/',
-              'alt_text': 'Aperçu du premier dossier',
-              'mime_type': 'image/png',
-            },
-          },
-        ],
-        'resources': [
-          {'title': 'Notice de préparation'},
-        ],
-        'capabilities': [],
-        'links': {},
-      },
-      {
-        'id': 'second',
-        'kind': 'journey',
-        'source': {
+    final projection = _projection(
+      items: const [
+        {
+          'id': 'first',
           'kind': 'journey',
-          'id': '12345678-1234-1234-1234-123456789012',
+          'source': {'kind': 'journey', 'id': 'first'},
+          'title': 'Première continuité',
+          'summary': 'Une action est attendue.',
+          'media_bindings': [
+            {
+              'purpose': 'RECOGNIZE',
+              'resource': {
+                'url': '/presentation/media/uses/first/file/',
+                'alt_text': 'Aperçu du premier dossier',
+                'mime_type': 'image/png',
+              },
+            },
+          ],
+          'resources': [
+            {'title': 'Notice de préparation'},
+          ],
+          'capabilities': [],
+          'links': {},
         },
-        'title': 'Deuxième continuité',
-        'summary': 'Une autre action est attendue.',
-        'capabilities': ['open_detail'],
-        'links': {},
-      },
-    ]);
+        {
+          'id': 'second',
+          'kind': 'journey',
+          'source': {
+            'kind': 'journey',
+            'id': '12345678-1234-1234-1234-123456789012',
+          },
+          'title': 'Deuxième continuité',
+          'summary': 'Une autre action est attendue.',
+          'capabilities': ['open_detail'],
+          'links': {},
+        },
+      ],
+    );
     await PresentationHarness.pump(
       tester,
       child: OngoingScreen(
@@ -289,10 +291,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: first,
-        matching: find.text('Notice de préparation'),
-      ),
+      find.descendant(of: first, matching: find.text('Notice de préparation')),
       findsOneWidget,
     );
     expect(
