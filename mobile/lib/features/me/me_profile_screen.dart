@@ -61,7 +61,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       if (widget.openAvatarPicker && !_avatarPickerScheduled) {
         _avatarPickerScheduled = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _changeAvatar();
+          if (mounted) {
+            _changeAvatar();
+          }
         });
       }
     } on Object {
