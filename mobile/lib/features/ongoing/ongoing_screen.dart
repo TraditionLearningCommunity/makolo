@@ -443,49 +443,117 @@ class _OngoingFieldState extends State<_OngoingField> {
       final item = widget.items[index];
       final expanded = _expanded.contains(item.id);
       final hasDetail = _ongoingVisibleDetailGroups(item).isNotEmpty;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _OngoingRow(
-            item: item,
-            selected: item.id == widget.selected?.id,
-            stale: widget.stale,
-            onTap: () => widget.onSelect(item),
-            baseUri: widget.baseUri,
-            api: widget.api,
+      // Keep one continuity, its recognition media, details and commands
+      // within the same visual boundary. The actions always close the unit.
+      return Container(
+        key: ValueKey<String>('ongoing-unit-${item.id}'),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(MakoloRadii.large),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
           ),
-          if (hasDetail) ...[
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () => setState(() {
-                  if (!_expanded.add(item.id)) _expanded.remove(item.id);
-                }),
-                icon: Icon(
-                  expanded
-                      ? Icons.expand_less_rounded
-                      : Icons.expand_more_rounded,
-                ),
-                label: Text(expanded ? 'Voir moins' : 'Voir plus'),
-              ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _OngoingRow(
+              item: item,
+              selected: item.id == widget.selected?.id,
+              stale: widget.stale,
+              onTap: () => widget.onSelect(item),
+              baseUri: widget.baseUri,
+              api: widget.api,
             ),
-            if (expanded) _OngoingN1Details(item: item),
+            if (item.resources.isNotEmpty)
+              _OngoingN1Resources(item: item),
+            if (hasDetail) ...[
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  onPressed: () => setState(() {
+                    if (!_expanded.add(item.id)) _expanded.remove(item.id);
+                  }),
+                  icon: Icon(
+                    expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                  ),
+                  label: Text(expanded ? 'Voir moins' : 'Voir plus'),
+                ),
+              ),
+              if (expanded) _OngoingN1Details(item: item),
+            ],
+            _OngoingN1Actions(
+              key: ValueKey<String>('ongoing-actions-${item.id}'),
+              item: item,
+              api: widget.api,
+              baseUri: widget.baseUri,
+              onSave: widget.onSave,
+            ),
           ],
-          _OngoingN1Actions(
-            item: item,
-            api: widget.api,
-            baseUri: widget.baseUri,
-            onSave: widget.onSave,
-          ),
-        ],
+        ),
       );
     },
   );
 }
 
+/// Resource references remain facts of the continuity owner. Do not turn
+/// a resource into a proof, requirement or access right in this read model.
+class _OngoingN1Resources extends StatelessWidget {
+  const _OngoingN1Resources({required this.item});
+  final OngoingContinuityPresentation item;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = <String>[];
+    for (final resource in item.resources) {
+      final label = resource['title'] ?? resource['label'] ?? resource['name'];
+      if (label is! String || label.trim().isEmpty) continue;
+      if (!entries.contains(label.trim())) entries.add(label.trim());
+    }
+    if (entries.isEmpty) return const SizedBox.shrink();
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      key: const Key('ongoing-n1-resources'),
+      padding: const EdgeInsets.fromLTRB(
+        16, MakoloSpacing.sm, 16, MakoloSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Documents et ressources',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: MakoloSpacing.xs),
+          for (final label in entries)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
+              child: Row(
+                children: [
+                  Icon(Icons.description_outlined, size: 20, color: muted),
+                  const SizedBox(width: MakoloSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The three useful commands share the existing Discovery and Sharing owners.
 class _OngoingN1Actions extends StatefulWidget {
   const _OngoingN1Actions({
+    super.key,
     required this.item,
     this.api,
     this.baseUri,
