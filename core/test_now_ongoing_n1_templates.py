@@ -2,7 +2,7 @@
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 
-from core.home_views import _now_web_context
+from core.home_views import _now_web_context, _now_inline_media, _now_topology
 from core.mature_experience_views import MatureParticipantOngoingView
 
 
@@ -36,6 +36,66 @@ class PersonalN1TemplateTests(SimpleTestCase):
         self.assertIn("Voir plus", html)
         self.assertIn("Voir moins", html)
         self.assertIn("Un document est à vérifier.", html)
+
+    def test_now_public_recognition_media_requires_exact_published_binding(self):
+        use_id = "11111111-2222-4333-8444-555555555555"
+        url = f"/presentation/media/uses/{use_id}/file/"
+        valid = {
+            "resource_ref": f"presentation_media_use:{use_id}",
+            "target": "subject",
+            "purpose": "recognize",
+            "kind": "image",
+            "url": url,
+            "label": "Véhicule",
+            "authorized": True,
+            "presentation_rank": "primary",
+        }
+        self.assertEqual(_now_inline_media({"media_bindings": [valid]})[0]["url"], url)
+        for altered in (
+            {**valid, "authorized": False},
+            {**valid, "url": "https://example.test" + url},
+            {**valid, "url": url + "?token=secret"},
+            {**valid, "resource_ref": "journey_artifact:" + use_id},
+        ):
+            self.assertFalse(_now_inline_media({"media_bindings": [altered]}))
+
+    def test_now_web_s5_preserves_relation_and_semantic_fields(self):
+        situation = {
+            "id": "now-composition",
+            "key": "now-composition",
+            "human_context": "Réservations",
+            "state_meaning": "Deux rendez-vous se chevauchent.",
+            "subject": {"label": "Disponibilité"},
+            "delta": {"meaning": "Le second horaire est confirmé."},
+            "exit_condition": {"label": "Un créneau est libéré."},
+            "why_now": {"meaning": "Les horaires se recouvrent."},
+            "consequence": {"state": "known", "effect": "Un seul rendez-vous est possible."},
+            "response": {"type": "decide", "label": "Choisir"},
+            "relation_members": [
+                {"id": "a", "label": "Rendez-vous A"},
+                {"id": "b", "label": "Rendez-vous B"},
+            ],
+            "relations": [{"kind": "conflict", "member_ids": ["a", "b"],
+                           "summary": "Même créneau."}],
+            "media_bindings": [{
+                "resource_ref": "presentation_media_use:11111111-2222-4333-8444-555555555555",
+                "target": "subject", "purpose": "recognize", "kind": "image",
+                "url": "/presentation/media/uses/11111111-2222-4333-8444-555555555555/file/",
+                "authorized": True, "presentation_rank": "primary",
+            }],
+        }
+        self.assertEqual(_now_topology(situation), "composition")
+        home = _now_web_context({
+            "items": [situation],
+            "selection": {"state": "ready"},
+            "freshness": {"state": "fresh"},
+            "actor_attention_state": "active",
+            "terminal": {"state": "ok"},
+        })
+        html = render_to_string("core/_now_page_fragment.html", {"home": home})
+        self.assertIn("Disponibilité", html)
+        self.assertIn("Le second horaire est confirmé.", html)
+        self.assertIn("Rendez-vous A", html)
 
     def test_ongoing_fragment_has_single_unit_and_server_continuity(self):
         item = {
