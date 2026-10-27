@@ -30,12 +30,14 @@ class MeTerritorySelection {
     required this.items,
     this.totalCount = 0,
     this.hasMore = false,
+    this.savedCount = 0,
   });
 
   final MeTerritoryPresentation presentation;
   final List<MeItemPresentation> items;
   final int totalCount;
   final bool hasMore;
+  final int savedCount;
 
   bool get hasContent =>
       presentation.state.availability == MakoloAvailabilityCue.content;
@@ -245,6 +247,7 @@ class MeSelector {
       malformed: malformed,
       freshness: freshness,
       reachability: reachability,
+      savedCount: _collectionCount(section, ['bookmarks']),
       totalCount: _collectionCount(section, [
         'interests',
         'open_to',
@@ -435,10 +438,12 @@ class MeSelector {
     required MakoloReachabilityCue reachability,
     int totalCount = 0,
     bool hasMore = false,
+    int savedCount = 0,
   }) {
     return MeTerritorySelection(
       totalCount: totalCount,
       hasMore: hasMore,
+      savedCount: savedCount,
       presentation: MeTerritoryPresentation(
         key: key,
         label: label,
