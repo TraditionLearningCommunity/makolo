@@ -51,6 +51,9 @@ StoredProjection projection({
 }
 
 void main() {
+  const selector = NowSelector();
+  final now = DateTime.utc(2026, 10, 3, 14);
+
   test('preserves only owner-supplied subject, delta and exit condition', () {
     final result = selector.select(
       projection: projection(items: const [
@@ -72,9 +75,6 @@ void main() {
     expect(situation.exitCondition, 'La réservation est confirmée.');
     expect(situation.topology, NowTopology.waiting);
   });
-
-  const selector = NowSelector();
-  final now = DateTime.utc(2026, 10, 3, 14);
 
   test('wire timestamps display as readable dates, not raw ISO', () {
     final result = selector.select(
