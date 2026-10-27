@@ -7,6 +7,12 @@
     {% elif item.summary %}<p class="mk-now-n2-meaning">{{ item.summary }}</p>{% endif %}
     {% if item.deadline_label %}<p class="mk-now-label">{{ item.deadline_label }}</p>{% endif %}
   </header>
+  {% if item.subject and item.subject != item.context_label %}
+    <section class="mk-now-n2-section"><h3>Sujet</h3><p>{{ item.subject }}</p></section>
+  {% endif %}
+  {% if item.delta and item.delta != item.state %}
+    <section class="mk-now-n2-section"><h3>Ce qui a changé</h3><p>{{ item.delta }}</p></section>
+  {% endif %}
   {% if item.topology == "media" and item.inline_media %}
     {% with media=item.inline_media.0 %}
     <figure class="mk-now-n2-media">
@@ -24,6 +30,7 @@
       <h3>En attente</h3>
       <p>{{ item.turn|default:"La suite dépend d’une prochaine réponse." }}</p>
       {% if item.horizon %}<p>{{ item.horizon }}</p>{% endif %}
+      {% if item.exit_condition %}<p>{{ item.exit_condition }}</p>{% endif %}
     </section>
   {% endif %}
   {% if item.topology == "composition" %}
@@ -41,6 +48,9 @@
         </ul>
       </section>
     {% endif %}
+  {% endif %}
+  {% if item.knowledge_state and item.knowledge_state != "known" and item.knowledge_state != "fresh" %}
+    <p class="mk-now-unit__knowledge">Information à vérifier</p>
   {% endif %}
   {% if item.consequence %}
     <section class="mk-now-n2-section">
