@@ -17,7 +17,9 @@ class MePassportScreen extends StatefulWidget {
 class _MePassportScreenState extends State<MePassportScreen> {
   String _variant = 'complete';
   String? _topic;
-  final Set<String> _sections = {'interests', 'open_to'};
+  final Set<String> _sections = {
+    'bio', 'links', 'location', 'profession', 'interests', 'open_to',
+  };
   Set<String> _activities = {}, _proofs = {}, _credentials = {};
   Map<String, dynamic>? _full;
   late Future<Map<String, dynamic>> _future;
@@ -142,6 +144,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
         Text('À présenter', style: theme.textTheme.titleMedium),
         Wrap(spacing: 6, children: [
           for (final option in const [
+            ('bio', 'À propos'), ('profession', 'Profession'),
+            ('location', 'Localisation'), ('links', 'Liens'),
             ('interests', 'Intérêts'), ('open_to', 'Ouvert à'),
           ])
             FilterChip(
@@ -265,6 +269,7 @@ class _PassportBody extends StatelessWidget {
     final bio = _text(identity['bio']);
     final profession = _text(identity['profession']);
     final location = _text(identity['location']);
+    final links = _rows(identity['links']);
     final avatar = _text(identity['avatar_url']);
     final avatarUri = avatar == null ? null :
         (avatar.startsWith('/') && !avatar.startsWith('//')
@@ -314,6 +319,19 @@ class _PassportBody extends StatelessWidget {
         padding: const EdgeInsets.only(top: 18),
         child: Text(bio, style: Theme.of(context).textTheme.bodyLarge),
       ),
+      if (links.isNotEmpty) ...[
+        const SizedBox(height: 18),
+        Text('Mes liens', style: Theme.of(context).textTheme.titleLarge
+            ?.copyWith(fontWeight: FontWeight.w800)),
+        for (final link in links)
+          if (_text(link['label']) != null && _text(link['url']) != null)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(link['label'].toString()),
+              subtitle: SelectableText(link['url'].toString()),
+            ),
+      ],
       const SizedBox(height: 14),
       Wrap(spacing: 10, runSpacing: 8, children: [
         _stat(context, 'Déclaré', disclosure['declared_count']),
