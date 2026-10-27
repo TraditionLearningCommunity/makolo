@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
@@ -101,7 +103,18 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Modifier la photo'),
-          content: const Text('Utiliser cette photo sur mon profil ?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipOval(child: Image.file(
+                File(image.path),
+                width: 152, height: 152, fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const Icon(Icons.person, size: 90),
+              )),
+              const SizedBox(height: 14),
+              const Text('Utiliser cette photo sur mon profil ?'),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
