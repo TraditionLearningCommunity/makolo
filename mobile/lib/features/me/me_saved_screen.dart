@@ -139,7 +139,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Mes enregistrés'),
+      title: const Text('Mes enregistrements'),
       actions: [
         IconButton(
           tooltip: 'Découvrir d’autres possibilités',
@@ -163,10 +163,11 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                   color: Theme.of(context).colorScheme.primary),
                 title: Text((row['activity'] as Map)['title']?.toString() ?? ''),
                 trailing: IconButton(
-                  tooltip: 'Retirer des enregistrés',
+                  tooltip: 'Retirer des enregistrements',
                   onPressed: _removing == (row['activity'] as Map)['id'].toString()
                       ? null : () => _remove((row['activity'] as Map)['id'].toString()),
-                  icon: const Icon(Icons.bookmark_remove_outlined),
+                  icon: DiscoveryOrbitIcon(saved: false,
+                    color: Theme.of(context).colorScheme.primary),
                 ),
                 onTap: () => widget.onOpen(
                   (row['activity'] as Map)['id'].toString(),
