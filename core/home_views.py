@@ -86,10 +86,12 @@ def _now_topology(item):
     ):
         return "composition"
     media = item.get("media_bindings") or ()
+    admitted_urls = {media_use["url"] for media_use in _now_inline_media(item)}
     if any(
         isinstance(binding, dict)
         and binding.get("authorized") is True
         and binding.get("resource_ref")
+        and binding.get("url") in admitted_urls
         and (
             binding.get("presentation_rank") == "primary"
             or binding.get("purpose") in {"understand", "establish", "act"}
@@ -136,7 +138,7 @@ def _now_inline_media(item):
                 UUID(identifier)
             except (ValueError, AttributeError):
                 continue
-            if path != private_prefix + identifier + "/":
+            if path != private_prefix + identifier + "/" or ref != "journey_artifact:" + identifier:
                 continue
             if (kind == "document" and (not separator or query != "view=text")) or (
                 kind != "document" and separator
