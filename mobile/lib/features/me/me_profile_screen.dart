@@ -42,6 +42,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   bool _publicProfile = false;
   bool _searchable = false;
   MakoloCountry? _selectedCountry;
+  bool _countryHasUnselectedInput = false;
 
   bool _avatarPickerScheduled = false;
   bool _loading = true;
@@ -71,6 +72,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         _city.text = fields['city']?.toString() ?? '';
         _country.text = fields['country']?.toString() ?? '';
         _selectedCountry = countryForValue(_country.text);
+        _countryHasUnselectedInput = false;
         _phone.text = user['phone']?.toString() ?? '';
         _website.text = user['website']?.toString() ?? '';
         _linkedin.text = user['linkedin_url']?.toString() ?? '';
@@ -213,7 +215,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
 
   Future<void> _save() async {
     if (_saving || _loading) return;
-    if (_country.text.trim().isNotEmpty && _selectedCountry == null) {
+    if (_countryHasUnselectedInput ||
+        (_country.text.trim().isNotEmpty && _selectedCountry == null)) {
       setState(() => _error = 'Choisissez un pays dans les suggestions.');
       return;
     }
@@ -349,7 +352,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: DropdownButtonFormField<String>(
-                    value: 'fr',
+                    initialValue: 'fr',
                     decoration: const InputDecoration(
                       labelText: 'Langue',
                       border: OutlineInputBorder(),
@@ -431,6 +434,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         setState(() {
           _selectedCountry = country;
           _country.text = country.code;
+          _countryHasUnselectedInput = false;
         });
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) =>
@@ -443,11 +447,14 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
               hintText: 'Rechercher un pays',
               prefixIcon: Icon(Icons.public_outlined),
               border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 15),
             ),
             onChanged: (value) {
               if (value != _selectedCountry?.label) {
                 _selectedCountry = null;
                 _country.clear();
+                _countryHasUnselectedInput = value.trim().isNotEmpty;
               }
             },
             onFieldSubmitted: (value) => onFieldSubmitted(),
@@ -468,6 +475,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       ),
     ),
   );
