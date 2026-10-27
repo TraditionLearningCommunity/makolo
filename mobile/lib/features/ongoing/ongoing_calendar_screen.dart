@@ -26,9 +26,15 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
 
   Future<void> _loadMore(StoredProjection current) async {
     if (_loadingMore || widget.api == null) return;
-    setState(() { _loadingMore = true; _loadError = null; });
+    setState(() {
+      _loadingMore = true;
+      _loadError = null;
+    });
     try {
-      await widget.repository.loadMoreOngoing(api: widget.api!, current: current);
+      await widget.repository.loadMoreOngoing(
+        api: widget.api!,
+        current: current,
+      );
     } on Object {
       if (mounted) {
         setState(() => _loadError = 'Impossible de charger la suite.');
@@ -37,7 +43,6 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
       if (mounted) setState(() => _loadingMore = false);
     }
   }
-
 
   @override
   void initState() {
@@ -67,18 +72,24 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
           return const Center(child: CircularProgressIndicator.adaptive());
         }
         final events = <_OngoingMoment>[];
-        for (final item in OngoingContinuityPresentation.fromProjection(projection)) {
+        for (final item in OngoingContinuityPresentation.fromProjection(
+          projection,
+        )) {
           for (final fact in item.temporalFacts) {
             final raw = fact['at'] ?? fact['date'];
             final instant = MakoloHumanization.tryParseInstant(raw);
             if (instant == null) continue;
-            events.add(_OngoingMoment(
-              at: instant,
-              hasTime: fact['at'] != null,
-              title: item.title,
-              label: fact['label'] is String ? fact['label'] as String : 'À venir',
-              id: item.id,
-            ));
+            events.add(
+              _OngoingMoment(
+                at: instant,
+                hasTime: fact['at'] != null,
+                title: item.title,
+                label: fact['label'] is String
+                    ? fact['label'] as String
+                    : 'À venir',
+                id: item.id,
+              ),
+            );
           }
         }
         events.sort((a, b) {
@@ -89,9 +100,12 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
         final token = continuation is Map ? continuation['token'] : null;
         final hasMore = token is String && token.isNotEmpty;
         if (events.isEmpty && !hasMore) {
-          return const Center(child: Text('Aucune date à afficher pour le moment.'));
+          return const Center(
+            child: Text('Aucune date à afficher pour le moment.'),
+          );
         }
-        final stale = projection.freshUntil != null &&
+        final stale =
+            projection.freshUntil != null &&
             projection.freshUntil!.isBefore(DateTime.now().toUtc());
         return ListView.separated(
           key: const PageStorageKey<String>('ongoing-calendar'),
@@ -104,7 +118,9 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
                 child: _loadingMore
                     ? const CircularProgressIndicator.adaptive()
                     : TextButton.icon(
-                        onPressed: widget.api == null ? null : () => _loadMore(projection),
+                        onPressed: widget.api == null
+                            ? null
+                            : () => _loadMore(projection),
                         icon: const Icon(Icons.expand_more_rounded),
                         label: Text(_loadError ?? 'Afficher les autres dates'),
                       ),
@@ -120,7 +136,10 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
             }
             final event = events[stale ? index - 1 : index];
             final date = event.hasTime
-                ? MakoloHumanization.formatDateTime(event.at, now: DateTime.now())
+                ? MakoloHumanization.formatDateTime(
+                    event.at,
+                    now: DateTime.now(),
+                  )
                 : MakoloHumanization.formatShortDate(event.at);
             return Semantics(
               label: '${event.title}. ${event.label}. $date',
@@ -130,7 +149,10 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
                 leading: const Icon(Icons.event_outlined),
                 title: Text(event.title),
                 subtitle: Text(event.label),
-                trailing: Text(date, style: Theme.of(context).textTheme.labelMedium),
+                trailing: Text(
+                  date,
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
                 onTap: () => context.push(
                   '/ongoing?continuity=${Uri.encodeQueryComponent(event.id)}',
                 ),

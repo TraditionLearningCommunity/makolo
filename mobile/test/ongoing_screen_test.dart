@@ -39,10 +39,7 @@ StoredProjection _projection({
 }) => StoredProjection(
   kind: 'personal.ongoing',
   schemaVersion: 1,
-  payload: {
-    'items': items,
-    'continuation': ?continuation,
-  },
+  payload: {'items': items, 'continuation': ?continuation},
   receivedAt: DateTime.utc(2026, 10, 3),
   freshUntil: DateTime.utc(2026, 12, 1),
 );
@@ -144,19 +141,21 @@ void main() {
   testWidgets('available native action reuses the Discover orbit icon', (
     tester,
   ) async {
-    final projection = _projection(items: const [
-      {
-        'kind': 'journey',
-        'source': {
+    final projection = _projection(
+      items: const [
+        {
           'kind': 'journey',
-          'id': '12345678-1234-1234-1234-123456789012',
+          'source': {
+            'kind': 'journey',
+            'id': '12345678-1234-1234-1234-123456789012',
+          },
+          'title': 'Voyage Kolwezi',
+          'summary': 'Une suite est prévue.',
+          'capabilities': ['open_detail'],
+          'links': {},
         },
-        'title': 'Voyage Kolwezi',
-        'summary': 'Une suite est prévue.',
-        'capabilities': ['open_detail'],
-        'links': {},
-      },
-    ]);
+      ],
+    );
     await PresentationHarness.pump(
       tester,
       child: OngoingScreen(
@@ -165,11 +164,15 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.byKey(const Key('ongoing-n1-discover-actions')), findsOneWidget);
+    expect(
+      find.byKey(const Key('ongoing-n1-discover-actions')),
+      findsOneWidget,
+    );
     expect(find.byType(DiscoveryOrbitIcon), findsOneWidget);
-    expect(tester.widget<DiscoveryOrbitIcon>(
-      find.byType(DiscoveryOrbitIcon),
-    ).saved, isFalse);
+    expect(
+      tester.widget<DiscoveryOrbitIcon>(find.byType(DiscoveryOrbitIcon)).saved,
+      isFalse,
+    );
     expect(find.text('Enregistré'), findsNothing);
   });
 
@@ -317,24 +320,26 @@ void main() {
   });
 
   testWidgets('owner dates are preserved in the N2 continuity', (tester) async {
-    final projection = _projection(items: const [
-      {
-        'id': 'time-continuity',
-        'kind': 'journey',
-        'source': {'kind': 'journey', 'id': 'time'},
-        'title': 'Voyage Nairobi',
-        'summary': 'Départ confirmé.',
-        'temporal_facts': [
-          {
-            'kind': 'occurrence_start',
-            'label': 'Début',
-            'date': '2026-11-12',
-          },
-        ],
-        'capabilities': [],
-        'links': {},
-      },
-    ]);
+    final projection = _projection(
+      items: const [
+        {
+          'id': 'time-continuity',
+          'kind': 'journey',
+          'source': {'kind': 'journey', 'id': 'time'},
+          'title': 'Voyage Nairobi',
+          'summary': 'Départ confirmé.',
+          'temporal_facts': [
+            {
+              'kind': 'occurrence_start',
+              'label': 'Début',
+              'date': '2026-11-12',
+            },
+          ],
+          'capabilities': [],
+          'links': {},
+        },
+      ],
+    );
     await PresentationHarness.pump(
       tester,
       child: OngoingScreen(

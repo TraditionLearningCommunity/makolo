@@ -259,15 +259,21 @@ void main() {
       ],
     };
     considerations['bookmarks'] = {
-      'count': 1, 'items': [bookmark], 'has_more': false,
+      'count': 1,
+      'items': [bookmark],
+      'has_more': false,
     };
     MeItemPresentation savedItem() {
       final selected = selector.select(
-        projection: _projection(payload), now: now,
+        projection: _projection(payload),
+        now: now,
       );
-      return selected.territories.singleWhere(
-        (section) => section.presentation.key == 'considerations',
-      ).items.singleWhere((item) => item.destination.kind == 'activity');
+      return selected.territories
+          .singleWhere(
+            (section) => section.presentation.key == 'considerations',
+          )
+          .items
+          .singleWhere((item) => item.destination.kind == 'activity');
     }
 
     expect(savedItem().mediaPath, '/presentations/media/uses/use-1/file/');

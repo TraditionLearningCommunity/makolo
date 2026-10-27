@@ -637,9 +637,11 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
     final saved = _confirmedSaved ?? (possibility?.savedState == 'saved');
     final canSave =
         possibility != null &&
-        (saved ? possibility.savedState == 'saved' || _confirmedSaved == true
-               : possibility.canSave) &&
-        widget.onSave != null && !_busy;
+        (saved
+            ? possibility.savedState == 'saved' || _confirmedSaved == true
+            : possibility.canSave) &&
+        widget.onSave != null &&
+        !_busy;
 
     // A calm continuity needs no empty toolbar when no operation exists.
     if (!canSave && !canShare && route == null) {
@@ -750,9 +752,7 @@ class _OngoingN1Details extends StatelessWidget {
   Widget build(BuildContext context) {
     final groups = _ongoingVisibleDetailGroups(item);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        16, 0, 16, MakoloSpacing.md,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, MakoloSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -762,7 +762,10 @@ class _OngoingN1Details extends StatelessWidget {
             for (final value in values)
               Padding(
                 padding: const EdgeInsets.only(top: MakoloSpacing.xs),
-                child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
+                child: Text(
+                  value,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
           ],
         ],
@@ -1353,27 +1356,35 @@ class _OngoingFocus extends StatelessWidget {
     );
   }
 
-  void _openPublicResource(BuildContext context, Map<String, dynamic> resource) {
+  void _openPublicResource(
+    BuildContext context,
+    Map<String, dynamic> resource,
+  ) {
     final kind = resource['kind'];
     final source = kind == 'file'
         ? resource['download_url']
         : kind == 'text'
-            ? resource['read_url']
-            : null;
+        ? resource['read_url']
+        : null;
     if (source is! String || source.trim().isEmpty) return;
     final uri = ongoingRecognitionImageUrl(source, baseUri);
     if (uri == null) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => DiscoveryReader(items: [
-        DiscoveryReaderItem(
-          title: resource['title']?.toString() ?? 'Document',
-          uri: Uri.parse(uri),
-          mimeType: kind == 'text'
-              ? 'text/plain'
-              : resource['mime_type']?.toString() ?? 'application/octet-stream',
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DiscoveryReader(
+          items: [
+            DiscoveryReaderItem(
+              title: resource['title']?.toString() ?? 'Document',
+              uri: Uri.parse(uri),
+              mimeType: kind == 'text'
+                  ? 'text/plain'
+                  : resource['mime_type']?.toString() ??
+                        'application/octet-stream',
+            ),
+          ],
         ),
-      ]),
-    ));
+      ),
+    );
   }
 
   Widget _resources(BuildContext context) {
@@ -1390,7 +1401,10 @@ class _OngoingFocus extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Documents et ressources', style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            'Documents et ressources',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           for (final resource in usable)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -1403,16 +1417,18 @@ class _OngoingFocus extends StatelessWidget {
               subtitle: resource['description'] is String
                   ? Text(resource['description'] as String)
                   : null,
-              trailing: (resource['kind'] == 'file' ||
+              trailing:
+                  (resource['kind'] == 'file' ||
                       resource['kind'] == 'text' ||
-                      (resource['kind'] == 'journey_artifact' && ownerRoute != null))
+                      (resource['kind'] == 'journey_artifact' &&
+                          ownerRoute != null))
                   ? const Icon(Icons.chevron_right_rounded)
                   : null,
               onTap: resource['kind'] == 'journey_artifact'
                   ? (ownerRoute == null ? null : () => context.push(ownerRoute))
                   : resource['kind'] == 'file' || resource['kind'] == 'text'
-                      ? () => _openPublicResource(context, resource)
-                      : null,
+                  ? () => _openPublicResource(context, resource)
+                  : null,
             ),
         ],
       ),
@@ -1451,8 +1467,10 @@ class _OngoingFocus extends StatelessWidget {
             ],
             if (stale) ...[
               const SizedBox(height: MakoloSpacing.sm),
-              Text('Dernière information connue',
-                style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                'Dernière information connue',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
             const SizedBox(height: MakoloSpacing.xs),
             Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),

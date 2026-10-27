@@ -22,9 +22,7 @@ StatefulShellBranch ongoingBranch(AppRuntime runtime) => StatefulShellBranch(
 List<RouteBase> ongoingRoutes(AppRuntime runtime) => [
   GoRoute(
     path: '/ongoing/calendar',
-    builder: (context, state) => OngoingCalendarScreen(
-      repository: runtime.personal!,
-      api: runtime.api,
-    ),
+    builder: (context, state) =>
+        OngoingCalendarScreen(repository: runtime.personal!, api: runtime.api),
   ),
 ];

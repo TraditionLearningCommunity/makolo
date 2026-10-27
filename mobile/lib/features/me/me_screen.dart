@@ -1039,7 +1039,12 @@ class _MeChip extends StatelessWidget {
 }
 
 class _MeConsideration extends StatelessWidget {
-  const _MeConsideration({super.key, required this.item, required this.onTap, this.mediaApi});
+  const _MeConsideration({
+    super.key,
+    required this.item,
+    required this.onTap,
+    this.mediaApi,
+  });
 
   final MeItemPresentation item;
   final VoidCallback? onTap;
@@ -1091,7 +1096,9 @@ class _MeConsideration extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (isSaved && mediaApi != null && item.mediaPath != null) ...[
+                  if (isSaved &&
+                      mediaApi != null &&
+                      item.mediaPath != null) ...[
                     const SizedBox(width: MakoloSpacing.sm),
                     _MeRecognitionThumbnail(
                       key: ValueKey(item.mediaPath),
@@ -1132,7 +1139,8 @@ class _MeRecognitionThumbnail extends StatefulWidget {
   final String alt;
 
   @override
-  State<_MeRecognitionThumbnail> createState() => _MeRecognitionThumbnailState();
+  State<_MeRecognitionThumbnail> createState() =>
+      _MeRecognitionThumbnailState();
 }
 
 class _MeRecognitionThumbnailState extends State<_MeRecognitionThumbnail> {
@@ -1205,25 +1213,25 @@ class _MeIdentityRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: ListTile(
-      dense: true,
-      minVerticalPadding: MakoloSpacing.xs,
-      contentPadding: EdgeInsets.zero,
-      visualDensity: VisualDensity.compact,
-      onTap: onTap,
-      leading: CircleAvatar(
-        radius: 18,
-        backgroundColor: scheme.primary.withValues(alpha: 0.08),
-        child: Text(
-          initial,
-          style: Theme.of(context).textTheme.labelLarge
-              ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w800),
+        dense: true,
+        minVerticalPadding: MakoloSpacing.xs,
+        contentPadding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        onTap: onTap,
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: scheme.primary.withValues(alpha: 0.08),
+          child: Text(
+            initial,
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w800),
+          ),
         ),
-      ),
-      title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
-      subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-      trailing: onTap == null
-          ? null
-          : const Icon(Icons.chevron_right_rounded, size: 21),
+        title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
+        subtitle: item.subtitle == null ? null : Text(item.subtitle!),
+        trailing: onTap == null
+            ? null
+            : const Icon(Icons.chevron_right_rounded, size: 21),
       ),
     );
   }
@@ -1241,21 +1249,21 @@ class _MeResourceRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: ListTile(
-      dense: true,
-      minVerticalPadding: MakoloSpacing.xs,
-      contentPadding: EdgeInsets.zero,
-      visualDensity: VisualDensity.compact,
-      onTap: onTap,
-      leading: Icon(
-        _iconFor(item.destination.kind),
-        size: 21,
-        color: scheme.primary,
-      ),
-      title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
-      subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-      trailing: onTap == null
-          ? null
-          : const Icon(Icons.chevron_right_rounded, size: 21),
+        dense: true,
+        minVerticalPadding: MakoloSpacing.xs,
+        contentPadding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        onTap: onTap,
+        leading: Icon(
+          _iconFor(item.destination.kind),
+          size: 21,
+          color: scheme.primary,
+        ),
+        title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
+        subtitle: item.subtitle == null ? null : Text(item.subtitle!),
+        trailing: onTap == null
+            ? null
+            : const Icon(Icons.chevron_right_rounded, size: 21),
       ),
     );
   }

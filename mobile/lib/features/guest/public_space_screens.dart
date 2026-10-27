@@ -439,7 +439,9 @@ class _PublicSpacesScreenState extends State<PublicSpacesScreen> {
                   const Center(child: CircularProgressIndicator()),
                 if (_error != null && _page > 1 && _spaces.isNotEmpty) ...[
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: MakoloSpacing.sm,
+                    ),
                     child: Text(
                       _error!,
                       style: TextStyle(color: theme.colorScheme.error),

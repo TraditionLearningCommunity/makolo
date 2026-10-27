@@ -584,10 +584,13 @@ class MeSelector {
         final resource = _map(binding?['resource']);
         final path = _string(resource?['url']);
         if (binding?['purpose'] != 'RECOGNIZE' ||
-            target?['kind'] != 'activity' || target?['id'] != id ||
+            target?['kind'] != 'activity' ||
+            target?['id'] != id ||
             resource?['kind'] != 'presentation_media_use' ||
             !{'image/jpeg', 'image/png'}.contains(resource?['mime_type']) ||
-            path == null || !path.startsWith('/') || path.startsWith('//') ||
+            path == null ||
+            !path.startsWith('/') ||
+            path.startsWith('//') ||
             Uri.tryParse(path)?.hasQuery == true) {
           continue;
         }

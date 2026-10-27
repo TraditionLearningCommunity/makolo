@@ -728,7 +728,8 @@ class _NowSemanticContent extends StatelessWidget {
                     situation.meaning,
                     situation.whyNow,
                     situation.consequence,
-                  ]) case final summary?)
+                  ])
+                  case final summary?)
                 Padding(
                   padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                   child: Text(summary, style: theme.textTheme.bodyMedium),
