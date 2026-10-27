@@ -147,10 +147,12 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             : 'Photo enregistrée. Actualisation en attente.';
       });
     } on Object {
-      if (mounted) setState(() {
-        _saving = false;
-        _error = 'Impossible de modifier la photo.';
-      });
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Impossible de modifier la photo.';
+        });
+      }
     }
   }
 
