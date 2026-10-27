@@ -180,7 +180,19 @@ class PersonalConsiderationSettingsAPIView(PersonalProjectionAPIView):
             if family == "interests":
                 replace_profile_interests(profile=request.user, topic_ids=values)
             else:
-                replace_profile_open_to(profile=request.user, kinds=values)
+                retained = ProfileOpenTo.objects.filter(
+                    profile=request.user, topic__isnull=True, kind__in=values,
+                )
+                public_kinds = list(
+                    retained.filter(is_public=True).values_list("kind", flat=True)
+                )
+                searchable_kinds = list(
+                    retained.filter(is_searchable=True).values_list("kind", flat=True)
+                )
+                replace_profile_open_to(
+                    profile=request.user, kinds=values,
+                    public_kinds=public_kinds, searchable_kinds=searchable_kinds,
+                )
         except DomainValidationError as exc:
             raise ValidationError(exc.message_dict if hasattr(exc, "message_dict") else {"values": exc.messages}) from exc
         return self._response(self._settings(request.user), observed_at=timezone.now())
