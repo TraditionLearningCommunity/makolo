@@ -183,6 +183,14 @@ class NowSelector {
     String? whyNow = _semanticString(whyNowRaw, 'meaning');
     if (timing is Map) {
       whyNow ??= _string(timing['label']) ?? _string(timing['why_now']);
+      // Only owner-provided deadline states may qualify a date. Never infer
+      // overdue from a timestamp that could mean a start or observation.
+      switch (_string(timing['deadline_state'])) {
+        case 'overdue':
+          metadata.add('Échéance dépassée');
+        case 'due_today':
+          metadata.add('Échéance aujourd’hui');
+      }
       for (final key in const [
         'deadline_at',
         'due_at',
