@@ -30,7 +30,9 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
     try {
       await widget.repository.loadMoreOngoing(api: widget.api!, current: current);
     } on Object {
-      if (mounted) setState(() => _loadError = 'Impossible de charger la suite.');
+      if (mounted) {
+        setState(() => _loadError = 'Impossible de charger la suite.');
+      }
     } finally {
       if (mounted) setState(() => _loadingMore = false);
     }
