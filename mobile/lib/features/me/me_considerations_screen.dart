@@ -27,6 +27,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
   final _query = TextEditingController();
   Timer? _debounce;
   String _activeQuery = '';
+  int _requestEpoch = 0;
   String? _error;
   List<Map<String, dynamic>> _topics = [], _openOptions = [], _selectedTopics = [];
   Set<String> _interests = {}, _openTo = {};
@@ -42,19 +43,19 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
   Future<void> _load() async {
     final query = _query.text.trim();
     _activeQuery = query;
+    final epoch = ++_requestEpoch;
     if (_topics.isNotEmpty) setState(() => _searching = true);
     try {
       final uri = Uri(path: 'api/v1/me/considerations/settings/',
         queryParameters: query.isEmpty ? null : {'q': query});
       final response = await widget.api.get(uri.toString());
-      if (!mounted || _activeQuery != query) return;
+      if (!mounted || _activeQuery != query || epoch != _requestEpoch) return;
       final data = ProjectionEnvelope.parse(
         response.jsonObject(), expectedProjection: 'personal.me.settings',
       ).data;
       if (!mounted) return;
       setState(() {
         _topics = _options(data['topics']);
-        _selectedTopics = _options(data['selected_topics']);
         _openOptions = _options(data['open_to_options']);
         _interests = (data['interests'] as List? ?? []).map((v) => '$v').toSet();
         _selectedTopics = _options(data['selected_topics']);
@@ -62,7 +63,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _loading = false; _searching = false; _error = null;
       });
     } on Object {
-      if (mounted) {
+      if (mounted && epoch == _requestEpoch) {
         setState(() {
         _loading = false; _searching = false;
         _error = 'Impossible de charger vos préférences.';
@@ -85,7 +86,9 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
 
   Future<void> _save(String family, Set<String> values) async {
     if (_saving) return;
-    setState(() { _saving = true; _error = null; });
+    // Invalidate any outstanding search result before applying server-confirmed state.
+    ++_requestEpoch;
+    setState(() { _saving = true; _searching = false; _error = null; });
     try {
       final result = await widget.api.put(
         'api/v1/me/considerations/settings/',
@@ -97,9 +100,13 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       if (!mounted) return;
       setState(() {
         _interests = (data['interests'] as List? ?? []).map((v) => '$v').toSet();
+        _selectedTopics = _options(data['selected_topics']);
         _openTo = (data['open_to'] as List? ?? []).map((v) => '$v').toSet();
         _saving = false;
       });
+      // Refresh the active search after the mutation without allowing an old
+      // response to restore stale choices.
+      if (_query.text.trim().isNotEmpty) await _load();
       // Owner confirmed the change: update the only local personal projection.
       try {
         final root = await widget.api.get('api/v1/me/');
@@ -129,18 +136,29 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
 
   Widget _choices(String title, List<Map<String, dynamic>> options,
       Set<String> selected, String family) {
-    final chosen = family == 'interests' ? _selectedTopics
-        : options.where((item) => selected.contains(item['id']?.toString())).toList();
+    final chosen = (family == 'interests' ? _selectedTopics : options)
+        .where((item) => selected.contains(item['id']?.toString()))
+        .toList();
     final available = options.where((item) =>
         item['id'] != null && item['label'] != null &&
         !selected.contains(item['id'].toString())).toList();
+    final colors = Theme.of(context).colorScheme;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(0, 18, 0, 10),
-        child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+        padding: const EdgeInsets.fromLTRB(0, 20, 0, 12),
+        child: Text(title, style: Theme.of(context).textTheme.titleLarge
+            ?.copyWith(fontWeight: FontWeight.w800)),
       ),
-      Text('Mes choix', style: Theme.of(context).textTheme.labelLarge),
-      const SizedBox(height: 8),
+      Row(children: [
+        Icon(Icons.check_circle_outline_rounded, size: 18, color: colors.primary),
+        const SizedBox(width: 7),
+        Text('Mes choix', style: Theme.of(context).textTheme.titleSmall
+            ?.copyWith(fontWeight: FontWeight.w700)),
+        const Spacer(),
+        Text('${chosen.length}', style: Theme.of(context).textTheme.labelMedium
+            ?.copyWith(color: colors.onSurfaceVariant)),
+      ]),
+      const SizedBox(height: 10),
       if (chosen.isEmpty)
         Text('Aucun choix pour le moment.',
           style: Theme.of(context).textTheme.bodySmall)
@@ -149,6 +167,8 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
           for (final option in chosen)
             if (option['id'] != null && option['label'] != null)
               InputChip(
+                backgroundColor: colors.primaryContainer.withValues(alpha: 0.48),
+                side: BorderSide(color: colors.primary.withValues(alpha: 0.14)),
                 label: Text(option['label'].toString()),
                 onDeleted: _saving ? null : () {
                   final next = Set<String>.from(selected)
@@ -159,9 +179,15 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
                 deleteButtonTooltipMessage: 'Retirer ${option['label']}',
               ),
         ]),
-      const SizedBox(height: 16),
-      Text('À ajouter', style: Theme.of(context).textTheme.labelLarge),
-      const SizedBox(height: 8),
+      const SizedBox(height: 20),
+      Row(children: [
+        Icon(Icons.add_circle_outline_rounded, size: 18,
+            color: colors.onSurfaceVariant),
+        const SizedBox(width: 7),
+        Text('À ajouter', style: Theme.of(context).textTheme.titleSmall
+            ?.copyWith(fontWeight: FontWeight.w700)),
+      ]),
+      const SizedBox(height: 10),
       if (available.isEmpty)
         Text('Aucune autre proposition ici.',
           style: Theme.of(context).textTheme.bodySmall)
@@ -169,7 +195,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final option in available)
             ActionChip(
-              avatar: const Icon(Icons.add_rounded, size: 17),
+              avatar: Icon(Icons.add_rounded, size: 17, color: colors.primary),
               label: Text(option['label'].toString()),
               onPressed: _saving ? null : () {
                 final next = Set<String>.from(selected)
