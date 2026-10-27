@@ -480,12 +480,8 @@ void main() {
     );
     expect(find.text('Accompagnement à distance'), findsOneWidget);
     expect(find.text('S’inscrire'), findsNothing);
-    await tester.scrollUntilVisible(
-      find.textContaining('contenu de remplissage'),
-      180,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.textContaining('contenu de remplissage'), findsOneWidget);
+    // No Orphan Content: compact Discovery never invents filler cards.
+    expect(find.textContaining('contenu de remplissage'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
