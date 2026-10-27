@@ -7,8 +7,9 @@ import '../../sync/projection_contract.dart';
 
 /// Native presentation of the same server-owned Passport variants as Web.
 class MePassportScreen extends StatefulWidget {
-  const MePassportScreen({super.key, required this.api});
+  const MePassportScreen({super.key, required this.api, this.onEdit});
   final MakoloApiClient api;
+  final VoidCallback? onEdit;
   @override
   State<MePassportScreen> createState() => _MePassportScreenState();
 }
@@ -182,7 +183,17 @@ class _MePassportScreenState extends State<MePassportScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Passeport Makolo')),
+    appBar: AppBar(
+      title: const Text('Passeport Makolo'),
+      actions: [
+        if (widget.onEdit != null)
+          IconButton(
+            tooltip: 'Modifier mon passeport',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: widget.onEdit,
+          ),
+      ],
+    ),
     body: FutureBuilder<Map<String, dynamic>>(
       future: _future,
       builder: (context, snapshot) {
@@ -202,6 +213,15 @@ class _MePassportScreenState extends State<MePassportScreen> {
             _options(data),
             const SizedBox(height: 16),
             _PassportBody(data: data, baseUri: widget.api.baseUri),
+            if (widget.onEdit != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: OutlinedButton.icon(
+                  onPressed: widget.onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Modifier mon passeport'),
+                ),
+              ),
             if (_map(data['projection'])['public_profile_enabled'] == true &&
                 _text(_map(data['links'])['public_web']) != null)
               Padding(
