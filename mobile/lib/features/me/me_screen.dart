@@ -696,47 +696,50 @@ class _MeTerritory extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(
-            edge, MakoloSpacing.sm, edge, MakoloSpacing.compact,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                _iconForTerritory(presentation.key),
-                color: color.primary,
-                size: 23,
-              ),
-              const SizedBox(width: MakoloSpacing.compact),
-              Expanded(
-                child: Text(
-                  presentation.label,
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ),
-              if (presentation.key == 'considerations' && hasOwnerNavigation)
-                IconButton(
-                  tooltip: 'Gérer ce qui compte pour moi',
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  onPressed: () => onSelectItem(
-                    const MeItemPresentation(
-                      destination: StructuredDestination(kind: 'considerations', id: 'mine'),
-                      title: 'Ce qui compte pour moi',
-                      canOpen: true,
+          padding: EdgeInsets.fromLTRB(edge, MakoloSpacing.sm,
+              edge, MakoloSpacing.compact),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: presentation.key == 'considerations' && hasOwnerNavigation
+                  ? () => onSelectItem(
+                      const MeItemPresentation(
+                        destination: StructuredDestination(
+                          kind: 'considerations', id: 'mine',
+                        ),
+                        title: 'Ce qui compte pour moi',
+                        canOpen: true,
+                      ),
+                    )
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: [
+                  Icon(_iconForTerritory(presentation.key),
+                      color: color.primary, size: 23),
+                  const SizedBox(width: MakoloSpacing.compact),
+                  Expanded(
+                    child: Text(presentation.label,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800),
                     ),
                   ),
-                ),
-              if (territory.totalCount > 0) ...[
-                const SizedBox(width: MakoloSpacing.sm),
-                Text(
-                  territory.totalCount.toString(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: color.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ],
+                  if (territory.totalCount > 0)
+                    Text('${territory.totalCount}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: color.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  if (presentation.key == 'considerations' && hasOwnerNavigation)
+                    const Padding(
+                      padding: EdgeInsetsDirectional.only(start: 6),
+                      child: Icon(Icons.chevron_right_rounded),
+                    ),
+                ]),
+              ),
+            ),
           ),
         ),
         if (isPassport)
