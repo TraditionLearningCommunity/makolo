@@ -210,7 +210,7 @@ void main() {
     expect(result.situations.single.responseLabel, isNull);
   });
 
-  test('keeps server deadline_at in presentation metadata', () {
+  test('humanizes server deadline without losing its instant', () {
     final result = selector.select(
       projection: projection(
         items: const [
@@ -230,7 +230,7 @@ void main() {
 
     expect(
       result.situations.single.metadata,
-      contains('2026-10-07T18:00:00+00:00'),
+      contains('07/10/2026 · 20:00'),
     );
   });
 
