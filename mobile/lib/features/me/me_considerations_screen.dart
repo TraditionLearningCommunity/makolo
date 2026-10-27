@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
@@ -20,7 +22,10 @@ class MeConsiderationsScreen extends StatefulWidget {
 }
 
 class _MeConsiderationsState extends State<MeConsiderationsScreen> {
-  bool _loading = true, _saving = false;
+  bool _loading = true, _saving = false, _searching = false;
+  final _query = TextEditingController();
+  Timer? _debounce;
+  String _activeQuery = '';
   String? _error;
   List<Map<String, dynamic>> _topics = [], _openOptions = [];
   Set<String> _interests = {}, _openTo = {};
@@ -34,8 +39,14 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         : const [];
 
   Future<void> _load() async {
+    final query = _query.text.trim();
+    _activeQuery = query;
+    if (_topics.isNotEmpty) setState(() => _searching = true);
     try {
-      final response = await widget.api.get('api/v1/me/considerations/settings/');
+      final uri = Uri(path: 'api/v1/me/considerations/settings/',
+        queryParameters: query.isEmpty ? null : {'q': query});
+      final response = await widget.api.get(uri.toString());
+      if (!mounted || _activeQuery != query) return;
       final data = ProjectionEnvelope.parse(
         response.jsonObject(), expectedProjection: 'personal.me.settings',
       ).data;
@@ -45,13 +56,26 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _openOptions = _options(data['open_to_options']);
         _interests = (data['interests'] as List? ?? []).map((v) => '$v').toSet();
         _openTo = (data['open_to'] as List? ?? []).map((v) => '$v').toSet();
-        _loading = false; _error = null;
+        _loading = false; _searching = false; _error = null;
       });
     } on Object {
       if (mounted) setState(() {
-        _loading = false; _error = 'Impossible de charger vos préférences.';
+        _loading = false; _searching = false;
+        _error = 'Impossible de charger vos préférences.';
       });
     }
+  }
+
+  void _onSearch(String text) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 320), _load);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _query.dispose();
+    super.dispose();
   }
 
   Future<void> _save(String family, Set<String> values) async {
@@ -130,6 +154,16 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
               TextButton(onPressed: _load, child: const Text('Réessayer')),
             ],
+            TextField(
+              controller: _query,
+              onChanged: _onSearch,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search_rounded),
+                hintText: 'Rechercher un intérêt',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (_searching) const LinearProgressIndicator(minHeight: 2),
             _choices('Mes intérêts', _topics, _interests, 'interests'),
             _choices('Ouvert à', _openOptions, _openTo, 'open_to'),
             const SizedBox(height: 20),
