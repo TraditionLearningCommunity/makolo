@@ -22,6 +22,7 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.hasConversationAttention = false,
     this.hasUnreadNotifications = false,
     this.avatarLetter,
+    this.avatarUrl,
     this.profileUsername,
   });
 
@@ -36,7 +37,18 @@ class MakoloPrimaryHeader extends StatelessWidget
   final bool hasConversationAttention;
   final bool hasUnreadNotifications;
   final String? avatarLetter;
+  final String? avatarUrl;
   final String? profileUsername;
+
+  Widget _avatarFallback(BuildContext context) => Center(
+        child: Text(
+          avatarLetter ?? '?',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
@@ -189,7 +201,18 @@ class MakoloPrimaryHeader extends StatelessWidget
                 shape: BoxShape.circle,
                 color: Theme.of(context).colorScheme.primaryContainer,
               ),
-              child: avatarLetter == null
+              child: avatarUrl != null && avatarUrl!.isNotEmpty
+                  ? ClipOval(
+                      child: Image.network(
+                        avatarUrl!,
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _avatarFallback(context),
+                      ),
+                    )
+                  : avatarLetter == null
                   ? Icon(
                       Icons.person_outline,
                       size: 20,
