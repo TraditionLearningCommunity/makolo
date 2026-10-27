@@ -3,6 +3,8 @@
   <div class="mk-now-unit__head">
     {% if item.deadline_label %}<p class="mk-now-label">{{ item.deadline_label }}</p>{% endif %}
     <h2>{{ item.context_label }}</h2>
+    {% if item.subject and item.subject != item.context_label %}<p class="mk-now-unit__subject">{{ item.subject }}</p>{% endif %}
+    {% if item.delta and item.delta != item.state %}<p class="mk-now-unit__delta">{{ item.delta }}</p>{% endif %}
     {% if item.state %}<p class="mk-now-unit__meaning">{{ item.state }}</p>{% elif item.summary %}<p class="mk-now-unit__meaning">{{ item.summary }}</p>{% endif %}
   </div>
   {% if item.topology == "media" and item.inline_media %}
@@ -18,8 +20,12 @@
   {% if item.topology == "waiting" %}
     <p class="mk-now-wait">{{ item.turn|default:"En attente de la prochaine réponse." }}</p>
     {% if item.horizon %}<p>{{ item.horizon }}</p>{% endif %}
+    {% if item.exit_condition %}<p class="mk-now-unit__exit">{{ item.exit_condition }}</p>{% endif %}
   {% elif item.topology == "composition" %}
     {% for summary in item.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
+  {% endif %}
+  {% if item.knowledge_state and item.knowledge_state != "known" and item.knowledge_state != "fresh" %}
+    <p class="mk-now-unit__knowledge">Information à vérifier</p>
   {% endif %}
   {% if item.direct_actions %}
     <div class="mk-now-business-actions" aria-label="Décision">
