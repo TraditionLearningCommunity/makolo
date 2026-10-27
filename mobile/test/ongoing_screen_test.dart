@@ -226,6 +226,96 @@ void main() {
     },
   );
 
+  testWidgets('each ongoing unit owns its media, resources and action footer', (
+    tester,
+  ) async {
+    final projection = _projection(items: const [
+      {
+        'id': 'first',
+        'kind': 'journey',
+        'source': {'kind': 'journey', 'id': 'first'},
+        'title': 'Première continuité',
+        'summary': 'Une action est attendue.',
+        'media_bindings': [
+          {
+            'purpose': 'RECOGNIZE',
+            'resource': {
+              'url': '/presentation/media/uses/first/file/',
+              'alt_text': 'Aperçu du premier dossier',
+              'mime_type': 'image/png',
+            },
+          },
+        ],
+        'resources': [
+          {'title': 'Notice de préparation'},
+        ],
+        'capabilities': [],
+        'links': {},
+      },
+      {
+        'id': 'second',
+        'kind': 'journey',
+        'source': {
+          'kind': 'journey',
+          'id': '12345678-1234-1234-1234-123456789012',
+        },
+        'title': 'Deuxième continuité',
+        'summary': 'Une autre action est attendue.',
+        'capabilities': ['open_detail'],
+        'links': {},
+      },
+    ]);
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(projection),
+        baseUri: Uri.parse('https://api.example.test/'),
+      ),
+    );
+    await tester.pump();
+    final first = find.byKey(const ValueKey<String>('ongoing-unit-first'));
+    final second = find.byKey(const ValueKey<String>('ongoing-unit-second'));
+    expect(first, findsOneWidget);
+    expect(second, findsOneWidget);
+    expect(
+      find.descendant(
+        of: first,
+        matching: find.byKey(const Key('ongoing-n1-full-width-media')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: first,
+        matching: find.text('Notice de préparation'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: second,
+        matching: find.byKey(const Key('ongoing-n1-resources')),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: second,
+        matching: find.byKey(const Key('ongoing-n1-discover-actions')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getRect(find.text('Première continuité')).top,
+      lessThan(tester.getRect(find.text('Notice de préparation')).top),
+    );
+    expect(
+      tester.getRect(first).bottom,
+      lessThanOrEqualTo(tester.getRect(second).top),
+    );
+  });
+
   testWidgets('owner dates are preserved in the N2 continuity', (tester) async {
     final projection = _projection(items: const [
       {
