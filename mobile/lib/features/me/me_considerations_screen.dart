@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
+import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
 
@@ -181,8 +182,9 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
             ),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.bookmark_added_outlined),
-              title: const Text('Mes enregistrés'),
+              leading: DiscoveryOrbitIcon(saved: true,
+                color: Theme.of(context).colorScheme.primary),
+              title: const Text('Mes enregistrements'),
               trailing: const Icon(Icons.chevron_right),
               onTap: widget.onSaved,
             ),
