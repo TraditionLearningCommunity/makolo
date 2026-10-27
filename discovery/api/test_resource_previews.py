@@ -33,7 +33,7 @@ class DiscoveryDocumentaryPreviewTests(TestCase):
             published_at=timezone.now(),
         )
 
-    def test_public_text_is_exposed_as_bounded_content_without_fake_url(self):
+    def test_public_text_is_complete_without_fake_url(self):
         long_text = "Préparation accessible. " * 180
         self._resource("instructions", content=long_text)
         public = self._resource(
@@ -44,8 +44,8 @@ class DiscoveryDocumentaryPreviewTests(TestCase):
         self.assertEqual(len(resources), 1)
         row = resources[0]
         self.assertEqual(row["kind"], ResourceKind.TEXT)
-        self.assertEqual(row["text_content"], long_text[:2400])
-        self.assertTrue(row["text_truncated"])
+        self.assertEqual(row["text_content"], long_text)
+        self.assertFalse(row["text_truncated"])
         self.assertIsNone(row["download_url"])
         self.assertIsNone(row["external_url"])
         self.assertNotIn(str(public.pk), repr(resources))
