@@ -1,0 +1,180 @@
+import 'package:flutter/material.dart';
+
+import '../../network/makolo_api_client.dart';
+import '../../presentation/possibilities/discovery_save_icon.dart';
+import '../../repositories/personal_repository.dart';
+import '../../sync/projection_contract.dart';
+
+/// Full owner-backed saved collection; the Moi root presents only three rows.
+class MeSavedScreen extends StatefulWidget {
+  const MeSavedScreen({
+    super.key, required this.api, required this.personal, required this.onOpen,
+  });
+  final MakoloApiClient api;
+  final PersonalRepository personal;
+  final ValueChanged<String> onOpen;
+
+  @override
+  State<MeSavedScreen> createState() => _MeSavedScreenState();
+}
+
+class _MeSavedScreenState extends State<MeSavedScreen> {
+  final _scroll = ScrollController();
+  final _rows = <Map<String, dynamic>>[];
+  int _offset = 0;
+  bool _hasMore = true, _loading = false, _failed = false;
+  String? _removing;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_checkEnd);
+    _next();
+  }
+
+  void _checkEnd() {
+    if (_scroll.hasClients && _scroll.position.extentAfter < 480) _next();
+  }
+
+  Future<void> _next({bool reset = false}) async {
+    if (_loading || (!reset && !_hasMore) || (!reset && _failed)) return;
+    setState(() { _loading = true; _failed = false; });
+    final offset = reset ? 0 : _offset;
+    try {
+      final uri = Uri(
+        path: 'api/v1/me/preview/considerations/',
+        queryParameters: {'family': 'bookmarks', 'offset': '$offset', 'limit': '24'},
+      );
+      final response = await widget.api.get(uri.toString());
+      final data = ProjectionEnvelope.parse(
+        response.jsonObject(), expectedProjection: 'personal.me.preview',
+      ).data;
+      final part = data['collection'];
+      final actor = data['actor'];
+      if (actor is! Map ||
+          actor['id']?.toString() != widget.personal.store.profileId ||
+          data['family'] != 'bookmarks' || data['offset'] != offset ||
+          part is! Map || part['items'] is! List ||
+          part['has_more'] is! bool || part['next_offset'] is! int ||
+          part['next_offset'] < offset ||
+          (part['has_more'] == true && (part['items'] as List).isEmpty)) {
+        throw const FormatException('Invalid saved collection');
+      }
+      if (!mounted) return;
+      final known = <String>{
+        for (final row in reset ? <Map<String,dynamic>>[] : _rows)
+          if (row['id'] != null) row['id'].toString(),
+      };
+      final nextRows = <Map<String, dynamic>>[];
+      for (final raw in part['items'] as List) {
+        if (raw is! Map || raw['id'] == null) continue;
+        if (known.add(raw['id'].toString())) {
+          nextRows.add(raw.map((k, v) => MapEntry(k.toString(), v)));
+        }
+      }
+      setState(() {
+        if (reset) _rows.clear();
+        _rows.addAll(nextRows);
+        _offset = part['next_offset'] as int;
+        _hasMore = part['has_more'] as bool;
+        _loading = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _checkEnd();
+      });
+    } on Object {
+      if (mounted) setState(() { _loading = false; _failed = true; });
+    }
+  }
+
+  Future<void> _remove(String activityId) async {
+    if (_removing != null) return;
+    setState(() => _removing = activityId);
+    try {
+      await widget.api.delete(
+        'api/v1/discovery/items/activity/${Uri.encodeComponent(activityId)}/saved/',
+      );
+      if (!mounted) return;
+      setState(() {
+        _rows.clear();
+        _offset = 0;
+        _hasMore = true;
+        _failed = false;
+        _removing = null;
+      });
+      await _next(reset: true);
+      // Invalidate the single personal read model, not a duplicate save store.
+      try {
+        final root = await widget.api.get('api/v1/me/');
+        final envelope = ProjectionEnvelope.parse(
+          root.jsonObject(), expectedProjection: 'personal.me',
+        );
+        if (envelope.data['actor'] is Map &&
+            (envelope.data['actor'] as Map)['id']?.toString() ==
+                widget.personal.store.profileId) {
+          await widget.personal.store.putProjection(
+            kind: 'personal.me', schemaVersion: envelope.schemaVersion,
+            payload: envelope.data, receivedAt: DateTime.now().toUtc(),
+            sourceGeneratedAt: envelope.generatedAt,
+          );
+        }
+      } on Object {
+        // The server mutation succeeded; normal sync will refresh Moi.
+      }
+    } on Object {
+      if (mounted) {
+        setState(() => _removing = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de retirer cet élément.')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() { _scroll.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Mes enregistrés')),
+    body: RefreshIndicator(
+      onRefresh: () => _next(reset: true),
+      child: ListView(
+        controller: _scroll,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
+        children: [
+          for (final row in _rows)
+            if (row['activity'] is Map &&
+                (row['activity'] as Map)['id'] != null)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const DiscoveryOrbitIcon(saved: true),
+                title: Text((row['activity'] as Map)['title']?.toString() ?? ''),
+                trailing: IconButton(
+                  tooltip: 'Retirer des enregistrés',
+                  onPressed: _removing == (row['activity'] as Map)['id'].toString()
+                      ? null : () => _remove((row['activity'] as Map)['id'].toString()),
+                  icon: const Icon(Icons.bookmark_remove_outlined),
+                ),
+                onTap: () => widget.onOpen(
+                  (row['activity'] as Map)['id'].toString(),
+                ),
+              ),
+          if (_loading)
+            const Center(child: CircularProgressIndicator.adaptive())
+          else if (_failed)
+            Center(child: TextButton(
+              onPressed: () { _failed = false; _next(); },
+              child: const Text('Réessayer'),
+            ))
+          else if (!_hasMore)
+            Center(child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Text('Vous avez tout exploré',
+                style: Theme.of(context).textTheme.bodySmall),
+            )),
+        ],
+      ),
+    ),
+  );
+}
