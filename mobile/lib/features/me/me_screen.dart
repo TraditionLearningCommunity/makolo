@@ -230,23 +230,13 @@ class _MeViewState extends State<MeView> {
     _controller.addListener(_checkEnd);
   }
 
-  void _checkEnd() {
-    if (_controller.hasClients &&
-        !widget.loadingMore &&
-        !widget.loadFailed &&
-        _controller.position.extentAfter < 520) {
-      widget.onReachEnd?.call();
-    }
-  }
+  void _checkEnd() {}
+
 
   @override
   void didUpdateWidget(covariant MeView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.onReachEnd != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _checkEnd();
-      });
-    }
+
   }
 
   @override
@@ -263,11 +253,6 @@ class _MeViewState extends State<MeView> {
             constraints.maxWidth >= MakoloLayout.meTwoColumnMinWidth &&
             MediaQuery.textScalerOf(context).scale(16) <= 21 &&
             widget.selection.contentfulTerritoryCount >= 2;
-        if (widget.onReachEnd != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) _checkEnd();
-          });
-        }
         return MakoloSurfaceStateView(
           state: widget.selection.state,
           content: _MeField(
@@ -401,7 +386,7 @@ class _MeField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final edge = useTwoTerritories ? 0.0 : MakoloLayout.edgeCompact;
-    final territories = [
+    final territories = <Widget>[
       for (final territory in selection.territories)
         _MeTerritory(
           key: ValueKey('me-territory-${territory.presentation.key}'),
@@ -410,6 +395,18 @@ class _MeField extends StatelessWidget {
           hasOwnerNavigation: hasOwnerNavigation,
           mediaApi: mediaApi,
           edge: edge,
+        ),
+      if (selection.canOpenHistory)
+        _MeHistorySection(
+          edge: edge,
+          onOpen: hasOwnerNavigation
+              ? () => onSelectItem(
+                  const MeItemPresentation(
+                    destination: StructuredDestination(kind: 'history', id: 'me'),
+                    title: 'Mon historique', canOpen: true,
+                  ),
+                )
+              : null,
         ),
     ];
 
@@ -426,6 +423,14 @@ class _MeField extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: edge),
           child: _MeIdentity(
             selection: selection,
+            onAvatarTap: hasOwnerNavigation
+                ? () => onSelectItem(
+                    const MeItemPresentation(
+                      destination: StructuredDestination(kind: 'avatar_edit', id: 'me'),
+                      title: 'Modifier la photo', canOpen: true,
+                    ),
+                  )
+                : null,
             onEdit: hasOwnerNavigation
                 ? () => onSelectItem(
                     const MeItemPresentation(
@@ -463,48 +468,7 @@ class _MeField extends StatelessWidget {
               ],
             ],
           ),
-        const SizedBox(height: MakoloSpacing.lg),
-        if (loadingMore)
-          const Center(child: CircularProgressIndicator.adaptive())
-        else if (loadFailed)
-          Center(
-            child: TextButton(
-              onPressed: onRetry,
-              child: const Text('Réessayer'),
-            ),
-          )
-        else if (!hasMore && canConfirmExhaustion)
-          Center(
-            child: Text(
-              'Vous avez tout exploré',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        if (hasOwnerNavigation && selection.canOpenHistory) ...[
-          const SizedBox(height: MakoloSpacing.compact),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: edge),
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () => onSelectItem(
-                  const MeItemPresentation(
-                    destination: StructuredDestination(
-                      kind: 'history',
-                      id: 'me',
-                    ),
-                    title: 'Historique',
-                    canOpen: true,
-                  ),
-                ),
-                icon: const Icon(Icons.history_rounded),
-                label: const Text('Historique'),
-              ),
-            ),
-          ),
-        ],
+
       ],
     );
     if (useTwoTerritories) {
@@ -515,10 +479,11 @@ class _MeField extends StatelessWidget {
 }
 
 class _MeIdentity extends StatelessWidget {
-  const _MeIdentity({required this.selection, this.onEdit});
+  const _MeIdentity({required this.selection, this.onEdit, this.onAvatarTap});
 
   final MeSelection selection;
   final VoidCallback? onEdit;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
@@ -537,7 +502,34 @@ class _MeIdentity extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
         child: Row(
           children: [
-            _MeAvatar(name: name, imageUrl: selection.identityAvatarUrl),
+            Semantics(
+              button: onAvatarTap != null,
+              label: 'Modifier ma photo',
+              child: InkWell(
+                onTap: onAvatarTap,
+                borderRadius: BorderRadius.circular(40),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _MeAvatar(name: name, imageUrl: selection.identityAvatarUrl),
+                    if (onAvatarTap != null)
+                      Positioned(
+                        right: -2, bottom: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: theme.colorScheme.surface, width: 2),
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded,
+                            color: Colors.white, size: 13),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(width: MakoloSpacing.compact),
             Expanded(
               child: Column(
@@ -583,6 +575,45 @@ class _MeIdentity extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _MeHistorySection extends StatelessWidget {
+  const _MeHistorySection({required this.edge, this.onOpen});
+  final double edge;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Padding(
+        padding: EdgeInsets.fromLTRB(edge, MakoloSpacing.sm,
+            edge, MakoloSpacing.compact),
+        child: Row(children: [
+          Icon(Icons.history_rounded, color: colors.primary, size: 23),
+          const SizedBox(width: MakoloSpacing.compact),
+          Text('Mon historique',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800)),
+        ]),
+      ),
+      Material(
+        color: colors.surface,
+        child: InkWell(
+          onTap: onOpen,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: edge, vertical: 15),
+            child: Row(children: [
+              Expanded(child: Text('Retrouver mon parcours',
+                  style: Theme.of(context).textTheme.bodyLarge)),
+              if (onOpen != null) Icon(Icons.chevron_right_rounded,
+                  color: colors.onSurfaceVariant),
+            ]),
+          ),
+        ),
+      ),
+    ]);
   }
 }
 
@@ -666,10 +697,7 @@ class _MeTerritory extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(
-            edge,
-            MakoloSpacing.sm,
-            edge,
-            MakoloSpacing.compact,
+            edge, MakoloSpacing.sm, edge, MakoloSpacing.compact,
           ),
           child: Row(
             children: [
@@ -686,6 +714,18 @@ class _MeTerritory extends StatelessWidget {
                       ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
+              if (presentation.key == 'considerations' && hasOwnerNavigation)
+                IconButton(
+                  tooltip: 'Gérer ce qui compte pour moi',
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  onPressed: () => onSelectItem(
+                    const MeItemPresentation(
+                      destination: StructuredDestination(kind: 'considerations', id: 'mine'),
+                      title: 'Ce qui compte pour moi',
+                      canOpen: true,
+                    ),
+                  ),
+                ),
               if (territory.totalCount > 0) ...[
                 const SizedBox(width: MakoloSpacing.sm),
                 Text(
@@ -824,71 +864,54 @@ class _MeTerritory extends StatelessWidget {
   }
 
   Widget _considerations(BuildContext context) {
-    if (territory.items.isEmpty) {
-      return _empty(context, 'Rien de déclaré pour le moment.');
-    }
-    const families = <(String, List<String>)>[
-      ('Intérêts', ['topic']),
-      ('Ouvert à', ['open_to']),
-      ('Veilles', ['watch']),
-      ('Enregistrés', ['activity']),
-      ('Espaces suivis', ['space']),
-      ('Personnes suivies', ['profile']),
-    ];
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final family in families)
-          if (territory.items.any(
-            (item) => family.$2.contains(item.destination.kind),
-          )) ...[
-            Padding(
-              padding: const EdgeInsets.only(
-                top: MakoloSpacing.compact,
-                bottom: MakoloSpacing.sm,
-              ),
-              child: Text(
-                family.$1,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+    final saved = territory.items.where((item) =>
+        item.destination.kind == 'activity').take(3).toList();
+    final interests = territory.items.where((item) =>
+        item.destination.kind == 'topic').take(4).toList();
+    final openTo = territory.items.where((item) =>
+        item.destination.kind == 'open_to').take(3).toList();
+    final colors = Theme.of(context).colorScheme;
+    final canNavigate = hasOwnerNavigation;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (interests.isNotEmpty || openTo.isNotEmpty) ...[
+        Wrap(spacing: 7, runSpacing: 6, children: [
+          for (final item in [...interests, ...openTo])
+            _MeChip(item: item, onTap: null),
+        ]),
+        const SizedBox(height: MakoloSpacing.compact),
+      ],
+      if (saved.isNotEmpty) ...[
+        Text('Enregistrés', style: Theme.of(context).textTheme.labelLarge
+          ?.copyWith(fontWeight: FontWeight.w800,
+            color: colors.onSurfaceVariant)),
+        for (final item in saved)
+          _MeConsideration(
+            key: ValueKey('me-item-${item.destination.kind}-${item.destination.id}'),
+            item: item,
+            mediaApi: mediaApi,
+            onTap: item.canOpen && canNavigate
+                ? () => onSelectItem(item) : null,
+          ),
+      ],
+      if (canNavigate)
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: () => onSelectItem(
+              const MeItemPresentation(
+                destination: StructuredDestination(kind: 'saved_collection', id: 'mine'),
+                title: 'Mes enregistrés', canOpen: true,
               ),
             ),
-            if (family.$1 == 'Intérêts' || family.$1 == 'Ouvert à')
-              Wrap(
-                spacing: MakoloSpacing.sm,
-                runSpacing: MakoloSpacing.sm,
-                children: [
-                  for (final item in territory.items.where(
-                    (item) => family.$2.contains(item.destination.kind),
-                  ))
-                    _MeChip(
-                      item: item,
-                      onTap: item.canOpen && hasOwnerNavigation
-                          ? () => onSelectItem(item)
-                          : null,
-                    ),
-                ],
-              )
-            else
-              for (final item in territory.items.where(
-                (item) => family.$2.contains(item.destination.kind),
-              ))
-                _MeConsideration(
-                  key: ValueKey(
-                    'me-item-${item.destination.kind}-${item.destination.id}',
-                  ),
-                  item: item,
-                  mediaApi: mediaApi,
-                  onTap: item.canOpen && hasOwnerNavigation
-                      ? () => onSelectItem(item)
-                      : null,
-                ),
-          ],
-      ],
-    );
+            icon: const Icon(Icons.bookmark_added_outlined, size: 19),
+            label: Text(territory.savedCount > 0
+                ? 'Voir les ${territory.savedCount} enregistrés'
+                : 'Mes enregistrés'),
+          ),
+        ),
+      if (territory.items.isEmpty && !canNavigate)
+        _empty(context, 'Rien de déclaré pour le moment.'),
+    ]);
   }
 
   Widget _collectives(BuildContext context) {
