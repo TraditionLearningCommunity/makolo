@@ -275,7 +275,7 @@ void main() {
     expect(find.byType(BrandMoment), findsNothing);
 
     expect(
-      find.text('Now n’est pas disponible pour le moment.'),
+      find.text('Now indisponible.'),
       findsOneWidget,
     );
 
@@ -293,7 +293,7 @@ void main() {
     expect(requests, greaterThanOrEqualTo(1));
 
     expect(
-      find.text('Now n’est pas disponible pour le moment.'),
+      find.text('Now indisponible.'),
       findsOneWidget,
     );
 
