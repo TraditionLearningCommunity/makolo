@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
+import '../../platform/camera/system_media_picker.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
 
 /// Self-profile editor backed by the existing Accounts owner API.
 class MeProfileScreen extends StatefulWidget {
-  const MeProfileScreen({super.key, required this.api, required this.personal});
+  const MeProfileScreen({super.key, required this.api, required this.personal,
+    this.openAvatarPicker = false});
   final MakoloApiClient api;
   final PersonalRepository personal;
+  final bool openAvatarPicker;
 
   @override
   State<MeProfileScreen> createState() => _MeProfileScreenState();
@@ -22,6 +25,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   final _country = TextEditingController();
   final _bio = TextEditingController();
 
+  bool _avatarPickerScheduled = false;
   bool _loading = true;
   bool _loaded = false;
   bool _saving = false;
@@ -52,12 +56,110 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         _loaded = true;
         _error = null;
       });
+      if (widget.openAvatarPicker && !_avatarPickerScheduled) {
+        _avatarPickerScheduled = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _changeAvatar();
+        });
+      }
     } on Object {
       if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'Profil momentanément indisponible.';
       });
+    }
+  }
+
+  Future<void> _changeAvatar() async {
+    if (_saving || !_loaded) return;
+    final source = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('Choisir une photo'),
+            onTap: () => Navigator.pop(context, false),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text('Prendre une photo'),
+            onTap: () => Navigator.pop(context, true),
+          ),
+        ],
+      )),
+    );
+    if (source == null || !mounted) return;
+    try {
+      final image = await ImagePickerSystemMediaPicker()
+          .pickImage(capture: source);
+      if (image == null || !mounted) return;
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Modifier la photo'),
+          content: const Text('Utiliser cette photo sur mon profil ?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Confirmer'),
+            ),
+          ],
+        ),
+      );
+      if (approved != true || !mounted) return;
+      setState(() { _saving = true; _error = null; _confirmation = null; });
+      await widget.api.upload(
+        'api/v1/accounts/auth/profile/update/',
+        method: 'PATCH',
+        files: [MakoloUploadFile(
+          fieldName: 'avatar', path: image.path, filename: image.name,
+        )],
+      );
+      final fresh = await _refreshPersonal();
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _confirmation = fresh
+            ? 'Photo mise à jour.'
+            : 'Photo enregistrée. Actualisation en attente.';
+      });
+    } on Object {
+      if (mounted) setState(() {
+        _saving = false;
+        _error = 'Impossible de modifier la photo.';
+      });
+    }
+  }
+
+  Future<bool> _refreshPersonal() async {
+    try {
+      final response = await widget.api.get('api/v1/me/');
+      final envelope = ProjectionEnvelope.parse(
+        response.jsonObject(), expectedProjection: 'personal.me',
+      );
+      final actor = envelope.data['actor'];
+      if (actor is! Map ||
+          actor['id']?.toString() != widget.personal.store.profileId) {
+        return false;
+      }
+      await widget.personal.store.putProjection(
+        kind: 'personal.me',
+        schemaVersion: envelope.schemaVersion,
+        payload: envelope.data,
+        sourceGeneratedAt: envelope.generatedAt,
+        receivedAt: DateTime.now().toUtc(),
+      );
+      return true;
+    } on Object {
+      return false;
     }
   }
 
@@ -91,28 +193,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
 
     // The Accounts owner confirmed the change. Refresh the sole personal.me
     // projection rather than locally inventing a definitive new identity.
-    var refreshed = true;
-    try {
-      final response = await widget.api.get('api/v1/me/');
-      final envelope = ProjectionEnvelope.parse(
-        response.jsonObject(),
-        expectedProjection: 'personal.me',
-      );
-      final actor = envelope.data['actor'];
-      if (actor is! Map ||
-          actor['id']?.toString() != widget.personal.store.profileId) {
-        throw const FormatException('Invalid personal actor');
-      }
-      await widget.personal.store.putProjection(
-        kind: 'personal.me',
-        schemaVersion: envelope.schemaVersion,
-        payload: envelope.data,
-        sourceGeneratedAt: envelope.generatedAt,
-        receivedAt: DateTime.now().toUtc(),
-      );
-    } on Object {
-      refreshed = false;
-    }
+    final refreshed = await _refreshPersonal();
     if (!mounted) return;
     setState(() {
       _saving = false;
@@ -183,6 +264,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 _field('Ville', _city),
                 _field('Pays', _country),
                 _field('À propos', _bio, lines: 4),
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : _changeAvatar,
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: const Text('Modifier la photo'),
+                ),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: _saving ? null : _save,
