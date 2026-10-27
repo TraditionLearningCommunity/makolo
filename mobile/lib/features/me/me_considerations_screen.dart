@@ -59,10 +59,12 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _loading = false; _searching = false; _error = null;
       });
     } on Object {
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _loading = false; _searching = false;
         _error = 'Impossible de charger vos préférences.';
-      });
+        });
+      }
     }
   }
 
@@ -114,9 +116,11 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         // Saved on the server; local source will reconcile on next refresh.
       }
     } on Object {
-      if (mounted) setState(() {
-        _saving = false; _error = 'Modification non enregistrée. Réessayez.';
-      });
+      if (mounted) {
+        setState(() {
+          _saving = false; _error = 'Modification non enregistrée. Réessayez.';
+        });
+      }
     }
   }
 
