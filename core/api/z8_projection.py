@@ -376,6 +376,11 @@ def build_personal_passport_depth_data(
         "select_projection",
         "present",
     ]
+    from sharing.passport import profile_passport_topic_options
+    data["topic_options"] = [
+        {"code": row.code, "label": row.label}
+        for row in profile_passport_topic_options(profile)
+    ]
     data["links"] = links
     return data
 
