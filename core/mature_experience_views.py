@@ -43,7 +43,7 @@ from core.api.personal_projections import (
     _ongoing_n1_when,
     ongoing_continuation_offset,
 )
-from core.api.me_projection import build_personal_me_data
+from core.api.me_projection import build_personal_me_data, build_personal_considerations_data
 from .participant_presentation import occurrence_timing
 from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _primary_place
 
@@ -383,6 +383,20 @@ class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
 
         context["support_links"] = support_links
         return context
+
+class MatureParticipantConsiderationsView(LoginRequiredMixin, TemplateView):
+    """Web entry to the same owner-managed personal choices as native Flutter."""
+
+    template_name = "core/participant_me_considerations.html"
+    login_url = "core:login"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["choices"] = build_personal_considerations_data(
+            self.request.user, limit=24,
+        )
+        return context
+
 
 class MakoloMarkView(LoginRequiredMixin, TemplateView):
     template_name = "core/makolo_mark.html"
