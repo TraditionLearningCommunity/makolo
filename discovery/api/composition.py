@@ -246,9 +246,6 @@ def _saved_opportunity_ids(profile, opportunity_ids) -> set[str]:
     }
 
 
-DISCOVERY_RESOURCE_PREVIEW_LIMIT = 8
-
-
 def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
     if not activity_ids:
         return {}
@@ -266,8 +263,6 @@ def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
     for resource in rows:
         activity_id = str(resource.activity_id)
         bucket = result.setdefault(activity_id, [])
-        if len(bucket) >= DISCOVERY_RESOURCE_PREVIEW_LIMIT:
-            continue
         bucket.append(
             {
                 "id": str(resource.pk),
