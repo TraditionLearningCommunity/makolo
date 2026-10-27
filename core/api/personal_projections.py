@@ -489,6 +489,69 @@ def build_personal_now_projection(profile, *, observed_at=None, continuation_off
         ).values_list("pk", "occurrence_id")
         if occurrence_id is not None
     }
+    # Public recognition media is owned by Presentation and bound to an
+    # eligible Activity. It must not reveal private Journey attachments.
+    public_recognition_by_journey = {}
+    if journey_ids:
+        from accounts.models import UserProfile
+        from activities.models import Activity, ActivityStatus, ActivityVisibility
+        from groups.selectors import eligible_activity_ids_for_profile
+        from organizations.models import SpaceLifecycle
+        from presentations.media_selectors import public_presentation_media_for_activities
+
+        linked = {
+            str(pk): activity_id
+            for pk, activity_id in Journey.objects.filter(
+                pk__in=journey_ids, beneficiary=profile
+            ).values_list("pk", "activity_id")
+            if activity_id is not None
+        }
+        candidates = list(Activity.objects.filter(
+            pk__in=set(linked.values()),
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        ).select_related("space"))
+        eligible = set(eligible_activity_ids_for_profile(profile, [a.pk for a in candidates]))
+        public_owners = set(UserProfile.objects.filter(
+            user_id__in=[a.owner_profile_id for a in candidates if a.owner_profile_id],
+            public_profile=True, searchable=True, user__is_active=True,
+        ).values_list("user_id", flat=True))
+        allowed = [
+            a for a in candidates
+            if a.pk in eligible and (
+                (
+                    a.space_id is not None
+                    and a.space.public_profile
+                    and a.space.searchable
+                    and a.space.lifecycle == SpaceLifecycle.ACTIVE
+                    and a.space.verification_status != "suspended"
+                ) or (a.space_id is None and a.owner_profile_id in public_owners)
+            )
+        ]
+        if allowed:
+            public_media = public_presentation_media_for_activities(allowed)
+            for journey_id, activity_id in linked.items():
+                images = [
+                    media for media in public_media.get(str(activity_id), [])
+                    if media.occurrence_id is None
+                    and media.mime_type in {"image/jpeg", "image/png"}
+                ]
+                images.sort(key=lambda media: (media.position, media.use_id))
+                if images:
+                    media = images[0]
+                    public_recognition_by_journey[journey_id] = {
+                        "resource_ref": f"presentation_media_use:{media.use_id}",
+                        "target": "subject",
+                        "purpose": "recognize",
+                        "kind": "image",
+                        "mime_type": media.mime_type,
+                        "label": media.alt_text,
+                        "url": reverse("presentations:published-media-file",
+                                       kwargs={"use_id": media.use_id}),
+                        "authorized": True,
+                        "presentation_rank": "primary",
+                    }
+
     # These artifacts belong to their Journeys, not to Presentation.
     # Only documents already inside a Journey owned by this profile are
     # exposed. The download endpoint independently rechecks authorization.
@@ -568,9 +631,12 @@ def build_personal_now_projection(profile, *, observed_at=None, continuation_off
             if "open_day_of" not in item["capabilities"]:
                 item["capabilities"].append("open_day_of")
         _decorate_now_semantics(action, item, observed_at=observed_at)
-        media = artifact_media_by_journey.get(journey_id)
-        if media:
-            item["media_bindings"] = list(media)
+        media = artifact_media_by_journey.get(journey_id) or []
+        recognition = public_recognition_by_journey.get(journey_id)
+        if recognition or media:
+            item["media_bindings"] = (
+                ([recognition] if recognition else []) + list(media)
+            )
 
     serialized_items = [item for _, item in items]
     for composed in dossier_dependency_now_situations(profile, observed_at=observed_at):
