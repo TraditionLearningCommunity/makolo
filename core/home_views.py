@@ -57,28 +57,7 @@ def _consequence_text(consequence):
 
 
 def _now_topology(item):
-    """Only render owner-provided presentation semantics, never infer monitoring."""
-    media = item.get("media_bindings") or ()
-    if any(
-        isinstance(binding, dict)
-        and binding.get("authorized") is True
-        and binding.get("resource_ref")
-        and (
-            binding.get("presentation_rank") == "primary"
-            or binding.get("purpose") in {"understand", "establish", "act"}
-        )
-        for binding in media
-    ):
-        return "media"
-    actions = item.get("business_actions") or ()
-    if any(
-        isinstance(action, dict)
-        and action.get("capability")
-        and action.get("label")
-        and action.get("interaction_depth") in {"direct_now", "focused"}
-        for action in actions
-    ):
-        return "action"
+    """Select a presentation geometry, never infer missing owner facts."""
     members = item.get("relation_members") or ()
     relations = item.get("relations") or ()
     response = item.get("response") or {}
@@ -91,13 +70,12 @@ def _now_topology(item):
         isinstance(relation, dict)
         and isinstance(relation.get("kind"), str)
         and relation["kind"].strip()
+        and isinstance(relation.get("member_ids"), (list, tuple))
         and len({
-            value for value in (relation.get("member_ids") or ())
+            value for value in relation["member_ids"]
             if isinstance(value, str) and value in member_ids
         }) >= 2
         for relation in relations
-        if isinstance(relation, dict)
-        and isinstance(relation.get("member_ids"), (list, tuple))
     )
     if (
         len(member_ids) >= 2
@@ -107,41 +85,82 @@ def _now_topology(item):
         and response.get("type")
     ):
         return "composition"
+    media = item.get("media_bindings") or ()
+    if any(
+        isinstance(binding, dict)
+        and binding.get("authorized") is True
+        and binding.get("resource_ref")
+        and (
+            binding.get("presentation_rank") == "primary"
+            or binding.get("purpose") in {"understand", "establish", "act"}
+        )
+        for binding in media
+    ):
+        return "media"
+    if any(
+        isinstance(action, dict)
+        and action.get("capability")
+        and action.get("label")
+        and action.get("interaction_depth") in {"direct_now", "focused"}
+        for action in (item.get("business_actions") or ())
+    ):
+        return "action"
     if response.get("type") in {"wait", "monitor", "waiting"}:
         return "waiting"
     return "meaning"
 
 
 def _now_inline_media(item):
-    """Expose only the first-party resource-view endpoint; never raw storage URLs."""
-    allowed_prefix = "/api/v1/me/now/media/journey-artifacts/"
+    """Allow only authorized first-party Journey files and published media uses."""
+    from uuid import UUID
+
+    private_prefix = "/api/v1/me/now/media/journey-artifacts/"
+    public_prefix = "/presentation/media/uses/"
     result = []
     for binding in item.get("media_bindings") or ():
         if not isinstance(binding, dict) or binding.get("authorized") is not True:
             continue
-        if not binding.get("resource_ref"):
-            continue
+        ref = binding.get("resource_ref")
         url = binding.get("url")
-        if not isinstance(url, str) or not url.startswith(allowed_prefix):
+        if not isinstance(ref, str) or not isinstance(url, str):
+            continue
+        if not url.startswith("/") or url.startswith("//") or "#" in url:
             continue
         path, separator, query = url.partition("?")
-        resource_id = path[len(allowed_prefix):].strip("/")
-        if not resource_id or "/" in resource_id:
-            continue
-        from uuid import UUID
-
-        try:
-            UUID(resource_id)
-        except (ValueError, AttributeError):
-            continue
-        if separator and query != "view=text":
-            continue
         kind = binding.get("kind")
         if kind not in {"image", "pdf", "document", "audio", "video"}:
             continue
-        original_url = binding.get("download_url")
-        if not isinstance(original_url, str) or original_url != path:
+        if ref.startswith("journey_artifact:") and path.startswith(private_prefix):
+            identifier = path[len(private_prefix):].strip("/")
+            try:
+                UUID(identifier)
+            except (ValueError, AttributeError):
+                continue
+            if path != private_prefix + identifier + "/":
+                continue
+            if (kind == "document" and (not separator or query != "view=text")) or (
+                kind != "document" and separator
+            ):
+                continue
+            original_url = binding.get("download_url")
+            if not isinstance(original_url, str) or original_url != path:
+                original_url = url
+        elif ref.startswith("presentation_media_use:") and path.startswith(public_prefix):
+            identifier = ref[len("presentation_media_use:"):]
+            try:
+                UUID(identifier)
+            except (ValueError, AttributeError):
+                continue
+            if (
+                kind != "image"
+                or binding.get("purpose") != "recognize"
+                or path != public_prefix + identifier + "/file/"
+                or separator
+            ):
+                continue
             original_url = url
+        else:
+            continue
         result.append({
             "url": url,
             "download_url": original_url,
