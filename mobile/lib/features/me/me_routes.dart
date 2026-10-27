@@ -7,6 +7,8 @@ import '../resources/resources_screen.dart';
 import 'me_screen.dart';
 import 'me_passport_screen.dart';
 import 'me_profile_screen.dart';
+import 'me_saved_screen.dart';
+import 'me_considerations_screen.dart';
 
 StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
@@ -18,6 +20,18 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
         onOpenDestination: (destination) {
           if (destination.kind == 'history') {
             context.push('/history');
+            return true;
+          }
+          if (destination.kind == 'considerations') {
+            context.push('/me/considerations');
+            return true;
+          }
+          if (destination.kind == 'saved_collection') {
+            context.push('/me/saved');
+            return true;
+          }
+          if (destination.kind == 'avatar_edit') {
+            context.push('/me/profile?avatar=1');
             return true;
           }
           if (destination.kind == 'profile_self') {
@@ -65,6 +79,31 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
       ),
       routes: [
         GoRoute(
+          path: 'considerations',
+          builder: (context, state) => runtime.api == null || runtime.personal == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Ce qui compte pour moi',
+                  message: 'Préférences momentanément indisponibles.',
+                )
+              : MeConsiderationsScreen(
+                  api: runtime.api!, personal: runtime.personal!,
+                  onSaved: () => context.push('/me/saved'),
+                  onWatches: () => context.push('/discover/watches'),
+                ),
+        ),
+        GoRoute(
+          path: 'saved',
+          builder: (context, state) => runtime.api == null || runtime.personal == null
+              ? const MakoloSecondaryScreen(
+                  title: 'Mes enregistrés',
+                  message: 'Enregistrés momentanément indisponibles.',
+                )
+              : MeSavedScreen(
+                  api: runtime.api!, personal: runtime.personal!,
+                  onOpen: (id) => context.push('/activities/$id'),
+                ),
+        ),
+        GoRoute(
           path: 'profile',
           builder: (context, state) =>
               runtime.api == null || runtime.personal == null
@@ -72,7 +111,10 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   title: 'Mon profil',
                   message: 'Profil momentanément indisponible.',
                 )
-              : MeProfileScreen(api: runtime.api!, personal: runtime.personal!),
+              : MeProfileScreen(
+                  api: runtime.api!, personal: runtime.personal!,
+                  openAvatarPicker: state.uri.queryParameters['avatar'] == '1',
+                ),
         ),
         GoRoute(
           path: 'passport',
