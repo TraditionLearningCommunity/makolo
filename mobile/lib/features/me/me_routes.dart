@@ -101,6 +101,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
               : MeSavedScreen(
                   api: runtime.api!, personal: runtime.personal!,
                   onOpen: (id) => context.push('/activities/$id'),
+                  onDiscover: () => context.go('/discover'),
                 ),
         ),
         GoRoute(
