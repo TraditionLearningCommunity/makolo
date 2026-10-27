@@ -76,10 +76,10 @@ void main() {
       child: const NowGalleryScenarioPreview(id: 'now-g01-s3-min'),
     );
     expect(
-      find.widgetWithText(FilledButton, 'Vérifier le dossier'),
+      find.widgetWithText(TextButton, 'Vérifier le dossier'),
       findsOneWidget,
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Vérifier le dossier'));
+    await tester.tap(find.widgetWithText(TextButton, 'Vérifier le dossier'));
     await tester.pump();
     expect(
       find.text('Démonstration : aucune action métier exécutée.'),
@@ -105,7 +105,10 @@ void main() {
       tester,
       child: const NowGalleryScenarioPreview(id: 'now-media'),
     );
-    expect(find.text('Document de démonstration'), findsOneWidget);
+    // No authorized media reader is supplied to this gallery scenario.
+    // Preserve the fact without fabricating an actionable document preview.
+    expect(find.text('Ce document éclaire la situation.'), findsOneWidget);
+    expect(find.text('Lire dans Makolo'), findsNothing);
   });
 
   testWidgets('Gallery N2 opens the same real Now depth on wide', (
