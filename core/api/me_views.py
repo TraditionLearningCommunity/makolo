@@ -14,6 +14,9 @@ from core.api.me_projection import (
     build_personal_partners_data,
 )
 from core.api.projections import projection_envelope
+from topics.models import OpenToKind, ProfileInterest, ProfileOpenTo, Topic
+from topics.services import replace_profile_interests, replace_profile_open_to
+from django.core.exceptions import ValidationError as DomainValidationError
 from core.api.z8_projection import (
     RESOURCE_DEFAULT_LIMIT,
     RESOURCE_MAX_LIMIT,
@@ -146,6 +149,55 @@ class PersonalConsiderationsAPIView(PersonalProjectionAPIView):
             build_personal_considerations_data(request.user),
             observed_at=observed_at,
         )
+
+
+class PersonalConsiderationSettingsAPIView(PersonalProjectionAPIView):
+    """Edit explicit personal preferences through their existing domain services.
+
+    Saving interests cannot infer an openness, Watch, or follow.
+    """
+
+    projection_code = "personal.me.settings"
+
+    def get(self, request):
+        self._guard_personal_scope(request)
+        return self._response(self._settings(request.user), observed_at=timezone.now())
+
+    def put(self, request):
+        self._guard_personal_scope(request, include_body=True)
+        family = request.data.get("family")
+        values = request.data.get("values")
+        if family not in {"interests", "open_to"} or not isinstance(values, list) or len(values) > 200:
+            raise ValidationError({"values": "Sélection invalide."})
+        if any(not isinstance(value, str) for value in values):
+            raise ValidationError({"values": "Sélection invalide."})
+        try:
+            if family == "interests":
+                replace_profile_interests(profile=request.user, topic_ids=values)
+            else:
+                replace_profile_open_to(profile=request.user, kinds=values)
+        except DomainValidationError as exc:
+            raise ValidationError(exc.message_dict if hasattr(exc, "message_dict") else {"values": exc.messages}) from exc
+        return self._response(self._settings(request.user), observed_at=timezone.now())
+
+    @staticmethod
+    def _settings(profile):
+        interests = ProfileInterest.objects.filter(profile=profile).values_list("topic_id", flat=True)
+        open_to = ProfileOpenTo.objects.filter(
+            profile=profile, is_active=True, topic__isnull=True,
+        ).values_list("kind", flat=True)
+        return {
+            "interests": [str(value) for value in interests],
+            "open_to": list(open_to),
+            "topics": [
+                {"id": str(row.pk), "label": row.label}
+                for row in Topic.objects.filter(is_active=True).order_by("label", "code")[:300]
+            ],
+            "open_to_options": [
+                {"id": code, "label": label}
+                for code, label in OpenToKind.choices
+            ],
+        }
 
 
 class PersonalCollectivesAPIView(PersonalProjectionAPIView):
