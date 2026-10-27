@@ -9,6 +9,7 @@ from .day_of_views import PersonalOccurrenceDayOfAPIView, PersonalOccurrenceLive
 from .me_views import (
     PersonalCollectivesAPIView,
     PersonalConsiderationsAPIView,
+    PersonalConsiderationSettingsAPIView,
     PersonalMeAPIView,
     PersonalMeTerritoryPreviewAPIView,
     PersonalPartnersAPIView,
@@ -58,6 +59,7 @@ urlpatterns = [
         PersonalAccessCredentialAPIView.as_view(),
         name="access-credential",
     ),
+    path("considerations/settings/", PersonalConsiderationSettingsAPIView.as_view(), name="consideration-settings"),
     path(
         "considerations/",
         PersonalConsiderationsAPIView.as_view(),
