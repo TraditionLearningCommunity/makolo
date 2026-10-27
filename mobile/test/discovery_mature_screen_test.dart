@@ -56,6 +56,7 @@ DiscoveryFieldSelection selection({
   Set<DiscoveryFieldState> states = const {},
   MakoloReachabilityCue reachability = MakoloReachabilityCue.unknown,
   MakoloFailureCue failure = MakoloFailureCue.none,
+  bool hasNext = false,
 }) {
   final values =
       items ??
@@ -80,7 +81,7 @@ DiscoveryFieldSelection selection({
       count: values.length,
       page: 1,
       pageSize: 24,
-      hasNext: false,
+      hasNext: hasNext,
     ),
     surface: MakoloSurfacePresentation(
       availability: values.isEmpty
@@ -1549,5 +1550,51 @@ void main() {
     expect(find.text('Afficher le QR'), findsOneWidget);
     expect(find.text('Dans Makolo · connexion requise'), findsOneWidget);
     expect(requestedSignIn, isFalse);
+  });
+
+  testWidgets('personal Discovery automatically requests the server next lot', (
+    tester,
+  ) async {
+    final requested = <int>[];
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(hasNext: true),
+        onOpen: (_) {},
+        onPage: requested.add,
+        autoLoadMore: true,
+      ),
+    );
+
+    expect(find.text('Suivant'), findsNothing);
+    expect(find.text('Précédent'), findsNothing);
+    expect(find.text('Page 1'), findsNothing);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -1800));
+    await tester.pump();
+    expect(requested, contains(2));
+  });
+
+  testWidgets('personal Discovery ends cleanly without further requests', (
+    tester,
+  ) async {
+    final requested = <int>[];
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(
+          states: const {DiscoveryFieldState.endOfField},
+        ),
+        onOpen: (_) {},
+        onPage: requested.add,
+        autoLoadMore: true,
+      ),
+    );
+    await tester.drag(find.byType(ListView).first, const Offset(0, -1800));
+    await tester.pump();
+    expect(find.text('Vous avez tout exploré.'), findsOneWidget);
+    expect(requested, isEmpty);
+    expect(find.text('Suivant'), findsNothing);
   });
 }
