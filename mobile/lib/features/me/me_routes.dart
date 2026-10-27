@@ -95,8 +95,8 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
           path: 'saved',
           builder: (context, state) => runtime.api == null || runtime.personal == null
               ? const MakoloSecondaryScreen(
-                  title: 'Mes enregistrés',
-                  message: 'Enregistrés momentanément indisponibles.',
+                  title: 'Mes enregistrements',
+                  message: 'Enregistrements momentanément indisponibles.',
                 )
               : MeSavedScreen(
                   api: runtime.api!, personal: runtime.personal!,
@@ -109,7 +109,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
           builder: (context, state) =>
               runtime.api == null || runtime.personal == null
               ? const MakoloSecondaryScreen(
-                  title: 'Mon profil',
+                  title: 'Modifier mon passeport',
                   message: 'Profil momentanément indisponible.',
                 )
               : MeProfileScreen(
@@ -124,7 +124,12 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   title: 'Passeport Makolo',
                   message: 'Passeport momentanément indisponible.',
                 )
-              : MePassportScreen(api: runtime.api!),
+              : MePassportScreen(
+                  api: runtime.api!,
+                  onEdit: runtime.personal == null
+                      ? null
+                      : () => context.push('/me/profile'),
+                ),
         ),
         GoRoute(
           path: 'resources',
