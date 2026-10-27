@@ -387,7 +387,17 @@ class _MeField extends StatelessWidget {
   Widget build(BuildContext context) {
     final edge = useTwoTerritories ? 0.0 : MakoloLayout.edgeCompact;
     final territories = <Widget>[
-      for (final territory in selection.territories)
+      for (final territory in selection.territories) ...[
+        if (territory.presentation.key == 'resources' && selection.canOpenHistory)
+          _MeHistorySection(
+            edge: edge,
+            onOpen: hasOwnerNavigation
+                ? () => onSelectItem(const MeItemPresentation(
+                    destination: StructuredDestination(kind: 'history', id: 'me'),
+                    title: 'Mon historique', canOpen: true,
+                  ))
+                : null,
+          ),
         _MeTerritory(
           key: ValueKey('me-territory-${territory.presentation.key}'),
           territory: territory,
@@ -396,7 +406,8 @@ class _MeField extends StatelessWidget {
           mediaApi: mediaApi,
           edge: edge,
         ),
-      if (selection.canOpenHistory)
+      ],
+      if (selection.canOpenHistory && !selection.territories.any((t) => t.presentation.key == 'resources'))
         _MeHistorySection(
           edge: edge,
           onOpen: hasOwnerNavigation
@@ -438,7 +449,7 @@ class _MeField extends StatelessWidget {
                         kind: 'profile_self',
                         id: 'me',
                       ),
-                      title: 'Mon profil',
+                      title: 'Modifier mon passeport',
                       canOpen: true,
                     ),
                   )
@@ -566,7 +577,7 @@ class _MeIdentity extends StatelessWidget {
             ),
             if (onEdit != null)
               IconButton(
-                tooltip: 'Modifier mon profil',
+                tooltip: 'Modifier mon passeport',
                 onPressed: onEdit,
                 icon: const Icon(Icons.edit_outlined),
                 color: theme.colorScheme.primary,
@@ -884,7 +895,7 @@ class _MeTerritory extends StatelessWidget {
         const SizedBox(height: MakoloSpacing.compact),
       ],
       if (saved.isNotEmpty) ...[
-        Text('Enregistrés', style: Theme.of(context).textTheme.labelLarge
+        Text('Mes enregistrements', style: Theme.of(context).textTheme.labelLarge
           ?.copyWith(fontWeight: FontWeight.w800,
             color: colors.onSurfaceVariant)),
         for (final item in saved)
@@ -903,13 +914,14 @@ class _MeTerritory extends StatelessWidget {
             onPressed: () => onSelectItem(
               const MeItemPresentation(
                 destination: StructuredDestination(kind: 'saved_collection', id: 'mine'),
-                title: 'Mes enregistrés', canOpen: true,
+                title: 'Mes enregistrements', canOpen: true,
               ),
             ),
-            icon: const Icon(Icons.bookmark_added_outlined, size: 19),
+            icon: DiscoveryOrbitIcon(saved: true,
+              color: Theme.of(context).colorScheme.primary),
             label: Text(territory.savedCount > 0
-                ? 'Voir les ${territory.savedCount} enregistrés'
-                : 'Mes enregistrés'),
+                ? 'Voir les ${territory.savedCount} enregistrements'
+                : 'Mes enregistrements'),
           ),
         ),
       if (territory.items.isEmpty && !canNavigate)
