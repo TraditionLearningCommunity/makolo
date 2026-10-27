@@ -161,7 +161,12 @@ class PersonalConsiderationSettingsAPIView(PersonalProjectionAPIView):
 
     def get(self, request):
         self._guard_personal_scope(request)
-        return self._response(self._settings(request.user), observed_at=timezone.now())
+        query = (request.query_params.get("q") or "").strip()
+        if len(query) > 100:
+            raise ValidationError({"q": "Recherche trop longue."})
+        return self._response(
+            self._settings(request.user, query=query), observed_at=timezone.now(),
+        )
 
     def put(self, request):
         self._guard_personal_scope(request, include_body=True)
@@ -181,17 +186,23 @@ class PersonalConsiderationSettingsAPIView(PersonalProjectionAPIView):
         return self._response(self._settings(request.user), observed_at=timezone.now())
 
     @staticmethod
-    def _settings(profile):
+    def _settings(profile, *, query=""):
         interests = ProfileInterest.objects.filter(profile=profile).values_list("topic_id", flat=True)
         open_to = ProfileOpenTo.objects.filter(
             profile=profile, is_active=True, topic__isnull=True,
         ).values_list("kind", flat=True)
+        topics = Topic.objects.filter(is_active=True)
+        if query:
+            topics = topics.filter(label__icontains=query)
+        topics = topics.order_by("label", "code")
         return {
+            "topic_query": query,
+            "topic_total": topics.count(),
             "interests": [str(value) for value in interests],
             "open_to": list(open_to),
             "topics": [
                 {"id": str(row.pk), "label": row.label}
-                for row in Topic.objects.filter(is_active=True).order_by("label", "code")[:300]
+                for row in topics[:200]
             ],
             "open_to_options": [
                 {"id": code, "label": label}
