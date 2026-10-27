@@ -659,6 +659,7 @@ class MeSelector {
     return MeItemPresentation(
       destination: StructuredDestination(kind: 'team', id: id),
       title: title,
+      subtitle: 'Équipe',
     );
   }
 
