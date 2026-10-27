@@ -358,3 +358,29 @@
   --me-surface: #1b2438;
   --me-tint: #30244c;
 }
+
+/* Moi root is a set of entry points, not an endlessly expanding collection. */
+.mk-me-n1-avatar-action { position: relative; outline-offset: 4px; }
+.mk-me-n1-camera {
+  position: absolute; right: -2px; bottom: -2px;
+  display: flex; align-items: center; justify-content: center;
+  width: 25px; height: 25px; border: 2px solid var(--me-surface);
+  border-radius: 50%; background: var(--me-primary); color: white; font-size: 12px;
+}
+.mk-me-n1-direct-links {
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
+  padding: 4px 0 12px;
+}
+.mk-me-n1-direct-links a {
+  font-size: 13px; font-weight: 700; color: var(--me-primary);
+  padding: 7px 0;
+}
+.mk-me-n1-see-all {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--me-primary) !important;
+  padding: 10px 0 2px;
+  font-size: 14px; font-weight: 750;
+}
+.mk-me-n1-see-all span { font-size: 20px; }
+.mk-me-n1-heading h2 a { color: inherit; }
+.mk-me-n1-heading h2 a:hover { color: var(--me-primary); }
