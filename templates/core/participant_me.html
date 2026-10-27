@@ -21,7 +21,7 @@
       {% endif %}
       {% if me_projection.identity.bio %}<p class="mk-me-n1-bio">{{ me_projection.identity.bio }}</p>{% endif %}
     </div>
-    <a class="mk-me-n1-edit" href="{% url 'account:profile' %}">Modifier <span aria-hidden="true">↗</span></a>
+    <a class="mk-me-n1-edit" href="{% url 'account:profile' %}">Modifier mon passeport <span aria-hidden="true">↗</span></a>
   </header>
 
   <div class="mk-me-grid mk-me-n1-grid">
@@ -82,7 +82,7 @@
         {% endif %}
         {% if me_projection.considerations.bookmarks.items %}
           <div class="mk-me-n1-family">
-            <h3>Enregistrés <span>{{ me_projection.considerations.bookmarks.count }}</span></h3>
+            <h3>Mes enregistrements <span>{{ me_projection.considerations.bookmarks.count }}</span></h3>
             <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="bookmarks" data-me-owner-href="{% url 'discovery:bookmarks' %}" data-me-loaded="{{ me_projection.considerations.bookmarks.items|length }}" data-me-more="{{ me_projection.considerations.bookmarks.has_more|yesno:'true,false' }}">
               {% for row in me_projection.considerations.bookmarks.items|slice:":3" %}
                 <a data-me-id="{{ row.id }}" href="{% url 'discovery:bookmarks' %}">
@@ -97,7 +97,7 @@
                 </a>
               {% endfor %}
             </div>
-            <a class="mk-me-n1-see-all" href="{% url 'discovery:bookmarks' %}">Voir les {{ me_projection.considerations.bookmarks.count }} enregistrés <span aria-hidden="true">›</span></a>
+            <a class="mk-me-n1-see-all" href="{% url 'discovery:bookmarks' %}">Voir les {{ me_projection.considerations.bookmarks.count }} enregistrements <span aria-hidden="true">›</span></a>
           </div>
         {% endif %}
         {% if me_projection.considerations.followed_spaces.items %}
@@ -170,6 +170,18 @@
       </a>
     </section>
 
+    <section class="mk-me-n1-section" aria-labelledby="me-history">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">↶</span>
+        <h2 id="me-history">Mon historique</h2>
+      </div>
+      <a class="mk-me-n1-panel mk-me-n1-handoff" href="{% url 'core:participant-history' %}">
+        <span class="mk-me-n1-handoff-icon" aria-hidden="true">↶</span>
+        <span class="mk-me-n1-row-copy"><strong>Retrouver mon parcours</strong></span>
+        <span class="mk-me-n1-arrow" aria-hidden="true">›</span>
+      </a>
+    </section>
+
     <section class="mk-me-n1-section" aria-labelledby="me-resources">
       <div class="mk-me-n1-heading">
         <span class="mk-me-n1-icon" aria-hidden="true">▤</span>
@@ -210,17 +222,7 @@
       </div>
     </section>
 
-    <section class="mk-me-n1-section" aria-labelledby="me-history">
-      <div class="mk-me-n1-heading">
-        <span class="mk-me-n1-icon" aria-hidden="true">↶</span>
-        <h2 id="me-history">Mon historique</h2>
-      </div>
-      <a class="mk-me-n1-panel mk-me-n1-handoff" href="{% url 'core:participant-history' %}">
-        <span class="mk-me-n1-handoff-icon" aria-hidden="true">↶</span>
-        <span class="mk-me-n1-row-copy"><strong>Retrouver mon parcours</strong></span>
-        <span class="mk-me-n1-arrow" aria-hidden="true">›</span>
-      </a>
-    </section>
+
 
     {% if support_links %}
       <section class="mk-me-n1-section" aria-labelledby="me-support">
