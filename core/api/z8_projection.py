@@ -354,10 +354,18 @@ def build_personal_passport_depth_data(
         "presentation_web": reverse("sharing:passport-me"),
     }
     if public_enabled:
-        links["public_web"] = reverse(
-            "sharing:passport-profile",
-            kwargs={"profile_id": profile.pk},
+        from sharing.models import PublicIdentifier
+
+        identifier = (
+            PublicIdentifier.objects.filter(profile=profile)
+            .values_list("identifier", flat=True)
+            .first()
         )
+        if identifier:
+            links["public_web"] = reverse(
+                "public-passport",
+                kwargs={"identifier": identifier},
+            )
     data["projection"] = {
         "variant": data["variant"],
         "available_variants": list(PASSPORT_VARIANTS),
