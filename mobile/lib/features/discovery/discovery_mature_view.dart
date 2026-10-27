@@ -8,6 +8,7 @@ import '../../design/surface_states.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../network/makolo_api_client.dart';
+import '../../presentation/search/load_more_on_scroll.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'discovery_selector.dart';
 
@@ -25,6 +26,9 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.baseUri,
     this.shareApi,
     this.onPage,
+    this.autoLoadMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
     this.onRetry,
     this.onResetCriteria,
   });
@@ -35,6 +39,9 @@ class DiscoveryExplorationView extends StatefulWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
+  final bool autoLoadMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
 
@@ -84,6 +91,9 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             baseUri: widget.baseUri,
             shareApi: widget.shareApi,
             onPage: widget.onPage,
+            autoLoadMore: widget.autoLoadMore,
+            loadingMore: widget.loadingMore,
+            loadMoreFailed: widget.loadMoreFailed,
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
           );
@@ -96,6 +106,9 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           baseUri: widget.baseUri,
           shareApi: widget.shareApi,
           onPage: widget.onPage,
+          autoLoadMore: widget.autoLoadMore,
+          loadingMore: widget.loadingMore,
+          loadMoreFailed: widget.loadMoreFailed,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
           selectedCandidateKey: _focusedCandidateKey,
@@ -131,6 +144,9 @@ class DiscoveryFieldView extends StatelessWidget {
     this.baseUri,
     this.shareApi,
     this.onPage,
+    this.autoLoadMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
     this.onRetry,
     this.onResetCriteria,
     this.selectedCandidateKey,
@@ -145,6 +161,9 @@ class DiscoveryFieldView extends StatelessWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
+  final bool autoLoadMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
   final String? selectedCandidateKey;
@@ -174,6 +193,9 @@ class DiscoveryFieldView extends StatelessWidget {
         baseUri: baseUri,
         shareApi: shareApi,
         onPage: onPage,
+        autoLoadMore: autoLoadMore,
+        loadingMore: loadingMore,
+        loadMoreFailed: loadMoreFailed,
         selectedCandidateKey: selectedCandidateKey,
         onSelect: onSelect,
         selectionActionLabel: selectionActionLabel,
@@ -193,6 +215,9 @@ class DiscoverySpatialView extends StatefulWidget {
     this.baseUri,
     this.shareApi,
     this.onPage,
+    this.autoLoadMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
     this.onRetry,
   });
 
@@ -203,6 +228,9 @@ class DiscoverySpatialView extends StatefulWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
+  final bool autoLoadMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final VoidCallback? onRetry;
 
   @override
@@ -349,6 +377,9 @@ class _DiscoveryScrollableField extends StatelessWidget {
     this.baseUri,
     this.shareApi,
     this.onPage,
+    this.autoLoadMore = false,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
     this.selectedCandidateKey,
     this.onSelect,
     this.selectionActionLabel,
@@ -361,6 +392,9 @@ class _DiscoveryScrollableField extends StatelessWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final ValueChanged<int>? onPage;
+  final bool autoLoadMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final String? selectedCandidateKey;
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
   final String? selectionActionLabel;
@@ -405,9 +439,9 @@ class _DiscoveryScrollableField extends StatelessWidget {
             ),
         ];
 
-        return ListView(
+        final list = ListView(
           key: PageStorageKey<String>(
-            'discover-page-${selection.collection.page}',
+            autoLoadMore ? 'discover-continuous-field' : 'discover-page-${selection.collection.page}',
           ),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(
@@ -451,14 +485,25 @@ class _DiscoveryScrollableField extends StatelessWidget {
             MakoloContentFrame(
               child: Column(
                 children: [
-                  if (selection.states.contains(
+                  if (autoLoadMore && loadingMore) ...[
+                    const SizedBox(height: MakoloSpacing.lg),
+                    const Center(child: CircularProgressIndicator()),
+                  ],
+                  if (autoLoadMore && loadMoreFailed) ...[
+                    const SizedBox(height: MakoloSpacing.md),
+                    TextButton(
+                      onPressed: onPage == null ? null : () => onPage!(selection.collection.page + 1),
+                      child: const Text('Réessayer le chargement'),
+                    ),
+                  ],
+                  if (!loadingMore && !loadMoreFailed && selection.states.contains(
                     DiscoveryFieldState.endOfField,
                   )) ...[
                     const SizedBox(height: MakoloSpacing.lg),
                     const _DiscoveryEndOfField(),
                   ],
-                  if (selection.collection.page > 1 ||
-                      selection.collection.hasNext) ...[
+                  if (!autoLoadMore && (selection.collection.page > 1 ||
+                      selection.collection.hasNext)) ...[
                     const SizedBox(height: MakoloSpacing.lg),
                     _DiscoveryPagination(
                       collection: selection.collection,
@@ -469,6 +514,13 @@ class _DiscoveryScrollableField extends StatelessWidget {
               ),
             ),
           ],
+        );
+        if (!autoLoadMore || onPage == null) return list;
+        return LoadMoreOnScroll(
+          hasMore: selection.collection.hasNext && !loadMoreFailed,
+          loading: loadingMore,
+          loadMore: () => onPage!(selection.collection.page + 1),
+          child: list,
         );
       },
     );
@@ -800,7 +852,7 @@ class _DiscoveryEndOfField extends StatelessWidget {
         child: const Padding(
           padding: EdgeInsets.all(MakoloSpacing.md),
           child: Text(
-            'Vous avez parcouru ce qui est disponible dans ce contexte. Makolo n’ajoute pas de contenu de remplissage.',
+            'Vous avez tout exploré.',
             textAlign: TextAlign.center,
           ),
         ),
