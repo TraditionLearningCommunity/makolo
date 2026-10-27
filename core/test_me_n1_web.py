@@ -1,5 +1,6 @@
 """N1 Web must render the same owner-projected personal capital as mobile."""
 from django.contrib.auth import get_user_model
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.test import TestCase
 from django.urls import reverse
 from topics.models import ProfileInterest, ProfileOpenTo, OpenToKind, Topic
@@ -33,7 +34,7 @@ class PersonalMeN1WebTests(TestCase):
     def test_web_n1_uses_an_explicit_stylesheet_and_preserves_owner_links(self):
         self.client.force_login(self.profile)
         response = self.client.get(self.url)
-        self.assertContains(response, "css/me-n1.css")
+        self.assertContains(response, staticfiles_storage.url("css/me-n1.css"))
         self.assertContains(response, reverse("core:participant-accesses"))
         self.assertContains(response, reverse("personal_assets:list"))
         self.assertContains(response, reverse("sharing:passport-me"))
