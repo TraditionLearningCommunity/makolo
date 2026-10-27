@@ -759,7 +759,7 @@ class _NowSemanticContent extends StatelessWidget {
                 ),
               ),
             ),
-        if (!compact && situation.makoloPreparation.isNotEmpty)
+        if (compact && situation.makoloPreparation.isNotEmpty)
           for (final prepared in situation.makoloPreparation)
             Padding(
               padding: const EdgeInsets.only(top: MakoloSpacing.xs),
@@ -1058,6 +1058,15 @@ class _NowDepth extends StatelessWidget {
       situation.meaning,
       situation.whyNow,
     ]);
+    final delta = _distinctPresentationText(situation.delta, [
+      situation.meaning,
+      situation.humanContext,
+      situation.whyNow,
+    ]);
+    final subject = _distinctPresentationText(situation.subject, [
+      situation.humanContext,
+      situation.meaning,
+    ]);
     final firstVisual =
         topology == NowTopology.media ||
         topology == NowTopology.waiting ||
@@ -1098,6 +1107,8 @@ class _NowDepth extends StatelessWidget {
               nowDisplayHeadline(situation.meaning, situation.humanContext),
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            if (subject != null) _section('Sujet', subject),
+            if (delta != null) _section('Ce qui a changé', delta),
             // S2, S4 and S5 lead with their evidence, waiting state or
             // relation. S1 and S3 lead with meaning and consequences.
             if (firstVisual) ...[
