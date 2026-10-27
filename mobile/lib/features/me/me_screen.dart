@@ -1164,7 +1164,9 @@ class _MeIdentityRow extends StatelessWidget {
     final initial = item.title.trim().isEmpty
         ? 'M'
         : item.title.trim().substring(0, 1).toUpperCase();
-    return ListTile(
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
       dense: true,
       minVerticalPadding: MakoloSpacing.xs,
       contentPadding: EdgeInsets.zero,
@@ -1184,6 +1186,7 @@ class _MeIdentityRow extends StatelessWidget {
       trailing: onTap == null
           ? null
           : const Icon(Icons.chevron_right_rounded, size: 21),
+      ),
     );
   }
 }
@@ -1197,7 +1200,9 @@ class _MeResourceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return ListTile(
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
       dense: true,
       minVerticalPadding: MakoloSpacing.xs,
       contentPadding: EdgeInsets.zero,
@@ -1213,6 +1218,7 @@ class _MeResourceRow extends StatelessWidget {
       trailing: onTap == null
           ? null
           : const Icon(Icons.chevron_right_rounded, size: 21),
+      ),
     );
   }
 
