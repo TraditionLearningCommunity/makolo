@@ -1366,7 +1366,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 1);
     await tester.scrollUntilVisible(
-      find.text('Réessayer'),
+      find.byKey(const Key('guest-spaces-page-retry')),
       200,
       scrollable: find
           .descendant(
@@ -1387,8 +1387,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 1);
 
-    await tester.ensureVisible(find.text('Réessayer'));
-    await tester.tap(find.text('Réessayer'));
+    await tester.ensureVisible(find.byKey(const Key('guest-spaces-page-retry')));
+    await tester.tap(find.byKey(const Key('guest-spaces-page-retry')));
     await tester.pumpAndSettle();
     expect(pageTwoRequests, 2);
     expect(
