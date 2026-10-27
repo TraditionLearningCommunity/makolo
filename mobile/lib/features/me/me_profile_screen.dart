@@ -7,7 +7,7 @@ import '../../platform/camera/system_media_picker.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
 
-/// Self-profile editor backed by the existing Accounts owner API.
+/// Passport editing mode backed by the existing Accounts owner API.
 class MeProfileScreen extends StatefulWidget {
   const MeProfileScreen({super.key, required this.api, required this.personal,
     this.openAvatarPicker = false});
@@ -70,7 +70,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Profil momentanément indisponible.';
+        _error = 'Passeport momentanément indisponible.';
       });
     }
   }
@@ -114,7 +114,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 errorBuilder: (_, _, _) => const Icon(Icons.person, size: 90),
               )),
               const SizedBox(height: 14),
-              const Text('Utiliser cette photo sur mon profil ?'),
+              const Text('Utiliser cette photo sur mon passeport ?'),
             ],
           ),
           actions: [
@@ -238,7 +238,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mon profil')),
+      appBar: AppBar(title: const Text('Modifier mon passeport')),
       body: _loading
           ? const Center(child: CircularProgressIndicator.adaptive())
           : !_loaded
