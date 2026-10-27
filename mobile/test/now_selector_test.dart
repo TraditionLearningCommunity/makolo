@@ -76,6 +76,24 @@ void main() {
     expect(situation.topology, NowTopology.waiting);
   });
 
+  test('only owner deadline state qualifies an old Now date', () {
+    final result = selector.select(
+      projection: projection(items: const [
+        {
+          'id': 'now:overdue',
+          'human_context': 'Inscription',
+          'state_meaning': 'Une vérification reste nécessaire.',
+          'timing': {
+            'deadline_at': '2026-10-03T10:00:00+00:00',
+            'deadline_state': 'overdue',
+          },
+        },
+      ]),
+      now: now,
+    );
+    expect(result.situations.single.metadata, contains('Échéance dépassée'));
+  });
+
   test('wire timestamps display as readable dates, not raw ISO', () {
     final result = selector.select(
       projection: projection(
