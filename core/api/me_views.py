@@ -212,6 +212,10 @@ class PersonalConsiderationSettingsAPIView(PersonalProjectionAPIView):
             "topic_total": topics.count(),
             "interests": [str(value) for value in interests],
             "open_to": list(open_to),
+            "selected_topics": [
+                {"id": str(row.pk), "label": row.label}
+                for row in Topic.objects.filter(pk__in=interests).order_by("label", "code")
+            ],
             "topics": [
                 {"id": str(row.pk), "label": row.label}
                 for row in topics[:200]
