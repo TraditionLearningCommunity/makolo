@@ -64,6 +64,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
   bool _acquisitionFailed = false;
+  bool _loadingMore = false;
+  bool _loadMoreFailed = false;
 
   @override
   void initState() {
@@ -126,32 +128,44 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
   }
 
-  void _movePage(int page) {
-    unawaited(_navigateToPage(page));
-  }
-
-  Future<void> _navigateToPage(int page) async {
-    if (page < 1) return;
+  /// Append the server's next lot without navigating away or resetting scroll.
+  /// The repository composes the locally stored pages by candidate identity.
+  Future<void> _loadNextPage() async {
+    if (_loadingMore || _refreshing || !mounted) return;
     final current = _query;
-    String? token;
-    var targetPage = page;
-    if (page == current.page + 1) {
+    setState(() => _loadMoreFailed = false);
+    try {
       final projection = await widget.repository.readItems(current);
-      try {
-        if (projection == null) {
-          targetPage = 1;
-        } else {
-          token = _selector.collection(projection).continuationToken;
-        }
-      } on FormatException {
-        targetPage = 1;
+      if (projection == null) throw const FormatException('Missing Discovery field');
+      final collection = _selector.collection(projection);
+      if (!collection.hasNext) return;
+      final token = collection.continuationToken;
+      if (token == null || token.isEmpty) {
+        throw const FormatException('Missing Discovery continuation');
       }
+      if (!mounted || !identical(current, _query)) return;
+      setState(() => _loadingMore = true);
+      final next = current.copyWith(
+        page: current.page + 1,
+        continuation: token,
+      );
+      await widget.repository.refreshItems(next);
+      final source = await widget.repository.readSource(
+        widget.repository.itemsSource(next),
+      );
+      if (source.lastErrorCode != null ||
+          await widget.repository.readItems(next) == null) {
+        throw StateError('Discovery continuation unavailable');
+      }
+      if (!mounted || !identical(current, _query)) return;
+      setState(() => _query = next);
+    } on Object {
+      if (mounted && identical(current, _query)) {
+        setState(() => _loadMoreFailed = true);
+      }
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
     }
-    if (!mounted || !identical(current, _query)) return;
-    setState(
-      () => _query = current.copyWith(page: targetPage, continuation: token),
-    );
-    unawaited(_acquire());
   }
 
   void _open(DiscoveryItemPresentation item) {
@@ -228,7 +242,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
-                onPage: _movePage,
+                onPage: (_) => unawaited(_loadNextPage()),
+                autoLoadMore: true,
+                loadingMore: _loadingMore,
+                loadMoreFailed: _loadMoreFailed,
                 onRetry: () => unawaited(_refreshItems()),
               ),
             );
