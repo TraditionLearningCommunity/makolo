@@ -248,11 +248,13 @@ class MeSelector {
       freshness: freshness,
       reachability: reachability,
       savedCount: _collectionCount(section, ['bookmarks']),
+      // Saved possibilities have their own visible counter below this heading.
+      // This count reflects personal considerations rather than double-counting
+      // the separately presented collection of saved opportunities.
       totalCount: _collectionCount(section, [
         'interests',
         'open_to',
         'watches',
-        'bookmarks',
         'followed_spaces',
         'followed_profiles',
       ]),
