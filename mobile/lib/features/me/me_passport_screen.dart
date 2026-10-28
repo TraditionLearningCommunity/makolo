@@ -267,6 +267,19 @@ class _MePassportScreenState extends State<MePassportScreen> {
     appBar: AppBar(
       title: const Text('Passeport Makolo'),
       actions: [
+        IconButton(
+          tooltip: 'Exporter le Passeport en PDF',
+          onPressed: _exporting ? null : _exportPdf,
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+        ),
+        IconButton(
+          tooltip: 'Partager le Passeport',
+          onPressed: _exporting ? null : () async {
+            final data = await _future;
+            if (mounted) await _sharePassport(data);
+          },
+          icon: const Icon(Icons.share_outlined),
+        ),
         if (widget.onEdit != null)
           IconButton(
             tooltip: 'Modifier mon passeport',
@@ -294,19 +307,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
             _options(data),
             const SizedBox(height: 16),
             _PassportBody(data: data, baseUri: widget.api.baseUri),
-            const SizedBox(height: 18),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              IconButton(
-                tooltip: 'Exporter le Passeport en PDF',
-                onPressed: _exporting ? null : _exportPdf,
-                icon: const Icon(Icons.picture_as_pdf_outlined),
-              ),
-              IconButton(
-                tooltip: 'Partager le Passeport',
-                onPressed: _exporting ? null : () => _sharePassport(data),
-                icon: const Icon(Icons.share_outlined),
-              ),
-            ]),
             if (widget.onEdit != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
