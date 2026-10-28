@@ -68,7 +68,21 @@ def passport_pdf_response(request, projection):
         return Paragraph(escape(str(value or "")), styles[style])
 
     story = [para("PASSEPORT MAKOLO", "MakoloTitle")]
-    story.append(para(payload["identity"]["name"]))
+    # Use only an avatar admitted by this Passport projection.
+    avatar = getattr(projection.subject, "avatar", None)
+    if payload["subject_kind"] == "profile" and avatar and projection.identity.get("avatar_url"):
+        try:
+            with avatar.open("rb") as image_file:
+                avatar_data = BytesIO(image_file.read(2 * 1024 * 1024))
+            picture = Image(avatar_data, width=28*mm, height=28*mm)
+            portrait = Table([[picture, para(payload["identity"]["name"])]],
+                             colWidths=[34*mm, 133*mm])
+            portrait.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
+            story.append(portrait)
+        except (OSError, ValueError):
+            story.append(para(payload["identity"]["name"]))
+    else:
+        story.append(para(payload["identity"]["name"]))
     subject_kind = "Personnel" if payload["subject_kind"] == "profile" else "Espace"
     story.append(para(f"{subject_kind} · {projection.variant_label}", "MakoloSmall"))
     story.append(Spacer(1, 6*mm))
@@ -120,7 +134,7 @@ def passport_pdf_response(request, projection):
         if items:
             story.append(para(title, "MakoloSection"))
             for item in items:
-                story.append(para("• " + str(item)))
+                story.append(para("— " + str(item)))
 
     qr = qrcode.QRCode(border=1, box_size=6)
     qr.add_data(verify_url)
