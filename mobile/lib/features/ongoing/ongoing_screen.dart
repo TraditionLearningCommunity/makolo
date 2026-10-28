@@ -416,7 +416,9 @@ class _OngoingFieldState extends State<_OngoingField> {
     key: const PageStorageKey<String>('ongoing-field'),
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
     itemCount: widget.items.length + 1,
-    separatorBuilder: (_, _) => const SizedBox(height: MakoloSpacing.sm),
+    separatorBuilder: (_, index) => index < widget.items.length - 1
+        ? const SizedBox(height: MakoloSpacing.md)
+        : const SizedBox.shrink(),
     itemBuilder: (context, index) {
       if (index == widget.items.length) {
         if (widget.moreError != null) {
