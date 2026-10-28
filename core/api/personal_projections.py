@@ -394,7 +394,8 @@ def _decorate_now_semantics(
             "knowledge_context": {
                 "provenance": [source],
                 "freshness": {
-                    "state": "fresh",
+                    # The projection timestamp does not establish owner-data freshness.
+                    "state": "unknown",
                     "observed_at": _iso(observed_at),
                 },
                 "knowledge_state": "known",
