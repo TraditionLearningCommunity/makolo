@@ -393,23 +393,7 @@ def build_personal_passport_depth_data(
     # identity: public/thematic/custom variants and shareable documents must
     # never inherit private account coordinates by composition.
     if variant == PASSPORT_COMPLETE:
-        from accounts.models import UserProfile
-
-        extension = UserProfile.objects.filter(user=profile).first()
-        data["private_details"] = {
-            "first_name": profile.first_name or "",
-            "last_name": profile.last_name or "",
-            "username": profile.username,
-            "company": extension.company_name or "" if extension else "",
-            "organization": extension.organization_name or "" if extension else "",
-            "city": extension.city or "" if extension else "",
-            "country": extension.country or "" if extension else "",
-            "phone": profile.phone or "",
-            "address": extension.address or "" if extension else "",
-            "language": profile.get_language_display(),
-            "birth_date": profile.birth_date.isoformat() if profile.birth_date else "",
-            "gender": profile.get_gender_display() if profile.gender else "",
-        }
+        data["private_details"] = data["identity"].pop("owner_details", {})
     data["links"] = links
     return data
 
