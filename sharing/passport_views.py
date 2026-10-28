@@ -214,27 +214,17 @@ class MyPassportView(LoginRequiredMixin, ProfilePassportView):
         # Personal coordinates are owner-only; never added to PassportProjection
         # (which also powers public and shareable representations).
         if self.variant == PASSPORT_COMPLETE and not context["is_document"]:
-            from accounts.models import UserProfile
-
-            profile = UserProfile.objects.filter(user=self.request.user).first()
-            user = self.request.user
+            details = context["projection"].identity.get("owner_details", {})
+            labels = (
+                ("Prénom", "first_name"), ("Nom", "last_name"),
+                ("Identifiant Makolo", "username"), ("Entreprise", "company"),
+                ("Organisation", "organization"), ("Ville", "city"),
+                ("Pays", "country"), ("Langue", "language"),
+                ("Téléphone", "phone"), ("Adresse", "address"),
+                ("Date de naissance", "birth_date"), ("Genre", "gender"),
+            )
             context["owner_details"] = [
-                (label, value)
-                for label, value in (
-                    ("Prénom", user.first_name),
-                    ("Nom", user.last_name),
-                    ("Identifiant Makolo", user.username),
-                    ("Entreprise", profile.company_name if profile else ""),
-                    ("Organisation", profile.organization_name if profile else ""),
-                    ("Ville", profile.city if profile else ""),
-                    ("Pays", profile.country if profile else ""),
-                    ("Langue", user.get_language_display()),
-                    ("Téléphone", user.phone),
-                    ("Adresse", profile.address if profile else ""),
-                    ("Date de naissance", user.birth_date),
-                    ("Genre", user.get_gender_display() if user.gender else ""),
-                )
-                if value
+                (label, details[key]) for label, key in labels if details.get(key)
             ]
         return context
 
