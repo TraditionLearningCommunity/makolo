@@ -63,6 +63,12 @@ class MakoloAvatarSheet extends StatelessWidget {
     return null;
   }
 
+  Widget _avatarInitial(String? letter) => letter == null
+      ? const Icon(Icons.person_outline)
+      : Text(letter, style: const TextStyle(
+          fontSize: 18, fontWeight: FontWeight.w700,
+        ));
+
   void _closeThen(BuildContext context, VoidCallback action) {
     Navigator.of(context).pop();
     WidgetsBinding.instance.addPostFrameCallback((_) => action());
@@ -86,6 +92,15 @@ class MakoloAvatarSheet extends StatelessWidget {
               displayName != null && displayName.trim().isNotEmpty
               ? displayName.trim().substring(0, 1).toUpperCase()
               : null;
+          final avatarValue = identity?['avatar_url'];
+          final baseUri = runtime.api?.baseUri;
+          final avatarUri = avatarValue is String && avatarValue.isNotEmpty &&
+                  baseUri != null
+              ? baseUri.resolve(avatarValue)
+              : null;
+          final safeAvatar = avatarUri != null &&
+              (avatarUri.scheme == 'https' || avatarUri.scheme == 'http') &&
+              avatarUri.host == baseUri!.host;
 
           return Semantics(
             container: true,
@@ -104,15 +119,15 @@ class MakoloAvatarSheet extends StatelessWidget {
                       foregroundColor: Theme.of(context)
                           .colorScheme
                           .onPrimaryContainer,
-                      child: firstLetter == null
-                          ? const Icon(Icons.person_outline)
-                          : Text(
-                              firstLetter,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
+                      child: safeAvatar
+                          ? ClipOval(
+                              child: Image.network(
+                                avatarUri.toString(),
+                                width: 48, height: 48, fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => _avatarInitial(firstLetter),
                               ),
-                            ),
+                            )
+                          : _avatarInitial(firstLetter),
                     ),
                     const SizedBox(width: MakoloSpacing.md),
                     Expanded(
