@@ -28,6 +28,8 @@ def run(args):
     from django.utils import timezone
     from activities.models import ActivityStatus, Occurrence, OccurrenceStatus
     from journeys.models import Journey
+    from access.models import Access, AccessCredential, AccessStatus, CredentialStatus
+    from access.services import issue_access, validate_access
     from operations.checkpoint_models import CheckpointStatus, OccurrenceCheckpoint
     from operations.queue_models import OccurrenceQueue, QueueEligibilityPolicy, QueueStatus, QueueEntry
     from operations.permissions import user_can_manage_activity_operations
@@ -51,7 +53,7 @@ def run(args):
     counts = {"eligible_occurrences": 0, "checkpoints": 0, "queues": 0,
               "entries": 0, "called": 0, "served": 0,
               "without_authority": 0, "without_beneficiaries": 0,
-              "existing_entries": 0, "skipped": 0}
+              "existing_entries": 0, "access_issued": 0, "access_uses": 0, "skipped": 0}
     plan = []
     for occurrence in candidates:
         if len(plan) >= args.max_occurrences:
@@ -111,6 +113,40 @@ def run(args):
             if queue.checkpoint_id != checkpoint.pk:
                 counts["skipped"] += 1
                 continue
+
+            if args.demo_access:
+                for profile in profiles:
+                    journey = Journey.objects.filter(
+                        occurrence=occurrence, activity=occurrence.activity,
+                        beneficiary=profile,
+                    ).exclude(status__in=["rejected", "cancelled", "expired"]).order_by("id").first()
+                    if journey is None:
+                        continue
+                    try:
+                        existing = Access.objects.filter(
+                            journey=journey, source_key="makolo-demo-live",
+                        ).exists()
+                        access = issue_access(
+                            beneficiary=profile, activity=occurrence.activity,
+                            occurrence=occurrence, journey=journey,
+                            issued_by=user, source_key="makolo-demo-live",
+                            audit_reason="Simulation Makolo",
+                        )
+                        counts["access_issued"] += int(not existing)
+                        if args.demo_scan and access.status == AccessStatus.VALID:
+                            credential = AccessCredential.objects.filter(
+                                access=access, status=CredentialStatus.ACTIVE
+                            ).order_by("-version").first()
+                            if credential:
+                                outcome = validate_access(
+                                    access=access, credential=credential, controller=user,
+                                    expected_activity=occurrence.activity,
+                                    expected_occurrence=occurrence, source="makolo-demo",
+                                    client_reference="demo-"+str(access.pk)[:36],
+                                )
+                                counts["access_uses"] += int(outcome.use is not None and outcome.accepted)
+                    except (ValidationError, PermissionDenied):
+                        counts["skipped"] += 1
             before = QueueEntry.objects.filter(queue=queue).count()
             for profile in profiles:
                 # Controle d'autorite, eligibilite canonique, FIFO, idempotence et
@@ -145,10 +181,14 @@ def main():
     p.add_argument("--max-occurrences", type=int, default=20)
     p.add_argument("--max-entries", type=int, default=12)
     p.add_argument("--advance", choices=["called", "served"], help="Faire avancer une entree via services")
+    p.add_argument("--demo-access", action="store_true", help="Emettre Access et credentials via le service canonique")
+    p.add_argument("--demo-scan", action="store_true", help="Valider Access et enregistrer AccessUse via le service canonique")
     p.add_argument("--apply", action="store_true", help="Mutation en place, sans copie ni backup")
     a = p.parse_args()
     if not (1 <= a.max_occurrences <= 200 and 1 <= a.max_entries <= 100):
         p.error("Limites: 1..200 occurrences et 1..100 entrees")
+    if a.demo_scan and not a.demo_access:
+        p.error("--demo-scan exige --demo-access")
     run(a)
 
 
