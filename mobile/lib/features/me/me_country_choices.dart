@@ -23,7 +23,9 @@ MakoloCountry? countryForValue(String value) {
   if (normalized.isEmpty) return null;
   for (final item in makoloCountries) {
     if (item.code.toLowerCase() == normalized ||
-        item.label.toLowerCase() == normalized) return item;
+        item.label.toLowerCase() == normalized) {
+      return item;
+    }
   }
   return null;
 }
