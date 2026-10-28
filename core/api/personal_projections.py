@@ -482,14 +482,16 @@ def build_personal_now_projection(profile, *, observed_at=None, continuation_off
         for _, item in items
         if item["source"]["kind"] == "journey"
     }
-    occurrence_by_journey = {
-        str(pk): occurrence_id
-        for pk, occurrence_id in Journey.objects.filter(
-            pk__in=journey_ids,
-            beneficiary=profile,
-        ).values_list("pk", "occurrence_id")
-        if occurrence_id is not None
-    }
+    occurrence_by_journey = {}
+    if journey_ids:
+        occurrence_by_journey = {
+            str(pk): occurrence_id
+            for pk, occurrence_id in Journey.objects.filter(
+                pk__in=journey_ids,
+                beneficiary=profile,
+            ).values_list("pk", "occurrence_id")
+            if occurrence_id is not None
+        }
     # Public recognition media is owned by Presentation and bound to an
     # eligible Activity. It must not reveal private Journey attachments.
     public_recognition_by_journey = {}
