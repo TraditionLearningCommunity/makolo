@@ -28,10 +28,8 @@ def run(args):
     from django.utils import timezone
     from activities.models import ActivityStatus, Occurrence, OccurrenceStatus
     from journeys.models import Journey
-    from operations.models import (
-        CheckpointStatus, OccurrenceCheckpoint, OccurrenceQueue,
-        QueueEligibilityPolicy, QueueStatus, QueueEntry,
-    )
+    from operations.checkpoint_models import CheckpointStatus, OccurrenceCheckpoint
+    from operations.queue_models import OccurrenceQueue, QueueEligibilityPolicy, QueueStatus, QueueEntry
     from operations.permissions import user_can_manage_activity_operations
     from operations.queue_services import enter_queue, call_next, serve_entry
     from operations.operation_guards import require_occurrence_live_actionable
