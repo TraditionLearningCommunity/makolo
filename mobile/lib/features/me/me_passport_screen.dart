@@ -270,6 +270,7 @@ class _PassportBody extends StatelessWidget {
     final profession = _text(identity['profession']);
     final location = _text(identity['location']);
     final links = _rows(identity['links']);
+    final privateDetails = _map(data['private_details']);
     final avatar = _text(identity['avatar_url']);
     final avatarUri = avatar == null ? null :
         (avatar.startsWith('/') && !avatar.startsWith('//')
@@ -315,6 +316,7 @@ class _PassportBody extends StatelessWidget {
                   ?.copyWith(color: Colors.white70)),
         ]),
       ),
+      if (privateDetails.isNotEmpty) _personalDetails(context, privateDetails),
       if (bio != null) Padding(
         padding: const EdgeInsets.only(top: 18),
         child: Text(bio, style: Theme.of(context).textTheme.bodyLarge),
@@ -349,6 +351,58 @@ class _PassportBody extends StatelessWidget {
       _section(context, 'Attestations', _rows(issued['credentials']),
           (row) => _text(row['title'])),
     ]);
+  }
+
+  Widget _personalDetails(BuildContext context, Map<String, dynamic> details) {
+    const fields = <(String, String)>[
+      ('first_name', 'Prénom'),
+      ('last_name', 'Nom'),
+      ('username', 'Identifiant Makolo'),
+      ('company', 'Entreprise'),
+      ('organization', 'Organisation'),
+      ('city', 'Ville'),
+      ('country', 'Pays'),
+      ('language', 'Langue'),
+      ('phone', 'Téléphone'),
+      ('address', 'Adresse'),
+      ('birth_date', 'Date de naissance'),
+      ('gender', 'Genre'),
+    ];
+    final visible = [
+      for (final field in fields)
+        if (_text(details[field.$1]) != null) field,
+    ];
+    if (visible.isEmpty) return const SizedBox.shrink();
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.person_outline_rounded, color: colors.primary, size: 21),
+          const SizedBox(width: 9),
+          Text('Mes informations', style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w800)),
+        ]),
+        const SizedBox(height: 4),
+        Text('Visible uniquement dans mon passeport complet',
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: colors.onSurfaceVariant)),
+        const SizedBox(height: 12),
+        for (final field in visible)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SizedBox(width: 126, child: Text(field.$2,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: colors.onSurfaceVariant))),
+              const SizedBox(width: 8),
+              Expanded(child: SelectableText(details[field.$1].toString(),
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600))),
+            ]),
+          ),
+      ]),
+    );
   }
 
   Widget _stat(BuildContext context, String label, Object? value) {
