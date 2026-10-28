@@ -14,6 +14,7 @@ from .me_views import (
     PersonalMeTerritoryPreviewAPIView,
     PersonalPartnersAPIView,
     PersonalPassportAPIView,
+    PersonalPassportPdfAPIView,
     PersonalResourcesAPIView,
 )
 from .personal_views import PersonalNowAPIView, PersonalOngoingAPIView
@@ -70,6 +71,7 @@ urlpatterns = [
         PersonalCollectivesAPIView.as_view(),
         name="collectives",
     ),
+    path("passport/pdf/", PersonalPassportPdfAPIView.as_view(), name="passport-pdf"),
     path(
         "passport/",
         PersonalPassportAPIView.as_view(),
