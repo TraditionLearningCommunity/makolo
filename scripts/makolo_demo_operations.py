@@ -30,6 +30,11 @@ def run(args):
     from journeys.models import Journey
     from access.models import Access, AccessCredential, AccessStatus, CredentialStatus
     from access.services import issue_access, validate_access
+    from payments.models import Payment, PaymentProvider, PaymentMethod, PaymentStatus
+    from payments.services import initiate_payment, complete_sandbox_payment
+    from tickets.models import TicketOrder, TicketOrderStatus, Ticket
+    from scanner.services import scan_ticket
+    from scanner.permissions import user_can_scan_event
     from operations.checkpoint_models import CheckpointStatus, OccurrenceCheckpoint
     from operations.queue_models import OccurrenceQueue, QueueEligibilityPolicy, QueueStatus, QueueEntry
     from operations.permissions import user_can_manage_activity_operations
@@ -53,7 +58,7 @@ def run(args):
     counts = {"eligible_occurrences": 0, "checkpoints": 0, "queues": 0,
               "entries": 0, "called": 0, "served": 0,
               "without_authority": 0, "without_beneficiaries": 0,
-              "existing_entries": 0, "access_issued": 0, "access_uses": 0, "skipped": 0}
+              "existing_entries": 0, "access_issued": 0, "access_uses": 0, "payments": 0, "scans": 0, "skipped": 0}
     plan = []
     for occurrence in candidates:
         if len(plan) >= args.max_occurrences:
@@ -85,6 +90,7 @@ def run(args):
         print("APERCU SANS MODIFICATION")
         print("Occurrences operables:", len(plan), "beneficiaires:", sum(len(x[1]) for x in plan))
         print("Absence d'autorite:", counts["without_authority"], "sans Journey:", counts["without_beneficiaries"])
+        print("Paiement sandbox et scan de billets existants possibles avec --demo-payments et --demo-ticket-scans.")
         print("Relancer avec --apply pour creer les scenarios, sans copie ni sauvegarde.")
         return
 
@@ -170,6 +176,50 @@ def run(args):
                             counts["served"] += 1
                 except (ValidationError, PermissionDenied):
                     counts["skipped"] += 1
+
+    if args.demo_payments or args.demo_ticket_scans:
+        from django.conf import settings
+        if args.demo_payments and not getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False):
+            raise SystemExit("Paiements sandbox desactives dans Django; ne pas contourner le provider.")
+        # Un paiement appartient au buyer et un scan au scanner autorise.
+        # On travaille sur les commandes/billets deja emis, sans manipuler
+        # directement les statuts ni recreer d'autres verites commerciales.
+        if args.apply:
+            if args.demo_payments:
+                orders = TicketOrder.objects.filter(buyer=user).order_by("pk")[:args.max_entries]
+                for order in orders:
+                    try:
+                        key="makolo-demo-payment:"+str(order.pk)
+                        old=Payment.objects.filter(idempotency_key=key).first()
+                        if old is None:
+                            payment=initiate_payment(
+                                order=order,actor=user,provider=PaymentProvider.SANDBOX,
+                                method=PaymentMethod.MOBILE_MONEY,
+                                idempotency_key=key,
+                            )
+                        else:
+                            payment=old
+                        if payment.status not in (PaymentStatus.SUCCEEDED,PaymentStatus.REFUNDED):
+                            complete_sandbox_payment(payment=payment,actor=user)
+                            counts["payments"]+=1
+                    except (ValidationError,PermissionDenied):
+                        counts["skipped"]+=1
+            if args.demo_ticket_scans:
+                tickets=Ticket.objects.filter(order__buyer=user).select_related("order","order__event").order_by("pk")[:args.max_entries]
+                for ticket in tickets:
+                    event=ticket.order.event
+                    if not user_can_scan_event(user,event):
+                        counts["skipped"]+=1
+                        continue
+                    try:
+                        outcome=scan_ticket(
+                            token=ticket.qr_token,actor=user,event=event,
+                            client_reference="demo-ticket-"+str(ticket.pk)[:35],
+                            metadata={"synthetic_demo":True},
+                        )
+                        if outcome.accepted: counts["scans"]+=1
+                    except (ValidationError,PermissionDenied):
+                        counts["skipped"]+=1
     print("Scenarios operationnels verifies et appliques:", counts)
     print("Les permissions et droits n'ont pas ete modifies.")
     print("Aucun AccessCredential, AccessUse, ScanLog ou preuve de passage n'a ete fabrique.")
@@ -182,6 +232,8 @@ def main():
     p.add_argument("--max-entries", type=int, default=12)
     p.add_argument("--advance", choices=["called", "served"], help="Faire avancer une entree via services")
     p.add_argument("--demo-access", action="store_true", help="Emettre Access et credentials via le service canonique")
+    p.add_argument("--demo-payments", action="store_true", help="Completer les paiements sandbox de commandes appartenant a l acteur")
+    p.add_argument("--demo-ticket-scans", action="store_true", help="Scanner les billets existants si l acteur possede autorite scanner")
     p.add_argument("--demo-scan", action="store_true", help="Valider Access et enregistrer AccessUse via le service canonique")
     p.add_argument("--apply", action="store_true", help="Mutation en place, sans copie ni backup")
     a = p.parse_args()
