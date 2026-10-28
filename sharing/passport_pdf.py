@@ -84,6 +84,20 @@ def passport_pdf_response(request, projection):
         story.append(para("Présentation", "MakoloSection"))
         for label, value in visible:
             story.append(para(f"{label} : {value}"))
+    private_details = identity.get("owner_details", {})
+    if private_details:
+        story.append(para("Informations personnelles", "MakoloSection"))
+        labels = [
+            ("first_name", "Prénom"), ("last_name", "Nom"),
+            ("username", "Identifiant Makolo"), ("company", "Entreprise"),
+            ("organization", "Organisation"), ("city", "Ville"),
+            ("country", "Pays"), ("language", "Langue"),
+            ("phone", "Téléphone"), ("address", "Adresse"),
+            ("birth_date", "Date de naissance"), ("gender", "Genre"),
+        ]
+        for key, label in labels:
+            if private_details.get(key):
+                story.append(para(f"{label} : {private_details[key]}"))
     if identity.get("links"):
         story.append(para("Liens", "MakoloSection"))
         for label, url in identity["links"]:
