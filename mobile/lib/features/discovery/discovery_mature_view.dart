@@ -478,7 +478,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
                   for (var index = 0; index < units.length; index++) ...[
                     units[index],
                     if (index < units.length - 1)
-                      const SizedBox(height: MakoloSpacing.md),
+                      const SizedBox(height: MakoloSpacing.sm),
                   ],
                 ],
               ),
