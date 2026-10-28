@@ -291,7 +291,7 @@ class PersonalMeCapitalAPIContractTests(TestCase):
             "/api/v1/me/passport/pdf/?variant=custom&activity="
             "00000000-0000-0000-0000-000000000001&include=interests"
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 403)
 
     def test_partner_projection_is_personal_and_minimally_disclosed(self):
         organization = Organization.objects.create(
