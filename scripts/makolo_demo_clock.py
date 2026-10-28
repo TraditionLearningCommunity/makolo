@@ -92,6 +92,71 @@ def target_for(occ_id, now, duration):
     if band<75: return now+dt.timedelta(days=1+(h//100)%63,hours=(h//10000)%24)
     return now-dt.timedelta(days=1+(h//100)%21,hours=(h//10000)%24)
 
+
+def demo_slot(occ_id, index, now, timezone):
+    """Horaires garantis pour les premiers candidats; repartition stable entre executions."""
+    local=now.astimezone(timezone)
+    today=local.date()
+    tomorrow=today+dt.timedelta(days=1)
+    def wall(day,hour,minute=0):
+        return dt.datetime.combine(day,dt.time(hour,minute),tzinfo=timezone).astimezone(UTC)
+    slot=index%12
+    options=[
+        now-dt.timedelta(minutes=35),               # en cours, si duree >= 35 min
+        now-dt.timedelta(minutes=15),
+        now+dt.timedelta(minutes=15),
+        now+dt.timedelta(minutes=45),
+        wall(today,14),
+        wall(today,16),
+        wall(today,19),
+        wall(today,21),
+        wall(tomorrow,8),
+        wall(tomorrow,10),
+        wall(tomorrow,15),
+        wall(tomorrow,19),
+    ]
+    # Pas de slots "ce soir" dans le passe apres 19h: ils passent au soir suivant.
+    result=options[slot]
+    if slot in (4,5,6,7) and result<now:
+        result=result+dt.timedelta(days=1)
+    return result
+
+
+def live_coverage(db, now, timezone):
+    """Etat observable, sans inventer de permissions ni de donnees operationnelles."""
+    cols=table_columns(db,'activities_occurrence')
+    if not {'start_at','end_at'} <= cols:
+        return {'error':'schema occurrence incompatible'}
+    entries=db.execute('SELECT id,start_at,end_at FROM activities_occurrence WHERE start_at IS NOT NULL AND end_at IS NOT NULL').fetchall()
+    today=now.astimezone(timezone).date()
+    windows={'now':0,'next_2h':0,'today_later':0,'tonight':0,'tomorrow':0}
+    active_ids=[]
+    for ident,raw_start,raw_end in entries:
+        start,end=parsed(raw_start),parsed(raw_end)
+        if not start or not end: continue
+        local=start.astimezone(timezone)
+        if start<=now<end:
+            windows['now']+=1
+            active_ids.append(ident)
+        if now<start<=now+dt.timedelta(hours=2): windows['next_2h']+=1
+        if local.date()==today and start>now: windows['today_later']+=1
+        if local.date()==today and local.hour>=18 and start>now: windows['tonight']+=1
+        if local.date()==today+dt.timedelta(days=1): windows['tomorrow']+=1
+    operational={}
+    for table in ('operations_occurrencecheckpoint','operations_occurrencequeue','scanner_scannerassignment','access_access'):
+        if 'occurrence_id' in table_columns(db,table):
+            operational[table]=db.execute('SELECT COUNT(DISTINCT occurrence_id) FROM "'+table+'" WHERE occurrence_id IS NOT NULL').fetchone()[0]
+    if active_ids:
+        for table in ('operations_occurrencecheckpoint','operations_occurrencequeue','scanner_scannerassignment','access_access'):
+            if 'occurrence_id' in table_columns(db,table):
+                total=0
+                for i in range(0,len(active_ids),400):
+                    batch=active_ids[i:i+400]
+                    marks=','.join('?' for _ in batch)
+                    total+=db.execute('SELECT COUNT(DISTINCT occurrence_id) FROM "'+table+'" WHERE occurrence_id IN ('+marks+')',batch).fetchone()[0]
+                operational[table+'_active']=total
+    return {'temporal':windows,'operational':operational}
+
 def main():
     p=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--database',required=True,help='SQLite source')
@@ -103,6 +168,8 @@ def main():
     p.add_argument('--timezone',default='Africa/Kinshasa',help='Fuseau de reference, defaut Africa/Kinshasa')
     p.add_argument('--limit',type=int,default=0,help='Limiter le nombre d\'occurrences traitees (essai)')
     p.add_argument('--include-existing',action='store_true',help='Inclure aussi les Occurrences non synthetiques')
+    p.add_argument('--demo-live',action='store_true',help='Garantir des creneaux temporels autour de maintenant, aujourd hui et demain; auditer la couverture operationnelle')
+    p.add_argument('--demo-slots',type=int,default=120,help='Nombre de candidats affectes aux creneaux garantis (defaut 120)')
     a=p.parse_args()
     source=Path(a.database).resolve()
     if not source.is_file(): p.error('Base introuvable: '+str(source))
@@ -142,12 +209,12 @@ def main():
             db.execute('PRAGMA foreign_keys=ON')
             db.execute('BEGIN IMMEDIATE')
         totals={t:0 for t in FIELDS}
-        for occ_id,start,end in rows:
+        for index,(occ_id,start,end) in enumerate(rows):
             old=parsed(start)
             if not old: continue
             duration=(parsed(end)-old) if parsed(end) else dt.timedelta(hours=2)
             if duration.total_seconds()<0: continue
-            new_start=target_for(occ_id,now,duration)
+            new_start=(demo_slot(occ_id,index,now,tz) if a.demo_live and index<a.demo_slots else target_for(occ_id,now,duration))
             delta=new_start-old
             if a.apply:
                 result=move_occurrence(db,occ_id,delta)
@@ -157,10 +224,15 @@ def main():
             if failures: raise RuntimeError('Foreign key check echec: '+str(failures))
             db.commit()
             print('Lignes modifiees par table:',totals)
+            if a.demo_live:
+                coverage=live_coverage(db,now,tz)
+                print('COUVERTURE LIVE/JOUR J:',coverage)
+                print('NOTE: creneaux temporels garantis, mais droits, statuts et operations existantes non crees. Verifier les compteurs operationnels et les permissions du viewer.')
             print('Fichier:',target)
         else:
             print('Aucun changement effectue. Relancer avec --apply pour modifier directement la base (sans copie).')
-            if rows: print('Exemple occurrence:',rows[0][0], 'ancien debut:',rows[0][1], 'nouveau debut:',target_for(rows[0][0],now,dt.timedelta(hours=2)).isoformat())
+            if rows: print('Exemple occurrence:',rows[0][0], 'ancien debut:',rows[0][1], 'nouveau debut:',(demo_slot(rows[0][0],0,now,tz) if a.demo_live else target_for(rows[0][0],now,dt.timedelta(hours=2))).isoformat())
+            if a.demo_live: print('COUVERTURE ACTUELLE LIVE/JOUR J:',live_coverage(db,now,tz))
     except Exception:
         db.rollback()
         raise
