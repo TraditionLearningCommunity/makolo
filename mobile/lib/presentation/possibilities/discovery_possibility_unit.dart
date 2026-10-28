@@ -888,7 +888,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         : resources.take(2);
     return Padding(
       key: const Key('discover-resources-section'),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.detailMode ? 12 : 14,
+        vertical: widget.detailMode ? 10 : 8,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1037,7 +1040,10 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.detailMode ? 16 : 14,
+              vertical: widget.detailMode ? 12 : 8,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1226,7 +1232,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               label: Text(widget.selectionActionLabel ?? 'Voir sur la carte'),
             ),
           if (!widget.detailMode)
-            Container(height: 10, color: theme.colorScheme.surfaceContainerLow),
+            Container(height: 6, color: theme.colorScheme.surfaceContainerLow),
         ],
       ),
     );
