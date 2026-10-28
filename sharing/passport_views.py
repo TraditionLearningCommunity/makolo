@@ -203,6 +203,35 @@ class MyPassportView(LoginRequiredMixin, ProfilePassportView):
     def get_subject(self):
         return self.request.user
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Personal coordinates are owner-only; never added to PassportProjection
+        # (which also powers public and shareable representations).
+        if self.variant == PASSPORT_COMPLETE and not context["is_document"]:
+            from accounts.models import UserProfile
+
+            profile = UserProfile.objects.filter(user=self.request.user).first()
+            user = self.request.user
+            context["owner_details"] = [
+                (label, value)
+                for label, value in (
+                    ("Prénom", user.first_name),
+                    ("Nom", user.last_name),
+                    ("Identifiant Makolo", user.username),
+                    ("Entreprise", profile.company_name if profile else ""),
+                    ("Organisation", profile.organization_name if profile else ""),
+                    ("Ville", profile.city if profile else ""),
+                    ("Pays", profile.country if profile else ""),
+                    ("Langue", user.get_language_display()),
+                    ("Téléphone", user.phone),
+                    ("Adresse", profile.address if profile else ""),
+                    ("Date de naissance", user.birth_date),
+                    ("Genre", user.get_gender_display() if user.gender else ""),
+                )
+                if value
+            ]
+        return context
+
 
 class SpacePassportView(PassportViewMixin):
     def get_subject(self):
