@@ -248,12 +248,22 @@ class PersonalMeCapitalAPIContractTests(TestCase):
             "personal.me.passport",
         )
         self.assertEqual(complete.json()["data"]["variant"], "complete")
+        self.assertIn("private_details", complete.json()["data"])
+        self.assertEqual(
+            complete.json()["data"]["private_details"]["username"],
+            self.user.username,
+        )
         self.assertEqual(
             complete.json()["data"]["declared"]["interests"][0]["topic"]["label"],
             "Sujet privé",
         )
         self.assertEqual(public.json()["data"]["variant"], "public")
+        self.assertNotIn("private_details", public.json()["data"])
         self.assertEqual(public.json()["data"]["declared"]["interests"], [])
+        for variant in ("thematic", "custom"):
+            response = self.client.get(f"/api/v1/me/passport/?variant={variant}")
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn("private_details", response.json()["data"])
 
     def test_partner_projection_is_personal_and_minimally_disclosed(self):
         organization = Organization.objects.create(
