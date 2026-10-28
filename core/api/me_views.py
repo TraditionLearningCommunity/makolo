@@ -4,6 +4,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from sharing.passport_pdf import passport_pdf_response
+from sharing.passport import build_profile_passport, PASSPORT_VARIANTS
 
 from core.api.me_projection import (
     build_personal_resources_data,
@@ -261,6 +263,43 @@ class PersonalPassportAPIView(PersonalProjectionAPIView):
         response = self._response(data, observed_at=observed_at)
         response["Cache-Control"] = "private, no-store"
         return response
+
+
+class PersonalPassportPdfAPIView(PersonalProjectionAPIView):
+    """Native authenticated PDF export; same owner, selection and privacy rules."""
+
+    projection_code = "personal.me.passport"
+
+    def get(self, request):
+        self._guard_personal_scope(request)
+        variant = (request.query_params.get("variant") or PASSPORT_COMPLETE).strip()
+        if variant not in PASSPORT_VARIANTS:
+            raise ValidationError({"variant": "Variante inconnue."})
+        try:
+            projection = build_profile_passport(
+                request.user,
+                variant=variant,
+                topic_codes=request.query_params.getlist("topic"),
+                selected_activity_ids=(
+                    request.query_params.getlist("activity")
+                    if variant == "custom" else None
+                ),
+                selected_proof_ids=(
+                    request.query_params.getlist("proof")
+                    if variant == "custom" else None
+                ),
+                selected_credential_ids=(
+                    request.query_params.getlist("credential")
+                    if variant == "custom" else None
+                ),
+                selected_sections=(
+                    request.query_params.getlist("include")
+                    if variant == "custom" else None
+                ),
+            )
+        except ValueError as exc:
+            raise ValidationError({"variant": str(exc)}) from exc
+        return passport_pdf_response(request, projection)
 
 
 class PersonalResourcesAPIView(PersonalProjectionAPIView):
