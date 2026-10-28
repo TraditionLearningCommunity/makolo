@@ -284,6 +284,23 @@ def build_profile_passport(
         sections = {"identity", "bio", "links", "interests", "open_to"}
 
     identity = _profile_identity(profile)
+    if variant == PASSPORT_COMPLETE:
+        # Full owner variant only. All other variants remain disclosure-bounded.
+        profile_row = UserProfile.objects.filter(user=profile).first()
+        identity["owner_details"] = {
+            "first_name": profile.first_name or "",
+            "last_name": profile.last_name or "",
+            "username": profile.username,
+            "company": profile_row.company_name or "" if profile_row else "",
+            "organization": profile_row.organization_name or "" if profile_row else "",
+            "city": profile_row.city or "" if profile_row else "",
+            "country": profile_row.country or "" if profile_row else "",
+            "phone": profile.phone or "",
+            "address": profile_row.address or "" if profile_row else "",
+            "language": profile.get_language_display(),
+            "birth_date": profile.birth_date.isoformat() if profile.birth_date else "",
+            "gender": profile.get_gender_display() if profile.gender else "",
+        }
     if custom:
         if "bio" not in sections:
             identity["bio"] = ""
