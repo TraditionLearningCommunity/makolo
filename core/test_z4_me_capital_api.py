@@ -265,6 +265,34 @@ class PersonalMeCapitalAPIContractTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertNotIn("private_details", response.json()["data"])
 
+    def test_passport_pdf_is_authenticated_and_issues_verifiable_snapshot(self):
+        from sharing.models import PassportSnapshot
+
+        topic = Topic.objects.create(code="z4-pdf", label="Culture")
+        ProfileInterest.objects.create(profile=self.user, topic=topic, is_public=True)
+        response = self.client.get("/api/v1/me/passport/pdf/?variant=complete")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        snapshot = PassportSnapshot.objects.get(profile=self.user)
+        self.assertEqual(snapshot.variant, "complete")
+        self.assertIn("Culture", str(snapshot.payload["interests"]))
+
+        self.client.force_authenticate(user=None)
+        anonymous = self.client.get("/api/v1/me/passport/pdf/")
+        self.assertIn(anonymous.status_code, (401, 403))
+        self.assertEqual(PassportSnapshot.objects.count(), 1)
+
+    def test_passport_pdf_rejects_invalid_custom_selection(self):
+        topic = Topic.objects.create(code="z4-pdf-private", label="Sujet")
+        ProfileInterest.objects.create(profile=self.user, topic=topic)
+        response = self.client.get(
+            "/api/v1/me/passport/pdf/?variant=custom&activity="
+            "00000000-0000-0000-0000-000000000001&include=interests"
+        )
+        self.assertEqual(response.status_code, 400)
+
     def test_partner_projection_is_personal_and_minimally_disclosed(self):
         organization = Organization.objects.create(
             name="Espace partenaire Z4",
