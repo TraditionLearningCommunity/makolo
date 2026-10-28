@@ -15,6 +15,7 @@ from organizations.models import Organization
 from organizations.permissions import user_can_access_organization_workspace
 
 from .models import PublicIdentifier, PublicSubjectKind
+from .passport_pdf import passport_pdf_response
 from .passport_documents import (
     issue_passport_snapshot,
     passport_verification_token,
@@ -86,6 +87,7 @@ class PassportViewMixin(TemplateView):
         params = self.request.GET.copy()
         params.pop("download", None)
         params.pop("document", None)
+        params.pop("pdf", None)
         params[mode] = "1"
         return f"{self.request.path}?{params.urlencode()}"
 
@@ -104,9 +106,10 @@ class PassportViewMixin(TemplateView):
             and not self.has_custom_selection()
             and self.request.GET.get("download") != "1"
         )
+        is_pdf = self.request.GET.get("pdf") == "1"
         is_export = self.request.GET.get("download") == "1"
         is_print_document = self.request.GET.get("document") == "1"
-        is_document = is_export or is_print_document
+        is_document = is_export or is_print_document or is_pdf
         snapshot = None
         verification_url = ""
         qr_data_uri = ""
@@ -142,6 +145,7 @@ class PassportViewMixin(TemplateView):
                 "selected_topic_codes": set(self.request.GET.getlist("topic")),
                 "download_url": self.get_download_url(),
                 "print_url": self.get_print_url(),
+                "pdf_url": self._document_url("pdf"),
                 "can_export": projection.has_content,
                 "is_export": is_export,
                 "is_document": is_document,
@@ -156,6 +160,8 @@ class PassportViewMixin(TemplateView):
         return context
 
     def render_to_response(self, context, **response_kwargs):
+        if self.request.GET.get("pdf") == "1":
+            return passport_pdf_response(self.request, context["projection"])
         response = super().render_to_response(context, **response_kwargs)
         if self.request.GET.get("download") == "1":
             slug = self.projection_filename_slug(context["projection"])
