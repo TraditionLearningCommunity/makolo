@@ -153,6 +153,25 @@ class _MePassportScreenState extends State<MePassportScreen> {
       ),
     );
     if (action == null || !mounted) return;
+    if (action == 'pdf' && _variant != 'public') {
+      final consent = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Partager ce Passeport ?'),
+          content: const Text(
+            'Le PDF peut contenir des informations personnelles. '
+            'Les personnes qui le reçoivent pourront le conserver.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler')),
+            FilledButton(onPressed: () => Navigator.pop(context, true),
+              child: const Text('Partager')),
+          ],
+        ),
+      );
+      if (consent != true || !mounted) return;
+    }
     if (action == 'link') {
       final url = widget.api.baseUri.resolve(publicPath!).toString();
       await SharePlus.instance.share(ShareParams(text: url,
