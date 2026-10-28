@@ -8,6 +8,8 @@ from io import BytesIO
 from xml.sax.saxutils import escape
 
 import qrcode
+from PIL import Image as PillowImage
+from PIL import ImageOps
 from django.http import HttpResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -73,13 +75,20 @@ def passport_pdf_response(request, projection):
     if payload["subject_kind"] == "profile" and avatar and projection.identity.get("avatar_url"):
         try:
             with avatar.open("rb") as image_file:
-                avatar_data = BytesIO(image_file.read(2 * 1024 * 1024))
+                with PillowImage.open(image_file) as original:
+                    square = ImageOps.fit(
+                        original.convert("RGB"), (350, 350),
+                        method=PillowImage.Resampling.LANCZOS,
+                    )
+                    avatar_data = BytesIO()
+                    square.save(avatar_data, format="JPEG", quality=85)
+                    avatar_data.seek(0)
             picture = Image(avatar_data, width=28*mm, height=28*mm)
             portrait = Table([[picture, para(payload["identity"]["name"])]],
                              colWidths=[34*mm, 133*mm])
             portrait.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
             story.append(portrait)
-        except (OSError, ValueError):
+        except (OSError, ValueError, TypeError):
             story.append(para(payload["identity"]["name"]))
     else:
         story.append(para(payload["identity"]["name"]))
