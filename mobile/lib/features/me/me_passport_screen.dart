@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 
 import '../../design/makolo_theme.dart';
@@ -22,12 +24,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
   };
   Set<String> _activities = {}, _proofs = {}, _credentials = {};
   Map<String, dynamic>? _full;
+  bool _exporting = false;
   late Future<Map<String, dynamic>> _future;
 
   @override
   void initState() { super.initState(); _future = _load(); }
 
-  Future<Map<String, dynamic>> _load() async {
+  Map<String, dynamic> _passportParams() {
     final params = <String, dynamic>{'variant': _variant};
     if (_variant == 'thematic' && _topic != null) params['topic'] = _topic;
     if (_variant == 'custom') {
@@ -36,7 +39,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
       params['proof'] = _proofs.toList();
       params['credential'] = _credentials.toList();
     }
-    final url = Uri(path: 'api/v1/me/passport/', queryParameters: params).toString();
+    return params;
+  }
+
+  Future<Map<String, dynamic>> _load() async {
+    final url = Uri(path: 'api/v1/me/passport/',
+      queryParameters: _passportParams()).toString();
     final response = await widget.api.get(url);
     final data = ProjectionEnvelope.parse(
       response.jsonObject(), expectedProjection: 'personal.me.passport',
@@ -83,6 +91,75 @@ class _MePassportScreenState extends State<MePassportScreen> {
         const SnackBar(content: Text('Lien public copié.')),
       );
     }
+  }
+
+  Future<String?> _downloadPassport() async {
+    if (_exporting) return null;
+    setState(() => _exporting = true);
+    try {
+      final directory = await getTemporaryDirectory();
+      final file = '${directory.path}/passeport-makolo-${_variant}.pdf';
+      final url = Uri(path: 'api/v1/me/passport/pdf/',
+        queryParameters: _passportParams()).toString();
+      await widget.api.download(url, destinationPath: file);
+      return file;
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Exportation du Passeport indisponible.'),
+        ));
+      }
+      return null;
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    final file = await _downloadPassport();
+    if (file == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Passeport PDF préparé.'),
+    ));
+    await SharePlus.instance.share(ShareParams(
+      files: [XFile(file, mimeType: 'application/pdf')],
+      subject: 'Passeport Makolo',
+    ));
+  }
+
+  Future<void> _sharePassport(Map<String, dynamic> data) async {
+    final publicPath = _text(_map(data['links'])['public_web']);
+    final canShareLink = _variant == 'public' &&
+        _map(data['projection'])['public_profile_enabled'] == true &&
+        publicPath != null && publicPath.startsWith('/') &&
+        !publicPath.startsWith('//');
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.picture_as_pdf_outlined),
+            title: const Text('Partager le PDF'),
+            onTap: () => Navigator.pop(context, 'pdf'),
+          ),
+          if (canShareLink)
+            ListTile(
+              leading: const Icon(Icons.link_rounded),
+              title: const Text('Partager le lien public'),
+              onTap: () => Navigator.pop(context, 'link'),
+            ),
+        ]),
+      ),
+    );
+    if (action == null || !mounted) return;
+    if (action == 'link') {
+      final url = widget.api.baseUri.resolve(publicPath!).toString();
+      await SharePlus.instance.share(ShareParams(text: url,
+        subject: 'Passeport Makolo'));
+      return;
+    }
+    await _exportPdf();
   }
 
   void _toggle(Set<String> values, String id, bool enabled) {
@@ -217,13 +294,26 @@ class _MePassportScreenState extends State<MePassportScreen> {
             _options(data),
             const SizedBox(height: 16),
             _PassportBody(data: data, baseUri: widget.api.baseUri),
+            const SizedBox(height: 18),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              IconButton(
+                tooltip: 'Exporter le Passeport en PDF',
+                onPressed: _exporting ? null : _exportPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+              ),
+              IconButton(
+                tooltip: 'Partager le Passeport',
+                onPressed: _exporting ? null : () => _sharePassport(data),
+                icon: const Icon(Icons.share_outlined),
+              ),
+            ]),
             if (widget.onEdit != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: OutlinedButton.icon(
                   onPressed: widget.onEdit,
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Modifier mon passeport'),
+                  label: const Text('Modifier le Passeport'),
                 ),
               ),
             if (_map(data['projection'])['public_profile_enabled'] == true &&
@@ -323,7 +413,7 @@ class _PassportBody extends StatelessWidget {
       ),
       if (links.isNotEmpty) ...[
         const SizedBox(height: 18),
-        Text('Mes liens', style: Theme.of(context).textTheme.titleLarge
+        Text('Liens', style: Theme.of(context).textTheme.titleLarge
             ?.copyWith(fontWeight: FontWeight.w800)),
         for (final link in links)
           if (_text(link['label']) != null && _text(link['url']) != null)
@@ -340,11 +430,11 @@ class _PassportBody extends StatelessWidget {
         _stat(context, 'Établi', disclosure['established_count']),
         _stat(context, 'Délivré', disclosure['issued_count']),
       ]),
-      _section(context, 'Mes intérêts', _rows(declared['interests']),
+      _section(context, 'Centres d’intérêt', _rows(declared['interests']),
           (row) => _text(_map(row['topic'])['label'])),
       _section(context, 'Ouvert à', _rows(declared['open_to']),
           (row) => _text(row['label'])),
-      _section(context, 'Mes activités', _rows(data['activities']),
+      _section(context, 'Activités', _rows(data['activities']),
           (row) => _text(row['title'])),
       _section(context, 'Faits établis', _rows(established['proofs']),
           (row) => _text(row['proof_type_label'])),
@@ -380,7 +470,7 @@ class _PassportBody extends StatelessWidget {
         Row(children: [
           Icon(Icons.person_outline_rounded, color: colors.primary, size: 21),
           const SizedBox(width: 9),
-          Text('Mes informations', style: Theme.of(context).textTheme.titleLarge
+          Text('Informations personnelles', style: Theme.of(context).textTheme.titleLarge
               ?.copyWith(fontWeight: FontWeight.w800)),
         ]),
         const SizedBox(height: 4),
@@ -428,7 +518,7 @@ class _PassportBody extends StatelessWidget {
     final titles = rows.map(label).whereType<String>().toSet().toList();
     if (titles.isEmpty) return const SizedBox.shrink();
     final colors = Theme.of(context).colorScheme;
-    final isInterest = title == 'Mes intérêts';
+    final isInterest = title == 'Centres d’intérêt';
     final isOpening = title == 'Ouvert à';
     final isDeclared = isInterest || isOpening;
     final icon = isInterest ? Icons.interests_outlined
