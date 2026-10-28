@@ -332,8 +332,8 @@ void main() {
     expect(find.text('Possibilité 3'), findsNothing);
     expect(find.text('Possibilité 4'), findsNothing);
     expect(find.text('Vous avez tout exploré'), findsNothing);
-    await tester.ensureVisible(find.text('Voir les 5 enregistrés'));
-    await tester.tap(find.text('Voir les 5 enregistrés'));
+    await tester.ensureVisible(find.text('Voir les 5 enregistrements'));
+    await tester.tap(find.text('Voir les 5 enregistrements'));
     expect(opened, 'saved_collection');
   });
 
@@ -722,7 +722,7 @@ void main() {
         },
       ),
     );
-    await tester.tap(find.byTooltip('Modifier mon profil'));
+    await tester.tap(find.byTooltip('Modifier mon passeport'));
     await tester.pump();
     expect(kind, 'profile_self');
     expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
