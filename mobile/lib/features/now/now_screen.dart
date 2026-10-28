@@ -587,14 +587,17 @@ class _NowField extends StatelessWidget {
             child: Text('Aussi maintenant', style: theme.textTheme.titleMedium),
           ),
           for (final item in secondary)
-            _NowSituationUnit(
+            Padding(
               key: ValueKey('now-unit-${item.identity}'),
-              situation: item,
-              selected: selectedKey == _keyOf(item),
-              onSelect: () => onSelect(item),
-              onOpenOwner: onOpenOwner,
-              api: api,
-              profileId: profileId,
+              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+              child: _NowSituationUnit(
+                situation: item,
+                selected: selectedKey == _keyOf(item),
+                onSelect: () => onSelect(item),
+                onOpenOwner: onOpenOwner,
+                api: api,
+                profileId: profileId,
+              ),
             ),
         ],
         if (loadingMore)
