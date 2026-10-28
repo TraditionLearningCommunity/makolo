@@ -113,7 +113,7 @@ class PassportViewMixin(TemplateView):
         snapshot = None
         verification_url = ""
         qr_data_uri = ""
-        if projection.has_content and is_document:
+        if projection.has_content and is_document and not is_pdf:
             snapshot = issue_passport_snapshot(projection)
             token = passport_verification_token(snapshot)
             verification_url = self.request.build_absolute_uri(
