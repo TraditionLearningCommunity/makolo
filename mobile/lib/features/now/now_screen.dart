@@ -784,7 +784,7 @@ class _NowSemanticContent extends StatelessWidget {
               const SizedBox(width: MakoloSpacing.md),
               Expanded(
                 child: Text(
-                  situation.turnLabel ?? 'En attente de la prochaine réponse.',
+                  situation.turnLabel ?? 'En attente d’une évolution.',
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
