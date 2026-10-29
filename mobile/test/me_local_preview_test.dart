@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/repositories/personal_repository.dart';
 import 'package:makolo_mobile/features/me/me_local_preview.dart';
 
 StoredProjection _snapshot({
@@ -94,4 +96,90 @@ void main() {
     );
     expect(bookmarks['has_more'], isTrue);
   });
+  test('confirmed owner changes update only the matching profile snapshot', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final owner = ProfileStore(database, 'owner-a');
+    final other = ProfileStore(database, 'owner-b');
+    Map<String, dynamic> initial(String id) => {
+      'actor': {'type': 'profile', 'id': id},
+      'considerations': {
+        'interests': {
+          'items': [
+            {'id': 'old', 'label': 'Ancien'},
+          ],
+          'count': 1,
+        },
+        'open_to': {'items': <Object>[], 'count': 0},
+        'bookmarks': {
+          'items': [
+            {
+              'id': 'saved-1',
+              'activity': {'id': 'activity-1', 'title': 'Activité'},
+            },
+            {
+              'id': 'saved-2',
+              'activity': {'id': 'activity-2', 'title': 'Autre'},
+            },
+          ],
+          'count': 2,
+        },
+      },
+    };
+    for (final record in [owner, other]) {
+      await record.putProjection(
+        kind: 'personal.me',
+        schemaVersion: 1,
+        payload: initial(record.profileId),
+      );
+    }
+    final repository = PersonalRepository(owner);
+    await repository.reflectMeConfirmedChoices(
+      settings: {
+        'interests': ['new'],
+        'selected_topics': [
+          {'id': 'new', 'label': 'Nouveau'},
+        ],
+        'open_to': ['collaborate'],
+        'open_to_options': [
+          {'id': 'collaborate', 'label': 'Collaborer'},
+        ],
+      },
+    );
+    await repository.reflectMeBookmarkRemoved(activityId: 'activity-1');
+    final local = MeLocalPreview.forProfile(
+      await owner.readProjection('personal.me'), owner.profileId,
+    )!;
+    expect(
+      (local.collection('considerations', 'interests')!['items'] as List)
+          .single['id'],
+      'new',
+    );
+    expect(
+      (local.collection('considerations', 'open_to')!['items'] as List)
+          .single['id'],
+      'collaborate',
+    );
+    final saved = local.collection('considerations', 'bookmarks')!;
+    expect(saved['count'], 1);
+    expect(
+      ((saved['items'] as List).single['activity'] as Map)['id'],
+      'activity-2',
+    );
+
+    final untouched = MeLocalPreview.forProfile(
+      await other.readProjection('personal.me'), other.profileId,
+    )!;
+    expect(
+      (untouched.collection('considerations', 'interests')!['items'] as List)
+          .single['id'],
+      'old',
+    );
+    expect(
+      (untouched.collection('considerations', 'bookmarks')!['items'] as List)
+          .length,
+      2,
+    );
+  });
+
 }
