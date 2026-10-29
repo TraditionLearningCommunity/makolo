@@ -4,6 +4,7 @@ import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
+import 'me_local_preview.dart';
 
 /// Full owner-backed saved collection; the Moi root presents only three rows.
 class MeSavedScreen extends StatefulWidget {
@@ -25,13 +26,42 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   final _rows = <Map<String, dynamic>>[];
   int _offset = 0;
   bool _hasMore = true, _loading = false, _failed = false;
+  bool _hasKnownCollection = false;
   String? _removing;
 
   @override
   void initState() {
     super.initState();
     _scroll.addListener(_checkEnd);
-    _next();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      final snapshot = await widget.personal.store.readProjection('personal.me');
+      final local = MeLocalPreview.forProfile(
+        snapshot, widget.personal.store.profileId,
+      );
+      final bookmarks = local?.collection('considerations', 'bookmarks');
+      if (mounted && bookmarks != null) {
+        final cached = (bookmarks['items'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        setState(() {
+          _rows
+            ..clear()
+            ..addAll(cached);
+          _offset = bookmarks['next_offset'] is int
+              ? bookmarks['next_offset'] as int
+              : cached.length;
+          _hasMore = bookmarks['has_more'] == true;
+          _hasKnownCollection = true;
+        });
+      }
+    } on Object {
+      // A missing or malformed local preview is not an empty collection.
+    }
+    if (mounted) await _next(reset: true);
   }
 
   void _checkEnd() {
@@ -80,6 +110,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         _offset = part['next_offset'] as int;
         _hasMore = part['has_more'] as bool;
         _loading = false;
+        _hasKnownCollection = true;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _checkEnd();
@@ -97,13 +128,18 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         'api/v1/discovery/items/activity/${Uri.encodeComponent(activityId)}/saved/',
       );
       if (!mounted) return;
+      // The server confirmed removal. Preserve other known rows if refresh
+      // fails; do not replace the entire offline collection with an error.
       setState(() {
-        _rows.clear();
+        _rows.removeWhere((row) =>
+            row['activity'] is Map &&
+            (row['activity'] as Map)['id']?.toString() == activityId);
         _offset = 0;
         _hasMore = true;
         _failed = false;
         _removing = null;
       });
+      await widget.personal.reflectMeBookmarkRemoved(activityId: activityId);
       await _next(reset: true);
       // Invalidate the single personal read model, not a duplicate save store.
       try {
@@ -175,16 +211,24 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
               ),
           if (_loading)
             const Center(child: CircularProgressIndicator.adaptive())
-          else if (_failed)
+          else if (_failed) ...[
+            if (_rows.isNotEmpty)
+              const Text('Derniers enregistrements connus sur cet appareil.'),
+            if (_rows.isEmpty)
+              const Text('Enregistrements indisponibles hors connexion.'),
             Center(child: TextButton(
-              onPressed: () { _failed = false; _next(); },
+              onPressed: () { _failed = false; _next(reset: true); },
               child: const Text('Réessayer'),
-            ))
-          else if (!_hasMore)
+            )),
+          ] else if (!_hasMore)
             Center(child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Text('Vous avez tout exploré',
-                style: Theme.of(context).textTheme.bodySmall),
+              child: Text(
+                _rows.isEmpty && _hasKnownCollection
+                    ? 'Aucun enregistrement pour le moment.'
+                    : 'Vous avez tout exploré',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             )),
         ],
       ),
