@@ -275,6 +275,11 @@ class PersonalRepository {
         (revisedCollection['count'] as int) > 0) {
       revisedCollection['count'] = (revisedCollection['count'] as int) - 1;
     }
+    if (revisedCollection['next_offset'] is int &&
+        (revisedCollection['next_offset'] as int) > 0) {
+      revisedCollection['next_offset'] =
+          (revisedCollection['next_offset'] as int) - 1;
+    }
     final revisedConsiderations = Map<String, dynamic>.from(considerations)
       ..['bookmarks'] = revisedCollection;
     await store.putProjection(
