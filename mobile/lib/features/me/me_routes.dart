@@ -126,6 +126,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                 )
               : MePassportScreen(
                   api: runtime.api!,
+                  personal: runtime.personal,
                   onEdit: runtime.personal == null
                       ? null
                       : () => context.push('/me/profile'),
