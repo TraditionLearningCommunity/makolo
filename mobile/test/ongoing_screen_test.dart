@@ -312,9 +312,22 @@ void main() {
       tester.getRect(find.text('Première continuité')).top,
       lessThan(tester.getRect(find.text('Notice de préparation')).top),
     );
+    final gutter = find.byKey(const Key('ongoing-unit-gutter'));
+    expect(gutter, findsOneWidget);
+    expect(tester.getSize(gutter).height, MakoloSpacing.md);
     expect(
-      tester.getRect(first).bottom,
-      lessThanOrEqualTo(tester.getRect(second).top),
+      tester.widget<ColoredBox>(gutter).color,
+      tester.element(gutter).makoloSurfaces.surface,
+    );
+    // The gutter is outside both units, with no side inset or intervening
+    // action bar. The footer still belongs to the preceding continuity.
+    expect(
+      tester.getRect(gutter).top,
+      closeTo(tester.getRect(first).bottom, 0.1),
+    );
+    expect(
+      tester.getRect(second).top,
+      closeTo(tester.getRect(gutter).bottom, 0.1),
     );
   });
 
