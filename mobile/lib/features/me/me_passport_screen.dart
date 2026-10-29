@@ -6,11 +6,14 @@ import 'package:flutter/services.dart';
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
 import '../../sync/projection_contract.dart';
+import '../../repositories/personal_repository.dart';
+import 'me_local_preview.dart';
 
 /// Native presentation of the same server-owned Passport variants as Web.
 class MePassportScreen extends StatefulWidget {
-  const MePassportScreen({super.key, required this.api, this.onEdit});
+  const MePassportScreen({super.key, required this.api, this.personal, this.onEdit});
   final MakoloApiClient api;
+  final PersonalRepository? personal;
   final VoidCallback? onEdit;
   @override
   State<MePassportScreen> createState() => _MePassportScreenState();
@@ -25,10 +28,32 @@ class _MePassportScreenState extends State<MePassportScreen> {
   Set<String> _activities = {}, _proofs = {}, _credentials = {};
   Map<String, dynamic>? _full;
   bool _exporting = false;
+  bool _onlineReady = false;
+  Map<String, dynamic>? _localIdentity;
   late Future<Map<String, dynamic>> _future;
 
   @override
-  void initState() { super.initState(); _future = _load(); }
+  void initState() {
+    super.initState();
+    _restoreIdentity();
+    _future = _load();
+  }
+
+  Future<void> _restoreIdentity() async {
+    final personal = widget.personal;
+    if (personal == null) return;
+    try {
+      final local = MeLocalPreview.forProfile(
+        await personal.store.readProjection('personal.me'),
+        personal.store.profileId,
+      );
+      if (mounted && local?.identity != null) {
+        setState(() => _localIdentity = local!.identity);
+      }
+    } on Object {
+      // No locally authorized identity: retain the explicit unavailable state.
+    }
+  }
 
   Map<String, dynamic> _passportParams() {
     final params = <String, dynamic>{'variant': _variant};
@@ -49,6 +74,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final data = ProjectionEnvelope.parse(
       response.jsonObject(), expectedProjection: 'personal.me.passport',
     ).data;
+    if (mounted) setState(() => _onlineReady = true);
     if (_variant == 'complete') {
       _full = data;
       if (_activities.isEmpty && _proofs.isEmpty && _credentials.isEmpty) {
@@ -77,7 +103,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
       final options = _rows(_full?['topic_options']);
       if (options.isNotEmpty) _topic = options.first['code']?.toString();
     }
-    setState(() { _variant = variant; _future = _load(); });
+    setState(() { _variant = variant; _onlineReady = false; _future = _load(); });
   }
 
   Future<void> _copyPublicLink(Map<String, dynamic> data) async {
@@ -184,8 +210,51 @@ class _MePassportScreenState extends State<MePassportScreen> {
   void _toggle(Set<String> values, String id, bool enabled) {
     setState(() {
       if (enabled) { values.add(id); } else { values.remove(id); }
+      _onlineReady = false;
       _future = _load();
     });
+  }
+
+  Widget _localPassportSummary(BuildContext context) {
+    final identity = _localIdentity;
+    final name = identity?['display_name']?.toString();
+    final bio = identity?['bio']?.toString();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
+      children: [
+        Text(
+          identity == null
+              ? 'Passeport non encore disponible sur cet appareil.'
+              : 'Aperçu local de Moi. Le Passeport détaillé et ses variantes '
+                  'nécessitent une actualisation du serveur.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        if (name != null && name.trim().isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(name, style: Theme.of(context).textTheme.headlineSmall),
+        ],
+        if (bio != null && bio.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(bio),
+        ],
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => setState(() {
+              _onlineReady = false;
+              _future = _load();
+            }),
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Réessayer'),
+          ),
+        ),
+        const Text(
+          'L’export PDF et le partage sont indisponibles sans confirmation '
+          'du serveur.',
+        ),
+      ],
+    );
   }
 
   Widget _options(Map<String, dynamic> data) {
@@ -231,6 +300,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
             ],
             onChanged: (code) => setState(() {
               _topic = code;
+              _onlineReady = false;
               _future = _load();
             }),
           ),
@@ -288,14 +358,22 @@ class _MePassportScreenState extends State<MePassportScreen> {
       actions: [
         IconButton(
           tooltip: 'Exporter le Passeport en PDF',
-          onPressed: _exporting ? null : _exportPdf,
+          onPressed: _exporting || !_onlineReady ? null : _exportPdf,
           icon: const Icon(Icons.picture_as_pdf_outlined),
         ),
         IconButton(
           tooltip: 'Partager le Passeport',
-          onPressed: _exporting ? null : () async {
-            final data = await _future;
-            if (mounted) await _sharePassport(data);
+          onPressed: _exporting || !_onlineReady ? null : () async {
+            try {
+              final data = await _future;
+              if (mounted) await _sharePassport(data);
+            } on Object {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Partage indisponible sans connexion.'),
+                ));
+              }
+            }
           },
           icon: const Icon(Icons.share_outlined),
         ),
@@ -312,10 +390,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           if (snapshot.hasError) {
-            return Center(child: TextButton.icon(
-              onPressed: () => setState(() => _future = _load()),
-              icon: const Icon(Icons.refresh), label: const Text('Réessayer'),
-            ));
+            return _localPassportSummary(context);
           }
           return const Center(child: CircularProgressIndicator.adaptive());
         }
