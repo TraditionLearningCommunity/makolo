@@ -6,6 +6,7 @@ import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
+import 'me_local_preview.dart';
 
 /// Explicit personal choices, not recommendations inferred from browsing.
 class MeConsiderationsScreen extends StatefulWidget {
@@ -29,11 +30,51 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
   String _activeQuery = '';
   int _requestEpoch = 0;
   String? _error;
+  bool _hasKnownChoices = false;
+  bool _showingLocal = false;
   List<Map<String, dynamic>> _topics = [], _openOptions = [], _selectedTopics = [];
   Set<String> _interests = {}, _openTo = {};
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    // The personal.me snapshot is already synced and scoped by ProfileStore.
+    // It can restore explicit choices, but not the whole server topic catalog.
+    try {
+      final snapshot = await widget.personal.store.readProjection('personal.me');
+      final local = MeLocalPreview.forProfile(
+        snapshot, widget.personal.store.profileId,
+      );
+      final topics = local?.collection('considerations', 'interests');
+      final openness = local?.collection('considerations', 'open_to');
+      if (mounted && (topics != null || openness != null)) {
+        final selected = (topics?['items'] as List? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .where((row) => row['id'] != null && row['label'] != null)
+            .toList();
+        final openRows = (openness?['items'] as List? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .where((row) => row['id'] != null && row['label'] != null)
+            .toList();
+        setState(() {
+          _selectedTopics = selected;
+          _interests = {for (final row in selected) row['id'].toString()};
+          _openOptions = openRows;
+          _openTo = {for (final row in openRows) row['id'].toString()};
+          _hasKnownChoices = true;
+          _showingLocal = true;
+          _loading = false;
+        });
+      }
+    } on Object {
+      // Missing/corrupt local data must never prevent the online request.
+    }
+    if (mounted) await _load();
+  }
 
   static List<Map<String, dynamic>> _options(Object? raw) =>
       raw is List ? raw.whereType<Map>().map((m) =>
@@ -61,12 +102,16 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _selectedTopics = _options(data['selected_topics']);
         _openTo = (data['open_to'] as List? ?? []).map((v) => '$v').toSet();
         _loading = false; _searching = false; _error = null;
+        _hasKnownChoices = true; _showingLocal = false;
       });
     } on Object {
       if (mounted && epoch == _requestEpoch) {
         setState(() {
         _loading = false; _searching = false;
-        _error = 'Impossible de charger vos préférences.';
+        _error = _hasKnownChoices
+            ? 'Actualisation impossible. Derniers choix connus affichés.'
+            : 'Préférences non disponibles sur cet appareil.';
+        _showingLocal = _hasKnownChoices;
         });
       }
     }
@@ -103,6 +148,8 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _selectedTopics = _options(data['selected_topics']);
         _openTo = (data['open_to'] as List? ?? []).map((v) => '$v').toSet();
         _saving = false;
+        _hasKnownChoices = true;
+        _showingLocal = false;
       });
       // Refresh the active search after the mutation without allowing an old
       // response to restore stale choices.
@@ -189,7 +236,9 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       ]),
       const SizedBox(height: 10),
       if (available.isEmpty)
-        Text('Aucune autre proposition ici.',
+        Text(_showingLocal
+            ? 'Suggestions à actualiser avec une connexion.'
+            : 'Aucune autre proposition ici.',
           style: Theme.of(context).textTheme.bodySmall)
       else
         Wrap(spacing: 8, runSpacing: 8, children: [
@@ -227,8 +276,17 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
               ),
             ),
             if (_searching) const LinearProgressIndicator(minHeight: 2),
-            _choices('Mes intérêts', _topics, _interests, 'interests'),
-            _choices('Ouvert à', _openOptions, _openTo, 'open_to'),
+            if (_hasKnownChoices) ...[
+              _choices('Mes intérêts', _topics, _interests, 'interests'),
+              _choices('Ouvert à', _openOptions, _openTo, 'open_to'),
+            ] else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  'Vos choix ne sont pas encore disponibles sur cet appareil.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
             const SizedBox(height: 20),
             const Divider(),
             ListTile(
