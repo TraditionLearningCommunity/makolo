@@ -150,6 +150,58 @@ class PersonalRepository {
     );
   }
 
+  /// Reflect a server-confirmed bookmark removal in the existing Me
+  /// projection. The collection remains owned by Discovery; this is only a
+  /// profile-local read-model update for offline continuity.
+  Future<void> reflectMeBookmarkRemoved({required String activityId}) async {
+    final current = await store.readProjection('personal.me');
+    if (current == null) return;
+    final actor = current.payload['actor'];
+    if (actor is! Map ||
+        actor['type'] != 'profile' ||
+        actor['id']?.toString() != store.profileId) {
+      return;
+    }
+    final considerations = current.payload['considerations'];
+    if (considerations is! Map) return;
+    final bookmarks = considerations['bookmarks'];
+    if (bookmarks is! Map || bookmarks['items'] is! List) return;
+    final original = bookmarks['items'] as List;
+    final retained = original.where((raw) {
+      if (raw is! Map || raw['activity'] is! Map) return true;
+      return (raw['activity'] as Map)['id']?.toString() != activityId;
+    }).toList();
+    if (retained.length == original.length) return;
+
+    // Avoid restoring a stale collection over a newer root sync.
+    final latest = await store.readProjection('personal.me');
+    if (latest == null ||
+        latest.receivedAt != current.receivedAt ||
+        latest.sourceGeneratedAt != current.sourceGeneratedAt) {
+      return;
+    }
+    final revisedCollection = Map<String, dynamic>.from(bookmarks);
+    revisedCollection['items'] = retained;
+    if (revisedCollection['count'] is int &&
+        (revisedCollection['count'] as int) > 0) {
+      revisedCollection['count'] = (revisedCollection['count'] as int) - 1;
+    }
+    final revisedConsiderations = Map<String, dynamic>.from(considerations)
+      ..['bookmarks'] = revisedCollection;
+    await store.putProjection(
+      kind: 'personal.me',
+      schemaVersion: current.schemaVersion,
+      payload: {...current.payload, 'considerations': revisedConsiderations},
+      receivedAt: current.receivedAt,
+      sourceGeneratedAt: current.sourceGeneratedAt,
+      sourceUpdatedAt: current.sourceUpdatedAt,
+      lastVerifiedOnlineAt: current.lastVerifiedOnlineAt,
+      freshUntil: current.freshUntil,
+      expiresAt: current.expiresAt,
+      freshnessPolicyId: current.freshnessPolicyId,
+    );
+  }
+
   /// Reflect a confirmed Discovery save in the already-cached Ongoing N1
   /// projection. Discovery owns the mutation; this only updates its local
   /// presentation, without creating another persistent bookmark.
