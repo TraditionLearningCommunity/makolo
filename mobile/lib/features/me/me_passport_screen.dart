@@ -115,16 +115,32 @@ class _MePassportScreenState extends State<MePassportScreen> {
     setState(() { _variant = variant; _onlineReady = false; _future = _load(); });
   }
 
-  Future<void> _copyPublicLink(Map<String, dynamic> data) async {
-    if (_map(data['projection'])['public_profile_enabled'] != true) return;
-    final path = _text(_map(data['links'])['public_web']);
-    if (path == null || !path.startsWith('/') || path.startsWith('//')) return;
-    final uri = widget.api.baseUri.resolve(path);
-    await Clipboard.setData(ClipboardData(text: uri.toString()));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lien public copié.')),
-      );
+  Future<void> _copyPublicLink(Map<String, dynamic> displayed) async {
+    // A displayed passport is not permission to disclose it later. The
+    // server must confirm public exposure at the moment the link is copied.
+    try {
+      final current = await _load();
+      if (!mounted ||
+          _map(current['projection'])['public_profile_enabled'] != true) {
+        return;
+      }
+      final path = _text(_map(current['links'])['public_web']);
+      if (path == null || !path.startsWith('/') || path.startsWith('//')) {
+        return;
+      }
+      final uri = widget.api.baseUri.resolve(path);
+      await Clipboard.setData(ClipboardData(text: uri.toString()));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lien public copié.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Impossible de vérifier le lien public.'),
+        ));
+      }
     }
   }
 
@@ -373,8 +389,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
         IconButton(
           tooltip: 'Partager le Passeport',
           onPressed: _exporting || !_onlineReady ? null : () async {
+            // Revalidate public disclosure before building any share action.
+            setState(() => _onlineReady = false);
             try {
-              final data = await _future;
+              final data = await _load();
               if (mounted) await _sharePassport(data);
             } on Object {
               if (mounted) {
