@@ -98,7 +98,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
     setState(() => _exporting = true);
     try {
       final directory = await getTemporaryDirectory();
-      final file = '${directory.path}/passeport-makolo-${_variant}.pdf';
+      final file = '${directory.path}/passeport-makolo-$_variant.pdf';
       final url = Uri(path: 'api/v1/me/passport/pdf/',
         queryParameters: _passportParams()).toString();
       await widget.api.download(url, destinationPath: file);
