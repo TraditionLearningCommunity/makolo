@@ -32,6 +32,8 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
   String? _error;
   bool _hasKnownChoices = false;
   bool _showingLocal = false;
+  int? _interestCount;
+  int? _openCount;
   List<Map<String, dynamic>> _topics = [], _openOptions = [], _selectedTopics = [];
   Set<String> _interests = {}, _openTo = {};
 
@@ -51,7 +53,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       );
       final topics = local?.collection('considerations', 'interests');
       final openness = local?.collection('considerations', 'open_to');
-      if (mounted && (topics != null || openness != null)) {
+      if (mounted && topics != null && openness != null) {
         final selected = (topics?['items'] as List? ?? const [])
             .whereType<Map<String, dynamic>>()
             .where((row) => row['id'] != null && row['label'] != null)
@@ -62,6 +64,8 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
             .toList();
         setState(() {
           _selectedTopics = selected;
+          _interestCount = topics['count'] is int ? topics['count'] as int : selected.length;
+          _openCount = openness['count'] is int ? openness['count'] as int : openRows.length;
           _interests = {for (final row in selected) row['id'].toString()};
           _openOptions = openRows;
           _openTo = {for (final row in openRows) row['id'].toString()};
@@ -103,6 +107,8 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _openTo = (data['open_to'] as List? ?? []).map((v) => '$v').toSet();
         _loading = false; _searching = false; _error = null;
         _hasKnownChoices = true; _showingLocal = false;
+        _interestCount = _interests.length;
+        _openCount = _openTo.length;
       });
     } on Object {
       if (mounted && epoch == _requestEpoch) {
@@ -151,6 +157,8 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _saving = false;
         _hasKnownChoices = true;
         _showingLocal = false;
+        _interestCount = _interests.length;
+        _openCount = _openTo.length;
       });
       // Only owner-confirmed choices can be reflected into the existing local
       // personal read model. A cache failure never reverses a server success.
@@ -192,7 +200,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
   }
 
   Widget _choices(String title, List<Map<String, dynamic>> options,
-      Set<String> selected, String family) {
+      Set<String> selected, String family, {int? knownCount}) {
     final chosen = (family == 'interests' ? _selectedTopics : options)
         .where((item) => selected.contains(item['id']?.toString()))
         .toList();
@@ -212,12 +220,14 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         Text('Mes choix', style: Theme.of(context).textTheme.titleSmall
             ?.copyWith(fontWeight: FontWeight.w700)),
         const Spacer(),
-        Text('${chosen.length}', style: Theme.of(context).textTheme.labelMedium
+        Text('${knownCount ?? chosen.length}', style: Theme.of(context).textTheme.labelMedium
             ?.copyWith(color: colors.onSurfaceVariant)),
       ]),
       const SizedBox(height: 10),
       if (chosen.isEmpty)
-        Text('Aucun choix pour le moment.',
+        Text(_showingLocal && (knownCount ?? 0) > 0
+            ? 'Autres choix à actualiser avec une connexion.'
+            : 'Aucun choix pour le moment.',
           style: Theme.of(context).textTheme.bodySmall)
       else
         Wrap(spacing: 8, runSpacing: 8, children: [
@@ -287,8 +297,10 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
             ),
             if (_searching) const LinearProgressIndicator(minHeight: 2),
             if (_hasKnownChoices) ...[
-              _choices('Mes intérêts', _topics, _interests, 'interests'),
-              _choices('Ouvert à', _openOptions, _openTo, 'open_to'),
+              _choices('Mes intérêts', _topics, _interests, 'interests',
+                knownCount: _interestCount),
+              _choices('Ouvert à', _openOptions, _openTo, 'open_to',
+                knownCount: _openCount),
             ] else
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
