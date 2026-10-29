@@ -416,8 +416,15 @@ class _OngoingFieldState extends State<_OngoingField> {
     key: const PageStorageKey<String>('ongoing-field'),
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
     itemCount: widget.items.length + 1,
-    separatorBuilder: (_, index) => index < widget.items.length - 1
-        ? const SizedBox(height: MakoloSpacing.md)
+    // Like Discover, the breathing space must be visibly distinct from
+    // the unit canvas, not just an invisible gap of the same background.
+    // Only separate actual continuities, never the pagination sentinel.
+    separatorBuilder: (context, index) => index < widget.items.length - 1
+        ? ColoredBox(
+            key: const Key('ongoing-unit-gutter'),
+            color: context.makoloSurfaces.surface,
+            child: const SizedBox(height: MakoloSpacing.md),
+          )
         : const SizedBox.shrink(),
     itemBuilder: (context, index) {
       if (index == widget.items.length) {
