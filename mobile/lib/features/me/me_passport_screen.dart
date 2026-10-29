@@ -396,12 +396,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
           },
           icon: const Icon(Icons.share_outlined),
         ),
-        if (widget.onEdit != null)
-          IconButton(
-            tooltip: 'Modifier mon passeport',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: widget.onEdit,
-          ),
       ],
     ),
     body: FutureBuilder<Map<String, dynamic>>(
