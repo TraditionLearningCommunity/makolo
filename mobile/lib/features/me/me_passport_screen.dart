@@ -29,6 +29,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
   Map<String, dynamic>? _full;
   bool _exporting = false;
   bool _onlineReady = false;
+  int _loadEpoch = 0;
   Map<String, dynamic>? _localIdentity;
   late Future<Map<String, dynamic>> _future;
 
@@ -68,14 +69,22 @@ class _MePassportScreenState extends State<MePassportScreen> {
   }
 
   Future<Map<String, dynamic>> _load() async {
+    final epoch = ++_loadEpoch;
+    final requestedVariant = _variant;
     final url = Uri(path: 'api/v1/me/passport/',
       queryParameters: _passportParams()).toString();
     final response = await widget.api.get(url);
     final data = ProjectionEnvelope.parse(
       response.jsonObject(), expectedProjection: 'personal.me.passport',
     ).data;
+    // An older in-flight response can never authorize a different variant.
+    if (epoch != _loadEpoch ||
+        requestedVariant != _variant ||
+        data['variant'] != requestedVariant) {
+      throw const FormatException('Outdated or invalid Passport variant');
+    }
     if (mounted) setState(() => _onlineReady = true);
-    if (_variant == 'complete') {
+    if (requestedVariant == 'complete') {
       _full = data;
       if (_activities.isEmpty && _proofs.isEmpty && _credentials.isEmpty) {
         _activities = _ids(data['activities']);
