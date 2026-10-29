@@ -150,6 +150,95 @@ class PersonalRepository {
     );
   }
 
+  /// Retain only server-confirmed explicit choices inside the existing
+  /// personal.me read model. No local inference, queued mutation, or second
+  /// source of truth. A newer root synchronization takes precedence.
+  Future<void> reflectMeConfirmedChoices({
+    required Map<String, dynamic> settings,
+    DateTime? confirmedAt,
+  }) async {
+    final topicRows = settings['selected_topics'];
+    final interestIds = settings['interests'];
+    final openIds = settings['open_to'];
+    final openOptions = settings['open_to_options'];
+    if (topicRows is! List ||
+        interestIds is! List ||
+        openIds is! List ||
+        openOptions is! List) {
+      return;
+    }
+    final interests = interestIds.map((id) => id.toString()).toSet();
+    final openness = openIds.map((id) => id.toString()).toSet();
+    final topics = <Map<String, dynamic>>[];
+    final opens = <Map<String, dynamic>>[];
+    for (final raw in topicRows) {
+      if (raw is! Map ||
+          raw['id'] == null ||
+          raw['label'] is! String ||
+          !interests.contains(raw['id'].toString())) {
+        return;
+      }
+      topics.add({'id': raw['id'].toString(), 'label': raw['label']});
+    }
+    for (final raw in openOptions) {
+      if (raw is! Map || raw['id'] == null || raw['label'] is! String) {
+        return;
+      }
+      if (openness.contains(raw['id'].toString())) {
+        opens.add({'id': raw['id'].toString(), 'label': raw['label']});
+      }
+    }
+    if (topics.length != interests.length || opens.length != openness.length) {
+      return;
+    }
+    final current = await store.readProjection('personal.me');
+    if (current == null) return;
+    final actor = current.payload['actor'];
+    final section = current.payload['considerations'];
+    if (actor is! Map ||
+        actor['type'] != 'profile' ||
+        actor['id']?.toString() != store.profileId ||
+        section is! Map) {
+      return;
+    }
+    if (confirmedAt != null &&
+        current.sourceGeneratedAt != null &&
+        current.sourceGeneratedAt!.isAfter(confirmedAt)) {
+      return;
+    }
+    final latest = await store.readProjection('personal.me');
+    if (latest == null ||
+        latest.receivedAt != current.receivedAt ||
+        latest.sourceGeneratedAt != current.sourceGeneratedAt) {
+      return;
+    }
+    Map<String, dynamic> revised(String family, List<Map<String, dynamic>> rows) {
+      final old = section[family];
+      return {
+        if (old is Map) ...old.map((k, v) => MapEntry(k.toString(), v)),
+        'items': rows,
+        'count': rows.length,
+        'next_offset': rows.length,
+        'has_more': false,
+      };
+    }
+    final updated = Map<String, dynamic>.from(section)
+      ..['interests'] = revised('interests', topics)
+      ..['open_to'] = revised('open_to', opens);
+    await store.putProjection(
+      kind: 'personal.me',
+      schemaVersion: current.schemaVersion,
+      payload: {...current.payload, 'considerations': updated},
+      receivedAt: current.receivedAt,
+      sourceGeneratedAt: current.sourceGeneratedAt,
+      sourceUpdatedAt: current.sourceUpdatedAt,
+      lastVerifiedOnlineAt: current.lastVerifiedOnlineAt,
+      freshUntil: current.freshUntil,
+      expiresAt: current.expiresAt,
+      freshnessPolicyId: current.freshnessPolicyId,
+    );
+  }
+
   /// Reflect a server-confirmed bookmark removal in the existing Me
   /// projection. The collection remains owned by Discovery; this is only a
   /// profile-local read-model update for offline continuity.
