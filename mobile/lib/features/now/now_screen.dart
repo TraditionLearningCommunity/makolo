@@ -568,13 +568,16 @@ class _NowField extends StatelessWidget {
         bottom: MakoloSpacing.xl,
       ),
       children: [
-        _NowSituationUnit(
-          situation: primary,
-          selected: selectedKey == _keyOf(primary),
-          onSelect: () => onSelect(primary),
-          onOpenOwner: onOpenOwner,
-          api: api,
-          profileId: profileId,
+        Padding(
+          padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
+          child: _NowSituationUnit(
+            situation: primary,
+            selected: selectedKey == _keyOf(primary),
+            onSelect: () => onSelect(primary),
+            onOpenOwner: onOpenOwner,
+            api: api,
+            profileId: profileId,
+          ),
         ),
         if (secondary.isNotEmpty) ...[
           Padding(
