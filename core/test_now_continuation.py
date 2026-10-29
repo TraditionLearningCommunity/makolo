@@ -10,6 +10,7 @@ from django.utils import timezone
 from core.api.personal_projections import (
     NOW_LIMIT,
     build_personal_now_projection,
+    _decorate_now_semantics,
     now_continuation_offset,
 )
 
@@ -87,3 +88,23 @@ class NowContinuationTests(SimpleTestCase):
         self.assertEqual(empty["actor_attention_state"], "calm")
         self.assertIsNone(empty["continuation"])
         self.assertEqual(empty["terminal"]["state"], "empty")
+
+    def test_s1_owner_freshness_is_not_inferred_from_projection_time(self):
+        action = SimpleNamespace(
+            reason_codes=(),
+            actionability=SimpleNamespace(value="needs_attention"),
+            summary="Une décision est attendue.",
+            label="Consulter",
+            kind="journey.needs_attention",
+        )
+        item = {
+            "source": {"kind": "journey", "id": str(uuid4())},
+            "dimension": "adaptation",
+            "links": {},
+            "timing": {},
+        }
+        _decorate_now_semantics(action, item, observed_at=timezone.now())
+        self.assertEqual(item["knowledge_context"]["freshness"]["state"], "unknown")
+        self.assertEqual(item["consequence"]["state"], "unknown")
+        self.assertIsNone(item["consequence"]["effect"])
+        self.assertEqual(item["turn"]["type"], "none")
