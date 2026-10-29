@@ -84,6 +84,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       final part = data['collection'];
       final actor = data['actor'];
       if (actor is! Map ||
+          actor['type'] != 'profile' ||
           actor['id']?.toString() != widget.personal.store.profileId ||
           data['family'] != 'bookmarks' || data['offset'] != offset ||
           part is! Map || part['items'] is! List ||
@@ -139,7 +140,12 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         _failed = false;
         _removing = null;
       });
-      await widget.personal.reflectMeBookmarkRemoved(activityId: activityId);
+      try {
+        await widget.personal.reflectMeBookmarkRemoved(activityId: activityId);
+      } on Object {
+        // The owner already confirmed removal; never report it as failed
+        // because the read-model reflection could not be written.
+      }
       await _next(reset: true);
       // Invalidate the single personal read model, not a duplicate save store.
       try {
