@@ -118,35 +118,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
     setState(() { _variant = variant; _onlineReady = false; _future = _load(); });
   }
 
-  Future<void> _copyPublicLink() async {
-    // A displayed passport is not permission to disclose it later. The
-    // server must confirm public exposure at the moment the link is copied.
-    try {
-      final current = await _load();
-      if (!mounted ||
-          _map(current['projection'])['public_profile_enabled'] != true) {
-        return;
-      }
-      final path = _text(_map(current['links'])['public_web']);
-      if (path == null || !path.startsWith('/') || path.startsWith('//')) {
-        return;
-      }
-      final uri = widget.api.baseUri.resolve(path);
-      await Clipboard.setData(ClipboardData(text: uri.toString()));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lien public copié.')),
-        );
-      }
-    } on Object {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Impossible de vérifier le lien public.'),
-        ));
-      }
-    }
-  }
-
   Future<String?> _downloadPassport() async {
     if (_exporting) return null;
     setState(() => _exporting = true);
@@ -460,16 +431,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
                   onPressed: widget.onEdit,
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Modifier le Passeport'),
-                ),
-              ),
-            if (_map(data['projection'])['public_profile_enabled'] == true &&
-                _text(_map(data['links'])['public_web']) != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 18),
-                child: OutlinedButton.icon(
-                  onPressed: _copyPublicLink,
-                  icon: const Icon(Icons.link_rounded),
-                  label: const Text('Copier mon lien public'),
                 ),
               ),
           ],
