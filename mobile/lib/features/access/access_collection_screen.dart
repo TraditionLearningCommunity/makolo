@@ -174,7 +174,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                       ],
                     ),
                     if (source.reachability == ReachabilityState.unreachable &&
-                        view.items.isNotEmpty) ...[
+                        hasKnownFirstPage) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
                         'Dernier état connu sur cet appareil. '
