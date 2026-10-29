@@ -848,7 +848,6 @@ class _NowSemanticContent extends StatelessWidget {
 /// Situations remain owner-backed next steps, never arbitrary feed posts.
 class _NowSituationUnit extends StatelessWidget {
   const _NowSituationUnit({
-    super.key,
     required this.situation,
     required this.selected,
     required this.onSelect,
