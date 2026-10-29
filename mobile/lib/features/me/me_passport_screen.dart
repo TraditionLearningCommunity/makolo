@@ -1,6 +1,9 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../platform/sharing/share_gateway.dart';
 import 'package:flutter/services.dart';
 
 import '../../design/makolo_theme.dart';
@@ -166,21 +169,34 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
+  // Export saves a user-chosen document, never opens the share sheet.
   Future<void> _exportPdf() async {
     final file = await _downloadPassport();
     if (file == null || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Passeport PDF préparé.'),
-    ));
-    await SharePlus.instance.share(ShareParams(
-      files: [XFile(file, mimeType: 'application/pdf')],
-      subject: 'Passeport Makolo',
-    ));
+    try {
+      final saved = await FilePicker.platform.saveFile(
+        dialogTitle: 'Enregistrer le Passeport PDF',
+        fileName: 'passeport-makolo-$_variant.pdf',
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+        bytes: await File(file).readAsBytes(),
+      );
+      if (!mounted || saved == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Passeport PDF enregistré.'),
+      ));
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Enregistrement du PDF impossible.'),
+        ));
+      }
+    }
   }
 
   Future<void> _sharePassport(Map<String, dynamic> data) async {
     final publicPath = _text(_map(data['links'])['public_web']);
-    final canShareLink = _variant == 'public' &&
+    final canShareLink =
         _map(data['projection'])['public_profile_enabled'] == true &&
         publicPath != null && publicPath.startsWith('/') &&
         !publicPath.startsWith('//');
@@ -192,44 +208,44 @@ class _MePassportScreenState extends State<MePassportScreen> {
           ListTile(
             leading: const Icon(Icons.picture_as_pdf_outlined),
             title: const Text('Partager le PDF'),
+            subtitle: _variant == 'complete'
+                ? const Text('Contient des informations personnelles')
+                : null,
             onTap: () => Navigator.pop(context, 'pdf'),
           ),
-          if (canShareLink)
+          if (canShareLink) ...[
             ListTile(
               leading: const Icon(Icons.link_rounded),
               title: const Text('Partager le lien public'),
               onTap: () => Navigator.pop(context, 'link'),
             ),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Copier le lien public'),
+              onTap: () => Navigator.pop(context, 'copy'),
+            ),
+          ],
         ]),
       ),
     );
     if (action == null || !mounted) return;
-    if (action == 'pdf' && _variant != 'public') {
-      final consent = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Partager ce Passeport ?'),
-          content: const Text(
-            'Le PDF peut contenir des informations personnelles. '
-            'Les personnes qui le reçoivent pourront le conserver.',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false),
-              child: const Text('Annuler')),
-            FilledButton(onPressed: () => Navigator.pop(context, true),
-              child: const Text('Partager')),
-          ],
-        ),
-      );
-      if (consent != true || !mounted) return;
-    }
-    if (action == 'link') {
+    if (action == 'copy' || action == 'link') {
       final url = widget.api.baseUri.resolve(publicPath!).toString();
-      await SharePlus.instance.share(ShareParams(text: url,
-        subject: 'Passeport Makolo'));
+      if (action == 'copy') {
+        await Clipboard.setData(ClipboardData(text: url));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Lien public copié.'),
+          ));
+        }
+      } else {
+        await const SystemShareGateway().shareText(url);
+      }
       return;
     }
-    await _exportPdf();
+    final pdf = await _downloadPassport();
+    if (pdf == null || !mounted) return;
+    await const SystemShareGateway().shareFiles(paths: [pdf]);
   }
 
   void _toggle(Set<String> values, String id, bool enabled) {
