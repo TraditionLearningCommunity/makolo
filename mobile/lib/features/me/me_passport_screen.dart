@@ -240,7 +240,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
     });
   }
 
-  Widget _localPassportSummary(BuildContext context) {
+  Widget _localPassportSummary(BuildContext context, {bool refreshing = false}) {
     final identity = _localIdentity;
     final name = identity?['display_name']?.toString();
     final bio = identity?['bio']?.toString();
@@ -263,10 +263,15 @@ class _MePassportScreenState extends State<MePassportScreen> {
           Text(bio),
         ],
         const SizedBox(height: 20),
+        if (refreshing) ...[
+          const LinearProgressIndicator(minHeight: 2),
+          const SizedBox(height: 12),
+          const Text('Actualisation du Passeport en cours…'),
+        ],
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
-            onPressed: () => setState(() {
+            onPressed: refreshing ? null : () => setState(() {
               _onlineReady = false;
               _future = _load();
             }),
@@ -415,11 +420,15 @@ class _MePassportScreenState extends State<MePassportScreen> {
     body: FutureBuilder<Map<String, dynamic>>(
       future: _future,
       builder: (context, snapshot) {
+        // FutureBuilder may retain the previous variant while a new request
+        // is pending. Never show that data as if it were the new variant.
+        if (snapshot.connectionState != ConnectionState.done) {
+          return _localIdentity == null
+              ? const Center(child: CircularProgressIndicator.adaptive())
+              : _localPassportSummary(context, refreshing: true);
+        }
         if (!snapshot.hasData) {
-          if (snapshot.hasError) {
-            return _localPassportSummary(context);
-          }
-          return const Center(child: CircularProgressIndicator.adaptive());
+          return _localPassportSummary(context);
         }
         final data = snapshot.data!;
         return ListView(
