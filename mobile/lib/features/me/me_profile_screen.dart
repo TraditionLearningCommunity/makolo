@@ -6,6 +6,7 @@ import '../../network/makolo_api_client.dart';
 import '../../platform/camera/system_media_picker.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/projection_contract.dart';
+import 'me_local_preview.dart';
 import 'me_country_choices.dart';
 
 /// Passport editing mode backed by the existing Accounts owner API.
@@ -50,11 +51,30 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   bool _saving = false;
   String? _error;
   String? _confirmation;
+  Map<String, dynamic>? _cachedIdentity;
 
   @override
   void initState() {
     super.initState();
-    _read();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    try {
+      final snapshot = await widget.personal.store.readProjection('personal.me');
+      final local = MeLocalPreview.forProfile(
+        snapshot, widget.personal.store.profileId,
+      );
+      if (mounted && local?.identity != null) {
+        setState(() {
+          _cachedIdentity = local!.identity;
+          _loading = false;
+        });
+      }
+    } on Object {
+      // A missing local summary must not delay the owner request.
+    }
+    if (mounted) await _read();
   }
 
   Future<void> _read() async {
@@ -103,7 +123,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Passeport momentanément indisponible.';
+        _error = 'Modification indisponible sans confirmation du serveur.';
       });
     }
   }
@@ -294,16 +314,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Modifier mon passeport')),
-      body: _loading
+      body: _loading && _cachedIdentity == null
           ? const Center(child: CircularProgressIndicator.adaptive())
           : !_loaded
-          ? Center(
-              child: TextButton.icon(
-                onPressed: _read,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Réessayer'),
-              ),
-            )
+          ? _localSummary(context)
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 44),
               children: [
@@ -401,6 +415,42 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _localSummary(BuildContext context) {
+    final identity = _cachedIdentity;
+    final name = identity?['display_name']?.toString();
+    final bio = identity?['bio']?.toString();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
+      children: [
+        Text(
+          identity == null
+              ? 'Les informations du profil ne sont pas encore '
+                  'disponibles sur cet appareil.'
+              : 'Dernières informations du profil connues sur cet appareil. '
+                  'La modification nécessite une connexion.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        if (name != null && name.trim().isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(name, style: Theme.of(context).textTheme.titleLarge),
+        ],
+        if (bio != null && bio.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(bio),
+        ],
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _read,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Réessayer'),
+          ),
+        ),
+      ],
     );
   }
 
