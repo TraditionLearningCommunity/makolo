@@ -115,7 +115,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
     setState(() { _variant = variant; _onlineReady = false; _future = _load(); });
   }
 
-  Future<void> _copyPublicLink(Map<String, dynamic> displayed) async {
+  Future<void> _copyPublicLink() async {
     // A displayed passport is not permission to disclose it later. The
     // server must confirm public exposure at the moment the link is copied.
     try {
@@ -442,7 +442,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 18),
                 child: OutlinedButton.icon(
-                  onPressed: () => _copyPublicLink(data),
+                  onPressed: _copyPublicLink,
                   icon: const Icon(Icons.link_rounded),
                   label: const Text('Copier mon lien public'),
                 ),
