@@ -139,9 +139,10 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         'api/v1/me/considerations/settings/',
         body: {'family': family, 'values': values.toList()},
       );
-      final data = ProjectionEnvelope.parse(
+      final confirmed = ProjectionEnvelope.parse(
         result.jsonObject(), expectedProjection: 'personal.me.settings',
-      ).data;
+      );
+      final data = confirmed.data;
       if (!mounted) return;
       setState(() {
         _interests = (data['interests'] as List? ?? []).map((v) => '$v').toSet();
@@ -151,6 +152,15 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _hasKnownChoices = true;
         _showingLocal = false;
       });
+      // Only owner-confirmed choices can be reflected into the existing local
+      // personal read model. A cache failure never reverses a server success.
+      try {
+        await widget.personal.reflectMeConfirmedChoices(
+          settings: data, confirmedAt: confirmed.generatedAt,
+        );
+      } on Object {
+        // The owner mutation succeeded; normal root sync will reconcile.
+      }
       // Refresh the active search after the mutation without allowing an old
       // response to restore stale choices.
       if (_query.text.trim().isNotEmpty) await _load();
