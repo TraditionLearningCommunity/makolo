@@ -141,6 +141,7 @@ class ResourceRepository {
     Iterable<String> assetIds, {
     int limit = 8,
   }) async {
+    if (sync == null) return;
     final seen = <String>{};
     var acquired = 0;
     for (final assetId in assetIds) {
@@ -150,8 +151,11 @@ class ResourceRepository {
       acquired++;
       try {
         await refreshDetail(assetId);
+        final status = await readDetailSource(assetId);
+        if (status.reachability == ReachabilityState.unreachable) break;
       } on Object {
-        // A denied or unreachable detail must never suppress its list row.
+        // An unreachable owner must not trigger a chain of more requests.
+        break;
       }
     }
   }
@@ -207,6 +211,21 @@ class ResourceRepository {
 
   Stream<ResourceSourceState> watchDetailSource(String assetId) =>
       _watchSource('resource:$assetId');
+
+  Future<ResourceSourceState> readDetailSource(String assetId) async {
+    final row = await (database.select(database.syncSources)
+          ..where((item) =>
+              item.profileId.equals(profileId) &
+              item.sourceKey.equals('resource:$assetId')))
+        .getSingleOrNull();
+    return row == null
+        ? ResourceSourceState.unknown
+        : ResourceSourceState(
+            lastSuccessAt: row.lastSuccessAt,
+            invalidated: row.invalidated,
+            lastErrorCode: row.lastErrorCode,
+          );
+  }
 
   Stream<ResourceSourceState> _watchSource(String sourceKey) {
     final query = database.select(database.syncSources)
