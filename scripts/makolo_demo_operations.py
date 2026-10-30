@@ -19,6 +19,37 @@ sys.path.insert(0, str(ROOT))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 
+
+def prepare_demo_roles(grantor, apply, limit):
+    from django.contrib.auth import get_user_model
+    from activities.models import Activity
+    from authorization.constants import SystemRoleCode
+    from authorization.services import grant_activity_role
+    from operations.permissions import user_can_manage_activity_operations
+    users = get_user_model()
+    for name, terms in (
+        ("beta_transport_operator", ("transport", "bus", "voyage", "navette", "trajet")),
+        ("beta_event_manager", ("concert", "event", "evenement", "festival", "conference")),
+    ):
+        profile = users.objects.filter(username=name, is_active=True, is_staff=False, is_superuser=False).first()
+        if profile is None:
+            print(name, "absent ou non conforme")
+            continue
+        matches = []
+        for activity in Activity.objects.filter(slug__startswith="demo-2026-q4-").order_by("id"):
+            label = ((activity.slug or "") + " " + (activity.title or "")).lower()
+            if any(term in label for term in terms) and user_can_manage_activity_operations(grantor, activity):
+                matches.append(activity)
+                if len(matches) >= limit:
+                    break
+        print(name, "activites demo eligibles:", len(matches))
+        if apply:
+            for activity in matches:
+                grant_activity_role(profile=profile, activity=activity,
+                    role_code=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+                    granted_by=grantor, source="makolo-demo-operations")
+            print(name, "mandats verifies/attribues:", len(matches))
+
 def run(args):
     import django
     django.setup()
@@ -46,6 +77,13 @@ def run(args):
     user = get_user_model().objects.filter(pk=args.actor_id, is_active=True).first()
     if user is None:
         raise SystemExit("Profil operateur inconnu ou inactif. Fournir --actor-id.")
+    if args.prepare_demo_roles:
+        grantor = get_user_model().objects.filter(pk=args.grantor_id, is_active=True).first()
+        if not grantor:
+            raise SystemExit("Grantor introuvable ou inactif")
+        with transaction.atomic():
+            prepare_demo_roles(grantor, args.apply, args.max_occurrences)
+        return
     now = timezone.now()
     # Les occurrences terminees, annulees et les Activity non publiees sont exclues.
     candidates = (
@@ -222,12 +260,14 @@ def run(args):
                         counts["skipped"]+=1
     print("Scenarios operationnels verifies et appliques:", counts)
     print("Les permissions et droits n'ont pas ete modifies.")
-    print("Aucun AccessCredential, AccessUse, ScanLog ou preuve de passage n'a ete fabrique.")
+    print("Les AccessUse et ScanLog eventuels proviennent des services canoniques.")
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--actor-id", required=True, help="UUID d'un operateur demo autorise")
+    p.add_argument("--actor-id", help="UUID operateur demo")
+    p.add_argument("--prepare-demo-roles", action="store_true")
+    p.add_argument("--grantor-id", help="UUID autorite de concession")
     p.add_argument("--max-occurrences", type=int, default=20)
     p.add_argument("--max-entries", type=int, default=12)
     p.add_argument("--advance", choices=["called", "served"], help="Faire avancer une entree via services")
@@ -241,6 +281,10 @@ def main():
         p.error("Limites: 1..200 occurrences et 1..100 entrees")
     if a.demo_scan and not a.demo_access:
         p.error("--demo-scan exige --demo-access")
+    if a.prepare_demo_roles and not a.grantor_id:
+        p.error("--grantor-id requis")
+    if not a.prepare_demo_roles and not a.actor_id:
+        p.error("--actor-id requis")
     run(a)
 
 
