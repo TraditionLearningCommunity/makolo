@@ -1,10 +1,12 @@
 """Explicit Passport Sharing. Issuance and public visibility are separate."""
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
+
+from core.web_throttling import allow_web_request, value_rate_identity
 
 from .models import PassportSnapshot, PassportShareSubject, ShareEnvelope, ShareSubjectType
 from .passport_views import PassportVerificationView
@@ -15,6 +17,18 @@ from .passport_sharing import create_passport_share, revoke_passport_share, reso
 class PassportShareCreateView(LoginRequiredMixin, View):
     """Only the owner or authorized Space manager can share an issued version."""
     def post(self, request, snapshot_id):
+        identity = [value_rate_identity("issuer", str(request.user.pk))]
+        if not (
+            allow_web_request(
+                request, scope="passport-share-minute", limit=12,
+                window_seconds=60, identities=identity,
+            )
+            and allow_web_request(
+                request, scope="passport-share-hour", limit=60,
+                window_seconds=3600, identities=identity,
+            )
+        ):
+            return HttpResponse("Trop de partages. Réessayez plus tard.", status=429)
         snapshot = get_object_or_404(PassportSnapshot, pk=snapshot_id)
         try:
             days = int(request.POST.get("days", "7"))
