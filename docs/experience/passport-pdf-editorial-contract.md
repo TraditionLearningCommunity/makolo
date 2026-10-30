@@ -22,12 +22,15 @@ Un QR vérifie **l'émission d'un document identifié**, non la véracité de to
 
 - A4 portrait, surface utile ~180 mm, pagination selon le volume réel.
 - En-tête institutionnel avec le Makolo Mark officiel et titre « Passeport Makolo ».
-- Bloc d'identité violet avec portrait carré cover, orientation EXIF corrigée et monogramme sobre si aucun portrait autorisé.
+- Bloc d'identité violet en **trois territoires** : portrait carré à gauche, identité naturelle au centre (nom complet sans étiquette Prénom/Nom, profession, lieu et identifiant), **QR de vérification à droite sur fond blanc** et avec zone calme pour la lecture optique. Orientation EXIF corrigée ; monogramme uniquement si aucun portrait autorisé.
+- La langue et le genre ne figurent dans cette zone que lorsqu'ils sont renseignés et présents dans la variante complète autorisée. Aucun « Non renseigné », aucune identité reconstruite artificiellement.
 - Localisations lisibles (pays en français, y compris les valeurs historiques RDC et le code CD).
+- Les informations complémentaires réellement présentes (contact, organisation, date de naissance si autorisée) restent dans une section discrète ; ni tableau redondant Prénom/Nom, ni colonne vide pour un élément unique.
 - Bio et faits personnels séparés des déclarations, preuves et attestations. Pas de sections factices.
 - Centres d'intérêt et ouvertures en pastilles imprimables ; liens cliquables.
 - Faits établis, activités et attestations avec métadonnées réellement disponibles, sans sceaux inventés.
-- Bloc de vérification sur la dernière page : QR, identifiant du snapshot, date UTC, variante, domaine de vérification.
+- Bloc de référence **en bas de la dernière page**, distinct du QR de la première page : « Vérifier ce document », identifiant du snapshot, date UTC d'émission, variante et domaine réel d'émission lié au token signé. Le QR n'est **pas répété** au pied du document.
+- Le QR renvoie à la vérification de **ce snapshot émis**, pas à un passeport public recomposé. Sur une installation locale, le domaine peut être 127.0.0.1 et ne pas être accessible depuis un autre appareil ; ne jamais inventer un domaine de production.
 - Couleurs Makolo #5232DB, #2B176E, #FAF7F5, encre #0F172A. Typographie Unicode embarquée lorsque disponible dans l'environnement, Helvetica de repli.
 
 ## Confidentialité
