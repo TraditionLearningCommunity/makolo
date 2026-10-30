@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -7,7 +8,8 @@ import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/ongoing/ongoing_screen.dart';
-import 'package:makolo_mobile/presentation/possibilities/discovery_save_icon.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/presentation/humanization.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 
 import 'support/presentation_harness.dart';
@@ -53,6 +55,15 @@ class _NeverUsedStore implements ProfileStore {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _UnavailableImageApi implements MakoloApiClient {
+  @override
+  Future<Uint8List> getPresentationImage(String path) async =>
+      Uint8List(0);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   setUpAll(() async {
     await initializeDateFormatting('fr');
@@ -70,6 +81,31 @@ void main() {
     expect(ongoingRecognitionImageUrl('file:///private/qr.png', api), isNull);
     expect(ongoingRecognitionImageUrl('javascript:alert(1)', api), isNull);
     expect(ongoingRecognitionImageUrl('/missing', null), isNull);
+  });
+
+  test('owner datetime labels are contextual, not technical or re-zoned', () {
+    final now = DateTime(2026, 10, 30, 12);
+    expect(
+      MakoloHumanization.humanizeOwnerWhenLabel(
+        '09/12/2026 · 09:06',
+        now: now,
+      ),
+      contains('déc. 2026 · 09:06'),
+    );
+    expect(
+      MakoloHumanization.humanizeOwnerWhenLabel(
+        '30/10/2026',
+        now: now,
+      ),
+      'Aujourd’hui',
+    );
+    expect(
+      MakoloHumanization.humanizeOwnerWhenLabel(
+        'Information du propriétaire',
+        now: now,
+      ),
+      'Information du propriétaire',
+    );
   });
 
   testWidgets('N1 uses the server cue without decorating an empty media slot', (
@@ -113,7 +149,7 @@ void main() {
     await tester.pump();
     expect(find.text('Lubumbashi → Kolwezi'), findsOneWidget);
     expect(find.text('Accès disponible'), findsOneWidget);
-    expect(find.text('12/11/2026 · 14:00'), findsOneWidget);
+    expect(find.textContaining('nov. 2026 · 14:00'), findsOneWidget);
     expect(find.byKey(const Key('ongoing-n1-recognition-media')), findsNothing);
   });
 
@@ -138,7 +174,7 @@ void main() {
     expect(find.text('Frais réglés'), findsOneWidget);
   });
 
-  testWidgets('available native action reuses the Discover orbit icon', (
+  testWidgets('available native action does not imply permission to save', (
     tester,
   ) async {
     final projection = _projection(
@@ -168,12 +204,9 @@ void main() {
       find.byKey(const Key('ongoing-n1-discover-actions')),
       findsOneWidget,
     );
-    expect(find.byType(DiscoveryOrbitIcon), findsOneWidget);
-    expect(
-      tester.widget<DiscoveryOrbitIcon>(find.byType(DiscoveryOrbitIcon)).saved,
-      isFalse,
-    );
-    expect(find.text('Enregistré'), findsNothing);
+    expect(find.byKey(const Key('ongoing-n1-primary')), findsOneWidget);
+    expect(find.byKey(const Key('ongoing-n1-save')), findsNothing);
+    expect(find.byKey(const Key('ongoing-n1-share')), findsNothing);
   });
 
   testWidgets(
@@ -314,7 +347,7 @@ void main() {
     );
     final gutter = find.byKey(const Key('ongoing-unit-gutter'));
     expect(gutter, findsOneWidget);
-    expect(tester.getSize(gutter).height, MakoloSpacing.md);
+    expect(tester.getSize(gutter).height, MakoloSpacing.sm);
     expect(
       tester.widget<ColoredBox>(gutter).color,
       tester.element(gutter).makoloSurfaces.surface,
@@ -329,6 +362,116 @@ void main() {
       tester.getRect(second).top,
       closeTo(tester.getRect(gutter).bottom, 0.1),
     );
+  });
+
+  testWidgets('N1 public resources use the Discovery reading affordance', (
+    tester,
+  ) async {
+    final projection = _projection(items: const [
+      {
+        'id': 'resources',
+        'kind': 'journey',
+        'source': {'kind': 'journey', 'id': 'resources'},
+        'title': 'Préparer un trajet',
+        'summary': 'Une étape à venir.',
+        'resources': [
+          {
+            'id': 'file-1',
+            'title': 'Image documentaire de démonstration',
+            'kind': 'file',
+            'mime_type': 'image/png',
+            'download_url': '/preparation/resources/file-1/download/',
+          },
+          {
+            'id': 'text-1',
+            'title': 'Informations pratiques',
+            'kind': 'text',
+            'text_content': 'Préparer les documents nécessaires.',
+          },
+          {
+            'id': 'file-bad',
+            'title': 'Fichier non autorisé',
+            'kind': 'file',
+            'download_url': 'https://elsewhere.invalid/private.pdf',
+          },
+        ],
+        'capabilities': [],
+        'links': {},
+      },
+    ]);
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(projection),
+        baseUri: Uri.parse('https://api.example.test/'),
+      ),
+    );
+    await tester.pump();
+    final file = find.byKey(const ValueKey('ongoing-resource-file-1'));
+    final text = find.byKey(const ValueKey('ongoing-resource-text-1'));
+    expect(file, findsOneWidget);
+    expect(text, findsOneWidget);
+    expect(tester.widget<InkWell>(file).onTap, isNotNull);
+    expect(tester.widget<InkWell>(text).onTap, isNotNull);
+    expect(tester.getSize(file).height, greaterThanOrEqualTo(48));
+    await tester.tap(text);
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Préparer les documents nécessaires.'), findsOneWidget);
+    await tester.tap(find.text('Fermer'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Voir les 3 ressources'));
+    await tester.pumpAndSettle();
+    final blocked = find.byKey(const ValueKey('ongoing-resource-file-bad'));
+    expect(blocked, findsOneWidget);
+    expect(tester.widget<InkWell>(blocked).onTap, isNull);
+  });
+
+  testWidgets('recognition media opens authenticated zoom without export', (
+    tester,
+  ) async {
+    final projection = _projection(items: const [
+      {
+        'id': 'media-zoom',
+        'kind': 'journey',
+        'source': {'kind': 'journey', 'id': 'media-zoom'},
+        'title': 'Mon document',
+        'summary': 'En cours.',
+        'media_bindings': [
+          {
+            'purpose': 'RECOGNIZE',
+            'resource': {
+              'url': '/presentation/media/uses/abc/file/',
+              'alt_text': 'Document privé',
+              'mime_type': 'image/png',
+            },
+          },
+        ],
+        'capabilities': [],
+        'links': {},
+      },
+    ]);
+    await PresentationHarness.pump(
+      tester,
+      child: OngoingScreen(
+        repository: _UnusedRepository(),
+        projectionStream: Stream.value(projection),
+        baseUri: Uri.parse('https://api.example.test/'),
+        api: _UnavailableImageApi(),
+      ),
+    );
+    await tester.pump();
+    final open = find.byKey(const Key('ongoing-n1-open-media'));
+    expect(open, findsOneWidget);
+    expect(tester.widget<InkWell>(open).onTap, isNotNull);
+    await tester.tap(open);
+    await tester.pumpAndSettle();
+    expect(find.byType(InteractiveViewer), findsOneWidget);
+    expect(find.text('Document privé'), findsOneWidget);
+    expect(find.byTooltip('Exporter vers l’appareil'), findsNothing);
+    expect(find.byTooltip('Partager cette ressource'), findsNothing);
   });
 
   testWidgets('owner dates are preserved in the N2 continuity', (tester) async {
