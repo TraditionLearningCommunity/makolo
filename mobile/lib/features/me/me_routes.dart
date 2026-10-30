@@ -114,6 +114,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                 )
               : MeProfileScreen(
                   api: runtime.api!, personal: runtime.personal!,
+                  drafts: runtime.drafts,
                   openAvatarPicker: state.uri.queryParameters['avatar'] == '1',
                 ),
         ),
