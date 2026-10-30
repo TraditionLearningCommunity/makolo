@@ -82,8 +82,102 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Éducation'), findsOneWidget);
     expect(find.text('Collaborer'), findsOneWidget);
-    expect(find.textContaining('Derniers choix connus'), findsOneWidget);
+    expect(find.textContaining('Derniers choix connus'), findsNothing);
+    expect(find.textContaining('Suggestions à actualiser'), findsNothing);
+    expect(find.textContaining('Autres choix à actualiser'), findsNothing);
     expect(find.text('Aucun choix pour le moment.'), findsNothing);
+  });
+
+  testWidgets('complete selected settings survive offline beyond root preview', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final personal = await _seed(database);
+    final titles = [
+      'Culture', 'Design', 'Entrepreneuriat', 'Formation',
+      'Logistique', 'Mines', 'Sport',
+    ];
+    final openings = [
+      'Collaborer', 'Mentorat', 'Organiser', 'Participer', 'Bénévolat',
+    ];
+    await personal.store.putProjection(
+      kind: 'personal.me.settings', schemaVersion: 1,
+      payload: {
+        'interests': [for (var i = 0; i < titles.length; i++) 'topic-$i'],
+        'selected_topics': [
+          for (var i = 0; i < titles.length; i++)
+            {'id': 'topic-$i', 'label': titles[i]},
+        ],
+        'topics': const [],
+        'open_to': [for (var i = 0; i < openings.length; i++) 'kind-$i'],
+        'open_to_options': [
+          for (var i = 0; i < openings.length; i++)
+            {'id': 'kind-$i', 'label': openings[i]},
+        ],
+      },
+    );
+    await tester.pumpWidget(MaterialApp(home: MeConsiderationsScreen(
+      api: _OfflineApi(), personal: personal,
+      onSaved: () {}, onWatches: () {},
+    )));
+    await tester.pumpAndSettle();
+    for (final title in titles) {
+      expect(find.text(title, skipOffstage: false), findsOneWidget);
+    }
+    for (final title in openings) {
+      expect(find.text(title, skipOffstage: false), findsOneWidget);
+    }
+    expect(find.textContaining('à actualiser avec une connexion'),
+        findsNothing);
+  });
+
+  testWidgets('protected Passport projection remains visible offline', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final personal = await _seed(database);
+    await personal.store.putProjection(
+      kind: 'personal.me.passport',
+      resourceKey: 'variant=complete', schemaVersion: 1,
+      payload: {
+        'variant': 'complete',
+        'identity': {
+          'name': 'Profil hors ligne',
+          'profession': 'Développeur',
+          'bio': 'Une présentation connue',
+          'avatar_url': '',
+          'links': const [],
+        },
+        'private_details': {'language': 'Français'},
+        'declared': {
+          'interests': [
+            {'topic': {'label': 'Culture'}},
+            {'topic': {'label': 'Design'}},
+          ],
+          'open_to': [
+            {'label': 'Collaborer'},
+          ],
+        },
+        'activities': const [],
+        'established': {'proofs': const []},
+        'issued': {'credentials': const []},
+      },
+    );
+    await tester.pumpWidget(MaterialApp(home: MePassportScreen(
+      api: _OfflineApi(), personal: personal,
+    )));
+    await tester.pumpAndSettle();
+    expect(find.text('Profil hors ligne'), findsOneWidget);
+    expect(find.text('Développeur'), findsOneWidget);
+    expect(find.text('Culture'), findsOneWidget);
+    expect(find.text('Design'), findsOneWidget);
+    expect(find.text('Collaborer'), findsOneWidget);
+    expect(find.textContaining('Aperçu local de Moi'), findsNothing);
+    expect(tester.widget<IconButton>(
+      find.byTooltip('Exporter le Passeport en PDF'),
+    ).onPressed, isNull);
   });
 
   testWidgets('saved opportunities remain readable offline', (tester) async {
