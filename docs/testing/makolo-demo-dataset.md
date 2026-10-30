@@ -95,3 +95,18 @@ L'audit a date mesure les donnees existantes des parcours Jour J/Live, Access, S
 Credential Trust, Proof verifie, usage bancaire reel, versements Funding, scanner physique, veritable reponse de fournisseur, Operation externe, deliverabilite email/push, campagnes CRM, retention analytics, resolution Observer/Prospector et autres faits observes. Leurs tables peuvent rester vides tant qu'aucun fait source n'existe ; remplir ces modeles sans parcours canonique fabriquerait une fausse verite.
 
 Aucun changement de schema/migration n'est requis. Les nouvelles commandes doivent etre validees en SQLite locale avec un petit `--count` et les tests cibles avant 1000 ou 10000 operations.
+
+### Complements Jour J : placement et incidents
+
+`placement` cree des zones logiques par Occurrence active et des affectations aux beneficiaires de Journey via `assign_placement`. **Placement ne represente pas la Capacity** ; il n'ajoute aucun siege vendu ni aucun nouveau droit d'acces.
+
+`incidents` cree seulement des incidents explicitement synthetiques (marquage dans `metadata`) via `create_incident`, lorsque l'acteur possede l'autorite de gestion pertinente. Si les Mandates sont insuffisants, le rapport `incidents_no_authority_or_invalid` est attendu : pas de contournement.
+
+```powershell
+python -m scripts.demo_generation plan --domains placement,incidents --count 10
+python -m scripts.demo_generation plan --domains media,forms,crm,groups,objectives,trust,notifications,contributions --count 10
+```
+
+Les modules `media`, `engagement`, `community`, `live` et `audit` restent **internes** au dossier `scripts/demo_generation` ; tous les appels utilisateurs passent par la CLI unique.
+
+N'executer `generate` qu'apres un plan cible, et seulement sur SQLite de demo. La couverture `all` n'est pas une certification que les 338 tables reelles sont peuplees : elles contiennent aussi des projections, secrets, faits externes et tables d'infrastructure qu'il est dangereux de simuler par insertion directe.
