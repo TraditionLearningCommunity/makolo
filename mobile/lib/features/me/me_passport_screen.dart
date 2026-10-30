@@ -543,7 +543,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
         Text('À présenter', style: theme.textTheme.titleMedium),
         Wrap(spacing: 6, children: [
           for (final option in const [
-            ('bio', 'À propos'), ('profession', 'Profession'),
+            ('avatar', 'Photo'), ('bio', 'À propos'),
+            ('profession', 'Profession'),
             ('location', 'Localisation'), ('links', 'Liens'),
             ('interests', 'Intérêts'), ('open_to', 'Ouvert à'),
           ])
