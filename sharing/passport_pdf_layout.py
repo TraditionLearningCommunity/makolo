@@ -397,8 +397,13 @@ def render_passport_layout(payload, metadata, verify_url, *,
              Spacer(1, 18)]
     bio = _value(identity.get("bio"))
     if bio:
-        story.extend([KeepTogether([_heading("Présentation"), Spacer(1, 9),
-                                    _paragraph(bio, _style(10.1, 16))]),
+        # Paragraphs themselves are splittable. Do not wrap an arbitrarily long
+        # biography in KeepTogether or it can overflow an A4 frame.
+        heading = _heading("Présentation")
+        heading.keepWithNext = 1
+        gap = Spacer(1, 9)
+        gap.keepWithNext = 1
+        story.extend([heading, gap, _paragraph(bio, _style(10.1, 16)),
                       Spacer(1, 16)])
     owner = identity.get("owner_details") or {}
     if payload.get("variant") != "complete":
