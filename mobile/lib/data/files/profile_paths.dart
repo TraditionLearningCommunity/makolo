@@ -15,6 +15,14 @@ class ProfilePaths {
     return dir;
   }
 
+  /// A denial from the Profile owner revokes the locally retained portrait.
+  /// Connectivity failures must never call this removal.
+  static Future<void> removePortrait(String profileId) async {
+    final root = await privateRoot(profileId);
+    final portrait = File('${root.path}/passport-avatar.jpg');
+    if (await portrait.exists()) await portrait.delete();
+  }
+
   static Future<Directory> privateFiles(String profileId) async {
     final root = await privateRoot(profileId);
     final dir = Directory('${root.path}/files');
