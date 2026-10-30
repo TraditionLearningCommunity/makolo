@@ -63,6 +63,22 @@ class NowScreen extends StatefulWidget {
   }
 }
 
+/// Continuation facts belong to one observed Now response, never to a
+/// globally inferred role or a different Profile.
+bool nowContinuationMatchesRoot(
+  StoredProjection root,
+  Map<String, dynamic> continuation,
+) {
+  final actor = root.payload['actor'];
+  final actorId = actor is Map ? actor['id']?.toString() : null;
+  return actorId != null &&
+      continuation['actor_id'] == actorId &&
+      continuation['base_received_at'] ==
+          root.receivedAt.toUtc().toIso8601String() &&
+      continuation['items'] is List &&
+      continuation['continuation'] is Map;
+}
+
 class _NowScreenState extends State<NowScreen> {
   late Stream<StoredProjection?> _projectionStream;
   late Stream<OwnerSourceState> _sourceStream;
@@ -84,11 +100,7 @@ class _NowScreenState extends State<NowScreen> {
       final owner = root.payload['actor'];
       final actorId = owner is Map ? owner['id']?.toString() : null;
       final facts = local.payload;
-      if (actorId == null ||
-          facts['actor_id'] != actorId ||
-          facts['base_received_at'] != root.receivedAt.toUtc().toIso8601String() ||
-          facts['items'] is! List ||
-          facts['continuation'] is! Map) {
+      if (!nowContinuationMatchesRoot(root, facts)) {
         return;
       }
       final restored = <Map<String, dynamic>>[];
