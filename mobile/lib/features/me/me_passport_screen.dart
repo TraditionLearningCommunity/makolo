@@ -173,12 +173,16 @@ class _MePassportScreenState extends State<MePassportScreen> {
         throw const FormatException('Outdated or invalid Passport variant');
       }
       if (widget.personal != null) {
-        await widget.personal!.store.putProjection(
-          kind: 'personal.me.passport',
-          resourceKey: resourceKey,
-          schemaVersion: 1,
-          payload: data,
-        );
+        try {
+          await widget.personal!.store.putProjection(
+            kind: 'personal.me.passport',
+            resourceKey: resourceKey,
+            schemaVersion: 1,
+            payload: data,
+          );
+        } on Object {
+          // Local persistence failure must not hide a valid online Passport.
+        }
       }
       if (mounted) setState(() {
         _onlineReady = true;
