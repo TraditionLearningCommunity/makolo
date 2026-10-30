@@ -112,8 +112,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         final source = await widget.repository.readSource(
           widget.repository.itemsSource(restored),
         );
-        if (known != null && !source.ownerUnavailable &&
-            mounted && identical(_query, initial)) {
+        if (known != null &&
+            !source.ownerUnavailable &&
+            source.lastErrorCode != 'continuation_rejected' &&
+            mounted &&
+            identical(_query, initial)) {
           setState(() => _query = restored);
         }
       }
@@ -187,7 +190,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       );
       if (!mounted || !identical(current, _query)) return;
       if (source.lastErrorCode == 'continuation_rejected') {
-        setState(() => _query = current.copyWith(page: 1));
+        await widget.repository.store.deleteProjection(
+          _positionProjection,
+          resourceKey: const DiscoveryQuery().mapFingerprint,
+        );
+        if (mounted && identical(current, _query)) {
+          setState(() => _query = const DiscoveryQuery());
+        }
       }
       await widget.repository.refreshItems(_query);
       unawaited(_prefetchNext(_query));
