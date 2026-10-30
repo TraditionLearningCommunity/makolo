@@ -26,7 +26,7 @@ class RetainedRecognitionImage extends StatefulWidget {
   });
 
   final MakoloApiClient api;
-  final String profileId;
+  final String? profileId;
   final String path;
   final String alt;
   final Widget placeholder;
@@ -44,9 +44,11 @@ class _RetainedRecognitionImageState extends State<RetainedRecognitionImage> {
   Uint8List? _bytes;
   int _generation = 0;
 
-  ProfileRecognitionImageStore get _store =>
+  ProfileRecognitionImageStore? get _store =>
       widget.storeOverride ??
-      ProfileRecognitionImageStore(profileId: widget.profileId);
+      (widget.profileId == null
+          ? null
+          : ProfileRecognitionImageStore(profileId: widget.profileId!));
 
   @override
   void initState() {
@@ -79,7 +81,7 @@ class _RetainedRecognitionImageState extends State<RetainedRecognitionImage> {
     }
 
     try {
-      final local = await store.read(path);
+      final local = await store?.read(path);
       if (mounted && generation == _generation && local != null) {
         setState(() => _bytes = local);
       }
@@ -97,7 +99,7 @@ class _RetainedRecognitionImageState extends State<RetainedRecognitionImage> {
       }
       if (!mounted || generation != _generation) return;
       try {
-        await store.save(path, fresh);
+        await store?.save(path, fresh);
       } on Object {
         // A received image remains visible if device persistence fails.
       }
@@ -107,7 +109,7 @@ class _RetainedRecognitionImageState extends State<RetainedRecognitionImage> {
     } on MakoloApiError catch (error) {
       if (error.statusCode == 403 || error.statusCode == 404) {
         try {
-          await store.remove(path);
+          await store?.remove(path);
         } on Object {
           // The active presentation is still revoked.
         }
