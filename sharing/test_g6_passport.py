@@ -289,6 +289,29 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertNotContains(response, "Credential Trust")
 
 
+
+    def test_public_pdf_issues_one_snapshot_without_private_profile_fields(self):
+        from io import BytesIO
+
+        from pypdf import PdfReader
+        from sharing.models import PassportSnapshot
+
+        response = self.client.get(self.public_url, {"pdf": "1"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(PassportSnapshot.objects.count(), 1)
+        text = "\n".join(
+            page.extract_text()
+            for page in PdfReader(BytesIO(response.content)).pages
+        )
+        self.assertIn("PASSEPORT MAKOLO", text)
+        self.assertIn("Atelier Python G6", text)
+        self.assertNotIn("Atelier santé privé G6", text)
+        self.assertNotIn("Adresse privée G6", text)
+        self.assertNotIn(self.amina.phone, text)
+        self.assertNotIn("Informations personnelles".upper(), text)
+
 class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
     def setUp(self):
         self.build_fixture()
@@ -314,6 +337,27 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
         allowed = self.client.get(self.url, {"variant": "complete"})
         self.assertEqual(allowed.status_code, 200)
         self.assertContains(allowed, "Réunion interne privée G6")
+
+    def test_public_space_pdf_keeps_public_only_content_and_qr(self):
+        from io import BytesIO
+
+        from pypdf import PdfReader
+        from sharing.models import PassportSnapshot
+
+        response = self.client.get(self.url, {"pdf": "1"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        snapshot = PassportSnapshot.objects.get()
+        content = "\n".join(
+            page.extract_text()
+            for page in PdfReader(BytesIO(response.content)).pages
+        )
+        self.assertIn("ESPACE", content)
+        self.assertIn("Conférence IA Lubumbashi 2026", content)
+        self.assertNotIn("Réunion interne privée G6", content)
+        self.assertNotIn(self.space.contact_email, content)
+        self.assertNotIn(self.space.contact_phone, content)
+        self.assertIn(snapshot.document_id, content)
 
     def test_non_public_space_is_hidden_from_anonymous_users(self):
         self.space.public_profile = False
