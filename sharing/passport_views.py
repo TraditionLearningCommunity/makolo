@@ -46,7 +46,9 @@ class PassportViewMixin(TemplateView):
 
     def get_variant(self):
         variant = self.request.GET.get("variant", self.default_variant)
-        return variant if variant in PASSPORT_VARIANTS else self.default_variant
+        if variant not in PASSPORT_VARIANTS:
+            raise Http404("Variante du Passeport inconnue.")
+        return variant
 
     def is_private_authorized(self):
         raise NotImplementedError
@@ -103,8 +105,7 @@ class PassportViewMixin(TemplateView):
         show_selection_catalog = (
             self.private_authorized
             and self.variant == PASSPORT_CUSTOM
-            and not self.has_custom_selection()
-            and self.request.GET.get("download") != "1"
+            and not any(self.request.GET.get(mode) == "1" for mode in ("download", "document", "pdf"))
         )
         is_pdf = self.request.GET.get("pdf") == "1"
         is_export = self.request.GET.get("download") == "1"
@@ -143,6 +144,10 @@ class PassportViewMixin(TemplateView):
                 "topic_options": self.get_topic_options() if self.private_authorized else (),
                 "selection_catalog": self.get_selection_catalog() if show_selection_catalog else None,
                 "selected_topic_codes": set(self.request.GET.getlist("topic")),
+                "selected_sections": set(self.request.GET.getlist("include")),
+                "selected_activity_ids": set(self.request.GET.getlist("activity")),
+                "selected_proof_ids": set(self.request.GET.getlist("proof")),
+                "selected_credential_ids": set(self.request.GET.getlist("credential")),
                 "download_url": self.get_download_url(),
                 "print_url": self.get_print_url(),
                 "pdf_url": self._document_url("pdf"),
@@ -157,12 +162,33 @@ class PassportViewMixin(TemplateView):
                 "passport_qr_data_uri": qr_data_uri,
             }
         )
+        # Display owner-only coordinates on both /passport/me/ and the canonical
+        # /<identifier>/ route when the authenticated person is the subject.
+        if (projection.subject_kind == "profile" and self.variant == PASSPORT_COMPLETE
+                and self.private_authorized and not is_document
+                and self.request.user.is_authenticated
+                and self.request.user.pk == self.subject.pk):
+            details = projection.identity.get("owner_details", {})
+            labels = (
+                ("Prénom", "first_name"), ("Nom", "last_name"),
+                ("Identifiant Makolo", "username"), ("Entreprise", "company"),
+                ("Organisation", "organization"), ("Ville", "city"),
+                ("Pays", "country"), ("Langue", "language"),
+                ("Téléphone", "phone"), ("Adresse", "address"),
+                ("Date de naissance", "birth_date"), ("Genre", "gender"),
+            )
+            context["owner_details"] = [
+                (label, details[key]) for label, key in labels if details.get(key)
+            ]
         return context
 
     def render_to_response(self, context, **response_kwargs):
         if self.request.GET.get("pdf") == "1":
             return passport_pdf_response(self.request, context["projection"])
         response = super().render_to_response(context, **response_kwargs)
+        # Private owner views and personalized representations must not be
+        # cached or served to a subsequent viewer by shared intermediaries.
+        response["Cache-Control"] = "private, no-store"
         if self.request.GET.get("download") == "1":
             slug = self.projection_filename_slug(context["projection"])
             response["Content-Disposition"] = f'attachment; filename="passeport-makolo-{slug}.html"'
@@ -209,24 +235,6 @@ class MyPassportView(LoginRequiredMixin, ProfilePassportView):
     def get_subject(self):
         return self.request.user
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Personal coordinates are owner-only; never added to PassportProjection
-        # (which also powers public and shareable representations).
-        if self.variant == PASSPORT_COMPLETE and not context["is_document"]:
-            details = context["projection"].identity.get("owner_details", {})
-            labels = (
-                ("Prénom", "first_name"), ("Nom", "last_name"),
-                ("Identifiant Makolo", "username"), ("Entreprise", "company"),
-                ("Organisation", "organization"), ("Ville", "city"),
-                ("Pays", "country"), ("Langue", "language"),
-                ("Téléphone", "phone"), ("Adresse", "address"),
-                ("Date de naissance", "birth_date"), ("Genre", "gender"),
-            )
-            context["owner_details"] = [
-                (label, details[key]) for label, key in labels if details.get(key)
-            ]
-        return context
 
 
 class SpacePassportView(PassportViewMixin):
@@ -281,7 +289,12 @@ class PublicPassportIdentifierView(PassportViewMixin):
         return subject
 
     def is_private_authorized(self):
-        return False
+        viewer = self.request.user
+        if not viewer.is_authenticated:
+            return False
+        if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
+            return viewer.pk == self.subject.pk
+        return user_can_access_organization_workspace(viewer, self.subject)
 
     def subject_is_public(self):
         if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
@@ -289,9 +302,21 @@ class PublicPassportIdentifierView(PassportViewMixin):
         return space_has_public_passport(self.subject)
 
     def build_projection(self, variant):
+        # Reuse the exact subject-bound selection and admission rules of the
+        # explicit routes, never elevate permissions through an identifier.
         if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
-            return build_profile_passport(self.subject, variant=PASSPORT_PUBLIC)
-        return build_space_passport(self.subject, variant=PASSPORT_PUBLIC)
+            return ProfilePassportView.build_projection(self, variant)
+        return SpacePassportView.build_projection(self, variant)
+
+    def get_selection_catalog(self):
+        if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
+            return ProfilePassportView.get_selection_catalog(self)
+        return SpacePassportView.get_selection_catalog(self)
+
+    def get_topic_options(self):
+        if self.identifier_record.subject_kind == PublicSubjectKind.PROFILE:
+            return ProfilePassportView.get_topic_options(self)
+        return SpacePassportView.get_topic_options(self)
 
 
 class PassportVerificationView(TemplateView):
