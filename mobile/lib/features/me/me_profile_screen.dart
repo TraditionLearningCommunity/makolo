@@ -45,8 +45,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   final _organization = TextEditingController();
   final _language = TextEditingController();
   final _address = TextEditingController();
-  bool _publicProfile = false;
-  bool _searchable = false;
+  bool _publicProfile = true;
+  bool _searchable = true;
   MakoloCountry? _selectedCountry;
   bool _countryHasUnselectedInput = false;
 
@@ -83,8 +83,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         'organization_name', 'address',
       ])
         key: fields[key]?.toString() ?? '',
-      'public_profile': fields['public_profile'] == true,
-      'searchable': fields['searchable'] == true,
+      'public_profile': fields['public_profile'] != false,
+      'searchable': fields['searchable'] != false,
     };
   }
 
@@ -110,8 +110,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     _organization.text = value('organization_name');
     _language.text = value('language');
     _address.text = value('address');
-    _publicProfile = editor['public_profile'] == true;
-    _searchable = editor['searchable'] == true;
+    _publicProfile = editor['public_profile'] != false;
+    _searchable = editor['searchable'] != false;
     _loading = false;
     _loaded = true;
   }
@@ -542,6 +542,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Visible dans la recherche'),
+                  subtitle: const Text('Être proposé dans la recherche Makolo, indépendamment de l’accès direct au Passeport'),
                   value: _searchable,
                   onChanged: _saving ? null : (value) =>
                       setState(() {
