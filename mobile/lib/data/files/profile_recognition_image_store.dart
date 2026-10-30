@@ -20,6 +20,8 @@ class ProfileRecognitionImageStore {
   final Directory? rootOverride;
 
   static const int maxImageBytes = 8 * 1024 * 1024;
+  static const int maxRetainedImages = 10;
+  static const int maxRetainedBytes = 32 * 1024 * 1024;
 
   static String keyFor(String path) {
     var hash = 0xcbf29ce484222325;
@@ -61,10 +63,33 @@ class ProfileRecognitionImageStore {
     final partial = File('${destination.path}.part');
     try {
       await partial.writeAsBytes(bytes, flush: true);
+      if (await destination.exists()) await destination.delete();
       await partial.rename(destination.path);
+      await _prune(destination.parent);
     } on Object {
       if (await partial.exists()) await partial.delete();
       rethrow;
+    }
+  }
+
+  Future<void> _prune(Directory directory) async {
+    final files = await directory
+        .list()
+        .where((entry) => entry is File && entry.path.endsWith('.image'))
+        .cast<File>()
+        .toList();
+    final entries = <(File, FileStat)>[];
+    for (final file in files) {
+      entries.add((file, await file.stat()));
+    }
+    entries.sort((a, b) => b.$2.modified.compareTo(a.$2.modified));
+    var bytes = 0;
+    for (var i = 0; i < entries.length; i++) {
+      final (file, stat) = entries[i];
+      bytes += stat.size;
+      if (i >= maxRetainedImages || bytes > maxRetainedBytes) {
+        await file.delete();
+      }
     }
   }
 
