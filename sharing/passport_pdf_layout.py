@@ -418,6 +418,10 @@ def _details_grid(details):
         ("LINEAFTER", (0, 0), (0, -1), 3, colors.white),
         ("LINEBELOW", (0, 0), (-1, -2), .5, colors.white),
     ]))
+    if len(details) % 2:
+        # Avoid the empty right-hand box when only one fact is available.
+        table.setStyle(TableStyle([("SPAN", (0, len(rows) - 1),
+                                  (1, len(rows) - 1))]))
     return table
 
 
