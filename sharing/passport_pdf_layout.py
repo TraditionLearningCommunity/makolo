@@ -125,15 +125,76 @@ def _blend(a, b, fraction):
 
 
 class PassportHero(Flowable):
-    """Paper equivalent of Makolo's violet identity card."""
+    """A single scannable identity block: portrait / identity / verification QR.
 
-    def __init__(self, identity, metadata, portrait_bytes):
+    The QR has a white quiet-zone, never sits directly on the violet ink, and
+    is issued for the exact document described in the final metadata block.
+    """
+
+    def __init__(self, identity, metadata, portrait_bytes, qr_png):
         super().__init__()
         self.identity, self.meta = identity, metadata
         self.portrait = _portrait(portrait_bytes)
-        name_length = len(_value(identity.get("name")))
+        self.qr_image = ImageReader(BytesIO(qr_png))
         self.width = CONTENT_WIDTH
-        self.height = 150 if name_length <= 45 else (185 if name_length <= 90 else 215)
+        self.photo_size = 102
+        self.qr_box = 102
+        self.qr_x = self.width - self.qr_box - 21
+        self.text_x = 142
+        self.text_width = self.qr_x - self.text_x - 14
+
+        name = _value(identity.get("name")) or "Passeport Makolo"
+        kind = str(metadata.get("kind", ""))
+        private = identity.get("owner_details") or {}
+        if metadata.get("variant_code") != "complete":
+            private = {}
+        profile = kind == "Profil personnel"
+        profession = _value(identity.get("profession") or identity.get("headline"))
+        self.lines = []
+        if profession:
+            self.lines.append((profession, 10.0, HexColor("#F5F0FF")))
+        elif kind == "Espace":
+            self.lines.append(("Espace Makolo", 10.0, HexColor("#F5F0FF")))
+
+        location = _value(identity.get("location"))
+        if location:
+            self.lines.append((
+                ", ".join(_country(item.strip())
+                          for item in location.split(",") if item.strip()),
+                9.0, HexColor("#E4DCFC"),
+            ))
+        # Other personal coordinates are not publicly inferred or shown.
+        if profile and private:
+            descriptors = [
+                _value(private.get("gender")),
+                _value(private.get("language")),
+            ]
+            descriptors = [item for item in descriptors if item]
+            if descriptors:
+                self.lines.append((" · ".join(descriptors), 9.0,
+                                   HexColor("#E4DCFC")))
+
+        name_size = 19
+        for candidate in (19, 18, 16, 14):
+            name_paragraph = _paragraph(
+                name, _style(candidate, candidate * 1.24,
+                             bold=True, color=colors.white),
+            )
+            _, name_height = name_paragraph.wrap(self.text_width, 1200)
+            if name_height <= 66 or candidate == 14:
+                name_size = candidate
+                break
+        self.name_paragraph = name_paragraph
+        self.name_height = name_height
+        self.line_paragraphs = []
+        line_heights = 0
+        for label, size, color in self.lines:
+            p = _paragraph(label, _style(size, size * 1.38, color=color))
+            _, ph = p.wrap(self.text_width, 1200)
+            self.line_paragraphs.append((p, ph))
+            line_heights += ph + 4
+        self.height = max(168, self.name_height + line_heights + 77)
+        self.height = min(440, self.height)
 
     def draw(self):
         c, w, h = self.canv, self.width, self.height
@@ -145,52 +206,60 @@ class PassportHero(Flowable):
             c.setFillColor(_blend(VIOLET, DEEP, i / 47))
             c.rect(w * i / 48, 0, w / 48 + 1, h, stroke=0, fill=1)
         c.restoreState()
-        c.setFont(BOLD, 8.7)
-        c.setFillColor(HexColor("#DCCEFF"))
-        c.drawRightString(w - 23, h - 27, "MAKOLO")
-        c.setFont(FONT, 7.8)
-        c.drawString(139, h - 26, (
-            self.meta["kind"] + "  ·  " + self.meta["variant"]
-        ).upper())
+
+        photo_y = (h - self.photo_size) / 2
         if self.portrait:
-            c.drawImage(self.portrait, 23, (h - 96) / 2, 96, 96, mask="auto")
+            c.drawImage(self.portrait, 23, photo_y,
+                        self.photo_size, self.photo_size, mask="auto")
         else:
             c.setFillColor(HexColor("#F0EBFD"))
-            c.roundRect(23, (h - 96) / 2, 96, 96, 12, stroke=0, fill=1)
+            c.roundRect(23, photo_y, self.photo_size, self.photo_size,
+                        12, stroke=0, fill=1)
             name = _value(self.identity.get("name"))
-            initials = "".join(x[0] for x in name.split()[:2]).upper() or "M"
+            initials = "".join(item[0] for item in name.split()[:2]).upper() or "M"
             c.setFillColor(DEEP)
-            c.setFont(BOLD, 26)
-            c.drawCentredString(71, (h - 96) / 2 + 34, initials)
-        start, width = 139, w - 159
-        name_size = 20 if self.height == 150 else (17 if self.height == 185 else 15)
-        name = _paragraph(self.identity.get("name") or "Passeport Makolo",
-                          _style(name_size, name_size * 1.3,
-                                 bold=True, color=colors.white))
-        _, height = name.wrap(width, h - 75)
-        name.drawOn(c, start, h - 47 - height)
-        headline = _value(self.identity.get("profession") or self.identity.get("headline"))
-        if self.meta["kind"] == "Espace" and not headline:
-            headline = "Espace Makolo"
-        y = h - 56 - height
-        if headline:
-            line = _paragraph(headline, _style(10.4, 15, color=HexColor("#EFEAFF")))
-            _, line_height = line.wrap(width, 34)
-            line.drawOn(c, start, y - line_height)
-            y -= line_height + 4
-        location = _value(self.identity.get("location"))
-        if location:
-            readable = ", ".join(
-                _country(x.strip()) for x in location.split(",") if x.strip()
+            c.setFont(BOLD, 25)
+            c.drawCentredString(23 + self.photo_size / 2,
+                                photo_y + self.photo_size / 2 - 8, initials)
+
+        # Identity stays to the left of the QR, never under it.
+        c.setFillColor(HexColor("#DBCEFD"))
+        c.setFont(BOLD, 7.4)
+        descriptor = (str(self.meta.get("kind", "")) + " · " +
+                      str(self.meta.get("variant", ""))).upper()
+        # Avoid drawing long metadata over the QR area.
+        if pdfmetrics.stringWidth(descriptor, BOLD, 7.4) > self.text_width:
+            descriptor = str(self.meta.get("kind", "")).upper()
+        c.drawString(self.text_x, h - 24, descriptor)
+        y = h - 42
+        self.name_paragraph.drawOn(c, self.text_x, y - self.name_height)
+        y -= self.name_height + 9
+        for paragraph, height in self.line_paragraphs:
+            paragraph.drawOn(c, self.text_x, y - height)
+            y -= height + 4
+
+        identifier = _value(self.meta.get("identifier"))
+        if identifier:
+            line = _paragraph(
+                "@" + identifier.lstrip("@"),
+                _style(8.6, 12, color=HexColor("#E5DDFC")),
             )
-            line = _paragraph(readable, _style(9, 13, color=HexColor("#DACEFD")))
-            _, line_height = line.wrap(width, 30)
-            line.drawOn(c, start, y - line_height)
-        handle = _value(self.meta.get("identifier"))
-        if handle:
-            c.setFillColor(HexColor("#E3D9FF"))
-            c.setFont(FONT, 8.6)
-            c.drawString(start, 19, "@" + handle.lstrip("@"))
+            _, line_height = line.wrap(self.text_width, 1200)
+            line.drawOn(c, self.text_x, max(12, min(21, y - line_height)))
+
+        # A true QR needs a quiet white margin and sufficient print size.
+        qr_y = (h - self.qr_box) / 2 + 9
+        c.setFillColor(colors.white)
+        c.roundRect(self.qr_x, qr_y, self.qr_box, self.qr_box,
+                    9, fill=1, stroke=0)
+        inset = 6
+        c.drawImage(self.qr_image, self.qr_x + inset, qr_y + inset,
+                    self.qr_box - 2 * inset, self.qr_box - 2 * inset,
+                    preserveAspectRatio=True, anchor="c", mask="auto")
+        c.setFont(BOLD, 7.2)
+        c.setFillColor(HexColor("#EDE7FF"))
+        c.drawCentredString(self.qr_x + self.qr_box / 2, qr_y - 14,
+                            "VÉRIFIER")
 
 
 class TagFlow(Flowable):
@@ -369,38 +438,58 @@ def _fact_row(title, note=""):
     return table
 
 
-def _verification(metadata, verify_url, qr_png):
+def _verification(metadata, verify_url):
+    """Compact issuance details, without a second QR.
+
+    Readers scan the QR in the identity block; the clickable domain here is
+    another way to reach that exact signed verification URL.
+    """
     domain = urlsplit(verify_url).netloc
-    details = [
-        _paragraph("VÉRIFIER CE DOCUMENT",
-                   _style(10.6, 14, bold=True, color=DEEP)),
-        Spacer(1, 4),
-        _paragraph("Document  ·  " + metadata["document_id"],
-                   _style(9.3, 13, bold=True)),
-        _paragraph("Émis le  ·  " + metadata["issued_at"],
-                   _style(8.5, 13, color=MUTED)),
-        _paragraph("Variante  ·  " + metadata["variant"],
-                   _style(8.5, 13, color=MUTED)),
-        Spacer(1, 4),
-        Paragraph(
-            '<link href="' + escape(verify_url, {'"': '&quot;'}) +
-            '" color="#5232DB">' + escape(domain) + "</link>",
-            _style(8.6, 13, bold=True, color=VIOLET),
-        ),
+    href = escape(verify_url, {'"': '&quot;'})
+    domain_link = Paragraph(
+        '<link href="' + href + '" color="#5232DB">' +
+        escape(domain) + "</link>",
+        _style(9.0, 13.5, bold=True, color=VIOLET),
+    )
+    title = _paragraph("VÉRIFIER CE DOCUMENT",
+                       _style(10.5, 15, bold=True, color=DEEP))
+    values = [
+        [
+            [_paragraph("Document", _style(8.4, 12, color=MUTED)),
+             _paragraph(metadata["document_id"],
+                        _style(9, 13.5, bold=True))],
+            [_paragraph("Émis le", _style(8.4, 12, color=MUTED)),
+             _paragraph(metadata["issued_at"], _style(9, 13.5))],
+        ],
+        [
+            [_paragraph("Variante", _style(8.4, 12, color=MUTED)),
+             _paragraph(metadata["variant"], _style(9, 13.5, bold=True))],
+            [_paragraph("Domaine d’émission",
+                        _style(8.4, 12, color=MUTED)), domain_link],
+        ],
     ]
-    qr = PDFImage(BytesIO(qr_png), width=83, height=83)
-    table = Table([[qr, details]], colWidths=[100, CONTENT_WIDTH - 100],
+    details = Table(values, colWidths=[CONTENT_WIDTH / 2 - 14] * 2,
+                    hAlign="LEFT")
+    details.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    panel = Table([[title], [details]], colWidths=[CONTENT_WIDTH],
                   hAlign="LEFT")
-    table.setStyle(TableStyle([
+    panel.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), .75, BORDER),
         ("BACKGROUND", (0, 0), (-1, -1), WARM),
-        ("LEFTPADDING", (0, 0), (-1, -1), 13),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 13),
-        ("TOPPADDING", (0, 0), (-1, -1), 12),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 14),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+        ("TOPPADDING", (0, 0), (0, 0), 12),
+        ("BOTTOMPADDING", (0, 0), (0, 0), 2),
+        ("TOPPADDING", (0, 1), (0, 1), 1),
+        ("BOTTOMPADDING", (0, 1), (0, 1), 10),
     ]))
-    return table
+    return panel
 
 
 def render_passport_layout(payload, metadata, verify_url, *,
@@ -414,7 +503,7 @@ def render_passport_layout(payload, metadata, verify_url, *,
         qr_png = stream.getvalue()
     identity = payload.get("identity") or {}
     kind = "Profil personnel" if payload.get("subject_kind") == "profile" else "Espace"
-    metadata = {**metadata, "kind": kind}
+    metadata = {**metadata, "kind": kind, "variant_code": payload.get("variant")}
     output = BytesIO()
     document = SimpleDocTemplate(
         output, pagesize=A4, leftMargin=MARGIN, rightMargin=MARGIN,
@@ -422,7 +511,7 @@ def render_passport_layout(payload, metadata, verify_url, *,
         _value(identity.get("name")), author="Makolo",
         subject="Document de présentation Makolo", pageCompression=1,
     )
-    story = [Spacer(1, 5), PassportHero(identity, metadata, portrait_bytes),
+    story = [Spacer(1, 5), PassportHero(identity, metadata, portrait_bytes, qr_png),
              Spacer(1, 18)]
     bio = _value(identity.get("bio"))
     if bio:
@@ -536,7 +625,7 @@ def render_passport_layout(payload, metadata, verify_url, *,
                                     rows[0]])])
         last_title = title
         last_rows = rows[1:]
-    verification = _verification(metadata, verify_url, qr_png)
+    verification = _verification(metadata, verify_url)
     note = _paragraph(
         "Document de présentation émis par Makolo. La vérification confirme "
         "son émission et son intégrité, sans certifier les informations déclarées.",
