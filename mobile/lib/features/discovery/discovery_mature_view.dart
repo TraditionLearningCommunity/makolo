@@ -593,7 +593,8 @@ class _DiscoveryMedia extends StatelessWidget {
         (resolved.scheme == 'https' || resolved.scheme == 'http')) {
       // Only public first-party images are retained automatically. An
       // external URL keeps its existing non-persistent presentation.
-      child = baseUri != null && resolved.origin == baseUri.origin
+      final mediaBaseUri = baseUri;
+      child = mediaBaseUri != null && resolved.origin == mediaBaseUri.origin
           ? RetainedPublicDiscoveryImage(
               url: resolved,
               placeholder: MakoloMediaPlaceholder(
