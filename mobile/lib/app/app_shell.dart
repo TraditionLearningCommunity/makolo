@@ -260,6 +260,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             avatarLetter: avatarLetter,
             avatarUrl: validAvatar ? resolvedAvatar.toString() : null,
             avatarProfileId: widget.runtime.personal?.store.profileId,
+            avatarApi: widget.runtime.api,
+            avatarRevision: snapshot.data?.receivedAt,
             profileUsername: profileUsername is String ? profileUsername : null,
             hasConversationAttention: _hasConversationAttention == true,
             hasUnreadNotifications: _hasUnreadNotifications == true,
