@@ -35,7 +35,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
   bool _exporting = false;
   bool _onlineReady = false;
   int _loadEpoch = 0;
-  Map<String, dynamic>? _localIdentity;
   Map<String, dynamic>? _cachedPassport;
   String? _cachedVariantKey;
   Uint8List? _cachedAvatar;
@@ -44,25 +43,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
   @override
   void initState() {
     super.initState();
-    _restoreIdentity();
     _restorePassport();
     _future = _load();
-  }
-
-  Future<void> _restoreIdentity() async {
-    final personal = widget.personal;
-    if (personal == null) return;
-    try {
-      final local = MeLocalPreview.forProfile(
-        await personal.store.readProjection('personal.me'),
-        personal.store.profileId,
-      );
-      if (mounted && local?.identity != null) {
-        setState(() => _localIdentity = local!.identity);
-      }
-    } on Object {
-      // No locally authorized identity: retain the explicit unavailable state.
-    }
   }
 
   String _passportStorageKey() {
@@ -455,10 +437,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
     });
   }
 
-  Widget _localPassportSummary(BuildContext context, {bool refreshing = false}) {
-    return const SizedBox.expand();
-  }
-
   Widget _options(Map<String, dynamic> data) {
     final source = _full ?? data;
     final topics = _rows(source['topic_options']);
@@ -581,7 +559,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
         final exact = futureData != null && futureData['variant'] == _variant
             ? futureData : null;
         if (stored == null && exact == null) {
-          return _localPassportSummary(context);
+          return const SizedBox.expand();
         }
         final data = stored ?? exact!;
         return ListView(
