@@ -205,10 +205,15 @@ class SyncEngine {
             ),
           );
     });
-    // Unlike a timeout, an explicit root owner denial must withdraw any
-    // previously retained recognition media associated with this Profile.
+    // A root owner denial revokes its derived continuation too. A network
+    // failure never reaches this branch and therefore preserves it.
+    if (source.projectionKind == 'personal.now') {
+      await store.deleteProjection('personal.now.continuation');
+    }
+    // Unlike a timeout, explicit owner denial withdraws recognition media.
     if (source.projectionKind == 'personal.me' ||
-        source.projectionKind == 'personal.ongoing') {
+        source.projectionKind == 'personal.ongoing' ||
+        source.projectionKind == 'personal.now') {
       try {
         await ProfileRecognitionImageStore(profileId: profileId).purge();
       } on Object {
