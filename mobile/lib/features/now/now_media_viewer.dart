@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../network/makolo_api_client.dart';
 import '../../data/files/profile_paths.dart';
+import '../../data/files/profile_recognition_image_store.dart';
 import '../../platform/media/private_media_views.dart';
 import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
@@ -161,11 +162,34 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       file = File(
         '${dir.path}/now-${DateTime.now().microsecondsSinceEpoch}.${nowMediaExtension(widget.media)}',
       );
-      await widget.api.download(
-        path,
-        destinationPath: file.path,
-        cancel: _cancel,
-      );
+      // Published recognition photos already seen in Now remain readable
+      // without a server. Private Journey files never enter this store.
+      final published = widget.media.kind == NowMediaKind.image &&
+          widget.media.purpose == NowMediaPurpose.recognize &&
+          widget.media.resourceRef.startsWith('presentation_media_use:') &&
+          profile != null;
+      final recognition = published
+          ? ProfileRecognitionImageStore(profileId: profile)
+          : null;
+      final mediaKey = '/$path';
+      final local = await recognition?.read(mediaKey);
+      if (local != null) {
+        await file.writeAsBytes(local, flush: true);
+      } else {
+        await widget.api.download(
+          path,
+          destinationPath: file.path,
+          cancel: _cancel,
+        );
+        if (recognition != null && await file.length() <=
+            ProfileRecognitionImageStore.maxImageBytes) {
+          try {
+            await recognition.save(mediaKey, await file.readAsBytes());
+          } on Object {
+            // Filesystem quota failures never suppress an acquired photo.
+          }
+        }
+      }
       if (!mounted) {
         await file.delete();
         return;
