@@ -447,6 +447,11 @@ class DiscoveryRepository {
     const selector = DiscoverySelector();
     final source = await readSource(itemsSource(query));
     if (source.ownerUnavailable) return null;
+    // A revoked first-page field cannot be resurrected by a derived window,
+    // even if a later cursor still has locally cached rows.
+    final rootQuery = query.copyWith(page: 1, clearContinuation: true);
+    final rootSource = await readSource(itemsSource(rootQuery));
+    if (rootSource.ownerUnavailable) return null;
     final window = await store.readProjection(
       presentedWindowKind,
       resourceKey: query.mapFingerprint,
