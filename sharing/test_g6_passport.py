@@ -423,7 +423,7 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
         content = "\n".join(
             page.extract_text() for page in PdfReader(BytesIO(response.content)).pages
         )
-        self.assertIn("Attestations émises", content)
+        self.assertIn("Attestations émises".upper(), content)
         self.assertNotIn("Credential privé de Patrick G6", content)
 
     def test_public_space_pdf_keeps_public_only_content_and_qr(self):
