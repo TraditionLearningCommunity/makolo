@@ -627,14 +627,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       appBar: AppBar(title: const Text('Rechercher')),
       body: Column(
         children: [
-          Flexible(
-            fit: FlexFit.loose,
-            child: SingleChildScrollView(
-              key: const Key('discover-search-controls-scroll'),
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-              child: _searchControls(),
-            ),
-          ),
+          _searchControls(),
           Expanded(
             child: Builder(
               builder: (context) {
