@@ -27,9 +27,7 @@ class MePassportScreen extends StatefulWidget {
 class _MePassportScreenState extends State<MePassportScreen> {
   String _variant = 'complete';
   String? _topic;
-  final Set<String> _sections = {
-    'bio', 'links', 'location', 'profession', 'interests', 'open_to',
-  };
+  final Set<String> _sections = {};
   Set<String> _activities = {}, _proofs = {}, _credentials = {};
   Map<String, dynamic>? _full;
   bool _exporting = false;
@@ -293,11 +291,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
       }
       if (requestedVariant == 'complete') {
         _full = data;
-        if (_activities.isEmpty && _proofs.isEmpty && _credentials.isEmpty) {
-          _activities = _ids(data['activities']);
-          _proofs = _ids(_map(data['established'])['proofs']);
-          _credentials = _ids(_map(data['issued'])['credentials']);
-        }
+        // The complete Passport supplies the selection catalog, but never
+        // silently selects private facts for a personalized export.
       }
       // Media belongs to the profile and is stored separately from projections.
       _persistAvatar(data);
@@ -432,9 +427,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
           ListTile(
             leading: const Icon(Icons.picture_as_pdf_outlined),
             title: const Text('Partager le PDF'),
-            subtitle: _variant == 'complete'
-                ? const Text('Contient des informations personnelles')
-                : null,
+            subtitle: _variant == 'public'
+                ? const Text('Document de présentation public')
+                : const Text(
+                    'Le PDF peut révéler des informations privées. '
+                    'Vérifiez les éléments avant de partager.',
+                  ),
             onTap: () => Navigator.pop(context, 'pdf'),
           ),
           if (canShareLink) ...[
