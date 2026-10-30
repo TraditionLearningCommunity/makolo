@@ -645,7 +645,23 @@ def render_passport_layout(payload, metadata, verify_url, *,
             story.extend([line, Spacer(1, 5)])
         story.append(Spacer(1, 10))
     groups = [
-        ("Activités", [
+        ("Équipes et Espaces", [
+            (_value(row.get("team")), _value(row.get("space")) + " · Appartenance à l’équipe")
+            for row in payload.get("team_affiliations") or []
+        ]),
+        ("Mandats actifs", [
+            (_value(row.get("role")), _value(row.get("space")) + " · Autorité en cours")
+            for row in payload.get("active_space_mandates") or []
+        ]),
+        ("Équipes de l’Espace", [
+            (_value(name), "")
+            for name in payload.get("space_teams") or []
+        ]),
+        ("Attestations émises", [
+            (_value(row.get("label")), str(row.get("count", 0)) + " attestation(s) valides")
+            for row in payload.get("credential_summary") or []
+        ]),
+        ("Activités portées", [
             (_value(row.get("title")), _value(row.get("status")))
             for row in payload.get("activities") or []
         ]),
@@ -655,7 +671,7 @@ def render_passport_layout(payload, metadata, verify_url, *,
                  _value(row.get("issued_at"))) if x))
             for row in payload.get("proofs") or []
         ]),
-        ("Attestations délivrées", [
+        ("Attestations reçues", [
             (_value(row.get("title")),
              " · ".join(x for x in (_value(row.get("issuer")),
                  _value(row.get("status")), _value(row.get("issued_at"))) if x))
