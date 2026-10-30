@@ -39,27 +39,32 @@ void main() {
       expect(routes, contains("path: '/discover/map'"));
     },
   );
-  test('Profile reuses guest filters without requiring location', () {
-    final source = File('lib/features/discovery/discovery_screens.dart')
+  test('guest and Profile compose the same Discovery filter controls', () {
+    final personal = File('lib/features/discovery/discovery_screens.dart')
+        .readAsStringSync();
+    final guest = File('lib/features/guest/guest_screen.dart')
+        .readAsStringSync();
+    final shared = File('lib/presentation/fields/discovery_filter_fields.dart')
         .readAsStringSync();
     final routes = File('lib/features/discovery/discovery_routes.dart')
         .readAsStringSync();
-    final start = source.indexOf('class _DiscoverySearchScreenState');
-    final end = source.indexOf('class DiscoveryMapScreen', start);
-    final search = source.substring(start, end);
 
-    expect(search, contains('ProgressiveSearchCoordinator('));
-    expect(search, contains('SearchFilterBar('));
-    expect(search, contains('GeoAutocompleteField('));
-    expect(search, contains("Key('discover-search-nearby')"));
-    expect(search, contains('clearLocation: true'));
-    expect(search, contains('onChanged: _searchChanged'));
-    expect(search, contains("Key('discover-search-categories')"));
-    expect(search, contains("Key('discover-search-when')"));
-    expect(search, contains("Key('discover-search-price')"));
-    expect(search, contains('if (_query.latitude != null)'));
+    expect(personal, contains('DiscoveryFilterFields('));
+    expect(guest, contains('DiscoveryFilterFields('));
+    expect(personal, contains('DiscoveryCategoryChips('));
+    expect(guest, contains('DiscoveryCategoryChips('));
+    expect(personal, isNot(contains('GeoAutocompleteField(')));
+    expect(guest, isNot(contains('GeoAutocompleteField(')));
+    expect(shared, contains('GeoAutocompleteField('));
+    expect(shared, contains('DropdownButtonFormField<String>('));
+    expect(shared, contains('onWhenChanged'));
+    expect(shared, contains('onPriceChanged'));
+    expect(shared, contains('onChooseDate'));
+    expect(shared, contains('onPlaceSelected'));
+    expect(personal, contains('ProgressiveSearchCoordinator('));
+    expect(personal, contains("Key('discover-search-nearby')"));
+    expect(personal, contains('clearLocation: true'));
     expect(routes, contains('geoSearch: runtime.geoSearch'));
     expect(routes, contains('location: runtime.location'));
-    expect(source, contains('class DiscoveryMapScreen'));
   });
 }
