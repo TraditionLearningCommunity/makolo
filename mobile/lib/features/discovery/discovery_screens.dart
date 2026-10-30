@@ -293,6 +293,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
+  bool _filtersExpanded = false;
 
   @override
   void initState() {
@@ -453,6 +454,20 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     widget.onOpenItem(item.family, item.id);
   }
 
+  void _clearFilters() {
+    _place.clear();
+    setState(() {
+      _selectedPlace = null;
+      _when = '';
+      _date = '';
+      _price = '';
+      _vertical = '';
+      _locationMessage = null;
+      _query = _query.copyWith(clearLocation: true, clearContinuation: true);
+    });
+    _applyCriteria();
+  }
+
   void _resetCriteria() {
     _searchCoordinator.invalidate();
     _search.clear();
@@ -478,12 +493,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     return MakoloReachabilityCue.unknown;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Rechercher')),
-      body: Column(
-        children: [
+  Widget _searchControls() => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
               MakoloSpacing.inner,
@@ -494,6 +506,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
             child: SearchFilterBar(
               filterButtonKey: const Key('discover-search-filter-toggle'),
               filterPanelKey: const Key('discover-search-filter-panel'),
+              showResultsAction: true,
+              onClearFilters: _clearFilters,
+              onExpansionChanged: (value) => setState(() => _filtersExpanded = value),
               hasActiveFilters: _place.text.trim().isNotEmpty ||
                   _when.isNotEmpty || _date.isNotEmpty ||
                   _price.isNotEmpty || _query.latitude != null,
@@ -574,6 +589,26 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               _applyCriteria();
             },
           ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Rechercher')),
+      body: Column(
+        children: [
+          if (_filtersExpanded)
+            Flexible(
+              fit: FlexFit.loose,
+              child: SingleChildScrollView(
+                key: const Key('discover-search-controls-scroll'),
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+                child: _searchControls(),
+              ),
+            )
+          else
+            _searchControls(),
           Expanded(
             child: Builder(
               builder: (context) {
