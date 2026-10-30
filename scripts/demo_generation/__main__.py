@@ -9,7 +9,7 @@ import argparse
 
 VERTICALS=("opportunities","services","obtention","funding")
 CROSS=("journeys","access","operations","scanner","commerce")
-COMMUNITY=("groups","objectives","notifications","trust")
+COMMUNITY=("groups","objectives","notifications","trust","contributions")
 ENGAGEMENT=("forms","crm")
 DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain!="content")
