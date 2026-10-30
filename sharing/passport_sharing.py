@@ -1,7 +1,9 @@
 """Passport issuance is not Sharing. A grant refers to one issued document."""
 from datetime import timedelta
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.urls import reverse
 from django.db import transaction
 from django.utils import timezone
 
@@ -16,7 +18,7 @@ from .models import (
 from .passport_documents import snapshot_payload_is_intact
 from .services import (
     ShareUnavailable, _attach_link, _create_envelope, resolve_share_link,
-    revoke_share_link, share_public_url,
+    revoke_share_link,
 )
 
 
@@ -61,7 +63,10 @@ def create_passport_share(*, snapshot, actor, days=7):
         idempotency_suffix="created",
         channel="passport_issued_link",
     )
-    return envelope, share_public_url(raw_token)
+    return envelope, (
+        f"{settings.MAKOLO_PUBLIC_BASE_URL}"
+        f"{reverse('sharing:passport-shared', kwargs={'token': raw_token})}"
+    )
 
 
 def resolve_passport_share(token):
