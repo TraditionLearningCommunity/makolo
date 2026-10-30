@@ -78,9 +78,13 @@ class SyncEngine {
   }
 
   Future<void> refreshRoots() async {
-    for (final root in roots) {
-      await refreshSource(_rootSource(root));
-    }
+    // These Profile projections are independent owners. A slow Now request
+    // must not delay the first Ongoing and Me snapshots (or vice versa).
+    // Wait for every root to settle before handing the session back to the
+    // lifecycle; each successful snapshot is still applied transactionally.
+    await Future.wait([
+      for (final root in roots) refreshSource(_rootSource(root)),
+    ]);
     await refreshSource(_interoperabilitySource);
   }
 
