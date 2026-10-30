@@ -286,6 +286,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   static const _selector = DiscoverySelector();
   final _search = TextEditingController();
   final _place = TextEditingController();
+  final _filterRevision = ValueNotifier<int>(0);
   GeoSuggestion? _selectedPlace;
   String _when = '';
   String _date = '';
@@ -307,10 +308,12 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     _searchCoordinator.dispose();
     _search.dispose();
     _place.dispose();
+    _filterRevision.dispose();
     super.dispose();
   }
 
   void _applyCriteria({bool immediate = true}) {
+    _filterRevision.value++;
     _searchChanged(_search.text, immediate: immediate);
   }
 
@@ -550,7 +553,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                     ),
             ),
           ),
-          filters: DiscoveryFilterFields(
+          filters: const SizedBox.shrink(),
+          filtersRefresh: _filterRevision,
+          filtersBuilder: (_) => DiscoveryFilterFields(
             keyPrefix: 'discover-search',
             placeController: _place,
             geoSearch: widget.geoSearch,
