@@ -357,44 +357,29 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final name = identity?['display_name']?.toString();
     final bio = identity?['bio']?.toString();
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
       children: [
-        Text(
-          identity == null
-              ? 'Passeport non encore disponible sur cet appareil.'
-              : 'Aperçu local de Moi. Le Passeport détaillé et ses variantes '
-                  'nécessitent une actualisation du serveur.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        if (name != null && name.trim().isNotEmpty) ...[
-          const SizedBox(height: 20),
+        if (name != null && name.trim().isNotEmpty)
           Text(name, style: Theme.of(context).textTheme.headlineSmall),
-        ],
         if (bio != null && bio.trim().isNotEmpty) ...[
           const SizedBox(height: 12),
           Text(bio),
         ],
-        const SizedBox(height: 20),
-        if (refreshing) ...[
-          const LinearProgressIndicator(minHeight: 2),
-          const SizedBox(height: 12),
-          const Text('Actualisation du Passeport en cours…'),
-        ],
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: refreshing ? null : () => setState(() {
-              _onlineReady = false;
-              _future = _load();
-            }),
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Réessayer'),
+        if (identity == null && !refreshing)
+          const Text('Passeport indisponible.'),
+        if (refreshing) const LinearProgressIndicator(minHeight: 2),
+        if (!refreshing)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              tooltip: 'Actualiser',
+              onPressed: () => setState(() {
+                _onlineReady = false;
+                _future = _load();
+              }),
+              icon: const Icon(Icons.refresh_rounded),
+            ),
           ),
-        ),
-        const Text(
-          'L’export PDF et le partage sont indisponibles sans confirmation '
-          'du serveur.',
-        ),
       ],
     );
   }
