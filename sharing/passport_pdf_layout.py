@@ -274,13 +274,36 @@ class NumberedCanvas(canvas_module.Canvas):
         canvas_module.Canvas.save(self)
 
 
+def _brand_mark(canvas, x, y, size=19):
+    """Use the existing first-party Mark geometry; never invent a substitute logo."""
+    try:
+        from core.branding import _load_mark_geometry
+
+        (width, height), points = _load_mark_geometry()
+        scale = min(size / width, size / height)
+        offset_x = x + (size - width * scale) / 2
+        offset_y = y + (size - height * scale) / 2
+        shape = canvas.beginPath()
+        for index, (px, py) in enumerate(points):
+            xx, yy = offset_x + px * scale, offset_y + (height - py) * scale
+            if index == 0:
+                shape.moveTo(xx, yy)
+            else:
+                shape.lineTo(xx, yy)
+        shape.close()
+        canvas.drawPath(shape, stroke=0, fill=1)
+    except (FileNotFoundError, OSError, ValueError):
+        # Mark asset absent in a development install: typography stays useful.
+        canvas.roundRect(x + 5, y + 1, 7, size - 2, 3, stroke=0, fill=1)
+
+
 def _page_header(canvas, doc):
     canvas.saveState()
     canvas.setFillColor(VIOLET)
-    canvas.roundRect(MARGIN, A4[1] - 51, 7, 17, 3, stroke=0, fill=1)
+    _brand_mark(canvas, MARGIN, A4[1] - 54)
     canvas.setFillColor(DEEP)
     canvas.setFont(BOLD, 12)
-    canvas.drawString(MARGIN + 17, A4[1] - 45, "PASSEPORT MAKOLO")
+    canvas.drawString(MARGIN + 26, A4[1] - 45, "PASSEPORT MAKOLO")
     canvas.setFont(FONT, 8)
     canvas.setFillColor(MUTED)
     canvas.drawRightString(A4[0] - MARGIN, A4[1] - 44,
