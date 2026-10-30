@@ -186,6 +186,9 @@ void main() {
     expect(tester.widget<IconButton>(
       find.byTooltip('Exporter le Passeport en PDF'),
     ).onPressed, isNull);
+    expect(tester.widget<IconButton>(
+      find.byTooltip('Versions datées'),
+    ).onPressed, isNull);
   });
 
   testWidgets('saved Activity opens its known local title without loading loop', (
