@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import '../../design/makolo_theme.dart';
 import '../../network/makolo_api_client.dart';
+import '../../network/api_error.dart';
 import '../../sync/projection_contract.dart';
 import '../../repositories/personal_repository.dart';
 import 'me_local_preview.dart';
@@ -45,6 +46,25 @@ class _MePassportScreenState extends State<MePassportScreen> {
     super.initState();
     _restorePassport();
     _future = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant MePassportScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.personal?.store.profileId !=
+            widget.personal?.store.profileId ||
+        oldWidget.api != widget.api) {
+      ++_loadEpoch;
+      _variant = 'complete';
+      _topic = null;
+      _full = null;
+      _cachedAvatar = null;
+      _cachedPassport = null;
+      _cachedVariantKey = null;
+      _onlineReady = false;
+      _restorePassport();
+      _future = _load();
+    }
   }
 
   String _passportStorageKey() {
@@ -269,9 +289,30 @@ class _MePassportScreenState extends State<MePassportScreen> {
       // Media belongs to the profile and is stored separately from projections.
       _persistAvatar(data);
       return data;
-    } on Object {
+    } on Object catch (error) {
       if (epoch != _loadEpoch || requestedVariant != _variant ||
           resourceKey != _passportStorageKey()) rethrow;
+      // Owner policy failures differ from connectivity loss. Do not retain
+      // an explicitly revoked document as an apparently valid local depth.
+      if (error is MakoloApiError &&
+          (error.statusCode == 403 || error.statusCode == 404)) {
+        if (widget.personal != null) {
+          try {
+            await widget.personal!.store.deleteProjection(
+              'personal.me.passport', resourceKey: resourceKey,
+            );
+          } on Object {
+            // The revoked document is still removed from the active view.
+          }
+        }
+        if (mounted) setState(() {
+          _cachedPassport = null;
+          _cachedVariantKey = null;
+          _onlineReady = false;
+          _future = Future.value({'variant': 'unavailable'});
+        });
+        rethrow;
+      }
       final local = widget.personal == null ? null :
           await widget.personal!.store.readProjection(
             'personal.me.passport', resourceKey: resourceKey,
