@@ -1,0 +1,51 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Versions datées · Passeport Makolo</title>
+  <style>
+    :root{--violet:#5232DB;--deep:#2B176E;--ink:#0F172A;--paper:#FAF7F5;--muted:#64748B}
+    *{box-sizing:border-box}body{background:var(--paper);font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--ink);margin:0}
+    .wrap{max-width:850px;padding:36px 22px;margin:auto}.brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--deep)}
+    .brand img{width:30px;height:30px}h1{margin:24px 0 8px;font-size:clamp(25px,4vw,38px)}.muted{color:var(--muted)}
+    .card{background:white;border:1px solid #e7e3ee;border-radius:18px;padding:20px;margin:15px 0}
+    .entry{display:flex;justify-content:space-between;align-items:start;gap:22px;flex-wrap:wrap}
+    .id{font-weight:800;overflow-wrap:anywhere}.date{color:var(--muted);margin:8px 0}.link{color:var(--violet);font-weight:750}
+    a{color:var(--violet)}.nav{display:flex;gap:16px;margin:23px 0}.pagination{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:26px 0}
+    .state{color:var(--muted);font-size:13px}.revoked{color:#991B1B}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand"><img src="{% static 'brand/makolo-mark-ink.svg' %}" alt=""><span>Makolo · Passeport</span></div>
+  <h1>Versions datées</h1>
+  <p class="muted">{{ history_subject_name }} · Documents effectivement émis. Le Passeport actuel continue de vivre indépendamment de ces versions.</p>
+  <div class="nav"><a href="{{ current_passport_url }}">Voir le Passeport actuel</a></div>
+  {% for entry in history_rows %}
+    <article class="card">
+      <div class="entry">
+        <div>
+          <div class="id">{{ entry.snapshot.document_id }}</div>
+          <div class="date">Émis le {{ entry.snapshot.generated_at|date:"d/m/Y à H:i" }}</div>
+          <div class="state">Variante : {{ entry.snapshot.get_variant_display|default:entry.snapshot.variant }}</div>
+          {% if entry.snapshot.is_revoked %}<div class="state revoked">Document révoqué</div>{% endif %}
+        </div>
+        <a class="link" href="{{ entry.url }}">Ouvrir cette version</a>
+      </div>
+    </article>
+  {% empty %}
+    <div class="card"><strong>Aucune version datée pour le moment.</strong><p class="muted">L'export d'un Passeport crée une version qui pourra être retrouvée ici.</p></div>
+  {% endfor %}
+  {% if history_page.has_other_pages %}
+  <nav class="pagination" aria-label="Pages de l'historique">
+    {% if history_page.has_previous %}<a href="?page={{ history_page.previous_page_number }}">Précédent</a>{% endif %}
+    <span class="muted">Page {{ history_page.number }} / {{ history_page.paginator.num_pages }}</span>
+    {% if history_page.has_next %}<a href="?page={{ history_page.next_page_number }}">Suivant</a>{% endif %}
+  </nav>
+  {% endif %}
+  <p class="muted">Un lien de vérification renvoie à une émission datée précise ; il ne certifie pas les informations déclarées. Les versions privées demeurent réservées aux personnes autorisées.</p>
+</main>
+</body>
+</html>
