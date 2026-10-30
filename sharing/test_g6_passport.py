@@ -619,6 +619,62 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertFalse(limited.context["can_view_dated_passport"])
         self.assertNotContains(limited, "Équipe historique confidentielle")
 
+    def test_private_space_issuance_can_be_shared_without_publication(self):
+        from urllib.parse import urlsplit
+        from unittest.mock import patch
+        from sharing.models import PassportSnapshot, PassportShareSubject
+
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile", "updated_at"])
+        self.client.force_login(self.space_owner)
+        issue = self.client.get(
+            self.url, {"variant": "custom", "include": "bio", "document": "1"},
+        )
+        self.assertEqual(issue.status_code, 200)
+        snapshot = issue.context["passport_snapshot"]
+        self.assertFalse(snapshot.public_at_issue)
+        self.assertEqual(PassportSnapshot.objects.filter(space=self.space).count(), 1)
+
+        path = reverse(
+            "sharing:passport-share-create",
+            kwargs={"snapshot_id": snapshot.pk},
+        )
+        with patch(
+            "sharing.passport_sharing.user_can_manage_organization",
+            return_value=False,
+        ):
+            restricted = self.client.post(path, {"days": "7"})
+        self.assertEqual(restricted.status_code, 404)
+
+        granted = self.client.post(path, {"days": "7"})
+        self.assertEqual(granted.status_code, 200)
+        self.assertEqual(PassportSnapshot.objects.filter(space=self.space).count(), 1)
+        share_path = urlsplit(granted.context["share_url"]).path
+        grant = PassportShareSubject.objects.get(snapshot=snapshot)
+
+        self.client.logout()
+        verify = self.client.get(issue.context["passport_verification_url"])
+        self.assertFalse(verify.context["can_view_dated_passport"])
+        shared = self.client.get(share_path)
+        self.assertEqual(shared.status_code, 200)
+        self.assertContains(shared, "Espace public G6")
+        self.assertNotContains(shared, self.space.contact_email)
+        self.assertNotContains(shared, self.space.contact_phone)
+
+        self.space.public_profile = True
+        self.space.save(update_fields=["public_profile", "updated_at"])
+        still_private = self.client.get(issue.context["passport_verification_url"])
+        self.assertFalse(still_private.context["can_view_dated_passport"])
+        self.assertEqual(self.client.get(share_path).status_code, 200)
+
+        self.client.force_login(self.space_owner)
+        self.client.post(reverse(
+            "sharing:passport-share-revoke",
+            kwargs={"share_id": grant.envelope_id},
+        ))
+        self.client.logout()
+        self.assertEqual(self.client.get(share_path).status_code, 404)
+
     def test_public_space_pdf_contains_issued_attestation_summary(self):
         from io import BytesIO
         from pypdf import PdfReader
