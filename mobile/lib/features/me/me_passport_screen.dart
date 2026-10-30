@@ -747,11 +747,33 @@ class _PassportBody extends StatelessWidget {
       _section(context, 'Ouvert à', _rows(declared['open_to']),
           (row) => _text(row['label'])),
       _section(context, 'Activités portées', _rows(data['activities']),
-          (row) => _text(row['title'])),
+          (row) {
+            final title = _text(row['title']);
+            final status = _text(row['status_label']);
+            return title == null ? null : [
+              title, if (status != null) status,
+            ].join(' · ');
+          }),
       _section(context, 'Faits établis', _rows(established['proofs']),
-          (row) => _text(row['proof_type_label'])),
+          (row) {
+            final type = _text(row['proof_type_label']);
+            final activity = _text(_map(row['activity'])['title']);
+            return type == null ? null : [
+              type, if (activity != null) activity,
+            ].join(' · ');
+          }),
       _section(context, 'Attestations reçues', _rows(issued['credentials']),
-          (row) => _text(row['title'])),
+          (row) {
+            final title = _text(row['title']);
+            final issuer = _map(row['issuer']);
+            final issuerName = _text(issuer['name']) ??
+                _text(issuer['display_name']);
+            final status = _text(row['status_label']);
+            return title == null ? null : [
+              title, if (issuerName != null) 'Délivrée par $issuerName',
+              if (status != null) status,
+            ].join(' · ');
+          }),
       _section(context, 'Équipes et Espaces',
           _rows(collectives['team_affiliations']),
           (row) {
