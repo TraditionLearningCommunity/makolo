@@ -77,6 +77,10 @@ void main() {
     expect(await a.read(imagePath), orderedEquals(imageBytes));
     await a.remove(imagePath);
     expect(await a.read(imagePath), isNull);
+    await a.save(imagePath, imageBytes);
+    await a.purge();
+    expect(await a.read(imagePath), isNull);
+    expect(await b.read(imagePath), isNull);
   });
 
   test('empty recognition bytes cannot overwrite a durable file', () async {
