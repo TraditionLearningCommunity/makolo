@@ -458,6 +458,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
                 const SizedBox(height: 5),
                 Text(version['document_id']?.toString() ?? '',
                   style: Theme.of(context).textTheme.bodySmall),
+                if (version['revoked'] == true)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Version révoquée · archive personnelle uniquement',
+                    ),
+                  ),
                 const SizedBox(height: 16),
                 _PassportBody(data: readOnly, baseUri: widget.api.baseUri),
               ],
@@ -556,7 +563,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
                             final intact = row['integrity_ok'] == true;
                             return ListTile(
                               leading: Icon(revoked
-                                  ? Icons.history_toggle_off_outlined
+                                  ? Icons.history_toggle_off
                                   : Icons.history_outlined),
                               title: Text(row['document_id']?.toString() ?? ''),
                               subtitle: Text(
