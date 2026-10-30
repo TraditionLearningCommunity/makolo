@@ -9,6 +9,8 @@ class SearchFilterBar extends StatelessWidget {
     super.key,
     required this.searchField,
     required this.filters,
+    this.filtersBuilder,
+    this.filtersRefresh,
     required this.filterButtonKey,
     required this.filterPanelKey,
     this.hasActiveFilters = false,
@@ -19,6 +21,9 @@ class SearchFilterBar extends StatelessWidget {
 
   final Widget searchField;
   final Widget filters;
+  /// Rebuilds modal filters when the owner's criteria change while open.
+  final WidgetBuilder? filtersBuilder;
+  final Listenable? filtersRefresh;
   final Key filterButtonKey;
   final Key filterPanelKey;
   final bool hasActiveFilters;
@@ -88,7 +93,13 @@ class SearchFilterBar extends StatelessWidget {
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(MakoloSpacing.md),
-                          child: filters,
+                          child: filtersRefresh == null
+                              ? (filtersBuilder?.call(sheetContext) ?? filters)
+                              : ListenableBuilder(
+                                  listenable: filtersRefresh!,
+                                  builder: (context, _) =>
+                                      filtersBuilder?.call(context) ?? filters,
+                                ),
                         ),
                       ),
                     ),
