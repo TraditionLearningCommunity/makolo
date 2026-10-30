@@ -598,7 +598,7 @@ class _DiscoveryMedia extends StatelessWidget {
       // external URL keeps its existing non-persistent presentation.
       child = baseUri != null && resolved!.origin == baseUri!.origin
           ? RetainedPublicDiscoveryImage(
-              url: resolved,
+              url: resolved!,
               placeholder: MakoloMediaPlaceholder(
                 label: item.eyebrow ?? 'Média indisponible',
               ),
