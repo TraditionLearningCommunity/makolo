@@ -197,6 +197,8 @@ class DiscoveryRepository {
   });
 
   static const itemsProjectionKind = 'discovery.items';
+  static const presentedWindowKind = 'discovery.presented-window';
+  static const int maxPresentedWindowItems = 50;
   static const itemProjectionKind = 'discovery.item';
   static const mapProjectionKind = 'discovery.map';
   static const activityProjectionKind = 'activity.detail';
@@ -354,6 +356,76 @@ class DiscoveryRepository {
     );
   }
 
+  /// Bounded, derived presentation window. Each item is an unchanged server
+  /// wire fact; the client only drops older Discover rows, never ranks them.
+  StoredProjection? _presentedProjection(
+    DiscoveryQuery query,
+    StoredProjection window,
+  ) {
+    final payload = window.payload;
+    final field = payload['field'];
+    if (field is! Map<String, dynamic>) return null;
+    final actor = field['viewer'];
+    if (actor is Map && actor['id'] != profileId) return null;
+    return StoredProjection(
+      kind: itemsProjectionKind,
+      resourceKey: query.fingerprint,
+      schemaVersion: 1,
+      payload: field,
+      receivedAt: window.receivedAt,
+      sourceGeneratedAt: window.sourceGeneratedAt,
+      sourceUpdatedAt: window.sourceUpdatedAt,
+      lastVerifiedOnlineAt: window.lastVerifiedOnlineAt,
+      freshUntil: window.freshUntil,
+      expiresAt: window.expiresAt,
+      freshnessPolicyId: window.freshnessPolicyId,
+    );
+  }
+
+  /// Store only the last fifty presented Discover candidates. A fresh
+  /// continuation can compose with this window even after older transport
+  /// pages have been dropped. The initial server page is always retained.
+  Future<void> retainPresentedWindow(DiscoveryQuery query) async {
+    if (query.page < 2) return;
+    final projection = await readItems(query);
+    if (projection == null) return;
+    const selector = DiscoverySelector();
+    final collection = selector.collection(projection);
+    if (collection.page != query.page) return;
+    final rows = collection.items;
+    final bounded = rows.skip(
+      rows.length > maxPresentedWindowItems
+          ? rows.length - maxPresentedWindowItems
+          : 0,
+    ).map((item) => item.wire).toList(growable: false);
+    final previous = await store.readProjection(
+      presentedWindowKind,
+      resourceKey: query.mapFingerprint,
+    );
+    final wire = Map<String, dynamic>.from(collection.wire)
+      ..['results'] = bounded
+      ..['items'] = bounded;
+    await store.putProjection(
+      kind: presentedWindowKind,
+      resourceKey: query.mapFingerprint,
+      schemaVersion: 1,
+      payload: {
+        'page': query.page,
+        'fingerprint': query.fingerprint,
+        'field': wire,
+      },
+    );
+    final oldPage = previous?.payload['page'];
+    final oldKey = previous?.payload['fingerprint'];
+    if (oldPage is int &&
+        oldPage > 1 &&
+        oldPage < query.page &&
+        oldKey is String &&
+        oldKey != query.fingerprint) {
+      await store.deleteProjection(itemsProjectionKind, resourceKey: oldKey);
+    }
+  }
+
   /// A read-only logical field: each server page remains stored unchanged
   /// under its own criteria/cursor key. Presentation receives reconciled
   /// candidate identities, not a second persisted collection truth.
@@ -373,6 +445,46 @@ class DiscoveryRepository {
     StoredProjection? current,
   ) async {
     const selector = DiscoverySelector();
+    final source = await readSource(itemsSource(query));
+    if (source.ownerUnavailable) return null;
+    final window = await store.readProjection(
+      presentedWindowKind,
+      resourceKey: query.mapFingerprint,
+    );
+    final windowPage = window?.payload['page'];
+    if (window != null && windowPage is int) {
+      final retained = _presentedProjection(query, window);
+      if (retained != null) {
+        if (windowPage == query.page &&
+            window.payload['fingerprint'] == query.fingerprint &&
+            (current == null ||
+                !current.receivedAt.isAfter(window.receivedAt))) {
+          return retained;
+        }
+        if (windowPage == query.page - 1 && current != null) {
+          try {
+            final earlier = selector.collection(retained);
+            final incoming = selector.collection(current);
+            final composed = earlier.reconcile(incoming);
+            return StoredProjection(
+              kind: itemsProjectionKind,
+              resourceKey: query.fingerprint,
+              schemaVersion: current.schemaVersion,
+              payload: composed.wire,
+              receivedAt: current.receivedAt,
+              sourceGeneratedAt: current.sourceGeneratedAt,
+              sourceUpdatedAt: current.sourceUpdatedAt,
+              lastVerifiedOnlineAt: current.lastVerifiedOnlineAt,
+              freshUntil: current.freshUntil,
+              expiresAt: current.expiresAt,
+              freshnessPolicyId: current.freshnessPolicyId,
+            );
+          } on FormatException {
+            return current;
+          }
+        }
+      }
+    }
     DiscoveryCollectionPresentation? field;
     StoredProjection? last;
     var earlierQuery = query.copyWith(page: 1);
