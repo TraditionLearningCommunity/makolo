@@ -13,7 +13,7 @@ from django.views.generic import TemplateView
 from core.branding import render_makolo_qr_data_uri
 
 from organizations.models import Organization
-from organizations.permissions import user_can_access_organization_workspace, user_can_manage_organization_team
+from organizations.permissions import user_can_access_organization_workspace, user_can_manage_organization, user_can_manage_organization_team
 
 from .models import PassportSnapshot, PublicIdentifier, PublicSubjectKind
 from .passport_pdf import passport_pdf_response
@@ -443,13 +443,19 @@ class PassportHistoryBase(LoginRequiredMixin, TemplateView):
             current_url = reverse(
                 "sharing:passport-space", kwargs={"slug": subject.slug},
             )
-        page = Paginator(queryset.order_by("-generated_at", "-pk"), 20).get_page(
-            self.request.GET.get("page"),
-        )
+        page = Paginator(
+            queryset.prefetch_related(
+                "passport_share_subjects__envelope",
+            ).order_by("-generated_at", "-pk"), 20,
+        ).get_page(self.request.GET.get("page"))
         context.update({
             "history_subject_name": title,
             "current_passport_url": current_url,
             "history_page": page,
+            "can_share_issued_passport": (
+                isinstance(self, MyPassportHistoryView)
+                or user_can_manage_organization(self.request.user, subject)
+            ),
             "history_rows": [
                 {
                     "snapshot": row,
@@ -457,6 +463,21 @@ class PassportHistoryBase(LoginRequiredMixin, TemplateView):
                         "sharing:passport-verify",
                         kwargs={"token": passport_verification_token(row)},
                     ),
+                    "share_url": reverse(
+                        "sharing:passport-share-create",
+                        kwargs={"snapshot_id": row.pk},
+                    ),
+                    "share_grants": [
+                        {
+                            "envelope": grant.envelope,
+                            "revoke_url": reverse(
+                                "sharing:passport-share-revoke",
+                                kwargs={"share_id": grant.envelope_id},
+                            ),
+                        }
+                        for grant in row.passport_share_subjects.all()
+                        if grant.envelope.is_active_at()
+                    ],
                 }
                 for row in page.object_list
             ],
