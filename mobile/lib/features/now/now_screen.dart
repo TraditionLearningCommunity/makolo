@@ -560,6 +560,7 @@ class _NowField extends StatelessWidget {
     final theme = Theme.of(context);
 
     return ListView(
+      // A distinct gutter (rather than a line alone) separates Now units.
       key: const PageStorageKey<String>('now-field-scroll'),
       controller: controller,
       physics: const AlwaysScrollableScrollPhysics(),
@@ -592,7 +593,7 @@ class _NowField extends StatelessWidget {
           for (final item in secondary)
             Padding(
               key: ValueKey('now-unit-${item.identity}'),
-              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+              padding: const EdgeInsets.only(top: MakoloSpacing.md),
               child: _NowSituationUnit(
                 situation: item,
                 selected: selectedKey == _keyOf(item),
@@ -917,7 +918,7 @@ class _NowSituationUnit extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? theme.colorScheme.primary.withValues(alpha: 0.04)
-              : null,
+              : theme.colorScheme.surface,
           border: Border(
             bottom: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
