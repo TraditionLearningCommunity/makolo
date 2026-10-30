@@ -165,6 +165,41 @@ void main() {
     expect(controller.text, 'K');
   });
 
+
+  testWidgets('owner clear removes visible provider suggestions', (tester) async {
+    final gateway = _FakeGeoSearch();
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GeoAutocompleteField(
+            controller: controller,
+            gateway: gateway,
+            fieldKey: const Key('place'),
+          ),
+        ),
+      ),
+    );
+    await tester.enterText(find.byKey(const Key('place')), 'kinchassa');
+    await tester.pump(const Duration(milliseconds: 360));
+    gateway.requests.single.complete(const [
+      GeoSuggestion(
+        id: 'kinshasa',
+        label: 'Kinshasa, RD Congo',
+        latitude: -4.32,
+        longitude: 15.31,
+        source: 'maptiler',
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('geo-suggestions')), findsOneWidget);
+    controller.clear();
+    await tester.pump();
+    expect(find.byKey(const Key('geo-suggestions')), findsNothing);
+    expect(find.text('Kinshasa, RD Congo'), findsNothing);
+  });
+
   testWidgets('clear control resets manual place and notifies owner', (
     tester,
   ) async {
