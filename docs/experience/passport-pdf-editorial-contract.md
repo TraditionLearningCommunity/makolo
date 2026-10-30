@@ -33,6 +33,16 @@ Un QR vérifie **l'émission d'un document identifié**, non la véracité de to
 - Le QR renvoie à la vérification de **ce snapshot émis**, pas à un passeport public recomposé. Sur une installation locale, le domaine peut être 127.0.0.1 et ne pas être accessible depuis un autre appareil ; ne jamais inventer un domaine de production.
 - Couleurs Makolo #5232DB, #2B176E, #FAF7F5, encre #0F172A. Typographie Unicode embarquée lorsque disponible dans l'environnement, Helvetica de repli.
 
+## Composition du parcours (étape 3)
+
+Le Passeport combine l'identité et un parcours d'action fondé sur les faits existants : activités portées (publication ≠ réalisation), Proofs établis par Makolo, Credential Trust reçus d'un émetteur, vérifications admises, et attestations émises par l'Espace sous forme de résumé sans bénéficiaires.
+
+Le Passeport **complet** d'un Profil ajoute, depuis les domaines propriétaires, ses appartenances actives aux Équipes et ses Mandates Espace actifs, sous des rubriques distinctes : appartenance ≠ autorité. Les variantes public, thématique et personnalisée ne reçoivent pas ces relations internes automatiquement.
+
+Le Passeport complet d'un Espace peut présenter les noms de ses Équipes actives **seulement** si la personne consultante possède la permission de gestion des équipes de cet Espace. Un simple accès à l'Espace ne suffit pas. Les sorties Web, API personnelle/Flutter et PDF rendent uniquement les faits admis par la projection propriétaire ; le PDF n'infère aucune relation.
+
+Aucune nouvelle source de vérité, table, inférence de compétence, score ou CV RH générique n'est introduite.
+
 ## Confidentialité
 
 Le Passeport complet peut contenir des coordonnées privées, exclusivement lorsqu'il est généré pour son propriétaire ou une autorité explicitement autorisée. Les autres variantes n'héritent jamais de ces coordonnées ; aucune information n'est reprise implicitement d'un document, d'une preuve ou d'un Espace associé. Les projections de partage public et les autorisations de média restent propriétaires des décisions de divulgation.
