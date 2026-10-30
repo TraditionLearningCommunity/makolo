@@ -243,9 +243,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   title: 'Aucun historique à afficher',
                   body: 'Les expériences terminées apparaîtront ici.',
                 ),
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’historique…',
-                ),
+                initialLoading: const SizedBox.expand(),
                 onRetry: _refreshFirst,
                 content: Row(
                   children: [
@@ -304,28 +302,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Historique partiel. Résultats locaux puis '
-                                  'actualisation chez les propriétaires.',
-                                ),
-                              ),
-                              IconButton(
-                                tooltip:
-                                    'Rechercher dans tout l’historique visible',
-                                onPressed: _searching ? null : _remoteSearch,
-                                icon: const Icon(Icons.search),
-                              ),
-                            ],
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              tooltip: 'Rechercher dans l’historique',
+                              onPressed: _searching ? null : _remoteSearch,
+                              icon: const Icon(Icons.search),
+                            ),
                           ),
                           if (_searching) const LinearProgressIndicator(),
-                          if (_searchFailed)
-                            const Text(
-                              'Recherche distante indisponible. '
-                              'Les pages locales restent consultables.',
-                            ),
+
                           if (visible.isEmpty)
                             const Text(
                               'Aucun élément correspondant parmi les '
