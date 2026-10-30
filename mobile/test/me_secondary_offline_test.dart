@@ -227,6 +227,40 @@ void main() {
     expect(find.textContaining('indisponibles hors connexion'), findsNothing);
   });
 
+  testWidgets('saved list restores a persisted full owner collection offline', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final personal = await _seed(database);
+    await personal.store.putProjection(
+      kind: 'personal.me.preview',
+      resourceKey: 'considerations:bookmarks:known', schemaVersion: 1,
+      payload: {
+        'actor': {'type': 'profile', 'id': 'profile-a'},
+        'family': 'bookmarks',
+        'next_offset': 3,
+        'has_more': false,
+        'items': [
+          for (var i = 0; i < 3; i++)
+            {
+              'id': 'bookmark-$i',
+              'activity': {'id': 'a-$i', 'title': 'Activité conservée $i'},
+            },
+        ],
+      },
+    );
+    await tester.pumpWidget(MaterialApp(home: MeSavedScreen(
+      api: _OfflineApi(), personal: personal,
+      onOpen: (_) {}, onDiscover: () {},
+    )));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 3; i++) {
+      expect(find.text('Activité conservée $i'), findsOneWidget);
+    }
+    expect(find.textContaining('hors connexion'), findsNothing);
+  });
+
   testWidgets('passport never exposes private export from a local summary', (
     tester,
   ) async {
