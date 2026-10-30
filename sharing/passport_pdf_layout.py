@@ -131,9 +131,10 @@ class PassportHero(Flowable):
     is issued for the exact document described in the final metadata block.
     """
 
-    def __init__(self, identity, metadata, portrait_bytes, qr_png):
+    def __init__(self, identity, metadata, portrait_bytes, qr_png, verify_url):
         super().__init__()
         self.identity, self.meta = identity, metadata
+        self.verify_url = verify_url
         self.portrait = _portrait(portrait_bytes)
         self.qr_image = ImageReader(BytesIO(qr_png))
         self.width = CONTENT_WIDTH
@@ -256,6 +257,10 @@ class PassportHero(Flowable):
         c.drawImage(self.qr_image, self.qr_x + inset, qr_y + inset,
                     self.qr_box - 2 * inset, self.qr_box - 2 * inset,
                     preserveAspectRatio=True, anchor="c", mask="auto")
+        # Click-to-verify in PDF viewers, scan-to-verify on paper.
+        c.linkURL(self.verify_url,
+                  (self.qr_x, qr_y, self.qr_x + self.qr_box,
+                   qr_y + self.qr_box), relative=0)
         c.setFont(BOLD, 7.2)
         c.setFillColor(HexColor("#EDE7FF"))
         c.drawCentredString(self.qr_x + self.qr_box / 2, qr_y - 14,
@@ -554,7 +559,7 @@ def render_passport_layout(payload, metadata, verify_url, *,
         _value(identity.get("name")), author="Makolo",
         subject="Document de présentation Makolo", pageCompression=1,
     )
-    story = [Spacer(1, 5), PassportHero(identity, metadata, portrait_bytes, qr_png),
+    story = [Spacer(1, 5), PassportHero(identity, metadata, portrait_bytes, qr_png, verify_url),
              Spacer(1, 18)]
     bio = _value(identity.get("bio"))
     if bio:
