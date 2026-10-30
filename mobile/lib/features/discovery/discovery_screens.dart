@@ -12,6 +12,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../platform/location/location_capability.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
+import '../../presentation/search/progressive_search_coordinator.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../sync/freshness.dart';
 import '../../sync/sync_status.dart';
@@ -277,32 +278,77 @@ class DiscoverySearchScreen extends StatefulWidget {
 class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   static const _selector = DiscoverySelector();
   final _search = TextEditingController();
+  late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
   String? _locationMessage;
 
   @override
+  void initState() {
+    super.initState();
+    _searchCoordinator = ProgressiveSearchCoordinator(onSearch: _loadRevision);
+  }
+
+  @override
   void dispose() {
+    _searchCoordinator.dispose();
     _search.dispose();
     super.dispose();
   }
 
-  Future<void> _submit(String value) async {
-    final query = _query.copyWith(text: value, page: 1);
+  // Guest and personal search use the same debounced request scheduler.
+  // A newer intent cannot overwrite results or loading state from an older one.
+  void _searchChanged(String value, {bool immediate = false}) {
+    final query = _query.copyWith(
+      text: value.trim(),
+      page: 1,
+      clearContinuation: true,
+    );
     setState(() {
       _query = query;
-      _refreshing = true;
+      _refreshing = query.hasCriteria;
     });
+    if (!query.hasCriteria) {
+      _searchCoordinator.invalidate();
+      return;
+    }
+    _searchCoordinator.changed(immediate: immediate);
+  }
+
+  void _submit(String value) => _searchChanged(value, immediate: true);
+
+  Future<void> _loadRevision(int revision) async {
+    final query = _query;
+    if (!query.hasCriteria) return;
     try {
       await widget.repository.refreshItems(query);
     } on Object {
-      // Existing results remain visible when refresh fails.
+      // The owner source records its own failure; keep any matching cache.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && _searchCoordinator.isCurrent(revision)) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
+  void _clearLocation() {
+    final query = _query.copyWith(
+      page: 1,
+      clearContinuation: true,
+      clearLocation: true,
+    );
+    setState(() {
+      _query = query;
+      _locationMessage = null;
+    });
+    _searchChanged(_search.text, immediate: true);
+  }
+
   Future<void> _aroundMe() async {
+    if (_query.latitude != null && _query.longitude != null) {
+      _clearLocation();
+      return;
+    }
     final location = widget.location;
     if (location == null) {
       setState(
@@ -326,10 +372,11 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       longitude: result.fix!.longitude,
       radiusKm: 25,
       page: 1,
+      clearContinuation: true,
     );
     setState(() {
       _query = query;
-      _locationMessage = 'Recherche autour de votre position.';
+      _locationMessage = 'Recherche autour de votre position (25 km).';
     });
     await _submit(_search.text);
   }
@@ -379,6 +426,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   void _resetCriteria() {
+    _searchCoordinator.invalidate();
     _search.clear();
     setState(() {
       _query = const DiscoveryQuery();
@@ -415,16 +463,37 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               autoFocus: true,
               hintText: 'Rechercher une possibilité',
               leading: const Icon(Icons.search_rounded),
+              onChanged: _searchChanged,
               onSubmitted: _submit,
               trailing: [
                 IconButton(
-                  tooltip: 'Autour de moi',
+                  key: const Key('discover-location-toggle'),
+                  tooltip: _query.latitude != null
+                      ? 'Désactiver Autour de moi'
+                      : 'Rechercher autour de moi',
                   onPressed: _aroundMe,
-                  icon: const Icon(Icons.near_me_outlined),
+                  icon: Icon(_query.latitude != null
+                      ? Icons.location_off_outlined
+                      : Icons.near_me_outlined),
                 ),
               ],
             ),
           ),
+          if (_query.latitude != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: InputChip(
+                  key: const Key('discover-location-active'),
+                  label: const Text('Autour de moi · 25 km'),
+                  onDeleted: _clearLocation,
+                  deleteButtonTooltipMessage: 'Retirer la localisation',
+                ),
+              ),
+            ),
           if (_locationMessage != null)
             Padding(
               padding: const EdgeInsets.symmetric(
