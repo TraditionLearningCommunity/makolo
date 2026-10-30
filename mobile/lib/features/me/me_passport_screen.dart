@@ -825,23 +825,6 @@ class _PassportBody extends StatelessWidget {
     );
   }
 
-  Widget _stat(BuildContext context, String label, Object? value) {
-    final colors = Theme.of(context).colorScheme;
-    final count = value is int ? value : 0;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(100),
-        color: colors.primary.withValues(alpha: 0.07),
-      ),
-      child: Text('$label · $count',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: colors.onSurface,
-          fontWeight: FontWeight.w700,
-        )),
-    );
-  }
-
   Widget _section(BuildContext context, String title,
       List<Map<String, dynamic>> rows,
       String? Function(Map<String, dynamic>) label) {
@@ -853,7 +836,7 @@ class _PassportBody extends StatelessWidget {
     final isDeclared = isInterest || isOpening;
     final icon = isInterest ? Icons.interests_outlined
         : isOpening ? Icons.handshake_outlined
-        : title == 'Mes activités' ? Icons.event_available_outlined
+        : title == 'Activités portées' ? Icons.event_available_outlined
         : title == 'Faits établis' ? Icons.verified_outlined
         : Icons.workspace_premium_outlined;
     return Padding(
