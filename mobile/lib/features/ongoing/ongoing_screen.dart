@@ -572,27 +572,16 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
       return;
     }
     final title = (resource['title'] ?? 'Ressource').toString();
-    final text = resource['text_content'];
-    if (resource['kind'] == 'text' &&
-        text is String && text.trim().isNotEmpty) {
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(child: SelectableText(text)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Fermer'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+    final text = resource['kind'] == 'text' && resource['text_content'] is String
+        ? (resource['text_content'] as String).trim()
+        : '';
+    // A published text has a canonical read URL whenever the server supplies
+    // one. If only already-authorized inline content is available offline,
+    // keep the *same* native reader and its copy/share/export controls.
     final uri = _destination(resource);
-    if (uri == null || !mounted) return;
-    if (resource['kind'] == 'url') {
+    if (uri == null && text.isEmpty) return;
+    if (!mounted) return;
+    if (resource['kind'] == 'url' && uri != null) {
       try {
         final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
         if (!opened && mounted) _openFailure();
@@ -607,7 +596,8 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
           items: [
             DiscoveryReaderItem(
               title: title,
-              uri: uri,
+              uri: uri ?? Uri(),
+              inlineText: uri == null && text.isNotEmpty ? text : null,
               mimeType: resource['kind'] == 'text'
                   ? 'text/plain'
                   : (resource['mime_type']?.toString().trim().isNotEmpty ?? false)
