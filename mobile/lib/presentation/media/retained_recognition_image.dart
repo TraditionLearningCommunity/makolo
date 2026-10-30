@@ -71,7 +71,11 @@ class _RetainedRecognitionImageState extends State<RetainedRecognitionImage> {
   Future<void> _restore() async {
     final generation = ++_generation;
     final path = widget.path;
-    final store = _store;
+    // The owner may render other authorized media online. Only explicitly
+    // published recognition paths may be retained across restarts.
+    final store = ProfileRecognitionImageStore.isPublishedRecognitionPath(path)
+        ? _store
+        : null;
     final uri = Uri.tryParse(path);
     if (uri == null ||
         uri.hasScheme ||
