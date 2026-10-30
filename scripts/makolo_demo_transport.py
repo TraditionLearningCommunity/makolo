@@ -33,7 +33,10 @@ def main():
     from django.core.exceptions import ValidationError, PermissionDenied
     from django.db import connection, transaction
     from django.utils import timezone
-    from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus
+    from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence, OccurrenceStatus, OccurrencePlace, OccurrencePlaceRole
+    from geography.models import Place
+    from capacity.models import CapacityPool
+    from capacity.services import reserve_capacity, commit_capacity
     from authorization.constants import SystemRoleCode
     from authorization.services import grant_activity_role
     from operations.permissions import user_can_manage_activity_operations
@@ -99,7 +102,7 @@ def main():
         for role in (SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER, SystemRoleCode.ACTIVITY_SCANNER):
             grant_activity_role(profile=operator,activity=activity,role_code=role,
                 granted_by=grantor,source="makolo-demo-transport")
-        made = {"occurrences":0,"journeys":0,"accesses":0,"queue_entries":0,"accepted":0}
+        made = {"occurrences":0,"journeys":0,"accesses":0,"queue_entries":0,"accepted":0,"capacity_pools":0,"seat_reservations":0,"places":0}
         for label, start, duration in windows:
             # La cle datee empeche de reprogrammer un depart ayant deja des passages.
             key = "DEMO " + start.astimezone(tz).date().isoformat() + " " + label
@@ -110,6 +113,24 @@ def main():
                     timezone="Africa/Lubumbashi",status=OccurrenceStatus.SCHEDULED)
                 occurrence.save()
                 made["occurrences"] += 1
+            origin = Place.objects.filter(is_active=True, country_code="CD").filter(
+                locality__icontains="Lubumbashi").order_by("id").first()
+            destination = Place.objects.filter(is_active=True, country_code="CD").filter(
+                locality__icontains="Kolwezi").order_by("id").first()
+            for place, role, position in (
+                (origin, OccurrencePlaceRole.MEETING_POINT, 0),
+                (destination, OccurrencePlaceRole.SERVICE_POINT, 1),
+            ):
+                if place is not None:
+                    link, created = OccurrencePlace.objects.get_or_create(
+                        occurrence=occurrence, place=place, role=role,
+                        defaults={"position":position})
+                    made["places"] += int(created)
+            pool, created = CapacityPool.objects.get_or_create(
+                source_key="makolo-demo-transport:"+str(occurrence.pk),
+                defaults={"activity":activity, "occurrence":occurrence,
+                          "label":"Sieges de demo", "total_quantity":max(100,a.beneficiaries)})
+            made["capacity_pools"] += int(created)
             for person in people:
                 journey = Journey.objects.filter(activity=activity,occurrence=occurrence,
                     beneficiary=person,workflow=WorkflowKind.RESERVATION).exclude(
@@ -125,6 +146,11 @@ def main():
                             made["journeys"] += 1
                     except ValidationError:
                         continue
+                reservation = reserve_capacity(pool=pool, journey=journey,
+                    quantity=1, source_key="makolo-demo-transport-seat")
+                if reservation.status != "committed":
+                    commit_capacity(reservation=reservation)
+                    made["seat_reservations"] += 1
                 access = Access.objects.filter(journey=journey,source_key="makolo-demo-transport").first()
                 if access is None:
                     access = issue_access(beneficiary=person,activity=activity,
