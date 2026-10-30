@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../data/files/profile_paths.dart';
+import '../../presentation/media/retained_recognition_image.dart';
 import '../../network/makolo_api_client.dart';
 import '../../presentation/contracts/now_presentation.dart';
 import 'now_media_viewer.dart';
@@ -61,6 +62,11 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
 
   Future<void> _prepare() async {
     if (widget.media.kind != NowMediaKind.image) return;
+    // RetainedRecognitionImage owns durable published previews.
+    if (widget.media.purpose == NowMediaPurpose.recognize &&
+        widget.media.resourceRef.startsWith('presentation_media_use:')) {
+      return;
+    }
     final path = nowAuthorizedMediaPath(widget.media);
     if (path == null || widget.profileId.isEmpty) return;
     final cancel = MakoloCancelHandle();
@@ -126,6 +132,23 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
 
   @override
   Widget build(BuildContext context) {
+    // Only genuinely published recognition photos are retained automatically.
+    // A private Journey artifact is still downloaded transiently on demand.
+    final path = nowAuthorizedMediaPath(widget.media);
+    final published = widget.media.kind == NowMediaKind.image &&
+        widget.media.purpose == NowMediaPurpose.recognize &&
+        widget.media.resourceRef.startsWith('presentation_media_use:') &&
+        path != null;
+    if (published) {
+      return RetainedRecognitionImage(
+        key: ValueKey('now-recognition:${widget.profileId}:$path'),
+        api: widget.api,
+        profileId: widget.profileId,
+        path: '/$path',
+        alt: widget.media.label ?? 'Reconnaissance',
+        placeholder: widget.placeholder,
+      );
+    }
     final file = _downloaded;
     if (file == null) {
       return Stack(
