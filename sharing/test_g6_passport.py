@@ -406,6 +406,17 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
             limited = self.client.get(self.url, {"variant": "complete"})
         self.assertEqual(limited.status_code, 200)
         self.assertNotContains(limited, "Équipe interne confidentielle G6")
+        with patch(
+            "sharing.passport_views.user_can_manage_organization_team",
+            return_value=False,
+        ):
+            restricted_document = self.client.get(
+                self.url, {"variant": "complete", "document": "1"},
+            )
+        self.assertEqual(
+            restricted_document.context["passport_snapshot"].payload["space_teams"],
+            [],
+        )
         document = self.client.get(
             self.url, {"variant": "complete", "document": "1"},
         )
