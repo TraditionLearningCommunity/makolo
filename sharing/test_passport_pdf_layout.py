@@ -103,6 +103,32 @@ class PassportPdfLayoutTests(TestCase):
         public_text = "\n".join(page.extract_text() for page in public_pdf.pages)
         self.assertNotIn("Femme", public_text)
 
+    def test_collective_context_and_space_issuance_render_from_snapshot(self):
+        personal = _payload()
+        personal["team_affiliations"] = [
+            {"team": "Équipe pilote", "space": "Collectif exemple"},
+        ]
+        personal["active_space_mandates"] = [
+            {"role": "Responsable activité", "space": "Collectif exemple"},
+        ]
+        personal_text = "\\n".join(
+            page.extract_text() for page in self._reader(personal).pages
+        )
+        self.assertIn("Équipe pilote", personal_text)
+        self.assertIn("Responsable activité", personal_text)
+
+        space = _payload("complete", subject_kind="space")
+        space["space_teams"] = ["Équipe exploitation"]
+        space["credential_summary"] = [
+            {"label": "Attestation de participation", "count": 3},
+        ]
+        space_text = "\\n".join(
+            page.extract_text() for page in self._reader(space).pages
+        )
+        self.assertIn("Équipe exploitation", space_text)
+        self.assertIn("Attestations émises", space_text)
+        self.assertIn("Attestation de participation", space_text)
+
     def test_qr_is_once_in_hero_not_repeated_in_bottom_metadata(self):
         reader = self._reader(_payload())
         images = reader.pages[0].images
