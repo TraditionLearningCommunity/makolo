@@ -12,7 +12,7 @@ from django.views.generic import TemplateView
 from core.branding import render_makolo_qr_data_uri
 
 from organizations.models import Organization
-from organizations.permissions import user_can_access_organization_workspace
+from organizations.permissions import user_can_access_organization_workspace, user_can_manage_organization_team
 
 from .models import PublicIdentifier, PublicSubjectKind
 from .passport_pdf import passport_pdf_response
@@ -250,6 +250,10 @@ class SpacePassportView(PassportViewMixin):
             selected_activity_ids=self.request.GET.getlist("activity") if variant == PASSPORT_CUSTOM else None,
             selected_credential_ids=self.request.GET.getlist("credential") if variant == PASSPORT_CUSTOM else None,
             selected_sections=self.request.GET.getlist("include") if variant == PASSPORT_CUSTOM else None,
+            include_private_teams=(
+                variant == PASSPORT_COMPLETE
+                and user_can_manage_organization_team(self.request.user, self.subject)
+            ),
         )
 
     def get_selection_catalog(self):
