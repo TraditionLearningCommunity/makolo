@@ -416,6 +416,8 @@ class PassportHistoryBase(LoginRequiredMixin, TemplateView):
         raise NotImplementedError
 
     def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission()
         self.history_subject = self.get_subject()
         if not self.can_view(request.user, self.history_subject):
             raise PermissionDenied("Historique du Passeport non autorisé.")
