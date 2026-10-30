@@ -8,6 +8,7 @@ import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/ongoing/ongoing_screen.dart';
+import 'package:makolo_mobile/features/ongoing/ongoing_calendar_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/presentation/humanization.dart';
 import 'package:makolo_mobile/presentation/possibilities/discovery_reader.dart';
@@ -69,6 +70,31 @@ void main() {
   setUpAll(() async {
     await initializeDateFormatting('fr');
   });
+  test('calendar defaults to upcoming dates then recent past', () {
+    final now = DateTime(2026, 10, 30, 12);
+    final moments = <(String, DateTime)>[
+      ('old', DateTime(2026, 10, 3)),
+      ('later', DateTime(2026, 11, 20)),
+      ('next', DateTime(2026, 10, 31)),
+      ('yesterday', DateTime(2026, 10, 29)),
+    ];
+    List<String> order(OngoingCalendarOrder choice) =>
+        sortOngoingCalendarMoments(
+          moments,
+          dateOf: (moment) => moment.$2,
+          titleOf: (moment) => moment.$1,
+          now: now,
+          order: choice,
+        ).map((moment) => moment.$1).toList();
+
+    expect(order(OngoingCalendarOrder.upcoming),
+        ['next', 'later', 'yesterday', 'old']);
+    expect(order(OngoingCalendarOrder.oldest),
+        ['old', 'yesterday', 'next', 'later']);
+    expect(order(OngoingCalendarOrder.newest),
+        ['later', 'next', 'yesterday', 'old']);
+  });
+
   test('N1 only resolves same-origin owner media over HTTP(S)', () {
     final api = Uri.parse('https://api.example.test/');
     expect(
