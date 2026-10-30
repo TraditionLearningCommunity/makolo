@@ -178,6 +178,25 @@ class ResourceRepository {
     await engine.refreshSource(detailSourceFor(assetId));
   }
 
+  Future<ResourceSourceState> readCollectionSource({
+    required String query,
+    int offset = 0,
+    int limit = defaultLimit,
+  }) async {
+    final key = collectionSourceKey(query: query, offset: offset, limit: limit);
+    final rows = await (database.select(database.syncSources)
+          ..where((row) =>
+              row.profileId.equals(profileId) & row.sourceKey.equals(key)))
+        .getSingleOrNull();
+    return rows == null
+        ? ResourceSourceState.unknown
+        : ResourceSourceState(
+            lastSuccessAt: rows.lastSuccessAt,
+            invalidated: rows.invalidated,
+            lastErrorCode: rows.lastErrorCode,
+          );
+  }
+
   Stream<ResourceSourceState> watchCollectionSource({
     required String query,
     int offset = 0,
