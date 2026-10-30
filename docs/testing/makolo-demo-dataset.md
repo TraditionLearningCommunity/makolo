@@ -13,7 +13,7 @@ La demo ne remplace ni les permissions serveur, ni les transitions de statut, ni
 | Calendrier maintenant/soir/demain | `scripts/makolo_demo_clock.py --demo-live` | Repositionnement temporel |
 | Journey massives | `scripts/makolo_demo_scale.py --journeys N` | create/submit/confirm, selection `world_*` |
 | Access et credentials | `--accesses N` | issue_access |
-| Checkpoints et files Live | `--queues N` | open_checkpoint, enter_queue |
+| Checkpoints et files Live | `--queues N --queue-advance served` | open_checkpoint, enter_queue, call_next, serve_entry |
 | Mandates demo scopes | `--grant-demo-roles` | grant_activity_role, Activity seulement |
 | Scanner Event | `--scans N` | scan_ticket, doublon et token invalide |
 | Ticket / Offer / Capacity | `--orders N` | configure_ticket_type, create_order |
@@ -29,7 +29,7 @@ La demo ne remplace ni les permissions serveur, ni les transitions de statut, ni
 git pull --ff-only
 python -m py_compile scripts/makolo_demo_scale.py scripts/makolo_demo_transport.py
 python manage.py check
-python scripts/makolo_demo_scale.py --journeys 10000 --accesses 10000 --queues 30 --scans 500 --orders 100 --grant-demo-roles
+python scripts/makolo_demo_scale.py --journeys 10000 --accesses 10000 --queues 30 --queue-advance served --scans 500 --orders 100 --grant-demo-roles
 python scripts/makolo_demo_transport.py
 ```
 
