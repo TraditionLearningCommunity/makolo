@@ -35,6 +35,7 @@ class GeoAutocompleteField extends StatefulWidget {
 
 class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
   late final ProgressiveSearchCoordinator _coordinator;
+  final _suggestionsAnchor = GlobalKey();
   GeoSearchCancellation? _pending;
   bool _loading = false;
   bool _showSuggestions = false;
@@ -112,6 +113,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
         _unavailable = false;
         _searched = true;
       });
+      if (results.isNotEmpty) _revealSuggestions();
     } on Object {
       if (!mounted || !_coordinator.isCurrent(revision) || cancel.isCancelled) {
         return;
@@ -124,6 +126,22 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
     } finally {
       if (identical(_pending, cancel)) _pending = null;
     }
+  }
+
+  void _revealSuggestions() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_showSuggestions || _suggestions.isEmpty) return;
+      final target = _suggestionsAnchor.currentContext;
+      if (target == null) return;
+      // Keep provider suggestions reachable when the keyboard shrinks the
+      // filter panel. This scrolls the existing parents, not a new overlay.
+      Scrollable.ensureVisible(
+        target,
+        duration: const Duration(milliseconds: 180),
+        alignment: 0.2,
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   void _choose(GeoSuggestion suggestion) {
@@ -196,6 +214,17 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
             border: const OutlineInputBorder(),
           ),
         ),
+        if (widget.gateway == null && widget.controller.text.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Suggestions géographiques non configurées. La saisie libre reste possible.',
+              key: const Key('geo-suggestions-unconfigured'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ),
         if (_showSuggestions && _unavailable)
           Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -223,7 +252,8 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
             margin: const EdgeInsets.only(top: 4),
             clipBehavior: Clip.antiAlias,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 240),
+              key: _suggestionsAnchor,
+              constraints: const BoxConstraints(maxHeight: 192),
               child: ListView(
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
