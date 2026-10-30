@@ -6,6 +6,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from organizations.permissions import user_can_manage_organization
+from domain_events.contracts import DomainEventType
+from .analytics import emit_share_event
 
 from .models import (
     PassportShareSubject, PassportSnapshot, PublicSubjectKind, ShareIntent,
@@ -53,6 +55,12 @@ def create_passport_share(*, snapshot, actor, days=7):
     )
     PassportShareSubject.objects.create(envelope=envelope, snapshot=snapshot)
     raw_token = _attach_link(envelope)
+    emit_share_event(
+        event_type=DomainEventType.SHARE_CREATED,
+        envelope=envelope,
+        idempotency_suffix="created",
+        channel="passport_issued_link",
+    )
     return envelope, share_public_url(raw_token)
 
 
@@ -76,5 +84,17 @@ def revoke_passport_share(*, envelope, actor):
     if envelope.subject_type != ShareSubjectType.PASSPORT:
         raise ShareUnavailable
     snapshot = envelope.passport_subject.snapshot
-    _assert_can_share(snapshot, actor)
-    return revoke_share_link(envelope=envelope, actor=actor)
+    if not getattr(actor, "is_authenticated", False):
+        raise PermissionDenied("Connectez-vous pour révoquer un partage.")
+    if snapshot.subject_kind == PublicSubjectKind.PROFILE:
+        authorized = snapshot.profile_id == actor.pk
+    else:
+        authorized = bool(
+            snapshot.space_id
+            and user_can_manage_organization(actor, snapshot.space)
+        )
+    if not authorized:
+        raise PermissionDenied("Révocation du partage non autorisée.")
+    # The owner may revoke any grant to their document, even if the document
+    # itself has already been revoked.
+    return revoke_share_link(envelope=envelope, actor=None)
