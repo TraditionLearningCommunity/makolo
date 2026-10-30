@@ -969,6 +969,7 @@ class ActivityDetailScreen extends StatefulWidget {
 class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   static const _selector = DiscoveryDetailSelector();
   bool _refreshing = false;
+  String? _knownSavedTitle;
 
   @override
   void initState() {
@@ -980,11 +981,46 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   void didUpdateWidget(covariant ActivityDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.activityId != widget.activityId) {
+      _knownSavedTitle = null;
       unawaited(_acquire());
     }
   }
 
-  Future<void> _acquire() => _refresh();
+  Future<void> _acquire() async {
+    // An Activity already saved in Moi has an owner-known title even when
+    // its deeper Activity projection has not yet been downloaded.
+    unawaited(_readKnownSavedTitle(widget.activityId));
+    await _refresh();
+  }
+
+  Future<void> _readKnownSavedTitle(String requestedId) async {
+    try {
+      final root = await widget.repository.store.readProjection('personal.me');
+      final actor = root?.payload['actor'];
+      if (actor is! Map ||
+          actor['type'] != 'profile' ||
+          actor['id']?.toString() != widget.repository.store.profileId) {
+        return;
+      }
+      final considerations = root?.payload['considerations'];
+      final saved = considerations is Map ? considerations['bookmarks'] : null;
+      final items = saved is Map ? saved['items'] : null;
+      if (items is! List) return;
+      for (final raw in items) {
+        if (raw is! Map || raw['activity'] is! Map) continue;
+        final activity = raw['activity'] as Map;
+        if (activity['id']?.toString() != requestedId) continue;
+        final label = activity['title'];
+        if (label is String && label.trim().isNotEmpty &&
+            mounted && widget.activityId == requestedId) {
+          setState(() => _knownSavedTitle = label.trim());
+        }
+        break;
+      }
+    } on Object {
+      // No known Activity facts; do not invent a detail or infinite spinner.
+    }
+  }
 
   Future<void> _refresh() async {
     if (_refreshing) return;
@@ -993,6 +1029,13 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     try {
       // Always revalidate N3 on entry even when an N1 preview exists.
       await widget.repository.refreshActivity(requestedId);
+      final source = await widget.repository.readSource(
+        widget.repository.activitySource(requestedId),
+      );
+      if (source.ownerUnavailable && mounted &&
+          widget.activityId == requestedId) {
+        setState(() => _knownSavedTitle = null);
+      }
     } on Object {
       // The owner source records errors and discards revoked keyed details.
     } finally {
@@ -1027,12 +1070,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               ),
               body: MakoloNetworkContextFrame(
                 child: activity == null
-                    ? _refreshing
-                          ? const MakoloLoadingState(label: 'Mise à jour…')
-                          : MakoloErrorState(
-                              message: 'Ce contenu n’est pas disponible.',
-                              onRetry: _refresh,
-                            )
+                    ? _knownSavedTitle == null
+                        ? const SizedBox.expand()
+                        : ListView(children: [
+                            MakoloDetailHeader(title: _knownSavedTitle!),
+                          ])
                     : ListView(
                         padding: const EdgeInsets.only(
                           bottom: MakoloSpacing.xl,
