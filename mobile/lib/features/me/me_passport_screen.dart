@@ -664,7 +664,7 @@ class _PassportBody extends StatelessWidget {
     final declared = _map(data['declared']);
     final established = _map(data['established']);
     final issued = _map(data['issued']);
-    final disclosure = _map(data['disclosure']);
+    final collectives = _map(data['collectives']);
     final name = _text(identity['display_name']) ??
         _text(identity['name']) ?? _text(identity['username']) ??
         'Mon passeport';
@@ -742,24 +742,34 @@ class _PassportBody extends StatelessWidget {
               subtitle: SelectableText(link['url'].toString()),
             ),
       ],
-      if (disclosure.isNotEmpty) ...[
-      const SizedBox(height: 14),
-      Wrap(spacing: 10, runSpacing: 8, children: [
-        _stat(context, 'Déclaré', disclosure['declared_count']),
-        _stat(context, 'Établi', disclosure['established_count']),
-        _stat(context, 'Délivré', disclosure['issued_count']),
-      ]),
-      ],
       _section(context, 'Centres d’intérêt', _rows(declared['interests']),
           (row) => _text(_map(row['topic'])['label'])),
       _section(context, 'Ouvert à', _rows(declared['open_to']),
           (row) => _text(row['label'])),
-      _section(context, 'Activités', _rows(data['activities']),
+      _section(context, 'Activités portées', _rows(data['activities']),
           (row) => _text(row['title'])),
       _section(context, 'Faits établis', _rows(established['proofs']),
           (row) => _text(row['proof_type_label'])),
-      _section(context, 'Attestations', _rows(issued['credentials']),
+      _section(context, 'Attestations reçues', _rows(issued['credentials']),
           (row) => _text(row['title'])),
+      _section(context, 'Équipes et Espaces',
+          _rows(collectives['team_affiliations']),
+          (row) {
+            final team = _text(row['team']);
+            final space = _text(row['space']);
+            return team == null ? null : [
+              team, if (space != null) space,
+            ].join(' · ');
+          }),
+      _section(context, 'Mandats actifs',
+          _rows(collectives['active_space_mandates']),
+          (row) {
+            final role = _text(row['role']);
+            final space = _text(row['space']);
+            return role == null ? null : [
+              role, if (space != null) space,
+            ].join(' · ');
+          }),
     ]);
   }
 
