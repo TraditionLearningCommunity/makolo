@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 
 from django.core import signing
@@ -82,6 +83,16 @@ def serialize_passport_projection(projection):
         "space_teams": list(projection.space_teams),
         "topics": [{"code": row.code, "label": row.label} for row in projection.topics],
     }
+
+
+def snapshot_payload_is_intact(snapshot):
+    """Check the issued text payload without recomposing any live subject data."""
+    canonical = json.dumps(
+        snapshot.payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(digest, snapshot.payload_hash)
+
 
 
 def issue_passport_snapshot(projection):
