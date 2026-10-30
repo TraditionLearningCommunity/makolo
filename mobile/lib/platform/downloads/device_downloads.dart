@@ -24,7 +24,7 @@ class AndroidDeviceDownloads implements DeviceDownloads {
     required String mimeType,
   }) async {
     if (!Platform.isAndroid) {
-      throw const UnsupportedError(
+      throw UnsupportedError(
         'Le téléchargement direct est actuellement disponible sur Android.',
       );
     }
