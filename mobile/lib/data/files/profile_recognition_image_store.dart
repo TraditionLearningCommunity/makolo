@@ -54,7 +54,13 @@ class ProfileRecognitionImageStore {
       await file.delete();
       return null;
     }
-    return file.readAsBytes();
+    final bytes = await file.readAsBytes();
+    try {
+      await file.setLastModified(DateTime.now().toUtc());
+    } on FileSystemException {
+      // The retained bytes remain usable even if recency cannot be updated.
+    }
+    return bytes;
   }
 
   // Serialize writes and quota pruning: concurrent media widgets must not
