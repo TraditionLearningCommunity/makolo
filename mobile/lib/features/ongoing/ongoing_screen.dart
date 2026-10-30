@@ -1025,12 +1025,10 @@ class _OngoingProtectedImage extends StatefulWidget {
     required this.api,
     required this.imageUrl,
     required this.label,
-    this.fit = BoxFit.cover,
   });
   final MakoloApiClient api;
   final String imageUrl;
   final String label;
-  final BoxFit fit;
   @override
   State<_OngoingProtectedImage> createState() => _OngoingProtectedImageState();
 }
@@ -1063,7 +1061,7 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
       if (snapshot.hasData) {
         return Image.memory(
           snapshot.data!,
-          fit: widget.fit,
+          fit: BoxFit.cover,
           semanticLabel: widget.label,
           gaplessPlayback: false,
           errorBuilder: (context, error, stackTrace) =>
