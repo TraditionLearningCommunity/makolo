@@ -12,7 +12,7 @@ from domain_events.contracts import DomainEventType
 from .analytics import emit_share_event
 
 from .models import (
-    PassportShareSubject, PassportSnapshot, PublicSubjectKind, ShareIntent,
+    PassportShareSubject, PublicSubjectKind, ShareIntent,
     ShareSubjectType,
 )
 from .passport_documents import snapshot_payload_is_intact
