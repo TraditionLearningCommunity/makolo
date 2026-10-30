@@ -9,6 +9,7 @@ import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../network/makolo_api_client.dart';
 import '../../presentation/search/load_more_on_scroll.dart';
+import '../../presentation/media/retained_public_discovery_image.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'discovery_selector.dart';
 
@@ -593,12 +594,22 @@ class _DiscoveryMedia extends StatelessWidget {
 
     Widget? child;
     if (networkImage) {
-      child = Image.network(
-        resolved.toString(),
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) =>
-            MakoloMediaPlaceholder(label: item.eyebrow ?? 'Média indisponible'),
-      );
+      // Only public first-party images are retained automatically. An
+      // external URL keeps its existing non-persistent presentation.
+      child = baseUri != null && resolved!.origin == baseUri!.origin
+          ? RetainedPublicDiscoveryImage(
+              url: resolved,
+              placeholder: MakoloMediaPlaceholder(
+                label: item.eyebrow ?? 'Média indisponible',
+              ),
+            )
+          : Image.network(
+              resolved!.toString(),
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => MakoloMediaPlaceholder(
+                label: item.eyebrow ?? 'Média indisponible',
+              ),
+            );
     } else if (item.routeLabel != null) {
       child = ColoredBox(
         color: context.makoloSurfaces.low,
