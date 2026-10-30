@@ -378,6 +378,55 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertEqual(payload["proofs"], [])
         self.assertEqual(payload["credentials"], [])
 
+    def test_personalized_avatar_is_opt_in_and_never_affects_public_identity(self):
+        self.amina.metadata = {"avatar_url": "/media/passport-selected-portrait.png"}
+        self.amina.save(update_fields=["metadata", "updated_at"])
+        self.client.force_login(self.amina)
+
+        minimal = self.client.get(
+            reverse("sharing:passport-me"),
+            {"variant": "custom", "include": ["bio"]},
+        )
+        self.assertEqual(minimal.status_code, 200)
+        self.assertEqual(minimal.context["projection"].identity["avatar_url"], "")
+        self.assertEqual(minimal.context["projection"].identity["bio"], self.amina.bio)
+
+        selected = self.client.get(
+            reverse("sharing:passport-me"),
+            {"variant": "custom", "include": ["avatar"]},
+        )
+        self.assertEqual(selected.status_code, 200)
+        self.assertEqual(
+            selected.context["projection"].identity["avatar_url"],
+            "/media/passport-selected-portrait.png",
+        )
+        self.assertEqual(selected.context["projection"].identity["bio"], "")
+
+        public = self.client.get(self.public_url)
+        self.assertEqual(public.status_code, 200)
+        self.assertEqual(
+            public.context["projection"].identity["avatar_url"],
+            "/media/passport-selected-portrait.png",
+        )
+
+    def test_signed_verification_does_not_disclose_private_snapshot_content(self):
+        self.client.force_login(self.amina)
+        document = self.client.get(
+            reverse("sharing:passport-me"),
+            {"variant": "complete", "document": "1"},
+        )
+        self.assertEqual(document.status_code, 200)
+        private_value = "Adresse privée G6"
+        self.assertIn(
+            private_value,
+            document.context["passport_snapshot"].payload["identity"]["owner_details"]["address"],
+        )
+        self.client.logout()
+        verification = self.client.get(document.context["passport_verification_url"])
+        self.assertEqual(verification.status_code, 200)
+        self.assertNotContains(verification, private_value)
+        self.assertNotContains(verification, self.amina.phone)
+
     def test_print_ready_and_downloadable_html_export(self):
         response = self.client.get(self.public_url, {"download": "1"})
         self.assertEqual(response.status_code, 200)
