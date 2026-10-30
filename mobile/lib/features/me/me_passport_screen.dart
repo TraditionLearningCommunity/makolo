@@ -157,6 +157,43 @@ class _MePassportScreenState extends State<MePassportScreen> {
     return params;
   }
 
+  /// A root projection can supply a genuinely known, partial owner Passport
+  /// even before the dedicated protected Passport depth has been received.
+  /// It is not stored as a complete server-issued Passport.
+  Future<Map<String, dynamic>?> _rootPassportPreview() async {
+    if (widget.personal == null || _variant != 'complete') return null;
+    final root = MeLocalPreview.forProfile(
+      await widget.personal!.store.readProjection('personal.me'),
+      widget.personal!.store.profileId,
+    );
+    final identity = root?.identity;
+    if (identity == null) return null;
+    final name = _text(identity['display_name']) ?? _text(identity['username']);
+    if (name == null) return null;
+    final place = _map(identity['location']);
+    final location = [
+      _text(place['city']), _text(place['country']),
+    ].whereType<String>().join(', ');
+    return <String, dynamic>{
+      'variant': 'complete',
+      'identity': {
+        'name': name, 'username': identity['username'],
+        'avatar_url': identity['avatar_url'],
+        'profession': identity['profession'], 'bio': identity['bio'],
+        'location': location, 'links': const [],
+      },
+      'declared': {
+        'interests':
+            root?.collection('considerations', 'interests')?['items'] ?? const [],
+        'open_to':
+            root?.collection('considerations', 'open_to')?['items'] ?? const [],
+      },
+      'activities': const [],
+      'established': {'proofs': const []},
+      'issued': {'credentials': const []},
+    };
+  }
+
   Future<Map<String, dynamic>> _load({bool preferLocal = true}) async {
     final epoch = ++_loadEpoch;
     final requestedVariant = _variant;
@@ -186,6 +223,25 @@ class _MePassportScreenState extends State<MePassportScreen> {
         }
       } on Object {
         // Local read failure must not block the server owner.
+      }
+      try {
+        final preview = await _rootPassportPreview();
+        if (preview != null && epoch == _loadEpoch &&
+            resourceKey == _passportStorageKey()) {
+          if (mounted) setState(() {
+            _cachedPassport = preview;
+            _cachedVariantKey = resourceKey;
+            _onlineReady = false;
+          });
+          unawaited(_load(preferLocal: false).then((fresh) {
+            if (!mounted || requestedVariant != _variant ||
+                resourceKey != _passportStorageKey()) return;
+            setState(() => _future = Future.value(fresh));
+          }).catchError((Object _) {}));
+          return preview;
+        }
+      } on Object {
+        // The root may not have been received on this device yet.
       }
     }
     final url = Uri(path: 'api/v1/me/passport/',
