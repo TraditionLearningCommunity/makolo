@@ -1,0 +1,16 @@
+{% load static %}
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partager une version émise · Makolo</title>
+<style>body{margin:0;background:#FAF7F5;color:#0F172A;font:16px/1.6 system-ui,sans-serif}.wrap{max-width:650px;margin:6vh auto;padding:25px}.card{background:white;padding:28px;border:1px solid #e5e2eb;border-radius:22px}h1{margin-top:0}a{color:#5232DB}input{width:100%;padding:13px;border:1px solid #bbb;border-radius:10px}button{background:#5232DB;color:white;border:0;border-radius:10px;padding:12px 17px;cursor:pointer}.muted{color:#64748B}</style>
+</head><body><main class="wrap"><div class="card">
+<h1>{% if error %}Partage indisponible{% else %}Lien de partage créé{% endif %}</h1>
+{% if error %}<p>{{ error }}</p>{% else %}
+<p>Document <strong>{{ document_id }}</strong>. Le partage est indépendant de la publication du Passeport et peut être révoqué.</p>
+<label for="link">Lien de consultation de cette version émise</label>
+<input id="link" readonly value="{{ share_url }}" onclick="this.select()">
+<p><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('link').value).then(()=>this.textContent='Copié')">Copier ce lien</button></p>
+<p class="muted">Expire le {{ expires_at|date:"d/m/Y à H:i" }}. Cette adresse donne accès à cette seule version sélectionnée. Transmettez-la uniquement aux personnes voulues.</p>
+<p class="muted">Conservez ce lien maintenant : Makolo n'enregistre pas le jeton lisible. Il reste possible de révoquer le partage depuis votre historique.</p>
+{% endif %}
+{% if history_url %}<a href="{{ history_url }}">Retour aux versions datées</a>{% endif %}
+</div></main></body></html>
