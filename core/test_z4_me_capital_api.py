@@ -265,6 +265,32 @@ class PersonalMeCapitalAPIContractTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertNotIn("private_details", response.json()["data"])
 
+    def test_personalized_passport_api_requires_explicit_disclosure_selection(self):
+        self.user.bio = "Description privée pour mon Passeport"
+        self.user.metadata = {"avatar_url": "/media/private-personal-avatar.jpg"}
+        self.user.save(update_fields=["bio", "metadata", "updated_at"])
+
+        identity_only = self.client.get("/api/v1/me/passport/?variant=custom")
+        self.assertEqual(identity_only.status_code, 200)
+        empty = identity_only.json()["data"]
+        self.assertEqual(empty["identity"]["avatar_url"], "")
+        self.assertEqual(empty["identity"]["bio"], "")
+        self.assertEqual(empty["activities"], [])
+        self.assertNotIn("private_details", empty)
+
+        deliberate = self.client.get(
+            "/api/v1/me/passport/?variant=custom&include=bio&include=avatar",
+        )
+        self.assertEqual(deliberate.status_code, 200)
+        selected = deliberate.json()["data"]
+        self.assertEqual(
+            selected["identity"]["bio"], "Description privée pour mon Passeport",
+        )
+        self.assertEqual(
+            selected["identity"]["avatar_url"], "/media/private-personal-avatar.jpg",
+        )
+        self.assertNotIn("private_details", selected)
+
     def test_passport_collective_context_is_owner_only_and_not_authority(self):
         organization = Organization.objects.create(
             name="Collectif CV Z4", created_by=self.other,
