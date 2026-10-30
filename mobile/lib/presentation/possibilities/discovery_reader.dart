@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -290,7 +289,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     try {
       final item = _item;
       // A Web page is not silently treated as a downloadable file.
-      if (item.mimeType == 'text/html') return;
+      if (item.mimeType == 'text/html') {
+        return;
+      }
       final file = _temporaryFile;
       if (item.inlineText != null) {
         final dir = await getTemporaryDirectory();
