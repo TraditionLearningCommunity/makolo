@@ -114,7 +114,12 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
     } on Object {
       // Missing local data is not a new empty personal selection.
     }
-    if (mounted) await _load();
+    // No fullscreen spinner when the device has no known local settings.
+    // Network reconciliation happens behind the normal screen.
+    if (mounted) {
+      setState(() => _loading = false);
+      await _load();
+    }
   }
 
   static List<Map<String, dynamic>> _options(Object? raw) =>
@@ -131,9 +136,10 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         queryParameters: query.isEmpty ? null : {'q': query});
       final response = await widget.api.get(uri.toString());
       if (!mounted || _activeQuery != query || epoch != _requestEpoch) return;
-      final data = ProjectionEnvelope.parse(
+      final envelope = ProjectionEnvelope.parse(
         response.jsonObject(), expectedProjection: 'personal.me.settings',
-      ).data;
+      );
+      final data = envelope.data;
       // Persist the complete selected choices and the last received catalog,
       // not only the truncated personal.me preview. Query-specific search
       // results must not replace the default catalog stored for offline use.
@@ -141,7 +147,8 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         try {
           await widget.personal.store.putProjection(
             kind: 'personal.me.settings',
-            schemaVersion: 1,
+            schemaVersion: envelope.schemaVersion,
+            sourceGeneratedAt: envelope.generatedAt,
             payload: data,
           );
         } on Object {
@@ -211,6 +218,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         await widget.personal.store.putProjection(
           kind: 'personal.me.settings',
           schemaVersion: confirmed.schemaVersion,
+          sourceGeneratedAt: confirmed.generatedAt,
           payload: data,
         );
       } on Object {
