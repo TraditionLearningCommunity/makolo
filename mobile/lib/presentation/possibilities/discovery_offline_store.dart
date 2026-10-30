@@ -13,6 +13,8 @@ class DiscoveryOfflineStore {
 
   static const int maxItemBytes = 20 * 1024 * 1024;
   static const int maxRecognitionBytes = 8 * 1024 * 1024;
+  static const int maxAutomaticImages = 10;
+  static const int maxAutomaticBytes = 32 * 1024 * 1024;
 
   /// FNV-1a gives a stable filename; not a security or integrity signature.
   static String keyFor(Uri url) {
@@ -59,10 +61,33 @@ class DiscoveryOfflineStore {
     final partial = File('${target.path}.part');
     try {
       await partial.writeAsBytes(bytes, flush: true);
+      if (await target.exists()) await target.delete();
       await partial.rename(target.path);
+      await _pruneRecognition(target.parent);
     } on Object {
       if (await partial.exists()) await partial.delete();
       rethrow;
+    }
+  }
+
+  Future<void> _pruneRecognition(Directory directory) async {
+    final files = await directory
+        .list()
+        .where((entry) => entry is File && entry.path.endsWith('.image'))
+        .cast<File>()
+        .toList();
+    final entries = <(File, FileStat)>[];
+    for (final file in files) {
+      entries.add((file, await file.stat()));
+    }
+    entries.sort((a, b) => b.$2.modified.compareTo(a.$2.modified));
+    var bytes = 0;
+    for (var i = 0; i < entries.length; i++) {
+      final (file, stat) = entries[i];
+      bytes += stat.size;
+      if (i >= maxAutomaticImages || bytes > maxAutomaticBytes) {
+        await file.delete();
+      }
     }
   }
 
