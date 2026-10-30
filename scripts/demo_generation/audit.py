@@ -19,6 +19,8 @@ def main(argv=None):
     from scanner.models import ScanLog, ScannerAssignment
     from operations.checkpoint_models import OccurrenceCheckpoint
     from operations.queue_models import OccurrenceQueue, QueueEntry
+    from operations.placement_models import PlacementPlan, PlacementAssignment
+    from operations.models import OperationsIncident
     from presentations.models import PresentationAsset, PresentationMediaUse
     from events.models import Event
     from funding.models import FundingDetails, FundingContribution
@@ -30,6 +32,8 @@ def main(argv=None):
     from trust.models import Feedback
     from notifications.models import Notification
     from crm.models import CRMContact
+    from questionnaires.models import Form, FormRequest
+    from social.models import Contribution
     if connection.vendor != "sqlite":
         p.error("Readiness audit only on a SQLite demonstration database")
     if a.at:
@@ -61,6 +65,9 @@ def main(argv=None):
             occurrence__in=live_occurrences, active=True, status="open").count(),
         queue_live=OccurrenceQueue.objects.filter(occurrence__in=live_occurrences, status="open").count(),
         queue_entries=QueueEntry.objects.filter(queue__occurrence__in=live_occurrences).count(),
+        placement_plans=PlacementPlan.objects.filter(occurrence__in=live_occurrences).count(),
+        placements=PlacementAssignment.objects.filter(plan__occurrence__in=live_occurrences, ended_at__isnull=True).count(),
+        incidents=OperationsIncident.objects.filter(activity__slug__startswith="demo-").count(),
         event=Event.objects.filter(activity__slug__startswith="demo-").count(),
         scan_log=ScanLog.objects.filter(event__activity__slug__startswith="demo-").count(),
         scanner_assignment=ScannerAssignment.objects.filter(
@@ -86,18 +93,24 @@ def main(argv=None):
         feedback=Feedback.objects.filter(journey__activity__slug__startswith="demo-").count(),
         notifications=Notification.objects.filter(dedup_key__startswith="demo-generation:").count(),
         crm_contacts=CRMContact.objects.count(),
+        forms=Form.objects.filter(activity__slug__startswith="demo-").count(),
+        form_requests=FormRequest.objects.filter(journey__activity__slug__startswith="demo-").count(),
+        contributions=Contribution.objects.filter(activity__slug__startswith="demo-").count(),
     )
     print("AUDIT AT", instant.isoformat())
     for key, count in demos.items():
         print(f"{key:27s} {count}")
     essential = {
         "Jour J / Live": ("occurrences_live", "checkpoint_live", "queue_live", "queue_entries"),
+        "Placement / Incidents": ("placement_plans", "placements", "incidents"),
         "Access / Scanner": ("access", "access_use", "scanner_assignment", "scan_log"),
         "Images": ("media_assets", "media_published"),
         "Funding": ("funding", "funding_contribution"),
         "Services": ("services", "service_journeys"),
         "Obtention": ("obtention", "obtention_journeys"),
         "Relations": ("groups", "dossiers", "projects"),
+        "Forms / CRM": ("forms", "form_requests", "crm_contacts"),
+        "Contextual content": ("contributions", "media_published"),
     }
     for title, keys in essential.items():
         missing = [key for key in keys if demos[key] == 0]
