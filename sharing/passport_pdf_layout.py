@@ -131,7 +131,9 @@ class PassportHero(Flowable):
         super().__init__()
         self.identity, self.meta = identity, metadata
         self.portrait = _portrait(portrait_bytes)
-        self.width, self.height = CONTENT_WIDTH, 150
+        name_length = len(_value(identity.get("name")))
+        self.width = CONTENT_WIDTH
+        self.height = 150 if name_length <= 45 else (185 if name_length <= 90 else 215)
 
     def draw(self):
         c, w, h = self.canv, self.width, self.height
@@ -149,24 +151,26 @@ class PassportHero(Flowable):
         c.setFont(FONT, 7.8)
         c.drawString(139, h - 26, self.meta["kind"].upper())
         if self.portrait:
-            c.drawImage(self.portrait, 23, 27, 96, 96, mask="auto")
+            c.drawImage(self.portrait, 23, (h - 96) / 2, 96, 96, mask="auto")
         else:
             c.setFillColor(HexColor("#F0EBFD"))
-            c.roundRect(23, 27, 96, 96, 12, stroke=0, fill=1)
+            c.roundRect(23, (h - 96) / 2, 96, 96, 12, stroke=0, fill=1)
             name = _value(self.identity.get("name"))
             initials = "".join(x[0] for x in name.split()[:2]).upper() or "M"
             c.setFillColor(DEEP)
             c.setFont(BOLD, 26)
-            c.drawCentredString(71, 58, initials)
+            c.drawCentredString(71, (h - 96) / 2 + 34, initials)
         start, width = 139, w - 159
+        name_size = 20 if self.height == 150 else (17 if self.height == 185 else 15)
         name = _paragraph(self.identity.get("name") or "Passeport Makolo",
-                          _style(20, 26, bold=True, color=colors.white))
-        _, height = name.wrap(width, 76)
-        name.drawOn(c, start, 103 - height)
+                          _style(name_size, name_size * 1.3,
+                                 bold=True, color=colors.white))
+        _, height = name.wrap(width, h - 75)
+        name.drawOn(c, start, h - 47 - height)
         headline = _value(self.identity.get("profession") or self.identity.get("headline"))
         if self.meta["kind"] == "Espace" and not headline:
             headline = "Espace Makolo"
-        y = 94 - height
+        y = h - 56 - height
         if headline:
             line = _paragraph(headline, _style(10.4, 15, color=HexColor("#EFEAFF")))
             _, line_height = line.wrap(width, 34)
