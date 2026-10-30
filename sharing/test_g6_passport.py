@@ -8,7 +8,7 @@ from activities.models import Activity, ActivityStatus, ActivityVisibility
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_space_role
 from journeys.models import Journey, JourneyStatus, WorkflowKind
-from organizations.models import Organization
+from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 from topics.models import ActivityTopic, ProfileInterest, Topic
 from trust.credential_models import Credential, CredentialStatus, CredentialType
 from trust.models import Proof, ProofStatus, ProofType
@@ -233,6 +233,56 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertContains(complete, self.revoked_credential.title)
         self.assertContains(complete, "Révoquée")
 
+    def test_owner_collective_affiliations_and_mandates_are_not_public(self):
+        team = Team.objects.create(organization=self.space, name="Équipe privée G6")
+        TeamMembership.objects.create(
+            team=team, user=self.amina, status=TeamMembershipStatus.ACTIVE,
+        )
+        public = self.client.get(self.public_url)
+        self.assertNotContains(public, "Équipe privée G6")
+        self.assertNotContains(public, "Mandats actifs")
+
+        self.client.force_login(self.amina)
+        complete = self.client.get(reverse("sharing:passport-me"))
+        self.assertContains(complete, "Équipes et Espaces")
+        self.assertContains(complete, "Équipe privée G6")
+        self.assertContains(complete, self.space.name)
+
+        custom = self.client.get(
+            reverse("sharing:passport-me"),
+            {"variant": "custom", "include": "bio"},
+        )
+        self.assertNotContains(custom, "Équipe privée G6")
+
+        self.client.force_login(self.space_owner)
+        owner_complete = self.client.get(reverse("sharing:passport-me"))
+        self.assertContains(owner_complete, "Mandats actifs")
+        self.assertContains(owner_complete, self.space.name)
+
+    def test_owner_collective_affiliations_are_in_complete_snapshot_only(self):
+        team = Team.objects.create(organization=self.space, name="Équipe snapshot G6")
+        TeamMembership.objects.create(
+            team=team, user=self.amina, status=TeamMembershipStatus.ACTIVE,
+        )
+        self.client.force_login(self.amina)
+        complete = self.client.get(
+            reverse("sharing:passport-me"), {"document": "1"},
+        )
+        self.assertEqual(complete.status_code, 200)
+        self.assertIn(
+            {"team": "Équipe snapshot G6", "space": self.space.name},
+            complete.context["passport_snapshot"].payload["team_affiliations"],
+        )
+
+        public = self.client.get(self.public_url, {"document": "1"})
+        self.assertEqual(public.status_code, 200)
+        self.assertEqual(
+            public.context["passport_snapshot"].payload["team_affiliations"], [],
+        )
+        self.assertEqual(
+            public.context["passport_snapshot"].payload["active_space_mandates"], [],
+        )
+
     def test_custom_selection_rejects_foreign_credential_idor(self):
         self.client.force_login(self.amina)
         response = self.client.get(
@@ -337,6 +387,36 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
         allowed = self.client.get(self.url, {"variant": "complete"})
         self.assertEqual(allowed.status_code, 200)
         self.assertContains(allowed, "Réunion interne privée G6")
+
+    def test_space_complete_teams_require_workspace_and_team_authority(self):
+        Team.objects.create(organization=self.space, name="Équipe interne confidentielle G6")
+        public = self.client.get(self.url)
+        self.assertEqual(public.status_code, 200)
+        self.assertNotContains(public, "Équipe interne confidentielle G6")
+
+        self.client.force_login(self.space_owner)
+        complete = self.client.get(self.url, {"variant": "complete"})
+        self.assertEqual(complete.status_code, 200)
+        self.assertContains(complete, "Équipe interne confidentielle G6")
+        document = self.client.get(
+            self.url, {"variant": "complete", "document": "1"},
+        )
+        self.assertIn(
+            "Équipe interne confidentielle G6",
+            document.context["passport_snapshot"].payload["space_teams"],
+        )
+
+    def test_public_space_pdf_contains_issued_attestation_summary(self):
+        from io import BytesIO
+        from pypdf import PdfReader
+
+        response = self.client.get(self.url, {"pdf": "1"})
+        self.assertEqual(response.status_code, 200)
+        content = "\\n".join(
+            page.extract_text() for page in PdfReader(BytesIO(response.content)).pages
+        )
+        self.assertIn("Attestations émises", content)
+        self.assertNotIn("Credential privé de Patrick G6", content)
 
     def test_public_space_pdf_keeps_public_only_content_and_qr(self):
         from io import BytesIO
