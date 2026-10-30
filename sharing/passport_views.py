@@ -459,6 +459,7 @@ class PassportHistoryBase(LoginRequiredMixin, TemplateView):
             "history_rows": [
                 {
                     "snapshot": row,
+                    "intact": snapshot_payload_is_intact(row),
                     "url": reverse(
                         "sharing:passport-verify",
                         kwargs={"token": passport_verification_token(row)},
