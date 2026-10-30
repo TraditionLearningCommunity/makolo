@@ -496,6 +496,45 @@ def _verification(metadata, verify_url):
     return panel
 
 
+class BottomVerification(Flowable):
+    """Use the remaining space to anchor issuance references above page footer.
+
+    This placement is for the final page only; the QR itself stays in the
+    identity block on page one. If too little room remains, the entire
+    verification panel moves to the next page without splitting.
+    """
+
+    def __init__(self, metadata, verify_url):
+        super().__init__()
+        self.panel = _verification(metadata, verify_url)
+        self.note = _paragraph(
+            "Document de présentation émis par Makolo. La vérification "
+            "confirme son émission et son intégrité, sans certifier les "
+            "informations déclarées.",
+            _style(7.8, 11.8, color=MUTED),
+        )
+        self.width = CONTENT_WIDTH
+        self.height = 0
+        self.panel_height = 0
+        self.note_height = 0
+
+    def wrap(self, avail_width, avail_height):
+        self.width = min(CONTENT_WIDTH, avail_width)
+        _, self.panel_height = self.panel.wrap(self.width, avail_height)
+        _, self.note_height = self.note.wrap(self.width, avail_height)
+        required = self.panel_height + self.note_height + 15
+        self.height = max(required, avail_height)
+        return self.width, self.height
+
+    def split(self, avail_width, avail_height):
+        # A final verification block must never break across pages.
+        return []
+
+    def draw(self):
+        self.note.drawOn(self.canv, 0, 5)
+        self.panel.drawOn(self.canv, 0, self.note_height + 13)
+
+
 def render_passport_layout(payload, metadata, verify_url, *,
                            portrait_bytes=None, qr_png=None):
     """Generate A4 PDF solely from an authorized snapshot and permitted media."""
@@ -632,21 +671,21 @@ def render_passport_layout(payload, metadata, verify_url, *,
                                     rows[0]])])
         last_title = title
         last_rows = rows[1:]
-    verification = _verification(metadata, verify_url)
-    note = _paragraph(
-        "Document de présentation émis par Makolo. La vérification confirme "
-        "son émission et son intégrité, sans certifier les informations déclarées.",
-        _style(7.8, 11.8, color=MUTED),
-    )
+    # The issuance block sits close to the physical footer on the final
+    # sheet, instead of being immediately after the last short content row.
+    # Keep at least the final factual rows nearby if the page is full.
+    from reportlab.platypus import CondPageBreak
+
     if last_rows:
         head, tail = last_rows[:-2], last_rows[-2:]
         story.extend(head)
-        story.extend([KeepTogether(tail + [Spacer(1, 13),
-                                            verification, Spacer(1, 7), note])])
-    else:
-        story.extend([Spacer(1, 6), KeepTogether([
-            verification, Spacer(1, 7), note,
-        ])])
+        tail_height = sum(
+            item.wrap(CONTENT_WIDTH, 10000)[1] for item in tail
+        )
+        story.append(CondPageBreak(tail_height + 140))
+        story.extend(tail)
+    story.append(Spacer(1, 12))
+    story.append(BottomVerification(metadata, verify_url))
     document.build(story, onFirstPage=_page_header,
                    onLaterPages=_page_header, canvasmaker=NumberedCanvas)
     return output.getvalue()
