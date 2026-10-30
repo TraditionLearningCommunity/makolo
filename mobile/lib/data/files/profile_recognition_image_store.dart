@@ -31,7 +31,12 @@ class ProfileRecognitionImageStore {
   }
 
   Future<File> _file(String path) async {
-    final root = rootOverride ?? await ProfilePaths.privateRoot(profileId);
+    final root = rootOverride == null
+        ? await ProfilePaths.privateRoot(profileId)
+        : Directory(
+            '${rootOverride!.path}/profiles/'
+            '${ProfilePaths.safeProfileId(profileId)}',
+          );
     final directory = Directory('${root.path}/recognition-images');
     await directory.create(recursive: true);
     return File('${directory.path}/${keyFor(path)}.image');
