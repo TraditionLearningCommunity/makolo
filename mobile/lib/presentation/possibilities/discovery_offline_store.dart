@@ -73,7 +73,9 @@ class DiscoveryOfflineStore {
   static Future<void> _pendingWrites = Future<void>.value();
 
   Future<void> retainRecognitionImage(Uri url, Uint8List bytes) {
-    final work = _pendingWrites.then((_) => _retainRecognitionImageDirect(url, bytes));
+    final work = _pendingWrites.then(
+      (_) => _retainRecognitionImageDirect(url, bytes),
+    );
     _pendingWrites = work.catchError((Object _) {});
     return work;
   }
@@ -86,7 +88,9 @@ class DiscoveryOfflineStore {
       throw const FormatException('Invalid published recognition image');
     }
     final target = await _recognitionFile(url);
-    final partial = File('${target.path}.part-${DateTime.now().microsecondsSinceEpoch}-${_nonce.nextInt(1 << 32)}');
+    final nonce = '${DateTime.now().microsecondsSinceEpoch}-'
+        '${_nonce.nextInt(1 << 32)}';
+    final partial = File('${target.path}.part-$nonce');
     try {
       await partial.writeAsBytes(bytes, flush: true);
       if (await target.exists()) await target.delete();
