@@ -105,7 +105,11 @@ class PassportViewMixin(TemplateView):
         show_selection_catalog = (
             self.private_authorized
             and self.variant == PASSPORT_CUSTOM
-            and not any(self.request.GET.get(mode) == "1" for mode in ("download", "document", "pdf"))
+            and (not self.has_custom_selection() or self.request.GET.get("edit") == "1")
+            and not any(
+                self.request.GET.get(mode) == "1"
+                for mode in ("download", "document", "pdf")
+            )
         )
         is_pdf = self.request.GET.get("pdf") == "1"
         is_export = self.request.GET.get("download") == "1"
@@ -143,6 +147,12 @@ class PassportViewMixin(TemplateView):
                 "subject_is_public": self.subject_is_public(),
                 "topic_options": self.get_topic_options() if self.private_authorized else (),
                 "selection_catalog": self.get_selection_catalog() if show_selection_catalog else None,
+                "can_edit_custom_selection": (
+                    self.private_authorized and self.variant == PASSPORT_CUSTOM
+                    and self.has_custom_selection() and not is_document
+                    and not show_selection_catalog
+                ),
+                "edit_selection_url": self._document_url("edit"),
                 "selected_topic_codes": set(self.request.GET.getlist("topic")),
                 "selected_sections": set(self.request.GET.getlist("include")),
                 "selected_activity_ids": set(self.request.GET.getlist("activity")),
