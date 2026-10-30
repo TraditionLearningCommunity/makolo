@@ -350,7 +350,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
 
   Future<void> _toggleOffline() async {
     if (_offlineBusy || _item.mimeType == 'text/html' ||
-        _item.inlineText != null) return;
+        _item.inlineText != null) {
+      return;
+    }
     final item = _item;
     final generation = _generation;
     setState(() => _offlineBusy = true);
