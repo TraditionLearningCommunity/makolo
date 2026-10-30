@@ -816,12 +816,7 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
         : null;
     final saved = _confirmedSaved ?? (possibility?.savedState == 'saved');
     final canSave =
-        possibility != null &&
-        (saved
-            ? possibility.savedState == 'saved' || _confirmedSaved == true
-            : possibility.canSave) &&
-        widget.onSave != null &&
-        !_busy;
+        possibility?.canSave == true && widget.onSave != null;
 
     // A calm continuity needs no empty toolbar when no operation exists.
     if (!canSave && !canShare && route == null) {
@@ -841,47 +836,43 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
           child: Row(
             key: const Key('ongoing-n1-discover-actions'),
             children: [
-              Expanded(
-                child: IconButton(
-                  key: const Key('ongoing-n1-save'),
-                  onPressed: canSave ? _save : null,
-                  tooltip: saved ? 'Enregistré' : 'Enregistrer',
-                  icon: _busy
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : DiscoveryOrbitIcon(
-                          saved: saved,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+              if (canSave)
+                Expanded(
+                  child: IconButton(
+                    key: const Key('ongoing-n1-save'),
+                    onPressed: _busy ? null : _save,
+                    tooltip: saved ? 'Enregistré' : 'Enregistrer',
+                    icon: _busy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : DiscoveryOrbitIcon(
+                            saved: saved,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: IconButton(
-                  key: const Key('ongoing-n1-primary'),
-                  onPressed: route == null ? null : () => context.push(route),
-                  tooltip: label,
-                  icon: const Icon(Icons.play_circle_outline_rounded),
+              if (route != null)
+                Expanded(
+                  child: IconButton(
+                    key: const Key('ongoing-n1-primary'),
+                    onPressed: () => context.push(route),
+                    tooltip: label,
+                    icon: const Icon(Icons.play_circle_outline_rounded),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: sharedItem == null
-                    ? const IconButton(
-                        key: Key('ongoing-n1-share'),
-                        onPressed: null,
-                        tooltip: 'Partager',
-                        icon: Icon(Icons.share_outlined),
-                      )
-                    : DiscoveryShareControl(
-                        item: sharedItem,
-                        api: widget.api,
-                        authenticated: true,
-                        iconOnly: true,
-                        baseUri: widget.baseUri,
-                      ),
-              ),
+              if (sharedItem != null)
+                Expanded(
+                  child: DiscoveryShareControl(
+                    item: sharedItem,
+                    api: widget.api,
+                    authenticated: true,
+                    iconOnly: true,
+                    baseUri: widget.baseUri,
+                  ),
+                ),
             ],
           ),
         ),
