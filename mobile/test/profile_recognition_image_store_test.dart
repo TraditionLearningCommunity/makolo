@@ -120,7 +120,7 @@ void main() {
     }
     final retained = <int>[];
     for (var i = 0; i < 13; i++) {
-      if (await store.read('$imagePath$i') != null) retained.add(i);
+      if (await store.read(imageFor(i + 2)) != null) retained.add(i);
     }
     expect(retained.length, ProfileRecognitionImageStore.maxRetainedImages);
     expect(retained, contains(12));
