@@ -104,6 +104,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               ) !=
               FreshnessState.fresh) {
         await _refreshItems();
+      } else {
+        // A fresh local field also gets an invisible next lot when possible.
+        unawaited(_prefetchNext(_query));
       }
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
