@@ -1,10 +1,9 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../data/files/profile_recognition_image_store.dart';
 import '../../app/sync_lifecycle.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
@@ -18,6 +17,7 @@ import '../../navigation/refresh_boundary.dart';
 import '../../navigation/deep_link_resolver.dart';
 import '../../navigation/destination.dart';
 import '../../presentation/humanization.dart';
+import '../../presentation/media/retained_recognition_image.dart';
 import '../../repositories/personal_repository.dart';
 import '../../network/makolo_api_client.dart';
 import '../discovery/discovery_repository.dart';
@@ -220,6 +220,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
             preservedMessage: '',
             onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
             content: _OngoingAdaptiveView(
+              profileId: widget.repository.store.profileId,
               items: items,
               selected: selected,
               stale: stale,
@@ -249,6 +250,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
 
 class _OngoingAdaptiveView extends StatelessWidget {
   const _OngoingAdaptiveView({
+    required this.profileId,
     required this.items,
     required this.selected,
     required this.stale,
@@ -262,6 +264,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
     this.moreError,
     this.endReached = false,
   });
+  final String profileId;
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
   final bool stale;
@@ -281,6 +284,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
     horizontalPadding: MediaQuery.sizeOf(context).width < 600 ? 0 : null,
     child: selected == null
         ? _OngoingField(
+            profileId: profileId,
             items: items,
             selected: selected,
             stale: stale,
@@ -296,6 +300,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
         : MakoloAdaptiveSplit(
             splitAt: MakoloLayout.ongoingSplitMinWidth,
             field: _OngoingField(
+              profileId: profileId,
               items: items,
               selected: selected,
               stale: stale,
@@ -311,6 +316,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
             focus: selected == null
                 ? const _OngoingFocusPlaceholder()
                 : _OngoingFocus(
+                    profileId: profileId,
                     item: selected!,
                     onBack: onBack,
                     stale: stale,
@@ -319,6 +325,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
                   ),
             narrow: selected == null
                 ? _OngoingField(
+                    profileId: profileId,
                     items: items,
                     selected: selected,
                     stale: stale,
@@ -332,6 +339,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
                     endReached: endReached,
                   )
                 : _OngoingFocus(
+                    profileId: profileId,
                     item: selected!,
                     onBack: onBack,
                     stale: stale,
@@ -344,6 +352,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
 
 class _OngoingField extends StatefulWidget {
   const _OngoingField({
+    required this.profileId,
     required this.items,
     required this.selected,
     required this.stale,
@@ -357,6 +366,7 @@ class _OngoingField extends StatefulWidget {
     this.endReached = false,
   });
 
+  final String profileId;
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
   final bool stale;
@@ -469,6 +479,7 @@ class _OngoingFieldState extends State<_OngoingField> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _OngoingRow(
+              profileId: widget.profileId,
               item: item,
               selected: item.id == widget.selected?.id,
               stale: widget.stale,
@@ -1019,66 +1030,29 @@ String? ongoingRecognitionImageUrl(String? source, Uri? baseUri) {
   return resolved.toString();
 }
 
-class _OngoingProtectedImage extends StatefulWidget {
+class _OngoingProtectedImage extends StatelessWidget {
   const _OngoingProtectedImage({
     super.key,
     required this.api,
+    required this.profileId,
     required this.imageUrl,
     required this.label,
   });
+
   final MakoloApiClient api;
+  final String profileId;
   final String imageUrl;
   final String label;
-  @override
-  State<_OngoingProtectedImage> createState() => _OngoingProtectedImageState();
-}
-
-class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
-  late Future<Uint8List> _bytes;
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
 
   @override
-  void didUpdateWidget(covariant _OngoingProtectedImage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.imageUrl != widget.imageUrl || oldWidget.api != widget.api) {
-      _load();
-    }
-  }
-
-  void _load() {
-    _bytes = widget.api.getPresentationImage(Uri.parse(widget.imageUrl).path);
-  }
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<Uint8List>(
-    key: ValueKey(widget.imageUrl),
-    future: _bytes,
-    builder: (context, snapshot) {
-      if (snapshot.hasData) {
-        return Image.memory(
-          snapshot.data!,
-          fit: BoxFit.cover,
-          semanticLabel: widget.label,
-          gaplessPlayback: false,
-          errorBuilder: (context, error, stackTrace) =>
-              const Center(child: Icon(Icons.image_not_supported_outlined)),
-        );
-      }
-      if (snapshot.hasError) {
-        return const Center(child: Icon(Icons.image_not_supported_outlined));
-      }
-      return const Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    },
+  Widget build(BuildContext context) => RetainedRecognitionImage(
+    api: api,
+    profileId: profileId,
+    path: Uri.parse(imageUrl).path,
+    alt: label,
+    placeholder: const Center(
+      child: Icon(Icons.image_not_supported_outlined),
+    ),
   );
 }
 
@@ -1088,6 +1062,7 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
 void _openOngoingProtectedMedia(
   BuildContext context, {
   required MakoloApiClient api,
+  required String profileId,
   required String imageUrl,
   required String title,
   required String mimeType,
@@ -1100,8 +1075,13 @@ void _openOngoingProtectedMedia(
             title: title,
             uri: Uri.parse(imageUrl),
             mimeType: mimeType,
-            authorizedImageBytes: () =>
-                api.getPresentationImage(Uri.parse(imageUrl).path),
+            authorizedImageBytes: () async {
+              final path = Uri.parse(imageUrl).path;
+              final retained = await ProfileRecognitionImageStore(
+                profileId: profileId,
+              ).read(path);
+              return retained ?? api.getPresentationImage(path);
+            },
           ),
         ],
       ),
@@ -1113,6 +1093,7 @@ void _openOngoingProtectedMedia(
 /// A recognition image gets the available width; text never sits beside it.
 class _OngoingRow extends StatelessWidget {
   const _OngoingRow({
+    required this.profileId,
     required this.item,
     required this.selected,
     required this.stale,
@@ -1121,6 +1102,7 @@ class _OngoingRow extends StatelessWidget {
     this.api,
   });
 
+  final String profileId;
   final OngoingContinuityPresentation item;
   final bool selected;
   final bool stale;
@@ -1283,6 +1265,7 @@ class _OngoingRow extends StatelessWidget {
                     : () => _openOngoingProtectedMedia(
                         context,
                         api: api!,
+                        profileId: profileId,
                         imageUrl: imageUrl,
                         title: item.mediaAlt ?? item.title,
                         mimeType: imageMime,
@@ -1302,6 +1285,7 @@ class _OngoingRow extends StatelessWidget {
                       : _OngoingProtectedImage(
                           key: const Key('ongoing-n1-recognition-media'),
                           api: api!,
+                          profileId: profileId,
                           imageUrl: imageUrl,
                           label: item.mediaAlt ?? item.title,
                         ),
@@ -1327,6 +1311,7 @@ class _OngoingFocusPlaceholder extends StatelessWidget {
 
 class _OngoingFocus extends StatelessWidget {
   const _OngoingFocus({
+    required this.profileId,
     required this.item,
     required this.onBack,
     required this.stale,
@@ -1334,6 +1319,7 @@ class _OngoingFocus extends StatelessWidget {
     this.baseUri,
   });
 
+  final String profileId;
   final OngoingContinuityPresentation item;
   final VoidCallback onBack;
   final bool stale;
@@ -1558,12 +1544,14 @@ class _OngoingFocus extends StatelessWidget {
                   onTap: () => _openOngoingProtectedMedia(
                     context,
                     api: api!,
+                    profileId: profileId,
                     imageUrl: media.$1,
                     title: media.$2,
                     mimeType: media.$3,
                   ),
                   child: _OngoingProtectedImage(
                     api: api!,
+                    profileId: profileId,
                     imageUrl: media.$1,
                     label: media.$2,
                   ),
