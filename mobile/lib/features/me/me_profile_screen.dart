@@ -426,7 +426,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     if (!mounted) return;
     setState(() {
       _saving = false;
-      _confirmation = refreshed
+      _confirmation = submittedRevision != _editRevision
+          ? 'Les modifications envoyées sont enregistrées. '
+              'Vos changements plus récents restent à enregistrer.'
+          : refreshed
           ? 'Modifications enregistrées.'
           : 'Enregistré. Actualisation en attente.';
     });
