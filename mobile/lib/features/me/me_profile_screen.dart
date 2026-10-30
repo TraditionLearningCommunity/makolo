@@ -24,6 +24,7 @@ class MeProfileScreen extends StatefulWidget {
 }
 
 class _MeProfileScreenState extends State<MeProfileScreen> {
+  static const _accountEditorProjection = 'personal.me.account_editor';
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
   final _profession = TextEditingController();
@@ -54,6 +55,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   String? _error;
   String? _confirmation;
   Map<String, dynamic>? _cachedIdentity;
+  bool _edited = false;
 
   @override
   void initState() {
@@ -61,20 +63,86 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     _bootstrap();
   }
 
+  /// Whitelist the Accounts editor fields. Do not persist the full auth
+  /// response, credentials, tokens or unrelated Profile information.
+  static Map<String, dynamic> _editorProjection(Map<String, dynamic> user) {
+    final profile = user['profile'];
+    final fields = profile is Map ? profile : const <String, dynamic>{};
+    return {
+      for (final key in const [
+        'first_name', 'last_name', 'bio', 'phone', 'website',
+        'linkedin_url', 'facebook_url', 'instagram_url', 'tiktok_url',
+        'x_url', 'youtube_url', 'language',
+      ])
+        key: user[key]?.toString() ?? '',
+      for (final key in const [
+        'profession', 'city', 'country', 'company_name',
+        'organization_name', 'address',
+      ])
+        key: fields[key]?.toString() ?? '',
+      'public_profile': fields['public_profile'] == true,
+      'searchable': fields['searchable'] == true,
+    };
+  }
+
+  void _applyEditor(Map<String, dynamic> editor) {
+    String value(String key) => editor[key]?.toString() ?? '';
+    _firstName.text = value('first_name');
+    _lastName.text = value('last_name');
+    _bio.text = value('bio');
+    _profession.text = value('profession');
+    _city.text = value('city');
+    _country.text = value('country');
+    _selectedCountry = countryForValue(_country.text);
+    _countryHasUnselectedInput = false;
+    _phone.text = value('phone');
+    _website.text = value('website');
+    _linkedin.text = value('linkedin_url');
+    _facebook.text = value('facebook_url');
+    _instagram.text = value('instagram_url');
+    _tiktok.text = value('tiktok_url');
+    _x.text = value('x_url');
+    _youtube.text = value('youtube_url');
+    _company.text = value('company_name');
+    _organization.text = value('organization_name');
+    _language.text = value('language');
+    _address.text = value('address');
+    _publicProfile = editor['public_profile'] == true;
+    _searchable = editor['searchable'] == true;
+    _loading = false;
+    _loaded = true;
+  }
+
+  Future<void> _persistEditor(Map<String, dynamic> editor) async {
+    await widget.personal.store.putProjection(
+      kind: _accountEditorProjection,
+      schemaVersion: 1,
+      payload: editor,
+    );
+  }
+
   Future<void> _bootstrap() async {
     try {
       final snapshot = await widget.personal.store.readProjection('personal.me');
       final local = MeLocalPreview.forProfile(
-        snapshot, widget.personal.store.profileId,
+        snapshot,
+        widget.personal.store.profileId,
       );
-      if (mounted && local?.identity != null) {
+      final editor = await widget.personal.store.readProjection(
+        _accountEditorProjection,
+      );
+      if (mounted) {
         setState(() {
-          _cachedIdentity = local!.identity;
-          _loading = false;
+          _cachedIdentity = local?.identity;
+          if (editor != null) {
+            _applyEditor(editor.payload);
+          } else if (local?.identity != null) {
+            _loading = false;
+          }
         });
       }
     } on Object {
-      // A missing local summary must not delay the owner request.
+      // Missing local facts do not block the Accounts owner acquisition.
     }
     if (mounted) await _read();
   }
@@ -82,50 +150,35 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Future<void> _read() async {
     try {
       final response = await widget.api.get('api/v1/accounts/auth/me/');
-      final user = response.jsonObject();
-      final profile = user['profile'];
-      final fields = profile is Map ? profile : const <String, dynamic>{};
+      final editor = _editorProjection(response.jsonObject());
+      try {
+        await _persistEditor(editor);
+      } on Object {
+        // A valid Accounts reply can still render if local storage is full.
+      }
       if (!mounted) return;
       setState(() {
-        _firstName.text = user['first_name']?.toString() ?? '';
-        _lastName.text = user['last_name']?.toString() ?? '';
-        _bio.text = user['bio']?.toString() ?? '';
-        _profession.text = fields['profession']?.toString() ?? '';
-        _city.text = fields['city']?.toString() ?? '';
-        _country.text = fields['country']?.toString() ?? '';
-        _selectedCountry = countryForValue(_country.text);
-        _countryHasUnselectedInput = false;
-        _phone.text = user['phone']?.toString() ?? '';
-        _website.text = user['website']?.toString() ?? '';
-        _linkedin.text = user['linkedin_url']?.toString() ?? '';
-        _facebook.text = user['facebook_url']?.toString() ?? '';
-        _instagram.text = user['instagram_url']?.toString() ?? '';
-        _tiktok.text = user['tiktok_url']?.toString() ?? '';
-        _x.text = user['x_url']?.toString() ?? '';
-        _youtube.text = user['youtube_url']?.toString() ?? '';
-        _company.text = fields['company_name']?.toString() ?? '';
-        _organization.text = fields['organization_name']?.toString() ?? '';
-        _language.text = user['language']?.toString() ?? '';
-        _address.text = fields['address']?.toString() ?? '';
-        _publicProfile = fields['public_profile'] == true;
-        _searchable = fields['searchable'] == true;
+        // Never overwrite text entered while the background check was
+        // pending. Those edits are not yet confirmed by the owner.
+        if (!_edited) _applyEditor(editor);
         _loading = false;
-        _loaded = true;
         _error = null;
       });
       if (widget.openAvatarPicker && !_avatarPickerScheduled) {
         _avatarPickerScheduled = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _changeAvatar();
-          }
+          if (mounted) _changeAvatar();
         });
       }
     } on Object {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Modification indisponible sans confirmation du serveur.';
+        // Keep a fully received Accounts editor on-screen, rather than
+        // replacing it with only the Profile's name and biography.
+        if (!_loaded) {
+          _error = 'Modification indisponible sans confirmation du serveur.';
+        }
       });
     }
   }
@@ -290,8 +343,35 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       return;
     }
 
-    // The Accounts owner confirmed the change. Refresh the sole personal.me
-    // projection rather than locally inventing a definitive new identity.
+    // Accounts confirmed the mutation. Persist precisely the confirmed
+    // editor fields; never promote unconfirmed edits into personal.me.
+    try {
+      await _persistEditor({
+        'first_name': _firstName.text.trim(),
+        'last_name': _lastName.text.trim(),
+        'bio': _bio.text.trim(),
+        'profession': _profession.text.trim(),
+        'city': _city.text.trim(),
+        'country': _selectedCountry?.code ?? '',
+        'phone': _phone.text.trim(),
+        'website': _website.text.trim(),
+        'linkedin_url': _linkedin.text.trim(),
+        'facebook_url': _facebook.text.trim(),
+        'instagram_url': _instagram.text.trim(),
+        'tiktok_url': _tiktok.text.trim(),
+        'x_url': _x.text.trim(),
+        'youtube_url': _youtube.text.trim(),
+        'company_name': _company.text.trim(),
+        'organization_name': _organization.text.trim(),
+        'language': 'fr',
+        'address': _address.text.trim(),
+        'public_profile': _publicProfile,
+        'searchable': _searchable,
+      });
+    } on Object {
+      // The server mutation remains confirmed if local storage fails.
+    }
+    _edited = false;
     final refreshed = await _refreshPersonal();
     if (!mounted) return;
     setState(() {
@@ -386,6 +466,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                     ],
                     onChanged: _saving ? null : (value) {
                       _language.text = value ?? 'fr';
+                      _edited = true;
                     },
                   ),
                 ),
@@ -409,14 +490,20 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   subtitle: const Text('Autoriser la présentation publique'),
                   value: _publicProfile,
                   onChanged: _saving ? null : (value) =>
-                      setState(() => _publicProfile = value),
+                      setState(() {
+                        _publicProfile = value;
+                        _edited = true;
+                      }),
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Visible dans la recherche'),
                   value: _searchable,
                   onChanged: _saving ? null : (value) =>
-                      setState(() => _searchable = value),
+                      setState(() {
+                        _searchable = value;
+                        _edited = true;
+                      }),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
@@ -530,6 +617,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     padding: const EdgeInsets.only(bottom: 16),
     child: TextField(
       controller: controller,
+      onChanged: (_) => _edited = true,
       maxLines: lines,
       textCapitalization: TextCapitalization.sentences,
       decoration: InputDecoration(
