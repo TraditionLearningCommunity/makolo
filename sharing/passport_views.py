@@ -344,9 +344,13 @@ class PublicPassportIdentifierView(PassportViewMixin):
 
 def _snapshot_content_allowed(snapshot, viewer, *, currently_public):
     """Do not let a document token grant permissions or expose current data."""
-    if snapshot.is_revoked or not snapshot_payload_is_intact(snapshot):
+    if not snapshot_payload_is_intact(snapshot):
         return False
-    if snapshot.variant == PASSPORT_PUBLIC and currently_public:
+    # Issuance/publication is not Sharing. A version may have been issued
+    # privately even though the Profile is now public. Both times must allow
+    # general access, and revocation prevents public document access.
+    if (not snapshot.is_revoked and snapshot.variant == PASSPORT_PUBLIC
+            and snapshot.public_at_issue and currently_public):
         return True
     if not viewer.is_authenticated:
         return False
@@ -354,8 +358,8 @@ def _snapshot_content_allowed(snapshot, viewer, *, currently_public):
         return snapshot.profile_id == viewer.pk
     if not snapshot.space_id or not user_can_access_organization_workspace(viewer, snapshot.space):
         return False
-    # Space snapshots can contain internal team names; retain that distinct
-    # server-side authority requirement even when the document is historical.
+    # History is owner-readable, even after revocation. Internal Space teams
+    # still require their separate authority at reading time.
     if (snapshot.payload.get("space_teams") and
             not user_can_manage_organization_team(viewer, snapshot.space)):
         return False
