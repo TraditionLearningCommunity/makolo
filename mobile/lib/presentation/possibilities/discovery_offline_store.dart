@@ -65,7 +65,13 @@ class DiscoveryOfflineStore {
       await file.delete();
       return null;
     }
-    return file.readAsBytes();
+    final bytes = await file.readAsBytes();
+    try {
+      await file.setLastModified(DateTime.now().toUtc());
+    } on FileSystemException {
+      // Previously received bytes remain readable.
+    }
+    return bytes;
   }
 
   // Serialize writes and quota pruning: concurrent media widgets must not
