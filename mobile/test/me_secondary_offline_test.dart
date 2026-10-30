@@ -10,6 +10,8 @@ import 'package:makolo_mobile/features/me/me_profile_screen.dart';
 import 'package:makolo_mobile/features/me/me_saved_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
+import 'package:makolo_mobile/repositories/draft_repository.dart';
+import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
 
 class _OfflineApi implements MakoloApiClient {
   @override
@@ -314,6 +316,66 @@ void main() {
     expect(find.text('Réessayer'), findsNothing);
     expect(find.textContaining('Dernières informations du profil connues'),
         findsNothing);
+  });
+
+  testWidgets('profile edits remain local drafts across native editor restart', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final personal = await _seed(database);
+    await personal.store.putProjection(
+      kind: 'personal.me.account_editor',
+      schemaVersion: 1,
+      payload: {
+        'first_name': 'Avant',
+        'last_name': 'Makolo',
+        'bio': '',
+        'profession': '',
+        'city': '',
+        'country': 'CD',
+        'public_profile': false,
+        'searchable': false,
+      },
+    );
+    final drafts = DraftRepository(
+      database: database,
+      outbox: OutboxRepository(database, 'profile-a'),
+      profileId: 'profile-a',
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: MeProfileScreen(
+        api: _OfflineApi(),
+        personal: personal,
+        drafts: drafts,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Prénom'),
+      'Brouillon conservé',
+    );
+    await tester.runAsync(() async {
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+    });
+    final draft = await drafts.read(
+      owner: 'Accounts',
+      resourceKind: 'profile_editor',
+      resourceId: 'profile-a',
+    );
+    expect(draft?.payload['first_name'], 'Brouillon conservé');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(MaterialApp(
+      home: MeProfileScreen(
+        api: _OfflineApi(),
+        personal: personal,
+        drafts: drafts,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Brouillon conservé'), findsOneWidget);
+    expect(find.text('Enregistrer'), findsOneWidget);
   });
 
   testWidgets('profile summary is read-only when its owner is unreachable', (
