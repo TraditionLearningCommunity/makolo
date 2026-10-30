@@ -1,81 +1,62 @@
-# Donnees de demonstration Makolo — volume et operations
+# Makolo — génération de données de démonstration
 
-## But
+**Commande unique :** `python -m scripts.demo_generation`. Les modules sous `scripts/demo_generation/` ne sont pas des scripts à lancer individuellement.
 
-Tester de vrais parcours de bout en bout avec des faits **synthetiques** en restant sur une seule base SQLite, sans copie ni backup automatique : profils, Activity/Occurrence, Journey, Access/AccessCredential/AccessUse, Operations (Checkpoint et Queue), Scanner, Event/Ticket/Commerce et Payment sandbox.
+## Structure
 
-La demo ne remplace ni les permissions serveur, ni les transitions de statut, ni les preuves de paiement reelles. Les actions sont executees par les services canoniques. **Ne jamais executer sur production.**
+| Module interne | Responsabilité canonique |
+| --- | --- |
+| `__main__.py` | CLI transversal : `inventory`, `plan`, `generate`, `timeline` |
+| `scale.py` | Journey, Access, Operations, Scanner, Event/Commerce/Payment sandbox |
+| `verticals.py` | Funding, Obtention, Services et Opportunities |
+| `transport.py` | Activity/Occurrence transport, Capacity, Journey, Access, file d’embarquement |
+| `mandates.py` | Mandates d’Activity explicitement accordés au personnel de démo |
+| `content.py` | Audit Content/Presentation uniquement, sans média orphelin |
+| `clock.py` | Dates et créneaux de démo, **jamais recalés implicitement** |
 
-## Modules et couverture
+Les anciens points d’entrée `scripts/makolo_demo_*.py` sont supprimés. La création de Journey en double (ancien `seed_journeys`) est consolidée dans `scale.py` ; l’ancienne commande `operations` se répartit entre `scale.py` et `mandates.py`.
 
-| Module | Script / option | Contrat |
-| --- | --- | --- |
-| Calendrier maintenant/soir/demain | `scripts/makolo_demo_clock.py --demo-live` | Repositionnement temporel |
-| Journey massives | `scripts/makolo_demo_scale.py --journeys N` | create/submit/confirm, selection `world_*` |
-| Access et credentials | `--accesses N` | issue_access |
-| Checkpoints et files Live | `--queues N --queue-advance served` | open_checkpoint, enter_queue, call_next, serve_entry |
-| Mandates demo scopes | `--grant-demo-roles` | grant_activity_role, Activity seulement |
-| Scanner Event | `--scans N` | scan_ticket, doublon et token invalide |
-| Ticket / Offer / Capacity | `--orders N` | configure_ticket_type, create_order |
-| Payment | `--orders N` | initiate_payment / complete_sandbox_payment, seulement si sandbox active |
-| Transport | `scripts/makolo_demo_transport.py` | Activity, Occurrence, reservation, AccessUse, queue |
-| Inventaire des modeles | `--inventory` | Comptage en lecture seule de tous les modeles Django |
-
-**Les autres domaines (Trust, Resources, CRM, Automation, Proof, Notifications, etc.) ne sont pas generes artificiellement par ce premier lot.** Le rapport d'inventaire sert a mesurer precisement les lacunes; chaque domaine requiert son propre contrat et des services de production/adaptation demo, et non une insertion SQL aveugle.
-
-## Commandes Windows PowerShell (racine du depot)
+## Commandes PowerShell, racine du dépôt
 
 ```powershell
-git pull --ff-only
-python -m py_compile scripts/makolo_demo_scale.py scripts/makolo_demo_transport.py
-python manage.py check
-python scripts/makolo_demo_scale.py --journeys 10000 --accesses 10000 --queues 30 --queue-advance served --scans 500 --orders 100 --grant-demo-roles
-python scripts/makolo_demo_transport.py
+python -m scripts.demo_generation --help
+python -m scripts.demo_generation inventory
+python -m scripts.demo_generation plan --domains all --count 50 --profiles 30 --grant-roles
+python -m scripts.demo_generation generate --domains all --count 50 --profiles 30 --grant-roles
 ```
 
-Lorsque les apercus sont corrects :
+`plan` ne demande aucune écriture. `generate` écrit sur la **SQLite de démonstration existante** sans créer de copie ou de backup automatique ; vérifier les aperçus, la taille disque et la configuration avant génération massive.
+
+### Domaines sélectionnables
 
 ```powershell
-python scripts/makolo_demo_scale.py --journeys 10000 --accesses 10000 --queues 30 --scans 500 --orders 100 --grant-demo-roles --apply
-python scripts/makolo_demo_transport.py --apply
-python scripts/makolo_demo_scale.py --inventory
+python -m scripts.demo_generation plan --domains funding,obtention,services,opportunities --count 50
+python -m scripts.demo_generation plan --domains activities,mandates,journeys,access,operations,scanner,commerce --count 100 --grant-roles
+python -m scripts.demo_generation plan --domains transport --count 20
+python -m scripts.demo_generation plan --domains content
 ```
 
-**Ordre logique:** les Journeys sont preparees avant les Access; les Access avant les scans; les roles de Scanner et Operations restent distincts. Si `PAYMENTS_SANDBOX_ENABLED` est faux, les commandes payantes restent en attente, aucune confirmation n'est inventee.
+`all` inclut les domaines réellement générables et exclut volontairement `content` (audit seulement). `activities` représente le socle Activity/Occurrence réutilisé ; les nouvelles Activity sont créées seulement par une verticale définie (`transport`). `FundingContribution` est l’intention de **Funding** ; `Payment` appartient au domaine de paiement et représente son exécution, uniquement sandbox en démo.
 
-Le volume 10 000 represente jusqu'a 10 000 paires distinctes Occurrence/Profile eligibles et jusqu'a 10 000 Journey equipees d'un Access selon la presence de Journey; ce n'est pas une promesse de 10 000 scans acceptes le meme jour. Le nombre effectif et les causes de refus figurent dans les compteurs.
+Les groupes indépendants sont `journeys`, `access`, `operations`, `scanner`, `commerce`, `transport`, `funding`, `obtention`, `services`, `opportunities` et `mandates`. `--grant-roles` est obligatoire pour générer explicitement les Mandates. Le nombre `--count` est un budget de scénarios (plafonds propres à chaque module), pas la promesse d’autant de lignes créées.
 
-Le script impose un seuil de taille SQLite par defaut (450 MiB) pour limiter le risque de remplir les 512 Mo de PythonAnywhere. Ce seuil ne remplace pas une verification des quotas, fichiers journaux et autres usages du disque. Aucun fichier `.backup` ni clone de base n'est genere.
-
-## Verification fonctionnelle
-
-- Comparer les compteurs du script a la projection Live du Profil connecte, puis a celle de l'operateur.
-- Tester un scan accepte, un deuxieme scan du meme credential (duplicate), et un QR invalide.
-- Verifier que `beta_scanner` / `beta_transport_operator` restent non-staff et non-superuser.
-- Verifier qu'une Activity non-demo ne recoit aucun nouveau Mandate.
-- Le script transport cree des **AccessUse** pour ses voyages; un **ScanLog** n'est produit que sur le domaine Event par `scan_ticket`.
-- Controler `python manage.py check` puis les tests cibles des domaines touches avant tout merge.
-
-## Limites
-
-Une Activity synthétique ne constitue pas un service reel du monde physique. Les scans et paiements sandbox sont des faits de simulation techniques, marques dans leurs metadata/source. Certains modeles Django doivent rester vides sans contexte source; ne pas remplir les tables par seul objectif statistique.
-
-Aucune migration n'est requise pour ces scripts. Les scripts ne modifient pas `main` et ne suppriment aucune ligne metier.
-
-## Verticales complementaires (octobre 2026)
-
-Le script `scripts/makolo_demo_verticals.py` couvre les quatre verticales deja presentes dans la BDD :
-- `OpportunitySave` par `save_opportunity` ;
-- `ServiceJourneyContext` par `create_service_journey` ;
-- `ObtentionJourneyContext` par `create_obtention_journey` sur configuration publiee et mode existant ;
-- `FundingContribution` par `create_funding_contribution` : **intention de financement, pas paiement realise**.
+### Recalage temporel explicite
 
 ```powershell
-python -m py_compile scripts/makolo_demo_verticals.py
-python scripts/makolo_demo_verticals.py --per-domain 50 --profiles 30
-python scripts/makolo_demo_verticals.py --per-domain 50 --profiles 30 --apply
+python -m scripts.demo_generation timeline --demo-live
+python -m scripts.demo_generation timeline --demo-live --apply
 ```
 
-Ces operations sont conditionnelles : seuls les objets existants satisfaisant les regles d'eligibilite permettent une creation. Le bilan `ineligible` n'est pas une erreur a contourner. Les tests d'integration locaux et les tests de charge doivent etre executes avant l'essai 1000/10000. Les autres domaines non couverts doivent etre ajoutes par contrats de scenario, et non par insertion generique pour remplir toutes les tables.
+Ne pas relancer automatiquement `timeline`, car la temporalité est un fait métier.
 
-**Attention Git :** `git stash apply` applique le dernier stash meme si `git stash push` a affiche `No local changes to save`. En presence de conflit non resolu, terminer la resolution avant tout nouveau `pull`, `stash apply` ou commit.
+## Qualité, permissions et limites
+
+- Profils `world_*` de démo non-administrateurs. Les Mandates ne découlent pas d’un Membership et n’accordent que l’autorité explicitement prévue.
+- Access, AccessCredential, AccessUse et ScanLog sont distincts ; les contrôles sont exécutés par leurs services canoniques, sans imprimer QR ou secret.
+- Funding ne se confond pas avec Payment ; aucun versement réel, aucune fausse soumission à un tiers et aucun statut externe simulé comme vrai.
+- Le contenu est inspecté, pas multiplié artificiellement : aucun post, média ou ressource sans usage documenté.
+- Les autres domaines Django (Trust, CRM, Automation, Dossier, Project, Notifications, Recognition, etc.) nécessitent des scénarios propriétaires supplémentaires avant de pouvoir être déclarés couverts.
+- Vérification préalable : `python -m compileall -q scripts/demo_generation`, `python -m unittest scripts.demo_generation.test_cli`, `python manage.py check`.
+- CI/test de charge et vérification SQLite requis avant `--count 1000` ou davantage. Aucune migration n’est requise pour ce regroupement.
+
+En cas de conflit Flutter local, terminer la résolution Git avant `pull` ; ne jamais appliquer automatiquement `stash@{0}` si `stash push` n’a rien enregistré. Les répertoires privés ne doivent ni être supprimés ni ajoutés.
