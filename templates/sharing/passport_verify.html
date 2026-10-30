@@ -21,6 +21,7 @@
     {% if snapshot.is_revoked %}<div class="status bad">Cette version du Passeport a été révoquée.</div>{% elif not snapshot_intact %}<div class="status bad">Le contenu archivé ne correspond pas à l’empreinte du document émis.</div>{% else %}<div class="status">Version émise par Makolo · {{ snapshot.generated_at|date:"d/m/Y H:i" }} ✓</div>{% endif %}
     <h1>{{ snapshot_name }}</h1>
     <p class="muted">Ce lien renvoie à une version précise du Passeport, telle qu’elle a été émise à cette date. Il ne certifie ni l’identité légale ni la véracité des déclarations.</p>
+    {% if is_explicit_share %}<p class="muted">Consultation autorisée par un partage volontaire, indépendant de la publication générale. Ce partage expire le {{ share_expires_at|date:"d/m/Y H:i" }}.</p>{% endif %}
     <dl>
       <dt>Document</dt><dd>{{ snapshot.document_id }}</dd>
       <dt>Type</dt><dd>{% if snapshot.subject_kind == 'profile' %}Passeport personnel{% else %}Passeport Space{% endif %}</dd>
