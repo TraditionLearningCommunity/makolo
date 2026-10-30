@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
 import '../data/files/profile_recognition_image_store.dart';
+import '../data/files/profile_paths.dart';
 import '../network/api_error.dart';
 import '../network/makolo_api_client.dart';
 import 'freshness.dart';
@@ -210,6 +211,9 @@ class SyncEngine {
         source.projectionKind == 'personal.ongoing') {
       try {
         await ProfileRecognitionImageStore(profileId: profileId).purge();
+        if (source.projectionKind == 'personal.me') {
+          await ProfilePaths.removePortrait(profileId);
+        }
       } on Object {
         // The revoked projection is already removed from the active reader.
       }
