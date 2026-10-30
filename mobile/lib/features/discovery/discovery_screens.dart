@@ -70,6 +70,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   bool _acquisitionFailed = false;
   bool _loadingMore = false;
   bool _loadMoreFailed = false;
+  String? _prefetching;
 
   @override
   void initState() {
@@ -125,10 +126,39 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         setState(() => _query = current.copyWith(page: 1));
       }
       await widget.repository.refreshItems(_query);
+      unawaited(_prefetchNext(_query));
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
     } finally {
       if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  /// Preserve the next server lot invisibly. Raw cursor pages remain the
+  /// only truth; nothing is promoted to the visible field until the user
+  /// advances. One page ahead is a bounded reserve without a ranking engine.
+  Future<void> _prefetchNext(DiscoveryQuery current) async {
+    if (!mounted || !identical(current, _query)) return;
+    try {
+      final currentPage = await widget.repository.readItems(current);
+      if (currentPage == null) return;
+      final collection = _selector.collection(currentPage);
+      final token = collection.continuationToken;
+      if (!collection.hasNext || token == null || token.isEmpty) return;
+      final next = current.copyWith(
+        page: current.page + 1,
+        continuation: token,
+      );
+      if (await widget.repository.readItems(next) != null) return;
+      if (_prefetching != null) return;
+      _prefetching = next.fingerprint;
+      try {
+        await widget.repository.refreshItems(next);
+      } finally {
+        _prefetching = null;
+      }
+    } on Object {
+      // No fresh server lot: retain current presentation unchanged.
     }
   }
 
@@ -155,16 +185,26 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         page: current.page + 1,
         continuation: token,
       );
-      await widget.repository.refreshItems(next);
-      final source = await widget.repository.readSource(
-        widget.repository.itemsSource(next),
-      );
-      if (source.lastErrorCode != null ||
-          await widget.repository.readItems(next) == null) {
-        throw StateError('Discovery continuation unavailable');
+      // An already acquired invisible page is usable without any request.
+      // Only missing pages require the server; offline is not a new screen.
+      var retained = await widget.repository.readItems(next);
+      if (retained == null) {
+        await widget.repository.refreshItems(next);
+        final source = await widget.repository.readSource(
+          widget.repository.itemsSource(next),
+        );
+        retained = await widget.repository.readItems(next);
+        if (source.lastErrorCode != null || retained == null) {
+          throw StateError('Discovery continuation unavailable');
+        }
+      }
+      final received = _selector.collection(retained);
+      if (received.page != next.page) {
+        throw const FormatException('Incompatible local continuation');
       }
       if (!mounted || !identical(current, _query)) return;
       setState(() => _query = next);
+      unawaited(_prefetchNext(next));
     } on Object {
       if (mounted && identical(current, _query)) {
         setState(() => _loadMoreFailed = true);
