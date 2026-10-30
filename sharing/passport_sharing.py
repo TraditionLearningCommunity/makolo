@@ -64,7 +64,7 @@ def create_passport_share(*, snapshot, actor, days=7):
         channel="passport_issued_link",
     )
     return envelope, (
-        f"{settings.MAKOLO_PUBLIC_BASE_URL}"
+        f"{settings.MAKOLO_PUBLIC_BASE_URL.rstrip('/')}"
         f"{reverse('sharing:passport-shared', kwargs={'token': raw_token})}"
     )
 
