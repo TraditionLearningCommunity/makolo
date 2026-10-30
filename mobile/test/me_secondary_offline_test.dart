@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
+import 'package:makolo_mobile/features/discovery/discovery_repository.dart';
+import 'package:makolo_mobile/features/discovery/discovery_screens.dart';
 import 'package:makolo_mobile/features/me/me_considerations_screen.dart';
 import 'package:makolo_mobile/features/me/me_passport_screen.dart';
 import 'package:makolo_mobile/features/me/me_profile_screen.dart';
@@ -182,6 +184,29 @@ void main() {
     expect(tester.widget<IconButton>(
       find.byTooltip('Exporter le Passeport en PDF'),
     ).onPressed, isNull);
+  });
+
+  testWidgets('saved Activity opens its known local title without loading loop', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final personal = await _seed(database);
+    final discovery = DiscoveryRepository(
+      database: database,
+      store: personal.store,
+      profileId: personal.store.profileId,
+      api: _OfflineApi(),
+    );
+    await tester.pumpWidget(MaterialApp(home: ActivityDetailScreen(
+      activityId: 'activity-1',
+      repository: discovery,
+      onOpenOccurrence: (_) {},
+    )));
+    await tester.pumpAndSettle();
+    expect(find.text('Possibilité connue'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.textContaining('Mise à jour'), findsNothing);
   });
 
   testWidgets('saved opportunities remain readable offline', (tester) async {
