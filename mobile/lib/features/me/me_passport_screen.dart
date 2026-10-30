@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -156,10 +157,37 @@ class _MePassportScreenState extends State<MePassportScreen> {
     return params;
   }
 
-  Future<Map<String, dynamic>> _load() async {
+  Future<Map<String, dynamic>> _load({bool preferLocal = true}) async {
     final epoch = ++_loadEpoch;
     final requestedVariant = _variant;
     final resourceKey = _passportStorageKey();
+    if (preferLocal) {
+      try {
+        final stored = await widget.personal?.store.readProjection(
+          'personal.me.passport', resourceKey: resourceKey,
+        );
+        if (stored != null && stored.payload['variant'] == requestedVariant &&
+            epoch == _loadEpoch && resourceKey == _passportStorageKey()) {
+          if (mounted) setState(() {
+            _cachedPassport = stored.payload;
+            _cachedVariantKey = resourceKey;
+            _onlineReady = false;
+          });
+          // Return the local owner projection immediately; remote work is
+          // background reconciliation and never blocks the visible Passport.
+          unawaited(_load(preferLocal: false).then((data) {
+            if (!mounted || _variant != requestedVariant ||
+                resourceKey != _passportStorageKey()) return;
+            setState(() => _future = Future.value(data));
+          }).catchError((Object _) {
+            // The existing local Passport remains the presentation.
+          }));
+          return stored.payload;
+        }
+      } on Object {
+        // Local read failure must not block the server owner.
+      }
+    }
     final url = Uri(path: 'api/v1/me/passport/',
       queryParameters: _passportParams()).toString();
     try {
@@ -349,8 +377,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
     // Revalidate disclosure with the server before offering sharing actions.
     setState(() => _onlineReady = false);
     try {
-      final data = await _load();
-      if (!mounted) return;
+      final data = await _load(preferLocal: false);
+      if (!mounted || !_onlineReady) return;
       await _sharePassport(data);
     } on Object {
       if (!mounted) return;
@@ -369,35 +397,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
   }
 
   Widget _localPassportSummary(BuildContext context, {bool refreshing = false}) {
-    final identity = _localIdentity;
-    final name = identity?['display_name']?.toString();
-    final bio = identity?['bio']?.toString();
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
-      children: [
-        if (name != null && name.trim().isNotEmpty)
-          Text(name, style: Theme.of(context).textTheme.headlineSmall),
-        if (bio != null && bio.trim().isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(bio),
-        ],
-        if (identity == null && !refreshing)
-          const Text('Passeport indisponible.'),
-        if (refreshing) const LinearProgressIndicator(minHeight: 2),
-        if (!refreshing)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              tooltip: 'Actualiser',
-              onPressed: () => setState(() {
-                _onlineReady = false;
-                _future = _load();
-              }),
-              icon: const Icon(Icons.refresh_rounded),
-            ),
-          ),
-      ],
-    );
+    return const SizedBox.expand();
   }
 
   Widget _options(Map<String, dynamic> data) {
@@ -518,13 +518,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
         // is pending. Never show that data as if it were the new variant.
         final stored = _cachedVariantKey == _passportStorageKey()
             ? _cachedPassport : null;
-        if (snapshot.connectionState != ConnectionState.done && stored == null) {
-          return _localPassportSummary(context, refreshing: true);
-        }
-        if (!snapshot.hasData && stored == null) {
+        final futureData = snapshot.data;
+        final exact = futureData != null && futureData['variant'] == _variant
+            ? futureData : null;
+        if (stored == null && exact == null) {
           return _localPassportSummary(context);
         }
-        final data = snapshot.data ?? stored!;
+        final data = stored ?? exact!;
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
           children: [
@@ -647,12 +647,14 @@ class _PassportBody extends StatelessWidget {
               subtitle: SelectableText(link['url'].toString()),
             ),
       ],
+      if (disclosure.isNotEmpty) ...[
       const SizedBox(height: 14),
       Wrap(spacing: 10, runSpacing: 8, children: [
         _stat(context, 'Déclaré', disclosure['declared_count']),
         _stat(context, 'Établi', disclosure['established_count']),
         _stat(context, 'Délivré', disclosure['issued_count']),
       ]),
+      ],
       _section(context, 'Centres d’intérêt', _rows(declared['interests']),
           (row) => _text(_map(row['topic'])['label'])),
       _section(context, 'Ouvert à', _rows(declared['open_to']),
