@@ -69,7 +69,7 @@ class PassportPdfLayoutTests(TestCase):
         self.assertIn("VÉRIFIER CE DOCUMENT", content)
         self.assertIn("République démocratique du Congo", content)
         self.assertEqual(content.count(META["document_id"]), 1)
-        self.assertIn("DOMAINE D’ÉMISSION", content)
+        self.assertIn("Domaine d’émission", content)
         self.assertGreaterEqual(len(page.images), 1)  # QR in header, even without portrait
         self.assertTrue(page.get("/Annots"))  # clickable verification link
 
