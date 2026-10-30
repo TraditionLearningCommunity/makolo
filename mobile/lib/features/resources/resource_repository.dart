@@ -132,6 +132,30 @@ class ResourceRepository {
     ),
   );
 
+  Future<StoredProjection?> readDetail(String assetId) =>
+      store.readProjection(detailProjectionKind, resourceKey: assetId);
+
+  /// Metadata only. Never download resource bytes without explicit intent.
+  /// Owners enforce access independently for each keyed resource.
+  Future<void> warmKnownDetails(
+    Iterable<String> assetIds, {
+    int limit = 8,
+  }) async {
+    final seen = <String>{};
+    var acquired = 0;
+    for (final assetId in assetIds) {
+      if (assetId.isEmpty || !seen.add(assetId)) continue;
+      if (acquired >= limit) break;
+      if (await readDetail(assetId) != null) continue;
+      acquired++;
+      try {
+        await refreshDetail(assetId);
+      } on Object {
+        // A denied or unreachable detail must never suppress its list row.
+      }
+    }
+  }
+
   Future<void> refreshCollectionPage({
     required String query,
     required int offset,
