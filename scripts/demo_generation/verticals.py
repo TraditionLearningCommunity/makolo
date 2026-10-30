@@ -56,7 +56,7 @@ def main(argv=None):
                 yield item, user
 
     # Opportunity : sauvegarde et signalement synthetique, sans inventer une source verifiee.
-    for opp, user in pairs(Opportunity.objects.order_by("id")[:a.per_domain] if "opportunities" in selected else []):
+    for opp, user in pairs(Opportunity.objects.filter(publication_status="published", merged_into__isnull=True).order_by("id")[:a.per_domain] if "opportunities" in selected else []):
         if OpportunitySave.objects.filter(profile=user,opportunity=opp).exists():
             counts["opportunity_saved_existing"] += 1
         elif not a.apply:
@@ -70,7 +70,7 @@ def main(argv=None):
                 counts["opportunity_skipped"] += 1
 
     # Contribution financiere : intention seulement. Payment reste la verite d'execution.
-    for funding, user in pairs(FundingDetails.objects.select_related("activity").order_by("id")[:a.per_domain] if "funding" in selected else []):
+    for funding, user in pairs(FundingDetails.objects.select_related("activity").filter(activity__slug__startswith="demo-").order_by("id")[:a.per_domain] if "funding" in selected else []):
         ref = "makolo-demo-funding-" + user.pk.hex
         if FundingContribution.objects.filter(funding=funding,contributor_profile=user,client_reference=ref).exists():
             counts["funding_existing"] += 1
@@ -85,7 +85,7 @@ def main(argv=None):
                 counts["funding_ineligible"] += 1
 
     # Service : Journey de demande avec ServiceJourneyContext coherent.
-    for service, user in pairs(ServiceDetails.objects.select_related("activity").order_by("id")[:a.per_domain] if "services" in selected else []):
+    for service, user in pairs(ServiceDetails.objects.select_related("activity").filter(activity__slug__startswith="demo-").order_by("id")[:a.per_domain] if "services" in selected else []):
         if ServiceJourneyContext.objects.filter(journey__activity=service.activity,
                                                 journey__beneficiary=user).exists():
             counts["service_existing"] += 1
@@ -101,7 +101,7 @@ def main(argv=None):
                 counts["service_ineligible"] += 1
 
     # Obtention : seulement une configuration publiee avec un mode vraiment attache.
-    details = ObtentionDetails.objects.select_related("activity").order_by("id")[:a.per_domain] if "obtention" in selected else []
+    details = ObtentionDetails.objects.select_related("activity").filter(activity__slug__startswith="demo-").order_by("id")[:a.per_domain] if "obtention" in selected else []
     for obtention, user in pairs(details):
         if ObtentionJourneyContext.objects.filter(journey__activity=obtention.activity,
                                                   journey__beneficiary=user).exists():
