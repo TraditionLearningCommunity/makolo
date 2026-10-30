@@ -39,7 +39,7 @@ void main() {
       expect(routes, contains("path: '/discover/map'"));
     },
   );
-  test('personal search reuses guest debounce and reversible nearby criteria', () {
+  test('personal keyword search does not depend on device location', () {
     final source = File('lib/features/discovery/discovery_screens.dart')
         .readAsStringSync();
     final start = source.indexOf('class _DiscoverySearchScreenState');
@@ -47,9 +47,9 @@ void main() {
     final search = source.substring(start, end);
     expect(search, contains('ProgressiveSearchCoordinator('));
     expect(search, contains('onChanged: _searchChanged'));
-    expect(search, contains('clearLocation: true'));
-    expect(search, contains("Key('discover-location-active')"));
-    expect(search, contains('onDeleted: _clearLocation'));
-    expect(search, contains('_searchCoordinator.invalidate()'));
+    expect(search, isNot(contains('location.current()')));
+    expect(search, isNot(contains('discover-location-toggle')));
+    expect(search, isNot(contains('discover-location-active')));
+    expect(source, contains('class DiscoveryMapScreen'));
   });
 }
