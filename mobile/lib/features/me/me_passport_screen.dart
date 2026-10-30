@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -34,12 +35,16 @@ class _MePassportScreenState extends State<MePassportScreen> {
   bool _onlineReady = false;
   int _loadEpoch = 0;
   Map<String, dynamic>? _localIdentity;
+  Map<String, dynamic>? _cachedPassport;
+  String? _cachedVariantKey;
+  Uint8List? _cachedAvatar;
   late Future<Map<String, dynamic>> _future;
 
   @override
   void initState() {
     super.initState();
     _restoreIdentity();
+    _restorePassport();
     _future = _load();
   }
 
@@ -59,6 +64,74 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
+  String _passportStorageKey() {
+    final params = _passportParams();
+    // The selection is part of the document identity: no cross-variant reuse.
+    final ordered = params.keys.toList()..sort();
+    return ordered.map((key) {
+      final value = params[key];
+      if (value is List) {
+        final sorted = value.map((v) => v.toString()).toList()..sort();
+        return '$key=${sorted.join(",")}';
+      }
+      return '$key=$value';
+    }).join('&');
+  }
+
+  Future<void> _restorePassport() async {
+    final personal = widget.personal;
+    if (personal == null) return;
+    final key = _passportStorageKey();
+    try {
+      final snapshot = await personal.store.readProjection(
+        'personal.me.passport', resourceKey: key,
+      );
+      if (snapshot != null && snapshot.payload['variant'] == _variant &&
+          mounted && key == _passportStorageKey()) {
+        setState(() {
+          _cachedPassport = snapshot.payload;
+          _cachedVariantKey = key;
+        });
+      }
+    } on Object {
+      // A missing or invalid stored projection must not become a fake Passport.
+    }
+    try {
+      final avatar = await _avatarFile();
+      if (avatar != null && await avatar.exists() && mounted) {
+        setState(() => _cachedAvatar = avatar.readAsBytesSync());
+      }
+    } on Object {
+      // A missing local image cannot block identity or the whole Passport.
+    }
+  }
+
+  Future<File?> _avatarFile() async {
+    final id = widget.personal?.store.profileId;
+    if (id == null || id.isEmpty) return null;
+    final base = await getApplicationSupportDirectory();
+    final safe = id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+    return File('${base.path}/profiles/$safe/passport-avatar.jpg');
+  }
+
+  Future<void> _persistAvatar(Map<String, dynamic> data) async {
+    final avatar = _text(_map(data['identity'])['avatar_url']);
+    final local = await _avatarFile();
+    if (avatar == null || local == null) return;
+    final uri = Uri.tryParse(avatar);
+    if (uri == null || uri.hasAuthority || uri.hasScheme ||
+        !avatar.startsWith('/') || avatar.startsWith('//')) return;
+    try {
+      final bytes = await widget.api.getPresentationImage(avatar);
+      if (bytes.length > 2 * 1024 * 1024) return;
+      await local.parent.create(recursive: true);
+      await local.writeAsBytes(bytes, flush: true);
+      if (mounted) setState(() => _cachedAvatar = bytes);
+    } on Object {
+      // Retain the previously authorized portrait while offline.
+    }
+  }
+
   Map<String, dynamic> _passportParams() {
     final params = <String, dynamic>{'variant': _variant};
     if (_variant == 'thematic' && _topic != null) params['topic'] = _topic;
@@ -74,28 +147,58 @@ class _MePassportScreenState extends State<MePassportScreen> {
   Future<Map<String, dynamic>> _load() async {
     final epoch = ++_loadEpoch;
     final requestedVariant = _variant;
+    final resourceKey = _passportStorageKey();
     final url = Uri(path: 'api/v1/me/passport/',
       queryParameters: _passportParams()).toString();
-    final response = await widget.api.get(url);
-    final data = ProjectionEnvelope.parse(
-      response.jsonObject(), expectedProjection: 'personal.me.passport',
-    ).data;
-    // An older in-flight response can never authorize a different variant.
-    if (epoch != _loadEpoch ||
-        requestedVariant != _variant ||
-        data['variant'] != requestedVariant) {
-      throw const FormatException('Outdated or invalid Passport variant');
-    }
-    if (mounted) setState(() => _onlineReady = true);
-    if (requestedVariant == 'complete') {
-      _full = data;
-      if (_activities.isEmpty && _proofs.isEmpty && _credentials.isEmpty) {
-        _activities = _ids(data['activities']);
-        _proofs = _ids(_map(data['established'])['proofs']);
-        _credentials = _ids(_map(data['issued'])['credentials']);
+    try {
+      final response = await widget.api.get(url);
+      final data = ProjectionEnvelope.parse(
+        response.jsonObject(), expectedProjection: 'personal.me.passport',
+      ).data;
+      if (epoch != _loadEpoch || requestedVariant != _variant ||
+          resourceKey != _passportStorageKey() ||
+          data['variant'] != requestedVariant) {
+        throw const FormatException('Outdated or invalid Passport variant');
       }
+      if (widget.personal != null) {
+        await widget.personal!.store.putProjection(
+          kind: 'personal.me.passport',
+          resourceKey: resourceKey,
+          schemaVersion: 1,
+          payload: data,
+        );
+      }
+      if (mounted) setState(() {
+        _onlineReady = true;
+        _cachedPassport = data;
+        _cachedVariantKey = resourceKey;
+      });
+      if (requestedVariant == 'complete') {
+        _full = data;
+        if (_activities.isEmpty && _proofs.isEmpty && _credentials.isEmpty) {
+          _activities = _ids(data['activities']);
+          _proofs = _ids(_map(data['established'])['proofs']);
+          _credentials = _ids(_map(data['issued'])['credentials']);
+        }
+      }
+      // Media belongs to the profile and is stored separately from projections.
+      _persistAvatar(data);
+      return data;
+    } on Object {
+      if (epoch != _loadEpoch || requestedVariant != _variant ||
+          resourceKey != _passportStorageKey()) rethrow;
+      final local = widget.personal == null ? null :
+          await widget.personal!.store.readProjection(
+            'personal.me.passport', resourceKey: resourceKey,
+          );
+      final fallback = local?.payload ??
+          (_cachedVariantKey == resourceKey ? _cachedPassport : null);
+      if (fallback != null && fallback['variant'] == requestedVariant) {
+        if (mounted) setState(() => _onlineReady = false);
+        return fallback;
+      }
+      rethrow;
     }
-    return data;
   }
 
   static Map<String, dynamic> _map(Object? raw) => raw is Map
@@ -115,7 +218,14 @@ class _MePassportScreenState extends State<MePassportScreen> {
       final options = _rows(_full?['topic_options']);
       if (options.isNotEmpty) _topic = options.first['code']?.toString();
     }
-    setState(() { _variant = variant; _onlineReady = false; _future = _load(); });
+    setState(() {
+      _variant = variant;
+      _onlineReady = false;
+      _cachedPassport = null;
+      _cachedVariantKey = null;
+      _future = _load();
+    });
+    _restorePassport();
   }
 
   Future<String?> _downloadPassport() async {
@@ -405,21 +515,22 @@ class _MePassportScreenState extends State<MePassportScreen> {
       builder: (context, snapshot) {
         // FutureBuilder may retain the previous variant while a new request
         // is pending. Never show that data as if it were the new variant.
-        if (snapshot.connectionState != ConnectionState.done) {
-          return _localIdentity == null
-              ? const Center(child: CircularProgressIndicator.adaptive())
-              : _localPassportSummary(context, refreshing: true);
+        final stored = _cachedVariantKey == _passportStorageKey()
+            ? _cachedPassport : null;
+        if (snapshot.connectionState != ConnectionState.done && stored == null) {
+          return _localPassportSummary(context, refreshing: true);
         }
-        if (!snapshot.hasData) {
+        if (!snapshot.hasData && stored == null) {
           return _localPassportSummary(context);
         }
-        final data = snapshot.data!;
+        final data = snapshot.data ?? stored!;
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
           children: [
             _options(data),
             const SizedBox(height: 16),
-            _PassportBody(data: data, baseUri: widget.api.baseUri),
+            _PassportBody(data: data, baseUri: widget.api.baseUri,
+              cachedAvatar: _cachedAvatar),
             if (widget.onEdit != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
@@ -437,9 +548,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
 }
 
 class _PassportBody extends StatelessWidget {
-  const _PassportBody({required this.data, required this.baseUri});
+  const _PassportBody({required this.data, required this.baseUri,
+    this.cachedAvatar});
   final Map<String, dynamic> data;
   final Uri baseUri;
+  final Uint8List? cachedAvatar;
 
   static Map<String, dynamic> _map(Object? raw) => raw is Map
       ? raw.map((key, item) => MapEntry(key.toString(), item))
@@ -483,7 +596,13 @@ class _PassportBody extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            if (safeAvatar)
+            if (cachedAvatar != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.memory(cachedAvatar!, width: 54, height: 54,
+                  fit: BoxFit.cover),
+              )
+            else if (safeAvatar)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(avatarUri.toString(), width: 54, height: 54,
