@@ -84,6 +84,17 @@ void main() {
     expect(await b.read(imagePath), orderedEquals(imageBytes));
   });
 
+  test('concurrent recognition saves cannot corrupt the durable image', () async {
+    final store = ProfileRecognitionImageStore(
+      profileId: 'profile-a',
+      rootOverride: supportRoot,
+    );
+    final first = Uint8List.fromList([1, 2, 3]);
+    final second = Uint8List.fromList([4, 5, 6]);
+    await Future.wait([store.save(imagePath, first), store.save(imagePath, second)]);
+    expect(await store.read(imagePath), orderedEquals(second));
+  });
+
   test('automatic recognition has a ten-image rolling budget per Profile', () async {
     final store = ProfileRecognitionImageStore(
       profileId: 'profile-a',
