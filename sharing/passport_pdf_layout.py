@@ -146,6 +146,8 @@ class PassportHero(Flowable):
         c.setFont(BOLD, 8.7)
         c.setFillColor(HexColor("#DCCEFF"))
         c.drawRightString(w - 23, h - 27, "MAKOLO")
+        c.setFont(FONT, 7.8)
+        c.drawString(139, h - 26, self.meta["kind"].upper())
         if self.portrait:
             c.drawImage(self.portrait, 23, 27, 96, 96, mask="auto")
         else:
@@ -432,8 +434,15 @@ def render_passport_layout(payload, metadata, verify_url, *,
     for title, values in tags:
         values = [x for x in values if _value(x)]
         if values:
-            story.extend([KeepTogether([_heading(title), Spacer(1, 9)]),
-                          TagFlow(values), Spacer(1, 14)])
+            # Keep the section title with its first tangible choices; allow
+            # the remainder to wrap across pages without oversized blocks.
+            first, remaining = values[:3], values[3:]
+            story.append(KeepTogether([
+                _heading(title), Spacer(1, 9), TagFlow(first),
+            ]))
+            if remaining:
+                story.append(TagFlow(remaining))
+            story.append(Spacer(1, 14))
     links = [
         (str(label), str(url))
         for label, url in (identity.get("links") or []) if _value(url)
@@ -441,9 +450,20 @@ def render_passport_layout(payload, metadata, verify_url, *,
     if links:
         story.extend([KeepTogether([_heading("Liens"), Spacer(1, 7)])])
         for label, url in links:
-            story.append(_paragraph(label + "  ·  " + url,
-                                    _style(9.1, 14, color=INK)))
-            story.append(Spacer(1, 5))
+            parsed = urlsplit(url)
+            if parsed.scheme in {"http", "https"} and parsed.netloc:
+                # Clickable complete target, concise printed host.
+                href = escape(url, {'"': '&quot;'})
+                display = escape(parsed.netloc)
+                line = Paragraph(
+                    escape(label) + '  ·  <link href="' + href +
+                    '" color="#5232DB">' + display + '</link>',
+                    _style(9.1, 14, color=INK),
+                )
+            else:
+                line = _paragraph(label + "  ·  " + url,
+                                  _style(9.1, 14, color=INK))
+            story.extend([line, Spacer(1, 5)])
         story.append(Spacer(1, 10))
     groups = [
         ("Activités", [
