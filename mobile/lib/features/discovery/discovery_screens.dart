@@ -140,8 +140,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     setState(() => _loadMoreFailed = false);
     try {
       final projection = await widget.repository.readItems(current);
-      if (projection == null)
+      if (projection == null) {
         throw const FormatException('Missing Discovery field');
+      }
       final collection = _selector.collection(projection);
       if (!collection.hasNext) return;
       final token = collection.continuationToken;
