@@ -39,7 +39,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String? _selectedHistoryKey;
   List<StoredProjection> _remotePages = [];
   bool _searching = false;
-  bool _searchFailed = false;
   int _searchGeneration = 0;
   bool _loadingMore = false;
   bool _requestedInitialRefresh = false;
@@ -98,7 +97,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final filter = _filter;
     setState(() {
       _searching = true;
-      _searchFailed = false;
     });
     try {
       final nextOffset = more && _remoteHistory != null
@@ -135,7 +133,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           generation == _searchGeneration &&
           _query == query &&
           _filter == filter) {
-        setState(() => _searchFailed = true);
+        // Preserve the already available local History on remote failure.
       }
     } finally {
       if (mounted &&
