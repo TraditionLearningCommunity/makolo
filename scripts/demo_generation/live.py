@@ -11,8 +11,12 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--count", type=int, default=20)
     p.add_argument("--actor", default="beta_event_manager")
+    p.add_argument("--domains", default="placement,incidents")
     p.add_argument("--apply", action="store_true")
     a = p.parse_args(argv)
+    selected = set(a.domains.split(","))
+    if not selected or not selected <= {"placement", "incidents"}:
+        p.error("Domains: placement,incidents")
     if not 1 <= a.count <= 200:
         p.error("count 1..200")
     import django
@@ -63,37 +67,42 @@ def main(argv=None):
             occurrence=occurrence, key="demo-zones"
         ).first()
         if not a.apply:
-            counts["placement_planned"] += int(plan is None)
-            counts["assignments_planned"] += len({j.beneficiary_id for j in journeys})
-            counts["incidents_planned"] += int(not OperationsIncident.objects.filter(
-                occurrence=occurrence, title="[DEMO] Controle de circulation").exists())
+            if "placement" in selected:
+                counts["placement_planned"] += int(plan is None)
+                counts["assignments_planned"] += len({j.beneficiary_id for j in journeys})
+            if "incidents" in selected:
+                counts["incidents_planned"] += int(not OperationsIncident.objects.filter(
+                    occurrence=occurrence, title="[DEMO] Controle de circulation").exists())
             continue
-        try:
-            with transaction.atomic():
-                if plan is None:
-                    plan = PlacementPlan.objects.create(
-                        occurrence=occurrence, key="demo-zones",
-                        label="Zones de demonstration", required=False, active=True)
-                    counts["placement_plans_created"] += 1
-                units = []
-                for key in ("zone-a", "zone-b"):
-                    unit, created = PlacementUnit.objects.get_or_create(
-                        plan=plan, key=key,
-                        defaults={"label":"Zone "+key[-1].upper(), "kind":"zone",
-                                  "exclusive":False, "active":True})
-                    units.append(unit)
-                    counts["units_created"] += int(created)
-                for index, journey in enumerate(journeys):
-                    if PlacementAssignment.objects.filter(
-                        plan=plan, profile=journey.beneficiary,
-                        ended_at__isnull=True).exists():
-                        counts["assignments_existing"] += 1
-                        continue
-                    assign_placement(actor=operator, plan=plan,
-                        unit=units[index % len(units)], profile=journey.beneficiary)
-                    counts["assignments_created"] += 1
-        except (ValidationError, PermissionDenied):
-            counts["placement_rejected"] += 1
+        if "placement" in selected:
+            try:
+                with transaction.atomic():
+                    if plan is None:
+                        plan = PlacementPlan.objects.create(
+                            occurrence=occurrence, key="demo-zones",
+                            label="Zones de demonstration", required=False, active=True)
+                        counts["placement_plans_created"] += 1
+                    units = []
+                    for key in ("zone-a", "zone-b"):
+                        unit, created = PlacementUnit.objects.get_or_create(
+                            plan=plan, key=key,
+                            defaults={"label":"Zone "+key[-1].upper(), "kind":"zone",
+                                      "exclusive":False, "active":True})
+                        units.append(unit)
+                        counts["units_created"] += int(created)
+                    for index, journey in enumerate(journeys):
+                        if PlacementAssignment.objects.filter(
+                            plan=plan, profile=journey.beneficiary,
+                            ended_at__isnull=True).exists():
+                            counts["assignments_existing"] += 1
+                            continue
+                        assign_placement(actor=operator, plan=plan,
+                            unit=units[index % len(units)], profile=journey.beneficiary)
+                        counts["assignments_created"] += 1
+            except (ValidationError, PermissionDenied):
+                counts["placement_rejected"] += 1
+        if "incidents" not in selected:
+            continue
         title = "[DEMO] Controle de circulation"
         if OperationsIncident.objects.filter(
             occurrence=occurrence, title=title
