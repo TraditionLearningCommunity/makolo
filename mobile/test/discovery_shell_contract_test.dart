@@ -39,17 +39,27 @@ void main() {
       expect(routes, contains("path: '/discover/map'"));
     },
   );
-  test('personal keyword search does not depend on device location', () {
+  test('Profile reuses guest filters without requiring location', () {
     final source = File('lib/features/discovery/discovery_screens.dart')
+        .readAsStringSync();
+    final routes = File('lib/features/discovery/discovery_routes.dart')
         .readAsStringSync();
     final start = source.indexOf('class _DiscoverySearchScreenState');
     final end = source.indexOf('class DiscoveryMapScreen', start);
     final search = source.substring(start, end);
+
     expect(search, contains('ProgressiveSearchCoordinator('));
+    expect(search, contains('SearchFilterBar('));
+    expect(search, contains('GeoAutocompleteField('));
+    expect(search, contains("Key('discover-search-nearby')"));
+    expect(search, contains('clearLocation: true'));
     expect(search, contains('onChanged: _searchChanged'));
-    expect(search, isNot(contains('location.current()')));
-    expect(search, isNot(contains('discover-location-toggle')));
-    expect(search, isNot(contains('discover-location-active')));
+    expect(search, contains("Key('discover-search-categories')"));
+    expect(search, contains("Key('discover-search-when')"));
+    expect(search, contains("Key('discover-search-price')"));
+    expect(search, contains('if (_query.latitude != null)'));
+    expect(routes, contains('geoSearch: runtime.geoSearch'));
+    expect(routes, contains('location: runtime.location'));
     expect(source, contains('class DiscoveryMapScreen'));
   });
 }
