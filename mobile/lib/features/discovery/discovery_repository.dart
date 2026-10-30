@@ -402,6 +402,13 @@ class DiscoveryRepository {
       presentedWindowKind,
       resourceKey: query.mapFingerprint,
     );
+    // A fresh first-page acquisition starts a new server field. Do not
+    // concatenate its candidates with a window from a previous field.
+    final root = await store.readProjection(
+      itemsProjectionKind,
+      resourceKey: query.copyWith(page: 1, clearContinuation: true).fingerprint,
+    );
+    if (root == null) return;
     final wire = Map<String, dynamic>.from(collection.wire)
       ..['results'] = bounded
       ..['items'] = bounded;
