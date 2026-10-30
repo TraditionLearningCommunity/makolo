@@ -1,10 +1,15 @@
 from django.utils import timezone
+from django.http import Http404
+from django.shortcuts import get_object_or_404
+from django.urls import reverse
 
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from sharing.passport_pdf import passport_pdf_response
+from sharing.models import PassportSnapshot
+from sharing.passport_documents import passport_verification_token, snapshot_payload_is_intact
 from sharing.passport import build_profile_passport, PASSPORT_VARIANTS
 
 from core.api.me_projection import (
@@ -300,6 +305,77 @@ class PersonalPassportPdfAPIView(PersonalProjectionAPIView):
         except ValueError as exc:
             raise ValidationError({"variant": str(exc)}) from exc
         return passport_pdf_response(request, projection)
+
+
+
+class PersonalPassportHistoryAPIView(PersonalProjectionAPIView):
+    """Issued snapshots for the authenticated Profile, never other subjects."""
+    projection_code = "personal.me.passport.history"
+
+    def get(self, request):
+        self._guard_personal_scope(request)
+        try:
+            offset = int(request.query_params.get("offset", "0"))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"offset": "Entier attendu."}) from exc
+        if offset < 0:
+            raise ValidationError({"offset": "Décalage négatif interdit."})
+        queryset = PassportSnapshot.objects.filter(profile=request.user).order_by(
+            "-generated_at", "-pk",
+        )
+        count = queryset.count()
+        entries = list(queryset[offset : offset + 20])
+        observed_at = timezone.now()
+        return self._response(
+            {
+                "count": count,
+                "items": [
+                    {
+                        "id": str(row.pk),
+                        "document_id": row.document_id,
+                        "variant": row.variant,
+                        "generated_at": row.generated_at.isoformat(),
+                        "revoked": row.is_revoked,
+                        "integrity_ok": snapshot_payload_is_intact(row),
+                        "verification_path": reverse(
+                            "sharing:passport-verify",
+                            kwargs={"token": passport_verification_token(row)},
+                        ),
+                    }
+                    for row in entries
+                ],
+                "has_more": offset + len(entries) < count,
+                "next_offset": offset + len(entries),
+            },
+            observed_at=observed_at,
+        )
+
+
+class PersonalPassportVersionAPIView(PersonalProjectionAPIView):
+    """Read one exact issued payload without going through the live builder."""
+    projection_code = "personal.me.passport.version"
+
+    def get(self, request, snapshot_id):
+        self._guard_personal_scope(request)
+        snapshot = get_object_or_404(
+            PassportSnapshot, pk=snapshot_id, profile=request.user,
+        )
+        if snapshot.is_revoked or not snapshot_payload_is_intact(snapshot):
+            raise Http404("Version indisponible.")
+        return self._response(
+            {
+                "id": str(snapshot.pk),
+                "document_id": snapshot.document_id,
+                "variant": snapshot.variant,
+                "generated_at": snapshot.generated_at.isoformat(),
+                "payload": snapshot.payload,
+                "verification_path": reverse(
+                    "sharing:passport-verify",
+                    kwargs={"token": passport_verification_token(snapshot)},
+                ),
+            },
+            observed_at=timezone.now(),
+        )
 
 
 class PersonalResourcesAPIView(PersonalProjectionAPIView):
