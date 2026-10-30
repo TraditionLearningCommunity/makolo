@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
@@ -14,6 +12,7 @@ import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../navigation/refresh_boundary.dart';
 import '../../navigation/profile_avatar_image.dart';
+import '../../presentation/media/retained_recognition_image.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
@@ -417,6 +416,7 @@ class _MeField extends StatelessWidget {
           onSelectItem: onSelectItem,
           hasOwnerNavigation: hasOwnerNavigation,
           mediaApi: mediaApi,
+          mediaProfileId: avatarProfileId,
           edge: edge,
         ),
       ],
@@ -695,6 +695,7 @@ class _MeTerritory extends StatelessWidget {
     required this.onSelectItem,
     required this.hasOwnerNavigation,
     required this.mediaApi,
+    this.mediaProfileId,
     required this.edge,
   });
 
@@ -702,6 +703,7 @@ class _MeTerritory extends StatelessWidget {
   final ValueChanged<MeItemPresentation> onSelectItem;
   final bool hasOwnerNavigation;
   final MakoloApiClient? mediaApi;
+  final String? mediaProfileId;
   final double edge;
 
   @override
@@ -909,6 +911,7 @@ class _MeTerritory extends StatelessWidget {
             key: ValueKey('me-item-${item.destination.kind}-${item.destination.id}'),
             item: item,
             mediaApi: mediaApi,
+            profileId: mediaProfileId,
             onTap: item.canOpen && canNavigate
                 ? () => onSelectItem(item) : null,
           ),
@@ -1050,11 +1053,13 @@ class _MeConsideration extends StatelessWidget {
     required this.item,
     required this.onTap,
     this.mediaApi,
+    this.profileId,
   });
 
   final MeItemPresentation item;
   final VoidCallback? onTap;
   final MakoloApiClient? mediaApi;
+  final String? profileId;
 
   @override
   Widget build(BuildContext context) {
@@ -1104,11 +1109,13 @@ class _MeConsideration extends StatelessWidget {
                   ),
                   if (isSaved &&
                       mediaApi != null &&
+                      profileId != null &&
                       item.mediaPath != null) ...[
                     const SizedBox(width: MakoloSpacing.sm),
                     _MeRecognitionThumbnail(
                       key: ValueKey(item.mediaPath),
                       api: mediaApi!,
+                      profileId: profileId!,
                       path: item.mediaPath!,
                       alt: item.mediaAlt ?? item.title,
                     ),
@@ -1131,65 +1138,34 @@ class _MeConsideration extends StatelessWidget {
   }
 }
 
-/// Reuses the published-media transport; no token in a widget or raw file URL.
-class _MeRecognitionThumbnail extends StatefulWidget {
+/// Published recognition image reuses the Profile's private durable bytes.
+class _MeRecognitionThumbnail extends StatelessWidget {
   const _MeRecognitionThumbnail({
     super.key,
     required this.api,
+    required this.profileId,
     required this.path,
     required this.alt,
   });
 
   final MakoloApiClient api;
+  final String profileId;
   final String path;
   final String alt;
 
   @override
-  State<_MeRecognitionThumbnail> createState() =>
-      _MeRecognitionThumbnailState();
-}
-
-class _MeRecognitionThumbnailState extends State<_MeRecognitionThumbnail> {
-  late Future<Uint8List> _bytes;
-
-  @override
-  void initState() {
-    super.initState();
-    _bytes = widget.api.getPresentationImage(widget.path);
-  }
-
-  @override
-  void didUpdateWidget(covariant _MeRecognitionThumbnail oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.path != oldWidget.path || widget.api != oldWidget.api) {
-      _bytes = widget.api.getPresentationImage(widget.path);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<Uint8List>(
-      future: _bytes,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) return const SizedBox.shrink();
-        if (!snapshot.hasData) {
-          return const SizedBox(width: 72, height: 56);
-        }
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.memory(
-            snapshot.data!,
-            width: 72,
-            height: 56,
-            fit: BoxFit.cover,
-            semanticLabel: widget.alt,
-            gaplessPlayback: true,
-            errorBuilder: (_, _, _) => const SizedBox.shrink(),
-          ),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(10),
+    child: RetainedRecognitionImage(
+      api: api,
+      profileId: profileId,
+      path: path,
+      alt: alt,
+      width: 72,
+      height: 56,
+      placeholder: const SizedBox(width: 72, height: 56),
+    ),
+  );
 }
 
 class _MeSavedOrbit extends StatelessWidget {
