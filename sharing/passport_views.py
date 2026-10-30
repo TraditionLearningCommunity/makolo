@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.paginator import Paginator
 from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.http import Http404
@@ -14,12 +15,13 @@ from core.branding import render_makolo_qr_data_uri
 from organizations.models import Organization
 from organizations.permissions import user_can_access_organization_workspace, user_can_manage_organization_team
 
-from .models import PublicIdentifier, PublicSubjectKind
+from .models import PassportSnapshot, PublicIdentifier, PublicSubjectKind
 from .passport_pdf import passport_pdf_response
 from .passport_documents import (
     issue_passport_snapshot,
     passport_verification_token,
     resolve_passport_verification_token,
+    snapshot_payload_is_intact,
 )
 
 from .passport import (
@@ -167,6 +169,16 @@ class PassportViewMixin(TemplateView):
                 "auto_print": is_print_document,
                 "public_identifier": public_identifier,
                 "public_passport_url": public_url,
+                "passport_history_url": (
+                    reverse("sharing:passport-me-history")
+                    if self.private_authorized and projection.subject_kind == "profile"
+                    else (
+                        reverse("sharing:passport-space-history",
+                                kwargs={"slug": self.subject.slug})
+                        if self.private_authorized and projection.subject_kind == "space"
+                        else ""
+                    )
+                ),
                 "passport_snapshot": snapshot,
                 "passport_verification_url": verification_url,
                 "passport_qr_data_uri": qr_data_uri,
@@ -329,27 +341,140 @@ class PublicPassportIdentifierView(PassportViewMixin):
         return SpacePassportView.get_topic_options(self)
 
 
+
+def _snapshot_content_allowed(snapshot, viewer, *, currently_public):
+    """Do not let a document token grant permissions or expose current data."""
+    if snapshot.is_revoked or not snapshot_payload_is_intact(snapshot):
+        return False
+    if snapshot.variant == PASSPORT_PUBLIC and currently_public:
+        return True
+    if not viewer.is_authenticated:
+        return False
+    if snapshot.subject_kind == PublicSubjectKind.PROFILE:
+        return snapshot.profile_id == viewer.pk
+    if not snapshot.space_id or not user_can_access_organization_workspace(viewer, snapshot.space):
+        return False
+    # Space snapshots can contain internal team names; retain that distinct
+    # server-side authority requirement even when the document is historical.
+    if (snapshot.payload.get("space_teams") and
+            not user_can_manage_organization_team(viewer, snapshot.space)):
+        return False
+    return True
+
+
 class PassportVerificationView(TemplateView):
+    """A signed address resolves one dated Passport, never a live recomposition."""
     template_name = "sharing/passport_verify.html"
 
     def get_snapshot(self):
         try:
             return resolve_passport_verification_token(self.kwargs["token"])
-        except (signing.BadSignature, KeyError, ObjectDoesNotExist) as exc:
+        except (signing.BadSignature, KeyError, ValueError, ObjectDoesNotExist) as exc:
             raise Http404("Ce document Makolo ne peut pas être vérifié.") from exc
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         snapshot = self.get_snapshot()
         if snapshot.subject_kind == PublicSubjectKind.PROFILE:
-            currently_public = bool(snapshot.profile and profile_has_public_passport(snapshot.profile))
+            currently_public = bool(
+                snapshot.profile and snapshot.profile.is_active
+                and profile_has_public_passport(snapshot.profile)
+            )
         else:
             currently_public = bool(snapshot.space and space_has_public_passport(snapshot.space))
-        context.update(
-            {
-                "snapshot": snapshot,
-                "snapshot_name": snapshot.payload.get("identity", {}).get("name", snapshot.public_identifier),
-                "currently_public": currently_public,
-            }
+        intact = snapshot_payload_is_intact(snapshot)
+        allowed = _snapshot_content_allowed(
+            snapshot, self.request.user, currently_public=currently_public,
         )
+        context.update({
+            "snapshot": snapshot,
+            "snapshot_name": snapshot.payload.get("identity", {}).get(
+                "name", snapshot.public_identifier,
+            ),
+            "currently_public": currently_public,
+            "snapshot_intact": intact,
+            "can_view_dated_passport": allowed,
+            "dated_payload": snapshot.payload if allowed else {},
+        })
         return context
+
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+class PassportHistoryBase(LoginRequiredMixin, TemplateView):
+    """Paginated owner-authorized list of actually issued immutable snapshots."""
+    template_name = "sharing/passport_history.html"
+
+    def get_subject(self):
+        raise NotImplementedError
+
+    def can_view(self, viewer, subject):
+        raise NotImplementedError
+
+    def dispatch(self, request, *args, **kwargs):
+        self.history_subject = self.get_subject()
+        if not self.can_view(request.user, self.history_subject):
+            raise PermissionDenied("Historique du Passeport non autorisé.")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        subject = self.history_subject
+        if isinstance(self, MyPassportHistoryView):
+            queryset = PassportSnapshot.objects.filter(profile=subject)
+            title = subject.full_name or subject.username
+            current_url = reverse("sharing:passport-me")
+        else:
+            queryset = PassportSnapshot.objects.filter(space=subject)
+            title = subject.name
+            current_url = reverse(
+                "sharing:passport-space", kwargs={"slug": subject.slug},
+            )
+        page = Paginator(queryset.order_by("-generated_at", "-pk"), 20).get_page(
+            self.request.GET.get("page"),
+        )
+        context.update({
+            "history_subject_name": title,
+            "current_passport_url": current_url,
+            "history_page": page,
+            "history_rows": [
+                {
+                    "snapshot": row,
+                    "url": reverse(
+                        "sharing:passport-verify",
+                        kwargs={"token": passport_verification_token(row)},
+                    ),
+                }
+                for row in page.object_list
+            ],
+        })
+        return context
+
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+
+class MyPassportHistoryView(PassportHistoryBase):
+    def get_subject(self):
+        return self.request.user
+
+    def can_view(self, viewer, subject):
+        return viewer.is_authenticated and viewer.pk == subject.pk
+
+
+class SpacePassportHistoryView(PassportHistoryBase):
+    def get_subject(self):
+        return get_object_or_404(Organization, slug=self.kwargs["slug"])
+
+    def can_view(self, viewer, subject):
+        return bool(
+            viewer.is_authenticated
+            and user_can_access_organization_workspace(viewer, subject)
+        )
