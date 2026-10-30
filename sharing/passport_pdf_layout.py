@@ -523,6 +523,11 @@ class BottomVerification(Flowable):
         self.panel_height = 0
         self.note_height = 0
 
+    def minimum_height(self):
+        _, panel_height = self.panel.wrap(CONTENT_WIDTH, 10000)
+        _, note_height = self.note.wrap(CONTENT_WIDTH, 10000)
+        return panel_height + note_height + 15
+
     def wrap(self, avail_width, avail_height):
         self.width = min(CONTENT_WIDTH, avail_width)
         _, self.panel_height = self.panel.wrap(self.width, avail_height)
@@ -681,16 +686,19 @@ def render_passport_layout(payload, metadata, verify_url, *,
     # Keep at least the final factual rows nearby if the page is full.
     from reportlab.platypus import CondPageBreak
 
+    verification_footer = BottomVerification(metadata, verify_url)
     if last_rows:
         head, tail = last_rows[:-2], last_rows[-2:]
         story.extend(head)
         tail_height = sum(
             item.wrap(CONTENT_WIDTH, 10000)[1] for item in tail
         )
-        story.append(CondPageBreak(tail_height + 140))
+        story.append(CondPageBreak(
+            tail_height + verification_footer.minimum_height() + 12,
+        ))
         story.extend(tail)
     story.append(Spacer(1, 12))
-    story.append(BottomVerification(metadata, verify_url))
+    story.append(verification_footer)
     document.build(story, onFirstPage=_page_header,
                    onLaterPages=_page_header, canvasmaker=NumberedCanvas)
     return output.getvalue()
