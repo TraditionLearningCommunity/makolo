@@ -77,6 +77,9 @@ def serialize_passport_projection(projection):
             for row in projection.trust_verifications
         ],
         "credential_summary": list(projection.credential_summary),
+        "team_affiliations": list(projection.team_affiliations),
+        "active_space_mandates": list(projection.active_space_mandates),
+        "space_teams": list(projection.space_teams),
         "topics": [{"code": row.code, "label": row.label} for row in projection.topics],
     }
 
