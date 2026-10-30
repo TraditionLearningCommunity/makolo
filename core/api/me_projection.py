@@ -611,6 +611,10 @@ def build_personal_passport_data(
             "interests": [_passport_interest(row) for row in projection.interests],
             "open_to": [_passport_open_to(row) for row in projection.open_to],
         },
+        "collectives": {
+            "team_affiliations": list(projection.team_affiliations),
+            "active_space_mandates": list(projection.active_space_mandates),
+        },
         "activities": [_passport_activity(row) for row in projection.activities],
         "established": {
             "proofs": [_passport_proof(row) for row in projection.proofs],
