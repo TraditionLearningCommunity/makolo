@@ -46,6 +46,8 @@ class PassportShareCreateView(LoginRequiredMixin, View):
             },
         )
         response["Cache-Control"] = "private, no-store"
+        response["Referrer-Policy"] = "no-referrer"
+        response["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
 
