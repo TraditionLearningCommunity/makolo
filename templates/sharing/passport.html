@@ -39,7 +39,11 @@
     button.addEventListener('click', async function () {
       var pdfUrl = button.getAttribute('data-pdf-url');
       var publicUrl = button.getAttribute('data-public-url');
-      if (navigator.share && publicUrl && button.getAttribute('data-variant') === 'public') {
+      var variant = button.getAttribute('data-variant');
+      if (variant !== 'public' && !window.confirm(
+        'Ce Passeport peut contenir des informations privées. Vérifiez le contenu avant de partager le PDF. Continuer ?'
+      )) return;
+      if (navigator.share && publicUrl && variant === 'public') {
         try { await navigator.share({ title: 'Passeport Makolo', url: publicUrl }); }
         catch (error) { if (error.name !== 'AbortError') window.location.href = pdfUrl; }
         return;
