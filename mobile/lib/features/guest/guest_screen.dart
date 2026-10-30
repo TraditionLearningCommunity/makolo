@@ -15,7 +15,8 @@ import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
 import '../discovery/discovery_wire.dart';
 import '../../platform/location/geo_search_gateway.dart';
-import '../../presentation/fields/geo_autocomplete_field.dart';
+import '../../presentation/fields/discovery_filter_fields.dart';
+
 import '../../presentation/fields/search_filter_bar.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
 import 'public_shell.dart';
@@ -489,109 +490,34 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       _date.isNotEmpty ||
                       _price.isNotEmpty ||
                       _place.text.trim().isNotEmpty,
-                  filters: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      GeoAutocompleteField(
-                        fieldKey: const Key('guest-filter-place'),
-                        controller: _place,
-                        gateway: widget.runtime.geoSearch,
-                        onSelected: (suggestion) {
-                          setState(() => _selectedPlace = suggestion);
-                          _criteriaChanged(immediate: true);
-                        },
-                        onEdited: () {
-                          _selectedPlace = null;
-                          _criteriaChanged();
-                        },
-                        onSubmitted: _apply,
-                      ),
-                      const SizedBox(height: MakoloSpacing.md),
-                      DropdownButtonFormField<String>(
-                        key: const Key('guest-filter-when'),
-                        initialValue: _when,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Quand ?',
-                          prefixIcon: Icon(Icons.calendar_today_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: '',
-                            child: Text('Toutes les dates'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'today',
-                            child: Text('Aujourd’hui'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'tomorrow',
-                            child: Text('Demain'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'weekend',
-                            child: Text('Ce week-end'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'week',
-                            child: Text('Cette semaine'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'custom',
-                            child: Text('Choisir une date…'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value == 'custom') {
-                            unawaited(_chooseDate());
-                          } else {
-                            setState(() {
-                              _when = value ?? '';
-                              _date = '';
-                            });
-                            _criteriaChanged(immediate: true);
-                          }
-                        },
-                      ),
-                      if (_date.isNotEmpty)
-                        TextButton.icon(
-                          key: const Key('guest-filter-selected-date'),
-                          onPressed: _chooseDate,
-                          icon: const Icon(Icons.edit_calendar_outlined),
-                          label: Text('Date : $_date'),
-                        ),
-                      const SizedBox(height: MakoloSpacing.md),
-                      DropdownButtonFormField<String>(
-                        key: const Key('guest-filter-price'),
-                        initialValue: _price,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Budget',
-                          prefixIcon: Icon(Icons.payments_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: '',
-                            child: Text('Tous les prix'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'free',
-                            child: Text('Gratuit'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'paid',
-                            child: Text('Payant'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() => _price = value ?? '');
-                          _criteriaChanged(immediate: true);
-                        },
-                      ),
-                      const SizedBox(height: MakoloSpacing.md),
-                    ],
+                  filters: DiscoveryFilterFields(
+                    keyPrefix: 'guest-filter',
+                    placeController: _place,
+                    geoSearch: widget.runtime.geoSearch,
+                    when: _when,
+                    date: _date,
+                    price: _price,
+                    onPlaceSelected: (suggestion) {
+                      setState(() => _selectedPlace = suggestion);
+                      _criteriaChanged(immediate: true);
+                    },
+                    onPlaceEdited: () {
+                      _selectedPlace = null;
+                      _criteriaChanged();
+                    },
+                    onPlaceSubmitted: _apply,
+                    onWhenChanged: (value) {
+                      setState(() {
+                        _when = value;
+                        _date = '';
+                      });
+                      _criteriaChanged(immediate: true);
+                    },
+                    onChooseDate: () => unawaited(_chooseDate()),
+                    onPriceChanged: (value) {
+                      setState(() => _price = value);
+                      _criteriaChanged(immediate: true);
+                    },
                   ),
                 ),
               ),
@@ -600,30 +526,10 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                 padding: const EdgeInsets.symmetric(
                   horizontal: MakoloSpacing.lg,
                 ),
-                child: SizedBox(
-                  height: 48,
-                  child: ListView(
-                    key: const Key('guest-discover-categories'),
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final value in const [
-                        ('', 'Tout', Icons.apps_rounded),
-                        ('transport', 'Voyager', Icons.directions_bus_outlined),
-                        ('event', 'Événements', Icons.event_outlined),
-                        ('service', 'Services', Icons.handshake_outlined),
-                        ('other', 'Autres', Icons.explore_outlined),
-                      ]) ...[
-                        ChoiceChip(
-                          avatar: Icon(value.$3, size: 18),
-                          label: Text(value.$2),
-                          selected: _vertical == value.$1,
-                          showCheckmark: false,
-                          onSelected: (_) => _selectVertical(value.$1),
-                        ),
-                        const SizedBox(width: MakoloSpacing.sm),
-                      ],
-                    ],
-                  ),
+                child: DiscoveryCategoryChips(
+                  selected: _vertical,
+                  onSelected: _selectVertical,
+                  listKey: const Key('guest-discover-categories'),
                 ),
               ),
               const SizedBox(height: MakoloSpacing.sm),
