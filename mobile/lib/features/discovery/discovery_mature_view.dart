@@ -10,6 +10,7 @@ import '../../platform/maps/map_runtime_config.dart';
 import '../../network/makolo_api_client.dart';
 import '../../presentation/search/load_more_on_scroll.dart';
 import '../../presentation/media/retained_public_discovery_image.dart';
+import '../../presentation/possibilities/discovery_offline_store.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'discovery_selector.dart';
 
@@ -594,7 +595,9 @@ class _DiscoveryMedia extends StatelessWidget {
       // Only public first-party images are retained automatically. An
       // external URL keeps its existing non-persistent presentation.
       final mediaBaseUri = baseUri;
-      child = mediaBaseUri != null && resolved.origin == mediaBaseUri.origin
+      child = mediaBaseUri != null &&
+              resolved.origin == mediaBaseUri.origin &&
+              DiscoveryOfflineStore.isPublishedRecognitionUri(resolved)
           ? RetainedPublicDiscoveryImage(
               url: resolved,
               placeholder: MakoloMediaPlaceholder(
