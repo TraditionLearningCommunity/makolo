@@ -34,7 +34,10 @@ class PassportIssuanceAndSharingTests(TestCase):
 
     def _issue(self, variant="public"):
         return issue_passport_snapshot(
-            build_profile_passport(self.owner, variant=variant),
+            build_profile_passport(
+                self.owner, variant=variant,
+                selected_sections=("bio",) if variant == "custom" else None,
+            ),
         )
 
     def _verify_url(self, snapshot):
@@ -125,7 +128,6 @@ class PassportIssuanceAndSharingTests(TestCase):
         self.assertTrue(shared.context["is_explicit_share"])
         self.assertContains(shared, "Présentation originale en mai.")
 
-        envelope = response.context["share_url"]
         from sharing.models import PassportShareSubject
         grant = PassportShareSubject.objects.get(snapshot=snapshot)
         self.client.force_login(self.owner)
