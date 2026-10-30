@@ -703,15 +703,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
       builder: (context) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
-            leading: const Icon(Icons.picture_as_pdf_outlined),
-            title: const Text('Partager le PDF'),
-            subtitle: _variant == 'public'
-                ? const Text('Document de présentation public')
-                : const Text(
-                    'Le PDF peut révéler des informations privées. '
-                    'Vérifiez les éléments avant de partager.',
-                  ),
-            onTap: () => Navigator.pop(context, 'pdf'),
+            leading: const Icon(Icons.history_outlined),
+            title: const Text('Partager une version émise'),
+            subtitle: const Text(
+              'Émettez d’abord un PDF. Choisissez ensuite la version et '
+              'créez un lien de lecture expirant, sans rendre le Passeport public.',
+            ),
+            onTap: () => Navigator.pop(context, 'history'),
           ),
           if (canShareLink) ...[
             ListTile(
@@ -729,6 +727,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
       ),
     );
     if (action == null || !mounted) return;
+    if (action == 'history') {
+      await _showDatedHistory();
+      return;
+    }
     if (action == 'copy' || action == 'link') {
       final url = widget.api.baseUri.resolve(publicPath!).toString();
       if (action == 'copy') {
@@ -743,9 +745,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
       }
       return;
     }
-    final pdf = await _downloadPassport();
-    if (pdf == null || !mounted) return;
-    await const SystemShareGateway().shareFiles(paths: [pdf]);
   }
 
   Future<void> _shareCurrentPassport() async {
