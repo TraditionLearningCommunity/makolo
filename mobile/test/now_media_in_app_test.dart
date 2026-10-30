@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -55,6 +56,7 @@ class FakeNowMediaSharing implements ShareGateway {
 
 class FakeNowDownloads implements DeviceDownloads {
   final saved = <String>[];
+  final completed = Completer<void>();
   @override
   Future<String> save({
     required File source,
@@ -63,6 +65,7 @@ class FakeNowDownloads implements DeviceDownloads {
   }) async {
     expect(await source.exists(), isTrue);
     saved.add(fileName);
+    completed.complete();
     return fileName;
   }
 }
@@ -151,10 +154,13 @@ void main() {
     expect(sharing.shared, isEmpty);
     expect(find.byTooltip('Télécharger dans Téléchargements'), findsOneWidget);
 
-    await tester.runAsync(() async {
-      await tester.tap(find.byTooltip('Télécharger dans Téléchargements'));
-      await tester.pump();
-    });
+    await tester.tap(find.byTooltip('Télécharger dans Téléchargements'));
+    // The save path is asynchronous disk IO. Wait for its actual result,
+    // rather than asserting immediately after a single frame.
+    await tester.runAsync(() => downloads.completed.future.timeout(
+      const Duration(seconds: 5),
+    ));
+    await tester.pump();
     expect(downloads.saved, hasLength(1));
     expect(sharing.shared, isEmpty);
   });
