@@ -145,7 +145,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final file = await _downloadPassport();
     if (file == null || !mounted) return;
     try {
-      final saved = await FilePicker.platform.saveFile(
+      final saved = await FilePicker.saveFile(
         dialogTitle: 'Enregistrer le Passeport PDF',
         fileName: 'passeport-makolo-$_variant.pdf',
         type: FileType.custom,
@@ -217,6 +217,21 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final pdf = await _downloadPassport();
     if (pdf == null || !mounted) return;
     await const SystemShareGateway().shareFiles(paths: [pdf]);
+  }
+
+  Future<void> _shareCurrentPassport() async {
+    // Revalidate disclosure with the server before offering sharing actions.
+    setState(() => _onlineReady = false);
+    try {
+      final data = await _load();
+      if (!mounted) return;
+      await _sharePassport(data);
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Partage indisponible sans connexion.'),
+      ));
+    }
   }
 
   void _toggle(Set<String> values, String id, bool enabled) {
@@ -380,20 +395,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
         ),
         IconButton(
           tooltip: 'Partager le Passeport',
-          onPressed: _exporting || !_onlineReady ? null : () async {
-            // Revalidate public disclosure before building any share action.
-            setState(() => _onlineReady = false);
-            try {
-              final data = await _load();
-              if (mounted) await _sharePassport(data);
-            } on Object {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Partage indisponible sans connexion.'),
-                ));
-              }
-            }
-          },
+          onPressed: _exporting || !_onlineReady ? null : _shareCurrentPassport,
           icon: const Icon(Icons.share_outlined),
         ),
       ],
