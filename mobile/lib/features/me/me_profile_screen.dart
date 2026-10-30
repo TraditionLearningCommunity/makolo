@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../navigation/profile_portrait_store.dart';
+
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
@@ -191,6 +193,14 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           fieldName: 'avatar', path: image.path, filename: image.name,
         )],
       );
+      // Keep the confirmed portrait in the durable private file area, not OS
+      // image cache. Owner projection refresh still reconciles the server fact.
+      try {
+        await ProfilePortraitStore(widget.personal.store.profileId)
+            .savePickedFile(image.path);
+      } on Object {
+        // A later authenticated read can rehydrate the authorized portrait.
+      }
       final fresh = await _refreshPersonal();
       if (!mounted) return;
       setState(() {
