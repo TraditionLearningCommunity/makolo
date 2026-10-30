@@ -44,7 +44,7 @@ abstract final class MakoloHumanization {
   }) {
     final raw = label?.trim();
     if (raw == null || raw.isEmpty) return null;
-    final parts = raw.split(RegExp(r'\\s*·\\s*'));
+    final parts = raw.split(RegExp(r'\s*·\s*'));
     if (parts.length > 2) return raw;
     try {
       final date = DateFormat('dd/MM/yyyy', locale).parseStrict(parts.first);
