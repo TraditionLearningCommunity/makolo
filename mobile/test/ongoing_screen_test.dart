@@ -415,6 +415,7 @@ void main() {
     expect(tester.widget<InkWell>(file).onTap, isNotNull);
     expect(tester.widget<InkWell>(text).onTap, isNotNull);
     expect(tester.getSize(file).height, greaterThanOrEqualTo(48));
+    await tester.ensureVisible(text);
     await tester.tap(text);
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
@@ -422,11 +423,20 @@ void main() {
     await tester.tap(find.text('Fermer'));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Voir les 3 ressources'));
     await tester.tap(find.text('Voir les 3 ressources'));
     await tester.pumpAndSettle();
     final blocked = find.byKey(const ValueKey('ongoing-resource-file-bad'));
     expect(blocked, findsOneWidget);
     expect(tester.widget<InkWell>(blocked).onTap, isNull);
+
+    // N2 uses exactly the same owner-aware resource list, without an
+    // independent destination or capability calculation.
+    await tester.ensureVisible(find.text('Préparer un trajet'));
+    await tester.tap(find.text('Préparer un trajet'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('ongoing-n2-resources')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ongoing-resource-file-1')), findsOneWidget);
   });
 
   testWidgets('recognition media opens authenticated zoom without export', (
