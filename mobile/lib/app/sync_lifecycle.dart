@@ -125,7 +125,7 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       if (mounted && identical(runtime, widget.runtime)) {
         setState(() {
           _syncFailed = !rootsSucceeded;
-          _lastUpdatedAt = DateTime.now();
+          if (rootsSucceeded) _lastUpdatedAt = DateTime.now();
         });
       }
     } on MakoloApiError catch (error) {
