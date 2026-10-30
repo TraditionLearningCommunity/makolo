@@ -287,6 +287,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         throw const FormatException('Incompatible local continuation');
       }
       if (!mounted || !identical(current, _query)) return;
+      // Materialize only on actual user advancement, never during invisible
+      // prefetch. This trims older seen rows without losing the next cursor.
+      await widget.repository.retainPresentedWindow(next);
+      if (!mounted || !identical(current, _query)) return;
       setState(() => _query = next);
       await _rememberPosition(next);
       unawaited(_prefetchNext(next));
