@@ -389,6 +389,18 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _searchCoordinator.changed(immediate: immediate);
   }
 
+  void _clearFilters() {
+    _place.clear();
+    setState(() {
+      _selectedPlace = null;
+      _when = '';
+      _date = '';
+      _price = '';
+      _vertical = '';
+    });
+    _criteriaChanged(immediate: true);
+  }
+
   void _selectVertical(String vertical) {
     setState(() => _vertical = vertical);
     _criteriaChanged(immediate: true);
@@ -485,6 +497,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   ),
                   filterButtonKey: const Key('guest-filter-toggle'),
                   filterPanelKey: const Key('guest-filters'),
+                  showResultsAction: true,
+                  onClearFilters: _clearFilters,
                   hasActiveFilters:
                       _when.isNotEmpty ||
                       _date.isNotEmpty ||
