@@ -42,6 +42,18 @@ void main() {
     expect(await store.recognizedImage(uri), isNull);
   });
 
+  test('parallel public recognition writes keep the final complete bytes', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-concurrent-');
+    addTearDown(() async => root.delete(recursive: true));
+    final store = DiscoveryOfflineStore(rootOverride: root);
+    final url = publicUse(9);
+    await Future.wait([
+      store.retainRecognitionImage(url, Uint8List.fromList([1])),
+      store.retainRecognitionImage(url, Uint8List.fromList([2])),
+    ]);
+    expect(await store.recognizedImage(url), orderedEquals([2]));
+  });
+
   test('automatic Discovery images rotate at ten without deleting Reader files', (
     ) async {
     final root = await Directory.systemTemp.createTemp('makolo-budget-test-');
