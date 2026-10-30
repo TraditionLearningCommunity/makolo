@@ -68,7 +68,17 @@ class DiscoveryOfflineStore {
     return file.readAsBytes();
   }
 
-  Future<void> retainRecognitionImage(Uri url, Uint8List bytes) async {
+  // Serialize writes and quota pruning: concurrent media widgets must not
+  // race to replace a staging file or delete each other's retained bytes.
+  static Future<void> _pendingWrites = Future<void>.value();
+
+  Future<void> retainRecognitionImage(Uri url, Uint8List bytes) {
+    final work = _pendingWrites.then((_) => _retainRecognitionImageDirect(url, bytes));
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
+  }
+
+  Future<void> _retainRecognitionImageDirect(Uri url, Uint8List bytes) async {
     if (!isPublishedRecognitionUri(url)) {
       throw const FormatException('Unpublished recognition media cannot persist');
     }
