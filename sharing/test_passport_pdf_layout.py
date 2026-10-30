@@ -111,7 +111,7 @@ class PassportPdfLayoutTests(TestCase):
         personal["active_space_mandates"] = [
             {"role": "Responsable activité", "space": "Collectif exemple"},
         ]
-        personal_text = "\\n".join(
+        personal_text = "\n".join(
             page.extract_text() for page in self._reader(personal).pages
         )
         self.assertIn("Équipe pilote", personal_text)
@@ -122,7 +122,7 @@ class PassportPdfLayoutTests(TestCase):
         space["credential_summary"] = [
             {"label": "Attestation de participation", "count": 3},
         ]
-        space_text = "\\n".join(
+        space_text = "\n".join(
             page.extract_text() for page in self._reader(space).pages
         )
         self.assertIn("Équipe exploitation", space_text)
