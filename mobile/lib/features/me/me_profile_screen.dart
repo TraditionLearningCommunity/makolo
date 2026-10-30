@@ -59,6 +59,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Map<String, dynamic>? _cachedIdentity;
   bool _edited = false;
   Future<void> _draftWrites = Future<void>.value();
+  int _editRevision = 0;
 
   @override
   void initState() {
@@ -151,6 +152,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   };
 
   void _rememberEdits() {
+    _editRevision++;
     _edited = true;
     final drafts = widget.drafts;
     if (drafts == null || !_loaded) return;
@@ -358,6 +360,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       setState(() => _error = 'Choisissez un pays dans les suggestions.');
       return;
     }
+    final submittedRevision = _editRevision;
+    final confirmedEditor = _currentEditor();
     setState(() {
       _saving = true;
       _error = null;
@@ -401,21 +405,23 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     // Accounts confirmed these fields. Clear the device-owned draft only
     // after the last local write has completed.
     try {
-      await _persistEditor(_currentEditor());
+      await _persistEditor(confirmedEditor);
     } on Object {
       // The remote success is not undone by a local storage failure.
     }
     try {
       await _draftWrites;
-      await widget.drafts?.delete(
-        owner: _draftOwner,
-        resourceKind: _draftKind,
-        resourceId: widget.personal.store.profileId,
-      );
+      if (submittedRevision == _editRevision) {
+        await widget.drafts?.delete(
+          owner: _draftOwner,
+          resourceKind: _draftKind,
+          resourceId: widget.personal.store.profileId,
+        );
+      }
     } on Object {
       // An already-confirmed owner mutation remains confirmed.
     }
-    _edited = false;
+    if (submittedRevision == _editRevision) _edited = false;
     final refreshed = await _refreshPersonal();
     if (!mounted) return;
     setState(() {
