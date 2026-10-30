@@ -76,6 +76,19 @@ void main() {
       expect(find.text('Participation'), findsOneWidget);
       expect(find.text('Attestation de participation'), findsOneWidget);
       expect(find.text('Rechercher dans mes documents'), findsOneWidget);
+
+      // Offline queries still filter previously received PersonalAsset facts;
+      // they cannot manufacture new server search results.
+      await tester.enterText(find.byType(TextField), 'Passeport');
+      await tester.tap(find.byTooltip('Rechercher'));
+      await tester.pump();
+      expect(find.text('Passeport RDC'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Inexistant');
+      await tester.tap(find.byTooltip('Rechercher'));
+      await tester.pump();
+      expect(find.text('Passeport RDC'), findsNothing);
+      expect(find.text('Aucun document correspondant.'), findsOneWidget);
+
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));
     },
