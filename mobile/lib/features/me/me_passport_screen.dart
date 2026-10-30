@@ -344,9 +344,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
       : <String, dynamic>{};
   static List<Map<String, dynamic>> _rows(Object? raw) => raw is List
       ? raw.whereType<Map>().map(_map).toList() : const [];
-  static Set<String> _ids(Object? raw) => {
-    for (final row in _rows(raw)) if (row['id'] != null) row['id'].toString(),
-  };
   static String? _text(Object? raw) =>
       raw is String && raw.trim().isNotEmpty ? raw.trim() : null;
 
