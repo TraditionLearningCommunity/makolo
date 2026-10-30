@@ -42,5 +42,41 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertNotIn("--apply", clock.call_args.args[0])
 
 
+    def test_new_business_domains_are_selectable(self):
+        self.assertEqual(
+            parse_domains("media,groups,objectives,trust,notifications,contributions,forms,crm"),
+            {"media", "groups", "objectives", "trust", "notifications",
+             "contributions", "forms", "crm"},
+        )
+
+    def test_media_plan_uses_dry_run_only(self):
+        args = build_parser().parse_args(["plan", "--domains", "media", "--count", "9"])
+        with patch("scripts.demo_generation.media.main") as media:
+            run(args)
+        argv = media.call_args.args[0]
+        self.assertIn("9", argv)
+        self.assertNotIn("--apply", argv)
+
+    def test_community_and_engagement_are_routed_independently(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "groups,forms", "--count", "4",
+        ])
+        with patch("scripts.demo_generation.community.main") as community, \
+             patch("scripts.demo_generation.engagement.main") as engagement:
+            run(args)
+        self.assertIn("groups", community.call_args.args[0])
+        self.assertIn("forms", engagement.call_args.args[0])
+        self.assertNotIn("--apply", community.call_args.args[0])
+        self.assertNotIn("--apply", engagement.call_args.args[0])
+
+    def test_audit_supports_explicit_reference_date(self):
+        args = build_parser().parse_args([
+            "audit", "--at", "2026-10-30T18:00:00+02:00",
+        ])
+        with patch("scripts.demo_generation.audit.main") as audit:
+            run(args)
+        audit.assert_called_once_with(["--at", "2026-10-30T18:00:00+02:00"])
+
+
 if __name__ == "__main__":
     unittest.main()
