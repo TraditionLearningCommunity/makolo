@@ -119,7 +119,7 @@ def issue_passport_snapshot(projection):
 
 def passport_verification_token(snapshot):
     return signing.dumps(
-        {"passport_id": str(snapshot.pk)},
+        {"passport_id": str(snapshot.pk), "payload_hash": snapshot.payload_hash},
         salt=PASSPORT_VERIFY_SALT,
         compress=True,
     )
@@ -127,4 +127,14 @@ def passport_verification_token(snapshot):
 
 def resolve_passport_verification_token(token):
     data = signing.loads(token, salt=PASSPORT_VERIFY_SALT)
-    return PassportSnapshot.objects.select_related("profile", "space").get(pk=data["passport_id"])
+    snapshot = PassportSnapshot.objects.select_related("profile", "space").get(
+        pk=data["passport_id"],
+    )
+    # Historical signed links originally carried only a snapshot id: keep
+    # reading those. New links also bind the issued fingerprint to the token.
+    issued_hash = data.get("payload_hash")
+    if issued_hash is not None and not hmac.compare_digest(
+        str(issued_hash), snapshot.payload_hash,
+    ):
+        raise signing.BadSignature("Document modifié depuis son émission.")
+    return snapshot
