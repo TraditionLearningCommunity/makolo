@@ -409,6 +409,8 @@ class PassportVerificationView(TemplateView):
         response = super().render_to_response(context, **response_kwargs)
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
+        response["Referrer-Policy"] = "no-referrer"
+        response["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
 
@@ -489,6 +491,8 @@ class PassportHistoryBase(LoginRequiredMixin, TemplateView):
         response = super().render_to_response(context, **response_kwargs)
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
+        response["Referrer-Policy"] = "no-referrer"
+        response["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
 
