@@ -43,6 +43,19 @@ Le Passeport complet d'un Espace peut présenter les noms de ses Équipes active
 
 Aucune nouvelle source de vérité, table, inférence de compétence, score ou CV RH générique n'est introduite.
 
+## Variantes, sélection et divulgation (étape 4)
+
+- **Public** : représentation en lecture directe de l'identifiant public, admise uniquement si la publication de l'entité est autorisée ; le réglage `searchable` ne contrôle pas l'accès par lien. La personne propriétaire peut toujours consulter l'aperçu de sa propre version publique, même si elle ne l'a pas publiée.
+- **Complet** : version propriétaire du Profil, ou version réservée à une autorité disposant du droit de consulter le workspace de l'Espace. Les noms des Équipes internes restent soumis à une autorité de gestion d'équipe indépendante du droit de consultation.
+- **Thématique** : composition des faits du titulaire liés à un ou plusieurs Topics explicitement demandés ; cette variante reste **privée** tant que le titulaire n'a pas volontairement exporté son document. Elle ne transforme pas une preuve privée en déclaration publiquement accessible.
+- **Personnalisé** : l'identité minimale (nom et identifiant) subsiste, mais la photo, la biographie, la profession, la localisation, les liens, les centres d'intérêt, les ouvertures et les faits sélectionnables ne sont transmis que s'ils sont explicitement inclus. Une sélection vide produit un Passeport d'identité minimal. Une sélection de fait étranger est rejetée par le serveur.
+- **Adresse canonique `/<identifiant>/`** : un visiteur ne peut obtenir que le public autorisé. Un utilisateur reconnu comme titulaire peut consulter les variantes privées par cette même adresse ; il ne transmet jamais cette autorisation aux autres visiteurs.
+- **Web personnalisé** : aperçu limité aux informations choisies ; `Modifier la sélection` ouvre séparément la liste privée des choix admissibles avec cases conservées. Les documents exportés n'intègrent jamais ce catalogue.
+- **Flutter** : aucun élément privé n'est présélectionné lors de la création d'une variante personnalisée ; partage et PDF exigent une projection en ligne à nouveau autorisée. Le propriétaire doit être averti lorsqu'il transmet un document susceptible de contenir des informations privées.
+- **Document vérifiable** : la page du lien signé confirme l'émission et expose seulement les références de vérification ; elle ne diffuse pas le contenu privé de la projection. La vérification historique et les versions datées sont traitées à l'étape 5.
+
+Les variantes ne dupliquent aucune vérité métier, n'ajoutent aucune permission et ne rendent jamais un contenu public par simple composition.
+
 ## Confidentialité
 
 Le Passeport complet peut contenir des coordonnées privées, exclusivement lorsqu'il est généré pour son propriétaire ou une autorité explicitement autorisée. Les autres variantes n'héritent jamais de ces coordonnées ; aucune information n'est reprise implicitement d'un document, d'une preuve ou d'un Espace associé. Les projections de partage public et les autorisations de média restent propriétaires des décisions de divulgation.
