@@ -211,11 +211,15 @@ class SyncEngine {
         source.projectionKind == 'personal.ongoing') {
       try {
         await ProfileRecognitionImageStore(profileId: profileId).purge();
-        if (source.projectionKind == 'personal.me') {
-          await ProfilePaths.removePortrait(profileId);
-        }
       } on Object {
         // The revoked projection is already removed from the active reader.
+      }
+      if (source.projectionKind == 'personal.me') {
+        try {
+          await ProfilePaths.removePortrait(profileId);
+        } on Object {
+          // Portrait cleanup is independent of recognition file cleanup.
+        }
       }
     }
   }
