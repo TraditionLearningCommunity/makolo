@@ -7,8 +7,9 @@ from django.urls import reverse
 from django.views import View
 
 from .models import PassportSnapshot, PassportShareSubject, ShareEnvelope, ShareSubjectType
-from .passport_share_views_base import PassportSharedView
-from .passport_sharing import create_passport_share, revoke_passport_share
+from .passport_views import PassportVerificationView
+from .services import ShareUnavailable
+from .passport_sharing import create_passport_share, revoke_passport_share, resolve_passport_share
 
 
 class PassportShareCreateView(LoginRequiredMixin, View):
@@ -68,3 +69,27 @@ class PassportShareRevokeView(LoginRequiredMixin, View):
                 kwargs={"slug": snapshot.space.slug},
             )
         return redirect(destination)
+
+
+class PassportSharedView(PassportVerificationView):
+    """An active Sharing grant reveals only its selected issued document."""
+    def get_snapshot(self):
+        try:
+            self.share_envelope, snapshot = resolve_passport_share(self.kwargs["token"])
+            return snapshot
+        except ShareUnavailable as exc:
+            raise Http404("Ce partage n’est plus disponible.") from exc
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        snapshot = context["snapshot"]
+        context.update({
+            "is_explicit_share": True,
+            "share_expires_at": self.share_envelope.expires_at,
+            "can_view_dated_passport": True,
+            "dated_payload": snapshot.payload,
+            "snapshot_name": snapshot.payload.get(
+                "identity", {},
+            ).get("name", snapshot.public_identifier),
+        })
+        return context
