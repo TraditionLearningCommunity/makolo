@@ -117,14 +117,14 @@ class _SyncLifecycleState extends State<SyncLifecycle>
       });
     }
     try {
-      await sync.refreshRoots();
+      final rootsSucceeded = await sync.refreshRoots();
       if (!mounted || !identical(runtime, widget.runtime)) return;
       await _refreshSpaceContextIfNeeded();
       if (!mounted || !identical(runtime, widget.runtime)) return;
       await runtime.outboxProcessor?.run();
       if (mounted && identical(runtime, widget.runtime)) {
         setState(() {
-          _syncFailed = false;
+          _syncFailed = !rootsSucceeded;
           _lastUpdatedAt = DateTime.now();
         });
       }
