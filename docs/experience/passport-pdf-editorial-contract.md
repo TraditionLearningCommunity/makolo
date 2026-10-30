@@ -56,6 +56,19 @@ Aucune nouvelle source de vérité, table, inférence de compétence, score ou C
 
 Les variantes ne dupliquent aucune vérité métier, n'ajoutent aucune permission et ne rendent jamais un contenu public par simple composition.
 
+## Temps, versions et lien de vérification (étape 5)
+
+- **Passeport vivant** : la page `/<identifiant>/` et les vues personnelles reflètent les faits admissibles au moment de la consultation. Leur lecture ordinaire **ne crée aucune version**.
+- **Émission datée** : un export HTML d’impression, un téléchargement HTML ou un PDF génère un `sharing.PassportSnapshot` immuable. Chaque émission conserve son identifiant, sa date, sa variante, la projection textuelle autorisée et son empreinte SHA-256 ; modifier le Profil ou l'Espace ne modifie pas ce snapshot. La révocation demeure un état indépendant.
+- **Lien signé** : l’adresse existante `sharing:passport-verify` pointe vers **une émission unique**, et affiche son contenu textuel historique si le lecteur y est autorisé, sans recomposer le Profil courant. La signature protège l’identifiant ; à la lecture, l’empreinte est aussi recalculée. Le lien n’est pas une certification d’identité ou de vérité.
+- **Visibilité du contenu historique** : un document public est lisible publiquement tant que le Passeport du sujet demeure publiable. La dépublication cache son contenu aux visiteurs sans effacer le snapshot. Pour le complet, thématique et personnalisé, seul le Profil titulaire ou une autorité actuelle de l’Espace peut consulter le contenu historique. Une version contenant des Équipes internes d’Espace exige en outre la permission de gestion d’équipe **au moment de la lecture**. Le lien signé ne contourne jamais ces permissions.
+- **Révocation ou empreinte invalide** : la référence documentaire peut rester visible, mais son contenu ne l’est plus.
+- **Historique** : `sharing:passport-me-history` et `sharing:passport-space-history` présentent par pages de 20 les émissions existantes au titulaire ou à une autorité de l’Espace. L’API privée `/api/v1/me/passport/history/` et son détail `<uuid>/` permettent la consultation dans Flutter, sans accéder aux snapshots d’autrui. Les réponses privées ne sont pas mises en cache.
+- **Médias** : le snapshot existant stocke les faits textuels et leurs références, pas les octets immuables des portraits. L’aperçu historique ne prétend donc pas reconstituer l’image telle qu’elle figurait dans le PDF original. La fidélité des médias émis n’est pas inventée.
+- **Données réelles** : aucune version n’est générée rétroactivement à partir de l’historique applicatif. Les versions antérieures à cette fonctionnalité restent disponibles selon leurs données réellement persistées.
+
+Les sorties Web et Flutter peuvent distinguer le Passeport **actuel** des **versions datées**. Le lien de vérification ne doit jamais être redirigé silencieusement vers un Passeport recomposé.
+
 ## Confidentialité
 
 Le Passeport complet peut contenir des coordonnées privées, exclusivement lorsqu'il est généré pour son propriétaire ou une autorité explicitement autorisée. Les autres variantes n'héritent jamais de ces coordonnées ; aucune information n'est reprise implicitement d'un document, d'une preuve ou d'un Espace associé. Les projections de partage public et les autorisations de média restent propriétaires des décisions de divulgation.
