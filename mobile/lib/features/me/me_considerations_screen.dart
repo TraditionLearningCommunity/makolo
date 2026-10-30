@@ -54,11 +54,11 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       final topics = local?.collection('considerations', 'interests');
       final openness = local?.collection('considerations', 'open_to');
       if (mounted && topics != null && openness != null) {
-        final selected = (topics?['items'] as List? ?? const [])
+        final selected = (topics['items'] as List? ?? const [])
             .whereType<Map<String, dynamic>>()
             .where((row) => row['id'] != null && row['label'] != null)
             .toList();
-        final openRows = (openness?['items'] as List? ?? const [])
+        final openRows = (openness['items'] as List? ?? const [])
             .whereType<Map<String, dynamic>>()
             .where((row) => row['id'] != null && row['label'] != null)
             .toList();
