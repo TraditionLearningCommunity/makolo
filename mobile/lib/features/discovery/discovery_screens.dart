@@ -355,8 +355,12 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       setState(() => _locationMessage = 'Position indisponible. La recherche par mots-clés reste possible.');
       return;
     }
+    _place.clear();
     setState(() {
+      // A named place and the device position are alternative spatial frames.
+      _selectedPlace = null;
       _query = _query.copyWith(
+        place: '',
         latitude: result.fix!.latitude,
         longitude: result.fix!.longitude,
         radiusKm: 25,
@@ -540,11 +544,21 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                 date: _date,
                 price: _price,
                 onPlaceSelected: (place) {
-                  setState(() => _selectedPlace = place);
+                  setState(() {
+                    _selectedPlace = place;
+                    _query = _query.copyWith(clearLocation: true);
+                    _locationMessage = null;
+                  });
                   _applyCriteria();
                 },
                 onPlaceEdited: () {
                   _selectedPlace = null;
+                  if (_query.latitude != null) {
+                    setState(() {
+                      _query = _query.copyWith(clearLocation: true);
+                      _locationMessage = null;
+                    });
+                  }
                   _applyCriteria(immediate: false);
                 },
                 onPlaceSubmitted: () => _applyCriteria(),
