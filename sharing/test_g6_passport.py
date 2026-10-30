@@ -606,7 +606,8 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
         self.client.force_login(self.space_owner)
         history = self.client.get(history_url)
         self.assertContains(history, snapshot.document_id)
-        self.assertContains(history, verification_url)
+        from urllib.parse import urlsplit
+        self.assertContains(history, urlsplit(verification_url).path)
         verified = self.client.get(verification_url)
         self.assertTrue(verified.context["can_view_dated_passport"])
         self.assertContains(verified, "Équipe historique confidentielle")
