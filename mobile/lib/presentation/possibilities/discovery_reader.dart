@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../platform/media/private_media_views.dart';
+import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
 import 'discovery_offline_store.dart';
 import 'discovery_save_icon.dart';
@@ -48,11 +49,13 @@ class DiscoveryReader extends StatefulWidget {
     required this.items,
     this.initialIndex = 0,
     this.sharing = const SystemShareGateway(),
+    this.downloads = const AndroidDeviceDownloads(),
   });
 
   final List<DiscoveryReaderItem> items;
   final int initialIndex;
   final ShareGateway sharing;
+  final DeviceDownloads downloads;
 
   @override
   State<DiscoveryReader> createState() => _DiscoveryReaderState();
@@ -298,13 +301,34 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       } else {
         generated = file ?? _retainedFile ?? await _fetchTemporary(item);
       }
-      await widget.sharing.shareFiles(paths: [generated.path]);
+      final mime = item.mimeType.toLowerCase();
+      final ext = switch (mime) {
+        'application/pdf' => 'pdf',
+        'text/plain' => 'txt',
+        'text/csv' => 'csv',
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'video/mp4' => 'mp4',
+        'audio/mpeg' => 'mp3',
+        'audio/wav' => 'wav',
+        _ => 'bin',
+      };
+      final name = await widget.downloads.save(
+        source: generated,
+        fileName: makoloDownloadName(item.title, ext),
+        mimeType: mime,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Enregistré dans Téléchargements : $name')),
+        );
+      }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Export impossible. Vérifiez la connexion et les droits.',
+              'Téléchargement impossible. Vérifiez la connexion, les droits et l’appareil.',
             ),
           ),
         );
@@ -580,7 +604,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
             ),
           if (!website)
             IconButton(
-              tooltip: 'Exporter vers l’appareil',
+              tooltip: 'Télécharger dans Téléchargements',
               onPressed: _exporting ? null : _export,
               icon: const Icon(Icons.download_outlined),
             ),
