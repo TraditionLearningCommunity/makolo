@@ -71,7 +71,16 @@ class PassportPdfLayoutTests(TestCase):
         self.assertEqual(content.count(META["document_id"]), 1)
         self.assertIn("Domaine d’émission", content)
         self.assertGreaterEqual(len(page.images), 1)  # QR in header, even without portrait
-        self.assertTrue(page.get("/Annots"))  # clickable verification link
+        links = []
+        for reference in page.get("/Annots", []):
+            annotation = reference.get_object()
+            action = annotation.get("/A")
+            if action and action.get("/URI") == VERIFY:
+                links.append(annotation)
+        # The QR is clickable in the upper identity card, while the domain
+        # printed in the final issuance block is a second accessible link.
+        self.assertTrue(any(float(item["/Rect"][1]) > 420 for item in links))
+        self.assertTrue(any(float(item["/Rect"][1]) < 300 for item in links))
 
     def test_public_variant_never_prints_owner_only_information(self):
         payload = _payload("public")
