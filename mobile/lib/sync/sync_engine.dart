@@ -77,24 +77,34 @@ class SyncEngine {
     await pullInteroperability();
   }
 
-  Future<void> refreshRoots() async {
-    // These Profile projections are independent owners. A slow Now request
-    // must not delay the first Ongoing and Me snapshots (or vice versa).
-    // Wait for every root to settle before handing the session back to the
-    // lifecycle; each successful snapshot is still applied transactionally.
-    await Future.wait([
-      for (final root in roots) refreshSource(_rootSource(root)),
+  Future<bool> refreshRoots() async {
+    // Profile projections are independent: a slow Now request cannot delay
+    // Ongoing or Me. Record partial failures without discarding local facts.
+    final results = await Future.wait([
+      for (final root in roots) _refreshSourceStatus(_rootSource(root)),
     ]);
-    await refreshSource(_interoperabilitySource);
+    final interoperabilityReady = await _refreshSourceStatus(
+      _interoperabilitySource,
+    );
+    // A transport failure must not be reported as a successful refresh just
+    // because each owner source kept its existing local snapshot.
+    return results.every((success) => success) && interoperabilityReady;
   }
 
   Future<void> refreshSource(SyncSourceDefinition source) async {
+    await _refreshSourceStatus(source);
+  }
+
+  Future<bool> _refreshSourceStatus(SyncSourceDefinition source) async {
     try {
       await pullSource(source);
+      return true;
     } on MakoloApiError catch (error) {
       if (error.statusCode == 401) rethrow;
+      return false;
     } on Object {
       // The failure is recorded by pullSource. Existing local data is kept.
+      return false;
     }
   }
 
