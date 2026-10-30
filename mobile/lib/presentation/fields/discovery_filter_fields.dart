@@ -55,10 +55,15 @@ class DiscoveryFilterFields extends StatelessWidget {
         extra!,
       ],
       const SizedBox(height: MakoloSpacing.md),
-      DropdownButtonFormField<String>(
+      KeyedSubtree(
+        // The dropdown state must track owner-driven resets, not retain a
+        // previously selected value when filters are cleared.
+        key: ValueKey('$keyPrefix-when-$when-$date'),
+        child: DropdownButtonFormField<String>(
         key: Key('$keyPrefix-when'),
         initialValue: when,
         isExpanded: true,
+        menuMaxHeight: 240,
         decoration: const InputDecoration(
           labelText: 'Quand ?',
           prefixIcon: Icon(Icons.calendar_today_outlined),
@@ -80,6 +85,7 @@ class DiscoveryFilterFields extends StatelessWidget {
           }
         },
       ),
+      ),
       if (date.isNotEmpty)
         TextButton.icon(
           key: Key('$keyPrefix-selected-date'),
@@ -88,10 +94,13 @@ class DiscoveryFilterFields extends StatelessWidget {
           label: Text('Date : $date'),
         ),
       const SizedBox(height: MakoloSpacing.md),
-      DropdownButtonFormField<String>(
+      KeyedSubtree(
+        key: ValueKey('$keyPrefix-price-$price'),
+        child: DropdownButtonFormField<String>(
         key: Key('$keyPrefix-price'),
         initialValue: price,
         isExpanded: true,
+        menuMaxHeight: 200,
         decoration: const InputDecoration(
           labelText: 'Budget',
           prefixIcon: Icon(Icons.payments_outlined),
@@ -103,6 +112,7 @@ class DiscoveryFilterFields extends StatelessWidget {
           DropdownMenuItem(value: 'paid', child: Text('Payant')),
         ],
         onChanged: (value) => onPriceChanged(value ?? ''),
+      ),
       ),
     ],
   );
