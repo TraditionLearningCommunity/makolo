@@ -526,11 +526,13 @@ def render_passport_layout(payload, metadata, verify_url, *,
     owner = identity.get("owner_details") or {}
     if payload.get("variant") != "complete":
         owner = {}
+    # The identity header already contains the person's name, location,
+    # language and declared gender. Repeat only meaningful additional facts.
     labels = (
         ("company", "Entreprise"), ("organization", "Organisation"),
-        ("city", "Ville"), ("country", "Pays"), ("language", "Langue"),
+        ("city", "Ville"), ("country", "Pays"),
         ("phone", "Téléphone"), ("address", "Adresse"),
-        ("birth_date", "Date de naissance"), ("gender", "Genre"),
+        ("birth_date", "Date de naissance"),
     )
     details = []
     for field, label in labels:
@@ -542,8 +544,9 @@ def render_passport_layout(payload, metadata, verify_url, *,
         if value:
             details.append((label, value))
     if details:
+        detail_title = "Informations complémentaires" if kind == "Profil personnel" else "Informations de l’Espace"
         story.extend([KeepTogether([
-            _heading("Informations personnelles"), Spacer(1, 9),
+            _heading(detail_title), Spacer(1, 9),
             _details_grid(details),
         ]), Spacer(1, 16)])
     tags = [
