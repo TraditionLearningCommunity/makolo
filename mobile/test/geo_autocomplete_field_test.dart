@@ -46,6 +46,10 @@ void main() {
     expect(controller.text, 'Kolwezi');
     expect(submitted, 1);
     expect(find.byKey(const Key('geo-suggestions')), findsNothing);
+    expect(
+      find.byKey(const Key('geo-suggestions-unconfigured')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('debounces requests, selects a structured place', (tester) async {
