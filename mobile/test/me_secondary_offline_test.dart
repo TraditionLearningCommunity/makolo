@@ -122,11 +122,15 @@ void main() {
       onSaved: () {}, onWatches: () {},
     )));
     await tester.pumpAndSettle();
-    for (final title in titles) {
-      expect(find.text(title, skipOffstage: false), findsOneWidget);
-    }
-    for (final title in openings) {
-      expect(find.text(title, skipOffstage: false), findsOneWidget);
+    expect(find.text('7'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget);
+    for (final title in [...titles, ...openings]) {
+      await tester.scrollUntilVisible(
+        find.text(title), 160,
+        scrollable: find.byType(Scrollable).first,
+        maxScrolls: 35,
+      );
+      expect(find.text(title), findsOneWidget);
     }
     expect(find.textContaining('à actualiser avec une connexion'),
         findsNothing);
