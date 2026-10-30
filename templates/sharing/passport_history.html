@@ -29,7 +29,7 @@
         <div>
           <div class="id">{{ entry.snapshot.document_id }}</div>
           <div class="date">Émis le {{ entry.snapshot.generated_at|date:"d/m/Y à H:i" }}</div>
-          <div class="state">Variante : {{ entry.snapshot.get_variant_display|default:entry.snapshot.variant }}</div>
+          <div class="state">Variante : {{ entry.snapshot.variant }}</div>
           {% if entry.snapshot.is_revoked %}<div class="state revoked">Document révoqué</div>{% endif %}
         </div>
         <a class="link" href="{{ entry.url }}">Ouvrir cette version</a>
