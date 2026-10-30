@@ -6,6 +6,9 @@ from .document_views import (
     InboundCaptureDetailView,
     InboundCaptureDiscardView,
 )
+from .passport_share_views import (
+    PassportShareCreateView, PassportShareRevokeView, PassportSharedView,
+)
 from .passport_views import (
     MyPassportView,
     MyPassportHistoryView,
@@ -39,6 +42,9 @@ urlpatterns = [
     path("passport/profile/<uuid:profile_id>/", ProfilePassportView.as_view(), name="passport-profile"),
     path("passport/spaces/<slug:slug>/", SpacePassportView.as_view(), name="passport-space"),
     path("passport/verify/<str:token>/", PassportVerificationView.as_view(), name="passport-verify"),
+    path("passport/shared/<str:token>/", PassportSharedView.as_view(), name="passport-shared"),
+    path("passport/issued/<uuid:snapshot_id>/share/", PassportShareCreateView.as_view(), name="passport-share-create"),
+    path("passport/issued/shares/<uuid:share_id>/revoke/", PassportShareRevokeView.as_view(), name="passport-share-revoke"),
     path("s/<slug:token>/", ShareLandingView.as_view(), name="landing"),
     path("s/<slug:token>/go/", ShareActionView.as_view(), name="action"),
     path("s/<slug:token>/qr.png", ShareQRView.as_view(), name="qr"),
