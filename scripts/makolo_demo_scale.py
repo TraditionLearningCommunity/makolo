@@ -248,7 +248,7 @@ def main():
         accepted = 0
         events = Event.objects.filter(activity__slug__startswith="demo-",
             activity__status=ActivityStatus.PUBLISHED).select_related("activity").order_by("id")
-        for event in events:
+        for event in events[:max(50, min(500, args.scans * 3))]:
             if accepted >= args.scans:
                 break
             occurrence = event.primary_occurrence
@@ -313,7 +313,7 @@ def main():
     if args.orders:
         event_qs = Event.objects.filter(activity__slug__startswith="demo-",
             activity__status=ActivityStatus.PUBLISHED).select_related("activity").order_by("id")
-        for event in event_qs:
+        for event in event_qs[:max(20, min(200, args.orders * 2))]:
             if counts["orders_considered"] >= args.orders:
                 break
             if not event.is_registration_open:
