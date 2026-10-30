@@ -119,10 +119,17 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final local = await _avatarFile();
     if (avatar == null || local == null) return;
     final uri = Uri.tryParse(avatar);
-    if (uri == null || uri.hasAuthority || uri.hasScheme ||
-        !avatar.startsWith('/') || avatar.startsWith('//')) return;
+    if (uri == null) return;
+    final base = widget.api.baseUri;
+    if ((uri.hasAuthority || uri.hasScheme) &&
+        (uri.host != base.host || uri.scheme != base.scheme ||
+         uri.port != base.port)) return;
+    final path = uri.hasAuthority
+        ? uri.replace(scheme: '', host: '', port: null).toString()
+        : avatar;
+    if (!path.startsWith('/') || path.startsWith('//')) return;
     try {
-      final bytes = await widget.api.getPresentationImage(avatar);
+      final bytes = await widget.api.getPresentationImage(path);
       if (bytes.length > 2 * 1024 * 1024) return;
       await local.parent.create(recursive: true);
       await local.writeAsBytes(bytes, flush: true);
