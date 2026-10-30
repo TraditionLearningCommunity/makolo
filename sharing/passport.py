@@ -3,11 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from accounts.models import UserProfile
 from activities.models import Activity, ActivityStatus, ActivityVisibility
+from authorization.models import AuthorityScope, Mandate, MandateStatus
+from organizations.models import TeamMembership, TeamMembershipStatus
 from organizations.permissions import organization_has_public_profile
 from topics.models import ProfileInterest, ProfileOpenTo, Topic
 from topics.services import public_profile_interests, public_profile_open_to
@@ -59,6 +61,11 @@ class PassportProjection:
     credentials: tuple = ()
     trust_verifications: tuple = ()
     credential_summary: tuple = ()
+    # Owner-only context; membership never implies authority.
+    team_affiliations: tuple = ()
+    active_space_mandates: tuple = ()
+    # Internal Space teams require a separate team-management permission.
+    space_teams: tuple = ()
     topics: tuple = ()
 
     @property
@@ -80,6 +87,9 @@ class PassportProjection:
             or self.credentials
             or self.trust_verifications
             or self.credential_summary
+            or self.team_affiliations
+            or self.active_space_mandates
+            or self.space_teams
         )
 
 
@@ -208,6 +218,46 @@ def _profile_credential_queryset(profile, *, public_only):
     return queryset
 
 
+
+def _profile_team_affiliations(profile):
+    """Owner-scoped existing memberships, not roles or public endorsements."""
+    memberships = (
+        TeamMembership.objects.filter(
+            user=profile,
+            status=TeamMembershipStatus.ACTIVE,
+            team__is_active=True,
+        )
+        .select_related("team__organization")
+        .order_by("team__organization__name", "team__name", "id")
+    )
+    return tuple(
+        {"team": row.team.name, "space": row.team.organization.name}
+        for row in memberships
+    )
+
+
+def _profile_active_space_mandates(profile, *, at):
+    """Current space-scoped authority, distinct from team membership."""
+    mandates = (
+        Mandate.objects.filter(
+            profile=profile,
+            scope_type=AuthorityScope.SPACE,
+            status=MandateStatus.ACTIVE,
+            revoked_at__isnull=True,
+            role__is_active=True,
+            space__isnull=False,
+        )
+        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=at))
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=at))
+        .select_related("space", "role")
+        .order_by("space__name", "role__name", "id")
+    )
+    return tuple(
+        {"role": row.role.name, "space": row.space.name}
+        for row in mandates
+    )
+
+
 def build_profile_passport(
     profile,
     *,
@@ -311,12 +361,15 @@ def build_profile_passport(
             identity["profession"] = ""
             identity["headline"] = ""
 
+    observed_at = timezone.now()
     return PassportProjection(
         subject_kind="profile",
         subject=profile,
         variant=variant,
-        generated_at=timezone.now(),
+        generated_at=observed_at,
         identity=identity,
+        team_affiliations=(_profile_team_affiliations(profile) if variant == PASSPORT_COMPLETE else ()),
+        active_space_mandates=(_profile_active_space_mandates(profile, at=observed_at) if variant == PASSPORT_COMPLETE else ()),
         interests=tuple(interests_qs),
         open_to=tuple(open_to_qs),
         activities=tuple(activities_qs),
@@ -357,6 +410,7 @@ def build_space_passport(
     selected_activity_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    include_private_teams=False,
 ):
     if variant not in PASSPORT_VARIANTS:
         raise ValueError("Variante Passeport inconnue.")
@@ -423,6 +477,8 @@ def build_space_passport(
         activities=tuple(activities_qs),
         trust_verifications=trust_verifications,
         credential_summary=credential_summary,
+        space_teams=(tuple(space.teams.filter(is_active=True).order_by("name").values_list("name", flat=True))
+                     if variant == PASSPORT_COMPLETE and include_private_teams else ()),
         topics=topics,
     )
 
