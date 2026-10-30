@@ -226,10 +226,10 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
           ? nowOriginalDocumentExtension(widget.media)
           : nowMediaExtension(widget.media);
       final mime = original != null
-          ? widget.media.mimeType
+          ? (widget.media.mimeType ?? 'application/octet-stream')
           : widget.media.kind == NowMediaKind.document
           ? 'text/plain'
-          : widget.media.mimeType;
+          : (widget.media.mimeType ?? 'application/octet-stream');
       final name = await widget.downloads.save(
         source: source,
         fileName: makoloDownloadName(widget.media.label ?? 'Média Makolo', extension),
