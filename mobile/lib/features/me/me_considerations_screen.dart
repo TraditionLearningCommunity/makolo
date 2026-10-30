@@ -24,12 +24,11 @@ class MeConsiderationsScreen extends StatefulWidget {
 }
 
 class _MeConsiderationsState extends State<MeConsiderationsScreen> {
-  bool _loading = true, _saving = false, _searching = false;
+  bool _loading = true, _saving = false;
   final _query = TextEditingController();
   Timer? _debounce;
   String _activeQuery = '';
   int _requestEpoch = 0;
-  String? _error;
   bool _hasKnownChoices = false;
   bool _showingLocal = false;
   int? _interestCount;
@@ -127,7 +126,6 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
     final query = _query.text.trim();
     _activeQuery = query;
     final epoch = ++_requestEpoch;
-    if (_topics.isNotEmpty) setState(() => _searching = true);
     try {
       final uri = Uri(path: 'api/v1/me/considerations/settings/',
         queryParameters: query.isEmpty ? null : {'q': query});
@@ -157,7 +155,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _interests = (data['interests'] as List? ?? []).map((v) => '$v').toSet();
         _selectedTopics = _options(data['selected_topics']);
         _openTo = (data['open_to'] as List? ?? []).map((v) => '$v').toSet();
-        _loading = false; _searching = false; _error = null;
+        _loading = false;
         _hasKnownChoices = true; _showingLocal = false;
         _interestCount = _interests.length;
         _openCount = _openTo.length;
@@ -165,8 +163,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
     } on Object {
       if (mounted && epoch == _requestEpoch) {
         setState(() {
-        _loading = false; _searching = false;
-        _error = null;
+        _loading = false;
         _showingLocal = _hasKnownChoices;
         });
       }
@@ -189,7 +186,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
     if (_saving) return;
     // Invalidate any outstanding search result before applying server-confirmed state.
     ++_requestEpoch;
-    setState(() { _saving = true; _searching = false; _error = null; });
+    setState(() => _saving = true);
     try {
       final result = await widget.api.put(
         'api/v1/me/considerations/settings/',
@@ -251,9 +248,10 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       }
     } on Object {
       if (mounted) {
-        setState(() {
-          _saving = false; _error = 'Modification non enregistrée. Réessayez.';
-        });
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Modification non enregistrée.'),
+        ));
       }
     }
   }
