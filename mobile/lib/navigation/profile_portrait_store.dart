@@ -73,7 +73,9 @@ class ProfilePortraitStore {
     if (resolved.scheme != 'https' && resolved.scheme != 'http') return null;
     if (resolved.scheme != baseUri.scheme ||
         resolved.host != baseUri.host ||
-        resolved.port != baseUri.port) return null;
+        resolved.port != baseUri.port) {
+      return null;
+    }
     final path = resolved.path;
     if (!path.startsWith('/') || path.startsWith('//')) return null;
     return resolved.hasQuery ? '$path?${resolved.query}' : path;
