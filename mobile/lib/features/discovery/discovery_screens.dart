@@ -140,7 +140,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     setState(() => _loadMoreFailed = false);
     try {
       final projection = await widget.repository.readItems(current);
-      if (projection == null) throw const FormatException('Missing Discovery field');
+      if (projection == null)
+        throw const FormatException('Missing Discovery field');
       final collection = _selector.collection(projection);
       if (!collection.hasNext) return;
       final token = collection.continuationToken;
@@ -324,7 +325,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (!mounted || chosen == null) return;
     setState(() {
       _when = 'custom';
-      _date = '${chosen.year.toString().padLeft(4, '0')}-'
+      _date =
+          '${chosen.year.toString().padLeft(4, '0')}-'
           '${chosen.month.toString().padLeft(2, '0')}-'
           '${chosen.day.toString().padLeft(2, '0')}';
     });
@@ -346,13 +348,19 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     }
     final location = widget.location;
     if (location == null) {
-      setState(() => _locationMessage = 'Position indisponible. La recherche par mots-clés reste possible.');
+      setState(
+        () => _locationMessage =
+            'Position indisponible. La recherche par mots-clés reste possible.',
+      );
       return;
     }
     final result = await location.current();
     if (!mounted) return;
     if (!result.available || result.fix == null) {
-      setState(() => _locationMessage = 'Position indisponible. La recherche par mots-clés reste possible.');
+      setState(
+        () => _locationMessage =
+            'Position indisponible. La recherche par mots-clés reste possible.',
+      );
       return;
     }
     _place.clear();
@@ -499,108 +507,117 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   Widget _searchControls() => Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              MakoloSpacing.inner,
-              MakoloSpacing.sm,
-              MakoloSpacing.inner,
-              MakoloSpacing.sm,
-            ),
-            child: SearchFilterBar(
-              filterButtonKey: const Key('discover-search-filter-toggle'),
-              filterPanelKey: const Key('discover-search-filter-panel'),
-              showResultsAction: true,
-              onClearFilters: _clearFilters,
-              hasActiveFilters: _place.text.trim().isNotEmpty ||
-                  _when.isNotEmpty || _date.isNotEmpty ||
-                  _price.isNotEmpty || _query.latitude != null,
-              searchField: TextField(
-                key: const Key('discover-search-field'),
-                controller: _search,
-                autofocus: true,
-                textInputAction: TextInputAction.search,
-                onChanged: _searchChanged,
-                onSubmitted: _submit,
-                decoration: InputDecoration(
-                  hintText: 'Rechercher une possibilité',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  border: const OutlineInputBorder(),
-                  suffixIcon: _search.text.isEmpty ? null : IconButton(
-                    key: const Key('discover-search-clear'),
-                    tooltip: 'Effacer la recherche',
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () {
-                      _search.clear();
-                      _applyCriteria();
-                    },
-                  ),
-                ),
-              ),
-              filters: DiscoveryFilterFields(
-                keyPrefix: 'discover-search',
-                placeController: _place,
-                geoSearch: widget.geoSearch,
-                when: _when,
-                date: _date,
-                price: _price,
-                onPlaceSelected: (place) {
-                  setState(() {
-                    _selectedPlace = place;
-                    _query = _query.copyWith(clearLocation: true);
-                    _locationMessage = null;
-                  });
-                  _applyCriteria();
-                },
-                onPlaceEdited: () {
-                  _selectedPlace = null;
-                  if (_query.latitude != null) {
-                    setState(() {
-                      _query = _query.copyWith(clearLocation: true);
-                      _locationMessage = null;
-                    });
-                  }
-                  _applyCriteria(immediate: false);
-                },
-                onPlaceSubmitted: () => _applyCriteria(),
-                onWhenChanged: (value) {
-                  setState(() {
-                    _when = value;
-                    _date = '';
-                  });
-                  _applyCriteria();
-                },
-                onChooseDate: () => unawaited(_chooseDate()),
-                onPriceChanged: (value) {
-                  setState(() => _price = value);
-                  _applyCriteria();
-                },
-                extra: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    OutlinedButton.icon(
-                      key: const Key('discover-search-nearby'),
-                      onPressed: _toggleNearby,
-                      icon: Icon(_query.latitude == null
-                          ? Icons.near_me_outlined
-                          : Icons.location_off_outlined),
-                      label: Text(_query.latitude == null
-                          ? 'Autour de moi · 25 km'
-                          : 'Retirer « Autour de moi »'),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          MakoloSpacing.inner,
+          MakoloSpacing.sm,
+          MakoloSpacing.inner,
+          MakoloSpacing.sm,
+        ),
+        child: SearchFilterBar(
+          filterButtonKey: const Key('discover-search-filter-toggle'),
+          filterPanelKey: const Key('discover-search-filter-panel'),
+          showResultsAction: true,
+          onClearFilters: _clearFilters,
+          hasActiveFilters:
+              _place.text.trim().isNotEmpty ||
+              _when.isNotEmpty ||
+              _date.isNotEmpty ||
+              _price.isNotEmpty ||
+              _query.latitude != null,
+          searchField: TextField(
+            key: const Key('discover-search-field'),
+            controller: _search,
+            autofocus: true,
+            textInputAction: TextInputAction.search,
+            onChanged: _searchChanged,
+            onSubmitted: _submit,
+            decoration: InputDecoration(
+              hintText: 'Rechercher une possibilité',
+              prefixIcon: const Icon(Icons.search_rounded),
+              border: const OutlineInputBorder(),
+              suffixIcon: _search.text.isEmpty
+                  ? null
+                  : IconButton(
+                      key: const Key('discover-search-clear'),
+                      tooltip: 'Effacer la recherche',
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () {
+                        _search.clear();
+                        _applyCriteria();
+                      },
                     ),
-                    if (_locationMessage != null) Text(_locationMessage!),
-                  ],
-                ),
-              ),
             ),
           ),
-          DiscoveryCategoryChips(
-            selected: _vertical,
-            listKey: const Key('discover-search-categories'),
-            onSelected: (value) {
-              setState(() => _vertical = value);
+          filters: DiscoveryFilterFields(
+            keyPrefix: 'discover-search',
+            placeController: _place,
+            geoSearch: widget.geoSearch,
+            when: _when,
+            date: _date,
+            price: _price,
+            onPlaceSelected: (place) {
+              setState(() {
+                _selectedPlace = place;
+                _query = _query.copyWith(clearLocation: true);
+                _locationMessage = null;
+              });
               _applyCriteria();
             },
+            onPlaceEdited: () {
+              _selectedPlace = null;
+              if (_query.latitude != null) {
+                setState(() {
+                  _query = _query.copyWith(clearLocation: true);
+                  _locationMessage = null;
+                });
+              }
+              _applyCriteria(immediate: false);
+            },
+            onPlaceSubmitted: () => _applyCriteria(),
+            onWhenChanged: (value) {
+              setState(() {
+                _when = value;
+                _date = '';
+              });
+              _applyCriteria();
+            },
+            onChooseDate: () => unawaited(_chooseDate()),
+            onPriceChanged: (value) {
+              setState(() => _price = value);
+              _applyCriteria();
+            },
+            extra: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  key: const Key('discover-search-nearby'),
+                  onPressed: _toggleNearby,
+                  icon: Icon(
+                    _query.latitude == null
+                        ? Icons.near_me_outlined
+                        : Icons.location_off_outlined,
+                  ),
+                  label: Text(
+                    _query.latitude == null
+                        ? 'Autour de moi · 25 km'
+                        : 'Retirer « Autour de moi »',
+                  ),
+                ),
+                if (_locationMessage != null) Text(_locationMessage!),
+              ],
+            ),
           ),
+        ),
+      ),
+      DiscoveryCategoryChips(
+        selected: _vertical,
+        listKey: const Key('discover-search-categories'),
+        onSelected: (value) {
+          setState(() => _vertical = value);
+          _applyCriteria();
+        },
+      ),
     ],
   );
 
