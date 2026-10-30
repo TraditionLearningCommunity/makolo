@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../data/local/makolo_database.dart';
 import '../data/local/profile_store.dart';
+import '../data/files/profile_recognition_image_store.dart';
 import '../network/api_error.dart';
 import '../network/makolo_api_client.dart';
 import 'freshness.dart';
@@ -184,8 +185,8 @@ class SyncEngine {
   Future<void> _recordScopedUnavailable(
     SyncSourceDefinition source,
     String code,
-  ) {
-    return database.transaction(() async {
+  ) async {
+    await database.transaction(() async {
       await store.deleteProjection(
         source.projectionKind,
         resourceKey: source.resourceKey,
@@ -203,6 +204,16 @@ class SyncEngine {
             ),
           );
     });
+    // Unlike a timeout, an explicit root owner denial must withdraw any
+    // previously retained recognition media associated with this Profile.
+    if (source.projectionKind == 'personal.me' ||
+        source.projectionKind == 'personal.ongoing') {
+      try {
+        await ProfileRecognitionImageStore(profileId: profileId).purge();
+      } on Object {
+        // The revoked projection is already removed from the active reader.
+      }
+    }
   }
 
   Future<void> _recordFailure(SyncSourceDefinition source, String code) async {
