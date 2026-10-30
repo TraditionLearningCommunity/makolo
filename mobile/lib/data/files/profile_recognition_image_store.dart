@@ -57,7 +57,17 @@ class ProfileRecognitionImageStore {
     return file.readAsBytes();
   }
 
-  Future<void> save(String path, Uint8List bytes) async {
+  // Serialize writes and quota pruning: concurrent media widgets must not
+  // race to replace a staging file or delete each other's retained bytes.
+  static Future<void> _pendingWrites = Future<void>.value();
+
+  Future<void> save(String path, Uint8List bytes) {
+    final work = _pendingWrites.then((_) => _saveDirect(path, bytes));
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
+  }
+
+  Future<void> _saveDirect(String path, Uint8List bytes) async {
     if (bytes.isEmpty || bytes.length > maxImageBytes) {
       throw const FormatException('Invalid recognition image');
     }
