@@ -215,18 +215,7 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                   (row['activity'] as Map)['id'].toString(),
                 ),
               ),
-          if (_loading)
-            const Center(child: CircularProgressIndicator.adaptive())
-          else if (_failed) ...[
-            if (_rows.isNotEmpty)
-              const Text('Derniers enregistrements connus sur cet appareil.'),
-            if (_rows.isEmpty)
-              const Text('Enregistrements indisponibles hors connexion.'),
-            Center(child: TextButton(
-              onPressed: () { _failed = false; _next(reset: true); },
-              child: const Text('Réessayer'),
-            )),
-          ] else if (!_hasMore)
+          if (!_loading && !_failed && !_hasMore)
             Center(child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Text(
