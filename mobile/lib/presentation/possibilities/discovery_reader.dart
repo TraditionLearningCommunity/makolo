@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,11 +21,16 @@ class DiscoveryReaderItem {
     required this.uri,
     required this.mimeType,
     this.inlineText,
+    this.authorizedImageBytes,
   });
 
   final String title;
   final Uri uri;
   final String mimeType;
+  /// Authenticated loader for published recognition media. This is called
+  /// through the owner-gated Makolo API, never an unauthenticated HTTP client.
+  /// Only publicly published recognition images may use offline retention.
+  final Future<Uint8List> Function()? authorizedImageBytes;
   /// Public text already carried by a permitted owner projection.
   /// It is not fetched again and does not create a new document identity.
   final String? inlineText;
@@ -58,6 +64,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   File? _temporaryFile;
   VideoPlayerController? _player;
   String? _text;
+  Uint8List? _imageBytes;
   String? _failure;
   bool _loading = false;
   bool _exporting = false;
@@ -93,6 +100,21 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   }
 
   Future<File> _fetchTemporary(DiscoveryReaderItem item) async {
+    // Published recognition media must use its authenticated API transport.
+    // The bytes are never downloaded directly from the media URL.
+    if (item.authorizedImageBytes != null) {
+      final data = await item.authorizedImageBytes!();
+      if (data.isEmpty || data.length > 8 * 1024 * 1024) {
+        throw const FormatException('Image indisponible');
+      }
+      final dir = await getTemporaryDirectory();
+      final ext = item.mimeType.toLowerCase() == 'image/jpeg' ? 'jpg' : 'png';
+      final file = File(
+        '${dir.path}/makolo-discovery-${DateTime.now().microsecondsSinceEpoch}.$ext',
+      );
+      await file.writeAsBytes(data, flush: true);
+      return file;
+    }
     // Downloads are triggered only on opening a document or exporting it.
     // Never follow a redirect to another origin or an untrusted scheme.
     if (!discoverySafeDestination(item.uri)) {
@@ -164,6 +186,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       _loading = false;
       _failure = null;
       _text = null;
+      _imageBytes = null;
     });
     final item = _item;
     final type = item.mimeType.toLowerCase();
@@ -184,7 +207,28 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     _retainedFile = cached;
     _offlineSaved = cached != null;
     if (type.startsWith('image/')) {
-      setState(() {});
+      if (cached != null || item.authorizedImageBytes == null) {
+        setState(() {});
+        return;
+      }
+      setState(() => _loading = true);
+      try {
+        final bytes = await item.authorizedImageBytes!();
+        if (!mounted || generation != _generation) return;
+        if (bytes.isEmpty || bytes.length > 8 * 1024 * 1024) {
+          throw const FormatException('Image indisponible');
+        }
+        setState(() => _imageBytes = bytes);
+      } on Object {
+        if (mounted && generation == _generation) {
+          setState(() => _failure =
+              'Lecture indisponible. Vérifiez la connexion et les droits.');
+        }
+      } finally {
+        if (mounted && generation == _generation) {
+          setState(() => _loading = false);
+        }
+      }
       return;
     }
     if (type != 'application/pdf' &&
@@ -325,6 +369,29 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
 
   Future<void> _shareLink() async {
     final item = _item;
+    if (item.authorizedImageBytes != null) {
+      File? generated;
+      try {
+        generated = _retainedFile ?? _temporaryFile ?? await _fetchTemporary(item);
+        await widget.sharing.shareFiles(paths: [generated.path]);
+      } on Object {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Le partage n’a pas pu aboutir.')),
+          );
+        }
+      } finally {
+        if (generated != null &&
+            generated != _retainedFile && generated != _temporaryFile) {
+          try {
+            if (await generated.exists()) await generated.delete();
+          } on FileSystemException {
+            // The receiving application may hold its temporary share.
+          }
+        }
+      }
+      return;
+    }
     if (item.inlineText == null && !discoverySafeDestination(item.uri)) return;
     try {
       final shared = item.inlineText == null
@@ -407,6 +474,13 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
                   _retainedFile!,
                   fit: BoxFit.contain,
                   semanticLabel: item.title,
+                )
+              : _imageBytes != null
+              ? Image.memory(
+                  _imageBytes!,
+                  fit: BoxFit.contain,
+                  semanticLabel: item.title,
+                  errorBuilder: (_, _, _) => const Text('Image indisponible.'),
                 )
               : Image.network(
                   item.uri.toString(),
@@ -521,23 +595,23 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
                   _shareLink();
                 }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: 'copy',
-                  child: ListTile(
-                    leading: Icon(Icons.copy_outlined),
-                    title: Text('Copier le lien'),
-                    contentPadding: EdgeInsets.zero,
+              itemBuilder: (_) => [
+                if (item.authorizedImageBytes == null)
+                  const PopupMenuItem(
+                    value: 'copy',
+                    child: ListTile(
+                      leading: Icon(Icons.copy_outlined),
+                      title: Text('Copier le lien'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
-                ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'share',
                   child: ListTile(
                     leading: Icon(Icons.share_outlined),
                     title: Text('Partager avec…'),
                     contentPadding: EdgeInsets.zero,
                   ),
-                ),
               ],
             ),
           if (website)
