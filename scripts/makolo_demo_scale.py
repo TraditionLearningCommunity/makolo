@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--orders", type=int, default=0, help="Nombre de commandes Event de demo a tenter")
     parser.add_argument("--queues", type=int, default=0, help="Nombre d'Occurrences avec files Live a alimenter")
     parser.add_argument("--profiles", type=int, default=100, help="Nombre de profils world_ candidats")
+    parser.add_argument("--queue-advance", choices=["called", "served"], help="Simuler des transitions de file via les services")
     parser.add_argument("--days", type=int, default=60, help="Horizon des Occurrences futures")
     parser.add_argument("--actor", default="beta_event_manager", help="Operateur Operations non-admin")
     parser.add_argument("--scanner", default="beta_scanner", help="Operateur Scanner non-admin")
@@ -58,7 +59,7 @@ def main():
     from operations.checkpoint_models import OccurrenceCheckpoint, CheckpointStatus
     from operations.checkpoint_services import open_checkpoint
     from operations.queue_models import OccurrenceQueue, QueueEntry, QueueEligibilityPolicy, QueueStatus
-    from operations.queue_services import enter_queue
+    from operations.queue_services import enter_queue, call_next, serve_entry
     from operations.permissions import user_can_manage_activity_operations
     from scanner.permissions import user_can_scan_event, user_can_manage_activity_scanner_assignments
     from scanner.models import ScannerAssignment
@@ -230,6 +231,16 @@ def main():
                     enter_queue(actor=actor, queue=queue, profile=journey.beneficiary,
                         source="makolo-demo-volume", client_reference=str(journey.beneficiary_id)[:64])
                     counts["queue_entries_created"] += int(not before)
+                if args.queue_advance and QueueEntry.objects.filter(queue=queue, status="waiting").exists():
+                    try:
+                        called = call_next(actor=actor, queue=queue)
+                        if called is not None:
+                            counts["queue_entries_called"] += 1
+                            if args.queue_advance == "served":
+                                serve_entry(actor=actor, entry=called)
+                                counts["queue_entries_served"] += 1
+                    except (ValidationError, PermissionDenied):
+                        counts["queue_transitions_rejected"] += 1
 
     # 4. Scanner : creation d'autorite scoped + Assignment (responsabilite),
     # puis appels reels a scan_ticket (AccessUse + ScanLog) dont doublons/refus.
@@ -261,10 +272,16 @@ def main():
             if not args.apply:
                 counts["scanner_candidates"] += min(valid_accesses.count(), args.scans - accepted)
                 continue
-            ScannerAssignment.objects.get_or_create(
+            checkpoint = OccurrenceCheckpoint.objects.filter(occurrence=occurrence,
+                active=True,status=CheckpointStatus.OPEN,key="demo-volume-accueil").first()
+            assignment, created = ScannerAssignment.objects.get_or_create(
                 activity=event.activity, occurrence=occurrence, agent=scanner,
-                defaults={"event":event, "assigned_by":grantor,
+                defaults={"event":event, "assigned_by":grantor, "checkpoint":checkpoint,
                           "label":"Controle demo", "notes":"Donnees synthetiques demo"})
+            if not created and checkpoint and not assignment.checkpoint_id and assignment.notes == "Donnees synthetiques demo":
+                assignment.checkpoint = checkpoint
+                assignment.save(update_fields=["checkpoint", "updated_at"])
+            counts["scanner_assignments_created"] += int(created)
             for access in valid_accesses:
                 if accepted >= args.scans:
                     break
