@@ -126,7 +126,7 @@ class PassportPdfLayoutTests(TestCase):
             page.extract_text() for page in self._reader(space).pages
         )
         self.assertIn("Équipe exploitation", space_text)
-        self.assertIn("Attestations émises", space_text)
+        self.assertIn("Attestations émises".upper(), space_text)
         self.assertIn("Attestation de participation", space_text)
 
     def test_qr_is_once_in_hero_not_repeated_in_bottom_metadata(self):
