@@ -70,17 +70,40 @@ class PassportPublicIdentityTests(TestCase):
         self.assertNotContains(response, "QR de vérification")
         self.assertIsNone(response.context["passport_snapshot"])
 
-    def test_non_searchable_profile_returns_404_even_with_known_identifier(self):
-        self.profile.searchable = False
-        self.profile.save(update_fields=["searchable", "updated_at"])
+    def test_private_profile_returns_404_even_with_known_identifier(self):
+        self.profile.public_profile = False
+        self.profile.save(update_fields=["public_profile", "updated_at"])
         response = self.client.get(reverse("public-passport", kwargs={"identifier": "naomi-demo"}))
         self.assertEqual(response.status_code, 404)
 
-    def test_non_searchable_space_returns_404_even_with_known_identifier(self):
+    def test_private_space_returns_404_even_with_known_identifier(self):
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile", "updated_at"])
+        response = self.client.get(reverse("public-passport", kwargs={"identifier": "mulykap-demo"}))
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_profile_not_searchable_remains_accessible_by_direct_link(self):
+        self.profile.searchable = False
+        self.profile.save(update_fields=["searchable", "updated_at"])
+        response = self.client.get(reverse("public-passport", kwargs={"identifier": "naomi-demo"}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Naomi Traore")
+
+    def test_public_space_not_searchable_remains_accessible_by_direct_link(self):
         self.space.searchable = False
         self.space.save(update_fields=["searchable", "updated_at"])
         response = self.client.get(reverse("public-passport", kwargs={"identifier": "mulykap-demo"}))
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mulykap Demo")
+
+    def test_owner_can_open_private_passport_when_not_searchable(self):
+        self.profile.public_profile = False
+        self.profile.searchable = False
+        self.profile.save(update_fields=["public_profile", "searchable", "updated_at"])
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("sharing:passport-me"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["variant"], "complete")
 
     def test_rendered_passport_issues_verifiable_snapshot(self):
         response = self.client.get(
