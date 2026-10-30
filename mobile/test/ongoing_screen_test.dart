@@ -452,7 +452,7 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.byType(DiscoveryReader), findsOneWidget);
     expect(find.text('Préparer les documents nécessaires.'), findsOneWidget);
-    expect(find.byTooltip('Exporter vers l’appareil'), findsOneWidget);
+    expect(find.byTooltip('Télécharger dans Téléchargements'), findsOneWidget);
     expect(find.byTooltip('Partager cette ressource'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -516,7 +516,7 @@ void main() {
     expect(find.byType(InteractiveViewer), findsOneWidget);
     expect(find.text('Document privé'), findsOneWidget);
     expect(find.byTooltip('Garder hors ligne dans Makolo'), findsOneWidget);
-    expect(find.byTooltip('Exporter vers l’appareil'), findsOneWidget);
+    expect(find.byTooltip('Télécharger dans Téléchargements'), findsOneWidget);
     expect(find.byTooltip('Partager cette ressource'), findsOneWidget);
     await tester.tap(find.byTooltip('Partager cette ressource'));
     await tester.pumpAndSettle();
