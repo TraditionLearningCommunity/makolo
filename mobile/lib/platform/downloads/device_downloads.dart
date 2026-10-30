@@ -63,5 +63,5 @@ String makoloDownloadName(String title, String extension) {
   final cleanExtension = extension.toLowerCase().replaceAll(
     RegExp(r'[^a-z0-9]'), '',
   );
-  return '${bounded}.${cleanExtension.isEmpty ? 'bin' : cleanExtension}';
+  return '$bounded.${cleanExtension.isEmpty ? 'bin' : cleanExtension}';
 }
