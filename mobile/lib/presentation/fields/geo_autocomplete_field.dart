@@ -50,16 +50,42 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
       onSearch: (revision) => _suggest(widget.controller.text.trim(), revision),
       debounce: widget.debounce,
     );
+    widget.controller.addListener(_handleControllerClear);
   }
 
   @override
   void didUpdateWidget(covariant GeoAutocompleteField oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_handleControllerClear);
+      widget.controller.addListener(_handleControllerClear);
+      _invalidate();
+      _suggestions = const [];
+      _showSuggestions = false;
+    }
     if (oldWidget.gateway != widget.gateway) {
       _invalidate();
       _suggestions = const [];
       _showSuggestions = false;
     }
+  }
+
+  // Programmatic filter resets do not call TextField.onChanged. Cancel any
+  // open suggestions when the owner clears the shared controller.
+  void _handleControllerClear() {
+    if (widget.controller.text.trim().isNotEmpty) return;
+    if (!_showSuggestions && !_loading && _suggestions.isEmpty && !_unavailable) {
+      return;
+    }
+    _invalidate();
+    if (!mounted) return;
+    setState(() {
+      _suggestions = const [];
+      _showSuggestions = false;
+      _loading = false;
+      _unavailable = false;
+      _searched = false;
+    });
   }
 
   void _invalidate() {
@@ -70,6 +96,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
 
   @override
   void dispose() {
+    widget.controller.removeListener(_handleControllerClear);
     _pending?.cancel();
     _coordinator.dispose();
     super.dispose();
