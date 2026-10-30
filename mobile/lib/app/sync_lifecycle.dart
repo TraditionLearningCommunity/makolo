@@ -118,9 +118,11 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     }
     try {
       await sync.refreshRoots();
+      if (!mounted || !identical(runtime, widget.runtime)) return;
       await _refreshSpaceContextIfNeeded();
-      await widget.runtime.outboxProcessor?.run();
-      if (mounted) {
+      if (!mounted || !identical(runtime, widget.runtime)) return;
+      await runtime.outboxProcessor?.run();
+      if (mounted && identical(runtime, widget.runtime)) {
         setState(() {
           _syncFailed = false;
           _lastUpdatedAt = DateTime.now();
@@ -129,11 +131,13 @@ class _SyncLifecycleState extends State<SyncLifecycle>
     } on MakoloApiError catch (error) {
       if (error.statusCode == 401 && identical(runtime, widget.runtime)) {
         widget.onSessionExpired();
-      } else if (mounted) {
+      } else if (mounted && identical(runtime, widget.runtime)) {
         setState(() => _syncFailed = true);
       }
     } on Object {
-      if (mounted) setState(() => _syncFailed = true);
+      if (mounted && identical(runtime, widget.runtime)) {
+        setState(() => _syncFailed = true);
+      }
     } finally {
       if (mounted) {
         setState(() => _syncing = false);
