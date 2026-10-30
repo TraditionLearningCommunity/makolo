@@ -593,18 +593,18 @@ class _DiscoveryMedia extends StatelessWidget {
         (resolved.scheme == 'https' || resolved.scheme == 'http');
 
     Widget? child;
-    if (networkImage) {
+    if (networkImage && resolved != null) {
       // Only public first-party images are retained automatically. An
       // external URL keeps its existing non-persistent presentation.
-      child = baseUri != null && resolved!.origin == baseUri!.origin
+      child = baseUri != null && resolved.origin == baseUri.origin
           ? RetainedPublicDiscoveryImage(
-              url: resolved!,
+              url: resolved,
               placeholder: MakoloMediaPlaceholder(
                 label: item.eyebrow ?? 'Média indisponible',
               ),
             )
           : Image.network(
-              resolved!.toString(),
+              resolved.toString(),
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => MakoloMediaPlaceholder(
                 label: item.eyebrow ?? 'Média indisponible',
