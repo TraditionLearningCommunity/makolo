@@ -74,7 +74,10 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
   // open suggestions when the owner clears the shared controller.
   void _handleControllerClear() {
     if (widget.controller.text.trim().isNotEmpty) return;
-    if (!_showSuggestions && !_loading && _suggestions.isEmpty && !_unavailable) {
+    if (!_showSuggestions &&
+        !_loading &&
+        _suggestions.isEmpty &&
+        !_unavailable) {
       return;
     }
     _invalidate();
