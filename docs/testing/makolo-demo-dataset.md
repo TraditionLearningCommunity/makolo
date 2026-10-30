@@ -61,3 +61,21 @@ Le script impose un seuil de taille SQLite par defaut (450 MiB) pour limiter le 
 Une Activity synthétique ne constitue pas un service reel du monde physique. Les scans et paiements sandbox sont des faits de simulation techniques, marques dans leurs metadata/source. Certains modeles Django doivent rester vides sans contexte source; ne pas remplir les tables par seul objectif statistique.
 
 Aucune migration n'est requise pour ces scripts. Les scripts ne modifient pas `main` et ne suppriment aucune ligne metier.
+
+## Verticales complementaires (octobre 2026)
+
+Le script `scripts/makolo_demo_verticals.py` couvre les quatre verticales deja presentes dans la BDD :
+- `OpportunitySave` par `save_opportunity` ;
+- `ServiceJourneyContext` par `create_service_journey` ;
+- `ObtentionJourneyContext` par `create_obtention_journey` sur configuration publiee et mode existant ;
+- `FundingContribution` par `create_funding_contribution` : **intention de financement, pas paiement realise**.
+
+```powershell
+python -m py_compile scripts/makolo_demo_verticals.py
+python scripts/makolo_demo_verticals.py --per-domain 50 --profiles 30
+python scripts/makolo_demo_verticals.py --per-domain 50 --profiles 30 --apply
+```
+
+Ces operations sont conditionnelles : seuls les objets existants satisfaisant les regles d'eligibilite permettent une creation. Le bilan `ineligible` n'est pas une erreur a contourner. Les tests d'integration locaux et les tests de charge doivent etre executes avant l'essai 1000/10000. Les autres domaines non couverts doivent etre ajoutes par contrats de scenario, et non par insertion generique pour remplir toutes les tables.
+
+**Attention Git :** `git stash apply` applique le dernier stash meme si `git stash push` a affiche `No local changes to save`. En presence de conflit non resolu, terminer la resolution avant tout nouveau `pull`, `stash apply` ou commit.
