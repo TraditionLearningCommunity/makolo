@@ -653,9 +653,7 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
     if (entries.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
-    final shown = widget.compact && !_showAll
-        ? entries.take(2)
-        : entries;
+    final shown = widget.compact && !_showAll ? entries.take(2) : entries;
     return Padding(
       key: Key(widget.compact ? 'ongoing-n1-resources' : 'ongoing-n2-resources'),
       padding: EdgeInsets.fromLTRB(
@@ -1037,10 +1035,12 @@ class _OngoingProtectedImage extends StatefulWidget {
     required this.api,
     required this.imageUrl,
     required this.label,
+    this.fit = BoxFit.cover,
   });
   final MakoloApiClient api;
   final String imageUrl;
   final String label;
+  final BoxFit fit;
   @override
   State<_OngoingProtectedImage> createState() => _OngoingProtectedImageState();
 }
@@ -1073,7 +1073,7 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
       if (snapshot.hasData) {
         return Image.memory(
           snapshot.data!,
-          fit: BoxFit.cover,
+          fit: widget.fit,
           semanticLabel: widget.label,
           gaplessPlayback: false,
           errorBuilder: (context, error, stackTrace) =>
@@ -1117,6 +1117,7 @@ void _openOngoingProtectedMedia(
                 api: api,
                 imageUrl: imageUrl,
                 label: title,
+                fit: BoxFit.contain,
               ),
             ),
           ),
@@ -1582,7 +1583,7 @@ class _OngoingFocus extends StatelessWidget {
     );
   }
 
-  Widget _resources(BuildContext context) => _OngoingResourceList(
+  Widget _resources() => _OngoingResourceList(
     item: item,
     baseUri: baseUri,
     compact: false,
@@ -1629,7 +1630,7 @@ class _OngoingFocus extends StatelessWidget {
             Text(item.synthesis, style: Theme.of(context).textTheme.bodyLarge),
             ..._detailSections(context),
             _mediaGallery(context),
-            _resources(context),
+            _resources(),
             if (nativeOwnerRoute != null) ...[
               const SizedBox(height: MakoloSpacing.xl),
               FilledButton(
