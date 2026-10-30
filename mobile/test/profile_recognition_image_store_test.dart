@@ -23,7 +23,10 @@ class _RecognitionApi implements MakoloApiClient {
 }
 
 void main() {
-  const imagePath = '/presentation/media/uses/published/image/';
+  String imageFor(int i) =>
+      '/presentation/media/uses/00000000-0000-4000-8000-'
+      '${i.toString().padLeft(12, '0')}/file/';
+  final imagePath = imageFor(1);
   final imageBytes = base64Decode(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
     'AAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
@@ -41,6 +44,17 @@ void main() {
     if (await supportRoot.exists()) {
       await supportRoot.delete(recursive: true);
     }
+  });
+
+  test('private and unverified image paths cannot be retained', () async {
+    final store = ProfileRecognitionImageStore(
+      profileId: 'profile-a',
+      rootOverride: supportRoot,
+    );
+    expect(
+      () => store.save('/api/v1/me/private/image/', imageBytes),
+      throwsFormatException,
+    );
   });
 
   test('published recognition bytes survive a cache purge and restart', () async {
@@ -101,7 +115,7 @@ void main() {
       rootOverride: supportRoot,
     );
     for (var i = 0; i < 13; i++) {
-      await store.save('$imagePath$i', Uint8List.fromList([i + 1]));
+      await store.save(imageFor(i + 2), Uint8List.fromList([i + 1]));
       await Future<void>.delayed(const Duration(milliseconds: 3));
     }
     final retained = <int>[];
