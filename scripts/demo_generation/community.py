@@ -7,7 +7,7 @@ import argparse
 from collections import Counter
 
 
-DOMAINS = {"groups", "objectives", "notifications", "trust"}
+DOMAINS = {"groups", "objectives", "notifications", "trust", "contributions"}
 
 
 def main(argv=None):
@@ -19,7 +19,7 @@ def main(argv=None):
     a = p.parse_args(argv)
     selected = set(a.domains.split(","))
     if not selected or not selected <= DOMAINS:
-        p.error("Domains: groups,objectives,notifications,trust")
+        p.error("Domains: groups,objectives,notifications,trust,contributions")
     if not 1 <= a.count <= 2000 or not 2 <= a.profiles <= 100:
         p.error("count 1..2000 and profiles 2..100 required")
     import django
@@ -37,6 +37,8 @@ def main(argv=None):
     from notifications.services import create_notification
     from trust.models import Feedback
     from trust.services import can_submit_feedback, submit_feedback
+    from social.models import Contribution, ContributionKind
+    from social.services import create_contribution
     if connection.vendor != "sqlite":
         p.error("SQLite demo database required")
     users = list(get_user_model().objects.filter(
@@ -161,6 +163,34 @@ def main(argv=None):
                 counts["feedback_created"] += 1
             except (ValidationError, PermissionDenied):
                 counts["feedback_rejected"] += 1
+
+    if "contributions" in selected:
+        rows = Journey.objects.filter(
+            beneficiary__in=users, activity__slug__startswith="demo-"
+        ).select_related("beneficiary", "activity").order_by("id")[:a.count * 5]
+        seen = set()
+        for journey in rows:
+            key = (journey.activity_id, journey.beneficiary_id)
+            if key in seen or len(seen) >= a.count:
+                continue
+            seen.add(key)
+            message = "[DEMO] Conseil contextuel : verifier les informations de cette activite avant d'agir."
+            if Contribution.objects.filter(
+                activity=journey.activity, author_profile=journey.beneficiary,
+                body=message, kind=ContributionKind.TIP
+            ).exists():
+                counts["contributions_existing"] += 1
+            elif not a.apply:
+                counts["contributions_planned"] += 1
+            else:
+                try:
+                    with transaction.atomic():
+                        create_contribution(actor=journey.beneficiary,
+                            kind=ContributionKind.TIP, activity=journey.activity,
+                            body=message)
+                    counts["contributions_created"] += 1
+                except (PermissionDenied, ValidationError):
+                    counts["contributions_rejected"] += 1
 
     print("COMMUNITY", "APPLY" if a.apply else "PREVIEW", dict(sorted(counts.items())))
     print("No external delivery, fake verification, forced Membership authority or fabricated Proof.")
