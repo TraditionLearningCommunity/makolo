@@ -122,6 +122,8 @@ class MakoloAvatarSheet extends StatelessWidget {
                           .onPrimaryContainer,
                       child: ClipOval(child: ProfileAvatarImage(
                         profileId: runtime.personal?.store.profileId,
+                         api: runtime.api,
+                         revision: snapshot.data?.receivedAt,
                         url: safeAvatar ? avatarUri.toString() : null,
                         size: 48,
                         fallback: _avatarInitial(firstLetter),
