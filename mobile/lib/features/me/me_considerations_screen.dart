@@ -44,38 +44,75 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
   }
 
   Future<void> _bootstrap() async {
-    // The personal.me snapshot is already synced and scoped by ProfileStore.
-    // It can restore explicit choices, but not the whole server topic catalog.
+    // The complete settings are an owner-owned depth projection. The root
+    // carries only a preview and can never be mistaken for all selected facts.
     try {
-      final snapshot = await widget.personal.store.readProjection('personal.me');
-      final local = MeLocalPreview.forProfile(
-        snapshot, widget.personal.store.profileId,
+      final saved = await widget.personal.store.readProjection(
+        'personal.me.settings',
       );
-      final topics = local?.collection('considerations', 'interests');
-      final openness = local?.collection('considerations', 'open_to');
-      if (mounted && topics != null && openness != null) {
-        final selected = (topics['items'] as List? ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .where((row) => row['id'] != null && row['label'] != null)
-            .toList();
-        final openRows = (openness['items'] as List? ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .where((row) => row['id'] != null && row['label'] != null)
-            .toList();
+      if (mounted && saved != null) {
+        final data = saved.payload;
+        final interests = (data['interests'] as List? ?? [])
+            .map((value) => '$value').toSet();
+        final openings = (data['open_to'] as List? ?? [])
+            .map((value) => '$value').toSet();
         setState(() {
-          _selectedTopics = selected;
-          _interestCount = topics['count'] is int ? topics['count'] as int : selected.length;
-          _openCount = openness['count'] is int ? openness['count'] as int : openRows.length;
-          _interests = {for (final row in selected) row['id'].toString()};
-          _openOptions = openRows;
-          _openTo = {for (final row in openRows) row['id'].toString()};
+          _topics = _options(data['topics']);
+          _selectedTopics = _options(data['selected_topics']);
+          _openOptions = _options(data['open_to_options']);
+          _interests = interests;
+          _openTo = openings;
+          _interestCount = interests.length;
+          _openCount = openings.length;
           _hasKnownChoices = true;
           _showingLocal = true;
           _loading = false;
         });
+      } else {
+        final root = MeLocalPreview.forProfile(
+          await widget.personal.store.readProjection('personal.me'),
+          widget.personal.store.profileId,
+        );
+        final topics = root?.collection('considerations', 'interests');
+        final open = root?.collection('considerations', 'open_to');
+        if (mounted && topics != null && open != null) {
+          final selected = <Map<String, dynamic>>[];
+          for (final raw in topics['items'] as List) {
+            if (raw is! Map || raw['topic'] is! Map) continue;
+            final topic = raw['topic'] as Map;
+            if (topic['id'] != null && topic['label'] != null) {
+              selected.add({
+                'id': topic['id'].toString(),
+                'label': topic['label'].toString(),
+              });
+            }
+          }
+          final openings = <Map<String, dynamic>>[];
+          for (final raw in open['items'] as List) {
+            if (raw is! Map || raw['kind'] == null ||
+                raw['label'] == null) continue;
+            openings.add({
+              'id': raw['kind'].toString(),
+              'label': raw['label'].toString(),
+            });
+          }
+          setState(() {
+            _selectedTopics = selected;
+            _interests = {for (final row in selected) row['id'].toString()};
+            _openOptions = openings;
+            _openTo = {for (final row in openings) row['id'].toString()};
+            _interestCount = topics['count'] is int
+                ? topics['count'] as int : selected.length;
+            _openCount = open['count'] is int
+                ? open['count'] as int : openings.length;
+            _hasKnownChoices = true;
+            _showingLocal = true;
+            _loading = false;
+          });
+        }
       }
     } on Object {
-      // Missing/corrupt local data must never prevent the online request.
+      // Missing local data is not a new empty personal selection.
     }
     if (mounted) await _load();
   }
@@ -98,7 +135,21 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       final data = ProjectionEnvelope.parse(
         response.jsonObject(), expectedProjection: 'personal.me.settings',
       ).data;
-      if (!mounted) return;
+      // Persist the complete selected choices and the last received catalog,
+      // not only the truncated personal.me preview. Query-specific search
+      // results must not replace the default catalog stored for offline use.
+      if (query.isEmpty) {
+        try {
+          await widget.personal.store.putProjection(
+            kind: 'personal.me.settings',
+            schemaVersion: 1,
+            payload: data,
+          );
+        } on Object {
+          // Read-only presentation can continue from the server response.
+        }
+      }
+      if (!mounted || epoch != _requestEpoch) return;
       setState(() {
         _topics = _options(data['topics']);
         _openOptions = _options(data['open_to_options']);
@@ -114,9 +165,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
       if (mounted && epoch == _requestEpoch) {
         setState(() {
         _loading = false; _searching = false;
-        _error = _hasKnownChoices
-            ? 'Actualisation impossible. Derniers choix connus affichés.'
-            : 'Préférences non disponibles sur cet appareil.';
+        _error = null;
         _showingLocal = _hasKnownChoices;
         });
       }
@@ -160,6 +209,15 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         _interestCount = _interests.length;
         _openCount = _openTo.length;
       });
+      try {
+        await widget.personal.store.putProjection(
+          kind: 'personal.me.settings',
+          schemaVersion: confirmed.schemaVersion,
+          payload: data,
+        );
+      } on Object {
+        // Server mutation has already succeeded.
+      }
       // Only owner-confirmed choices can be reflected into the existing local
       // personal read model. A cache failure never reverses a server success.
       try {
@@ -224,12 +282,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
             ?.copyWith(color: colors.onSurfaceVariant)),
       ]),
       const SizedBox(height: 10),
-      if (chosen.isEmpty)
-        Text(_showingLocal && (knownCount ?? 0) > 0
-            ? 'Autres choix à actualiser avec une connexion.'
-            : 'Aucun choix pour le moment.',
-          style: Theme.of(context).textTheme.bodySmall)
-      else
+      if (chosen.isNotEmpty)
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final option in chosen)
             if (option['id'] != null && option['label'] != null)
@@ -237,7 +290,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
                 backgroundColor: colors.primaryContainer.withValues(alpha: 0.48),
                 side: BorderSide(color: colors.primary.withValues(alpha: 0.14)),
                 label: Text(option['label'].toString()),
-                onDeleted: _saving ? null : () {
+                onDeleted: _saving || _showingLocal ? null : () {
                   final next = Set<String>.from(selected)
                     ..remove(option['id'].toString());
                   _save(family, next);
@@ -255,18 +308,13 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
             ?.copyWith(fontWeight: FontWeight.w700)),
       ]),
       const SizedBox(height: 10),
-      if (available.isEmpty)
-        Text(_showingLocal
-            ? 'Suggestions à actualiser avec une connexion.'
-            : 'Aucune autre proposition ici.',
-          style: Theme.of(context).textTheme.bodySmall)
-      else
+      if (available.isNotEmpty)
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final option in available)
             ActionChip(
               avatar: Icon(Icons.add_rounded, size: 17, color: colors.primary),
               label: Text(option['label'].toString()),
-              onPressed: _saving ? null : () {
+              onPressed: _saving || _showingLocal ? null : () {
                 final next = Set<String>.from(selected)
                   ..add(option['id'].toString());
                 _save(family, next);
@@ -282,10 +330,6 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
     body: _loading
         ? const Center(child: CircularProgressIndicator.adaptive())
         : ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 32), children: [
-            if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              TextButton(onPressed: _load, child: const Text('Réessayer')),
-            ],
             TextField(
               controller: _query,
               onChanged: _onSearch,
@@ -295,20 +339,12 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
-            if (_searching) const LinearProgressIndicator(minHeight: 2),
             if (_hasKnownChoices) ...[
               _choices('Mes intérêts', _topics, _interests, 'interests',
                 knownCount: _interestCount),
               _choices('Ouvert à', _openOptions, _openTo, 'open_to',
                 knownCount: _openCount),
-            ] else
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Text(
-                  'Vos choix ne sont pas encore disponibles sur cet appareil.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
+            ],
             const SizedBox(height: 20),
             const Divider(),
             ListTile(
