@@ -300,16 +300,16 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
                 deleteButtonTooltipMessage: 'Retirer ${option['label']}',
               ),
         ]),
-      const SizedBox(height: 20),
-      Row(children: [
-        Icon(Icons.add_circle_outline_rounded, size: 18,
-            color: colors.onSurfaceVariant),
-        const SizedBox(width: 7),
-        Text('À ajouter', style: Theme.of(context).textTheme.titleSmall
-            ?.copyWith(fontWeight: FontWeight.w700)),
-      ]),
-      const SizedBox(height: 10),
-      if (available.isNotEmpty)
+      if (available.isNotEmpty) ...[
+        const SizedBox(height: 20),
+        Row(children: [
+          Icon(Icons.add_circle_outline_rounded, size: 18,
+              color: colors.onSurfaceVariant),
+          const SizedBox(width: 7),
+          Text('À ajouter', style: Theme.of(context).textTheme.titleSmall
+              ?.copyWith(fontWeight: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final option in available)
             ActionChip(
@@ -322,6 +322,7 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
               },
             ),
         ]),
+      ],
     ]);
   }
 
