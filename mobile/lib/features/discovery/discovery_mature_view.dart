@@ -588,12 +588,9 @@ class _DiscoveryMedia extends StatelessWidget {
     final resolved = uri == null
         ? null
         : (uri.hasScheme ? uri : baseUri?.resolveUri(uri));
-    final networkImage =
-        resolved != null &&
-        (resolved.scheme == 'https' || resolved.scheme == 'http');
-
     Widget? child;
-    if (networkImage && resolved != null) {
+    if (resolved != null &&
+        (resolved.scheme == 'https' || resolved.scheme == 'http')) {
       // Only public first-party images are retained automatically. An
       // external URL keeps its existing non-persistent presentation.
       child = baseUri != null && resolved.origin == baseUri.origin
