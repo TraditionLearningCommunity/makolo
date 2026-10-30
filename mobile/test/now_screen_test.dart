@@ -65,6 +65,41 @@ NowSelection contentSelection({
 }
 
 void main() {
+  test('Now continuation is recovered only for the same Profile and root revision', () {
+    final received = DateTime.utc(2026, 10, 30, 9);
+    StoredProjection root(String actor, DateTime timestamp) => StoredProjection(
+      kind: 'personal.now',
+      schemaVersion: 1,
+      payload: {'actor': {'id': actor}, 'items': <dynamic>[]},
+      receivedAt: timestamp,
+    );
+    final saved = <String, dynamic>{
+      'actor_id': 'profile-a',
+      'base_received_at': received.toIso8601String(),
+      'items': [
+        {'id': 'seen-a'},
+      ],
+      'continuation': {'state': 'more', 'token': 'opaque'},
+    };
+
+    expect(nowContinuationMatchesRoot(root('profile-a', received), saved), isTrue);
+    expect(nowContinuationMatchesRoot(root('profile-b', received), saved), isFalse);
+    expect(
+      nowContinuationMatchesRoot(
+        root('profile-a', received.add(const Duration(seconds: 1))),
+        saved,
+      ),
+      isFalse,
+    );
+    expect(
+      nowContinuationMatchesRoot(root('profile-a', received), {
+        ...saved,
+        'continuation': 'invalid',
+      }),
+      isFalse,
+    );
+  });
+
   test('N1 copy removes repeated context without changing intent', () {
     expect(
       nowDisplayHeadline(
