@@ -47,6 +47,25 @@ Future<void> _saveDiscoveryPossibility(
   }
 }
 
+/// Device presentation cursor only; the signed server continuation stays
+/// opaque. Never synthesize new possibilities or authorization from it.
+DiscoveryQuery? retainedDiscoveryPosition(StoredProjection? marker) {
+  if (marker?.kind != 'discovery.presentation-position' ||
+      marker?.schemaVersion != 1) {
+    return null;
+  }
+  final page = marker!.payload['page'];
+  final continuation = marker.payload['continuation'];
+  if (page is! int || page < 2 ||
+      continuation is! String || continuation.isEmpty) {
+    return null;
+  }
+  return const DiscoveryQuery().copyWith(
+    page: page,
+    continuation: continuation,
+  );
+}
+
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({
     super.key,
@@ -72,10 +91,52 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   bool _loadMoreFailed = false;
   final Map<String, Future<void>> _pageRequests = {};
 
+  static const _positionProjection = 'discovery.presentation-position';
+
   @override
   void initState() {
     super.initState();
-    unawaited(_acquire());
+    unawaited(_restorePositionThenAcquire());
+  }
+
+  Future<void> _restorePositionThenAcquire() async {
+    try {
+      final initial = _query;
+      final marker = await widget.repository.store.readProjection(
+        _positionProjection,
+        resourceKey: initial.mapFingerprint,
+      );
+      final restored = retainedDiscoveryPosition(marker);
+      if (restored != null) {
+        final known = await widget.repository.readItems(restored);
+        final source = await widget.repository.readSource(
+          widget.repository.itemsSource(restored),
+        );
+        if (known != null && !source.ownerUnavailable &&
+            mounted && identical(_query, initial)) {
+          setState(() => _query = restored);
+        }
+      }
+    } on Object {
+      // A missing or outdated cursor never prevents the initial field.
+    }
+    if (mounted) await _acquire();
+  }
+
+  Future<void> _rememberPosition(DiscoveryQuery current) async {
+    try {
+      await widget.repository.store.putProjection(
+        kind: _positionProjection,
+        resourceKey: const DiscoveryQuery().mapFingerprint,
+        schemaVersion: 1,
+        payload: {
+          'page': current.page,
+          'continuation': current.continuation,
+        },
+      );
+    } on Object {
+      // The current presentation remains usable without this hint.
+    }
   }
 
   Future<void> _acquire() async {
@@ -218,6 +279,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       }
       if (!mounted || !identical(current, _query)) return;
       setState(() => _query = next);
+      await _rememberPosition(next);
       unawaited(_prefetchNext(next));
     } on Object {
       if (mounted && identical(current, _query)) {
