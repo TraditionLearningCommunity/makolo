@@ -656,7 +656,7 @@ class _PassportBody extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            if (cachedAvatar != null)
+            if (cachedAvatar != null && avatar != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.memory(cachedAvatar!, width: 54, height: 54,
