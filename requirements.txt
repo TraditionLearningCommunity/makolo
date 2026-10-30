@@ -16,3 +16,4 @@ pypdf==6.21.2
 defusedxml==0.7.1
 
 reportlab==4.4.4
+Babel==2.18.0
