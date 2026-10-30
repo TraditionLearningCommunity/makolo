@@ -55,8 +55,8 @@ class AndroidDeviceDownloads implements DeviceDownloads {
 String makoloDownloadName(String title, String extension) {
   final safeTitle = title
       .trim()
-      .replaceAll(RegExp(r'[\\/:*?"<>|\\x00-\\x1f]'), '-')
-      .replaceAll(RegExp(r'\\s+'), ' ')
+      .replaceAll(RegExp(r'[\/:*?"<>|\x00-\x1f\\]'), '-')
+      .replaceAll(RegExp(r'\s+'), ' ')
       .replaceAll(RegExp(r'^[. ]+|[. ]+$'), '');
   final stem = safeTitle.isEmpty ? 'Document Makolo' : safeTitle;
   final bounded = stem.length > 90 ? stem.substring(0, 90).trimRight() : stem;
