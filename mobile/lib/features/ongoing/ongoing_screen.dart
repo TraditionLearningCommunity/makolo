@@ -1072,7 +1072,7 @@ class _OngoingProtectedImage extends StatelessWidget {
 void _openOngoingProtectedMedia(
   BuildContext context, {
   required MakoloApiClient api,
-  required String profileId,
+  required String? profileId,
   required String imageUrl,
   required String title,
   required String mimeType,
