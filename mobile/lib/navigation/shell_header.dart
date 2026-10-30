@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
+import 'profile_avatar_image.dart';
 import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
 
@@ -23,6 +24,7 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.hasUnreadNotifications = false,
     this.avatarLetter,
     this.avatarUrl,
+    this.avatarProfileId,
     this.profileUsername,
   });
 
@@ -38,6 +40,7 @@ class MakoloPrimaryHeader extends StatelessWidget
   final bool hasUnreadNotifications;
   final String? avatarLetter;
   final String? avatarUrl;
+  final String? avatarProfileId;
   final String? profileUsername;
 
   Widget _avatarFallback(BuildContext context) => Center(
@@ -201,34 +204,12 @@ class MakoloPrimaryHeader extends StatelessWidget
                 shape: BoxShape.circle,
                 color: Theme.of(context).colorScheme.primaryContainer,
               ),
-              child: avatarUrl != null && avatarUrl!.isNotEmpty
-                  ? ClipOval(
-                      child: Image.network(
-                        avatarUrl!,
-                        width: 36,
-                        height: 36,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _avatarFallback(context),
-                      ),
-                    )
-                  : avatarLetter == null
-                  ? Icon(
-                      Icons.person_outline,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    )
-                  : Center(
-                      child: Text(
-                        avatarLetter!,
-                        style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onPrimaryContainer,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
+              child: ClipOval(child: ProfileAvatarImage(
+                profileId: avatarProfileId,
+                url: avatarUrl,
+                size: 36,
+                fallback: _avatarFallback(context),
+              )),
             ),
           ),
         ),
