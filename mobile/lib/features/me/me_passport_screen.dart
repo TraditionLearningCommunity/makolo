@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -134,7 +133,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final base = widget.api.baseUri;
     if ((uri.hasAuthority || uri.hasScheme) &&
         (uri.host != base.host || uri.scheme != base.scheme ||
-         uri.port != base.port)) return;
+         uri.port != base.port)) {
+      return;
+    }
     final path = uri.hasAuthority
         ? uri.replace(scheme: '', host: '', port: null).toString()
         : avatar;
@@ -210,16 +211,21 @@ class _MePassportScreenState extends State<MePassportScreen> {
         );
         if (stored != null && stored.payload['variant'] == requestedVariant &&
             epoch == _loadEpoch && resourceKey == _passportStorageKey()) {
-          if (mounted) setState(() {
+
+          if (mounted) {
+            setState(() {
             _cachedPassport = stored.payload;
             _cachedVariantKey = resourceKey;
             _onlineReady = false;
-          });
+            });
+          }
           // Return the local owner projection immediately; remote work is
           // background reconciliation and never blocks the visible Passport.
           unawaited(_load(preferLocal: false).then((data) {
             if (!mounted || _variant != requestedVariant ||
-                resourceKey != _passportStorageKey()) return;
+                resourceKey != _passportStorageKey()) {
+              return;
+            }
             setState(() => _future = Future.value(data));
           }).catchError((Object _) {
             // The existing local Passport remains the presentation.
@@ -233,14 +239,19 @@ class _MePassportScreenState extends State<MePassportScreen> {
         final preview = await _rootPassportPreview();
         if (preview != null && epoch == _loadEpoch &&
             resourceKey == _passportStorageKey()) {
-          if (mounted) setState(() {
+
+          if (mounted) {
+            setState(() {
             _cachedPassport = preview;
             _cachedVariantKey = resourceKey;
             _onlineReady = false;
-          });
+            });
+          }
           unawaited(_load(preferLocal: false).then((fresh) {
             if (!mounted || requestedVariant != _variant ||
-                resourceKey != _passportStorageKey()) return;
+                resourceKey != _passportStorageKey()) {
+              return;
+            }
             setState(() => _future = Future.value(fresh));
           }).catchError((Object _) {}));
           return preview;
@@ -273,11 +284,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
           // Local persistence failure must not hide a valid online Passport.
         }
       }
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _onlineReady = true;
         _cachedPassport = data;
         _cachedVariantKey = resourceKey;
       });
+      }
       if (requestedVariant == 'complete') {
         _full = data;
         if (_activities.isEmpty && _proofs.isEmpty && _credentials.isEmpty) {
@@ -291,7 +304,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
       return data;
     } on Object catch (error) {
       if (epoch != _loadEpoch || requestedVariant != _variant ||
-          resourceKey != _passportStorageKey()) rethrow;
+          resourceKey != _passportStorageKey()) {
+        rethrow;
+      }
       // Owner policy failures differ from connectivity loss. Do not retain
       // an explicitly revoked document as an apparently valid local depth.
       if (error is MakoloApiError &&
@@ -305,11 +320,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
             // The revoked document is still removed from the active view.
           }
         }
-        if (mounted) setState(() {
+        if (mounted) {
+        setState(() {
           _cachedPassport = null;
           _cachedVariantKey = null;
           _onlineReady = false;
           _future = Future.value({'variant': 'unavailable'});
+      }
         });
         rethrow;
       }
