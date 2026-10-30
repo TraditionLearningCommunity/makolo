@@ -19,6 +19,45 @@ StoredProjection _snapshot({
 );
 
 void main() {
+  test('Passport snapshots persist per profile and exact presentation variant', () async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final owner = ProfileStore(database, 'owner-a');
+    final another = ProfileStore(database, 'owner-b');
+    const publicKey = 'variant=public';
+    const privateKey = 'variant=complete';
+    await owner.putProjection(
+      kind: 'personal.me.passport',
+      resourceKey: privateKey,
+      schemaVersion: 1,
+      payload: {
+        'variant': 'complete',
+        'identity': {'display_name': 'Profil A'},
+        'private_details': {'phone': 'PRIVATE-OWNER-ONLY'},
+      },
+    );
+    await owner.putProjection(
+      kind: 'personal.me.passport',
+      resourceKey: publicKey,
+      schemaVersion: 1,
+      payload: {
+        'variant': 'public',
+        'identity': {'display_name': 'Profil A'},
+      },
+    );
+    final complete = await owner.readProjection(
+      'personal.me.passport', resourceKey: privateKey,
+    );
+    final public = await owner.readProjection(
+      'personal.me.passport', resourceKey: publicKey,
+    );
+    expect(complete?.payload['private_details'], isNotNull);
+    expect(public?.payload.containsKey('private_details'), isFalse);
+    expect(await another.readProjection(
+      'personal.me.passport', resourceKey: privateKey,
+    ), isNull);
+  });
+
   test('an offline Me preview belongs only to its current profile', () {
     final snapshot = _snapshot(
       profileId: 'owner-a',
