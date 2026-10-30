@@ -13,6 +13,7 @@ import '../../navigation/destination.dart';
 import '../../network/makolo_api_client.dart';
 import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../navigation/refresh_boundary.dart';
+import '../../navigation/profile_avatar_image.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
@@ -120,6 +121,7 @@ class _MeScreenState extends State<MeScreen> {
     return MeView(
       selection: selection,
       mediaApi: widget.api,
+      avatarProfileId: widget.repository.store.profileId,
       onOpenDestination: widget.onOpenDestination,
       loadingMore: _loading != null,
       loadFailed: _pageFailed,
@@ -203,6 +205,7 @@ class MeView extends StatefulWidget {
     required this.selection,
     this.onOpenDestination,
     this.mediaApi,
+    this.avatarProfileId,
     this.onReachEnd,
     this.onRetry,
     this.loadingMore = false,
@@ -212,6 +215,7 @@ class MeView extends StatefulWidget {
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;
   final MakoloApiClient? mediaApi;
+  final String? avatarProfileId;
   final VoidCallback? onReachEnd;
   final VoidCallback? onRetry;
   final bool loadingMore;
@@ -259,6 +263,7 @@ class _MeViewState extends State<MeView> {
             selection: widget.selection,
             controller: _controller,
             mediaApi: widget.mediaApi,
+            avatarProfileId: widget.avatarProfileId,
             useTwoTerritories: useTwoTerritories,
             onSelectItem: _selectItem,
             loadingMore: widget.loadingMore,
@@ -361,6 +366,7 @@ class _MeField extends StatelessWidget {
     required this.selection,
     required this.controller,
     required this.mediaApi,
+    this.avatarProfileId,
     required this.useTwoTerritories,
     required this.onSelectItem,
     required this.loadingMore,
@@ -374,6 +380,7 @@ class _MeField extends StatelessWidget {
   final MeSelection selection;
   final ScrollController controller;
   final MakoloApiClient? mediaApi;
+  final String? avatarProfileId;
   final bool useTwoTerritories;
   final ValueChanged<MeItemPresentation> onSelectItem;
   final bool loadingMore;
@@ -434,6 +441,8 @@ class _MeField extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: edge),
           child: _MeIdentity(
             selection: selection,
+            avatarProfileId: avatarProfileId,
+            avatarApi: mediaApi,
             onAvatarTap: hasOwnerNavigation
                 ? () => onSelectItem(
                     const MeItemPresentation(
@@ -490,11 +499,14 @@ class _MeField extends StatelessWidget {
 }
 
 class _MeIdentity extends StatelessWidget {
-  const _MeIdentity({required this.selection, this.onEdit, this.onAvatarTap});
+  const _MeIdentity({required this.selection, this.onEdit, this.onAvatarTap,
+    this.avatarProfileId, this.avatarApi});
 
   final MeSelection selection;
   final VoidCallback? onEdit;
   final VoidCallback? onAvatarTap;
+  final String? avatarProfileId;
+  final MakoloApiClient? avatarApi;
 
   @override
   Widget build(BuildContext context) {
@@ -522,7 +534,8 @@ class _MeIdentity extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    _MeAvatar(name: name, imageUrl: selection.identityAvatarUrl),
+                    _MeAvatar(name: name, imageUrl: selection.identityAvatarUrl,
+                      profileId: avatarProfileId, api: avatarApi),
                     if (onAvatarTap != null)
                       Positioned(
                         right: -2, bottom: -2,
@@ -629,56 +642,37 @@ class _MeHistorySection extends StatelessWidget {
 }
 
 class _MeAvatar extends StatelessWidget {
-  const _MeAvatar({required this.name, this.imageUrl});
+  const _MeAvatar({
+    required this.name, this.imageUrl, this.profileId, this.api,
+  });
 
   final String name;
   final String? imageUrl;
+  final String? profileId;
+  final MakoloApiClient? api;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final initials = name
-        .trim()
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part.substring(0, 1).toUpperCase())
-        .join();
+    final initials = name.trim().split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty).take(2)
+        .map((part) => part.substring(0, 1).toUpperCase()).join();
     final placeholder = Container(
-      width: 64,
-      height: 64,
-      alignment: Alignment.center,
+      width: 64, height: 64, alignment: Alignment.center,
       decoration: BoxDecoration(
         color: theme.colorScheme.primary.withValues(alpha: 0.10),
         shape: BoxShape.circle,
       ),
-      child: Text(
-        initials.isEmpty ? 'M' : initials,
+      child: Text(initials.isEmpty ? 'M' : initials,
         style: theme.textTheme.titleLarge?.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+          color: theme.colorScheme.primary, fontWeight: FontWeight.w700)),
     );
-
-    final url = imageUrl;
-    final parsed = url == null ? null : Uri.tryParse(url);
-    if (parsed == null ||
-        !(parsed.scheme == 'https' || parsed.scheme == 'http') ||
-        parsed.host.isEmpty) {
-      return ExcludeSemantics(child: placeholder);
-    }
-    return ExcludeSemantics(
-      child: ClipOval(
-        child: Image.network(
-          url!,
-          width: 64,
-          height: 64,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => placeholder,
-        ),
+    return ExcludeSemantics(child: ClipOval(
+      child: ProfileAvatarImage(
+        profileId: profileId, api: api, url: imageUrl, size: 64,
+        fallback: placeholder,
       ),
-    );
+    ));
   }
 }
 
