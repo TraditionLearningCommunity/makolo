@@ -1084,34 +1084,28 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
   );
 }
 
-/// The published recognition image is private until its owner authorizes
-/// delivery. The generic public DiscoveryReader cannot download it without
-/// bearer credentials, so this view only reuses the authenticated image
-/// transport and zoom interaction; no export/share/offline rights are implied.
+/// Recognition media is selected only from the public published media
+/// projection. Its bytes still pass through the authenticated Makolo API;
+/// the shared Discovery reader owns zoom, offline copy, export and sharing.
 void _openOngoingProtectedMedia(
   BuildContext context, {
   required MakoloApiClient api,
   required String imageUrl,
   required String title,
+  required String mimeType,
 }) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
-      builder: (_) => Scaffold(
-        appBar: AppBar(title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)),
-        body: SafeArea(
-          child: InteractiveViewer(
-            minScale: 0.7,
-            maxScale: 6,
-            child: Center(
-              child: _OngoingProtectedImage(
-                api: api,
-                imageUrl: imageUrl,
-                label: title,
-                fit: BoxFit.contain,
-              ),
-            ),
+      builder: (_) => DiscoveryReader(
+        items: [
+          DiscoveryReaderItem(
+            title: title,
+            uri: Uri.parse(imageUrl),
+            mimeType: mimeType,
+            authorizedImageBytes: () =>
+                api.getPresentationImage(Uri.parse(imageUrl).path),
           ),
-        ),
+        ],
       ),
     ),
   );
@@ -1155,6 +1149,14 @@ class _OngoingRow extends StatelessWidget {
     final summary = _ongoingSummary(item.title, item.synthesis);
     final supporting = _supportingLine();
     final imageUrl = ongoingRecognitionImageUrl(item.mediaUrl, baseUri);
+    final imageMime = item.mediaBindings
+        .where((binding) =>
+            binding['purpose'] == 'RECOGNIZE' &&
+            binding['resource'] is Map &&
+            (binding['resource'] as Map)['url'] == item.mediaUrl)
+        .map((binding) => (binding['resource'] as Map)['mime_type'])
+        .whereType<String>()
+        .firstOrNull ?? 'image/png';
     final whenLabel = MakoloHumanization.humanizeOwnerWhenLabel(
       item.whenLabel,
       now: DateTime.now(),
@@ -1285,6 +1287,7 @@ class _OngoingRow extends StatelessWidget {
                         api: api!,
                         imageUrl: imageUrl,
                         title: item.mediaAlt ?? item.title,
+                        mimeType: imageMime,
                       ),
                 child: AspectRatio(
                   key: const Key('ongoing-n1-full-width-media'),
@@ -1524,7 +1527,7 @@ class _OngoingFocus extends StatelessWidget {
   }
 
   Widget _mediaGallery(BuildContext context) {
-    final available = <(String, String)>[];
+    final available = <(String, String, String)>[];
     final seen = <String>{};
     for (final binding in item.mediaBindings) {
       if (binding['purpose'] != 'RECOGNIZE') continue;
@@ -1534,7 +1537,8 @@ class _OngoingFocus extends StatelessWidget {
       if (mime != 'image/jpeg' && mime != 'image/png') continue;
       final url = ongoingRecognitionImageUrl(raw['url']?.toString(), baseUri);
       if (url == null || !seen.add(url)) continue;
-      available.add((url, raw['alt_text']?.toString() ?? item.title));
+      available.add((url, raw['alt_text']?.toString() ?? item.title,
+          mime.toString()));
     }
     if (available.isEmpty || api == null) return const SizedBox.shrink();
     return Padding(
@@ -1558,6 +1562,7 @@ class _OngoingFocus extends StatelessWidget {
                     api: api!,
                     imageUrl: media.$1,
                     title: media.$2,
+                    mimeType: media.$3,
                   ),
                   child: _OngoingProtectedImage(
                     api: api!,
