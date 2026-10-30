@@ -103,7 +103,7 @@ class PassportPublicIdentityTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("sharing:passport-me"))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["variant"], "complete")
+        self.assertEqual(response.context["projection"].variant, "complete")
 
     def test_rendered_passport_issues_verifiable_snapshot(self):
         response = self.client.get(
