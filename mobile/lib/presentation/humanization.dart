@@ -52,7 +52,7 @@ abstract final class MakoloHumanization {
       if (parts.length == 1) return day;
       final clock = DateFormat('HH:mm', locale).parseStrict(parts.last);
       final time = DateFormat.Hm(locale).format(clock);
-      return '${day} · ${time}';
+      return '$day · $time';
     } on FormatException {
       return raw;
     }
