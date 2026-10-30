@@ -5,6 +5,7 @@ import '../data/local/profile_store.dart';
 import '../design/behavior_primitives.dart';
 import '../design/makolo_theme.dart';
 import 'actor_selector.dart';
+import 'profile_avatar_image.dart';
 
 Future<void> showMakoloAvatarSheet(
   BuildContext context, {
@@ -119,15 +120,12 @@ class MakoloAvatarSheet extends StatelessWidget {
                       foregroundColor: Theme.of(context)
                           .colorScheme
                           .onPrimaryContainer,
-                      child: safeAvatar
-                          ? ClipOval(
-                              child: Image.network(
-                                avatarUri.toString(),
-                                width: 48, height: 48, fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => _avatarInitial(firstLetter),
-                              ),
-                            )
-                          : _avatarInitial(firstLetter),
+                      child: ClipOval(child: ProfileAvatarImage(
+                        profileId: runtime.personal?.store.profileId,
+                        url: safeAvatar ? avatarUri.toString() : null,
+                        size: 48,
+                        fallback: _avatarInitial(firstLetter),
+                      )),
                     ),
                     const SizedBox(width: MakoloSpacing.md),
                     Expanded(
