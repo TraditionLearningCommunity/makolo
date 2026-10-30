@@ -352,6 +352,8 @@ def build_profile_passport(
             "gender": profile.get_gender_display() if profile.gender else "",
         }
     if custom:
+        if "avatar" not in sections:
+            identity["avatar_url"] = ""
         if "bio" not in sections:
             identity["bio"] = ""
         if "links" not in sections:
