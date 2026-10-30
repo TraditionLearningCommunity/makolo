@@ -33,6 +33,31 @@ abstract final class MakoloHumanization {
   static String formatTime(DateTime value, {String locale = 'fr'}) =>
       DateFormat.Hm(locale).format(value.toLocal());
 
+  /// Humanize an owner-provided N1 label without reinterpreting its timezone.
+  /// Django already formats the owner's wall-clock time in the event zone;
+  /// parsing as a local calendar value avoids shifting it a second time.
+  /// Unknown labels are preserved rather than guessed or discarded.
+  static String? humanizeOwnerWhenLabel(
+    String? label, {
+    required DateTime now,
+    String locale = 'fr',
+  }) {
+    final raw = label?.trim();
+    if (raw == null || raw.isEmpty) return null;
+    final parts = raw.split(RegExp(r'\s*·\s*'));
+    if (parts.length > 2) return raw;
+    try {
+      final date = DateFormat('dd/MM/yyyy', locale).parseStrict(parts.first);
+      final day = formatDay(date, now: now, locale: locale);
+      if (parts.length == 1) return day;
+      final clock = DateFormat('HH:mm', locale).parseStrict(parts.last);
+      final time = DateFormat.Hm(locale).format(clock);
+      return '${day} · ${time}';
+    } on FormatException {
+      return raw;
+    }
+  }
+
   static String formatTimeRange(
     DateTime start,
     DateTime? end, {
