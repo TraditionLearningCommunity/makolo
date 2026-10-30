@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/camera/system_media_picker.dart';
 import '../../repositories/personal_repository.dart';
+import '../../repositories/draft_repository.dart';
 import '../../sync/projection_contract.dart';
 import 'me_local_preview.dart';
 import 'me_country_choices.dart';
@@ -14,9 +15,10 @@ import 'me_country_choices.dart';
 /// Passport editing mode backed by the existing Accounts owner API.
 class MeProfileScreen extends StatefulWidget {
   const MeProfileScreen({super.key, required this.api, required this.personal,
-    this.openAvatarPicker = false});
+    this.drafts, this.openAvatarPicker = false});
   final MakoloApiClient api;
   final PersonalRepository personal;
+  final DraftRepository? drafts;
   final bool openAvatarPicker;
 
   @override
@@ -56,6 +58,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   String? _confirmation;
   Map<String, dynamic>? _cachedIdentity;
   bool _edited = false;
+  Future<void> _draftWrites = Future<void>.value();
 
   @override
   void initState() {
@@ -121,6 +124,48 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     );
   }
 
+  static const _draftOwner = 'Accounts';
+  static const _draftKind = 'profile_editor';
+
+  Map<String, dynamic> _currentEditor() => {
+    'first_name': _firstName.text.trim(),
+    'last_name': _lastName.text.trim(),
+    'bio': _bio.text.trim(),
+    'profession': _profession.text.trim(),
+    'city': _city.text.trim(),
+    'country': _selectedCountry?.code ?? '',
+    'phone': _phone.text.trim(),
+    'website': _website.text.trim(),
+    'linkedin_url': _linkedin.text.trim(),
+    'facebook_url': _facebook.text.trim(),
+    'instagram_url': _instagram.text.trim(),
+    'tiktok_url': _tiktok.text.trim(),
+    'x_url': _x.text.trim(),
+    'youtube_url': _youtube.text.trim(),
+    'company_name': _company.text.trim(),
+    'organization_name': _organization.text.trim(),
+    'language': 'fr',
+    'address': _address.text.trim(),
+    'public_profile': _publicProfile,
+    'searchable': _searchable,
+  };
+
+  void _rememberEdits() {
+    _edited = true;
+    final drafts = widget.drafts;
+    if (drafts == null || !_loaded) return;
+    final payload = _currentEditor();
+    final profileId = widget.personal.store.profileId;
+    _draftWrites = _draftWrites.catchError((Object _) {}).then((_) =>
+        drafts.saveLocal(
+          draftId: 'accounts-profile-editor-$profileId',
+          owner: _draftOwner,
+          resourceKind: _draftKind,
+          resourceId: profileId,
+          payload: payload,
+        ));
+  }
+
   Future<void> _bootstrap() async {
     try {
       final snapshot = await widget.personal.store.readProjection('personal.me');
@@ -131,12 +176,22 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       final editor = await widget.personal.store.readProjection(
         _accountEditorProjection,
       );
+      final draft = await widget.drafts?.read(
+        owner: _draftOwner,
+        resourceKind: _draftKind,
+        resourceId: widget.personal.store.profileId,
+      );
       if (mounted) {
         setState(() {
           _cachedIdentity = local?.identity;
           if (editor != null) {
             _applyEditor(editor.payload);
-          } else if (local?.identity != null) {
+          }
+          if (draft != null && editor != null) {
+            // Device-owned draft is not a confirmed Accounts fact.
+            _applyEditor(draft.payload);
+            _edited = true;
+          } else if (editor == null && local?.identity != null) {
             _loading = false;
           }
         });
@@ -343,33 +398,22 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       return;
     }
 
-    // Accounts confirmed the mutation. Persist precisely the confirmed
-    // editor fields; never promote unconfirmed edits into personal.me.
+    // Accounts confirmed these fields. Clear the device-owned draft only
+    // after the last local write has completed.
     try {
-      await _persistEditor({
-        'first_name': _firstName.text.trim(),
-        'last_name': _lastName.text.trim(),
-        'bio': _bio.text.trim(),
-        'profession': _profession.text.trim(),
-        'city': _city.text.trim(),
-        'country': _selectedCountry?.code ?? '',
-        'phone': _phone.text.trim(),
-        'website': _website.text.trim(),
-        'linkedin_url': _linkedin.text.trim(),
-        'facebook_url': _facebook.text.trim(),
-        'instagram_url': _instagram.text.trim(),
-        'tiktok_url': _tiktok.text.trim(),
-        'x_url': _x.text.trim(),
-        'youtube_url': _youtube.text.trim(),
-        'company_name': _company.text.trim(),
-        'organization_name': _organization.text.trim(),
-        'language': 'fr',
-        'address': _address.text.trim(),
-        'public_profile': _publicProfile,
-        'searchable': _searchable,
-      });
+      await _persistEditor(_currentEditor());
     } on Object {
-      // The server mutation remains confirmed if local storage fails.
+      // The remote success is not undone by a local storage failure.
+    }
+    try {
+      await _draftWrites;
+      await widget.drafts?.delete(
+        owner: _draftOwner,
+        resourceKind: _draftKind,
+        resourceId: widget.personal.store.profileId,
+      );
+    } on Object {
+      // An already-confirmed owner mutation remains confirmed.
     }
     _edited = false;
     final refreshed = await _refreshPersonal();
@@ -466,7 +510,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                     ],
                     onChanged: _saving ? null : (value) {
                       _language.text = value ?? 'fr';
-                      _edited = true;
+                      _rememberEdits();
                     },
                   ),
                 ),
@@ -492,7 +536,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   onChanged: _saving ? null : (value) =>
                       setState(() {
                         _publicProfile = value;
-                        _edited = true;
+                        _rememberEdits();
                       }),
                 ),
                 SwitchListTile.adaptive(
@@ -502,7 +546,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   onChanged: _saving ? null : (value) =>
                       setState(() {
                         _searchable = value;
-                        _edited = true;
+                        _rememberEdits();
                       }),
                 ),
                 const SizedBox(height: 20),
@@ -583,6 +627,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           _country.text = country.code;
           _countryHasUnselectedInput = false;
         });
+        _rememberEdits();
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) =>
           TextFormField(
@@ -602,6 +647,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 _selectedCountry = null;
                 _country.clear();
                 _countryHasUnselectedInput = value.trim().isNotEmpty;
+                _rememberEdits();
               }
             },
             onFieldSubmitted: (value) => onFieldSubmitted(),
@@ -617,7 +663,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     padding: const EdgeInsets.only(bottom: 16),
     child: TextField(
       controller: controller,
-      onChanged: (_) => _edited = true,
+      onChanged: (_) => _rememberEdits(),
       maxLines: lines,
       textCapitalization: TextCapitalization.sentences,
       decoration: InputDecoration(
