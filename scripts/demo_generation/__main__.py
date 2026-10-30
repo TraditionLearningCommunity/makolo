@@ -10,7 +10,8 @@ import argparse
 VERTICALS=("opportunities","services","obtention","funding")
 CROSS=("journeys","access","operations","scanner","commerce")
 COMMUNITY=("groups","objectives","notifications","trust")
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,"content")
+ENGAGEMENT=("forms","crm")
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain!="content")
 
 
@@ -46,7 +47,7 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement
     if a.action=="inventory":
         scale.main(["--inventory"])
         content.main()
@@ -114,6 +115,12 @@ def run(a):
               "--profiles",str(max(a.profiles,2))]
         if apply: argv.append("--apply")
         community.main(argv)
+    engagement_selected=set(ENGAGEMENT)&domains
+    if engagement_selected:
+        argv=["--domains",",".join(sorted(engagement_selected)),
+              "--count",str(min(a.count,2000))]
+        if apply: argv.append("--apply")
+        engagement.main(argv)
     if "media" in domains:
         argv=["--count",str(min(a.count,10000))]
         if apply: argv.append("--apply")
