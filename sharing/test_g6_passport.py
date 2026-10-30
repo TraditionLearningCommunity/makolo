@@ -576,6 +576,48 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertNotEqual(selected.context["projection"].credential_summary, ())
         self.assertNotContains(selected, "Credential privé de Patrick G6")
 
+    def test_space_history_and_dated_private_teams_respect_current_authority(self):
+        from unittest.mock import patch
+        Team.objects.create(
+            organization=self.space, name="Équipe historique confidentielle",
+        )
+        self.client.force_login(self.space_owner)
+        source = self.client.get(
+            self.url, {"variant": "complete", "document": "1"},
+        )
+        self.assertEqual(source.status_code, 200)
+        snapshot = source.context["passport_snapshot"]
+        verification_url = source.context["passport_verification_url"]
+        history_url = reverse(
+            "sharing:passport-space-history", kwargs={"slug": self.space.slug},
+        )
+        self.client.logout()
+        self.assertEqual(self.client.get(history_url).status_code, 302)
+        anonymous = self.client.get(verification_url)
+        self.assertFalse(anonymous.context["can_view_dated_passport"])
+        self.assertNotContains(anonymous, "Équipe historique confidentielle")
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(history_url).status_code, 403)
+        denied = self.client.get(verification_url)
+        self.assertFalse(denied.context["can_view_dated_passport"])
+        self.assertNotContains(denied, "Équipe historique confidentielle")
+
+        self.client.force_login(self.space_owner)
+        history = self.client.get(history_url)
+        self.assertContains(history, snapshot.document_id)
+        self.assertContains(history, verification_url)
+        verified = self.client.get(verification_url)
+        self.assertTrue(verified.context["can_view_dated_passport"])
+        self.assertContains(verified, "Équipe historique confidentielle")
+        with patch(
+            "sharing.passport_views.user_can_manage_organization_team",
+            return_value=False,
+        ):
+            limited = self.client.get(verification_url)
+        self.assertFalse(limited.context["can_view_dated_passport"])
+        self.assertNotContains(limited, "Équipe historique confidentielle")
+
     def test_public_space_pdf_contains_issued_attestation_summary(self):
         from io import BytesIO
         from pypdf import PdfReader
