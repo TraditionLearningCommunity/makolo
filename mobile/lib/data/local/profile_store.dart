@@ -90,6 +90,18 @@ class ProfileStore {
     return row == null ? null : _storedProjection(row);
   }
 
+  /// Only replaceable discovery views are bounded. Core Now, ongoing work,
+  /// history, resources and complete Moi/Passport data are never evicted by
+  /// this budget: their ownership and dependencies are different.
+  static const int maxDiscoverySnapshotsPerKind = 10;
+  static const _replaceableDiscoveryKinds = <String>{
+    'discovery.items',
+    'discovery.map',
+    'discovery.item',
+    'discovery.activity-preview',
+    'discovery.occurrence-preview',
+  };
+
   Future<void> putProjection({
     required String kind,
     String resourceKey = '',
@@ -124,6 +136,23 @@ class ProfileStore {
             freshnessPolicyId: Value(freshnessPolicyId),
           ),
         );
+    if (_replaceableDiscoveryKinds.contains(kind) &&
+        resourceKey.isNotEmpty) {
+      final existing = await (database.select(database.projectionSnapshots)
+            ..where((row) =>
+                row.profileId.equals(profileId) &
+                row.projectionKind.equals(kind))
+            ..orderBy([
+              (row) => OrderingTerm(
+                expression: row.receivedAt,
+                mode: OrderingMode.desc,
+              ),
+            ]))
+          .get();
+      for (final stale in existing.skip(maxDiscoverySnapshotsPerKind)) {
+        await deleteProjection(kind, resourceKey: stale.resourceKey);
+      }
+    }
   }
 
   Future<int> deleteProjection(String kind, {String resourceKey = ''}) {
