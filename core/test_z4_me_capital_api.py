@@ -338,6 +338,42 @@ class PersonalMeCapitalAPIContractTests(TestCase):
         denied = self.client.get(f"/api/v1/me/passport/history/{another.pk}/")
         self.assertEqual(denied.status_code, 404)
 
+    def test_issued_passport_share_api_is_owner_scoped_without_reissuance(self):
+        from sharing.models import PassportSnapshot
+        from sharing.passport import build_profile_passport
+        from sharing.passport_documents import issue_passport_snapshot
+
+        mine = issue_passport_snapshot(build_profile_passport(
+            self.user, variant="custom", selected_sections=("bio",),
+        ))
+        foreign = issue_passport_snapshot(build_profile_passport(
+            self.other, variant="custom", selected_sections=("bio",),
+        ))
+        before = PassportSnapshot.objects.count()
+        result = self.client.post(
+            f"/api/v1/me/passport/history/{mine.pk}/share/",
+            {"days": 7}, format="json",
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertIn("passport/shared/", result.json()["data"]["share_url"])
+        self.assertEqual(PassportSnapshot.objects.count(), before)
+        self.assertEqual(result["Cache-Control"], "private, no-store")
+
+        denied = self.client.post(
+            f"/api/v1/me/passport/history/{foreign.pk}/share/",
+            {"days": 7}, format="json",
+        )
+        self.assertEqual(denied.status_code, 404)
+
+        complete = issue_passport_snapshot(build_profile_passport(
+            self.user, variant="complete",
+        ))
+        invalid = self.client.post(
+            f"/api/v1/me/passport/history/{complete.pk}/share/",
+            {"days": 7}, format="json",
+        )
+        self.assertEqual(invalid.status_code, 400)
+
     def test_passport_pdf_is_authenticated_and_issues_verifiable_snapshot(self):
         from sharing.models import PassportSnapshot
 
