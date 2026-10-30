@@ -636,6 +636,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
                     title: Text('Partager avec…'),
                     contentPadding: EdgeInsets.zero,
                   ),
+                ),
               ],
             ),
           if (website)
