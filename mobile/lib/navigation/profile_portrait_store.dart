@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 
 import '../network/makolo_api_client.dart';
+import '../data/files/profile_paths.dart';
 
 /// Portrait du Profil actif : fichier prive durable, jamais cache OS.
 ///
@@ -60,8 +61,7 @@ class ProfilePortraitStore {
 
   Future<void> clear() async {
     if (profileId.isEmpty) return;
-    final file = await _file();
-    if (await file.exists()) await file.delete();
+    await ProfilePaths.removePortrait(profileId);
   }
 
   /// Strictly same-origin, relative media or absolute link returned by Makolo.
