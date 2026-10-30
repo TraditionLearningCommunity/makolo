@@ -72,7 +72,9 @@ class ProfileRecognitionImageStore {
       throw const FormatException('Invalid recognition image');
     }
     final destination = await _file(path);
-    final partial = File('${destination.path}.part-${DateTime.now().microsecondsSinceEpoch}-${_nonce.nextInt(1 << 32)}');
+    final nonce = '${DateTime.now().microsecondsSinceEpoch}-'
+        '${_nonce.nextInt(1 << 32)}';
+    final partial = File('${destination.path}.part-$nonce');
     try {
       await partial.writeAsBytes(bytes, flush: true);
       if (await destination.exists()) await destination.delete();
