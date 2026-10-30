@@ -105,6 +105,64 @@ class PassportPublicIdentityTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["projection"].variant, "complete")
 
+    def test_canonical_identifier_grants_private_variants_to_owner_only(self):
+        self.profile.public_profile = False
+        self.profile.searchable = False
+        self.profile.save(update_fields=["public_profile", "searchable", "updated_at"])
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.get(url, {"variant": "complete"}).status_code, 404)
+        self.client.force_login(self.space_owner)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+        self.client.force_login(self.user)
+        preview = self.client.get(url)
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.context["projection"].variant, "public")
+
+        complete = self.client.get(url, {"variant": "complete"})
+        self.assertEqual(complete.status_code, 200)
+        self.assertEqual(complete.context["projection"].variant, "complete")
+        self.assertContains(complete, "Informations personnelles")
+        self.assertEqual(complete["Cache-Control"], "private, no-store")
+
+        selected = self.client.get(
+            url, {"variant": "custom", "include": "bio"},
+        )
+        self.assertEqual(selected.status_code, 200)
+        self.assertEqual(selected.context["projection"].variant, "custom")
+        self.assertNotIn("owner_details", selected.context["projection"].identity)
+
+    def test_anonymous_public_variant_cannot_request_owner_content(self):
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+        self.assertEqual(
+            self.client.get(url, {"variant": "complete"}).status_code, 403,
+        )
+        self.assertEqual(
+            self.client.get(url, {"variant": "custom", "include": "bio"}).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.get(url, {"variant": "thematic", "topic": "any"}).status_code,
+            403,
+        )
+        self.assertEqual(self.client.get(url, {"variant": "unknown"}).status_code, 404)
+
+    def test_public_identity_only_passport_can_be_issued(self):
+        minimal = User.objects.create_user(
+            username="passport-only-name",
+            password="Strong-Passport-Test-2026!",
+        )
+        UserProfile.objects.create(user=minimal, public_profile=True)
+        url = reverse("public-passport", kwargs={"identifier": "passport-only-name"})
+        response = self.client.get(url, {"document": "1"})
+        self.assertEqual(response.status_code, 200)
+        snapshot = response.context["passport_snapshot"]
+        self.assertEqual(snapshot.payload["identity"]["name"], minimal.username)
+        self.assertEqual(snapshot.payload["activities"], [])
+        self.assertEqual(snapshot.payload["identity"]["owner_details"], {})
+
     def test_rendered_passport_issues_verifiable_snapshot(self):
         response = self.client.get(
             reverse("public-passport", kwargs={"identifier": "naomi-demo"}),
