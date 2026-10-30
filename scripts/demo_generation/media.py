@@ -85,11 +85,16 @@ def main(argv=None):
                 uses_for_asset += 1
                 continue
             try:
+                source_use = PresentationMediaUse.objects.filter(
+                    asset=asset, state=PresentationMediaState.PUBLISHED,
+                ).exclude(alt_text="").order_by("id").first()
+                alt_text = (source_use.alt_text if source_use else
+                    "Illustration de demonstration pour " + activity.title[:200])
                 with transaction.atomic():
                     use = existing or associate_presentation_media(
                         actor=actor, activity=activity, asset=asset,
                         purpose=PresentationMediaPurpose.RECOGNIZE,
-                        alt_text="Illustration de demonstration pour " + activity.title[:200],
+                        alt_text=alt_text,
                     )
                     publish_presentation_media(actor=actor, media_use=use)
                 counts["new"] += 1
