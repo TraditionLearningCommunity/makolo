@@ -20,29 +20,39 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 
 
-def prepare_demo_roles(grantor, apply, limit):
+def prepare_demo_roles(grantor, apply, limit, transport_ids=(), event_ids=()):
     from django.contrib.auth import get_user_model
     from activities.models import Activity
+    from django.db.models import Q
+    import unicodedata
+    def normalize(value):
+        return ''.join(c for c in unicodedata.normalize('NFKD', (value or '').lower()) if not unicodedata.combining(c))
     from authorization.constants import SystemRoleCode
     from authorization.services import grant_activity_role
     from operations.permissions import user_can_manage_activity_operations
     users = get_user_model()
     for name, terms in (
         ("beta_transport_operator", ("transport", "bus", "voyage", "navette", "trajet")),
-        ("beta_event_manager", ("concert", "event", "evenement", "festival", "conference")),
+        ("beta_event_manager", ("concert", "event", "evenement", "festival", "conference", "spectacle", "atelier")),
     ):
         profile = users.objects.filter(username=name, is_active=True, is_staff=False, is_superuser=False).first()
         if profile is None:
             print(name, "absent ou non conforme")
             continue
         matches = []
-        for activity in Activity.objects.filter(slug__startswith="demo-2026-q4-").order_by("id"):
-            label = ((activity.slug or "") + " " + (activity.title or "")).lower()
-            if any(term in label for term in terms) and user_can_manage_activity_operations(grantor, activity):
+        explicit_ids = transport_ids if name == "beta_transport_operator" else event_ids
+        candidates = Activity.objects.filter(pk__in=explicit_ids).order_by("id") if explicit_ids else Activity.objects.filter(Q(slug__startswith="demo-2026-q4-") | Q(slug__startswith="demo-")).order_by("id")
+        for activity in candidates:
+            label = normalize((activity.slug or "") + " " + (activity.title or ""))
+            if (explicit_ids or any(term in label for term in terms)) and user_can_manage_activity_operations(grantor, activity):
                 matches.append(activity)
                 if len(matches) >= limit:
                     break
         print(name, "activites demo eligibles:", len(matches))
+        if not matches:
+            print("  Aucune activite correspondante. Fournir des UUID explicites apres verification des Activity demo.")
+        for activity in matches:
+            print("  ", activity.pk, activity.title)
         if apply:
             for activity in matches:
                 grant_activity_role(profile=profile, activity=activity,
@@ -74,16 +84,16 @@ def run(args):
 
     if connection.vendor != "sqlite":
         raise SystemExit("Ce script de demo exige SQLite. Aucun acces PostgreSQL autorise.")
-    user = get_user_model().objects.filter(pk=args.actor_id, is_active=True).first()
-    if user is None:
-        raise SystemExit("Profil operateur inconnu ou inactif. Fournir --actor-id.")
     if args.prepare_demo_roles:
         grantor = get_user_model().objects.filter(pk=args.grantor_id, is_active=True).first()
         if not grantor:
             raise SystemExit("Grantor introuvable ou inactif")
         with transaction.atomic():
-            prepare_demo_roles(grantor, args.apply, args.max_occurrences)
+            prepare_demo_roles(grantor, args.apply, args.max_occurrences, args.transport_activity_id, args.event_activity_id)
         return
+    user = get_user_model().objects.filter(pk=args.actor_id, is_active=True).first()
+    if user is None:
+        raise SystemExit("Profil operateur inconnu ou inactif. Fournir --actor-id.")
     now = timezone.now()
     # Les occurrences terminees, annulees et les Activity non publiees sont exclues.
     candidates = (
@@ -268,6 +278,8 @@ def main():
     p.add_argument("--actor-id", help="UUID operateur demo")
     p.add_argument("--prepare-demo-roles", action="store_true")
     p.add_argument("--grantor-id", help="UUID autorite de concession")
+    p.add_argument("--transport-activity-id", action="append", default=[], help="UUID explicite Activity transport demo, repetable")
+    p.add_argument("--event-activity-id", action="append", default=[], help="UUID explicite Activity evenement demo, repetable")
     p.add_argument("--max-occurrences", type=int, default=20)
     p.add_argument("--max-entries", type=int, default=12)
     p.add_argument("--advance", choices=["called", "served"], help="Faire avancer une entree via services")
