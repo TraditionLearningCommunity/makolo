@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import '../../network/makolo_api_client.dart';
 import '../../data/files/profile_paths.dart';
 import '../../platform/media/private_media_views.dart';
+import '../../platform/downloads/device_downloads.dart';
 import '../../platform/sharing/share_gateway.dart';
 import '../../presentation/contracts/now_presentation.dart';
 
@@ -102,6 +103,7 @@ class NowMediaViewer extends StatefulWidget {
     required this.media,
     required this.api,
     this.sharing = const SystemShareGateway(),
+    this.downloads = const AndroidDeviceDownloads(),
     this.temporaryDirectory,
     this.profileId,
   });
@@ -109,6 +111,7 @@ class NowMediaViewer extends StatefulWidget {
   final NowMediaBindingPresentation media;
   final MakoloApiClient api;
   final ShareGateway sharing;
+  final DeviceDownloads downloads;
   final Directory? temporaryDirectory;
   final String? profileId;
 
@@ -217,14 +220,31 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
           cancel: _cancel,
         );
       }
-      // Native share sheet lets the person choose Save to Files;
-      // Makolo never silently exports private media.
-      await widget.sharing.shareFiles(paths: [original?.path ?? file.path]);
+      // Only an explicit download tap exports the authorized bytes.
+      final source = original ?? file;
+      final extension = original != null
+          ? nowOriginalDocumentExtension(widget.media)
+          : nowMediaExtension(widget.media);
+      final mime = original != null
+          ? widget.media.mimeType
+          : widget.media.kind == NowMediaKind.document
+          ? 'text/plain'
+          : widget.media.mimeType;
+      final name = await widget.downloads.save(
+        source: source,
+        fileName: makoloDownloadName(widget.media.label ?? 'Média Makolo', extension),
+        mimeType: mime,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Enregistré dans Téléchargements : $name')),
+        );
+      }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Impossible de proposer l’enregistrement.'),
+            content: Text('Téléchargement impossible. Vérifiez les droits et l’appareil.'),
           ),
         );
       }
@@ -272,7 +292,7 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
         actions: [
           if (_file != null)
             IconButton(
-              tooltip: 'Enregistrer sur l’appareil',
+              tooltip: 'Télécharger dans Téléchargements',
               icon: const Icon(Icons.download_outlined),
               onPressed: _sharing ? null : _save,
             ),
