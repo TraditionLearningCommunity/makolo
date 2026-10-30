@@ -6,6 +6,7 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/features/now/now_media_viewer.dart';
 import 'package:makolo_mobile/features/now/now_inline_media_preview.dart';
 import 'package:makolo_mobile/platform/sharing/share_gateway.dart';
+import 'package:makolo_mobile/platform/downloads/device_downloads.dart';
 import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
 
 import 'fakes.dart';
@@ -50,6 +51,20 @@ class FakeNowMediaSharing implements ShareGateway {
 
   @override
   Future<bool> openExternal(Uri uri) async => false;
+}
+
+class FakeNowDownloads implements DeviceDownloads {
+  final saved = <String>[];
+  @override
+  Future<String> save({
+    required File source,
+    required String fileName,
+    required String mimeType,
+  }) async {
+    expect(await source.exists(), isTrue);
+    saved.add(fileName);
+    return fileName;
+  }
 }
 
 void main() {
@@ -106,6 +121,7 @@ void main() {
     });
     final api = FakeNowMediaApi();
     final sharing = FakeNowMediaSharing();
+    final downloads = FakeNowDownloads();
     addTearDown(() async {
       api.close();
       if (await root.exists()) await root.delete(recursive: true);
@@ -116,6 +132,7 @@ void main() {
         home: NowMediaViewer(
           api: api,
           sharing: sharing,
+          downloads: downloads,
           temporaryDirectory: root,
           media: const NowMediaBindingPresentation(
             resourceRef:
@@ -132,12 +149,13 @@ void main() {
     await tester.pump();
     expect(api.downloadedPath, isNotNull);
     expect(sharing.shared, isEmpty);
-    expect(find.byTooltip('Enregistrer sur l’appareil'), findsOneWidget);
+    expect(find.byTooltip('Télécharger dans Téléchargements'), findsOneWidget);
 
     await tester.runAsync(() async {
-      await tester.tap(find.byTooltip('Enregistrer sur l’appareil'));
+      await tester.tap(find.byTooltip('Télécharger dans Téléchargements'));
       await tester.pump();
     });
-    expect(sharing.shared, [api.downloadedPath]);
+    expect(downloads.saved, hasLength(1));
+    expect(sharing.shared, isEmpty);
   });
 }
