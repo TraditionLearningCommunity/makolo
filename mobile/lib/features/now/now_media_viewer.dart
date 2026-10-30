@@ -169,7 +169,7 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
           widget.media.resourceRef.startsWith('presentation_media_use:') &&
           profile != null;
       final recognition = published
-          ? ProfileRecognitionImageStore(profileId: profile!)
+          ? ProfileRecognitionImageStore(profileId: profile)
           : null;
       final mediaKey = '/$path';
       final local = await recognition?.read(mediaKey);
