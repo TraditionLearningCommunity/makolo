@@ -117,7 +117,7 @@ void main() {
         profileId: 'profile-a',
       );
 
-      await sync.refreshRoots();
+      expect(await sync.refreshRoots(), isTrue);
       expect(
         (await store.readProjection('personal.now'))?.payload['revision'],
         1,
@@ -137,14 +137,15 @@ void main() {
       );
 
       revision = 2;
-      await sync.refreshRoots();
+      expect(await sync.refreshRoots(), isTrue);
       expect(
         (await store.readProjection('personal.now'))?.payload['revision'],
         2,
       );
 
       online = false;
-      await sync.refreshRoots();
+      // A failed refresh must not erase previously acquired owner facts.
+      expect(await sync.refreshRoots(), isFalse);
       expect(
         (await store.readProjection('personal.now'))?.payload['revision'],
         2,
@@ -158,7 +159,7 @@ void main() {
 
       online = true;
       revision = 3;
-      await sync.refreshRoots();
+      expect(await sync.refreshRoots(), isTrue);
       expect(
         (await store.readProjection('personal.now'))?.payload['revision'],
         3,
