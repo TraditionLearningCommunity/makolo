@@ -265,6 +265,36 @@ class PersonalMeCapitalAPIContractTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertNotIn("private_details", response.json()["data"])
 
+    def test_passport_collective_context_is_owner_only_and_not_authority(self):
+        organization = Organization.objects.create(
+            name="Collectif CV Z4", created_by=self.other,
+        )
+        team = Team.objects.create(
+            organization=organization, name="Équipe CV Z4", is_active=True,
+        )
+        TeamMembership.objects.create(
+            team=team, user=self.user, status=TeamMembershipStatus.ACTIVE,
+        )
+
+        complete = self.client.get("/api/v1/me/passport/")
+        self.assertEqual(complete.status_code, 200)
+        data = complete.json()["data"]
+        self.assertEqual(
+            data["collectives"]["team_affiliations"],
+            [{"team": "Équipe CV Z4", "space": "Collectif CV Z4"}],
+        )
+        self.assertEqual(data["collectives"]["active_space_mandates"], [])
+
+        for variant in ("public", "thematic", "custom"):
+            response = self.client.get(f"/api/v1/me/passport/?variant={variant}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                response.json()["data"]["collectives"]["team_affiliations"], [],
+            )
+            self.assertEqual(
+                response.json()["data"]["collectives"]["active_space_mandates"], [],
+            )
+
     def test_passport_pdf_is_authenticated_and_issues_verifiable_snapshot(self):
         from sharing.models import PassportSnapshot
 
