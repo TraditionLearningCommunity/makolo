@@ -565,6 +565,7 @@ def _passport_activity(activity):
         "id": str(activity.pk),
         "title": activity.title,
         "status": activity.status,
+        "status_label": activity.get_status_display(),
         "visibility": activity.visibility,
     }
 
