@@ -51,7 +51,7 @@ def main():
     from access.models import Access, AccessStatus, CredentialStatus
     from access.services import issue_access, render_access_credential
     from authorization.constants import SystemRoleCode
-    from authorization.services import grant_activity_role
+    from authorization.services import grant_activity_role, has_platform_authority
     from events.models import Event
     from journeys.models import Journey, WorkflowKind
     from journeys.services import create_journey, submit_journey, confirm_journey
@@ -87,12 +87,14 @@ def main():
     grantor = User.objects.filter(username=args.grantor, is_active=True).first()
     if not profiles and (args.journeys or args.orders):
         parser.error("Aucun beneficiaire world_ actif (demonstration requise)")
-    if args.queues and actor is None:
-        parser.error("Operateur Operations non-admin introuvable")
+    if (args.queues or args.orders) and actor is None:
+        parser.error("Operateur Event/Operations non-admin introuvable")
     if args.scans and scanner is None:
         parser.error("Operateur Scanner non-admin introuvable")
     if args.grant_demo_roles and grantor is None:
         parser.error("Grantor introuvable")
+    if args.grant_demo_roles and not has_platform_authority(grantor):
+        parser.error("Le grantor doit deja disposer d une autorite plateforme explicite")
     if args.orders:
         from django.conf import settings
         from tickets.models import TicketType, TicketOrder
@@ -304,10 +306,15 @@ def main():
                 continue
             tt = TicketType.objects.filter(event=event, offer__occurrence=occurrence,
                 is_public=True).select_related("offer").order_by("id").first()
-            if tt is None and grantor and user_can_manage_event(grantor, event):
+            if tt is None and args.grant_demo_roles and args.apply:
+                grant_activity_role(profile=actor, activity=event.activity,
+                    role_code=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+                    granted_by=grantor, source="makolo-demo-volume")
+                counts["event_manager_mandates_checked"] += 1
+            if tt is None and user_can_manage_event(actor, event):
                 if args.apply:
                     try:
-                        tt = configure_ticket_type(actor=grantor, event=event,
+                        tt = configure_ticket_type(actor=actor, event=event,
                             occurrence=occurrence, name="Billet standard demo",
                             price="12.50", currency="USD", quantity_total=500,
                             min_per_order=1, max_per_order=4)
