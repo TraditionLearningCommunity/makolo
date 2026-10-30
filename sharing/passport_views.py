@@ -388,8 +388,11 @@ class PassportVerificationView(TemplateView):
         )
         context.update({
             "snapshot": snapshot,
-            "snapshot_name": snapshot.payload.get("identity", {}).get(
-                "name", snapshot.public_identifier,
+            "snapshot_name": (
+                snapshot.payload.get("identity", {}).get(
+                    "name", snapshot.public_identifier,
+                )
+                if allowed else snapshot.public_identifier
             ),
             "currently_public": currently_public,
             "snapshot_intact": intact,
