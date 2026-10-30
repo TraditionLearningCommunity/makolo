@@ -14,7 +14,7 @@
     .entry{display:flex;justify-content:space-between;align-items:start;gap:22px;flex-wrap:wrap}
     .id{font-weight:800;overflow-wrap:anywhere}.date{color:var(--muted);margin:8px 0}.link{color:var(--violet);font-weight:750}
     a{color:var(--violet)}.nav{display:flex;gap:16px;margin:23px 0}.pagination{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:26px 0}
-    .state{color:var(--muted);font-size:13px}.revoked{color:#991B1B}
+    .state{color:var(--muted);font-size:13px}.revoked{color:#991B1B}button{background:var(--violet);color:white;border:0;border-radius:8px;padding:8px 12px;cursor:pointer}select{border:1px solid #aaa;border-radius:8px;padding:7px}
   </style>
 </head>
 <body>
@@ -34,6 +34,21 @@
         </div>
         <a class="link" href="{{ entry.url }}">Ouvrir cette version</a>
       </div>
+      {% if can_share_issued_passport and not entry.snapshot.is_revoked and entry.snapshot.variant != 'complete' %}
+        <form method="post" action="{{ entry.share_url }}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:15px">
+          {% csrf_token %}
+          <label for="days-{{ entry.snapshot.pk }}">Partager cette version</label>
+          <select id="days-{{ entry.snapshot.pk }}" name="days"><option value="1">1 jour</option><option value="7" selected>7 jours</option><option value="30">30 jours</option></select>
+          <button type="submit">Créer un lien</button>
+        </form>
+      {% endif %}
+      {% if can_share_issued_passport %}{% for grant in entry.share_grants %}
+        <form method="post" action="{{ grant.revoke_url }}" style="margin-top:10px">
+          {% csrf_token %}
+          <span class="state">Partage actif · expire le {{ grant.envelope.expires_at|date:"d/m/Y H:i" }}</span>
+          <button type="submit">Révoquer ce partage</button>
+        </form>
+      {% endfor %}{% endif %}
     </article>
   {% empty %}
     <div class="card"><strong>Aucune version datée pour le moment.</strong><p class="muted">L'export d'un Passeport crée une version qui pourra être retrouvée ici.</p></div>
