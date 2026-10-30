@@ -22,7 +22,8 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 def prepare_demo_roles(grantor, apply, limit, transport_ids=(), event_ids=()):
     from django.contrib.auth import get_user_model
-    from activities.models import Activity
+    from activities.models import Activity, Occurrence, ActivityStatus, OccurrenceStatus
+    from django.utils import timezone
     from django.db.models import Q
     import unicodedata
     def normalize(value):
@@ -41,10 +42,12 @@ def prepare_demo_roles(grantor, apply, limit, transport_ids=(), event_ids=()):
             continue
         matches = []
         explicit_ids = transport_ids if name == "beta_transport_operator" else event_ids
-        candidates = Activity.objects.filter(pk__in=explicit_ids).order_by("id") if explicit_ids else Activity.objects.filter(Q(slug__startswith="demo-2026-q4-") | Q(slug__startswith="demo-")).order_by("id")
+        active_ids = Occurrence.objects.filter(start_at__lte=timezone.now(), end_at__gt=timezone.now(), activity__status=ActivityStatus.PUBLISHED).exclude(status__in=[OccurrenceStatus.CANCELLED, OccurrenceStatus.COMPLETED]).values("activity_id")
+        candidates = Activity.objects.filter(pk__in=explicit_ids).order_by("id") if explicit_ids else Activity.objects.filter(slug__startswith="demo-", pk__in=active_ids).order_by("title", "id")
         for activity in candidates:
             label = normalize((activity.slug or "") + " " + (activity.title or ""))
-            if (explicit_ids or any(term in label for term in terms)) and user_can_manage_activity_operations(grantor, activity):
+            matching = bool(explicit_ids) or (any(term in label for term in terms) if name == "beta_transport_operator" else not any(term in label for term in ("transport", "voyage", "bus", "navette", "trajet")))
+            if matching and user_can_manage_activity_operations(grantor, activity):
                 matches.append(activity)
                 if len(matches) >= limit:
                     break
