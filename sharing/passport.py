@@ -76,7 +76,8 @@ class PassportProjection:
     def has_content(self):
         identity = self.identity or {}
         return bool(
-            identity.get("bio")
+            identity.get("name")
+            or identity.get("bio")
             or identity.get("headline")
             or identity.get("location")
             or identity.get("links")
