@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../data/local/profile_store.dart';
+import '../../data/files/resource_download_destination.dart';
+import '../../platform/downloads/device_downloads.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../repositories/personal_repository.dart';
@@ -96,9 +99,25 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
           setState(() => _downloadProgress = transferred / total);
         },
       );
+      final pathOnDevice = await resourceDownloadDestination(
+        profileId: widget.repository.profileId,
+        assetId: widget.assetId,
+        title: detail.title,
+        versionNumber: version.number,
+      );
+      // The owner-local copy and the user-requested public export are distinct.
+      // Sensitivity checks above remain in force for the export.
+      final exportedName = await const AndroidDeviceDownloads().save(
+        source: File(pathOnDevice),
+        fileName: makoloDownloadName(
+          '${detail.title}-v${version.number}',
+          'bin',
+        ),
+        mimeType: 'application/octet-stream',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fichier disponible sur cet appareil.')),
+        SnackBar(content: Text('Enregistré dans Téléchargements : $exportedName')),
       );
     } on Object {
       if (!mounted) return;
