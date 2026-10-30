@@ -10,7 +10,6 @@ import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
-import '../../platform/location/location_capability.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
 import '../../platform/maps/map_runtime_config.dart';
@@ -263,13 +262,11 @@ class DiscoverySearchScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenActivity,
     required this.onOpenItem,
-    this.location,
   });
 
   final DiscoveryRepository repository;
   final ValueChanged<String> onOpenActivity;
   final void Function(String family, String id) onOpenItem;
-  final LocationCapability? location;
 
   @override
   State<DiscoverySearchScreen> createState() => _DiscoverySearchScreenState();
@@ -281,7 +278,6 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
-  String? _locationMessage;
 
   @override
   void initState() {
@@ -329,56 +325,6 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         setState(() => _refreshing = false);
       }
     }
-  }
-
-  void _clearLocation() {
-    final query = _query.copyWith(
-      page: 1,
-      clearContinuation: true,
-      clearLocation: true,
-    );
-    setState(() {
-      _query = query;
-      _locationMessage = null;
-    });
-    _searchChanged(_search.text, immediate: true);
-  }
-
-  Future<void> _aroundMe() async {
-    if (_query.latitude != null && _query.longitude != null) {
-      _clearLocation();
-      return;
-    }
-    final location = widget.location;
-    if (location == null) {
-      setState(
-        () => _locationMessage =
-            'La localisation n’est pas disponible sur cet appareil.',
-      );
-      return;
-    }
-    final result = await location.current();
-    if (!mounted) return;
-    if (!result.available || result.fix == null) {
-      setState(
-        () => _locationMessage =
-            'Votre position n’a pas pu être utilisée. '
-            'Vous pouvez continuer sans elle.',
-      );
-      return;
-    }
-    final query = _query.copyWith(
-      latitude: result.fix!.latitude,
-      longitude: result.fix!.longitude,
-      radiusKm: 25,
-      page: 1,
-      clearContinuation: true,
-    );
-    setState(() {
-      _query = query;
-      _locationMessage = 'Recherche autour de votre position (25 km).';
-    });
-    _submit(_search.text);
   }
 
   void _movePage(int page) {
@@ -430,7 +376,6 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     _search.clear();
     setState(() {
       _query = const DiscoveryQuery();
-      _locationMessage = null;
     });
   }
 
@@ -465,48 +410,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               leading: const Icon(Icons.search_rounded),
               onChanged: _searchChanged,
               onSubmitted: _submit,
-              trailing: [
-                IconButton(
-                  key: const Key('discover-location-toggle'),
-                  tooltip: _query.latitude != null
-                      ? 'Désactiver Autour de moi'
-                      : 'Rechercher autour de moi',
-                  onPressed: _aroundMe,
-                  icon: Icon(_query.latitude != null
-                      ? Icons.location_off_outlined
-                      : Icons.near_me_outlined),
-                ),
-              ],
             ),
           ),
-          if (_query.latitude != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: MakoloSpacing.inner,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: InputChip(
-                  key: const Key('discover-location-active'),
-                  label: const Text('Autour de moi · 25 km'),
-                  onDeleted: _clearLocation,
-                  deleteButtonTooltipMessage: 'Retirer la localisation',
-                ),
-              ),
-            ),
-          if (_locationMessage != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: MakoloSpacing.inner,
-              ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _locationMessage!,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            ),
           Expanded(
             child: Builder(
               builder: (context) {
