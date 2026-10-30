@@ -321,13 +321,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
           }
         }
         if (mounted) {
-        setState(() {
-          _cachedPassport = null;
-          _cachedVariantKey = null;
-          _onlineReady = false;
-          _future = Future.value({'variant': 'unavailable'});
-      }
-        });
+          setState(() {
+            _cachedPassport = null;
+            _cachedVariantKey = null;
+            _onlineReady = false;
+            _future = Future.value({'variant': 'unavailable'});
+          });
+        }
         rethrow;
       }
       final local = widget.personal == null ? null :
