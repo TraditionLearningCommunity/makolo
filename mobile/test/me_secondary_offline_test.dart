@@ -282,6 +282,40 @@ void main() {
     expect(export.onPressed, isNull);
   });
 
+  testWidgets('the full Accounts editor remains native with stored owner fields', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final personal = await _seed(database);
+    await personal.store.putProjection(
+      kind: 'personal.me.account_editor',
+      schemaVersion: 1,
+      payload: {
+        'first_name': 'Gilbra',
+        'last_name': 'Makolo',
+        'bio': 'Description conservée',
+        'profession': 'Architecte',
+        'city': 'Kinshasa',
+        'country': 'CD',
+        'phone': '',
+        'website': '',
+        'public_profile': false,
+        'searchable': false,
+      },
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: MeProfileScreen(api: _OfflineApi(), personal: personal),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Identité'), findsOneWidget);
+    expect(find.text('Gilbra'), findsOneWidget);
+    expect(find.text('Enregistrer'), findsOneWidget);
+    expect(find.text('Réessayer'), findsNothing);
+    expect(find.textContaining('Dernières informations du profil connues'),
+        findsNothing);
+  });
+
   testWidgets('profile summary is read-only when its owner is unreachable', (
     tester,
   ) async {
