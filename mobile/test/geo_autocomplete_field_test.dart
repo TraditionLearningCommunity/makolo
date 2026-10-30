@@ -165,8 +165,9 @@ void main() {
     expect(controller.text, 'K');
   });
 
-
-  testWidgets('owner clear removes visible provider suggestions', (tester) async {
+  testWidgets('owner clear removes visible provider suggestions', (
+    tester,
+  ) async {
     final gateway = _FakeGeoSearch();
     final controller = TextEditingController();
     addTearDown(controller.dispose);
