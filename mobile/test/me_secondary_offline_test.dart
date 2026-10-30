@@ -198,7 +198,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.text('Possibilité connue'), findsOneWidget);
-    expect(find.textContaining('Derniers enregistrements connus'), findsOneWidget);
+    expect(find.textContaining('Derniers enregistrements connus'), findsNothing);
+    expect(find.textContaining('indisponibles hors connexion'), findsNothing);
   });
 
   testWidgets('passport never exposes private export from a local summary', (
