@@ -4,15 +4,30 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/presentation/possibilities/discovery_offline_store.dart';
 
+Uri publicUse(int n) => Uri.parse(
+  'https://makolo.example/presentation/media/uses/'
+  '00000000-0000-4000-8000-${n.toString().padLeft(12, '0')}/file/',
+);
+
 void main() {
+  test('automatic retention rejects first-party nonpublic URLs', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-reject-');
+    addTearDown(() async => root.delete(recursive: true));
+    final store = DiscoveryOfflineStore(rootOverride: root);
+    final privateUri = Uri.parse('https://makolo.example/api/v1/me/private.jpg');
+    expect(
+      () => store.retainRecognitionImage(privateUri, Uint8List.fromList([1])),
+      throwsFormatException,
+    );
+    expect(await store.recognizedImage(privateUri), isNull);
+  });
+
   test('public card bytes survive cache purge but are not an explicit save', (
     ) async {
     final root = await Directory.systemTemp.createTemp('makolo-public-media-');
     addTearDown(() async => root.delete(recursive: true));
     final store = DiscoveryOfflineStore(rootOverride: root);
-    final uri = Uri.parse(
-      'https://makolo.example/presentation/media/public/photo.jpg',
-    );
+    final uri = publicUse(1);
     final bytes = Uint8List.fromList([0xff, 0xd8, 0xff, 0xd9]);
     await store.retainRecognitionImage(uri, bytes);
 
@@ -39,7 +54,7 @@ void main() {
 
     for (var i = 0; i < 13; i++) {
       await store.retainRecognitionImage(
-        Uri.parse('https://makolo.example/image/$i'),
+        publicUse(i + 1),
         Uint8List.fromList([i + 1]),
       );
       await Future<void>.delayed(const Duration(milliseconds: 3));
@@ -61,7 +76,7 @@ void main() {
     final root = await Directory.systemTemp.createTemp('makolo-reader-media-');
     addTearDown(() async => root.delete(recursive: true));
     final store = DiscoveryOfflineStore(rootOverride: root);
-    final uri = Uri.parse('https://makolo.example/published/document.png');
+    final uri = publicUse(3);
     final source = File('${root.path}/image.png');
     await source.writeAsBytes([1, 2, 3, 4]);
     await store.save(uri, source);
