@@ -363,6 +363,184 @@ class _MePassportScreenState extends State<MePassportScreen> {
     _restorePassport();
   }
 
+  static String _historicalDate(Object? raw) {
+    final value = raw?.toString();
+    if (value == null) return '';
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) return value;
+    final date = parsed.toLocal();
+    String two(int x) => x.toString().padLeft(2, '0');
+    return '${two(date.day)}/${two(date.month)}/${date.year} '
+        '${two(date.hour)}:${two(date.minute)}';
+  }
+
+  Future<void> _openDatedVersion(String snapshotId) async {
+    try {
+      final response = await widget.api.get(
+        'api/v1/me/passport/history/$snapshotId/',
+      );
+      final version = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport.version',
+      ).data;
+      if (!mounted) return;
+      final payload = _map(version['payload']);
+      final identity = _map(payload['identity']);
+      final rows = _rows(payload['activities']);
+      final proofs = _rows(payload['proofs']);
+      final credentials = _rows(payload['credentials']);
+      final readOnly = <String, dynamic>{
+        'variant': version['variant'],
+        'identity': {
+          ...identity,
+          'avatar_url': '',
+          'links': [
+            for (final link in identity['links'] is List
+                ? identity['links'] as List : const [])
+              if (link is List && link.length >= 2)
+                {'label': link[0], 'url': link[1]},
+          ],
+        },
+        'private_details': version['variant'] == 'complete'
+            ? _map(identity['owner_details']) : <String, dynamic>{},
+        'declared': {
+          'interests': [
+            for (final item in payload['interests'] is List
+                ? payload['interests'] as List : const [])
+              {'topic': {'label': item.toString()}},
+          ],
+          'open_to': [
+            for (final item in _rows(payload['open_to']))
+              {'label': [
+                if (_text(item['kind']) != null) item['kind'],
+                if (_text(item['topic']) != null) item['topic'],
+              ].join(' · ')},
+          ],
+        },
+        'activities': [
+          for (final row in rows)
+            {...row, 'status_label': row['status']},
+        ],
+        'established': {
+          'proofs': [
+            for (final row in proofs)
+              {
+                'proof_type_label': row['label'],
+                'activity': {'title': row['activity']},
+              },
+          ],
+        },
+        'issued': {
+          'credentials': [
+            for (final row in credentials)
+              {
+                ...row,
+                'issuer': {'name': row['issuer']},
+                'status_label': row['status'],
+              },
+          ],
+        },
+        'collectives': {
+          'team_affiliations': payload['team_affiliations'],
+          'active_space_mandates': payload['active_space_mandates'],
+        },
+      };
+      await showModalBottomSheet<void>(
+        context: context, isScrollControlled: true, showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.85,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
+              children: [
+                Text('Version du ${_historicalDate(version['generated_at'])}',
+                  style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 5),
+                Text(version['document_id']?.toString() ?? '',
+                  style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 16),
+                _PassportBody(data: readOnly, baseUri: widget.api.baseUri),
+              ],
+            ),
+          ),
+        ),
+      );
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Cette version datée n’est pas disponible.'),
+      ));
+    }
+  }
+
+  Future<void> _showDatedHistory() async {
+    try {
+      final response = await widget.api.get('api/v1/me/passport/history/');
+      final history = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport.history',
+      ).data;
+      if (!mounted) return;
+      final entries = _rows(history['items']);
+      await showModalBottomSheet<void>(
+        context: context, isScrollControlled: true, showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.75,
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Versions datées',
+                    style: Theme.of(sheetContext).textTheme.titleLarge),
+                ),
+              ),
+              Expanded(
+                child: entries.isEmpty
+                    ? const Center(child: Text('Aucune version émise.'))
+                    : ListView.builder(
+                        itemCount: entries.length,
+                        itemBuilder: (context, index) {
+                          final row = entries[index];
+                          final invalid = row['revoked'] == true ||
+                              row['integrity_ok'] == false;
+                          return ListTile(
+                            leading: Icon(invalid
+                                ? Icons.block_outlined
+                                : Icons.history_outlined),
+                            title: Text(row['document_id']?.toString() ?? ''),
+                            subtitle: Text(
+                              '${_historicalDate(row['generated_at'])} · '
+                              '${row['variant'] ?? ''}'
+                              '${invalid ? ' · Indisponible' : ''}',
+                            ),
+                            onTap: invalid || row['id'] == null ? null : () {
+                              final id = row['id'].toString();
+                              Navigator.pop(sheetContext);
+                              _openDatedVersion(id);
+                            },
+                          );
+                        },
+                      ),
+              ),
+              if (history['has_more'] == true)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text('Autres versions consultables sur Makolo Web.'),
+                ),
+            ]),
+          ),
+        ),
+      );
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Historique indisponible sans connexion.'),
+      ));
+    }
+  }
+
   Future<String?> _downloadPassport() async {
     if (_exporting) return null;
     setState(() => _exporting = true);
@@ -590,6 +768,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
     appBar: AppBar(
       title: const Text('Passeport Makolo'),
       actions: [
+        IconButton(
+          tooltip: 'Versions datées',
+          onPressed: !_onlineReady ? null : _showDatedHistory,
+          icon: const Icon(Icons.history_outlined),
+        ),
         IconButton(
           tooltip: 'Exporter le Passeport en PDF',
           onPressed: _exporting || !_onlineReady ? null : _exportPdf,
