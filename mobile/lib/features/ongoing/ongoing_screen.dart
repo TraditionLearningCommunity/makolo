@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../app/sync_lifecycle.dart';
@@ -423,7 +424,7 @@ class _OngoingFieldState extends State<_OngoingField> {
         ? ColoredBox(
             key: const Key('ongoing-unit-gutter'),
             color: context.makoloSurfaces.surface,
-            child: const SizedBox(height: MakoloSpacing.md),
+            child: const SizedBox(height: MakoloSpacing.sm),
           )
         : const SizedBox.shrink(),
     itemBuilder: (context, index) {
@@ -475,7 +476,12 @@ class _OngoingFieldState extends State<_OngoingField> {
               baseUri: widget.baseUri,
               api: widget.api,
             ),
-            if (item.resources.isNotEmpty) _OngoingN1Resources(item: item),
+            if (item.resources.isNotEmpty)
+              _OngoingResourceList(
+                item: item,
+                baseUri: widget.baseUri,
+                compact: true,
+              ),
             if (hasDetail) ...[
               Align(
                 alignment: AlignmentDirectional.centerStart,
@@ -507,53 +513,216 @@ class _OngoingFieldState extends State<_OngoingField> {
   );
 }
 
-/// Resource references remain facts of the continuity owner. Do not turn
-/// a resource into a proof, requirement or access right in this read model.
-class _OngoingN1Resources extends StatelessWidget {
-  const _OngoingN1Resources({required this.item});
+/// One resource treatment for N1 and N2. All destinations are owner-backed:
+/// public Activity resources use the existing Discovery reader; private
+/// JourneyArtifacts hand off to the authorized Journey route.
+class _OngoingResourceList extends StatefulWidget {
+  const _OngoingResourceList({
+    required this.item,
+    required this.baseUri,
+    required this.compact,
+  });
+
   final OngoingContinuityPresentation item;
+  final Uri? baseUri;
+  final bool compact;
+
+  @override
+  State<_OngoingResourceList> createState() => _OngoingResourceListState();
+}
+
+class _OngoingResourceListState extends State<_OngoingResourceList> {
+  bool _showAll = false;
+
+  Uri? _destination(Map<String, dynamic> resource) {
+    final kind = resource['kind'];
+    final source = switch (kind) {
+      'file' => resource['download_url'],
+      'text' => resource['read_url'],
+      'url' => resource['external_url'],
+      _ => null,
+    };
+    if (source is! String || source.trim().isEmpty) return null;
+    if (kind == 'url') {
+      final uri = Uri.tryParse(source.trim());
+      return discoverySafeDestination(uri) && uri!.userInfo.isEmpty
+          ? uri
+          : null;
+    }
+    final resolved = ongoingRecognitionImageUrl(source, widget.baseUri);
+    return resolved == null ? null : Uri.parse(resolved);
+  }
+
+  bool _canOpen(Map<String, dynamic> resource) {
+    if (resource['kind'] == 'journey_artifact') {
+      return _OngoingN1Details.routeFor(widget.item) != null;
+    }
+    if (resource['kind'] == 'text' &&
+        (resource['text_content']?.toString().trim().isNotEmpty ?? false)) {
+      return true;
+    }
+    return _destination(resource) != null;
+  }
+
+  Future<void> _open(Map<String, dynamic> resource) async {
+    if (!_canOpen(resource)) return;
+    if (resource['kind'] == 'journey_artifact') {
+      final path = _OngoingN1Details.routeFor(widget.item);
+      if (path != null && mounted) context.push(path);
+      return;
+    }
+    final title = (resource['title'] ?? 'Ressource').toString();
+    final text = resource['text_content'];
+    if (resource['kind'] == 'text' &&
+        text is String && text.trim().isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(child: SelectableText(text)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    final uri = _destination(resource);
+    if (uri == null || !mounted) return;
+    if (resource['kind'] == 'url') {
+      try {
+        final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+        if (!opened && mounted) _openFailure();
+      } on Object {
+        if (mounted) _openFailure();
+      }
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DiscoveryReader(
+          items: [
+            DiscoveryReaderItem(
+              title: title,
+              uri: uri,
+              mimeType: resource['kind'] == 'text'
+                  ? 'text/plain'
+                  : (resource['mime_type']?.toString().trim().isNotEmpty ?? false)
+                  ? resource['mime_type'].toString()
+                  : 'application/octet-stream',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openFailure() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cette ressource ne peut pas être ouverte.')),
+    );
+  }
+
+  IconData _icon(Map<String, dynamic> resource) {
+    final kind = resource['kind'];
+    final mime = (resource['mime_type'] ?? '').toString().toLowerCase();
+    if (kind == 'url') return Icons.language_rounded;
+    if (mime.startsWith('image/')) return Icons.image_outlined;
+    if (mime.startsWith('video/')) return Icons.movie_outlined;
+    if (mime.startsWith('audio/')) return Icons.audiotrack_outlined;
+    if (mime == 'application/pdf') return Icons.picture_as_pdf_outlined;
+    if (kind == 'text' || mime.startsWith('text/')) {
+      return Icons.article_outlined;
+    }
+    return Icons.description_outlined;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final entries = <String>[];
-    for (final resource in item.resources) {
-      final label = resource['title'] ?? resource['label'] ?? resource['name'];
-      if (label is! String || label.trim().isEmpty) continue;
-      if (!entries.contains(label.trim())) entries.add(label.trim());
+    final entries = <Map<String, dynamic>>[];
+    final seen = <String>{};
+    for (final resource in widget.item.resources) {
+      final title = resource['title'];
+      if (title is! String || title.trim().isEmpty) continue;
+      final identity = resource['id']?.toString() ?? title.trim();
+      if (seen.add(identity)) entries.add(resource);
     }
     if (entries.isEmpty) return const SizedBox.shrink();
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final shown = widget.compact && !_showAll
+        ? entries.take(2)
+        : entries;
     return Padding(
-      key: const Key('ongoing-n1-resources'),
-      padding: const EdgeInsets.fromLTRB(
-        12,
+      key: Key(widget.compact ? 'ongoing-n1-resources' : 'ongoing-n2-resources'),
+      padding: EdgeInsets.fromLTRB(
+        widget.compact ? 14 : 0,
         MakoloSpacing.sm,
-        12,
-        MakoloSpacing.md,
+        widget.compact ? 14 : 0,
+        MakoloSpacing.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Documents et ressources',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          const SizedBox(height: MakoloSpacing.xs),
-          for (final label in entries)
+          Text('Documents et ressources', style: theme.textTheme.titleSmall),
+          const SizedBox(height: MakoloSpacing.sm),
+          for (final resource in shown)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xs),
-              child: Row(
-                children: [
-                  Icon(Icons.description_outlined, size: 20, color: muted),
-                  const SizedBox(width: MakoloSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
+              padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
+              child: InkWell(
+                key: ValueKey('ongoing-resource-${resource['id'] ?? resource['title']}'),
+                onTap: _canOpen(resource) ? () => _open(resource) : null,
+                borderRadius: BorderRadius.circular(MakoloRadii.small),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Row(
+                    children: [
+                      Icon(_icon(resource), size: 20, color: muted),
+                      const SizedBox(width: MakoloSpacing.sm),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              resource['title'].toString(),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: _canOpen(resource)
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                                fontWeight: _canOpen(resource)
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                            if (resource['description'] is String &&
+                                (resource['description'] as String).trim().isNotEmpty)
+                              Text(
+                                resource['description'] as String,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (_canOpen(resource)) ...[
+                        const SizedBox(width: MakoloSpacing.xs),
+                        Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+                      ],
+                    ],
                   ),
-                ],
+                ),
               ),
+            ),
+          if (widget.compact && entries.length > 2)
+            TextButton(
+              onPressed: () => setState(() => _showAll = !_showAll),
+              child: Text(_showAll
+                  ? 'Voir moins de ressources'
+                  : 'Voir les ${entries.length} ressources'),
             ),
         ],
       ),
@@ -934,6 +1103,38 @@ class _OngoingProtectedImageState extends State<_OngoingProtectedImage> {
   );
 }
 
+/// The published recognition image is private until its owner authorizes
+/// delivery. The generic public DiscoveryReader cannot download it without
+/// bearer credentials, so this view only reuses the authenticated image
+/// transport and zoom interaction; no export/share/offline rights are implied.
+void _openOngoingProtectedMedia(
+  BuildContext context, {
+  required MakoloApiClient api,
+  required String imageUrl,
+  required String title,
+}) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => Scaffold(
+        appBar: AppBar(title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        body: SafeArea(
+          child: InteractiveViewer(
+            minScale: 0.7,
+            maxScale: 6,
+            child: Center(
+              child: _OngoingProtectedImage(
+                api: api,
+                imageUrl: imageUrl,
+                label: title,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 /// G06 mobile: the same open, vertical reading rhythm as Discover.
 /// A recognition image gets the available width; text never sits beside it.
 class _OngoingRow extends StatelessWidget {
@@ -972,6 +1173,10 @@ class _OngoingRow extends StatelessWidget {
     final summary = _ongoingSummary(item.title, item.synthesis);
     final supporting = _supportingLine();
     final imageUrl = ongoingRecognitionImageUrl(item.mediaUrl, baseUri);
+    final whenLabel = MakoloHumanization.humanizeOwnerWhenLabel(
+      item.whenLabel,
+      now: DateTime.now(),
+    );
     final cue = item.cue;
     final cueColor = switch (item.cueTone) {
       'action' => colors.brand,
@@ -991,11 +1196,11 @@ class _OngoingRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (cue != null || item.whenLabel != null) ...[
+                  if (cue != null || whenLabel != null) ...[
                     Wrap(
                       spacing: MakoloSpacing.sm,
                       runSpacing: MakoloSpacing.xs,
@@ -1023,9 +1228,9 @@ class _OngoingRow extends StatelessWidget {
                               ),
                             ),
                           ),
-                        if (item.whenLabel != null)
+                        if (whenLabel != null)
                           Text(
-                            item.whenLabel!,
+                            whenLabel,
                             style: textTheme.labelMedium?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme
@@ -1089,24 +1294,35 @@ class _OngoingRow extends StatelessWidget {
               ),
             ),
             if (imageUrl != null)
-              AspectRatio(
-                key: const Key('ongoing-n1-full-width-media'),
-                aspectRatio: 16 / 9,
-                child: api == null
-                    ? Image.network(
-                        imageUrl,
-                        key: const Key('ongoing-n1-recognition-media'),
-                        fit: BoxFit.cover,
-                        semanticLabel: item.mediaAlt ?? item.title,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const SizedBox.shrink(),
-                      )
-                    : _OngoingProtectedImage(
-                        key: const Key('ongoing-n1-recognition-media'),
+              InkWell(
+                key: const Key('ongoing-n1-open-media'),
+                onTap: api == null
+                    ? null
+                    : () => _openOngoingProtectedMedia(
+                        context,
                         api: api!,
                         imageUrl: imageUrl,
-                        label: item.mediaAlt ?? item.title,
+                        title: item.mediaAlt ?? item.title,
                       ),
+                child: AspectRatio(
+                  key: const Key('ongoing-n1-full-width-media'),
+                  aspectRatio: 16 / 9,
+                  child: api == null
+                      ? Image.network(
+                          imageUrl,
+                          key: const Key('ongoing-n1-recognition-media'),
+                          fit: BoxFit.cover,
+                          semanticLabel: item.mediaAlt ?? item.title,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const SizedBox.shrink(),
+                        )
+                      : _OngoingProtectedImage(
+                          key: const Key('ongoing-n1-recognition-media'),
+                          api: api!,
+                          imageUrl: imageUrl,
+                          label: item.mediaAlt ?? item.title,
+                        ),
+                ),
               ),
           ],
         ),
@@ -1164,7 +1380,7 @@ class _OngoingFocus extends StatelessWidget {
       if (parsed == null) continue;
       final label = fact['label'] is String ? fact['label'] as String : 'Date';
       final formatted = fact['at'] == null
-          ? MakoloHumanization.formatShortDate(parsed)
+          ? MakoloHumanization.formatDay(parsed, now: DateTime.now())
           : MakoloHumanization.formatDateTime(parsed, now: DateTime.now());
       final text = '$label · $formatted';
       if (!dates.contains(text)) dates.add(text);
@@ -1354,10 +1570,18 @@ class _OngoingFocus extends StatelessWidget {
               borderRadius: BorderRadius.circular(MakoloRadii.card),
               child: SizedBox(
                 width: MediaQuery.sizeOf(context).width < 500 ? 290 : 350,
-                child: _OngoingProtectedImage(
-                  api: api!,
-                  imageUrl: media.$1,
-                  label: media.$2,
+                child: InkWell(
+                  onTap: () => _openOngoingProtectedMedia(
+                    context,
+                    api: api!,
+                    imageUrl: media.$1,
+                    title: media.$2,
+                  ),
+                  child: _OngoingProtectedImage(
+                    api: api!,
+                    imageUrl: media.$1,
+                    label: media.$2,
+                  ),
                 ),
               ),
             );
@@ -1367,84 +1591,11 @@ class _OngoingFocus extends StatelessWidget {
     );
   }
 
-  void _openPublicResource(
-    BuildContext context,
-    Map<String, dynamic> resource,
-  ) {
-    final kind = resource['kind'];
-    final source = kind == 'file'
-        ? resource['download_url']
-        : kind == 'text'
-        ? resource['read_url']
-        : null;
-    if (source is! String || source.trim().isEmpty) return;
-    final uri = ongoingRecognitionImageUrl(source, baseUri);
-    if (uri == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => DiscoveryReader(
-          items: [
-            DiscoveryReaderItem(
-              title: resource['title']?.toString() ?? 'Document',
-              uri: Uri.parse(uri),
-              mimeType: kind == 'text'
-                  ? 'text/plain'
-                  : resource['mime_type']?.toString() ??
-                        'application/octet-stream',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _resources(BuildContext context) {
-    final usable = <Map<String, dynamic>>[];
-    for (final resource in item.resources) {
-      final title = resource['title'];
-      if (title is String && title.trim().isNotEmpty) usable.add(resource);
-    }
-    if (usable.isEmpty) return const SizedBox.shrink();
-    final ownerRoute = _OngoingN1Details.routeFor(item);
-    return Padding(
-      key: const Key('ongoing-n2-resources'),
-      padding: const EdgeInsets.only(top: MakoloSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Documents et ressources',
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-          for (final resource in usable)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                resource['mime_type'] == 'application/pdf'
-                    ? Icons.picture_as_pdf_outlined
-                    : Icons.description_outlined,
-              ),
-              title: Text(resource['title'] as String),
-              subtitle: resource['description'] is String
-                  ? Text(resource['description'] as String)
-                  : null,
-              trailing:
-                  (resource['kind'] == 'file' ||
-                      resource['kind'] == 'text' ||
-                      (resource['kind'] == 'journey_artifact' &&
-                          ownerRoute != null))
-                  ? const Icon(Icons.chevron_right_rounded)
-                  : null,
-              onTap: resource['kind'] == 'journey_artifact'
-                  ? (ownerRoute == null ? null : () => context.push(ownerRoute))
-                  : resource['kind'] == 'file' || resource['kind'] == 'text'
-                  ? () => _openPublicResource(context, resource)
-                  : null,
-            ),
-        ],
-      ),
-    );
-  }
+  Widget _resources(BuildContext context) => _OngoingResourceList(
+    item: item,
+    baseUri: baseUri,
+    compact: false,
+  );
 
   @override
   Widget build(BuildContext context) {
