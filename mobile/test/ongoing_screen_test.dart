@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -60,7 +61,10 @@ class _NeverUsedStore implements ProfileStore {
 class _UnavailableImageApi implements MakoloApiClient {
   @override
   Future<Uint8List> getPresentationImage(String path) async =>
-      Uint8List(0);
+      base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+        'AAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
+      );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -469,7 +473,7 @@ void main() {
     expect(find.byKey(const ValueKey('ongoing-resource-file-1')), findsOneWidget);
   });
 
-  testWidgets('recognition media opens authenticated zoom without export', (
+  testWidgets('recognition media reuses Discovery reader actions', (
     tester,
   ) async {
     final projection = _projection(items: const [
@@ -508,10 +512,17 @@ void main() {
     expect(tester.widget<InkWell>(open).onTap, isNotNull);
     await tester.tap(open);
     await tester.pumpAndSettle();
+    expect(find.byType(DiscoveryReader), findsOneWidget);
     expect(find.byType(InteractiveViewer), findsOneWidget);
     expect(find.text('Document privé'), findsOneWidget);
-    expect(find.byTooltip('Exporter vers l’appareil'), findsNothing);
-    expect(find.byTooltip('Partager cette ressource'), findsNothing);
+    expect(find.byTooltip('Garder hors ligne dans Makolo'), findsOneWidget);
+    expect(find.byTooltip('Exporter vers l’appareil'), findsOneWidget);
+    expect(find.byTooltip('Partager cette ressource'), findsOneWidget);
+    await tester.tap(find.byTooltip('Partager cette ressource'));
+    await tester.pumpAndSettle();
+    expect(find.text('Partager avec…'), findsOneWidget);
+    // The authenticated media URL must never be offered as a public link.
+    expect(find.text('Copier le lien'), findsNothing);
   });
 
   testWidgets('owner dates are preserved in the N2 continuity', (tester) async {
