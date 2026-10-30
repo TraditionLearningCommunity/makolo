@@ -420,7 +420,7 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
 
         response = self.client.get(self.url, {"pdf": "1"})
         self.assertEqual(response.status_code, 200)
-        content = "\\n".join(
+        content = "\n".join(
             page.extract_text() for page in PdfReader(BytesIO(response.content)).pages
         )
         self.assertIn("Attestations émises", content)
