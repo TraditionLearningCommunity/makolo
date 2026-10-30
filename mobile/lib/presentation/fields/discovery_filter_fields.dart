@@ -50,41 +50,38 @@ class DiscoveryFilterFields extends StatelessWidget {
         onEdited: onPlaceEdited,
         onSubmitted: onPlaceSubmitted,
       ),
-      if (extra != null) ...[
-        const SizedBox(height: MakoloSpacing.md),
-        extra!,
-      ],
+      if (extra != null) ...[const SizedBox(height: MakoloSpacing.md), extra!],
       const SizedBox(height: MakoloSpacing.md),
       KeyedSubtree(
         // The dropdown state must track owner-driven resets, not retain a
         // previously selected value when filters are cleared.
         key: ValueKey('$keyPrefix-when-$when-$date'),
         child: DropdownButtonFormField<String>(
-        key: Key('$keyPrefix-when'),
-        initialValue: when,
-        isExpanded: true,
-        menuMaxHeight: 240,
-        decoration: const InputDecoration(
-          labelText: 'Quand ?',
-          prefixIcon: Icon(Icons.calendar_today_outlined),
-          border: OutlineInputBorder(),
+          key: Key('$keyPrefix-when'),
+          initialValue: when,
+          isExpanded: true,
+          menuMaxHeight: 240,
+          decoration: const InputDecoration(
+            labelText: 'Quand ?',
+            prefixIcon: Icon(Icons.calendar_today_outlined),
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: '', child: Text('Toutes les dates')),
+            DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
+            DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
+            DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
+            DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
+            DropdownMenuItem(value: 'custom', child: Text('Choisir une date…')),
+          ],
+          onChanged: (value) {
+            if (value == 'custom') {
+              onChooseDate();
+            } else {
+              onWhenChanged(value ?? '');
+            }
+          },
         ),
-        items: const [
-          DropdownMenuItem(value: '', child: Text('Toutes les dates')),
-          DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
-          DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
-          DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
-          DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
-          DropdownMenuItem(value: 'custom', child: Text('Choisir une date…')),
-        ],
-        onChanged: (value) {
-          if (value == 'custom') {
-            onChooseDate();
-          } else {
-            onWhenChanged(value ?? '');
-          }
-        },
-      ),
       ),
       if (date.isNotEmpty)
         TextButton.icon(
@@ -97,22 +94,22 @@ class DiscoveryFilterFields extends StatelessWidget {
       KeyedSubtree(
         key: ValueKey('$keyPrefix-price-$price'),
         child: DropdownButtonFormField<String>(
-        key: Key('$keyPrefix-price'),
-        initialValue: price,
-        isExpanded: true,
-        menuMaxHeight: 200,
-        decoration: const InputDecoration(
-          labelText: 'Budget',
-          prefixIcon: Icon(Icons.payments_outlined),
-          border: OutlineInputBorder(),
+          key: Key('$keyPrefix-price'),
+          initialValue: price,
+          isExpanded: true,
+          menuMaxHeight: 200,
+          decoration: const InputDecoration(
+            labelText: 'Budget',
+            prefixIcon: Icon(Icons.payments_outlined),
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: '', child: Text('Tous les prix')),
+            DropdownMenuItem(value: 'free', child: Text('Gratuit')),
+            DropdownMenuItem(value: 'paid', child: Text('Payant')),
+          ],
+          onChanged: (value) => onPriceChanged(value ?? ''),
         ),
-        items: const [
-          DropdownMenuItem(value: '', child: Text('Tous les prix')),
-          DropdownMenuItem(value: 'free', child: Text('Gratuit')),
-          DropdownMenuItem(value: 'paid', child: Text('Payant')),
-        ],
-        onChanged: (value) => onPriceChanged(value ?? ''),
-      ),
       ),
     ],
   );
