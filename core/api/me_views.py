@@ -360,12 +360,13 @@ class PersonalPassportVersionAPIView(PersonalProjectionAPIView):
         snapshot = get_object_or_404(
             PassportSnapshot, pk=snapshot_id, profile=request.user,
         )
-        if snapshot.is_revoked or not snapshot_payload_is_intact(snapshot):
-            raise Http404("Version indisponible.")
+        if not snapshot_payload_is_intact(snapshot):
+            raise Http404("Version non intègre.")
         return self._response(
             {
                 "id": str(snapshot.pk),
                 "document_id": snapshot.document_id,
+                "revoked": snapshot.is_revoked,
                 "variant": snapshot.variant,
                 "generated_at": snapshot.generated_at.isoformat(),
                 "payload": snapshot.payload,
