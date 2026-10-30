@@ -12,7 +12,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import '../../presentation/fields/search_filter_bar.dart';
-import '../../presentation/fields/geo_autocomplete_field.dart';
+import '../../presentation/fields/discovery_filter_fields.dart';
 import '../../platform/location/geo_search_gateway.dart';
 import '../../platform/location/location_capability.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
@@ -519,123 +519,60 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                   ),
                 ),
               ),
-              filters: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  GeoAutocompleteField(
-                    fieldKey: const Key('discover-search-place'),
-                    controller: _place,
-                    gateway: widget.geoSearch,
-                    onSelected: (place) {
-                      setState(() => _selectedPlace = place);
-                      _applyCriteria();
-                    },
-                    onEdited: () {
-                      _selectedPlace = null;
-                      _applyCriteria(immediate: false);
-                    },
-                    onSubmitted: () => _applyCriteria(),
-                  ),
-                  const SizedBox(height: MakoloSpacing.sm),
-                  OutlinedButton.icon(
-                    key: const Key('discover-search-nearby'),
-                    onPressed: _toggleNearby,
-                    icon: Icon(_query.latitude == null
-                        ? Icons.near_me_outlined
-                        : Icons.location_off_outlined),
-                    label: Text(_query.latitude == null
-                        ? 'Autour de moi · 25 km'
-                        : 'Retirer « Autour de moi »'),
-                  ),
-                  if (_locationMessage != null)
-                    Text(_locationMessage!),
-                  const SizedBox(height: MakoloSpacing.md),
-                  DropdownButtonFormField<String>(
-                    key: const Key('discover-search-when'),
-                    initialValue: _when,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Quand ?',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today_outlined),
+              filters: DiscoveryFilterFields(
+                keyPrefix: 'discover-search',
+                placeController: _place,
+                geoSearch: widget.geoSearch,
+                when: _when,
+                date: _date,
+                price: _price,
+                onPlaceSelected: (place) {
+                  setState(() => _selectedPlace = place);
+                  _applyCriteria();
+                },
+                onPlaceEdited: () {
+                  _selectedPlace = null;
+                  _applyCriteria(immediate: false);
+                },
+                onPlaceSubmitted: () => _applyCriteria(),
+                onWhenChanged: (value) {
+                  setState(() {
+                    _when = value;
+                    _date = '';
+                  });
+                  _applyCriteria();
+                },
+                onChooseDate: () => unawaited(_chooseDate()),
+                onPriceChanged: (value) {
+                  setState(() => _price = value);
+                  _applyCriteria();
+                },
+                extra: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
+                      key: const Key('discover-search-nearby'),
+                      onPressed: _toggleNearby,
+                      icon: Icon(_query.latitude == null
+                          ? Icons.near_me_outlined
+                          : Icons.location_off_outlined),
+                      label: Text(_query.latitude == null
+                          ? 'Autour de moi · 25 km'
+                          : 'Retirer « Autour de moi »'),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: '', child: Text('Toutes les dates')),
-                      DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
-                      DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
-                      DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
-                      DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
-                      DropdownMenuItem(value: 'custom', child: Text('Choisir une date…')),
-                    ],
-                    onChanged: (value) {
-                      if (value == 'custom') {
-                        unawaited(_chooseDate());
-                      } else {
-                        setState(() {
-                          _when = value ?? '';
-                          _date = '';
-                        });
-                        _applyCriteria();
-                      }
-                    },
-                  ),
-                  if (_date.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: _chooseDate,
-                      icon: const Icon(Icons.edit_calendar_outlined),
-                      label: Text('Date : $_date'),
-                    ),
-                  const SizedBox(height: MakoloSpacing.md),
-                  DropdownButtonFormField<String>(
-                    key: const Key('discover-search-price'),
-                    initialValue: _price,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Budget',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.payments_outlined),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: '', child: Text('Tous les prix')),
-                      DropdownMenuItem(value: 'free', child: Text('Gratuit')),
-                      DropdownMenuItem(value: 'paid', child: Text('Payant')),
-                    ],
-                    onChanged: (value) {
-                      setState(() => _price = value ?? '');
-                      _applyCriteria();
-                    },
-                  ),
-                ],
+                    if (_locationMessage != null) Text(_locationMessage!),
+                  ],
+                ),
               ),
             ),
           ),
-          SizedBox(
-            height: 48,
-            child: ListView(
-              key: const Key('discover-search-categories'),
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final category in const [
-                  ('', 'Tout', Icons.apps_rounded),
-                  ('transport', 'Voyager', Icons.directions_bus_outlined),
-                  ('event', 'Événements', Icons.event_outlined),
-                  ('service', 'Services', Icons.handshake_outlined),
-                  ('other', 'Autres', Icons.explore_outlined),
-                ]) ...[
-                  ChoiceChip(
-                    label: Text(category.$2),
-                    avatar: Icon(category.$3, size: 18),
-                    selected: _vertical == category.$1,
-                    showCheckmark: false,
-                    onSelected: (_) {
-                      setState(() => _vertical = category.$1);
-                      _applyCriteria();
-                    },
-                  ),
-                  const SizedBox(width: MakoloSpacing.sm),
-                ],
-              ],
-            ),
+          DiscoveryCategoryChips(
+            selected: _vertical,
+            listKey: const Key('discover-search-categories'),
+            onSelected: (value) {
+              setState(() => _vertical = value);
+              _applyCriteria();
+            },
           ),
           Expanded(
             child: Builder(
