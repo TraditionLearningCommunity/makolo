@@ -678,7 +678,7 @@ def render_passport_layout(payload, metadata, verify_url, *,
             for name in payload.get("space_teams") or []
         ]),
         ("Attestations émises", [
-            (_value(row.get("label")), str(row.get("count", 0)) + " attestation(s) valides")
+            (_value(row.get("label")), str(row.get("count", 0)) + (" attestation valide" if row.get("count") == 1 else " attestations valides"))
             for row in payload.get("credential_summary") or []
         ]),
     ]
