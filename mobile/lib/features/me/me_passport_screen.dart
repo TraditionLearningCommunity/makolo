@@ -120,6 +120,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final local = await _avatarFile();
     if (local == null) return;
     if (avatar == null) {
+      // A disclosure-limited public/thematic/custom Passport can omit the
+      // portrait without deleting the owner's private offline image.
+      if (data['variant'] != 'complete') return;
       if (await local.exists()) await local.delete();
       if (mounted) setState(() => _cachedAvatar = null);
       return;
