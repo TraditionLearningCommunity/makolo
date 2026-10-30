@@ -645,22 +645,6 @@ def render_passport_layout(payload, metadata, verify_url, *,
             story.extend([line, Spacer(1, 5)])
         story.append(Spacer(1, 10))
     groups = [
-        ("Équipes et Espaces", [
-            (_value(row.get("team")), _value(row.get("space")) + " · Appartenance à l’équipe")
-            for row in payload.get("team_affiliations") or []
-        ]),
-        ("Mandats actifs", [
-            (_value(row.get("role")), _value(row.get("space")) + " · Autorité en cours")
-            for row in payload.get("active_space_mandates") or []
-        ]),
-        ("Équipes de l’Espace", [
-            (_value(name), "")
-            for name in payload.get("space_teams") or []
-        ]),
-        ("Attestations émises", [
-            (_value(row.get("label")), str(row.get("count", 0)) + " attestation(s) valides")
-            for row in payload.get("credential_summary") or []
-        ]),
         ("Activités portées", [
             (_value(row.get("title")), _value(row.get("status")))
             for row in payload.get("activities") or []
@@ -680,6 +664,22 @@ def render_passport_layout(payload, metadata, verify_url, *,
         ("Vérifications", [
             (_value(row.get("label")), _value(row.get("valid_until")))
             for row in payload.get("trust_verifications") or []
+        ]),
+        ("Équipes et Espaces", [
+            (_value(row.get("team")), _value(row.get("space")) + " · Appartenance à l’équipe")
+            for row in payload.get("team_affiliations") or []
+        ]),
+        ("Mandats actifs", [
+            (_value(row.get("role")), _value(row.get("space")) + " · Autorité en cours")
+            for row in payload.get("active_space_mandates") or []
+        ]),
+        ("Équipes de l’Espace", [
+            (_value(name), "")
+            for name in payload.get("space_teams") or []
+        ]),
+        ("Attestations émises", [
+            (_value(row.get("label")), str(row.get("count", 0)) + " attestation(s) valides")
+            for row in payload.get("credential_summary") or []
         ]),
     ]
     last_rows = None
