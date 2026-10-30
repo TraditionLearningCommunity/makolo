@@ -72,6 +72,68 @@ class _NowScreenState extends State<NowScreen> {
   Map<String, dynamic>? _pageContinuation;
   bool _paging = false;
   bool _pageFailed = false;
+  static const _continuationProjection = 'personal.now.continuation';
+
+  Future<void> _restorePages() async {
+    try {
+      final root = await widget.repository.store.readProjection('personal.now');
+      final local = await widget.repository.store.readProjection(
+        _continuationProjection,
+      );
+      if (!mounted || root == null || local == null) return;
+      final owner = root.payload['actor'];
+      final actorId = owner is Map ? owner['id']?.toString() : null;
+      final facts = local.payload;
+      if (actorId == null ||
+          facts['actor_id'] != actorId ||
+          facts['base_received_at'] != root.receivedAt.toUtc().toIso8601String() ||
+          facts['items'] is! List ||
+          facts['continuation'] is! Map) {
+        return;
+      }
+      final restored = <Map<String, dynamic>>[];
+      for (final raw in facts['items'] as List) {
+        if (raw is Map<String, dynamic>) restored.add(raw);
+      }
+      if (restored.isEmpty) return;
+      if (_paging) return;
+      setState(() {
+        _pagedBaseReceivedAt = root.receivedAt;
+        _pagedActorId = actorId;
+        _pagedItems
+          ..clear()
+          ..addAll(restored);
+        _pageContinuation =
+            Map<String, dynamic>.from(facts['continuation'] as Map);
+        _pageFailed = false;
+      });
+    } on Object {
+      // A corrupt local overlay must not hide the authoritative Now root.
+    }
+  }
+
+  Future<void> _rememberPages(
+    DateTime baseReceivedAt,
+    String? actorId,
+    List<Map<String, dynamic>> items,
+    Map<String, dynamic> continuation,
+  ) async {
+    if (actorId == null) return;
+    try {
+      await widget.repository.store.putProjection(
+        kind: _continuationProjection,
+        schemaVersion: 1,
+        payload: {
+          'actor_id': actorId,
+          'base_received_at': baseReceivedAt.toUtc().toIso8601String(),
+          'items': items,
+          'continuation': continuation,
+        },
+      );
+    } on Object {
+      // Device storage failure does not invalidate the visible server lot.
+    }
+  }
 
   void _resetPages() {
     _pagedBaseReceivedAt = null;
@@ -169,6 +231,12 @@ class _NowScreenState extends State<NowScreen> {
         _pageContinuation = Map<String, dynamic>.from(next);
         _pageFailed = false;
       });
+      await _rememberPages(
+        baseReceivedAt,
+        actorId,
+        List<Map<String, dynamic>>.from(_pagedItems),
+        Map<String, dynamic>.from(next),
+      );
     } on Object {
       if (mounted &&
           _pagedBaseReceivedAt == baseReceivedAt &&
@@ -186,6 +254,7 @@ class _NowScreenState extends State<NowScreen> {
   void initState() {
     super.initState();
     _bindStreams();
+    _restorePages();
   }
 
   @override
@@ -195,6 +264,7 @@ class _NowScreenState extends State<NowScreen> {
         oldWidget.profileId != widget.profileId) {
       _resetPages();
       _bindStreams();
+      _restorePages();
     }
   }
 
