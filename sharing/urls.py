@@ -8,7 +8,9 @@ from .document_views import (
 )
 from .passport_views import (
     MyPassportView,
+    MyPassportHistoryView,
     PassportVerificationView,
+    SpacePassportHistoryView,
     ProfilePassportView,
     SpacePassportView,
 )
@@ -32,6 +34,8 @@ app_name = "sharing"
 
 urlpatterns = [
     path("passport/me/", MyPassportView.as_view(), name="passport-me"),
+    path("passport/me/history/", MyPassportHistoryView.as_view(), name="passport-me-history"),
+    path("passport/spaces/<slug:slug>/history/", SpacePassportHistoryView.as_view(), name="passport-space-history"),
     path("passport/profile/<uuid:profile_id>/", ProfilePassportView.as_view(), name="passport-profile"),
     path("passport/spaces/<slug:slug>/", SpacePassportView.as_view(), name="passport-space"),
     path("passport/verify/<str:token>/", PassportVerificationView.as_view(), name="passport-verify"),
