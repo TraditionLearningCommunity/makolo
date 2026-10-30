@@ -117,7 +117,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
   Future<void> _persistAvatar(Map<String, dynamic> data) async {
     final avatar = _text(_map(data['identity'])['avatar_url']);
     final local = await _avatarFile();
-    if (avatar == null || local == null) return;
+    if (local == null) return;
+    if (avatar == null) {
+      if (await local.exists()) await local.delete();
+      if (mounted) setState(() => _cachedAvatar = null);
+      return;
+    }
     final uri = Uri.tryParse(avatar);
     if (uri == null) return;
     final base = widget.api.baseUri;
