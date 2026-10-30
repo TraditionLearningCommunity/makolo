@@ -321,6 +321,23 @@ class PersonalMeCapitalAPIContractTests(TestCase):
                 response.json()["data"]["collectives"]["active_space_mandates"], [],
             )
 
+    def test_dated_history_api_never_reads_another_profiles_snapshots(self):
+        from sharing.passport import build_profile_passport
+        from sharing.passport_documents import issue_passport_snapshot
+
+        mine = issue_passport_snapshot(build_profile_passport(self.user, variant="complete"))
+        another = issue_passport_snapshot(build_profile_passport(self.other, variant="complete"))
+        listing = self.client.get("/api/v1/me/passport/history/")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing.json()["data"]["count"], 1)
+        self.assertEqual(listing.json()["data"]["items"][0]["id"], str(mine.pk))
+        self.assertEqual(listing["Cache-Control"], "private, no-store")
+        one = self.client.get(f"/api/v1/me/passport/history/{mine.pk}/")
+        self.assertEqual(one.status_code, 200)
+        self.assertEqual(one.json()["data"]["document_id"], mine.document_id)
+        denied = self.client.get(f"/api/v1/me/passport/history/{another.pk}/")
+        self.assertEqual(denied.status_code, 404)
+
     def test_passport_pdf_is_authenticated_and_issues_verifiable_snapshot(self):
         from sharing.models import PassportSnapshot
 
