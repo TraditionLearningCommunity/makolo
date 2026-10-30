@@ -95,6 +95,52 @@ void main() {
   );
 
   testWidgets(
+    'a Resource already visible in a list keeps its safe summary offline',
+    (tester) async {
+      final database = MakoloDatabase.memory();
+      addTearDown(database.close);
+      final store = ProfileStore(database, 'profile-a');
+      final repository = ResourceRepository(
+        database: database,
+        store: store,
+        profileId: 'profile-a',
+      );
+      await store.putProjection(
+        kind: ResourceRepository.collectionProjectionKind,
+        resourceKey: repository.collectionResourceKey(query: '', offset: 0),
+        schemaVersion: 1,
+        payload: {
+          'documents': {
+            'items': [
+              {
+                'id': 'asset-seen',
+                'title': 'Document déjà connu',
+                'asset_kind_label': 'Attestation',
+                'sensitivity_label': 'Sensible',
+              },
+            ],
+          },
+        },
+      );
+      await tester.pumpWidget(MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ResourceDetailScreen(
+          assetId: 'asset-seen',
+          repository: repository,
+          personal: PersonalRepository(store),
+          onOpenJourney: (_) {},
+        ),
+      ));
+      await tester.pump();
+      expect(find.text('Document déjà connu'), findsOneWidget);
+      expect(find.textContaining('Attestation · Sensible'), findsOneWidget);
+      expect(find.text('Télécharger'), findsNothing);
+      expect(find.text('Réutiliser dans une démarche'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
     'PersonalAsset detail says unknown provenance and no fake Requirement success',
     (tester) async {
       final database = MakoloDatabase.memory();
