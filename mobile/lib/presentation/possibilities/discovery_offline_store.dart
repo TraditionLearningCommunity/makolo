@@ -55,6 +55,7 @@ class DiscoveryOfflineStore {
   }
 
   Future<Uint8List?> recognizedImage(Uri url) async {
+    if (!isPublishedRecognitionUri(url)) return null;
     final file = await _recognitionFile(url);
     if (!await file.exists()) return null;
     final size = await file.length();
@@ -66,6 +67,9 @@ class DiscoveryOfflineStore {
   }
 
   Future<void> retainRecognitionImage(Uri url, Uint8List bytes) async {
+    if (!isPublishedRecognitionUri(url)) {
+      throw const FormatException('Unpublished recognition media cannot persist');
+    }
     if (bytes.isEmpty || bytes.length > maxRecognitionBytes) {
       throw const FormatException('Invalid published recognition image');
     }
