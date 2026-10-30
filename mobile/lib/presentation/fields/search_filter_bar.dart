@@ -100,7 +100,8 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   widget.filters,
-                  if (widget.onClearFilters != null || widget.showResultsAction) ...[
+                  if (widget.onClearFilters != null ||
+                      widget.showResultsAction) ...[
                     const SizedBox(height: MakoloSpacing.md),
                     Wrap(
                       alignment: WrapAlignment.end,
