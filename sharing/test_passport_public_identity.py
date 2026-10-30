@@ -176,7 +176,7 @@ class PassportPublicIdentityTests(TestCase):
 
         verification = self.client.get(response.context["passport_verification_url"])
         self.assertEqual(verification.status_code, 200)
-        self.assertContains(verification, "Document Makolo authentique")
+        self.assertContains(verification, "Version émise par Makolo")
         self.assertContains(verification, snapshot.document_id)
         self.assertContains(verification, snapshot.payload_hash)
 
