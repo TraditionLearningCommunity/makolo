@@ -3,7 +3,7 @@ import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 
 void main() {
-  test('Discovery keeps ten recent view snapshots without touching owner roots',
+  test('raw Discovery cursor views remain available alongside owner roots',
       () async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
@@ -33,10 +33,10 @@ void main() {
         receivedAt: DateTime.utc(2026, 10, 1).add(Duration(minutes: i)),
       );
     }
-    expect((await store.readProjections('discovery.item')).length, 10);
+    expect((await store.readProjections('discovery.item')).length, 13);
     expect(await store.readProjection(
       'discovery.item', resourceKey: 'item-0',
-    ), isNull);
+    ), isNotNull);
     expect(await store.readProjection(
       'discovery.item', resourceKey: 'item-12',
     ), isNotNull);
@@ -64,7 +64,7 @@ void main() {
         payload: {'id': i},
       );
     }
-    expect((await a.readProjections('discovery.item')).length, 10);
+    expect((await a.readProjections('discovery.item')).length, 13);
     expect((await b.readProjections('discovery.item')).length, 1);
     expect(await b.readProjection(
       'discovery.item', resourceKey: 'other',
