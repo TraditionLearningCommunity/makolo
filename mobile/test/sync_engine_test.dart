@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -168,6 +169,89 @@ void main() {
       expect(source.lastErrorCode, isNull);
     },
   );
+
+  test('slow Now does not hold back Ongoing and Me on first sync', () async {
+    final nowReply = Completer<MockResponse>();
+    final otherRootsSeen = Completer<void>();
+    final seen = <String>{};
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final client = MockClient((request) async {
+      final path = request.url.path;
+      if (path == '/api/v1/me/now/') return nowReply.future;
+      if (path == '/api/v1/me/interoperability/') {
+        return MockResponse(jsonEncode({
+          'schema_version': 'z16.v1',
+          'context': 'profile',
+          'providers': <Object>[],
+          'connections': <Object>[],
+          'actions': <Object>[],
+          'extensions': <Object>[],
+          'webhooks': <Object>[],
+        }), 200);
+      }
+      final key = switch (path) {
+        '/api/v1/me/ongoing/' => 'personal.ongoing',
+        '/api/v1/me/' => 'personal.me',
+        _ => throw StateError('Unexpected root: $path'),
+      };
+      seen.add(key);
+      if (seen.length == 2 && !otherRootsSeen.isCompleted) {
+        otherRootsSeen.complete();
+      }
+      return MockResponse(jsonEncode({
+        'meta': {
+          'projection': key,
+          'schema_version': 1,
+          'generated_at': '2026-10-30T09:00:00Z',
+          'scope': 'personal',
+        },
+        'data': {'items': <Object>[]},
+      }), 200);
+    });
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final sync = SyncEngine(
+      api: MakoloApiClient(
+        baseUri: Uri.parse('https://makolo.invalid/'),
+        dio: client.dio,
+        tokenStore: tokens,
+      ),
+      store: store,
+      database: database,
+      profileId: 'profile-a',
+    );
+
+    final refresh = sync.refreshRoots();
+    try {
+      await otherRootsSeen.future.timeout(const Duration(seconds: 2));
+      // The Now request remains unresolved: the other independent roots
+      // must have been requested regardless of the server's response order.
+      expect(nowReply.isCompleted, isFalse);
+      expect(seen, containsAll(['personal.ongoing', 'personal.me']));
+    } finally {
+      if (!nowReply.isCompleted) {
+        nowReply.complete(MockResponse(jsonEncode({
+          'meta': {
+            'projection': 'personal.now',
+            'schema_version': 1,
+            'generated_at': '2026-10-30T09:00:00Z',
+            'scope': 'personal',
+          },
+          'data': {'items': <Object>[]},
+        }), 200));
+      }
+      await refresh;
+    }
+    expect(await store.readProjection('personal.ongoing'), isNotNull);
+    expect(await store.readProjection('personal.me'), isNotNull);
+  });
 
   test(
     'keyed acquisition parses and applies through a source definition',
