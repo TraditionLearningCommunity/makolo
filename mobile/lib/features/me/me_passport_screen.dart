@@ -473,6 +473,49 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
+  Future<void> _shareDatedVersion(String snapshotId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Partager cette version émise ?'),
+        content: const Text(
+          'Ce partage donne accès uniquement au document sélectionné pendant '
+          '7 jours, même si votre Passeport est privé. Vous pourrez révoquer '
+          'le lien depuis l’historique Web.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Partager 7 jours'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final response = await widget.api.post(
+        'api/v1/me/passport/history/$snapshotId/share/',
+        body: const {'days': 7},
+      );
+      final data = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport.share',
+      ).data;
+      final url = _text(data['share_url']);
+      if (url == null) throw const FormatException('Missing sharing link');
+      await const SystemShareGateway().shareText(url);
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Partage de cette version indisponible.'),
+      ));
+    }
+  }
+
   Future<void> _showDatedHistory() async {
     try {
       final response = await widget.api.get('api/v1/me/passport/history/');
@@ -509,23 +552,37 @@ class _MePassportScreenState extends State<MePassportScreen> {
                           itemCount: entries.length,
                           itemBuilder: (context, index) {
                             final row = entries[index];
-                            final invalid = row['revoked'] == true ||
-                                row['integrity_ok'] == false;
+                            final revoked = row['revoked'] == true;
+                            final intact = row['integrity_ok'] == true;
                             return ListTile(
-                              leading: Icon(invalid
-                                  ? Icons.block_outlined
+                              leading: Icon(revoked
+                                  ? Icons.history_toggle_off_outlined
                                   : Icons.history_outlined),
                               title: Text(row['document_id']?.toString() ?? ''),
                               subtitle: Text(
                                 '${_historicalDate(row['generated_at'])} · '
                                 '${row['variant'] ?? ''}'
-                                '${invalid ? ' · Indisponible' : ''}',
+                                '${revoked ? ' · Révoqué' : ''}'
+                                '${!intact ? ' · Non intègre' : ''}',
                               ),
-                              onTap: invalid || row['id'] == null ? null : () {
+                              onTap: !intact || row['id'] == null ? null : () {
                                 final id = row['id'].toString();
                                 Navigator.pop(sheetContext);
                                 _openDatedVersion(id);
                               },
+                              trailing: !revoked && intact &&
+                                      row['variant'] != 'complete' &&
+                                      row['id'] != null
+                                  ? IconButton(
+                                      tooltip: 'Partager cette version',
+                                      icon: const Icon(Icons.share_outlined),
+                                      onPressed: () {
+                                        final id = row['id'].toString();
+                                        Navigator.pop(sheetContext);
+                                        _shareDatedVersion(id);
+                                      },
+                                    )
+                                  : null,
                             );
                           },
                         ),
