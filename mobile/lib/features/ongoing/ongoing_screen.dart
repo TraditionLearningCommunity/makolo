@@ -91,6 +91,16 @@ class _OngoingScreenState extends State<OngoingScreen> {
 
   String _ownerKey(OngoingContinuityPresentation item) => item.id;
 
+  String? _profileId() {
+    try {
+      return widget.repository.store.profileId;
+    } on Object {
+      // Presentation-only test repositories may not have device storage.
+      // No private file is written without a known Profile scope.
+      return null;
+    }
+  }
+
   Future<void> _setSaved(
     OngoingPossibilityPresentation action,
     bool saved,
@@ -220,7 +230,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
             preservedMessage: '',
             onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
             content: _OngoingAdaptiveView(
-              profileId: widget.repository.store.profileId,
+              profileId: _profileId(),
               items: items,
               selected: selected,
               stale: stale,
@@ -264,7 +274,7 @@ class _OngoingAdaptiveView extends StatelessWidget {
     this.moreError,
     this.endReached = false,
   });
-  final String profileId;
+  final String? profileId;
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
   final bool stale;
@@ -366,7 +376,7 @@ class _OngoingField extends StatefulWidget {
     this.endReached = false,
   });
 
-  final String profileId;
+  final String? profileId;
   final List<OngoingContinuityPresentation> items;
   final OngoingContinuityPresentation? selected;
   final bool stale;
@@ -1040,7 +1050,7 @@ class _OngoingProtectedImage extends StatelessWidget {
   });
 
   final MakoloApiClient api;
-  final String profileId;
+  final String? profileId;
   final String imageUrl;
   final String label;
 
@@ -1077,9 +1087,11 @@ void _openOngoingProtectedMedia(
             mimeType: mimeType,
             authorizedImageBytes: () async {
               final path = Uri.parse(imageUrl).path;
-              final retained = await ProfileRecognitionImageStore(
-                profileId: profileId,
-              ).read(path);
+              final retained = profileId == null
+                  ? null
+                  : await ProfileRecognitionImageStore(
+                      profileId: profileId,
+                    ).read(path);
               return retained ?? api.getPresentationImage(path);
             },
           ),
@@ -1102,7 +1114,7 @@ class _OngoingRow extends StatelessWidget {
     this.api,
   });
 
-  final String profileId;
+  final String? profileId;
   final OngoingContinuityPresentation item;
   final bool selected;
   final bool stale;
@@ -1319,7 +1331,7 @@ class _OngoingFocus extends StatelessWidget {
     this.baseUri,
   });
 
-  final String profileId;
+  final String? profileId;
   final OngoingContinuityPresentation item;
   final VoidCallback onBack;
   final bool stale;
