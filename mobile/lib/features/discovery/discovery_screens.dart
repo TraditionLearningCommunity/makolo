@@ -378,7 +378,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       _query = query;
       _locationMessage = 'Recherche autour de votre position (25 km).';
     });
-    await _submit(_search.text);
+    _submit(_search.text);
   }
 
   void _movePage(int page) {
