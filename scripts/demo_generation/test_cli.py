@@ -78,5 +78,26 @@ class DemoGenerationCLITests(unittest.TestCase):
         audit.assert_called_once_with(["--at", "2026-10-30T18:00:00+02:00"])
 
 
+
+    def test_live_placement_routes_without_generating_other_domains(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "placement", "--count", "3",
+        ])
+        with patch("scripts.demo_generation.live.main") as live, \
+             patch("scripts.demo_generation.scale.main") as scale:
+            run(args)
+        self.assertIn("placement", live.call_args.args[0])
+        self.assertNotIn("--apply", live.call_args.args[0])
+        scale.assert_not_called()
+
+    def test_generate_media_routes_explicit_write(self):
+        args = build_parser().parse_args([
+            "generate", "--domains", "media", "--count", "3",
+        ])
+        with patch("scripts.demo_generation.media.main") as media:
+            run(args)
+        self.assertIn("--apply", media.call_args.args[0])
+
+
 if __name__ == "__main__":
     unittest.main()
