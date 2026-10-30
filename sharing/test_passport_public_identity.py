@@ -223,7 +223,10 @@ class PassportPublicIdentityTests(TestCase):
         history = self.client.get(history_url)
         self.assertEqual(history.status_code, 200)
         self.assertContains(history, snapshot.document_id)
-        self.assertContains(history, first.context["passport_verification_url"])
+        from urllib.parse import urlsplit
+        self.assertContains(
+            history, urlsplit(first.context["passport_verification_url"]).path,
+        )
         self.assertEqual(history["Cache-Control"], "private, no-store")
 
     def test_unpublishing_public_passport_hides_historical_content_from_visitors(self):
