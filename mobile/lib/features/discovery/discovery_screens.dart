@@ -293,7 +293,6 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
-  bool _filtersExpanded = false;
 
   @override
   void initState() {
@@ -508,7 +507,6 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               filterPanelKey: const Key('discover-search-filter-panel'),
               showResultsAction: true,
               onClearFilters: _clearFilters,
-              onExpansionChanged: (value) => setState(() => _filtersExpanded = value),
               hasActiveFilters: _place.text.trim().isNotEmpty ||
                   _when.isNotEmpty || _date.isNotEmpty ||
                   _price.isNotEmpty || _query.latitude != null,
@@ -598,17 +596,14 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       appBar: AppBar(title: const Text('Rechercher')),
       body: Column(
         children: [
-          if (_filtersExpanded)
-            Flexible(
-              fit: FlexFit.loose,
-              child: SingleChildScrollView(
-                key: const Key('discover-search-controls-scroll'),
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-                child: _searchControls(),
-              ),
-            )
-          else
-            _searchControls(),
+          Flexible(
+            fit: FlexFit.loose,
+            child: SingleChildScrollView(
+              key: const Key('discover-search-controls-scroll'),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+              child: _searchControls(),
+            ),
+          ),
           Expanded(
             child: Builder(
               builder: (context) {
