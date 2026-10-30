@@ -81,8 +81,8 @@ def main(argv=None):
                 activity=activity, occurrence__isnull=True, asset=asset,
                 purpose=PresentationMediaPurpose.RECOGNIZE,
             ).exclude(state=PresentationMediaState.RETIRED).order_by("id").first()
-            if existing and existing.state == PresentationMediaState.PUBLISHED:
-                counts["existing_published"] += 1
+            if existing:
+                counts["existing_published" if existing.state == PresentationMediaState.PUBLISHED else "existing_draft"] += 1
                 continue
             if not a.apply:
                 counts["planned"] += 1
@@ -95,7 +95,7 @@ def main(argv=None):
                 alt_text = (source_use.alt_text if source_use else
                     "Illustration de demonstration pour " + activity.title[:200])
                 with transaction.atomic():
-                    use = existing or associate_presentation_media(
+                    use = associate_presentation_media(
                         actor=actor, activity=activity, asset=asset,
                         purpose=PresentationMediaPurpose.RECOGNIZE,
                         alt_text=alt_text,
