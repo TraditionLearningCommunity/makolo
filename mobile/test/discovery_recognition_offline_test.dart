@@ -74,7 +74,7 @@ void main() {
     var retained = 0;
     for (var i = 0; i < 13; i++) {
       if (await store.recognizedImage(
-        Uri.parse('https://makolo.example/image/$i'),
+        publicUse(i + 1),
       ) != null) {
         retained++;
       }
