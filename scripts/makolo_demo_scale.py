@@ -333,7 +333,8 @@ def main():
                     try:
                         tt = configure_ticket_type(actor=actor, event=event,
                             occurrence=occurrence, name="Billet standard demo",
-                            price="12.50", currency="USD", quantity_total=500,
+                            price=("0.00" if event.pk.int % 4 == 0 else "12.50"),
+                            currency="USD", quantity_total=500,
                             min_per_order=1, max_per_order=4)
                         counts["ticket_types_created"] += 1
                     except (ValidationError, PermissionDenied):
