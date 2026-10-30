@@ -1,5 +1,6 @@
 from django.utils import timezone
 from django.http import Http404
+from django.core.exceptions import ValidationError as DjangoValidationError, PermissionDenied as DjangoPermissionDenied
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 
@@ -10,6 +11,7 @@ from rest_framework.views import APIView
 from sharing.passport_pdf import passport_pdf_response
 from sharing.models import PassportSnapshot
 from sharing.passport_documents import passport_verification_token, snapshot_payload_is_intact
+from sharing.passport_sharing import create_passport_share
 from sharing.passport import build_profile_passport, PASSPORT_VARIANTS
 
 from core.api.me_projection import (
@@ -377,6 +379,34 @@ class PersonalPassportVersionAPIView(PersonalProjectionAPIView):
             },
             observed_at=timezone.now(),
         )
+
+
+class PersonalPassportShareAPIView(PersonalProjectionAPIView):
+    """Sharing grant for one existing issued document; never issues a new one."""
+    projection_code = "personal.me.passport.share"
+
+    def post(self, request, snapshot_id):
+        self._guard_personal_scope(request, include_body=True)
+        snapshot = get_object_or_404(
+            PassportSnapshot, pk=snapshot_id, profile=request.user,
+        )
+        try:
+            days = int(request.data.get("days", 7))
+            envelope, url = create_passport_share(
+                snapshot=snapshot, actor=request.user, days=days,
+            )
+        except (TypeError, ValueError, DjangoValidationError) as exc:
+            raise ValidationError(
+                {"days": "Partage impossible : durée invalide ou document indisponible."}
+            ) from exc
+        except DjangoPermissionDenied as exc:
+            raise Http404("Partage non autorisé.") from exc
+        return self._response({
+            "share_id": str(envelope.pk),
+            "share_url": url,
+            "expires_at": envelope.expires_at.isoformat(),
+            "document_id": snapshot.document_id,
+        }, observed_at=timezone.now())
 
 
 class PersonalResourcesAPIView(PersonalProjectionAPIView):
