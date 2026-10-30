@@ -1,4 +1,5 @@
 from django.utils import timezone
+from core.web_throttling import allow_web_request, value_rate_identity
 from django.http import Http404
 from django.core.exceptions import ValidationError as DjangoValidationError, PermissionDenied as DjangoPermissionDenied
 from django.shortcuts import get_object_or_404
@@ -387,6 +388,19 @@ class PersonalPassportShareAPIView(PersonalProjectionAPIView):
 
     def post(self, request, snapshot_id):
         self._guard_personal_scope(request, include_body=True)
+        identity = [value_rate_identity("issuer", str(request.user.pk))]
+        if not (
+            allow_web_request(
+                request, scope="passport-share-minute", limit=12,
+                window_seconds=60, identities=identity,
+            )
+            and allow_web_request(
+                request, scope="passport-share-hour", limit=60,
+                window_seconds=3600, identities=identity,
+            )
+        ):
+            from rest_framework.exceptions import Throttled
+            raise Throttled(detail="Trop de partages. Réessayez plus tard.")
         snapshot = get_object_or_404(
             PassportSnapshot, pk=snapshot_id, profile=request.user,
         )
