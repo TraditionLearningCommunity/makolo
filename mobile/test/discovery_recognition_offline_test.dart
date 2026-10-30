@@ -27,6 +27,35 @@ void main() {
     expect(await store.recognizedImage(uri), isNull);
   });
 
+  test('automatic Discovery images rotate at ten without deleting Reader files', (
+    ) async {
+    final root = await Directory.systemTemp.createTemp('makolo-budget-test-');
+    addTearDown(() async => root.delete(recursive: true));
+    final store = DiscoveryOfflineStore(rootOverride: root);
+    final savedUrl = Uri.parse('https://makolo.example/manual.pdf');
+    final source = File('${root.path}/manual.pdf');
+    await source.writeAsBytes([1, 2, 3]);
+    await store.save(savedUrl, source);
+
+    for (var i = 0; i < 13; i++) {
+      await store.retainRecognitionImage(
+        Uri.parse('https://makolo.example/image/$i'),
+        Uint8List.fromList([i + 1]),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 3));
+    }
+    var retained = 0;
+    for (var i = 0; i < 13; i++) {
+      if (await store.recognizedImage(
+        Uri.parse('https://makolo.example/image/$i'),
+      ) != null) {
+        retained++;
+      }
+    }
+    expect(retained, DiscoveryOfflineStore.maxAutomaticImages);
+    expect(await store.retained(savedUrl), isNotNull);
+  });
+
   test('manual Reader retention is independent of automatic card bytes', (
     ) async {
     final root = await Directory.systemTemp.createTemp('makolo-reader-media-');
