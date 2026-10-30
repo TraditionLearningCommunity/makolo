@@ -21,7 +21,7 @@ class PassportShareCreateView(LoginRequiredMixin, View):
             envelope, url = create_passport_share(
                 snapshot=snapshot, actor=request.user, days=days,
             )
-        except (TypeError, ValueError, ValidationError) as exc:
+        except (TypeError, ValueError, ValidationError):
             return render(
                 request, "sharing/passport_share_created.html",
                 {"error": "Sélection de partage invalide.", "share_url": ""},
