@@ -11,6 +11,10 @@ import '../../design/makolo_patterns.dart';
 import '../../design/makolo_theme.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/possibilities/discovery_possibility_unit.dart';
+import '../../presentation/fields/search_filter_bar.dart';
+import '../../presentation/fields/geo_autocomplete_field.dart';
+import '../../platform/location/geo_search_gateway.dart';
+import '../../platform/location/location_capability.dart';
 import '../../presentation/search/progressive_search_coordinator.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../sync/freshness.dart';
@@ -262,11 +266,15 @@ class DiscoverySearchScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenActivity,
     required this.onOpenItem,
+    this.location,
+    this.geoSearch,
   });
 
   final DiscoveryRepository repository;
   final ValueChanged<String> onOpenActivity;
   final void Function(String family, String id) onOpenItem;
+  final LocationCapability? location;
+  final GeoSearchGateway? geoSearch;
 
   @override
   State<DiscoverySearchScreen> createState() => _DiscoverySearchScreenState();
@@ -275,6 +283,13 @@ class DiscoverySearchScreen extends StatefulWidget {
 class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   static const _selector = DiscoverySelector();
   final _search = TextEditingController();
+  final _place = TextEditingController();
+  GeoSuggestion? _selectedPlace;
+  String _when = '';
+  String _date = '';
+  String _price = '';
+  String _vertical = '';
+  String? _locationMessage;
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
@@ -289,7 +304,67 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   void dispose() {
     _searchCoordinator.dispose();
     _search.dispose();
+    _place.dispose();
     super.dispose();
+  }
+
+  void _applyCriteria({bool immediate = true}) {
+    _searchChanged(_search.text, immediate: immediate);
+  }
+
+  Future<void> _chooseDate() async {
+    final today = DateTime.now();
+    final chosen = await showDatePicker(
+      context: context,
+      initialDate: DateTime.tryParse(_date) ?? today,
+      firstDate: DateTime(today.year - 1),
+      lastDate: DateTime(today.year + 5),
+      helpText: 'Choisir une date',
+    );
+    if (!mounted || chosen == null) return;
+    setState(() {
+      _when = 'custom';
+      _date = '${chosen.year.toString().padLeft(4, '0')}-'
+          '${chosen.month.toString().padLeft(2, '0')}-'
+          '${chosen.day.toString().padLeft(2, '0')}';
+    });
+    _applyCriteria();
+  }
+
+  void _clearNearby() {
+    setState(() {
+      _query = _query.copyWith(clearLocation: true, clearContinuation: true);
+      _locationMessage = null;
+    });
+    _applyCriteria();
+  }
+
+  Future<void> _toggleNearby() async {
+    if (_query.latitude != null) {
+      _clearNearby();
+      return;
+    }
+    final location = widget.location;
+    if (location == null) {
+      setState(() => _locationMessage = 'Position indisponible. La recherche par mots-clés reste possible.');
+      return;
+    }
+    final result = await location.current();
+    if (!mounted) return;
+    if (!result.available || result.fix == null) {
+      setState(() => _locationMessage = 'Position indisponible. La recherche par mots-clés reste possible.');
+      return;
+    }
+    setState(() {
+      _query = _query.copyWith(
+        latitude: result.fix!.latitude,
+        longitude: result.fix!.longitude,
+        radiusKm: 25,
+        clearContinuation: true,
+      );
+      _locationMessage = null;
+    });
+    _applyCriteria();
   }
 
   // Guest and personal search use the same debounced request scheduler.
@@ -297,6 +372,13 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   void _searchChanged(String value, {bool immediate = false}) {
     final query = _query.copyWith(
       text: value.trim(),
+      place: _selectedPlace == null
+          ? _place.text.trim()
+          : _selectedPlace!.label.split(',').first.trim(),
+      when: _when == 'custom' ? '' : _when,
+      date: _date,
+      price: _price,
+      vertical: _vertical,
       page: 1,
       clearContinuation: true,
     );
@@ -374,8 +456,15 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   void _resetCriteria() {
     _searchCoordinator.invalidate();
     _search.clear();
+    _place.clear();
+    _selectedPlace = null;
+    _when = '';
+    _date = '';
+    _price = '';
+    _vertical = '';
     setState(() {
       _query = const DiscoveryQuery();
+      _locationMessage = null;
     });
   }
 
@@ -402,14 +491,150 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               MakoloSpacing.inner,
               MakoloSpacing.sm,
             ),
-            child: SearchBar(
-              key: const Key('discover-search-field'),
-              controller: _search,
-              autoFocus: true,
-              hintText: 'Rechercher une possibilité',
-              leading: const Icon(Icons.search_rounded),
-              onChanged: _searchChanged,
-              onSubmitted: _submit,
+            child: SearchFilterBar(
+              filterButtonKey: const Key('discover-search-filter-toggle'),
+              filterPanelKey: const Key('discover-search-filter-panel'),
+              hasActiveFilters: _place.text.trim().isNotEmpty ||
+                  _when.isNotEmpty || _date.isNotEmpty ||
+                  _price.isNotEmpty || _query.latitude != null,
+              searchField: TextField(
+                key: const Key('discover-search-field'),
+                controller: _search,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                onChanged: _searchChanged,
+                onSubmitted: _submit,
+                decoration: InputDecoration(
+                  hintText: 'Rechercher une possibilité',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: _search.text.isEmpty ? null : IconButton(
+                    key: const Key('discover-search-clear'),
+                    tooltip: 'Effacer la recherche',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () {
+                      _search.clear();
+                      _applyCriteria();
+                    },
+                  ),
+                ),
+              ),
+              filters: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  GeoAutocompleteField(
+                    fieldKey: const Key('discover-search-place'),
+                    controller: _place,
+                    gateway: widget.geoSearch,
+                    onSelected: (place) {
+                      setState(() => _selectedPlace = place);
+                      _applyCriteria();
+                    },
+                    onEdited: () {
+                      _selectedPlace = null;
+                      _applyCriteria(immediate: false);
+                    },
+                    onSubmitted: () => _applyCriteria(),
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                  OutlinedButton.icon(
+                    key: const Key('discover-search-nearby'),
+                    onPressed: _toggleNearby,
+                    icon: Icon(_query.latitude == null
+                        ? Icons.near_me_outlined
+                        : Icons.location_off_outlined),
+                    label: Text(_query.latitude == null
+                        ? 'Autour de moi · 25 km'
+                        : 'Retirer « Autour de moi »'),
+                  ),
+                  if (_locationMessage != null)
+                    Text(_locationMessage!),
+                  const SizedBox(height: MakoloSpacing.md),
+                  DropdownButtonFormField<String>(
+                    key: const Key('discover-search-when'),
+                    initialValue: _when,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Quand ?',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Toutes les dates')),
+                      DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')),
+                      DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
+                      DropdownMenuItem(value: 'weekend', child: Text('Ce week-end')),
+                      DropdownMenuItem(value: 'week', child: Text('Cette semaine')),
+                      DropdownMenuItem(value: 'custom', child: Text('Choisir une date…')),
+                    ],
+                    onChanged: (value) {
+                      if (value == 'custom') {
+                        unawaited(_chooseDate());
+                      } else {
+                        setState(() {
+                          _when = value ?? '';
+                          _date = '';
+                        });
+                        _applyCriteria();
+                      }
+                    },
+                  ),
+                  if (_date.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: _chooseDate,
+                      icon: const Icon(Icons.edit_calendar_outlined),
+                      label: Text('Date : $_date'),
+                    ),
+                  const SizedBox(height: MakoloSpacing.md),
+                  DropdownButtonFormField<String>(
+                    key: const Key('discover-search-price'),
+                    initialValue: _price,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Budget',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.payments_outlined),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '', child: Text('Tous les prix')),
+                      DropdownMenuItem(value: 'free', child: Text('Gratuit')),
+                      DropdownMenuItem(value: 'paid', child: Text('Payant')),
+                    ],
+                    onChanged: (value) {
+                      setState(() => _price = value ?? '');
+                      _applyCriteria();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 48,
+            child: ListView(
+              key: const Key('discover-search-categories'),
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final category in const [
+                  ('', 'Tout', Icons.apps_rounded),
+                  ('transport', 'Voyager', Icons.directions_bus_outlined),
+                  ('event', 'Événements', Icons.event_outlined),
+                  ('service', 'Services', Icons.handshake_outlined),
+                  ('other', 'Autres', Icons.explore_outlined),
+                ]) ...[
+                  ChoiceChip(
+                    label: Text(category.$2),
+                    avatar: Icon(category.$3, size: 18),
+                    selected: _vertical == category.$1,
+                    showCheckmark: false,
+                    onSelected: (_) {
+                      setState(() => _vertical = category.$1);
+                      _applyCriteria();
+                    },
+                  ),
+                  const SizedBox(width: MakoloSpacing.sm),
+                ],
+              ],
             ),
           ),
           Expanded(
