@@ -1,6 +1,9 @@
 package com.makolo
 
+import android.content.ContentValues
 import android.content.Intent
+import android.os.Environment
+import android.provider.MediaStore
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,6 +17,7 @@ import java.io.File
 class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val SHARE_CHANNEL = "makolo/native_share"
+        private const val DOWNLOAD_CHANNEL = "makolo/downloads"
     }
 
     private var shareChannel: MethodChannel? = null
@@ -63,6 +67,14 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
         }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DOWNLOAD_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                if (call.method == "saveFile") {
+                    saveToDownloads(call.arguments, result)
+                } else {
+                    result.notImplemented()
+                }
+            }
         if (pendingShare == null) {
             pendingShare = parseShareIntent(intent)
         }
@@ -175,4 +187,56 @@ class MainActivity : FlutterFragmentActivity() {
             result.error("share_copy_failed", "Unable to stage shared content.", null)
         }
     }
+    private fun saveToDownloads(arguments: Any?, result: MethodChannel.Result) {
+        val args = arguments as? Map<*, *>
+        val path = args?.get("source_path") as? String
+        val name = args?.get("file_name") as? String
+        val mime = args?.get("mime_type") as? String
+        if (path.isNullOrBlank() || name.isNullOrBlank() || mime.isNullOrBlank()) {
+            result.error("invalid_arguments", "Missing download parameters.", null)
+            return
+        }
+        // Never use remote URLs or filesystem paths as exported filenames.
+        if (name != File(name).name || name == "." || name == ".." ||
+            name.contains('/') || name.contains('\\') || name.any { it.code < 32 }) {
+            result.error("invalid_filename", "Unsafe download filename.", null)
+            return
+        }
+        val source = File(path)
+        if (!source.isFile || source.length() <= 0L) {
+            result.error("missing_file", "The download is unavailable.", null)
+            return
+        }
+        // Scoped storage owns public Downloads on Android 10+. On older
+        // Android versions no share-picker or silent private-cache fallback.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            result.error("unsupported_android", "Downloads requires Android 10 or later.", null)
+            return
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, mime)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        var destination: Uri? = null
+        try {
+            destination = contentResolver.insert(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI, values,
+            ) ?: throw IllegalStateException("Cannot create download.")
+            contentResolver.openOutputStream(destination)?.use { output ->
+                source.inputStream().use { input -> input.copyTo(output) }
+            } ?: throw IllegalStateException("Cannot write download.")
+            val publish = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }
+            contentResolver.update(destination, publish, null, null)
+            result.success(name)
+        } catch (error: Exception) {
+            destination?.let { contentResolver.delete(it, null, null) }
+            result.error("download_failed", "Unable to save to Downloads.", null)
+        }
+    }
+
+
 }
