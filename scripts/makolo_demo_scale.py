@@ -346,27 +346,31 @@ def main():
                     break
                 counts["orders_considered"] += 1
                 existing = TicketOrder.objects.filter(event=event,buyer=buyer,
-                    items__ticket_type=tt).exists()
+                    items__ticket_type=tt).order_by("created_at","id").first()
                 if existing:
                     counts["orders_existing"] += 1
-                    continue
                 if not args.apply:
-                    counts["orders_planned"] += 1
+                    counts["orders_planned"] += int(existing is None)
                     continue
                 try:
-                    order = create_order(buyer=buyer, event=event,
-                        customer_name=buyer.get_full_name() or buyer.username,
-                        customer_email=buyer.email or (buyer.username+"@example.test"),
-                        selections=[(tt,1)], auto_confirm_free=True)
-                    counts["orders_created"] += 1
+                    order = existing
+                    if order is None:
+                        order = create_order(buyer=buyer, event=event,
+                            customer_name=buyer.get_full_name() or buyer.username,
+                            customer_email=buyer.email or (buyer.username+"@example.test"),
+                            selections=[(tt,1)], auto_confirm_free=True)
+                        counts["orders_created"] += 1
                     if order.total_amount > 0 and sandbox:
-                        payment = initiate_payment(order=order, actor=buyer,
-                            provider=PaymentProvider.SANDBOX,
-                            method=PaymentMethod.MOBILE_MONEY,
-                            idempotency_key="makolo-demo-order:"+str(order.pk))
+                        key = "makolo-demo-order:" + str(order.pk)
+                        payment = Payment.objects.filter(idempotency_key=key).first()
+                        if payment is None:
+                            payment = initiate_payment(order=order, actor=buyer,
+                                provider=PaymentProvider.SANDBOX,
+                                method=PaymentMethod.MOBILE_MONEY,
+                                idempotency_key=key)
                         if payment.status != PaymentStatus.SUCCEEDED:
                             complete_sandbox_payment(payment=payment, actor=buyer)
-                        counts["sandbox_payments_completed"] += 1
+                            counts["sandbox_payments_completed"] += 1
                     elif order.total_amount > 0:
                         counts["paid_orders_pending_sandbox_disabled"] += 1
                 except (ValidationError, PermissionDenied):
