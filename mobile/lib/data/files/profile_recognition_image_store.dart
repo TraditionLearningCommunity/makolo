@@ -72,4 +72,19 @@ class ProfileRecognitionImageStore {
     final file = await _file(path);
     if (await file.exists()) await file.delete();
   }
+
+  /// Explicit owner revocation can purge the whole retained recognition set.
+  /// Transport timeouts and cache cleaning never call this method.
+  Future<void> purge() async {
+    final root = rootOverride == null
+        ? await ProfilePaths.privateRoot(profileId)
+        : Directory(
+            '${rootOverride!.path}/profiles/'
+            '${ProfilePaths.safeProfileId(profileId)}',
+          );
+    final directory = Directory('${root.path}/recognition-images');
+    if (await directory.exists()) {
+      await directory.delete(recursive: true);
+    }
+  }
 }
