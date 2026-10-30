@@ -355,7 +355,12 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
                               ],
                             ),
                           ),
-                          onTap: () => context.push(
+                          // Calendar is a secondary route above the indexed
+                          // personal shell. Pushing the shell's existing
+                          // /ongoing page again can duplicate its Navigator
+                          // page key (!keyReservation.contains(key)).
+                          // Go to the canonical N2 destination instead.
+                          onTap: () => context.go(
                             '/ongoing?continuity=${Uri.encodeQueryComponent(event.id)}',
                           ),
                         );
