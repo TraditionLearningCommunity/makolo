@@ -73,10 +73,10 @@ def _value(value):
 
 def _country(code):
     code = _value(code)
+    if code.upper() in {"CD", "RDC", "COD"}:
+        return "République démocratique du Congo"
     if len(code) != 2 or not code.isascii():
         return code
-    if code.upper() == "CD":
-        return "République démocratique du Congo"
     if code.upper() == "CG":
         return "République du Congo"
     try:
