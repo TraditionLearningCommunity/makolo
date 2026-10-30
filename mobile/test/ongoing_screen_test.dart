@@ -10,6 +10,7 @@ import 'package:makolo_mobile/design/makolo_theme.dart';
 import 'package:makolo_mobile/features/ongoing/ongoing_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/presentation/humanization.dart';
+import 'package:makolo_mobile/presentation/possibilities/discovery_reader.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 
 import 'support/presentation_harness.dart';
@@ -418,9 +419,12 @@ void main() {
     await tester.ensureVisible(text);
     await tester.tap(text);
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(DiscoveryReader), findsOneWidget);
     expect(find.text('Préparer les documents nécessaires.'), findsOneWidget);
-    await tester.tap(find.text('Fermer'));
+    expect(find.byTooltip('Exporter vers l’appareil'), findsOneWidget);
+    expect(find.byTooltip('Partager cette ressource'), findsOneWidget);
+    await tester.pageBack();
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Voir les 3 ressources'));
