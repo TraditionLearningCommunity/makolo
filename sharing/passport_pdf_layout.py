@@ -149,7 +149,9 @@ class PassportHero(Flowable):
         c.setFillColor(HexColor("#DCCEFF"))
         c.drawRightString(w - 23, h - 27, "MAKOLO")
         c.setFont(FONT, 7.8)
-        c.drawString(139, h - 26, self.meta["kind"].upper())
+        c.drawString(139, h - 26, (
+            self.meta["kind"] + "  ·  " + self.meta["variant"]
+        ).upper())
         if self.portrait:
             c.drawImage(self.portrait, 23, (h - 96) / 2, 96, 96, mask="auto")
         else:
