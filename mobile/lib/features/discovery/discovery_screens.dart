@@ -70,7 +70,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   bool _acquisitionFailed = false;
   bool _loadingMore = false;
   bool _loadMoreFailed = false;
-  String? _prefetching;
+  final Map<String, Future<void>> _pageRequests = {};
 
   @override
   void initState() {
@@ -137,9 +137,27 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
   }
 
-  /// Preserve the next server lot invisibly. Raw cursor pages remain the
-  /// only truth; nothing is promoted to the visible field until the user
-  /// advances. One page ahead is a bounded reserve without a ranking engine.
+  /// Share one in-flight request between invisible prefetch and visible
+  /// pagination. No extra ranking, no duplicate owner request.
+  Future<void> _acquirePage(DiscoveryQuery query) async {
+    if (await widget.repository.readItems(query) != null) return;
+    final key = query.fingerprint;
+    final running = _pageRequests[key];
+    if (running != null) {
+      await running;
+      return;
+    }
+    final request = widget.repository.refreshItems(query);
+    _pageRequests[key] = request;
+    try {
+      await request;
+    } finally {
+      _pageRequests.remove(key);
+    }
+  }
+
+  /// One invisible server continuation. A failed transport retains all
+  /// existing presentation and never fabricates another result.
   Future<void> _prefetchNext(DiscoveryQuery current) async {
     if (!mounted || !identical(current, _query)) return;
     try {
@@ -152,16 +170,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         page: current.page + 1,
         continuation: token,
       );
-      if (await widget.repository.readItems(next) != null) return;
-      if (_prefetching != null) return;
-      _prefetching = next.fingerprint;
-      try {
-        await widget.repository.refreshItems(next);
-      } finally {
-        _prefetching = null;
-      }
+      await _acquirePage(next);
     } on Object {
-      // No fresh server lot: retain current presentation unchanged.
+      // The existing field remains readable on network failure.
     }
   }
 
@@ -192,7 +203,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       // Only missing pages require the server; offline is not a new screen.
       var retained = await widget.repository.readItems(next);
       if (retained == null) {
-        await widget.repository.refreshItems(next);
+        await _acquirePage(next);
         final source = await widget.repository.readSource(
           widget.repository.itemsSource(next),
         );
