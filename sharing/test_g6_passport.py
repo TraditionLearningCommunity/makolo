@@ -326,6 +326,58 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertContains(response, "Attestation participation G6")
         self.assertNotContains(response, "Atelier santé privé G6")
 
+    def test_personalized_preview_excludes_unselected_facts_and_can_be_edited(self):
+        self.client.force_login(self.amina)
+        options = {
+            "variant": "custom",
+            "include": ["bio"],
+            "activity": str(self.owned_public.pk),
+        }
+        preview = self.client.get(reverse("sharing:passport-me"), options)
+        self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, "Atelier Python G6")
+        self.assertNotContains(preview, "Atelier santé privé G6")
+        self.assertNotContains(preview, "Attestation participation G6")
+        self.assertContains(preview, "Modifier la sélection")
+        self.assertIsNone(preview.context["selection_catalog"])
+        self.assertEqual(preview["Cache-Control"], "private, no-store")
+
+        editing = self.client.get(
+            reverse("sharing:passport-me"), {**options, "edit": "1"},
+        )
+        self.assertEqual(editing.status_code, 200)
+        self.assertIsNotNone(editing.context["selection_catalog"])
+        self.assertIn(str(self.owned_public.pk), editing.context["selected_activity_ids"])
+        self.assertIn("bio", editing.context["selected_sections"])
+        self.assertContains(editing, "Atelier santé privé G6")
+
+        exported = self.client.get(
+            reverse("sharing:passport-me"), {**options, "document": "1", "edit": "1"},
+        )
+        self.assertEqual(exported.status_code, 200)
+        payload = exported.context["passport_snapshot"].payload
+        self.assertEqual(
+            [item["title"] for item in payload["activities"]],
+            ["Atelier Python G6"],
+        )
+        self.assertEqual(payload["credentials"], [])
+        self.assertEqual(payload["identity"]["owner_details"], {})
+
+    def test_personalized_empty_choice_exports_identity_without_extra_facts(self):
+        self.client.force_login(self.amina)
+        response = self.client.get(
+            reverse("sharing:passport-me"),
+            {"variant": "custom", "document": "1"},
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.context["passport_snapshot"].payload
+        self.assertEqual(payload["identity"]["bio"], "")
+        self.assertEqual(payload["identity"]["profession"], "")
+        self.assertEqual(payload["identity"]["links"], [])
+        self.assertEqual(payload["activities"], [])
+        self.assertEqual(payload["proofs"], [])
+        self.assertEqual(payload["credentials"], [])
+
     def test_print_ready_and_downloadable_html_export(self):
         response = self.client.get(self.public_url, {"download": "1"})
         self.assertEqual(response.status_code, 200)
@@ -424,6 +476,52 @@ class G6SpacePassportTests(G6PassportFixtureMixin, TestCase):
             "Équipe interne confidentielle G6",
             document.context["passport_snapshot"].payload["space_teams"],
         )
+
+    def test_canonical_space_identifier_preserves_workspace_permissions(self):
+        url = reverse(
+            "public-passport", kwargs={"identifier": self.space.slug},
+        )
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile", "updated_at"])
+
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(url, {"variant": "complete"}).status_code, 404)
+
+        self.client.force_login(self.space_owner)
+        complete = self.client.get(url, {"variant": "complete"})
+        self.assertEqual(complete.status_code, 200)
+        self.assertContains(complete, "Réunion interne privée G6")
+        self.assertEqual(complete["Cache-Control"], "private, no-store")
+
+        custom = self.client.get(
+            url,
+            {
+                "variant": "custom",
+                "include": "bio",
+                "activity": str(self.space_private_activity.pk),
+            },
+        )
+        self.assertEqual(custom.status_code, 200)
+        self.assertContains(custom, "Réunion interne privée G6")
+        self.assertNotContains(custom, "Conférence IA Lubumbashi 2026")
+
+    def test_space_custom_requires_explicit_credential_selection(self):
+        self.client.force_login(self.space_owner)
+        response = self.client.get(
+            self.url,
+            {"variant": "custom", "include": ["bio"]},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["projection"].credential_summary, ())
+
+        selected = self.client.get(
+            self.url,
+            {"variant": "custom", "include": ["credentials"]},
+        )
+        self.assertEqual(selected.status_code, 200)
+        self.assertNotEqual(selected.context["projection"].credential_summary, ())
+        self.assertNotContains(selected, "Credential privé de Patrick G6")
 
     def test_public_space_pdf_contains_issued_attestation_summary(self):
         from io import BytesIO
