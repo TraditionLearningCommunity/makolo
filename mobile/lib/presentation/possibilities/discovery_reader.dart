@@ -19,11 +19,15 @@ class DiscoveryReaderItem {
     required this.title,
     required this.uri,
     required this.mimeType,
+    this.inlineText,
   });
 
   final String title;
   final Uri uri;
   final String mimeType;
+  /// Public text already carried by a permitted owner projection.
+  /// It is not fetched again and does not create a new document identity.
+  final String? inlineText;
 }
 
 bool discoverySafeDestination(Uri? uri) =>
@@ -163,6 +167,10 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     });
     final item = _item;
     final type = item.mimeType.toLowerCase();
+    if (type == 'text/plain' && item.inlineText != null) {
+      setState(() => _text = item.inlineText);
+      return;
+    }
     File? cached;
     if (type != 'text/html') {
       try {
@@ -237,7 +245,15 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       // A Web page is not silently treated as a downloadable file.
       if (item.mimeType == 'text/html') return;
       final file = _temporaryFile;
-      generated = file ?? _retainedFile ?? await _fetchTemporary(item);
+      if (item.inlineText != null) {
+        final dir = await getTemporaryDirectory();
+        generated = File(
+          '${dir.path}/makolo-resource-${DateTime.now().microsecondsSinceEpoch}.txt',
+        );
+        await generated.writeAsString(item.inlineText!, encoding: utf8);
+      } else {
+        generated = file ?? _retainedFile ?? await _fetchTemporary(item);
+      }
       await widget.sharing.shareFiles(paths: [generated.path]);
     } on Object {
       if (mounted) {
@@ -264,7 +280,8 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   }
 
   Future<void> _toggleOffline() async {
-    if (_offlineBusy || _item.mimeType == 'text/html') return;
+    if (_offlineBusy || _item.mimeType == 'text/html' ||
+        _item.inlineText != null) return;
     final item = _item;
     final generation = _generation;
     setState(() => _offlineBusy = true);
@@ -308,9 +325,12 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
 
   Future<void> _shareLink() async {
     final item = _item;
-    if (!discoverySafeDestination(item.uri)) return;
+    if (item.inlineText == null && !discoverySafeDestination(item.uri)) return;
     try {
-      await widget.sharing.shareText('${item.title}\n${item.uri}');
+      final shared = item.inlineText == null
+          ? '${item.title}\n${item.uri}'
+          : '${item.title}\n${item.inlineText}';
+      await widget.sharing.shareText(shared);
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -322,12 +342,14 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
 
   Future<void> _copyLink() async {
     final uri = _item.uri;
-    if (!discoverySafeDestination(uri)) return;
+    if (_item.inlineText == null && !discoverySafeDestination(uri)) return;
     try {
-      await Clipboard.setData(ClipboardData(text: uri.toString()));
+      await Clipboard.setData(ClipboardData(
+        text: _item.inlineText ?? uri.toString(),
+      ));
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Lien copié.')));
+            .showSnackBar(const SnackBar(content: Text('Copié.')));
       }
     } on Object {
       if (mounted) {
@@ -471,7 +493,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       appBar: AppBar(
         title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          if (!website)
+          if (!website && item.inlineText == null)
             IconButton(
               tooltip: _offlineSaved
                   ? 'Supprimer la copie hors ligne Makolo'
