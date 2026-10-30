@@ -115,7 +115,6 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
   }
 
   Future<void> _choosePeriod() async {
-    final today = DateUtils.dateOnly(DateTime.now());
     final selected = await showDateRangePicker(
       context: context,
       initialDateRange: _period,
