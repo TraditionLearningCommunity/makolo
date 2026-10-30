@@ -47,7 +47,11 @@ def main(argv=None):
             continue
         # Do not write a broken media use into the DB. The same check is enforced
         # again during publication by the production service.
-        if not stored.storage.exists(stored.name):
+        try:
+            file_available = stored.storage.exists(stored.name)
+        except (OSError, NotImplementedError):
+            file_available = False
+        if not file_available:
             counts["file_absent"] += 1
             continue
         activities = Activity.objects.filter(
