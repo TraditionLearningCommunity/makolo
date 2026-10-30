@@ -261,12 +261,22 @@ class PassportPublicIdentityTests(TestCase):
 
         snapshot.revoked_at = None
         snapshot.save(update_fields=["revoked_at"])
-        PassportSnapshot.objects.filter(pk=snapshot.pk).update(payload_hash="0" * 64)
+        original_payload = snapshot.payload
+        corrupted = {**original_payload, "identity": {
+            **original_payload["identity"], "bio": "Texte altéré hors émission",
+        }}
+        PassportSnapshot.objects.filter(pk=snapshot.pk).update(payload=corrupted)
         invalid = self.client.get(signed)
         self.assertFalse(invalid.context["snapshot_intact"])
         self.assertFalse(invalid.context["can_view_dated_passport"])
         self.assertContains(invalid, "ne correspond pas")
-        self.assertNotContains(invalid, "Entrepreneure à Goma.")
+        self.assertNotContains(invalid, "Texte altéré hors émission")
+
+        PassportSnapshot.objects.filter(pk=snapshot.pk).update(
+            payload=original_payload, payload_hash="0" * 64,
+        )
+        invalid_token = self.client.get(signed)
+        self.assertEqual(invalid_token.status_code, 404)
 
     def test_invalid_verification_token_returns_404(self):
         response = self.client.get(
