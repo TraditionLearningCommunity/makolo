@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'profile_paths.dart';
@@ -18,6 +19,7 @@ class ProfileRecognitionImageStore {
 
   /// Allows filesystem tests without depending on a platform path provider.
   final Directory? rootOverride;
+  static final Random _nonce = Random();
 
   static const int maxImageBytes = 8 * 1024 * 1024;
   static const int maxRetainedImages = 10;
@@ -60,7 +62,7 @@ class ProfileRecognitionImageStore {
       throw const FormatException('Invalid recognition image');
     }
     final destination = await _file(path);
-    final partial = File('${destination.path}.part');
+    final partial = File('${destination.path}.part-${DateTime.now().microsecondsSinceEpoch}-${_nonce.nextInt(1 << 32)}');
     try {
       await partial.writeAsBytes(bytes, flush: true);
       if (await destination.exists()) await destination.delete();
