@@ -370,6 +370,20 @@ class _ResourcesView {
             .toList()
           ..sort((a, b) => _offset(a).compareTo(_offset(b)));
 
+    // A never-seen search query cannot have a server-owned local page yet.
+    // Filter only the already received unfiltered list, without claiming
+    // new server results or changing the global presentation order.
+    final locallyFiltered = selected.isEmpty && query.trim().isNotEmpty;
+    if (locallyFiltered) {
+      selected.addAll(
+        pages.where(
+          (page) =>
+              page.kind == ResourceRepository.collectionProjectionKind &&
+              page.resourceKey.startsWith(':'),
+        ),
+      );
+      selected.sort((a, b) => _offset(a).compareTo(_offset(b)));
+    }
     if (selected.isEmpty) {
       return const _ResourcesView(
         documents: [],
@@ -428,12 +442,24 @@ class _ResourcesView {
         ? (page['limit'] as num).toInt()
         : ResourceRepository.defaultLimit;
 
+    final needle = query.trim().toLowerCase();
     return _ResourcesView(
-      documents: List.unmodifiable(documents),
-      proofs: List.unmodifiable(proofs),
-      credentials: List.unmodifiable(credentials),
-      hasMore: page['has_more'] == true || lastPage['has_more'] == true,
-      nextOffset: offset + limit,
+      documents: List.unmodifiable(locallyFiltered
+          ? documents.where((item) =>
+              item.title.toLowerCase().contains(needle)).toList()
+          : documents),
+      proofs: List.unmodifiable(locallyFiltered
+          ? proofs.where((item) =>
+              item.title.toLowerCase().contains(needle)).toList()
+          : proofs),
+      credentials: List.unmodifiable(locallyFiltered
+          ? credentials.where((item) =>
+              item.title.toLowerCase().contains(needle)).toList()
+          : credentials),
+      hasMore: locallyFiltered
+          ? false
+          : page['has_more'] == true || lastPage['has_more'] == true,
+      nextOffset: locallyFiltered ? 0 : offset + limit,
     );
   }
 
