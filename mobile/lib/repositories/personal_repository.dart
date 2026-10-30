@@ -411,6 +411,15 @@ class PersonalRepository {
         items[previous] = Map<String, dynamic>.from(row);
       }
     }
+    // Reject an older continuation if a root refresh or another page has
+    // already advanced the owner projection during this network request.
+    final latest = await store.readProjection('personal.ongoing');
+    if (latest == null ||
+        latest.schemaVersion != current.schemaVersion ||
+        latest.receivedAt != current.receivedAt ||
+        latest.sourceGeneratedAt != current.sourceGeneratedAt) {
+      return;
+    }
     final merged = Map<String, dynamic>.from(current.payload)
       ..['items'] = items
       ..['continuation'] = data['continuation']
