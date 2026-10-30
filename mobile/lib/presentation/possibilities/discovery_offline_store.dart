@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +11,7 @@ class DiscoveryOfflineStore {
   const DiscoveryOfflineStore({this.rootOverride});
 
   final Directory? rootOverride;
+  static final Random _nonce = Random();
 
   static const int maxItemBytes = 20 * 1024 * 1024;
   static const int maxRecognitionBytes = 8 * 1024 * 1024;
@@ -74,7 +76,7 @@ class DiscoveryOfflineStore {
       throw const FormatException('Invalid published recognition image');
     }
     final target = await _recognitionFile(url);
-    final partial = File('${target.path}.part');
+    final partial = File('${target.path}.part-${DateTime.now().microsecondsSinceEpoch}-${_nonce.nextInt(1 << 32)}');
     try {
       await partial.writeAsBytes(bytes, flush: true);
       if (await target.exists()) await target.delete();
