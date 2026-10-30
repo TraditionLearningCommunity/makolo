@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import 'profile_avatar_image.dart';
+import '../network/makolo_api_client.dart';
 import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
 
@@ -25,6 +26,8 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.avatarLetter,
     this.avatarUrl,
     this.avatarProfileId,
+    this.avatarApi,
+    this.avatarRevision,
     this.profileUsername,
   });
 
@@ -41,6 +44,8 @@ class MakoloPrimaryHeader extends StatelessWidget
   final String? avatarLetter;
   final String? avatarUrl;
   final String? avatarProfileId;
+  final MakoloApiClient? avatarApi;
+  final Object? avatarRevision;
   final String? profileUsername;
 
   Widget _avatarFallback(BuildContext context) => Center(
