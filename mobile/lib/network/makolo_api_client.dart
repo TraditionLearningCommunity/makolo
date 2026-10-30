@@ -369,7 +369,9 @@ class MakoloApiClient {
         .first
         .trim()
         .toLowerCase();
-    if (mime != 'image/jpeg' && mime != 'image/png') {
+    if (mime != 'image/jpeg' &&
+        mime != 'image/png' &&
+        mime != 'image/webp') {
       throw const FormatException('Unsupported presentation image type');
     }
     final data = response.data;
