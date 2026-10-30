@@ -11,7 +11,8 @@ VERTICALS=("opportunities","services","obtention","funding")
 CROSS=("journeys","access","operations","scanner","commerce")
 COMMUNITY=("groups","objectives","notifications","trust","contributions")
 ENGAGEMENT=("forms","crm")
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,"content")
+LIVE=("placement","incidents")
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain!="content")
 
 
@@ -47,7 +48,7 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live
     if a.action=="inventory":
         scale.main(["--inventory"])
         content.main()
@@ -108,6 +109,12 @@ def run(a):
         if a.grant_roles: argv.append("--grant-demo-roles")
         if apply: argv.append("--apply")
         scale.main(argv)
+    live_selected=set(LIVE)&domains
+    if live_selected:
+        argv=["--domains",",".join(sorted(live_selected)),
+              "--count",str(min(a.count,200))]
+        if apply: argv.append("--apply")
+        live.main(argv)
     community_selected=set(COMMUNITY)&domains
     if community_selected:
         argv=["--domains",",".join(sorted(community_selected)),
