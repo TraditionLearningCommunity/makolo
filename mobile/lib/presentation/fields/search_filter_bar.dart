@@ -12,6 +12,9 @@ class SearchFilterBar extends StatefulWidget {
     required this.filterButtonKey,
     required this.filterPanelKey,
     this.hasActiveFilters = false,
+    this.onExpansionChanged,
+    this.onClearFilters,
+    this.showResultsAction = false,
   });
 
   final Widget searchField;
@@ -19,6 +22,9 @@ class SearchFilterBar extends StatefulWidget {
   final Key filterButtonKey;
   final Key filterPanelKey;
   final bool hasActiveFilters;
+  final ValueChanged<bool>? onExpansionChanged;
+  final VoidCallback? onClearFilters;
+  final bool showResultsAction;
 
   @override
   State<SearchFilterBar> createState() => _SearchFilterBarState();
@@ -26,6 +32,17 @@ class SearchFilterBar extends StatefulWidget {
 
 class _SearchFilterBarState extends State<SearchFilterBar> {
   bool _expanded = false;
+
+  void _setExpanded(bool value) {
+    if (_expanded == value) return;
+    setState(() => _expanded = value);
+    widget.onExpansionChanged?.call(value);
+  }
+
+  void _showResults() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _setExpanded(false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +64,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                     ? 'Masquer les filtres'
                     : 'Afficher les filtres',
                 isSelected: _expanded,
-                onPressed: () => setState(() => _expanded = !_expanded),
+                onPressed: () => _setExpanded(!_expanded),
                 icon: const Icon(Icons.tune_rounded),
                 selectedIcon: const Icon(Icons.close_rounded),
                 style: IconButton.styleFrom(
@@ -78,7 +95,35 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
             ),
             child: Padding(
               padding: const EdgeInsets.all(MakoloSpacing.md),
-              child: widget.filters,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  widget.filters,
+                  if (widget.onClearFilters != null || widget.showResultsAction) ...[
+                    const SizedBox(height: MakoloSpacing.md),
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: MakoloSpacing.sm,
+                      children: [
+                        if (widget.onClearFilters != null)
+                          TextButton(
+                            key: const Key('discovery-clear-filters'),
+                            onPressed: widget.onClearFilters,
+                            child: const Text('Effacer les filtres'),
+                          ),
+                        if (widget.showResultsAction)
+                          FilledButton(
+                            key: const Key('discovery-show-results'),
+                            onPressed: _showResults,
+                            child: const Text('Voir les résultats'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
