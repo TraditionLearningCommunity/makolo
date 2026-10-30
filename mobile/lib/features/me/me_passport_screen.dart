@@ -482,54 +482,93 @@ class _MePassportScreenState extends State<MePassportScreen> {
       ).data;
       if (!mounted) return;
       final entries = _rows(history['items']);
+      var hasMore = history['has_more'] == true;
+      var nextOffset = history['next_offset'] is int
+          ? history['next_offset'] as int : entries.length;
+      var loading = false;
+
       await showModalBottomSheet<void>(
         context: context, isScrollControlled: true, showDragHandle: true,
-        builder: (sheetContext) => SafeArea(
-          child: FractionallySizedBox(
-            heightFactor: 0.75,
-            child: Column(children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Versions datées',
-                    style: Theme.of(sheetContext).textTheme.titleLarge),
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (sheetContext, updateSheet) => SafeArea(
+            child: FractionallySizedBox(
+              heightFactor: 0.75,
+              child: Column(children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Versions datées',
+                      style: Theme.of(sheetContext).textTheme.titleLarge),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: entries.isEmpty
-                    ? const Center(child: Text('Aucune version émise.'))
-                    : ListView.builder(
-                        itemCount: entries.length,
-                        itemBuilder: (context, index) {
-                          final row = entries[index];
-                          final invalid = row['revoked'] == true ||
-                              row['integrity_ok'] == false;
-                          return ListTile(
-                            leading: Icon(invalid
-                                ? Icons.block_outlined
-                                : Icons.history_outlined),
-                            title: Text(row['document_id']?.toString() ?? ''),
-                            subtitle: Text(
-                              '${_historicalDate(row['generated_at'])} · '
-                              '${row['variant'] ?? ''}'
-                              '${invalid ? ' · Indisponible' : ''}',
-                            ),
-                            onTap: invalid || row['id'] == null ? null : () {
-                              final id = row['id'].toString();
-                              Navigator.pop(sheetContext);
-                              _openDatedVersion(id);
-                            },
+                Expanded(
+                  child: entries.isEmpty
+                      ? const Center(child: Text('Aucune version émise.'))
+                      : ListView.builder(
+                          itemCount: entries.length,
+                          itemBuilder: (context, index) {
+                            final row = entries[index];
+                            final invalid = row['revoked'] == true ||
+                                row['integrity_ok'] == false;
+                            return ListTile(
+                              leading: Icon(invalid
+                                  ? Icons.block_outlined
+                                  : Icons.history_outlined),
+                              title: Text(row['document_id']?.toString() ?? ''),
+                              subtitle: Text(
+                                '${_historicalDate(row['generated_at'])} · '
+                                '${row['variant'] ?? ''}'
+                                '${invalid ? ' · Indisponible' : ''}',
+                              ),
+                              onTap: invalid || row['id'] == null ? null : () {
+                                final id = row['id'].toString();
+                                Navigator.pop(sheetContext);
+                                _openDatedVersion(id);
+                              },
+                            );
+                          },
+                        ),
+                ),
+                if (hasMore)
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: TextButton(
+                      onPressed: loading ? null : () async {
+                        updateSheet(() => loading = true);
+                        try {
+                          final page = await widget.api.get(
+                            'api/v1/me/passport/history/?offset=$nextOffset',
                           );
-                        },
-                      ),
-              ),
-              if (history['has_more'] == true)
-                const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Text('Autres versions consultables sur Makolo Web.'),
-                ),
-            ]),
+                          final data = ProjectionEnvelope.parse(
+                            page.jsonObject(),
+                            expectedProjection: 'personal.me.passport.history',
+                          ).data;
+                          if (!sheetContext.mounted) return;
+                          updateSheet(() {
+                            entries.addAll(_rows(data['items']));
+                            hasMore = data['has_more'] == true;
+                            nextOffset = data['next_offset'] is int
+                                ? data['next_offset'] as int : entries.length;
+                          });
+                        } on Object {
+                          if (!sheetContext.mounted) return;
+                          ScaffoldMessenger.of(sheetContext).showSnackBar(
+                            const SnackBar(
+                              content: Text('Chargement des versions indisponible.'),
+                            ),
+                          );
+                        } finally {
+                          if (sheetContext.mounted) {
+                            updateSheet(() => loading = false);
+                          }
+                        }
+                      },
+                      child: Text(loading ? 'Chargement…' : 'Voir plus de versions'),
+                    ),
+                  ),
+              ]),
+            ),
           ),
         ),
       );
