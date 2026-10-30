@@ -9,7 +9,8 @@ import argparse
 
 VERTICALS=("opportunities","services","obtention","funding")
 CROSS=("journeys","access","operations","scanner","commerce")
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"content")
+COMMUNITY=("groups","objectives","notifications","trust")
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain!="content")
 
 
@@ -25,6 +26,8 @@ def build_parser():
     p=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawTextHelpFormatter)
     sub=p.add_subparsers(dest="action",required=True)
     sub.add_parser("inventory",help="Inventaire Django et couverture contenu (lecture seule)")
+    audit=sub.add_parser("audit",help="Lecture seule : verifier la couverture a une date donnee")
+    audit.add_argument("--at",help="Date/heure ISO-8601 avec fuseau")
     for action in ("plan","generate"):
         s=sub.add_parser(action,help="Apercu sans ecriture" if action=="plan" else "Ecriture SQLite demo explicite")
         s.add_argument("--domains",default="all",help="all ou liste: "+",".join(DOMAINS))
@@ -43,10 +46,13 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit
     if a.action=="inventory":
         scale.main(["--inventory"])
         content.main()
+        return
+    if a.action=="audit":
+        audit.main(["--at",a.at] if a.at else [])
         return
     if a.action=="timeline":
         options=["--database",a.database]
@@ -101,6 +107,17 @@ def run(a):
         if a.grant_roles: argv.append("--grant-demo-roles")
         if apply: argv.append("--apply")
         scale.main(argv)
+    community_selected=set(COMMUNITY)&domains
+    if community_selected:
+        argv=["--domains",",".join(sorted(community_selected)),
+              "--count",str(min(a.count,2000)),
+              "--profiles",str(max(a.profiles,2))]
+        if apply: argv.append("--apply")
+        community.main(argv)
+    if "media" in domains:
+        argv=["--count",str(min(a.count,10000))]
+        if apply: argv.append("--apply")
+        media.main(argv)
     if "content" in domains:
         content.main()
     if not apply: print("PLAN en lecture seule : ajouter generate pour ecrire.")
