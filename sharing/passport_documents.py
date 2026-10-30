@@ -7,6 +7,7 @@ import json
 from django.core import signing
 
 from .models import PassportSnapshot, PublicIdentifier, PublicSubjectKind
+from .passport import PASSPORT_PUBLIC, profile_has_public_passport, space_has_public_passport
 
 
 PASSPORT_VERIFY_SALT = "sharing.passport.verify.v1"
@@ -103,6 +104,14 @@ def issue_passport_snapshot(projection):
         record = PublicIdentifier.objects.get(space=projection.subject)
         subject_kwargs = {"profile": None, "space": projection.subject}
 
+    public_at_issue = bool(
+        projection.variant == PASSPORT_PUBLIC
+        and (
+            profile_has_public_passport(projection.subject)
+            if projection.subject_kind == PublicSubjectKind.PROFILE
+            else space_has_public_passport(projection.subject)
+        )
+    )
     payload = serialize_passport_projection(projection)
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -110,6 +119,7 @@ def issue_passport_snapshot(projection):
         subject_kind=projection.subject_kind,
         public_identifier=record.identifier,
         variant=projection.variant,
+        public_at_issue=public_at_issue,
         payload=payload,
         payload_hash=digest,
         generated_at=projection.generated_at,
