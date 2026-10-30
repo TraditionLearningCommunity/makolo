@@ -84,6 +84,24 @@ void main() {
     expect(await b.read(imagePath), orderedEquals(imageBytes));
   });
 
+  test('automatic recognition has a ten-image rolling budget per Profile', () async {
+    final store = ProfileRecognitionImageStore(
+      profileId: 'profile-a',
+      rootOverride: supportRoot,
+    );
+    for (var i = 0; i < 13; i++) {
+      await store.save('$imagePath$i', Uint8List.fromList([i + 1]));
+      await Future<void>.delayed(const Duration(milliseconds: 3));
+    }
+    final retained = <int>[];
+    for (var i = 0; i < 13; i++) {
+      if (await store.read('$imagePath$i') != null) retained.add(i);
+    }
+    expect(retained.length, ProfileRecognitionImageStore.maxRetainedImages);
+    expect(retained, contains(12));
+    expect(retained, isNot(contains(0)));
+  });
+
   test('empty recognition bytes cannot overwrite a durable file', () async {
     final store = ProfileRecognitionImageStore(
       profileId: 'profile-a',
