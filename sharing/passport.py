@@ -91,12 +91,11 @@ def profile_has_public_passport(profile) -> bool:
     return UserProfile.objects.filter(
         user=profile,
         public_profile=True,
-        searchable=True,
     ).exists()
 
 
 def space_has_public_passport(space) -> bool:
-    return bool(organization_has_public_profile(space) and space.searchable)
+    return bool(organization_has_public_profile(space))
 
 
 def _avatar_url(profile):
