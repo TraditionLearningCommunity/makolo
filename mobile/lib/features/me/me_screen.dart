@@ -122,6 +122,7 @@ class _MeScreenState extends State<MeScreen> {
       selection: selection,
       mediaApi: widget.api,
       avatarProfileId: widget.repository.store.profileId,
+      avatarRevision: projection.receivedAt,
       onOpenDestination: widget.onOpenDestination,
       loadingMore: _loading != null,
       loadFailed: _pageFailed,
@@ -206,6 +207,7 @@ class MeView extends StatefulWidget {
     this.onOpenDestination,
     this.mediaApi,
     this.avatarProfileId,
+    this.avatarRevision,
     this.onReachEnd,
     this.onRetry,
     this.loadingMore = false,
@@ -216,6 +218,7 @@ class MeView extends StatefulWidget {
   final bool Function(StructuredDestination destination)? onOpenDestination;
   final MakoloApiClient? mediaApi;
   final String? avatarProfileId;
+  final Object? avatarRevision;
   final VoidCallback? onReachEnd;
   final VoidCallback? onRetry;
   final bool loadingMore;
@@ -264,6 +267,7 @@ class _MeViewState extends State<MeView> {
             controller: _controller,
             mediaApi: widget.mediaApi,
             avatarProfileId: widget.avatarProfileId,
+            avatarRevision: widget.avatarRevision,
             useTwoTerritories: useTwoTerritories,
             onSelectItem: _selectItem,
             loadingMore: widget.loadingMore,
@@ -367,6 +371,7 @@ class _MeField extends StatelessWidget {
     required this.controller,
     required this.mediaApi,
     this.avatarProfileId,
+    this.avatarRevision,
     required this.useTwoTerritories,
     required this.onSelectItem,
     required this.loadingMore,
@@ -381,6 +386,7 @@ class _MeField extends StatelessWidget {
   final ScrollController controller;
   final MakoloApiClient? mediaApi;
   final String? avatarProfileId;
+  final Object? avatarRevision;
   final bool useTwoTerritories;
   final ValueChanged<MeItemPresentation> onSelectItem;
   final bool loadingMore;
@@ -443,6 +449,7 @@ class _MeField extends StatelessWidget {
             selection: selection,
             avatarProfileId: avatarProfileId,
             avatarApi: mediaApi,
+            avatarRevision: avatarRevision,
             onAvatarTap: hasOwnerNavigation
                 ? () => onSelectItem(
                     const MeItemPresentation(
@@ -500,13 +507,14 @@ class _MeField extends StatelessWidget {
 
 class _MeIdentity extends StatelessWidget {
   const _MeIdentity({required this.selection, this.onEdit, this.onAvatarTap,
-    this.avatarProfileId, this.avatarApi});
+    this.avatarProfileId, this.avatarApi, this.avatarRevision});
 
   final MeSelection selection;
   final VoidCallback? onEdit;
   final VoidCallback? onAvatarTap;
   final String? avatarProfileId;
   final MakoloApiClient? avatarApi;
+  final Object? avatarRevision;
 
   @override
   Widget build(BuildContext context) {
@@ -535,7 +543,8 @@ class _MeIdentity extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     _MeAvatar(name: name, imageUrl: selection.identityAvatarUrl,
-                      profileId: avatarProfileId, api: avatarApi),
+                      profileId: avatarProfileId, api: avatarApi,
+                      revision: avatarRevision),
                     if (onAvatarTap != null)
                       Positioned(
                         right: -2, bottom: -2,
@@ -644,12 +653,14 @@ class _MeHistorySection extends StatelessWidget {
 class _MeAvatar extends StatelessWidget {
   const _MeAvatar({
     required this.name, this.imageUrl, this.profileId, this.api,
+    this.revision,
   });
 
   final String name;
   final String? imageUrl;
   final String? profileId;
   final MakoloApiClient? api;
+  final Object? revision;
 
   @override
   Widget build(BuildContext context) {
@@ -669,7 +680,8 @@ class _MeAvatar extends StatelessWidget {
     );
     return ExcludeSemantics(child: ClipOval(
       child: ProfileAvatarImage(
-        profileId: profileId, api: api, url: imageUrl, size: 64,
+        profileId: profileId, api: api, url: imageUrl,
+        revision: revision, size: 64,
         fallback: placeholder,
       ),
     ));
