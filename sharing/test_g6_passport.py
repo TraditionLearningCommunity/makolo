@@ -349,6 +349,10 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertIsNotNone(editing.context["selection_catalog"])
         self.assertIn(str(self.owned_public.pk), editing.context["selected_activity_ids"])
         self.assertIn("bio", editing.context["selected_sections"])
+        self.assertContains(editing, 'value="bio" checked')
+        self.assertContains(
+            editing, f'value="{self.owned_public.pk}" checked',
+        )
         self.assertContains(editing, "Atelier santé privé G6")
 
         exported = self.client.get(
