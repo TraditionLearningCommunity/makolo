@@ -58,6 +58,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   int _page = 1;
   String? _continuationToken;
   late final ProgressiveSearchCoordinator _searchCoordinator;
+  final _filterRevision = ValueNotifier<int>(0);
   bool _loading = true;
   bool _updatingCriteria = false;
   String? _error;
@@ -90,6 +91,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _searchCoordinator.dispose();
     _search.dispose();
     _place.dispose();
+    _filterRevision.dispose();
     super.dispose();
   }
 
@@ -379,6 +381,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   void _apply() => _criteriaChanged(immediate: true);
 
   void _criteriaChanged({bool immediate = false}) {
+    _filterRevision.value++;
     setState(() {
       _page = 1;
       _continuationToken = null;
@@ -504,7 +507,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       _date.isNotEmpty ||
                       _price.isNotEmpty ||
                       _place.text.trim().isNotEmpty,
-                  filters: DiscoveryFilterFields(
+                  filters: const SizedBox.shrink(),
+                  filtersRefresh: _filterRevision,
+                  filtersBuilder: (_) => DiscoveryFilterFields(
                     keyPrefix: 'guest-filter',
                     placeController: _place,
                     geoSearch: widget.runtime.geoSearch,
