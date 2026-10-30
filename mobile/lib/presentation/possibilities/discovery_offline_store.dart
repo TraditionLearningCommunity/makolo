@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -6,9 +7,12 @@ import 'package:path_provider/path_provider.dart';
 /// credentials, proof, private Journey documents, or authorization state.
 /// No URLs or API tokens are written to the filesystem.
 class DiscoveryOfflineStore {
-  const DiscoveryOfflineStore();
+  const DiscoveryOfflineStore({this.rootOverride});
+
+  final Directory? rootOverride;
 
   static const int maxItemBytes = 20 * 1024 * 1024;
+  static const int maxRecognitionBytes = 8 * 1024 * 1024;
 
   /// FNV-1a gives a stable filename; not a security or integrity signature.
   static String keyFor(Uri url) {
@@ -21,10 +25,50 @@ class DiscoveryOfflineStore {
   }
 
   Future<Directory> _directory() async {
-    final root = await getApplicationSupportDirectory();
+    final root = rootOverride ?? await getApplicationSupportDirectory();
     final directory = Directory('${root.path}/discovery/public-offline');
     await directory.create(recursive: true);
     return directory;
+  }
+
+  /// Published Discovery card images are acquired automatically, unlike
+  /// the user's explicit Reader retention in public-offline.
+  Future<File> _recognitionFile(Uri url) async {
+    final root = rootOverride ?? await getApplicationSupportDirectory();
+    final directory = Directory('${root.path}/discovery/public-recognition');
+    await directory.create(recursive: true);
+    return File('${directory.path}/${keyFor(url)}.image');
+  }
+
+  Future<Uint8List?> recognizedImage(Uri url) async {
+    final file = await _recognitionFile(url);
+    if (!await file.exists()) return null;
+    final size = await file.length();
+    if (size <= 0 || size > maxRecognitionBytes) {
+      await file.delete();
+      return null;
+    }
+    return file.readAsBytes();
+  }
+
+  Future<void> retainRecognitionImage(Uri url, Uint8List bytes) async {
+    if (bytes.isEmpty || bytes.length > maxRecognitionBytes) {
+      throw const FormatException('Invalid published recognition image');
+    }
+    final target = await _recognitionFile(url);
+    final partial = File('${target.path}.part');
+    try {
+      await partial.writeAsBytes(bytes, flush: true);
+      await partial.rename(target.path);
+    } on Object {
+      if (await partial.exists()) await partial.delete();
+      rethrow;
+    }
+  }
+
+  Future<void> removeRecognitionImage(Uri url) async {
+    final target = await _recognitionFile(url);
+    if (await target.exists()) await target.delete();
   }
 
   Future<File> location(Uri url) async {
