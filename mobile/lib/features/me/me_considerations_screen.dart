@@ -78,8 +78,8 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         if (mounted && topics != null && open != null) {
           final selected = <Map<String, dynamic>>[];
           for (final raw in topics['items'] as List) {
-            if (raw is! Map || raw['topic'] is! Map) continue;
-            final topic = raw['topic'] as Map;
+            if (raw is! Map) continue;
+            final topic = raw['topic'] is Map ? raw['topic'] as Map : raw;
             if (topic['id'] != null && topic['label'] != null) {
               selected.add({
                 'id': topic['id'].toString(),
@@ -89,10 +89,11 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
           }
           final openings = <Map<String, dynamic>>[];
           for (final raw in open['items'] as List) {
-            if (raw is! Map || raw['kind'] == null ||
-                raw['label'] == null) continue;
+            if (raw is! Map || raw['label'] == null) continue;
+            final id = raw['kind'] ?? raw['id'];
+            if (id == null) continue;
             openings.add({
-              'id': raw['kind'].toString(),
+              'id': id.toString(),
               'label': raw['label'].toString(),
             });
           }
