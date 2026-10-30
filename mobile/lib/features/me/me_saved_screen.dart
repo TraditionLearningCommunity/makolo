@@ -22,6 +22,8 @@ class MeSavedScreen extends StatefulWidget {
 }
 
 class _MeSavedScreenState extends State<MeSavedScreen> {
+  static const _savedProjectionKind = 'personal.me.preview';
+  static const _savedResourceKey = 'considerations:bookmarks:known';
   final _scroll = ScrollController();
   final _rows = <Map<String, dynamic>>[];
   int _offset = 0;
@@ -37,6 +39,38 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   }
 
   Future<void> _bootstrap() async {
+    try {
+      final saved = await widget.personal.store.readProjection(
+        _savedProjectionKind, resourceKey: _savedResourceKey,
+      );
+      final payload = saved?.payload;
+      final actor = payload?['actor'];
+      final items = payload?['items'];
+      if (mounted && actor is Map && actor['type'] == 'profile' &&
+          actor['id']?.toString() == widget.personal.store.profileId &&
+          items is List && payload?['next_offset'] is int &&
+          payload?['has_more'] is bool) {
+        final known = items.whereType<Map>()
+            .map((row) => row.map(
+                (key, value) => MapEntry(key.toString(), value)))
+            .where((row) => row['id'] != null && row['activity'] is Map)
+            .toList();
+        setState(() {
+          _rows..clear()..addAll(known);
+          _offset = payload!['next_offset'] as int;
+          _hasMore = payload['has_more'] as bool;
+          _hasKnownCollection = true;
+        });
+      } else {
+        await _restoreRootPreview();
+      }
+    } on Object {
+      // Missing owner collection does not become an authoritative empty list.
+    }
+    if (mounted) await _next(reset: true);
+  }
+
+  Future<void> _restoreRootPreview() async {
     try {
       final snapshot = await widget.personal.store.readProjection('personal.me');
       final local = MeLocalPreview.forProfile(
@@ -61,7 +95,21 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
     } on Object {
       // A missing or malformed local preview is not an empty collection.
     }
-    if (mounted) await _next(reset: true);
+  }
+
+  Future<void> _retainKnownCollection() async {
+    await widget.personal.store.putProjection(
+      kind: _savedProjectionKind,
+      resourceKey: _savedResourceKey,
+      schemaVersion: 1,
+      payload: {
+        'actor': {'type': 'profile', 'id': widget.personal.store.profileId},
+        'family': 'bookmarks',
+        'items': _rows,
+        'next_offset': _offset,
+        'has_more': _hasMore,
+      },
+    );
   }
 
   void _checkEnd() {
@@ -113,6 +161,11 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         _loading = false;
         _hasKnownCollection = true;
       });
+      try {
+        await _retainKnownCollection();
+      } on Object {
+        // Valid server data is still displayed; persistence can reconcile later.
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _checkEnd();
       });
@@ -140,6 +193,11 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         _failed = false;
         _removing = null;
       });
+      try {
+        await _retainKnownCollection();
+      } on Object {
+        // The owner confirmed removal. The next sync remains authoritative.
+      }
       try {
         await widget.personal.reflectMeBookmarkRemoved(activityId: activityId);
       } on Object {
