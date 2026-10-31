@@ -13,7 +13,7 @@ void main() {
   test('automatic retention rejects first-party nonpublic URLs', () async {
     final root = await Directory.systemTemp.createTemp('makolo-reject-');
     addTearDown(() async => root.delete(recursive: true));
-    final store = DiscoveryOfflineStore(rootOverride: root);
+    final store = DiscoveryOfflineStore(rootOverride: root, trustedOrigin: Uri.parse('https://makolo.example'));
     final privateUri = Uri.parse('https://makolo.example/api/v1/me/private.jpg');
     expect(
       () => store.retainRecognitionImage(privateUri, Uint8List.fromList([1])),
@@ -26,7 +26,7 @@ void main() {
     ) async {
     final root = await Directory.systemTemp.createTemp('makolo-public-media-');
     addTearDown(() async => root.delete(recursive: true));
-    final store = DiscoveryOfflineStore(rootOverride: root);
+    final store = DiscoveryOfflineStore(rootOverride: root, trustedOrigin: Uri.parse('https://makolo.example'));
     final uri = publicUse(1);
     final bytes = Uint8List.fromList([0xff, 0xd8, 0xff, 0xd9]);
     await store.retainRecognitionImage(uri, bytes);
@@ -45,7 +45,7 @@ void main() {
   test('parallel public recognition writes keep the final complete bytes', () async {
     final root = await Directory.systemTemp.createTemp('makolo-concurrent-');
     addTearDown(() async => root.delete(recursive: true));
-    final store = DiscoveryOfflineStore(rootOverride: root);
+    final store = DiscoveryOfflineStore(rootOverride: root, trustedOrigin: Uri.parse('https://makolo.example'));
     final url = publicUse(9);
     await Future.wait([
       store.retainRecognitionImage(url, Uint8List.fromList([1])),
@@ -58,7 +58,7 @@ void main() {
     ) async {
     final root = await Directory.systemTemp.createTemp('makolo-budget-test-');
     addTearDown(() async => root.delete(recursive: true));
-    final store = DiscoveryOfflineStore(rootOverride: root);
+    final store = DiscoveryOfflineStore(rootOverride: root, trustedOrigin: Uri.parse('https://makolo.example'));
     final savedUrl = Uri.parse('https://makolo.example/manual.pdf');
     final source = File('${root.path}/manual.pdf');
     await source.writeAsBytes([1, 2, 3]);
@@ -87,7 +87,7 @@ void main() {
     ) async {
     final root = await Directory.systemTemp.createTemp('makolo-reader-media-');
     addTearDown(() async => root.delete(recursive: true));
-    final store = DiscoveryOfflineStore(rootOverride: root);
+    final store = DiscoveryOfflineStore(rootOverride: root, trustedOrigin: Uri.parse('https://makolo.example'));
     final uri = publicUse(3);
     final source = File('${root.path}/image.png');
     await source.writeAsBytes([1, 2, 3, 4]);
@@ -97,4 +97,50 @@ void main() {
     expect(await store.recognizedImage(uri), isNull);
     expect(await store.retained(uri), isNotNull);
   });
+  test('identical published path on a foreign origin is not trusted', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-foreign-media-');
+    addTearDown(() async => root.delete(recursive: true));
+    final store = DiscoveryOfflineStore(
+      rootOverride: root,
+      trustedOrigin: Uri.parse('https://makolo.example'),
+    );
+    final forged = Uri.parse(
+      'https://attacker.example/presentation/media/uses/'
+      '00000000-0000-4000-8000-000000000001/file/',
+    );
+    expect(
+      DiscoveryOfflineStore.isPublishedRecognitionUri(
+        forged,
+        trustedOrigin: Uri.parse('https://makolo.example'),
+      ),
+      isFalse,
+    );
+    await expectLater(
+      store.retainRecognitionImage(forged, Uint8List.fromList([1])),
+      throwsFormatException,
+    );
+    expect(await store.recognizedImage(forged), isNull);
+    expect(
+      DiscoveryOfflineStore.isPublishedRecognitionUri(publicUse(1)),
+      isFalse,
+    );
+  });
+
+  test('replacing retained image leaves one complete copy, not staging data', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-replace-media-');
+    addTearDown(() async => root.delete(recursive: true));
+    final store = DiscoveryOfflineStore(
+      rootOverride: root,
+      trustedOrigin: Uri.parse('https://makolo.example'),
+    );
+    final uri = publicUse(19);
+    await store.retainRecognitionImage(uri, Uint8List.fromList([1, 2, 3]));
+    await store.retainRecognitionImage(uri, Uint8List.fromList([4, 5]));
+    expect(await store.recognizedImage(uri), orderedEquals([4, 5]));
+    final retained = Directory('${root.path}/discovery/public-recognition');
+    final entries = await retained.list().toList();
+    expect(entries.whereType<File>().length, 1);
+    expect(entries.single.path.endsWith('.image'), isTrue);
+  });
+
 }
