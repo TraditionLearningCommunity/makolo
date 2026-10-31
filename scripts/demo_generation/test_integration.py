@@ -148,11 +148,10 @@ class DemoIntegrationTests(TestCase):
             service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
         )
         self.assertIsInstance(service, ServiceDetails)
-        journey_context = create_service_journey(
+        journey = create_service_journey(
             service=service, initiated_by=self.beneficiary,
             beneficiary=self.beneficiary, objective="Préparer mon dossier",
         )
-        journey = journey_context.journey
         form = create_form(
             activity=activity, actor=self.owner,
             key="demo-preparation", title="Préparation",
