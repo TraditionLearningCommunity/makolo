@@ -45,6 +45,7 @@ import '../features/settings/billing_screen.dart';
 import '../features/settings/change_password_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
+import '../features/space/space_create_screen.dart';
 import '../features/space/space_us_settings_screen.dart';
 import '../features/space/space_insight_screen.dart';
 import '../features/space/space_work_collection_screen.dart';
@@ -104,6 +105,7 @@ GoRouter createMakoloRouter(
       '/account',
       '/account/password',
       '/settings',
+      '/space/create',
     }.contains(path)) {
       return true;
     }
@@ -405,6 +407,10 @@ GoRouter createMakoloRouter(
       GoRoute(
         path: '/settings',
         builder: (context, state) => AppSettingsScreen(runtime: runtime),
+      ),
+      GoRoute(
+        path: '/space/create',
+        builder: (context, state) => SpaceCreateScreen(runtime: runtime),
       ),
       ...interoperabilityRoutes(runtime),
       ...markRoutes(runtime),
