@@ -304,6 +304,27 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return facts;
   }
 
+  /// Context does not turn an unknown fact into a client-side assertion.
+  /// These are owner-projected limitations and counts of actual relations.
+  List<String> get _contextNotes {
+    final notes = <String>[];
+    final assessment = item.wire['assessment'];
+    if (assessment is List) {
+      for (final raw in assessment) {
+        if (raw is! Map || raw['state'] != 'limiting') continue;
+        final label = (raw['label'] ?? '').toString().trim();
+        if (label.isNotEmpty && !notes.contains(label)) notes.add(label);
+      }
+    }
+    if (item.variants.length > 1) {
+      notes.add('${item.variants.length} variantes');
+    }
+    if (item.relations.isNotEmpty) {
+      notes.add('${item.relations.length} relations');
+    }
+    return notes;
+  }
+
   /// Only observed Occurrence variants are displayed; the server owns timing.
   List<String> get _variantTimingLabels {
     final labels = <String>[];
@@ -1204,7 +1225,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       child: Text(label, style: theme.textTheme.bodyMedium),
                     ),
                 ],
-                if (_reliableFacts.isNotEmpty) ...[
+                if (_reliableFacts.isNotEmpty || _contextNotes.isNotEmpty) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   Padding(
                     key: const Key('discover-facts-section'),
@@ -1216,7 +1237,17 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       children: [
                         Text('Informations pratiques', style: theme.textTheme.titleSmall),
                         const SizedBox(height: MakoloSpacing.sm),
-                        _facts(context),
+                        if (_reliableFacts.isNotEmpty) _facts(context),
+                        for (final note in _contextNotes)
+                          Padding(
+                            padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                            child: Text(
+                              note,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
