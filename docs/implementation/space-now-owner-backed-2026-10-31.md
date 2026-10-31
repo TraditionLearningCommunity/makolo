@@ -14,19 +14,19 @@ Auparavant, `build_space_now_projection` renvoyait toujours `no_safe_selection_c
 - Nouvelle sélection de lecture `organizations/api/space_now_selection.py`, raccordée à la projection/API existante.
 - L'entrée Space continue d'exiger une session humaine, un Space accessible et une perspective de responsabilité validée serveur.
 - Les Activities admissibles sont l'intersection des Activities effectivement visibles, de la perspective choisie et des permissions owners pour le fait considéré.
-- Les Occurrences **actuellement en cours** sont retenues uniquement sous `ACTIVITY_OPERATIONS_VIEW`, en s'appuyant sur `Occurrence.is_ongoing`.
-- Les inscriptions `SUBMITTED/PENDING_APPROVAL` sont retenues sous `ACTIVITY_REQUESTS_VIEW` ; `ACTIVITY_REQUESTS_DECIDE` distingue un passage vers décision du simple examen.
-- Les cas de prestation soumis/en attente sont retenus uniquement via `service_journeys_visible_to` et les permissions Activity de lecture appropriées ; lorsque la permission est limitée aux cas assignés, seuls les Assignments actifs du viewer sont admis. Un Journey personnel du viewer ne devient pas automatiquement une situation collective.
+- Les Occurrences en cours ne sont admises que sous `ACTIVITY_OPERATIONS_VIEW` **et** si `Operations.resolve_occurrence_live` établit une `next_action` non nulle/non `none`. Le déroulement seul ne crée plus de situation Now.
+- Les demandes `JourneyRequest.PENDING` non expirées et liées à une Journey encore approuvable sont retenues sous `ACTIVITY_REQUESTS_VIEW` ; `ACTIVITY_REQUESTS_DECIDE` conditionne la décision, sinon l'attente est légitime et le viewer peut lire sans décider.
+- Les dossiers Services ne sont admis que lorsqu'un selector propriétaire `facilitator_attention_journeys` ou `manager_attention_journeys` atteste l'attention ; l'intersection avec la portée `VIEW_ALL` ou Assignment actif et l'exclusion du viewer bénéficiaire évitent de transformer son dossier personnel en fait collectif.
 - Les conséquences non fournies par l'owner restent explicitement `unknown`. Les actions proposées sont des **handoffs owner** vers Jour J ou Métier, jamais un POST fictif.
 - Aucune photo ni pièce privée n'est ajoutée par inférence. `media_bindings=[]` est légitime tant qu'aucun usage média owner autorisé n'est établi.
 - La sélection globale reste `partial / owner_coverage_incomplete`, même avec zéro item. **Aucun faux « Tout est en ordre »**.
 - `freshness.state=unknown` distingue l'instant d'observation de la fraîcheur effective des faits owners.
-- Aucune table, aucun nouveau modèle métier, aucune migration, aucun nouveau service de mutation.
+- Aucune table, aucun nouveau modèle métier et aucune migration. Une profondeur API ciblée `SpaceJourneyRequestAPIView` revalide scope/Permission avant d'appeler exclusivement les services transactionnels `approve_request` / `reject_request` déjà propriétaires de la mutation. Conflit/révocation = refus, jamais succès optimiste.
 
 ## Web et Flutter
 
-- Web : lecture N1, développement N2 avec `details`, conséquences connues/inconnues distinctes, handoffs Web, états partiel/vide/erreur cohérents ; présentation spécifique au contexte Space.
-- Flutter : réutilisation directe de `NowSelector` et `NowView` personnels (N1/N2 et navigation propriétaire), sans nouveau système de cartes.
+- Web : lecture N1, développement N2 avec `details`, conséquences connues/inconnues distinctes, handoffs Web, états partiel/vide/erreur cohérents ; la console Requests n'affiche ses boutons de mutation que si la permission effective et l'échéance propriétaire l'autorisent.
+- Flutter : réutilisation directe de `NowSelector` et `NowView` personnels (N1/N2 et navigation propriétaire), sans nouveau système de cartes ; route `/space/requests/:id` vers une profondeur de demande native sécurisée, décision explicite confirmée par l'owner, reprise/actualisation au retour. Dossiers Services via la profondeur propriétaire Space Work.
 - Les snapshots Space continuent de passer par `WorkspaceContextRepository`, sources scoped par Space et perspective, invalidation/révocation existantes et freshness locale existante.
 - L'état partiel vide a un message dédié, distinct d'une erreur de transport, avec actualisation explicite.
 - Une sélection partielle non vide conserve un indicateur discret sur sa couverture.
@@ -62,7 +62,7 @@ Contrôler physiquement : passage Moi ↔ Space, acteur et perspective, Occurren
 
 ## Limites et critères de fermeture restant ouverts
 
-Cette verticale ne couvre actuellement **que** les Occurrences en cours et les \`JourneyRequest\` en attente et les dossiers de prestation soumis/en attente. Les domaines qui ne disposent pas encore d'un signal owner sûre (autres opérations, Access, Capacity, Commerce, Payment, ressources, dépendances externes...) ne sont pas intégrés automatiquement. Les médias privés et mutations directes ne sont pas exposés sans contrat propriétaire. La conclusion `calm` reste interdite tant que la couverture transversale ne peut l'établir.
+Cette verticale couvre les interventions Operations effectivement signalées, les `JourneyRequest` réellement en attente et les dossiers Services signalés aux opérateurs, pas la totalité des domaines Space. Les domaines qui ne disposent pas encore d'un signal owner sûre (autres opérations, Access, Capacity, Commerce, Payment, ressources, dépendances externes...) ne sont pas intégrés automatiquement. Les médias privés et mutations génériques ne sont pas exposés sans contrat propriétaire. La décision native de demande utilise uniquement le service JourneyRequest transactionnel existant. La conclusion `calm` reste interdite tant que la couverture transversale ne peut l'établir.
 
 L'expérience peut être testée dès ce checkpoint, mais la **fermeture Mature complète** nécessite encore la couverture owner pertinente, les validations visuelles Android/Web, les tests locaux ciblés, le formatage Flutter canonique et les gates pertinentes avant tout merge.
 
