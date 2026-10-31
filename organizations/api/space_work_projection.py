@@ -219,6 +219,13 @@ def _attach_work_handoffs(*, sections, space_slug, responsibility, offset=0,
             source = item["source"]
             item["entry_identity"] = item["key"]
             item["owner_reference"] = dict(source)
+            # Only the displayed owner identity is established. Related
+            # owners and local snapshot freshness have independent contracts.
+            item["knowledge_context"] = {
+                "knowledge_state": "known",
+                "provenance": [dict(source)],
+                "coverage_state": section["coverage_state"],
+            }
             links = item["links"]
             capabilities = set(item.get("capabilities") or ())
             handoffs = list(item.get("owner_handoffs") or ())
