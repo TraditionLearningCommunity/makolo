@@ -410,15 +410,25 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(response.data["business_world"]["reading_groups"], [])
         self.assertNotIn("Bénévoles", str(response.data["sections"]))
 
-    def test_other_archetypes_do_not_inherit_first_group_business_world(self):
+    def test_other_archetypes_do_not_inherit_generic_or_community_chapters(self):
         self.space.archetype = SpaceArchetype.COMMERCE
         self.space.save(update_fields=["archetype", "updated_at"])
         self._activity("Catalogue existant")
         self.client.force_authenticate(self.owner)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertNotIn("business_world", response.data)
-        self.assertNotIn("reading_groups", response.data["presentation"])
+        world = response.data["business_world"]
+        self.assertEqual(world["preferred_language"], "Commerce")
+        self.assertEqual(
+            [group["identity"] for group in world["reading_groups"]],
+            ["availability"],
+        )
+        self.assertNotIn(
+            "continuity",
+            [group["identity"] for group in world["reading_groups"]],
+        )
+        self.assertNotIn("creations", str(world))
+        self.assertNotIn("initiatives", str(world).lower())
 
     def test_all_archetypes_use_zs1_business_language(self):
         expected = {
