@@ -64,7 +64,6 @@ DIRECT_MODEL_GENERATORS = {
     "sharing.ActivityShareSubject": "sharing",
     "payments.Payment": "commerce/funding sandbox",
     "payments.PaymentObligation": "funding/commerce",
-    "core.DomainEventOutbox": "event emission by business services",
 }
 
 DERIVED_APPS = frozenset({
@@ -92,6 +91,10 @@ def policy_for(model):
         return "observed", "Process/engine evidence, not made-up observations"
     if label in DIRECT_MODEL_GENERATORS:
         return "domain", DIRECT_MODEL_GENERATORS[label]
+    if label == "core.DomainEventOutbox":
+        return "derived", "Emitted only from canonical business services"
+    if label == "core.DomainEventConsumption":
+        return "observed", "Consumption record belongs to a real consumer process"
     if app in DERIVED_APPS:
         return "derived", "Must follow actions and domain events"
     if app in DOMAIN_GENERATORS:
