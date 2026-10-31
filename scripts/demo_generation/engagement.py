@@ -71,9 +71,12 @@ def main(argv=None):
                     counts["crm_tickets_reconciled"] += 1
 
     if "forms" in selected:
+        # Choose Activities with real synthetic Journeys first, not the first
+        # 80 of thousands of unrelated published Activities.
         activities = Activity.objects.filter(
             slug__startswith="demo-", status=ActivityStatus.PUBLISHED,
-        ).select_related("owner_profile", "created_by").order_by("id")[:a.count * 8]
+            journeys__beneficiary__username__startswith="world_",
+        ).distinct().select_related("owner_profile", "created_by").order_by("id")[:max(a.count * 30, 300)]
         attempted = 0
         for activity in activities:
             if attempted >= a.count:
@@ -122,8 +125,9 @@ def main(argv=None):
                         request_form(form_version=version, journey=journey,
                                      actor=actor, required=False)
                         counts["form_requests_created"] += 1
-            except (PermissionDenied, ValidationError):
+            except (PermissionDenied, ValidationError) as exc:
                 counts["forms_rejected"] += 1
+                print("FORMS_REJECTED", str(activity.pk), type(exc).__name__, str(exc)[:240])
 
     print("ENGAGEMENT", "APPLY" if a.apply else "PREVIEW", dict(sorted(counts.items())))
     print("CRM is derived from existing facts; Forms are not Requirements or Proof.")
