@@ -18,6 +18,14 @@ async function expectUnavailableSurface(page, surface) {
   await expect(locator.getByText('no_safe_selection_contract', { exact: false })).toHaveCount(0);
 }
 
+async function expectPartiallyCoveredNow(page) {
+  const locator = page.locator('[data-space-surface="now"]');
+  await expect(locator).toBeVisible();
+  await expect(locator).toHaveAttribute('data-space-state', 'partial');
+  await expect(locator.getByText('Certaines situations sont connues, mais tous les domaines de cet Espace ne sont pas encore couverts.', { exact: false })).toBeVisible();
+  await expect(locator.getByText('Tout est en ordre. ✓', { exact: true })).toHaveCount(0);
+}
+
 test('WS2 Maintenant and Discover stay calm and responsive across Web regimes @mobile', async ({ page }) => {
   await login(page, 'owner@e2e.makolo.test');
 
@@ -33,7 +41,7 @@ test('WS2 Maintenant and Discover stay calm and responsive across Web regimes @m
     await page.goto(SPACE);
     await expectNoHorizontalOverflow(page);
     await expect(page.getByRole('heading', { name: /Qu’est-ce qui mérite notre attention maintenant/ })).toBeVisible();
-    await expectUnavailableSurface(page, 'now');
+    await expectPartiallyCoveredNow(page);
     await expect(page.getByText('Tout est en ordre. ✓', { exact: true })).toHaveCount(0);
 
     await page.goto(`${SPACE}discover/`);
@@ -55,7 +63,7 @@ test('WS2 keeps direct URLs and browser history between Maintenant and Discover'
 
   await page.goBack();
   await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/$/);
-  await expectUnavailableSurface(page, 'now');
+  await expectPartiallyCoveredNow(page);
 
   await page.goForward();
   await expect(page).toHaveURL(/\/spaces\/makolo-e2e-events\/discover\/$/);
