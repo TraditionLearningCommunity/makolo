@@ -99,7 +99,9 @@ def funding_accepts_contributions(funding: FundingDetails, *, at=None) -> bool:
     if activity.space_id is not None:
         space = activity.space
         if (
-            space.lifecycle != SpaceLifecycle.ACTIVE
+            not space.public_profile
+            or not space.searchable
+            or space.lifecycle != SpaceLifecycle.ACTIVE
             or space.verification_status == "suspended"
         ):
             return False
