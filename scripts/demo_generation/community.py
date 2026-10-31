@@ -7,7 +7,7 @@ import argparse
 from collections import Counter
 
 
-DOMAINS = {"groups", "objectives", "notifications", "trust", "contributions"}
+DOMAINS = {"groups", "objectives", "notifications", "trust", "contributions", "sharing"}
 
 
 def main(argv=None):
@@ -19,7 +19,7 @@ def main(argv=None):
     a = p.parse_args(argv)
     selected = set(a.domains.split(","))
     if not selected or not selected <= DOMAINS:
-        p.error("Domains: groups,objectives,notifications,trust,contributions")
+        p.error("Domains: groups,objectives,notifications,trust,contributions,sharing")
     if not 1 <= a.count <= 2000 or not 2 <= a.profiles <= 100:
         p.error("count 1..2000 and profiles 2..100 required")
     import django
@@ -39,6 +39,8 @@ def main(argv=None):
     from trust.services import can_submit_feedback, submit_feedback
     from social.models import Contribution, ContributionKind
     from social.services import create_contribution
+    from sharing.models import ActivityShareSubject, ShareIntent
+    from sharing.services import create_activity_share
     if connection.vendor != "sqlite":
         p.error("SQLite demo database required")
     users = list(get_user_model().objects.filter(
@@ -191,6 +193,37 @@ def main(argv=None):
                     counts["contributions_created"] += 1
                 except (PermissionDenied, ValidationError):
                     counts["contributions_rejected"] += 1
+
+    if "sharing" in selected:
+        rows = Journey.objects.filter(
+            beneficiary__in=users, activity__slug__startswith="demo-",
+            activity__status="published", activity__visibility="public"
+        ).select_related("beneficiary", "activity").order_by("id")[:a.count * 8]
+        seen = set()
+        for journey in rows:
+            if len(seen) >= a.count:
+                break
+            key = (journey.activity_id, journey.beneficiary_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            if ActivityShareSubject.objects.filter(
+                activity=journey.activity,
+                envelope__created_by=journey.beneficiary,
+                envelope__intent=ShareIntent.VIEW,
+            ).exists():
+                counts["shares_existing"] += 1
+            elif not a.apply:
+                counts["shares_planned"] += 1
+            else:
+                try:
+                    with transaction.atomic():
+                        # Token is deliberately not printed, logged or exported.
+                        create_activity_share(created_by=journey.beneficiary,
+                            activity=journey.activity, intent=ShareIntent.VIEW)
+                    counts["shares_created"] += 1
+                except (PermissionDenied, ValidationError):
+                    counts["shares_rejected"] += 1
 
     print("COMMUNITY", "APPLY" if a.apply else "PREVIEW", dict(sorted(counts.items())))
     print("No external delivery, fake verification, forced Membership authority or fabricated Proof.")
