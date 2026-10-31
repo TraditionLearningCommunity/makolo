@@ -81,7 +81,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
 
   Future<void> _restorePassport() async {
     final personal = widget.personal;
-    if (personal == null) return;
+    // Public previews must not revive a stale copy after audience changes.
+    if (personal == null || _variant == 'public') return;
     final key = _passportStorageKey();
     try {
       final snapshot = await personal.store.readProjection(
@@ -326,12 +327,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
         }
         rethrow;
       }
-      final local = widget.personal == null ? null :
+      final local = widget.personal == null || requestedVariant == 'public' ? null :
           await widget.personal!.store.readProjection(
             'personal.me.passport', resourceKey: resourceKey,
           );
-      final fallback = local?.payload ??
-          (_cachedVariantKey == resourceKey ? _cachedPassport : null);
+      final fallback = requestedVariant == 'public' ? null : (local?.payload ??
+          (_cachedVariantKey == resourceKey ? _cachedPassport : null));
       if (fallback != null && fallback['variant'] == requestedVariant) {
         if (mounted) setState(() => _onlineReady = false);
         return fallback;
