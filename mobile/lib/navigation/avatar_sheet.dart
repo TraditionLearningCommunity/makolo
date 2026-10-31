@@ -88,6 +88,7 @@ class MakoloAvatarSheet extends StatelessWidget {
           final activation = activationValue is Map ? activationValue : null;
           final completionPercentage = activation?['percentage'];
           final displayName = identity?['display_name'] as String?;
+          final usernameValue = identity?['username'];
           final firstLetter =
               displayName != null && displayName.trim().isNotEmpty
               ? displayName.trim().substring(0, 1).toUpperCase()
@@ -139,10 +140,10 @@ class MakoloAvatarSheet extends StatelessWidget {
                                 : 'Profil Makolo',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
-                          if (identity?['username'] is String &&
-                              (identity!['username'] as String).trim().isNotEmpty)
+                          if (usernameValue is String &&
+                              usernameValue.trim().isNotEmpty)
                             Text(
-                              '@' + (identity['username'] as String),
+                              '@' + usernameValue,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           if (completionPercentage is int &&
