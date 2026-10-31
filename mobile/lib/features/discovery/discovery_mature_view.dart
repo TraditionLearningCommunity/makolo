@@ -35,6 +35,7 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.onResetCriteria,
     this.onMap,
     this.fieldKey,
+    this.scrollController,
   });
 
   final DiscoveryFieldSelection selection;
@@ -48,8 +49,9 @@ class DiscoveryExplorationView extends StatefulWidget {
   final bool loadMoreFailed;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
-  final VoidCallback? onMap;
+  final ValueChanged<String?>? onMap;
   final String? fieldKey;
+  final ScrollController? scrollController;
 
   @override
   State<DiscoveryExplorationView> createState() =>
@@ -102,8 +104,9 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             loadMoreFailed: widget.loadMoreFailed,
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
-            onMap: widget.onMap,
+            onMap: widget.onMap == null ? null : () => widget.onMap!(_focusedCandidateKey),
             fieldKey: widget.fieldKey,
+            scrollController: widget.scrollController,
           );
         }
 
@@ -119,8 +122,9 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           loadMoreFailed: widget.loadMoreFailed,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
-            onMap: widget.onMap,
+            onMap: widget.onMap == null ? null : () => widget.onMap!(_focusedCandidateKey),
             fieldKey: widget.fieldKey,
+            scrollController: widget.scrollController,
           selectedCandidateKey: _focusedCandidateKey,
           onSelect: (item) => setState(() {
             _focusedCandidateKey = item.candidateKey;
@@ -165,6 +169,7 @@ class DiscoveryFieldView extends StatelessWidget {
     this.selectOnCardTap = false,
     this.onMap,
     this.fieldKey,
+    this.scrollController,
   });
 
   final DiscoveryFieldSelection selection;
@@ -184,6 +189,7 @@ class DiscoveryFieldView extends StatelessWidget {
   final bool selectOnCardTap;
   final VoidCallback? onMap;
   final String? fieldKey;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +222,7 @@ class DiscoveryFieldView extends StatelessWidget {
         selectOnCardTap: selectOnCardTap,
         onMap: onMap,
         fieldKey: fieldKey,
+        scrollController: scrollController,
       ),
     );
   }
@@ -237,6 +244,7 @@ class DiscoverySpatialView extends StatefulWidget {
     this.onRetry,
     this.initialSelectedCandidateKey,
     this.showMapOnCompact = false,
+    this.fieldKey,
   });
 
   final DiscoveryFieldSelection selection;
@@ -252,6 +260,7 @@ class DiscoverySpatialView extends StatefulWidget {
   final VoidCallback? onRetry;
   final String? initialSelectedCandidateKey;
   final bool showMapOnCompact;
+  final String? fieldKey;
 
   @override
   State<DiscoverySpatialView> createState() => _DiscoverySpatialViewState();
@@ -330,6 +339,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         _selectedCandidateKey = item.candidateKey;
       }),
       selectionActionLabel: 'Voir sur la carte',
+      fieldKey: widget.fieldKey,
     );
 
     if (points.isEmpty) {
@@ -426,6 +436,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
     this.selectOnCardTap = false,
     this.onMap,
     this.fieldKey,
+    this.scrollController,
   });
 
   final DiscoveryFieldSelection selection;
@@ -443,6 +454,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
   final bool selectOnCardTap;
   final VoidCallback? onMap;
   final String? fieldKey;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -484,6 +496,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
         ];
 
         final list = ListView(
+          controller: scrollController,
           key: PageStorageKey<String>(
             fieldKey == null
                 ? (autoLoadMore ? 'discover-continuous-field' : 'discover-page-${selection.collection.page}')
