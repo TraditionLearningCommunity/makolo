@@ -420,6 +420,32 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(response.data["sections"]["completed"]["representation"], "Historique")
         self.assertNotIn("payment", str(offers[0]).lower())
 
+    def test_inactive_offer_remains_visible_as_owner_structure_with_selection(self):
+        activity = self._activity("Offres mixtes")
+        offer = Offer.objects.create(
+            activity=activity, name="Offre suspendue",
+            status=OfferStatus.INACTIVE,
+        )
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        row = next(
+            row for row in response.data["sections"]["offers"]["items"]
+            if row["source"]["id"] == str(offer.pk)
+        )
+        self.assertEqual(row["state"], OfferStatus.INACTIVE)
+        selection_url = row["links"]["selection"]
+        detail = self.client.get(selection_url)
+        self.assertEqual(detail.status_code, 200, detail.data)
+        self.assertEqual(detail.data["selection"]["source"]["id"], str(offer.pk))
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(selection_url).status_code, 404)
+
     def test_programmes_presentation_routes_pending_registrations_to_human_queue(self):
         self.space.archetype = SpaceArchetype.EDUCATION
         self.space.save(update_fields=["archetype", "updated_at"])
@@ -658,6 +684,34 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(response.data["sections"]["activities"]["representation"], "Services")
         self.assertEqual(response.data["sections"]["routes"]["role"], "structure")
         self.assertEqual(response.data["sections"]["vehicles"]["role"], "structure")
+
+    def test_transport_owner_selections_revalidate_permissions_and_scope(self):
+        self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
+        self.space.save(update_fields=["archetype", "updated_at"])
+        route = TransportRoute.objects.create(space=self.space, name="Route à consulter")
+        vehicle = Vehicle.objects.create(
+            space=self.space, label="Bus à consulter", passenger_capacity=35
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        for key, owner_kind, identity in (
+            ("routes", "transport_route", route.pk),
+            ("vehicles", "vehicle", vehicle.pk),
+        ):
+            row = next(
+                row for row in response.data["sections"][key]["items"]
+                if row["source"]["id"] == str(identity)
+            )
+            selection_url = row["links"]["selection"]
+            selected = self.client.get(selection_url)
+            self.assertEqual(selected.status_code, 200, selected.data)
+            self.assertEqual(
+                selected.data["selection"]["source"],
+                {"kind": owner_kind, "id": str(identity)},
+            )
+            self.client.force_authenticate(self.outsider)
+            self.assertEqual(self.client.get(selection_url).status_code, 404)
+            self.client.force_authenticate(self.owner)
 
     def test_transport_space_projection_uses_real_route_and_vehicle_owners(self):
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
