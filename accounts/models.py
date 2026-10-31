@@ -275,7 +275,7 @@ class ProfileVisibilityTargetKind(models.TextChoices):
 
 # Sensitive account information (email, phone, birth date, exact address,
 # coordinates, tokens) is deliberately absent from this allowlist.
-PROFILE_VISIBILITY_FIELDS = frozenset({
+PROFILE_VISIBILITY_FIELDS = (
     "name",
     "avatar",
     "bio",
@@ -291,7 +291,7 @@ PROFILE_VISIBILITY_FIELDS = frozenset({
     "tiktok_url",
     "x_url",
     "youtube_url",
-})
+)
 
 
 class ProfileVisibilityPolicy(UUIDModel, TimeStampedModel):
@@ -337,17 +337,17 @@ class ProfileVisibilityPolicy(UUIDModel, TimeStampedModel):
             models.UniqueConstraint(
                 fields=["owner", "field_key"],
                 condition=Q(target_kind="field"),
-                name="prof_visibility_unique_field",
+                name="prof_vis_uniq_field",
             ),
             models.UniqueConstraint(
                 fields=["owner", "interest"],
                 condition=Q(target_kind="interest"),
-                name="prof_visibility_unique_interest",
+                name="prof_vis_uniq_interest",
             ),
             models.UniqueConstraint(
                 fields=["owner", "open_to"],
                 condition=Q(target_kind="open_to"),
-                name="prof_visibility_unique_open_to",
+                name="prof_vis_uniq_open_to",
             ),
         ]
         indexes = [
@@ -454,27 +454,27 @@ class ProfileVisibilityAudience(UUIDModel):
             models.UniqueConstraint(
                 fields=["policy", "kind"],
                 condition=Q(kind__in=("public", "my_collectives")),
-                name="prof_visibility_unique_broad",
+                name="prof_vis_uniq_broad",
             ),
             models.UniqueConstraint(
                 fields=["policy", "selected_profile"],
                 condition=Q(kind="selected_profile"),
-                name="prof_visibility_unique_profile",
+                name="prof_vis_uniq_profile",
             ),
             models.UniqueConstraint(
                 fields=["policy", "selected_space"],
                 condition=Q(kind="selected_space"),
-                name="prof_visibility_unique_space",
+                name="prof_vis_uniq_space",
             ),
             models.UniqueConstraint(
                 fields=["policy", "selected_team"],
                 condition=Q(kind="selected_team"),
-                name="prof_visibility_unique_team",
+                name="prof_vis_uniq_team",
             ),
             models.UniqueConstraint(
                 fields=["policy", "selected_group"],
                 condition=Q(kind="selected_group"),
-                name="prof_visibility_unique_group",
+                name="prof_vis_uniq_group",
             ),
         ]
         indexes = [
