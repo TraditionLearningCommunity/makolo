@@ -94,6 +94,9 @@ class SpaceJourneyRequestAPIView(APIView):
                 "status": owner.status,
                 "purpose": owner.purpose,
                 "purpose_label": owner.get_purpose_display(),
+                # The owner message is already available in the authorized
+                # request console; no beneficiary/contact PII is duplicated.
+                "message": owner.message.strip() or None,
                 "submitted_at": owner.submitted_at.isoformat(),
                 "expires_at": owner.expires_at.isoformat() if owner.expires_at else None,
                 "activity": {"id": str(activity.pk), "title": activity.title},
