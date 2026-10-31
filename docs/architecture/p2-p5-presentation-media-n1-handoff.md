@@ -55,3 +55,29 @@ Implémentation sur #522 non fusionnée. Les contrôles CI et les tests pertinen
 ## Ajout P2 : stockage protégé des nouveaux médias N1
 
 La migration additive `presentations.0006_private_presentation_assets` conserve `PresentationAsset.file` pour les anciens rendus MPS et ajoute `PresentationAsset.private_file`, stocké hors du `MEDIA_ROOT` public via `PrivatePresentationStorage`. Le formulaire d'import N1 écrit seulement dans ce champ protégé. La publication et le téléchargement autorisé privilégient `private_file` et conservent une lecture de compatibilité des anciens assets `file`. Les anciens liens `editorial_data.hero_image` ne sont pas automatiquement migrés ; leur confidentialité reste à vérifier selon le routage serveur existant.
+
+
+## Addendum — clôture du chantier 03 (31 octobre 2026)
+
+Le relevé précédent décrivait des états historiques de #522. Depuis le
+[chantier 03](../implementation/discover-stage-03-media-resources-2026-10-31.md) :
+
+- `public_presentation_media_for_activities` et `published_media_file`
+  appliquent la visibilité logique du Space/Profile, l'éligibilité Groupe
+  du viewer et l'état de l'Occurrence à l'instant de l'accès ;
+- les nouveaux imports N1 et les nouveaux uploads `hero_image` du Studio
+  MPS sont protégés (`private_file`) : les seconds passent par
+  `presentations:editorial-media-file`, sous contrat de publication de
+  `ActivityPresentation` ou autorité de lecture/preview ;
+- les liens bruts déjà enregistrés dans les anciens `editorial_data`
+  ne sont **pas** convertis automatiquement. La commande
+  `harden_presentation_media_assets` traite les assets liés à des
+  media-uses, avec audit/copie privée et purge optionnelle seulement si
+  les références éditoriales connues le permettent ;
+- la rétention automatique Flutter exige désormais l'origine API de
+  confiance, et les refus explicites 403/404 purgent les images retenues
+  après les écritures en cours.
+
+La migration des octets historiques, l'inspection des règles nginx/CDN
+et les tests en exécution demeurent à réaliser sur le déploiement. Les
+versions de production ne sont pas modifiées par ces commits.
