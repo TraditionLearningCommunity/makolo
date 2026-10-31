@@ -406,6 +406,33 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('an absent projection without a sync owner never spins forever', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final runtime = _runtimeWithStore(store, database);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ProfileConnectionsScreen(runtime: runtime),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.text('Impossible de vérifier vos connexions pour le moment.'),
+      findsOneWidget,
+    );
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Aucune connexion pour le moment'), findsNothing);
+
+    await _unmount(tester);
+  });
+
   testWidgets('wide and text scale remain a readable pane', (tester) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
