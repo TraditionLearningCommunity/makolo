@@ -142,7 +142,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
       });
     } on MakoloApiError catch (error) {
       if (!mounted || version != searchVersion ||
-          actor?.space.id != space.id) return;
+          actor?.space.id != space.id) {
+        return;
+      }
       setState(() {
         results = null;
         searchFailed = true;
@@ -153,7 +155,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
       }
     } on Object {
       if (!mounted || version != searchVersion ||
-          actor?.space.id != space.id) return;
+          actor?.space.id != space.id) {
+        return;
+      }
       setState(() {
         results = null;
         searchFailed = true;
