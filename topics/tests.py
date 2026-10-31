@@ -104,6 +104,7 @@ class G2TopicsInterestsTests(TestCase):
         self.assertRedirects(response, url)
         self.assertTrue(ProfileInterest.objects.filter(profile=self.user, topic=self.tech).exists())
         self.assertTrue(ProfileInterest.objects.filter(profile=self.other, topic=self.culture).exists())
+        self.assertTrue(ProfileInterest.objects.get(profile=self.other, topic=self.culture).is_public)
         self.assertFalse(ProfileInterest.objects.filter(profile=self.other, topic=self.tech).exists())
 
     def test_interest_settings_page_explains_explicit_and_private_behavior(self):
