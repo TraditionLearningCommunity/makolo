@@ -157,15 +157,15 @@ void main() {
     await tester.runAsync(() async {
       await tester.pumpWidget(
         MaterialApp(
-        home: RetainedRecognitionImage(
-          api: api,
-          profileId: 'profile-a',
-          path: imagePath,
-          alt: 'Photo publiée',
-          storeOverride: store,
-          placeholder: const Icon(Icons.image_not_supported_outlined),
+          home: RetainedRecognitionImage(
+            api: api,
+            profileId: 'profile-a',
+            path: imagePath,
+            alt: 'Photo publiée',
+            storeOverride: store,
+            placeholder: const Icon(Icons.image_not_supported_outlined),
+          ),
         ),
-      ),
       );
       // Start filesystem-backed restoration in the real async zone.
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -192,15 +192,15 @@ void main() {
     await tester.runAsync(() async {
       await tester.pumpWidget(
         MaterialApp(
-        home: RetainedRecognitionImage(
-          api: api,
-          profileId: 'profile-a',
-          path: imagePath,
-          alt: 'Photo publiée',
-          storeOverride: store,
-          placeholder: const Icon(Icons.image_not_supported_outlined),
+          home: RetainedRecognitionImage(
+            api: api,
+            profileId: 'profile-a',
+            path: imagePath,
+            alt: 'Photo publiée',
+            storeOverride: store,
+            placeholder: const Icon(Icons.image_not_supported_outlined),
+          ),
         ),
-      ),
       );
       // Start filesystem-backed restoration in the real async zone.
       await Future<void>.delayed(const Duration(milliseconds: 100));
