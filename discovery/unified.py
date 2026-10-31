@@ -5,7 +5,6 @@ from urllib.parse import urlencode
 from django.db.models import Q
 from django.urls import reverse
 
-from activities.models import ActivityStatus, ActivityVisibility
 from core.participant_activity_context import participant_state_context_for_activities
 from presentations.participant_state import resolve_participant_activity_state
 from presentations.product_language import vocabulary_for
@@ -14,7 +13,8 @@ from groups.selectors import (
     filter_queryset_by_activity_group_eligibility,
 )
 from opportunities.selectors import open_opportunities, upcoming_opportunities
-from services.models import OpportunityPolicy, ServiceDetails
+from services.models import OpportunityPolicy
+from services.views import public_services
 
 from .candidate_capabilities import family_can_satisfy_filters, requested_filter_keys
 from .candidate_identity import opportunity_candidate_key, service_activity_candidate_key
@@ -175,16 +175,10 @@ def _service_discovery_row(
 
 
 def public_service_discovery_item(activity_id, *, profile=None):
-    service = (
-        ServiceDetails.objects.filter(
-            activity_id=activity_id,
-            activity__status=ActivityStatus.PUBLISHED,
-            activity__visibility=ActivityVisibility.PUBLIC,
-        )
-        .exclude(activity__space__verification_status="suspended")
-        .select_related("activity", "activity__space", "activity__owner_profile")
-        .first()
-    )
+    # The owner owns public admission. Never reproduce a looser Service
+    # status/visibility filter in Discovery (Space lifecycle and Profile
+    # publication choices are checked by public_services).
+    service = public_services().filter(activity_id=activity_id).first()
     if service is None:
         return None
     if service.activity_id not in eligible_activity_ids_for_profile(
@@ -232,15 +226,7 @@ def public_service_discovery_items(
         return []
 
     text = (params.get("q") or "").strip()
-    services = (
-        ServiceDetails.objects.filter(
-            activity__status=ActivityStatus.PUBLISHED,
-            activity__visibility=ActivityVisibility.PUBLIC,
-        )
-        .exclude(activity__space__verification_status="suspended")
-        .select_related("activity", "activity__space", "activity__owner_profile")
-        .order_by("activity__title", "id")
-    )
+    services = public_services()
     opportunities = _matching_opportunities(text)
     opportunity = opportunities[0] if opportunities else None
 
