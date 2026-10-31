@@ -46,9 +46,9 @@ L'extension `organizations/api/space_now_domain_signals.py` complète la sélect
 | Domaine propriétaire | Admission fondée sur un fait | Non-admission | Autorité / profondeur |
 | --- | --- | --- | --- |
 | Operations | Incident HIGH/CRITICAL encore OPEN/INVESTIGATING, rattaché à l'Activity autorisée | incident clos, mineur, sans Activity admissible | `ACTIVITY_OPERATIONS_VIEW`; Jour J ou Activity natifs et Operations Web |
-| Access | Dernier refus de passage pertinent enregistré par `AccessUse` pendant une Occurrence active, dans les six dernières heures | AccessCredential lui-même, passage accepté ensuite, ancien refus, hors portée | `ACTIVITY_ACCESS_VIEW` **et** `ACTIVITY_OPERATIONS_VIEW`; Jour J / console Access |
+| Access | Refus `EXPIRED` ou `REVOKED` constaté par `AccessUse` sur la même Occurrence active dans les six dernières heures, et sans passage ultérieur accepté | AccessCredential, mauvaise Occurrence/scanner sans portée établie, passage accepté ensuite, ancien refus, hors portée | `ACTIVITY_ACCESS_VIEW` **et** `ACTIVITY_OPERATIONS_VIEW`; Jour J / console Access |
 | Capacity | `held + committed > total` établi par `capacity_availability_many`, pool actif et quantité bornée | sold-out normal, nombre inféré, Placement | `ACTIVITY_CAPACITY_VIEW`; Activity/Jour J et console propriétaire |
-| Commerce | Commande PAYEE SPACE réellement PENDING avec `expires_at` dans les 24 heures | commande ordinaire, statut terminal, simple vente sans horizon | `ORDERS_VIEW` Space + perspective Activity; profondeur native Commerce Order autorisée |
+| Commerce | Commande payante (`total > 0`) du Space réellement PENDING avec `expires_at` dans les 24 heures | commande gratuite, commande ordinaire sans horizon, statut terminal, simple vente sans fenêtre | `ORDERS_VIEW` Space + perspective Activity; profondeur native Commerce Order autorisée |
 | Payments | Dernière tentative `FAILED` dans les trois jours, Commerce Order encore PENDING, sans tentative ultérieure ni réussite | historique de paiement, Payment du buyer personnel, faux échec encore pertinent | `ORDERS_VIEW` **et** `FINANCE_VIEW` Space; détail native Commerce + finance Web |
 | Automation | `AutomationExecution.FAILED` récent sur la règle d'une Activity gérable | règle sans exécution échouée, échec passé, règle d'autre Activity | `ACTIVITY_MANAGE`, Activity native / console Automation |
 
@@ -58,7 +58,7 @@ L'extension `organizations/api/space_now_domain_signals.py` complète la sélect
 - La proximité d'un paiement ou d'une commande sans action connue n'est jamais convertie en mutation ou en autorité. Les anomalies et les échéances ont des réponses d'Action, de compréhension ou d'attente distinctes.
 - Ni une source absente, ni un tableau vide ne suffisent à établir le calme global. Les autres propriétaires et les signaux Space sans contrat restent **hors couverture**.
 
-**Tests ajoutés :** `organizations/test_space_now_domain_signals.py` vérifie portée Activity, incidents fermés/mineurs, refus Access et passage accepté ultérieur, sold-out sans alerte, surallocation réelle, horizon Commerce explicite, paiement supersédé, échec Automation et sortie après résolution. `mobile/test/space_now_composition_test.dart` vérifie en plus les profondeurs natives autorisées et le rejet des URLs externes.
+**Tests ajoutés :** `organizations/test_space_now_domain_signals.py` vérifie portée Activity, incidents fermés/mineurs, refus Access et passage accepté ultérieur, sold-out sans alerte, surallocation réelle, horizon d'une commande payante et exclusion de la commande gratuite, paiement supersédé, échec Automation et sortie après résolution. `mobile/test/space_now_composition_test.dart` vérifie en plus les profondeurs natives autorisées et le rejet des URLs externes.
 
 ## Vérifications intégrées au code
 
