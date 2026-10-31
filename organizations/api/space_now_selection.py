@@ -67,7 +67,11 @@ def _situation(
         "consequence": {"state": "unknown", "effect": None, "target": source},
         "turn": {"type": turn},
         "response": {"type": response_type, "label": action_label},
-        "dimension": "waiting" if response_type == "wait" else "action" if response_type == "act" else "adaptation",
+        "dimension": {
+            "wait": "waiting",
+            "act": "action",
+            "decide": "decision",
+        }.get(response_type, "adaptation"),
         "exit_condition": {"state": "unknown"},
         "owner_depth": {"source": owner, "links": {"web": web_url}},
         "knowledge_context": {
