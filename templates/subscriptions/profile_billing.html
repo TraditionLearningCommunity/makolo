@@ -1,0 +1,9 @@
+{% extends 'base/app.html' %}
+{% block title %}Facturation de mon abonnement | Makolo{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-5xl space-y-5">
+  <a href="{% url 'subscriptions:home' %}" class="mk-btn mk-btn-secondary">Revenir à mon abonnement</a>
+  <h1 class="mk-page-title">Facturation de mon abonnement</h1>
+  {% include 'subscriptions/_personal_billing.html' %}
+</div>
+{% endblock %}
