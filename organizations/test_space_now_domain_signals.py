@@ -134,6 +134,31 @@ class SpaceNowDomainSignalTests(TestCase):
             for row in resolved.data["items"]
         ))
 
+    def test_more_than_24_admitted_incidents_are_not_hidden(self):
+        rows = [
+            OperationsIncident(
+                title=f"Incident non résolu {index}",
+                category=IncidentCategory.ACCESS,
+                severity=IncidentSeverity.HIGH,
+                status=IncidentStatus.OPEN,
+                organization=self.space,
+                activity=self.activity,
+                opened_by=self.owner,
+                description="Incident opérationnel confirmé.",
+            )
+            for index in range(27)
+        ]
+        OperationsIncident.objects.bulk_create(rows)
+        response = self._now(self.limited)
+        self.assertEqual(response.status_code, 200, response.data)
+        shown = [
+            row for row in response.data["items"]
+            if row["source"]["kind"] == "operations_incident"
+        ]
+        self.assertEqual(len(shown), 27)
+        self.assertFalse(response.data["has_more"])
+        self.assertEqual(response.data["selection"]["state"], "partial")
+
     def test_access_use_refusal_is_not_an_access_state_or_a_credential(self):
         current = timezone.now()
         occurrence = Occurrence.objects.create(
