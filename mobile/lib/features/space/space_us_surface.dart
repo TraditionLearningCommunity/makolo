@@ -227,11 +227,16 @@ class SpaceUsSurface extends StatelessWidget {
                         _action(context, 'Voir la gouvernance',
                           target, open),
                     ],
-                    if (_map(payload['trust'])?['verified'] == true) ...[
+                    if (route('trust') case final target?) ...[
                       const SizedBox(height: MakoloSpacing.xl),
+                      _sectionTitle(context, 'Confiance',
+                        'Des faits vérifiables, sans classement global du collectif.'),
                       _notice(context,
-                        'Des faits publics de vérification sont établis '
-                        'pour cet Espace. Il ne s’agit pas d’une note globale.'),
+                        _map(payload['trust'])?['verified'] == true
+                          ? 'Des faits publics de vérification sont établis.'
+                          : 'Aucun fait public de vérification actif n’est projeté.'),
+                      _action(context, 'Consulter les faits de confiance',
+                        target, open),
                     ],
                     if (!limited && route('settings') case final target?) ...[
                       const SizedBox(height: MakoloSpacing.lg),
