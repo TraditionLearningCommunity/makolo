@@ -80,3 +80,44 @@ class DemoIntegrationTests(TestCase):
                 funding=funding, actor=self.beneficiary,
                 amount=Decimal("0"), client_reference="validate-bad-amount",
             )
+
+    def test_group_membership_does_not_grant_global_authority(self):
+        from groups.services import create_group, add_member
+        from groups.models import GroupMembership
+        from authorization.models import Mandate
+        group = create_group(
+            actor=self.owner, name="[DEMO] Groupe d'entraide",
+            description="Adhesions synthetiques pour validation",
+        )
+        member, created = add_member(
+            actor=self.owner, group=group, profile=self.beneficiary,
+        )
+        self.assertTrue(created)
+        self.assertIsInstance(member, GroupMembership)
+        repeated, created_again = add_member(
+            actor=self.owner, group=group, profile=self.beneficiary,
+        )
+        self.assertEqual(member.pk, repeated.pk)
+        self.assertFalse(created_again)
+        self.assertFalse(Mandate.objects.filter(profile=self.beneficiary).exists())
+
+    def test_personal_objective_is_composed_without_new_authority(self):
+        from objectives.services import create_dossier, create_project, link_dossier_to_project
+        from objectives.models import ProjectDossierLink
+        project = create_project(
+            actor=self.owner, owner_profile=self.owner,
+            title="[DEMO] Horizon educatif",
+        )
+        dossier = create_dossier(
+            actor=self.owner, owner_profile=self.owner,
+            title="[DEMO] Fournitures pour cette annee",
+        )
+        first = link_dossier_to_project(
+            actor=self.owner, project=project, dossier=dossier,
+        )
+        second = link_dossier_to_project(
+            actor=self.owner, project=project, dossier=dossier,
+        )
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(ProjectDossierLink.objects.filter(
+            project=project, dossier=dossier, is_active=True).count(), 1)
