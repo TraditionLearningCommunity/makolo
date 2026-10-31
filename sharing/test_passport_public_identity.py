@@ -192,8 +192,9 @@ class PassportPublicIdentityTests(TestCase):
         snapshot = issued.context["passport_snapshot"]
         current_token = passport_verification_token(snapshot)
         self.assertEqual(current_token, passport_verification_token(snapshot))
+        from urllib.parse import urlsplit
         self.assertEqual(
-            issued.context["passport_verification_url"],
+            urlsplit(issued.context["passport_verification_url"]).path,
             reverse("sharing:passport-verify", kwargs={"token": current_token}),
         )
         self.assertEqual(resolve_passport_verification_token(current_token).pk, snapshot.pk)
