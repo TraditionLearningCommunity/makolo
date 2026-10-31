@@ -404,6 +404,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   bool _loading = true;
   List<Map<String, dynamic>>? _fullTeam;
   bool _teamUnavailable = false;
+  bool _teamMutating = false;
 
   @override
   void initState() {
@@ -495,6 +496,227 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     } on Object {
       if (mounted) setState(() => _teamUnavailable = true);
     }
+  }
+
+  List<Map<String, String>> _teamRoleOptions(Map<String, dynamic> payload) {
+    final options = _map(payload['team'])?['role_options'];
+    if (options is! List) return const [];
+    return [
+      for (final entry in options)
+        if (_map(entry) case final role?)
+          if (_text(role['code']) != null)
+            {
+              'code': _text(role['code'])!,
+              'label': _text(role['label']) ?? _text(role['code'])!,
+            },
+    ];
+  }
+
+  Future<void> _mutateTeam(Future<void> Function() operation) async {
+    final current = widget.runtime.actorContext?.value;
+    if (_teamMutating || current is! SpaceActorContext ||
+        _space == null || current.space.id != _space!.id) return;
+    final spaceId = current.space.id;
+    setState(() => _teamMutating = true);
+    try {
+      await operation();
+      if (!mounted || widget.runtime.actorContext?.value
+          is! SpaceActorContext) return;
+      final currentActor = widget.runtime.actorContext!.value as SpaceActorContext;
+      if (currentActor.space.id != spaceId) return;
+      await _loadTeam(_space!);
+      final repository = widget.runtime.space;
+      if (repository != null) {
+        try {
+          await repository.refreshUs(_space!);
+          await repository.refreshRelationships(_space!);
+        } on Object {
+          // Server mutation succeeded, but local projections may be older.
+        }
+      }
+      if (mounted && !_denied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Équipe actualisée.')),
+        );
+      }
+    } on MakoloApiError catch (error) {
+      if (!mounted) return;
+      if (error.statusCode == 401 || error.statusCode == 403 ||
+          error.statusCode == 404) {
+        setState(() { _denied = true; _fullTeam = null; });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'Action indisponible. Le serveur n’a pas confirmé la modification.',
+          )),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _teamMutating = false);
+    }
+  }
+
+  Future<void> _addTeamMember(Map<String, dynamic> payload) async {
+    final api = widget.runtime.api;
+    final roles = _teamRoleOptions(payload);
+    if (api == null || roles.isEmpty) return;
+    final email = TextEditingController();
+    var selected = roles.first['code']!;
+    try {
+      final result = await showDialog<Map<String, String>>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, update) => AlertDialog(
+            title: const Text('Ajouter un collaborateur'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('La personne doit déjà posséder un Profil Makolo. '
+                  'Le rôle choisi crée une autorité explicite et sera vérifié '
+                  'par le serveur.'),
+                TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'E-mail du Profil'),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: selected,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Responsabilité'),
+                  items: [
+                    for (final role in roles)
+                      DropdownMenuItem(
+                        value: role['code']!,
+                        child: Text(role['label']!),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) update(() => selected = value);
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler')),
+              FilledButton(
+                onPressed: () {
+                  if (email.text.trim().isEmpty) return;
+                  Navigator.pop(context, {
+                    'email': email.text.trim(),
+                    'role': selected,
+                  });
+                },
+                child: const Text('Ajouter'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (result == null || !mounted) return;
+      await _mutateTeam(() async {
+        await api.post(
+          'api/v1/organizations/workspaces/' +
+            Uri.encodeComponent(widget.slug) + '/team/',
+          body: result,
+        );
+      });
+    } finally {
+      email.dispose();
+    }
+  }
+
+  Future<void> _changeTeamRole(
+    Map<String, dynamic> row, Map<String, dynamic> payload,
+  ) async {
+    final api = widget.runtime.api;
+    final roles = _teamRoleOptions(payload);
+    final id = _text(row['id']);
+    if (api == null || roles.isEmpty || id == null) return;
+    var selected = roles.first['code']!;
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Changer la responsabilité'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_depthRowLabel(row)),
+              const Text('Ce changement peut modifier l’autorité du membre.'),
+              DropdownButtonFormField<String>(
+                initialValue: selected,
+                isExpanded: true,
+                items: [
+                  for (final role in roles)
+                    DropdownMenuItem(
+                      value: role['code']!,
+                      child: Text(role['label']!),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) update(() => selected = value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler')),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, selected),
+              child: const Text('Confirmer le changement'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+    await _mutateTeam(() async {
+      await api.patch(
+        'api/v1/organizations/workspaces/' +
+          Uri.encodeComponent(widget.slug) + '/team/' +
+          Uri.encodeComponent(id) + '/',
+        body: {'role': chosen},
+      );
+    });
+  }
+
+  Future<void> _removeTeamMember(Map<String, dynamic> row) async {
+    final api = widget.runtime.api;
+    final id = _text(row['id']);
+    if (api == null || id == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Retirer ce collaborateur ?'),
+        content: Text('Retirer ' + _depthRowLabel(row) +
+          ' peut révoquer ses Mandates. Le serveur protège '
+          'les contraintes de propriété du Space.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmer le retrait'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _mutateTeam(() async {
+      await api.delete(
+        'api/v1/organizations/workspaces/' +
+          Uri.encodeComponent(widget.slug) + '/team/' +
+          Uri.encodeComponent(id) + '/',
+      );
+    });
   }
 
   @override
