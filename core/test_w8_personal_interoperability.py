@@ -218,6 +218,35 @@ class C2InteroperabilityPresentationContractTests(SimpleTestCase):
             "Relié · aucune capacité active",
         )
 
+    def test_c3_explanations_do_not_grant_authority(self):
+        from interoperability.presentation import present_connection
+
+        base = {
+            "display_name": "Profil service",
+            "connected": True,
+            "enabled": True,
+            "status": "connected",
+            "health": "healthy",
+            "usable": False,
+            "capabilities": [],
+        }
+        no_capability = present_connection(base)
+        self.assertEqual(no_capability["experience_state"], "no_capability")
+        self.assertEqual(
+            no_capability["experience_message"],
+            "Aucune capacité active n'est exposée.",
+        )
+        self.assertNotIn("execute_url", no_capability)
+        self.assertNotIn("connect_url", no_capability)
+        disabled = present_connection({**base, "enabled": False, "usable": True})
+        self.assertEqual(disabled["experience_state"], "disabled")
+        unavailable = present_connection({**base, "health": "unavailable"})
+        self.assertEqual(unavailable["experience_state"], "unavailable")
+        usable = present_connection({
+            **base, "usable": True, "capabilities": ["text_generate"],
+        })
+        self.assertEqual(usable["experience_state"], "usable")
+
     def test_action_metadata_does_not_promise_an_execution_link(self):
         from interoperability.presentation import present_action
 
