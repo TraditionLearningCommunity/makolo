@@ -35,8 +35,8 @@ def main(argv=None):
     from journeys.models import Journey
     from notifications.models import Notification, NotificationCategory, NotificationKind
     from notifications.services import create_notification
-    from trust.models import Feedback
-    from trust.services import can_submit_feedback, submit_feedback
+    from trust.models import Feedback, Proof, ProofType, Report, ReportCategory
+    from trust.services import can_submit_feedback, submit_feedback, issue_proof, create_report
     from social.models import Contribution, ContributionKind
     from social.services import create_contribution
     from sharing.models import ActivityShareSubject, ShareIntent
@@ -165,6 +165,52 @@ def main(argv=None):
                 counts["feedback_created"] += 1
             except (ValidationError, PermissionDenied):
                 counts["feedback_rejected"] += 1
+
+    if "trust" in selected:
+        # Proof is produced ONLY from canonical AccessUse accepted / Journey
+        # completion, never from raw seed flags or synthetic verification.
+        verified = (Journey.objects.filter(
+            beneficiary__in=users, activity__slug__startswith="demo-",
+            accesses__uses__result="accepted"
+        ).select_related("beneficiary").distinct().order_by("id")[:a.count])
+        for journey in verified:
+            if Proof.objects.filter(journey=journey,
+                proof_type=ProofType.ACCESS_USED).exists():
+                counts["proofs_existing"] += 1
+            elif not a.apply:
+                counts["proofs_planned"] += 1
+            else:
+                try:
+                    with transaction.atomic():
+                        issue_proof(journey=journey,
+                            proof_type=ProofType.ACCESS_USED,
+                            actor=None, is_public=False)
+                    counts["proofs_issued"] += 1
+                except (ValidationError, PermissionDenied):
+                    counts["proofs_not_eligible"] += 1
+        # Small fraction of journeys produce synthetic incident reports
+        # for the moderation flow; the reports never imply actual harm.
+        reported = (Journey.objects.filter(
+            beneficiary__in=users, activity__slug__startswith="demo-"
+        ).select_related("beneficiary").order_by("id")[:a.count])
+        for index, journey in enumerate(reported):
+            if index % 5:
+                continue
+            description = "[DEMO] Signalement fictif : accueil difficile a localiser."
+            if Report.objects.filter(journey=journey,
+                reporter=journey.beneficiary, description=description).exists():
+                counts["reports_existing"] += 1
+            elif not a.apply:
+                counts["reports_planned"] += 1
+            else:
+                try:
+                    with transaction.atomic():
+                        create_report(actor=journey.beneficiary,
+                            category=ReportCategory.ACCESS_PROBLEM,
+                            description=description, journey=journey)
+                    counts["reports_created"] += 1
+                except (ValidationError, PermissionDenied):
+                    counts["reports_rejected"] += 1
 
     if "contributions" in selected:
         rows = Journey.objects.filter(
