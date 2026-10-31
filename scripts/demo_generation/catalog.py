@@ -16,6 +16,8 @@ RUNTIME_APPS = frozenset({
 })
 DOMAIN_GENERATORS = {
     "activities": "activities/transport/foundations",
+    "discovery": "discovery",
+    "goals": "goals",
     "authorization": "mandates",
     "journeys": "journeys/foundations/community",
     "access": "access/scanner",
@@ -41,6 +43,30 @@ DOMAIN_GENERATORS = {
     "questionnaires": "forms",
     "social": "contributions",
 }
+DIRECT_MODEL_GENERATORS = {
+    "discovery.ActivityBookmark": "discovery",
+    "discovery.DiscoveryWatch": "discovery",
+    "goals.PersonalGoal": "goals/outcomes",
+    "organizations.Organization": "spaces",
+    "organizations.Team": "spaces",
+    "organizations.TeamMembership": "spaces",
+    "organizations.OrganizationMembership": "spaces",
+    "loyalty.LoyaltyProgram": "loyalty",
+    "loyalty.LoyaltyTier": "loyalty",
+    "loyalty.LoyaltyAccount": "loyalty",
+    "loyalty.MembershipPlan": "loyalty",
+    "loyalty.MembershipSubscription": "loyalty",
+    "automation.EventAutomationPolicy": "automation",
+    "trust.Proof": "trust/outcomes",
+    "trust.Report": "trust",
+    "sharing.ShareEnvelope": "sharing",
+    "sharing.ShareLink": "sharing",
+    "sharing.ActivityShareSubject": "sharing",
+    "payments.Payment": "commerce/funding sandbox",
+    "payments.PaymentObligation": "funding/commerce",
+    "core.DomainEventOutbox": "event emission by business services",
+}
+
 DERIVED_APPS = frozenset({
     "analytics_app", "recognition", "growth", "loyalty",
     "automation", "subscriptions",
@@ -64,6 +90,8 @@ def policy_for(model):
         return "runtime", "Django or dependency framework"
     if app in RUNTIME_APPS:
         return "observed", "Process/engine evidence, not made-up observations"
+    if label in DIRECT_MODEL_GENERATORS:
+        return "domain", DIRECT_MODEL_GENERATORS[label]
     if app in DERIVED_APPS:
         return "derived", "Must follow actions and domain events"
     if app in DOMAIN_GENERATORS:
@@ -109,8 +137,9 @@ def main(argv=None):
           "UNAVAILABLE", counters["unavailable"])
     for (category, state), count in sorted(by_policy.items()):
         print("POLICY", category, state, count)
-    print("Model inventory covers the installed registry, not a promise of 338 "
-          "fabricated rows. Empty runtime/secret/provider models may be correct.")
+    print("The model registry is counted dynamically. An empty audit, provider, "
+          "credential or projection table may be intentional; all domain scenarios "
+          "must pass through their canonical services.")
 
 
 if __name__ == "__main__":
