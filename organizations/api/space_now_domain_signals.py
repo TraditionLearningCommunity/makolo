@@ -21,7 +21,7 @@ from capacity.models import CapacityPool
 from capacity.selectors import capacity_availability_many
 from commerce.models import CommerceOrder, CommerceOrderStatus
 from operations.models import IncidentSeverity, IncidentStatus, OperationsIncident
-from payments.models import Payment, PaymentStatus
+from payments.models import Payment, PaymentObligation, PaymentObligationStatus, PaymentStatus
 
 
 SCAN_LIMIT = 100
@@ -287,6 +287,60 @@ def select_additional_space_now(
                 web_url=_web(space, "console-orders"),
                 observed_at=observed_at, action_label="Consulter la commande",
                 deadline_at=order.expires_at,
+            ))
+
+    # Debtor-side Payments: an overdue obligation owed by this institution
+    # is not the same as its incoming Commerce payments. The actual Space
+    # payer and an authorized Journey context must both be established.
+    if finance_scope:
+        overdue = list(
+            PaymentObligation.objects.filter(
+                payer_space=space,
+                journey__activity__space=space,
+                journey__activity_id__in=visible,
+                commerce_order__isnull=True,
+                status__in=[
+                    PaymentObligationStatus.PENDING,
+                    PaymentObligationStatus.PROCESSING,
+                ],
+                due_at__isnull=False,
+                due_at__lt=observed_at,
+            )
+            .select_related("journey__activity")
+            .order_by("due_at", "pk")[: SCAN_LIMIT + 1]
+        )
+        truncated |= len(overdue) > SCAN_LIMIT
+        for obligation in overdue[:SCAN_LIMIT]:
+            items.append(make_situation(
+                space=space,
+                source_kind="payment_obligation",
+                source_id=obligation.pk,
+                activity_id=obligation.journey.activity_id,
+                human_context=obligation.journey.activity.title,
+                subject="Obligation financière",
+                state="Échéance dépassée, règlement non confirmé",
+                why_now=(
+                    "Payments établit une obligation échue à la charge "
+                    "de cet Espace, sans règlement encore confirmé."
+                ),
+                reason="space_payment_obligation_overdue",
+                turn="none",
+                response_type=(
+                    "wait" if obligation.status == PaymentObligationStatus.PROCESSING
+                    else "understand"
+                ),
+                destination="space_payment_obligation",
+                native_id=obligation.pk,
+                native_link=(
+                    f"/space/{space.slug}/retrieval/payment_obligation/{obligation.pk}"
+                ),
+                web_url=reverse(
+                    "organizations:space-payment-obligation",
+                    kwargs={"slug": space.slug, "obligation_id": obligation.pk},
+                ),
+                observed_at=observed_at,
+                action_label="Examiner l'obligation",
+                deadline_at=obligation.due_at,
             ))
 
     # A failed Domain Automation execution is a real owner failure, not a
