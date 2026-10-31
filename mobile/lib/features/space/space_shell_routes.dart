@@ -325,6 +325,18 @@ class _SpaceProjectionBody extends StatelessWidget {
           ),
         ),
         Expanded(child: nowView),
+        if (projection?.payload['has_more'] == true)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.md,
+              vertical: MakoloSpacing.sm,
+            ),
+            child: TextButton.icon(
+              onPressed: () => context.go('/space/work'),
+              icon: const Icon(Icons.arrow_forward_rounded),
+              label: const Text('Poursuivre dans Métier'),
+            ),
+          ),
       ],
     );
   }
