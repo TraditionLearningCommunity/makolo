@@ -235,6 +235,7 @@ class SpaceWorkGroup2Tests(TestCase):
         row = result.data["sections"]["active"]["items"][0]
         self.assertEqual(row["context"]["conditions"], {
             "total": 2, "satisfied": 1, "awaiting": 1, "unsatisfied": 0,
+            "not_applicable": 0,
             "basis": "service_requirement_assessment",
         })
         self.assertNotIn("Commentaire privé", str(result.data))
