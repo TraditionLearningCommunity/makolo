@@ -207,8 +207,7 @@ class PassportViewMixin(TemplateView):
             details = projection.identity.get("owner_details", {})
             labels = (
                 ("Prénom", "first_name"), ("Nom", "last_name"),
-                ("Identifiant Makolo", "username"), ("Entreprise", "company"),
-                ("Organisation", "organization"), ("Ville", "city"),
+                ("Identifiant Makolo", "username"), ("Ville", "city"),
                 ("Pays", "country"), ("Langue", "language"),
                 ("Téléphone", "phone"), ("Adresse", "address"),
                 ("Date de naissance", "birth_date"), ("Genre", "gender"),
