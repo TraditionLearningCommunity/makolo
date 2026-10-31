@@ -597,9 +597,12 @@ class _DiscoveryMedia extends StatelessWidget {
       final mediaBaseUri = baseUri;
       child = mediaBaseUri != null &&
               resolved.origin == mediaBaseUri.origin &&
-              DiscoveryOfflineStore.isPublishedRecognitionUri(resolved)
+              DiscoveryOfflineStore.isPublishedRecognitionUri(
+                resolved, trustedOrigin: mediaBaseUri,
+              )
           ? RetainedPublicDiscoveryImage(
               url: resolved,
+              trustedOrigin: mediaBaseUri,
               placeholder: MakoloMediaPlaceholder(
                 label: item.eyebrow ?? 'Média indisponible',
               ),
