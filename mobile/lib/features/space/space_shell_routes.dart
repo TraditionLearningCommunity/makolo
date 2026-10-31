@@ -419,12 +419,23 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
 
   void _onActorChanged() {
     if (!mounted) return;
-    // The full team response can include private contacts and must not
-    // outlive its actor. The owner-scoped preview is re-read separately.
+    // Private team details never survive a context transition. Returning
+    // to this Space must acquire them again under the current Mandate.
     setState(() {
       _fullTeam = null;
       _teamUnavailable = false;
     });
+    final current = widget.runtime.actorContext?.value;
+    if (current is SpaceActorContext && _space != null &&
+        current.space.id == _space!.id) {
+      final repository = widget.runtime.space;
+      if (repository != null && repository.sync != null) {
+        unawaited(repository.refreshUs(_space!).catchError((Object _) {}));
+      }
+      if (widget.depth == 'team' && widget.runtime.api != null) {
+        unawaited(_loadTeam(_space!));
+      }
+    }
   }
 
   @override
@@ -439,7 +450,15 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       if (mounted) setState(() { _denied = true; _loading = false; });
       return;
     }
+    final actorBeforeLookup = widget.runtime.actorContext?.value;
     final inventory = await repository.readInventory();
+    if (!mounted) return;
+    // Never replace a user-initiated actor change that happened while the
+    // inventory was loading for an old deep link.
+    if (widget.runtime.actorContext?.value != actorBeforeLookup) {
+      setState(() { _denied = true; _loading = false; });
+      return;
+    }
     SpaceSummary? summary;
     for (final candidate in inventory) {
       if (candidate.identity.slug == widget.slug) {
@@ -496,7 +515,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           actor.space.id != space.id) return;
       setState(() { _fullTeam = rows; _teamUnavailable = false; });
     } on MakoloApiError catch (error) {
-      if (!mounted) return;
+      final active = widget.runtime.actorContext?.value;
+      if (!mounted || active is! SpaceActorContext ||
+          active.space.id != space.id) return;
       if (error.statusCode == 401 || error.statusCode == 403 ||
           error.statusCode == 404) {
         setState(() { _denied = true; _fullTeam = null; });
