@@ -12,7 +12,8 @@ CROSS=("journeys","access","operations","scanner","commerce")
 COMMUNITY=("groups","objectives","notifications","trust","contributions","sharing")
 ENGAGEMENT=("forms","crm")
 LIVE=("placement","incidents")
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,"content")
+PERSONAL=("discovery","goals","space")
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain!="content")
 
 
@@ -48,7 +49,7 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal
     if a.action=="inventory":
         catalog.main([])
         return
@@ -79,6 +80,12 @@ def run(a):
     print("MODE:","GENERATE" if apply else "PLAN","DOMAINES:",",".join(sorted(domains)))
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
+    personal_selected=set(PERSONAL)&domains
+    if personal_selected:
+        argv=["--domains",",".join(sorted(personal_selected)),
+              "--count",str(min(a.count,2000)), "--profiles",str(a.profiles)]
+        if apply: argv.append("--apply")
+        personal.main(argv)
     if "transport" in domains:
         argv=["--beneficiaries",str(a.profiles),"--scan-count",str(min(a.profiles,12))]
         if apply: argv.append("--apply")
