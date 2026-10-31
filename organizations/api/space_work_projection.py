@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
 from django.urls import reverse
@@ -167,7 +169,15 @@ def _occurrence_item(occurrence, caps):
     }
 
 
-def _offer_item(offer, caps):
+def _source_selection_url(space_slug, kind, identity):
+    """Existing read-only selection; the Space Work API revalidates the scope."""
+    return (
+        reverse("organizations_api:workspace-work", kwargs={"slug": space_slug})
+        + "?" + urlencode({"kind": kind, "id": str(identity)})
+    )
+
+
+def _offer_item(offer, caps, *, space_slug):
     return {
         "key": f"offer:{offer.pk}",
         "source": {"kind": "offer", "id": str(offer.pk)},
@@ -189,7 +199,10 @@ def _offer_item(offer, caps):
                 "title": offer.activity.title,
             }
         },
-        "links": {"activity": f"/api/v1/activities/{offer.activity_id}/"},
+        "links": {
+            "activity": f"/api/v1/activities/{offer.activity_id}/",
+            "selection": _source_selection_url(space_slug, "offer", offer.pk),
+        },
         "capabilities": _capabilities_for_activity(offer.activity_id, caps),
     }
 
@@ -265,7 +278,7 @@ def _order_item(order, caps, *, space_slug):
     }
 
 
-def _route_item(route):
+def _route_item(route, *, space_slug):
     return {
         "key": f"transport_route:{route.pk}",
         "source": {"kind": "transport_route", "id": str(route.pk)},
@@ -282,12 +295,12 @@ def _route_item(route):
                 for stop in route.stops.all()
             ],
         },
-        "links": {},
+        "links": {"selection": _source_selection_url(space_slug, "transport_route", route.pk)},
         "capabilities": ["view"],
     }
 
 
-def _vehicle_item(vehicle):
+def _vehicle_item(vehicle, *, space_slug):
     return {
         "key": f"vehicle:{vehicle.pk}",
         "source": {"kind": "vehicle", "id": str(vehicle.pk)},
@@ -297,7 +310,7 @@ def _vehicle_item(vehicle):
         "timing": {},
         "state": "active" if vehicle.active else "inactive",
         "context": {"passenger_capacity": vehicle.passenger_capacity},
-        "links": {},
+        "links": {"selection": _source_selection_url(space_slug, "vehicle", vehicle.pk)},
         "capabilities": ["view"],
     }
 
@@ -527,13 +540,13 @@ def build_space_work_projection(
     for offer in _selected(offers, "offer", source_kind, source_id):
         if offer.status == OfferStatus.DRAFT:
             target = "preparation"
-        elif offer.status == OfferStatus.ACTIVE:
+        elif offer.status in {OfferStatus.ACTIVE, OfferStatus.INACTIVE}:
             target = "offers"
         elif offer.status == OfferStatus.ARCHIVED:
             target = "completed"
         else:
             continue
-        _append(sections[target], _offer_item(offer, caps))
+        _append(sections[target], _offer_item(offer, caps, space_slug=space.slug))
 
     if has_direct_space_permission(profile, space, PermissionCode.ORDERS_VIEW):
         orders = (
@@ -622,10 +635,10 @@ def build_space_work_projection(
     if transport_visible:
         routes = TransportRoute.objects.filter(space=space).prefetch_related("stops__place").order_by("name", "pk")
         for route in _selected(routes, "transport_route", source_kind, source_id):
-            _append(sections["routes"], _route_item(route))
+            _append(sections["routes"], _route_item(route, space_slug=space.slug))
         vehicles = Vehicle.objects.filter(space=space).order_by("label", "pk")
         for vehicle in _selected(vehicles, "vehicle", source_kind, source_id):
-            _append(sections["vehicles"], _vehicle_item(vehicle))
+            _append(sections["vehicles"], _vehicle_item(vehicle, space_slug=space.slug))
 
     footprint = (
         list(operational_footprint_for_space(space).signals)
