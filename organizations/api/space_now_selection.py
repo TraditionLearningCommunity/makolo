@@ -14,7 +14,7 @@ from django.utils import timezone
 from activities.models import Occurrence, OccurrenceStatus, OccurrenceTimingKind
 from authorization.constants import PermissionCode
 from authorization.selectors import activity_ids_with_direct_permission
-from journeys.models import Journey, JourneyStatus, WorkflowKind
+from journeys.models import Journey, JourneyRequest, JourneyStatus, RequestStatus
 from services.selectors import service_journeys_visible_to
 
 from .space_work_projection import (
@@ -140,36 +140,44 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
         profile, PermissionCode.ACTIVITY_REQUESTS_VIEW
     ))
     if review_ids:
+        # Journey submission alone is not a request for a Space decision.
+        # JourneyRequest is the canonical owner of review/approval.
         requests = (
-            Journey.objects.filter(
-                activity_id__in=review_ids,
-                workflow=WorkflowKind.REGISTRATION,
-                status__in=[JourneyStatus.SUBMITTED, JourneyStatus.PENDING_APPROVAL],
+            JourneyRequest.objects.filter(
+                journey__activity_id__in=review_ids,
+                status=RequestStatus.PENDING,
             )
-            .select_related("activity")
-            .order_by("-created_at", "pk")
+            .select_related("journey__activity")
+            .order_by("-submitted_at", "pk")
         )
         candidates = list(requests[: SOURCE_SCAN_LIMIT + 1])
         scan_incomplete |= len(candidates) > SOURCE_SCAN_LIMIT
         decision_ids = set(activity_ids_with_direct_permission(
             profile, PermissionCode.ACTIVITY_REQUESTS_DECIDE
         ))
-        for journey in candidates[:SOURCE_SCAN_LIMIT]:
-            can_decide = journey.activity_id in decision_ids
-            url = reverse("organizations:space-work", kwargs={"slug": space.slug})
+        for request in candidates[:SOURCE_SCAN_LIMIT]:
+            activity_id = request.journey.activity_id
+            can_decide = activity_id in decision_ids
+            if can_decide:
+                url = (
+                    reverse("organizations:console-requests", kwargs={"slug": space.slug})
+                    + f"?status=pending&activity={activity_id}"
+                )
+            else:
+                url = reverse("organizations:space-work", kwargs={"slug": space.slug})
             items.append(_situation(
-                space=space, source_kind="journey", source_id=journey.pk,
-                activity_id=journey.activity_id,
-                human_context=journey.activity.title,
-                subject="Demande reçue",
-                state="Demande en attente d'examen" if journey.status == JourneyStatus.PENDING_APPROVAL else "Demande soumise",
-                why_now="Une demande est en attente dans cette activité.",
-                reason="registration_request_pending",
+                space=space, source_kind="journey_request", source_id=request.pk,
+                activity_id=activity_id,
+                human_context=request.journey.activity.title,
+                subject="Demande en attente",
+                state="Demande reçue, en attente de décision",
+                why_now="Une demande est actuellement en attente d'une décision.",
+                reason="journey_request_pending",
                 turn="space" if can_decide else "none",
-                response_type="decide" if can_decide else "monitor",
+                response_type="decide" if can_decide else "understand",
                 destination="activity", web_url=url,
                 observed_at=observed_at,
-                action_label="Examiner dans Métier" if can_decide else "Consulter dans Métier",
+                action_label="Examiner la demande" if can_decide else "Voir l'activité",
             ))
 
     service_ids = visible & (
@@ -207,7 +215,7 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
             ))
 
     # Deterministic priority across owner sources; not a generic relevance score.
-    order = {"occurrence": 0, "journey": 1}
+    order = {"occurrence": 0, "journey_request": 1, "journey": 2}
     items.sort(key=lambda row: (
         order.get(row["source"]["kind"], 2),
         row["human_context"].casefold(),
