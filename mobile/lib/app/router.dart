@@ -222,28 +222,17 @@ GoRouter createMakoloRouter(
             runtime: runtime,
             initialQuery: state.uri.queryParameters['q'] ?? '',
             initialVertical: state.uri.queryParameters['vertical'] ?? '',
+            initialFilters: DiscoveryQuery.fromRouteParameters(
+              state.uri.queryParameters,
+            ),
           ),
         ),
         GoRoute(
           path: '/discover/map',
           builder: (context, state) {
-            final filters = state.uri.queryParameters;
             return PublicDiscoveryMapScreen(
               runtime: runtime,
-              query: DiscoveryQuery(
-                text: filters['q'] ?? '',
-                place: filters['place'] ?? '',
-                when: filters['when'] ?? '',
-                period: filters['period'] ?? '',
-                vertical: filters['vertical'] ?? '',
-                price: filters['price'] ?? '',
-                date: filters['date'] ?? '',
-                dateFrom: filters['date_from'] ?? '',
-                dateTo: filters['date_to'] ?? '',
-                latitude: double.tryParse(filters['lat'] ?? ''),
-                longitude: double.tryParse(filters['lon'] ?? ''),
-                radiusKm: double.tryParse(filters['radius_km'] ?? ''),
-              ),
+              query: DiscoveryQuery.fromRouteParameters(state.uri.queryParameters),
             );
           },
         ),
