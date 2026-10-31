@@ -227,9 +227,11 @@ class SpaceNowDomainSignalTests(TestCase):
 
     def test_commerce_requires_explicit_upcoming_expiry_not_just_pending(self):
         now = timezone.now()
-        due = self._order(expires_at=now + timedelta(hours=5))
-        self._order(expires_at=now + timedelta(days=8))
-        self._order()
+        due = self._order(expires_at=now + timedelta(hours=5), payable=True)
+        self._order(expires_at=now + timedelta(days=8), payable=True)
+        self._order(payable=True)
+        # A free pending order is not evidence that the payer must act.
+        self._order(expires_at=now + timedelta(hours=2))
         result = self._now()
         commerce = [
             row for row in result.data["items"]
