@@ -1,0 +1,33 @@
+<section class="mk-panel p-5 sm:p-6" aria-labelledby="space-subscription-billing-title">
+  <div class="flex flex-wrap justify-between gap-3">
+    <div>
+      <span class="mk-kicker">Facturation de l’Espace</span>
+      <h2 id="space-subscription-billing-title" class="mt-1 text-xl font-extrabold">Obligations liées à notre abonnement</h2>
+    </div>
+    <a href="{% url 'organizations:console-subscription-billing' space.slug %}" class="mk-btn mk-btn-secondary">Voir la facturation</a>
+  </div>
+  {% if space_billing.items %}
+  <ul class="mt-4 space-y-3">
+    {% for obligation in space_billing.items %}
+    <li class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
+      <div>
+        <p class="font-bold">{{ obligation.label }}</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ obligation.amount }} {{ obligation.currency }} · {{ obligation.status }}{% if obligation.due_at %} · Échéance {{ obligation.due_at|date:'d/m/Y' }}{% endif %}</p>
+      </div>
+      {% if obligation.can_open_detail and obligation.can_start_payment %}
+      <a href="{% url 'payments:obligation-start' obligation.id %}" class="mk-btn mk-btn-primary">Consulter ou régler</a>
+      {% elif obligation.can_open_detail %}
+      <span class="mk-badge">{{ obligation.status }}</span>
+      {% else %}
+      <span class="text-xs" style="color:var(--mk-muted)">Détail réservé aux personnes autorisées aux finances</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="mt-4 text-sm" style="color:var(--mk-muted)">Aucune obligation liée à cet abonnement.</p>
+  {% endif %}
+  {% if space_billing.next_offset is not None %}
+    <a href="{% url 'organizations:console-subscription-billing' space.slug %}?offset={{space_billing.next_offset}}" class="mt-3 inline-flex min-h-11 items-center font-bold">Voir la suite</a>
+  {% endif %}
+</section>
