@@ -299,10 +299,11 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
         "access_use": 2,
         "capacity_pool": 3,
         "journey_request": 4,
-        "payment": 5,
-        "commerce_order": 6,
-        "journey": 7,
-        "automation_execution": 8,
+        "payment_obligation": 5,
+        "payment": 6,
+        "commerce_order": 7,
+        "journey": 8,
+        "automation_execution": 9,
     }
     items.sort(key=lambda row: (
         order.get(row["source"]["kind"], 2),
