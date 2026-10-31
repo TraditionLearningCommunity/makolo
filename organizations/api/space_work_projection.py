@@ -518,6 +518,7 @@ def build_space_work_projection(
             continue
         _append(sections[target], _activity_item(activity, caps))
 
+    next_occurrence_by_activity = {}
     occurrences = (
         Occurrence.objects.filter(activity__space=space, activity_id__in=visible_ids)
         .select_related("activity", "transport_departure")
@@ -541,6 +542,20 @@ def build_space_work_projection(
             target = "upcoming"
         else:
             continue
+        if (
+            space.archetype in {"generic", "community"}
+            and target == "upcoming"
+            and occurrence.activity_id not in next_occurrence_by_activity
+        ):
+            # Source order is chronological. This is a real, permitted
+            # Occurrence, not a synthetic Activity lifecycle or readiness.
+            next_occurrence_by_activity[occurrence.activity_id] = {
+                "id": str(occurrence.pk),
+                "label": occurrence.label or occurrence.activity.title,
+                "start_date": occurrence.start_date,
+                "start_time": occurrence.start_time,
+                "timezone": occurrence.timezone,
+            }
         _append(sections[target], _occurrence_item(occurrence, caps))
 
     commerce_activity_ids = visible_ids & caps["commerce"]
@@ -652,6 +667,22 @@ def build_space_work_projection(
         for vehicle in _selected(vehicles, "vehicle", source_kind, source_id):
             _append(sections["vehicles"], _vehicle_item(vehicle, space_slug=space.slug))
 
+    # Keep the lasting Activity recognizable through its next known realization
+    # without creating an "ongoing" state for a merely published Activity.
+    if space.archetype in {"generic", "community"}:
+        for item in sections["activities"]["items"]:
+            activity_id = item["source"]["id"]
+            next_occurrence = next_occurrence_by_activity.get(
+                activity_id
+            )
+            if next_occurrence is None:
+                # Activity ids are UUIDs; keys above use their canonical type.
+                from uuid import UUID
+
+                next_occurrence = next_occurrence_by_activity.get(UUID(activity_id))
+            if next_occurrence is not None:
+                item["context"]["next_occurrence"] = next_occurrence
+
     footprint = (
         list(visible_operational_footprint_for_space(space, profile).signals)
         if direct_portfolio
@@ -671,6 +702,7 @@ def build_space_work_projection(
         label=preset.primary_business_label,
         sections=sections,
         limited=not direct_portfolio or lens_ids is not None,
+        is_root=not (source_kind or source_id or section_key or offset),
     )
     reading_order = (
         [
@@ -696,6 +728,10 @@ def build_space_work_projection(
                 "question": business_world["question"],
                 "calm_message": business_world["calm_message"],
                 "reading_groups": business_world["reading_groups"],
+                "next_occurrence_label": (
+                    "Prochaine action"
+                    if space.archetype == "community" else "Prochaine date"
+                ),
             } if business_world else {}),
         },
         **({"business_world": business_world} if business_world else {}),
