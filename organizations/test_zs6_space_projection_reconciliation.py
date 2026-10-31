@@ -167,6 +167,21 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         )
         self.assertEqual(malformed.status_code, 404)
 
+    def test_selected_activity_perspective_does_not_look_space_wide(self):
+        extra_mandate = grant_activity_role(
+            profile=self.owner, activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            self._url("now"),
+            {"responsibility": f"mandate:{extra_mandate.pk}"},
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["authority"]["scope"], "activity_limited")
+        self.assertTrue(response.data["authority"]["limited_to_activities"])
+
     def test_revoked_mandate_removes_projection_access(self):
         self.client.force_authenticate(self.activity_actor)
         before = self.client.get(self._url("now"))
@@ -363,6 +378,31 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         self.client.force_authenticate(self.team_only)
         self.assertEqual(self.client.get(url).status_code, 404)
         self.client.force_authenticate(self.owner)
+        foreign_space = Organization.objects.create(
+            name="Autre propriétaire", slug="zs6-foreign-private",
+            created_by=self.owner,
+        )
+        foreign_activity = Activity.objects.create(
+            title="Dossier d'un autre Space", slug="zs6-foreign-request",
+            space=foreign_space, created_by=self.owner,
+        )
+        foreign_journey = Journey.objects.create(
+            initiated_by=applicant, beneficiary=applicant,
+            activity=foreign_activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        foreign_request = JourneyRequest.objects.create(
+            journey=foreign_journey, requester=applicant,
+        )
+        foreign_url = reverse(
+            "organizations_api:workspace-request-detail",
+            kwargs={"slug": self.space.slug, "request_id": foreign_request.pk},
+        )
+        self.assertEqual(self.client.get(foreign_url).status_code, 404)
+        self.assertEqual(
+            self.client.post(foreign_url, {"decision": "approve"}, format="json").status_code,
+            404,
+        )
         read = self.client.get(url)
         self.assertEqual(read.status_code, 200, read.data)
         self.assertEqual(read.data["request"]["id"], str(owner_request.pk))
@@ -374,6 +414,10 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
             url, {"responsibility": "mandate:00000000-0000-0000-0000-000000000000"},
         )
         self.assertEqual(denied_lens.status_code, 404)
+        self.assertEqual(
+            self.client.post(url, {"decision": "invalid"}, format="json").status_code,
+            400,
+        )
         decision = self.client.post(url, {"decision": "approve"}, format="json")
         self.assertEqual(decision.status_code, 200, decision.data)
         self.assertTrue(decision.data["confirmed_by_owner"])
@@ -385,6 +429,33 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
             self.client.post(url, {"decision": "approve"}, format="json").status_code,
             409,
         )
+
+    def test_request_owner_depth_denies_revoked_mandate_before_post(self):
+        applicant = User.objects.create_user(
+            username="zs6-revoked-applicant",
+            email="zs6-revoked-applicant@test.local", password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=applicant, beneficiary=applicant,
+            activity=self.activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        owner_request = JourneyRequest.objects.create(
+            journey=journey, requester=applicant,
+        )
+        url = reverse(
+            "organizations_api:workspace-request-detail",
+            kwargs={"slug": self.space.slug, "request_id": owner_request.pk},
+        )
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        revoke_mandate(mandate=self.owner_mandate, actor=self.owner)
+        self.assertEqual(
+            self.client.post(url, {"decision": "approve"}, format="json").status_code,
+            404,
+        )
+        owner_request.refresh_from_db()
+        self.assertEqual(owner_request.status, RequestStatus.PENDING)
 
     def test_expired_request_is_not_a_now_decision(self):
         applicant = User.objects.create_user(
