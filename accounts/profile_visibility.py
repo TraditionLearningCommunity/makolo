@@ -215,6 +215,13 @@ def replace_profile_visibility(*, owner, target_kind, field_key="", interest=Non
         keys.add(key)
         selected.append((kind, values))
 
+    # PUBLIC already includes every viewer; mixing it with narrower audiences
+    # is an easy way to disclose a fact unintentionally from the editor.
+    if (Audience.PUBLIC, "") in keys and len(keys) > 1:
+        raise ValidationError(
+            "Tout le monde est exclusif : retirez Public pour restreindre la visibilité."
+        )
+
     criteria = {"owner": owner, "target_kind": target_kind}
     if target_kind == Target.FIELD:
         criteria["field_key"] = field_key
