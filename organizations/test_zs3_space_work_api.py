@@ -636,7 +636,7 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         )
         self.assertEqual(
             row["links"]["detail"],
-            f"/api/v1/services/operator/journeys/{journey.pk}/",
+            f"/services/operator/journeys/{journey.pk}/",
         )
         self.assertIn("open_service_case", row["capabilities"])
         self.assertNotIn(beneficiary.email, str(row))
