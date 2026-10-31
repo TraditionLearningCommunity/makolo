@@ -8,6 +8,8 @@ from django.utils import timezone
 
 from accounts.models import UserProfile
 from accounts.profile_visibility import ProfileVisibilityResolver
+from groups.selectors import groups_for_profile
+from organizations.console_context import authorized_spaces
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from authorization.models import AuthorityScope, Mandate, MandateStatus
 from organizations.models import TeamMembership, TeamMembershipStatus
@@ -63,6 +65,8 @@ class PassportProjection:
     credential_summary: tuple = ()
     # Owner-only context; membership never implies authority.
     team_affiliations: tuple = ()
+    group_affiliations: tuple = ()
+    authorized_space_affiliations: tuple = ()
     active_space_mandates: tuple = ()
     # Internal Space teams require a separate team-management permission.
     space_teams: tuple = ()
@@ -89,6 +93,8 @@ class PassportProjection:
             or self.trust_verifications
             or self.credential_summary
             or self.team_affiliations
+            or self.group_affiliations
+            or self.authorized_space_affiliations
             or self.active_space_mandates
             or self.space_teams
         )
@@ -243,6 +249,22 @@ def _profile_team_affiliations(profile):
     return tuple(
         {"team": row.team.name, "space": row.team.organization.name}
         for row in memberships
+    )
+
+
+def _profile_group_affiliations(profile):
+    """Groups from the existing Moi selector; owner view only."""
+    return tuple(
+        {"name": row.name, "slug": row.slug}
+        for row in groups_for_profile(profile).order_by("name", "id")
+    )
+
+
+def _profile_authorized_space_affiliations(profile):
+    """Reachable Spaces from Moi, not an implied membership or endorsement."""
+    return tuple(
+        {"name": row.name, "slug": row.slug}
+        for row in authorized_spaces(profile).order_by("name", "id")
     )
 
 
@@ -423,6 +445,8 @@ def build_profile_passport(
         generated_at=observed_at,
         identity=identity,
         team_affiliations=(_profile_team_affiliations(profile) if variant == PASSPORT_COMPLETE else ()),
+        group_affiliations=(_profile_group_affiliations(profile) if variant == PASSPORT_COMPLETE else ()),
+        authorized_space_affiliations=(_profile_authorized_space_affiliations(profile) if variant == PASSPORT_COMPLETE else ()),
         active_space_mandates=(_profile_active_space_mandates(profile, at=observed_at) if variant == PASSPORT_COMPLETE else ()),
         interests=tuple(interests_qs),
         open_to=tuple(open_to_qs),
