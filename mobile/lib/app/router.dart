@@ -244,7 +244,7 @@ GoRouter createMakoloRouter(
               runtime: runtime,
               initialQuery: query.text,
               initialVertical: query.vertical,
-              initialFilters: query,
+              initialFilters: state.uri.queryParameters.isEmpty ? null : query,
             );
           },
         ),
