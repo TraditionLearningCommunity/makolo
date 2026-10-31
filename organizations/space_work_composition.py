@@ -45,7 +45,7 @@ _CALM = {
 }
 
 
-def compose_space_work_business_world(*, archetype, label, sections, limited):
+def compose_space_work_business_world(*, archetype, label, sections, limited, is_root=True):
     """Organize only real and authorized entries; no rankings or state copies.
 
     A reading group exists when its underlying owner section has real rows or
@@ -80,14 +80,17 @@ def compose_space_work_business_world(*, archetype, label, sections, limited):
 
     has_continuity = any(g["identity"] == "continuity" for g in chapters)
     has_portfolio = any(g["identity"] == "portfolio" for g in chapters)
-    if has_portfolio and not has_continuity:
+    if is_root and has_portfolio and not has_continuity:
         chapters.sort(key=lambda g: 0 if g["identity"] == "portfolio" else 1)
 
     order = [k for g in chapters for k in g["section_keys"]]
     return {
         "preferred_language": label,
         "question": _QUESTIONS[archetype],
-        "calm_message": _CALM[archetype] if has_portfolio and not has_continuity else None,
+        "calm_message": (
+            _CALM[archetype]
+            if is_root and has_portfolio and not has_continuity else None
+        ),
         "reading_groups": chapters,
         "perspectives": (
             [{
