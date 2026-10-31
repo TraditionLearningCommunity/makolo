@@ -10,5 +10,7 @@
         <span class="mk-badge {% if product.can_manage %}mk-badge-success{% endif %}">{% if product.can_manage %}Consultation et gestion{% else %}Consultation uniquement{% endif %}</span>
     </section>
     {% include 'subscriptions/_product_content.html' with space_slug=space.slug %}
+    {% include 'organizations/console/_subscription_history.html' %}
+    {% include 'organizations/console/_subscription_billing.html' %}
 </div>
 {% endblock %}
