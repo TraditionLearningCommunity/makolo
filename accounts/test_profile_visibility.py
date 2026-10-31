@@ -142,3 +142,21 @@ class ProfileVisibilityPolicyTests(TestCase):
         open_to.refresh_from_db()
         self.assertFalse(interest.is_public)
         self.assertFalse(open_to.is_public)
+
+    def test_public_cannot_accidentally_coexist_with_restricted_audience(self):
+        policy = ProfileVisibilityPolicy.objects.create(
+            owner=self.owner,
+            target_kind=ProfileVisibilityTargetKind.FIELD,
+            field_key="bio",
+        )
+        from accounts.profile_visibility import replace_profile_visibility
+        with self.assertRaises(ValidationError):
+            replace_profile_visibility(
+                owner=self.owner, target_kind=ProfileVisibilityTargetKind.FIELD,
+                field_key="bio",
+                audiences=[
+                    {"kind": "public"},
+                    {"kind": "selected_profile", "id": str(self.other.pk)},
+                ],
+            )
+        self.assertFalse(policy.audiences.exists())
