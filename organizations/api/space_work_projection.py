@@ -31,6 +31,7 @@ from organizations.space_product import (
     operating_preset_for_space, visible_operational_footprint_for_space,
 )
 from organizations.space_work_composition import compose_space_work_business_world
+from organizations.space_work_media import attach_space_work_recognition_media
 from organizations.space_work_presentation import (
     ordered_work_section_keys,
     work_presentation_for_space,
@@ -573,7 +574,8 @@ def build_space_work_projection(
             continue
         if (
             space.archetype in {
-                "generic", "community", "education", "service_provider"
+                "generic", "community", "education", "service_provider",
+                "creative", "media",
             }
             and target == "upcoming"
             and str(occurrence.activity_id) not in next_occurrence_by_activity
@@ -851,7 +853,8 @@ def build_space_work_projection(
     # Keep the lasting Activity recognizable through its next known realization
     # without creating an "ongoing" state for a merely published Activity.
     if space.archetype in {
-        "generic", "community", "education", "service_provider"
+        "generic", "community", "education", "service_provider",
+        "creative", "media",
     }:
         for item in sections["activities"]["items"]:
             activity_id = item["source"]["id"]
@@ -872,6 +875,12 @@ def build_space_work_projection(
         section.pop("_seen", None)
     if section_key:
         sections = {section_key: sections[section_key]}
+
+    # Published recognition only: the public delivery owner must authorize
+    # the very same media use. No asset or private storage URL is exposed.
+    attach_space_work_recognition_media(
+        profile=profile, space=space, sections=sections,
+    )
 
     # Non-persistent Business World for each implemented composition group.
     # It only references items already filtered by owner selectors.
@@ -914,6 +923,8 @@ def build_space_work_projection(
                     if space.archetype == "community"
                     else "Prochaine session" if space.archetype == "education"
                     else "Prochaine réalisation" if space.archetype == "service_provider"
+                    else "Prochaine présentation" if space.archetype == "creative"
+                    else "Prochaine édition" if space.archetype == "media"
                     else "Prochaine date"
                 ),
             } if business_world else {}),
