@@ -20,7 +20,7 @@ def public_services():
     """Only owner-published, publicly discoverable Services.
 
     The Activity's publication alone does not override Space lifecycle,
-    public identity or its verification suspension. The separate Group gate
+    public identity, personal Profile privacy or verification suspension. The separate Group gate
     remains the caller's responsibility.
     """
     return (
@@ -35,9 +35,18 @@ def public_services():
                 activity__space__searchable=True,
                 activity__space__lifecycle=SpaceLifecycle.ACTIVE,
             )
-            | Q(
-                activity__space__isnull=True,
-                activity__owner_profile__is_active=True,
+            | (
+                Q(
+                    activity__space__isnull=True,
+                    activity__owner_profile__is_active=True,
+                )
+                & (
+                    Q(activity__owner_profile__profile__isnull=True)
+                    | Q(
+                        activity__owner_profile__profile__public_profile=True,
+                        activity__owner_profile__profile__searchable=True,
+                    )
+                )
             )
         )
         .exclude(activity__space__verification_status="suspended")
