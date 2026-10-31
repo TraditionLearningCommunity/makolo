@@ -226,6 +226,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                     surface: widget.surface,
                     projection: snapshot.data,
                     fallbackSpaceName: actor.space.slug,
+                    onRefresh: _refresh,
                   ),
                 ),
               ],
@@ -242,11 +243,13 @@ class _SpaceProjectionBody extends StatelessWidget {
     required this.surface,
     required this.projection,
     required this.fallbackSpaceName,
+    required this.onRefresh,
   });
 
   final SpaceShellSurface surface;
   final StoredProjection? projection;
   final String fallbackSpaceName;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -273,11 +276,21 @@ class _SpaceProjectionBody extends StatelessWidget {
     );
     if (selection.situations.isEmpty &&
         _map(projection?.payload['selection'])?['state'] == 'partial') {
-      return const MakoloEmptyState(
-        title: 'Aucune situation établie dans cette perspective.',
-        body: 'La couverture actuelle reste partielle. Makolo ne peut pas '
-            'encore conclure que tout est en ordre pour cet Espace.',
-        icon: Icons.info_outline_rounded,
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const MakoloEmptyState(
+            title: 'Aucune situation établie dans cette perspective.',
+            body: 'La couverture actuelle reste partielle. Makolo ne peut pas '
+                'encore conclure que tout est en ordre pour cet Espace.',
+            icon: Icons.info_outline_rounded,
+          ),
+          TextButton.icon(
+            onPressed: onRefresh,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Actualiser'),
+          ),
+        ],
       );
     }
     final space = _map(projection?.payload['space']);
@@ -286,6 +299,7 @@ class _SpaceProjectionBody extends StatelessWidget {
         'space-now:${_text(space?['id'])}:${_text(projection?.payload['responsibility'])}',
       ),
       selection: selection,
+      onRetry: onRefresh,
       onOpenOwner: (destination) {
         final path = NowScreen.ownerPathFor(destination);
         if (path != null) context.push(path);
