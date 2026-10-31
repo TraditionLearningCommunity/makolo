@@ -11,6 +11,47 @@ import 'discovery_save_icon.dart';
 
 export 'discovery_save_icon.dart' show DiscoveryOrbitIcon;
 
+/// Locale-aware compact label for the time a possibility was *added*.
+///
+/// This is intentionally unrelated to the timing of an Occurrence. The exact
+/// timestamp remains accessible through the tooltip/semantics of N1.
+String discoveryAddedAtLabel(
+  DateTime addedAt,
+  DateTime now, {
+  bool french = true,
+}) {
+  final local = addedAt.toLocal();
+  final current = now.toLocal();
+  final duration = current.difference(local);
+  if (duration.isNegative) return '';
+  final day = DateTime(local.year, local.month, local.day);
+  final today = DateTime(current.year, current.month, current.day);
+  final calendarDays = today.difference(day).inDays;
+  if (calendarDays == 0) {
+    if (duration.inMinutes < 1) {
+      return french ? 'À l’instant' : 'Just now';
+    }
+    if (duration.inHours < 1) {
+      return french
+          ? 'il y a ${duration.inMinutes} min'
+          : '${duration.inMinutes} min ago';
+    }
+    return french
+        ? 'il y a ${duration.inHours} h'
+        : '${duration.inHours} h ago';
+  }
+  if (calendarDays == 1) return french ? 'Hier' : 'Yesterday';
+  if (calendarDays == 2) return french ? 'Avant-hier' : 'Two days ago';
+  if (calendarDays < 7) {
+    return french ? 'il y a $calendarDays j' : '$calendarDays days ago';
+  }
+  if (calendarDays < 30) {
+    final weeks = calendarDays ~/ 7;
+    return french ? 'il y a $weeks sem.' : '$weeks weeks ago';
+  }
+  return '';
+}
+
 /// This is route availability, not authorization. The owner checks any
 /// protected mutation when it is actually requested.
 bool discoveryOwnerDepthBrowsableByGuest(String path) {
@@ -174,7 +215,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         'à compléter',
         'à confirmer',
         'disponibilité à confirmer',
-        'indisponible',
         'n/a',
         '—',
       };
@@ -231,14 +271,29 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         add(kind, label, fact['value']?.toString());
       }
     }
+    const roleLabels = {
+      'primary': 'Lieu',
+      'venue': 'Lieu',
+      'departure': 'Départ',
+      'arrival': 'Arrivée',
+      'stopover': 'Escale',
+      'boarding': 'Embarquement',
+      'dropoff': 'Débarquement',
+    };
     for (final fact in item.spatialFacts) {
-      final role = fact['role']?.toString() ?? '';
+      final role = (fact['role'] ?? '').toString().toLowerCase();
       final place = fact['place'];
       if (place is Map) {
+        final name = (place['name'] ?? '').toString().trim();
+        final locality = (place['locality'] ?? '').toString().trim();
+        final value = name.isNotEmpty && locality.isNotEmpty &&
+                name.toLowerCase() != locality.toLowerCase()
+            ? '$name, $locality'
+            : name.isNotEmpty ? name : locality;
         add(
-          role == 'primary' ? 'place' : 'place_$role',
-          role == 'primary' || role.isEmpty ? 'Lieu' : role,
-          place['name']?.toString(),
+          role == 'primary' || role == 'venue' ? 'place' : 'place_$role',
+          roleLabels[role] ?? 'Lieu',
+          value,
         );
       }
     }
@@ -576,6 +631,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     final material = MaterialLocalizations.of(context);
     final isFrench = Localizations.localeOf(context).languageCode == 'fr';
     final formatted = material.formatMediumDate(local);
+    final relative = discoveryAddedAtLabel(
+      local,
+      DateTime.now(),
+      french: isFrench,
+    );
+    final label = relative.isNotEmpty ? relative : formatted;
     final exact =
         '$formatted · ${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
     return Tooltip(
@@ -583,7 +644,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       child: Semantics(
         label: '${isFrench ? 'Ajouté le' : 'Added'} $exact',
         child: Text(
-          formatted,
+          label,
           maxLines: 2,
           softWrap: true,
           textAlign: TextAlign.end,
