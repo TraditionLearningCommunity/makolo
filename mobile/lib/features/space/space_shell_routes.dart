@@ -365,6 +365,10 @@ class _SpaceProjectionBody extends StatelessWidget {
       SpaceUsSurface(
         payload: payload,
         fallbackSpaceName: fallbackSpaceName,
+        onOpen: (route) async {
+          await context.push(route);
+          if (context.mounted) await onRefresh();
+        },
       );
 
   Map<String, dynamic>? _map(Object? value) => value is Map
