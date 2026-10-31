@@ -48,6 +48,7 @@ import '../features/space/space_shell_routes.dart';
 import '../features/space/space_insight_screen.dart';
 import '../features/space/space_work_collection_screen.dart';
 import '../features/space/space_repository.dart';
+import '../features/space/space_request_screen.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
@@ -408,6 +409,23 @@ GoRouter createMakoloRouter(
       ...markRoutes(runtime),
       ...continuityRoutes(runtime),
       ...notificationRoutes(runtime),
+      GoRoute(
+        path: '/space/requests/:id',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext) {
+            return const MakoloSecondaryScreen(
+              title: 'Demande de cet Espace',
+              message: 'Choisissez un Espace autorisé.',
+            );
+          }
+          return SpaceRequestScreen(
+            runtime: runtime,
+            actor: actor,
+            requestId: state.pathParameters['id']!,
+          );
+        },
+      ),
       GoRoute(
         path: '/space/:slug/work/:section',
         builder: (context, state) {
