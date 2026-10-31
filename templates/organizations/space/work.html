@@ -15,6 +15,20 @@
     </div>
   </header>
 
+  {% if projection.presentation.today_departures %}
+  <section class="mk-panel p-4 sm:p-5" aria-label="Départs aujourd'hui">
+    <h3 class="text-base font-extrabold">Aujourd’hui · Départs réels</h3>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {% for departure in projection.presentation.today_departures %}
+      <a class="mk-btn mk-btn-secondary" href="#work-{{ departure.section }}">
+        {{ departure.title }}
+        {% if departure.start_time %}· {{ departure.start_time|time:"H:i" }}{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   {% if work_sections %}
   <nav class="flex gap-2 overflow-x-auto" aria-label="Sections de {{ projection.primary_business_label }}">
     {% for section in work_sections %}
