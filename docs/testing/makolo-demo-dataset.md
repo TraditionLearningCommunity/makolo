@@ -151,3 +151,40 @@ python -m scripts.demo_generation plan --domains sharing,groups,objectives --cou
 ```
 
 **Important :** avoir 338 modeles recenses et evalues est possible ; exiger des objets inventes dans chaque modele n'est pas une condition de maturite. Par exemple `ProviderCredential`, `SocialToken`, `Settlement`, `VerificationClaim`, `ObserverBlob`, `DomainEventConsumption`, `PaymentEvent` et les tables Django de session/blacklist ne constituent pas des activites utilisateur a simuler par lignes directes. L'inventaire sert a piloter leur couverture par scenarios/faits canoniques.
+
+## Scenarios supplementaires pour une BDD ayant une histoire
+
+**Apres le controle local des 339 modeles, 120 etaient remplis et 219 vides.** Le registre dynamique `inventory` ne promet pas un objet pour chaque table technique. La preparation transversale vise une **histoire fonctionnelle** : activites terminees et futures, operations Jour J, droits et passages, achats et Funding confirmes en sandbox, opportunites proposees/revues, suivi personnel, Espaces et fidelite.
+
+Nouveaux modules internes :
+
+- `personal.py` : **Discovery** bookmarks/veilles, **Goals** actifs par mois, suivi d'Espaces par les `world_*`. Aucun Preference/OpenTo n'est deduit implicitement d'un bookmark.
+- `ecosystem.py` : **Spaces** fictifs possedes par des Profiles, Teams et Mandates crees via `create_organization` / `add_or_update_member`, Activity/Occurrences appartenant a ces Espaces avec passage d'une Occurrence historique a `completed` par le service ; **Loyalty** programmes, tiers, memberships gratuits actives par le service ; **Automation** politiques Event par `ensure_policy`.
+- `verticals.py` : **Funding** contributions liees a de vraies obligations de paiement et paiement `sandbox` via `initiate_obligation_payment` puis `complete_sandbox_payment` ; **Opportunities** soumissions et revue par un curateur ayant effectivement la permission, a defaut en attente.
+- `scale.py` : paiements **Event** utilises par `create_order`, `initiate_payment`, `complete_sandbox_payment` et les services d'emission ; Scanner et AccessUse via les contrats canoniques.
+- `community.py` : **Trust** Proof privee seulement si un `AccessUse.ACCEPTED` existe, et Reports marques DEMO (pas de preuve inventee).
+- `mandates.py` : l'ordre d'octroi des droits sur les Activity actives est aligne sur les Occurrences Live auxquelles `scale.py` rattache les Journey.
+
+**Sandbox pour SQLite seulement :** les operations payantes lancent temporairement les services sous `override_settings(PAYMENTS_SANDBOX_ENABLED=True)` ; ce contexte local ne modifie ni la configuration de deploiement ni le choix des providers sur le site. Les transactions bancaires reelles ne sont jamais appelees. Les services emettent leurs propres domain events, payment obligations, tickets, etc. selon leurs regles actuelles.
+
+```powershell
+python -m compileall -q scripts/demo_generation
+python -m unittest scripts.demo_generation.test_cli -v
+python manage.py check
+
+python -m scripts.demo_generation plan --domains spaces,loyalty,automation,discovery,goals,space --count 5 --profiles 10
+python -m scripts.demo_generation plan --domains funding,services,obtention,opportunities --count 5 --profiles 10
+python -m scripts.demo_generation plan --domains all --count 10 --profiles 10 --grant-roles
+```
+
+Apres les controles ci-dessus, une demonstration integrale **de petit volume** utilise :
+
+```powershell
+python -m scripts.demo_generation generate --domains all --count 10 --profiles 10 --grant-roles
+python -m scripts.demo_generation audit
+python -m scripts.demo_generation inventory
+```
+
+L'enchainement `generate` execute les dependances dans cet ordre : Espaces/Loyalty/Automation, donnees personnelles, Transport, Mandates Live, fondations Funding/Services/Obtention, leurs Journey et paiements sandbox, puis parcours transversaux, placement, Trust, Forms, medias. Il n'ajoute pas de media sans contexte ni ne donne d'autorite via la seule appartenance a un Groupe.
+
+**Important pour un vrai jeu de tests :** `plan` lit l'etat **avant** la generation. Ses compteurs `ops_no_journey` ou `scanner_candidates=0` peuvent donc disparaitre apres la creation des Journey, Access et Mandates en amont. Lire `audit` **apres** un petit `generate` pour mesurer la couverture obtenue. Si les services refusent une creation, corriger la cause racine et conserver leur validation, sans insertion SQL directe.
