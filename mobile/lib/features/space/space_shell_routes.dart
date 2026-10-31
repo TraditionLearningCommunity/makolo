@@ -281,7 +281,7 @@ class _SpaceProjectionBody extends StatelessWidget {
       );
     }
     final space = _map(projection?.payload['space']);
-    return NowView(
+    final nowView = NowView(
       key: ValueKey(
         'space-now:${_text(space?['id'])}:${_text(projection?.payload['responsibility'])}',
       ),
@@ -290,6 +290,23 @@ class _SpaceProjectionBody extends StatelessWidget {
         final path = NowScreen.ownerPathFor(destination);
         if (path != null) context.push(path);
       },
+    );
+    if (_map(projection?.payload['selection'])?['state'] != 'partial') {
+      return nowView;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: MakoloSpacing.md),
+          child: MakoloStatus(
+            label: 'Certaines situations restent hors de cette sélection.',
+            tone: MakoloStatusTone.info,
+            icon: Icons.info_outline_rounded,
+          ),
+        ),
+        Expanded(child: nowView),
+      ],
     );
   }
 
