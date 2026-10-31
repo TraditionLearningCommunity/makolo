@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
@@ -16,6 +17,11 @@ from authorization.selectors import (
 from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
 from journeys.collaboration_models import JourneyBlockerStatus
 from journeys.models import Journey, JourneyStatus, WorkflowKind
+from journeys.service_authorization import (
+    CASE_SCOPE_VIEW_ALL,
+    CASE_SCOPE_VIEW_ASSIGNED,
+    service_case_scope,
+)
 from organizations.space_product import operating_preset_for_space, operational_footprint_for_space
 from organizations.space_work_presentation import (
     ordered_work_section_keys,
@@ -36,15 +42,28 @@ def _space_has_activity_portfolio_access(profile, space):
 
 
 def _mandated_activity_ids(profile, space):
+    """Only work-relevant authority may disclose Activity work details.
+
+    Scanner, marketing or other narrow Activity Mandates are not a grant to
+    read an Activity portfolio. Owner-specific read rights remain scoped to
+    their actual Activity, and downstream selectors recheck sensitive rows.
+    """
+    work_permissions = (
+        PermissionCode.ACTIVITY_VIEW,
+        PermissionCode.ACTIVITY_MANAGE,
+        PermissionCode.ACTIVITY_OPERATIONS_VIEW,
+        PermissionCode.ACTIVITY_COMMERCE_VIEW,
+        PermissionCode.ACTIVITY_REQUESTS_VIEW,
+        PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL,
+        PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED,
+    )
+    permitted = set()
+    for code in work_permissions:
+        permitted.update(activity_ids_with_direct_permission(profile, code))
+    if not permitted:
+        return set()
     return set(
-        current_mandates()
-        .filter(
-            profile=profile,
-            scope_type=AuthorityScope.ACTIVITY,
-            activity__space=space,
-        )
-        .exclude(activity_id=None)
-        .values_list("activity_id", flat=True)
+        space.activities.filter(pk__in=permitted).values_list("pk", flat=True)
     )
 
 
@@ -175,7 +194,7 @@ def _offer_item(offer, caps):
     }
 
 
-def _journey_item(journey, caps):
+def _journey_item(journey, caps, *, operator_case_url=None):
     item = {
         "key": f"journey:{journey.pk}",
         "source": {"kind": "journey", "id": str(journey.pk)},
@@ -195,8 +214,12 @@ def _journey_item(journey, caps):
             },
             "workflow": journey.workflow,
         },
-        "links": {"activity": f"/api/v1/activities/{journey.activity_id}/"},
-        "capabilities": _capabilities_for_activity(journey.activity_id, caps),
+        "links": {
+            "activity": f"/api/v1/activities/{journey.activity_id}/",
+            **({"detail": operator_case_url} if operator_case_url else {}),
+        },
+        "capabilities": _capabilities_for_activity(journey.activity_id, caps)
+        + (["open_service_case"] if operator_case_url else []),
     }
     # A continuity facet is present only because this owner is a real,
     # progressive journey.  It is not a transversal Business Entry state.
@@ -207,12 +230,8 @@ def _journey_item(journey, caps):
             for blocker in journey.blockers.all()
             if blocker.status == JourneyBlockerStatus.ACTIVE
         ],
-        "next": [] if journey.status in {
-            JourneyStatus.FULFILLED,
-            JourneyStatus.REJECTED,
-            JourneyStatus.CANCELLED,
-            JourneyStatus.EXPIRED,
-        } else ["owner_transition"],
+        # Never imply an executable transition without a verified owner action.
+        "next": [],
     }
     return item
 
@@ -235,7 +254,13 @@ def _order_item(order, caps):
                 "title": order.journey.activity.title,
             }
         },
-        "links": {"activity": f"/api/v1/activities/{order.journey.activity_id}/"},
+        "links": {
+            "activity": f"/api/v1/activities/{order.journey.activity_id}/",
+            "detail": reverse(
+                "organizations_api:workspace-commerce-order-detail",
+                kwargs={"slug": order.payee_space.slug, "order_id": order.pk},
+            ),
+        },
         "capabilities": _capabilities_for_activity(order.journey.activity_id, caps),
     }
 
@@ -578,7 +603,18 @@ def build_space_work_projection(
             else:
                 target = _journey_section(journey)
             if target:
-                _append(sections[target], _journey_item(journey, caps))
+                case_scope = service_case_scope(profile, journey)
+                operator_case_url = (
+                    reverse("services:operator-case", kwargs={"pk": journey.pk})
+                    if case_scope in {CASE_SCOPE_VIEW_ALL, CASE_SCOPE_VIEW_ASSIGNED}
+                    else None
+                )
+                _append(
+                    sections[target],
+                    _journey_item(
+                        journey, caps, operator_case_url=operator_case_url
+                    ),
+                )
 
     if transport_visible:
         routes = TransportRoute.objects.filter(space=space).prefetch_related("stops__place").order_by("name", "pk")
@@ -618,7 +654,7 @@ def build_space_work_projection(
         "responsibility": responsibility_key or "all",
         "operational_footprint": {"signals": footprint},
         "composition_state": "established",
-        "coverage_state": "established",
+        "coverage_state": "established" if direct_portfolio else "partial",
         "sections": sections,
         "page": {"offset": offset if section_key else 0, "limit": PREVIEW_LIMIT},
         "selection": next(
