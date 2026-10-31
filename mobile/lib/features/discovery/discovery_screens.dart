@@ -93,6 +93,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   final ScrollController _fieldScroll = ScrollController();
   Timer? _positionDebounce;
   double? _pendingScrollRestore;
+  String? _focusedCandidateKey;
 
   static const _positionProjection = 'discovery.presentation-position';
 
@@ -111,6 +112,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   @override
   void dispose() {
     _positionDebounce?.cancel();
+    unawaited(_rememberPosition(_query));
     _fieldScroll.dispose();
     super.dispose();
   }
@@ -125,6 +127,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       final offset = marker?.payload['scroll_offset'];
       if (offset is num && offset.isFinite && offset >= 0) {
         _pendingScrollRestore = offset.toDouble();
+      }
+      final selected = marker?.payload['selected_candidate_key'];
+      if (selected is String && selected.isNotEmpty) {
+        _focusedCandidateKey = selected;
       }
       final restored = retainedDiscoveryPosition(marker);
       if (restored != null) {
@@ -143,7 +149,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     } on Object {
       // A missing or outdated cursor never prevents the initial field.
     }
-    if (mounted) await _acquire();
+    if (mounted) {
+      setState(() {});
+      await _acquire();
+    }
   }
 
   Future<void> _rememberPosition(DiscoveryQuery current) async {
@@ -157,6 +166,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           'continuation': current.continuation,
           'scroll_offset': _fieldScroll.hasClients
               ? _fieldScroll.offset : (_pendingScrollRestore ?? 0.0),
+          'selected_candidate_key': _focusedCandidateKey,
         },
       );
     } on Object {
@@ -326,6 +336,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   void _open(DiscoveryItemPresentation item) {
+    unawaited(_rememberPosition(_query));
     // The central owner action may skip N2. Opening the item itself always
     // deepens the same possibility, including Activity-based verticals.
     widget.onOpenItem(item.family, item.id);
@@ -411,9 +422,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 shareApi: widget.repository.api,
                 fieldKey: _query.mapFingerprint,
                 scrollController: _fieldScroll,
-                onMap: (selected) => context.push(
-                  _query.routeLocation('/discover/map', selectedCandidateKey: selected),
-                ),
+                initialFocusedCandidateKey: _focusedCandidateKey,
+                onFocusedCandidateChanged: (key) {
+                  _focusedCandidateKey = key;
+                  unawaited(_rememberPosition(_query));
+                },
+                onMap: (selected) {
+                  unawaited(_rememberPosition(_query));
+                  context.push(_query.routeLocation(
+                    '/discover/map', selectedCandidateKey: selected,
+                  ));
+                },
                 onPage: (_) => unawaited(_loadNextPage()),
                 autoLoadMore: true,
                 loadingMore: _loadingMore,
@@ -435,6 +454,7 @@ class DiscoverySearchScreen extends StatefulWidget {
     required this.onOpenActivity,
     required this.onOpenItem,
     this.initialQuery = const DiscoveryQuery(),
+    this.initialSelectedCandidateKey,
     this.location,
     this.geoSearch,
   });
@@ -445,6 +465,7 @@ class DiscoverySearchScreen extends StatefulWidget {
   final LocationCapability? location;
   final GeoSearchGateway? geoSearch;
   final DiscoveryQuery initialQuery;
+  final String? initialSelectedCandidateKey;
 
   @override
   State<DiscoverySearchScreen> createState() => _DiscoverySearchScreenState();
@@ -465,11 +486,13 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
   final Map<int, String> _pageTokens = {};
+  String? _selectedCandidateKey;
 
   @override
   void initState() {
     super.initState();
     _query = widget.initialQuery;
+    _selectedCandidateKey = widget.initialSelectedCandidateKey;
     if (_query.page > 1 && _query.continuation != null) {
       _pageTokens[_query.page] = _query.continuation!;
     }
@@ -893,6 +916,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             baseUri: widget.repository.api.baseUri,
                             shareApi: widget.repository.api,
                             fieldKey: _query.mapFingerprint,
+                            initialFocusedCandidateKey: _selectedCandidateKey,
+                            onFocusedCandidateChanged: (key) => _selectedCandidateKey = key,
                             onMap: (selected) => context.push(
                               _query.routeLocation('/discover/map', selectedCandidateKey: selected),
                             ),
@@ -950,11 +975,13 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   late DiscoveryQuery _query;
   bool _refreshing = false;
   bool _loadMoreFailed = false;
+  String? _selectedCandidateKey;
 
   @override
   void initState() {
     super.initState();
     _query = widget.query;
+    _selectedCandidateKey = widget.initialSelectedCandidateKey;
     unawaited(_acquire());
   }
 
@@ -963,6 +990,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query.fingerprint != widget.query.fingerprint) {
       _query = widget.query;
+      _selectedCandidateKey = widget.initialSelectedCandidateKey;
       _loadMoreFailed = false;
       unawaited(_acquire());
     }
@@ -1045,7 +1073,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             key: const Key('discover-map-open-search'),
             tooltip: 'Rechercher avec les mêmes critères',
             onPressed: () => context.push(
-              _query.routeLocation('/discover/search'),
+              _query.routeLocation('/discover/search',
+                selectedCandidateKey: _selectedCandidateKey),
             ),
             icon: const Icon(Icons.search_rounded),
           ),
@@ -1074,6 +1103,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             showMapOnCompact: true,
             fieldKey: _query.mapFingerprint,
             initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
+            onSelectionChanged: (key) => _selectedCandidateKey = key,
             onPage: (_) => unawaited(_advance()),
             loadMoreFailed: _loadMoreFailed,
             onSave: (item) =>
