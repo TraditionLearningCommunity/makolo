@@ -236,7 +236,7 @@ def _journey_item(journey, caps, *, operator_case_url=None):
     return item
 
 
-def _order_item(order, caps):
+def _order_item(order, caps, *, space_slug):
     return {
         "key": f"commerce_order:{order.pk}",
         "source": {"kind": "commerce_order", "id": str(order.pk)},
@@ -258,7 +258,7 @@ def _order_item(order, caps):
             "activity": f"/api/v1/activities/{order.journey.activity_id}/",
             "detail": reverse(
                 "organizations_api:workspace-commerce-order-detail",
-                kwargs={"slug": order.payee_space.slug, "order_id": order.pk},
+                kwargs={"slug": space_slug, "order_id": order.pk},
             ),
         },
         "capabilities": _capabilities_for_activity(order.journey.activity_id, caps),
@@ -558,7 +558,7 @@ def build_space_work_projection(
                 target = "completed"
             else:
                 continue
-            _append(sections[target], _order_item(order, caps))
+            _append(sections[target], _order_item(order, caps, space_slug=space.slug))
 
     if education_ids:
         journeys = (
