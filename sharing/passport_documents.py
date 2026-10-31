@@ -90,6 +90,43 @@ def serialize_passport_projection(projection):
     }
 
 
+def profile_public_snapshot_still_disclosable(snapshot):
+    """An issued public document cannot bypass current personal disclosure.
+
+    Keep historical integrity metadata, but hide dated payload if any
+    previously published personal fact is no longer publicly representable.
+    This does not reissue or mutate a signed document.
+    """
+    if snapshot.subject_kind != PublicSubjectKind.PROFILE or not snapshot.profile_id:
+        return False
+    from .passport import PASSPORT_PUBLIC, build_profile_passport
+
+    current = serialize_passport_projection(build_profile_passport(
+        snapshot.profile, variant=PASSPORT_PUBLIC,
+    ))
+    dated = snapshot.payload or {}
+    identity = dated.get("identity") or {}
+    current_identity = current["identity"]
+    for key in (
+        "name", "bio", "profession", "company_name",
+        "organization_name", "location", "links",
+    ):
+        old = identity.get(key)
+        # Older snapshots may have no value for newly introduced attributes.
+        if old and old != current_identity.get(key):
+            return False
+    if not set(dated.get("interests") or []).issubset(set(current["interests"])):
+        return False
+    current_open_to = {
+        (row.get("kind"), row.get("topic"))
+        for row in current["open_to"]
+    }
+    for row in dated.get("open_to") or []:
+        if (row.get("kind"), row.get("topic")) not in current_open_to:
+            return False
+    return True
+
+
 def snapshot_payload_is_intact(snapshot):
     """Check the issued text payload without recomposing any live subject data."""
     canonical = json.dumps(
