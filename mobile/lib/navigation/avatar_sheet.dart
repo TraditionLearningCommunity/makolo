@@ -12,7 +12,6 @@ Future<void> showMakoloAvatarSheet(
   required AppRuntime runtime,
   VoidCallback? onConnections,
   VoidCallback? onBilling,
-  VoidCallback? onAccount,
   VoidCallback? onSettings,
   VoidCallback? onSwitchAccount,
   VoidCallback? onLogout,
@@ -23,7 +22,6 @@ Future<void> showMakoloAvatarSheet(
       runtime: runtime,
       onConnections: onConnections,
       onBilling: onBilling,
-      onAccount: onAccount,
       onSettings: onSettings,
       onSwitchAccount: onSwitchAccount,
       onLogout: onLogout,
@@ -38,7 +36,6 @@ class MakoloAvatarSheet extends StatelessWidget {
     required this.runtime,
     this.onConnections,
     this.onBilling,
-    this.onAccount,
     this.onSettings,
     this.onSwitchAccount,
     this.onLogout,
@@ -48,7 +45,6 @@ class MakoloAvatarSheet extends StatelessWidget {
   final AppRuntime runtime;
   final VoidCallback? onConnections;
   final VoidCallback? onBilling;
-  final VoidCallback? onAccount;
   final VoidCallback? onSettings;
   final VoidCallback? onSwitchAccount;
   final VoidCallback? onLogout;
@@ -140,6 +136,25 @@ class MakoloAvatarSheet extends StatelessWidget {
                                 : 'Profil Makolo',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
+                          if (identity?['username'] is String &&
+                              (identity!['username'] as String).trim().isNotEmpty)
+                            Text(
+                              '@' + (identity['username'] as String),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          if (identity?['activation'] is Map &&
+                              (identity!['activation'] as Map)['is_complete'] != true &&
+                              (identity['activation'] as Map)['percentage'] is int &&
+                              (identity['activation'] as Map)['percentage'] >= 0 &&
+                              (identity['activation'] as Map)['percentage'] < 100)
+                            Padding(
+                              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                              child: Text(
+                                (identity['activation'] as Map)['percentage'].toString() +
+                                    ' % renseigné',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -169,15 +184,6 @@ class MakoloAvatarSheet extends StatelessWidget {
                     title: const Text('Abonnement & facturation'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _closeThen(context, onBilling!),
-                  ),
-                if (onAccount != null)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    minVerticalPadding: MakoloSpacing.sm,
-                    leading: const Icon(Icons.shield_outlined),
-                    title: const Text('Compte'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _closeThen(context, onAccount!),
                   ),
                 if (onSettings != null)
                   ListTile(
