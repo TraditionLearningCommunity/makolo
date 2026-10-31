@@ -205,7 +205,11 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         )
         self.client.force_authenticate(self.activity_actor)
         # A running Occurrence without an owner action is not automatically Now.
-        quiet = self.client.get(self._url("now"))
+        with patch(
+            "operations.occurrence_live.resolve_occurrence_live",
+            return_value={"perspective": "operator", "next_action": {"type": "none"}},
+        ):
+            quiet = self.client.get(self._url("now"))
         self.assertEqual(quiet.data["items"], [])
 
         def operations_fact(*, occurrence, actor, observed_at):
