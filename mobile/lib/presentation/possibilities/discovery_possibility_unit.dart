@@ -280,6 +280,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       'boarding': 'Embarquement',
       'dropoff': 'Débarquement',
     };
+    final roleCounts = <String, int>{};
+    for (final fact in item.spatialFacts) {
+      final role = (fact['role'] ?? '').toString().toLowerCase();
+      roleCounts[role] = (roleCounts[role] ?? 0) + 1;
+    }
+    final rolePositions = <String, int>{};
     for (final fact in item.spatialFacts) {
       final role = (fact['role'] ?? '').toString().toLowerCase();
       final place = fact['place'];
@@ -290,9 +296,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 name.toLowerCase() != locality.toLowerCase()
             ? '$name, $locality'
             : name.isNotEmpty ? name : locality;
+        final ordinal = (rolePositions[role] ?? 0) + 1;
+        rolePositions[role] = ordinal;
+        final repeated = (roleCounts[role] ?? 0) > 1;
+        final label = roleLabels[role] ?? 'Lieu';
         add(
-          role == 'primary' || role == 'venue' ? 'place' : 'place_$role',
-          roleLabels[role] ?? 'Lieu',
+          repeated ? 'place_${role}_$ordinal' :
+            role == 'primary' || role == 'venue' ? 'place' : 'place_$role',
+          repeated ? '$label $ordinal' : label,
           value,
         );
       }
