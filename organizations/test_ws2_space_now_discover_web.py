@@ -49,13 +49,14 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
 
         return f"{url}?{urlencode(query)}"
 
-    def test_current_runtime_renders_unavailable_without_claiming_empty(self):
+    def test_now_partial_and_discover_unavailable_do_not_claim_calm(self):
         self.client.force_login(self.owner)
 
         now = self.client.get(self.web_url())
         self.assertEqual(now.status_code, 200)
-        self.assertEqual(now.context["projection_state"], "unavailable")
-        self.assertContains(now, "La sélection n’est pas encore disponible.")
+        self.assertEqual(now.context["projection_state"], "partial")
+        self.assertContains(now, "Aucune situation établie dans cette perspective.")
+        self.assertContains(now, "La couverture actuelle est partielle.")
         self.assertNotContains(now, "Tout est en ordre. ✓")
         self.assertNotContains(now, "no_safe_selection_contract")
 
