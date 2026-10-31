@@ -4,7 +4,9 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_space_role
-from organizations.models import Organization
+from organizations.models import Organization, SpaceLifecycle
+from funding.models import FundingContribution, FundingDetails
+from funding.selectors import funding_accepts_contributions, public_fundings
 
 
 class Z15FundingApiTests(TestCase):
@@ -173,3 +175,75 @@ class Z15FundingApiTests(TestCase):
             self.client.get(f"/api/v1/funding/{funding_id}/").status_code,
             404,
         )
+
+    def test_public_discovery_and_new_contributions_follow_space_owner_visibility(self):
+        """Space withdrawal must not leave a public Funding CTA or payment path."""
+        self.client.force_authenticate(self.owner)
+        created = self.client.post(
+            "/api/v1/funding/",
+            {
+                "title": "Fonds sensible Z15",
+                "space_id": str(self.space.pk),
+                "currency": "USD",
+                "target_amount": "100.00",
+                "status": "published",
+                "visibility": "public",
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201, created.data)
+        funding_id = created.data["id"]
+        funding = FundingDetails.objects.select_related(
+            "activity", "activity__space",
+        ).get(pk=funding_id)
+        public_path = f"/api/v1/funding/public/{funding_id}/"
+        contribute_path = f"/api/v1/funding/{funding_id}/contributions/"
+        self.client.force_authenticate(self.participant)
+        self.assertEqual(self.client.get(public_path).status_code, 200)
+        self.assertTrue(funding_accepts_contributions(funding))
+
+        for field, rejected in (
+            ("verification_status", "suspended"),
+            ("lifecycle", SpaceLifecycle.ARCHIVED),
+            ("public_profile", False),
+            ("searchable", False),
+        ):
+            with self.subTest(field=field):
+                previous = getattr(self.space, field)
+                setattr(self.space, field, rejected)
+                self.space.save(update_fields=[field])
+                funding.activity.space.refresh_from_db()
+                self.assertFalse(public_fundings().filter(pk=funding_id).exists())
+                self.assertFalse(funding_accepts_contributions(funding))
+                self.assertEqual(self.client.get(public_path).status_code, 404)
+                refused = self.client.post(
+                    contribute_path,
+                    {"amount": "10.00", "client_reference": f"withdrawn-{field}"},
+                    format="json",
+                )
+                self.assertEqual(refused.status_code, 400, refused.data)
+                self.assertFalse(
+                    FundingContribution.objects.filter(funding_id=funding_id).exists()
+                )
+                setattr(self.space, field, previous)
+                self.space.save(update_fields=[field])
+                funding.activity.space.refresh_from_db()
+                self.assertTrue(public_fundings().filter(pk=funding_id).exists())
+                self.assertTrue(funding_accepts_contributions(funding))
+
+    def test_public_funding_excludes_inactive_personal_owner(self):
+        from funding.services import create_funding
+        from activities.models import ActivityStatus, ActivityVisibility
+
+        personal = create_funding(
+            actor=self.owner,
+            title="Fonds personnel propriétaire",
+            currency="USD",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        self.assertTrue(public_fundings().filter(pk=personal.pk).exists())
+        self.owner.is_active = False
+        self.owner.save(update_fields=["is_active"])
+        self.assertFalse(public_fundings().filter(pk=personal.pk).exists())
+        self.assertFalse(funding_accepts_contributions(personal))
