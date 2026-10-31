@@ -224,7 +224,6 @@ def select_additional_space_now(
                 order = payment.commerce_order
                 if order.pk in failed_orders:
                     continue
-                failed_orders.add(order.pk)
                 if Payment.objects.filter(
                     commerce_order=order,
                     created_at__gt=payment.created_at,
@@ -232,6 +231,7 @@ def select_additional_space_now(
                     commerce_order=order, status=PaymentStatus.SUCCEEDED,
                 ).exists():
                     continue
+                failed_orders.add(order.pk)
                 items.append(make_situation(
                     space=space, source_kind="payment", source_id=payment.pk,
                     activity_id=order.journey.activity_id,
@@ -285,6 +285,7 @@ def select_additional_space_now(
                 ),
                 web_url=_web(space, "console-orders"),
                 observed_at=observed_at, action_label="Consulter la commande",
+                deadline_at=order.expires_at,
             ))
 
     # A failed Domain Automation execution is a real owner failure, not a
