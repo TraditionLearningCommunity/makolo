@@ -6,8 +6,6 @@ only signals that a due, still-unpaid obligation deserves attention.
 from __future__ import annotations
 
 from django.http import Http404
-from django.shortcuts import get_object_or_404
-from django.views.generic import TemplateView
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -90,7 +88,7 @@ class SpacePayerObligationAPIView(APIView):
         return response
 
 
-class SpacePayerObligationWebView(SpaceWebMixin, TemplateView):
+class SpacePayerObligationWebView(SpaceWebMixin):
     template_name = "payments/space_payer_obligation.html"
     space_page_title = "Obligation financière"
     space_nav_key = ""
