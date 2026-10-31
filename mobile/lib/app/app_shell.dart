@@ -268,10 +268,18 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             onConversations: () => unawaited(_openSecondary('/conversations')),
             onNotifications: () => unawaited(_openSecondary('/notifications')),
             onSearch: actor is PersonalActorContext
-                ? () => context.push('/discover/search')
+                ? () => context.push(
+                    widget.runtime.discovery?.activeExploration
+                            .routeLocation('/discover/search') ??
+                        '/discover/search',
+                  )
                 : null,
             onMap: actor is PersonalActorContext
-                ? () => context.push('/discover/map')
+                ? () => context.push(
+                    widget.runtime.discovery?.activeExploration
+                            .routeLocation('/discover/map') ??
+                        '/discover/map',
+                  )
                 : null,
             onCalendar: actor is PersonalActorContext
                 ? () => context.push('/ongoing/calendar')
