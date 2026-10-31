@@ -53,9 +53,18 @@ class DiscoveryQuery {
     final lat = coordinate('lat', -90, 90);
     final lon = coordinate('lon', -180, 180);
     final radius = coordinate('radius_km', 0, 100000);
-    final validLocation = lat != null && lon != null;
+    final hasSpatial = params.containsKey('lat') ||
+        params.containsKey('lon') || params.containsKey('radius_km');
+    final validLocation = lat != null && lon != null &&
+        (!params.containsKey('radius_km') || radius != null);
+    if (hasSpatial && !validLocation) {
+      throw const FormatException('Invalid spatial Discovery filters');
+    }
     final page = positive('page', 1, 1000000);
     final continuation = params['continuation'];
+    if (page > 1 && (continuation == null || continuation.isEmpty)) {
+      throw const FormatException('Missing signed Discovery continuation');
+    }
     return DiscoveryQuery(
       text: params['q'] ?? '',
       place: params['place'] ?? '',
