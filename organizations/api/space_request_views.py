@@ -93,6 +93,7 @@ class SpaceJourneyRequestAPIView(APIView):
                 "id": str(owner.pk),
                 "status": owner.status,
                 "purpose": owner.purpose,
+                "purpose_label": owner.get_purpose_display(),
                 "submitted_at": owner.submitted_at.isoformat(),
                 "expires_at": owner.expires_at.isoformat() if owner.expires_at else None,
                 "activity": {"id": str(activity.pk), "title": activity.title},
