@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
@@ -5,6 +6,7 @@ import '../../navigation/refresh_boundary.dart';
 import '../../navigation/secondary_screen.dart';
 import '../personal/placeholder_screen.dart';
 import 'discovery_screens.dart';
+import 'discovery_repository.dart';
 import 'discovery_watch_screens.dart';
 
 StatefulShellBranch discoveryBranch(AppRuntime runtime) => StatefulShellBranch(
@@ -47,6 +49,8 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         );
       }
       return DiscoverySearchScreen(
+        key: ValueKey(state.uri.toString()),
+        initialQuery: DiscoveryQuery.fromRouteParameters(state.uri.queryParameters),
         repository: discovery,
         location: runtime.location,
         geoSearch: runtime.geoSearch,
@@ -66,6 +70,9 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         );
       }
       return DiscoveryMapScreen(
+        key: ValueKey(state.uri.toString()),
+        query: DiscoveryQuery.fromRouteParameters(state.uri.queryParameters),
+        initialSelectedCandidateKey: state.uri.queryParameters['selected'],
         repository: discovery,
         mapConfig: runtime.mapConfig,
         onOpenOccurrence: (id) => context.push('/occurrences/$id'),
