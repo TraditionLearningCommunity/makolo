@@ -50,3 +50,36 @@ La liste de fichiers est un inventaire GitHub de la PR, **pas** une validation f
 - **S6** : validation fonctionnelle et visuelle ciblée ; l'utilisateur effectue les exécutions Django/Flutter locales. Pas de CI demandée pour avancer.
 
 **Critère de sortie S0** : matrice propriétaire/partagé consignée, collisions identifiées, périmètre Nous séparé du Passeport, aucune modification de comportement.
+
+
+## Implémentation Nous intégrée à la PR #522 — 31 octobre 2026
+
+**Passeport / Sharing : strictement hors périmètre, aucun fichier de ce domaine modifié par ce chantier.** Les projections ne créent aucune vérité métier ni autorité.
+
+### Réalisé dans ce passage
+
+1. **Serveur Nous** — `organizations/api/space_us_projection.py` expose une visibilité explicite pour `team` et `ownership`. La racine compose les aperçus bornés de `space_relationships_projection.py`, sous permissions propriétaires, sans pouvoir d'écriture ni nouvelles tables. Le handoff relations n'est exposé que si une section est réellement visible.
+2. **Web Nous** — `organizations/space_web_views.py` respecte le handoff autorisé. `templates/organizations/space/us.html` rend la synthèse des relations, humanise la gouvernance et évite le CTA Relations sans cible autorisée.
+3. **Flutter Nous** — nouvelle `mobile/lib/features/space/space_us_surface.dart`, raccordée à `space_shell_routes.dart`. Identité collective, archétype/preset fourni, lifecycle non actif, responsabilités non combinées, équipe selon visibilité, relations autorisées, gouvernance, Trust factuel, destinations exactes du Space. Les chemins falsifiés inter-Space ne sont pas proposés.
+4. **Profondeurs Flutter** — `SpaceNousDepthScreen` rejette le changement d'acteur, vérifie le handoff exact et charge la liste complète de l'équipe par l'API `/team/` si accessible. L'aperçu autorisé reste possible hors réseau, sans fabriquer de droits. Les vues de responsabilités et gouvernance sont humanisées.
+5. **Paramètres institutionnels Flutter** — nouvel `space_us_settings_screen.dart`, route native `/space/:slug/us/settings` ajoutée à `mobile/lib/app/router.dart`. GET frais de `space.us` avant formulaire, vérification Space actif et `update_space`, PATCH de l'API workspace existante, revalidation serveur, rafraîchissement des projections après succès. Aucun enregistrement offline fictif.
+6. **Contrats ciblés ajoutés** — assertions Django dans `organizations/test_zs4_space_projections.py` et `organizations/test_ws4_space_web.py`, plus `mobile/test/space_us_surface_test.dart` couvrant visibilité limitée, tailles et liens inter-Space.
+
+### Non exécuté / non prétendu terminé
+
+- Les tests Django, Flutter, analyseur Dart et la CI **n'ont pas été exécutés** à la demande de l'utilisateur (exécution locale prévue). Aucun résultat vert n'est revendiqué.
+- Les mutations complexes d'équipe et transfert d'ownership demeurent dans leurs API/Web owners existants. Ce chantier n'a pas inventé de catalogue de rôles ni de formulaire client susceptible d'octroyer un Mandate imprudemment.
+- L'édition native de la visibilité publique est une mutation autorisée de l'identité Space ; les autres domaines publics restent propriétaires de leur découverte.
+- Les profondeurs Trust, Pilot et Relations utilisent leurs propriétaires et flux existants ; aucune projection Passport n'est introduite.
+- Aucune migration ni modification de `main`. PR #522 non fusionnée.
+
+### Commandes recommandées pour la validation locale
+
+```sh
+python manage.py test organizations.test_zs4_space_projections organizations.test_ws4_space_web
+cd mobile
+flutter test test/space_us_surface_test.dart test/space_actor_shell_test.dart test/nous_deep_link_test.dart
+flutter analyze lib/features/space lib/app/router.dart
+```
+
+Vérifier manuellement : visiteur et Profile hors Space (404 privé), membre sans Mandate, Activity-only, Mandate Space, bascule d'acteur pendant une profondeur, liste équipe complète, refus réseau, mutation settings interdite après révocation, Compact/Medium/Wide et UI Web. Le fait de récupérer un snapshot hors réseau n'autorise jamais une mutation.
