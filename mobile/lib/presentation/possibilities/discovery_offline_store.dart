@@ -8,9 +8,12 @@ import 'package:path_provider/path_provider.dart';
 /// credentials, proof, private Journey documents, or authorization state.
 /// No URLs or API tokens are written to the filesystem.
 class DiscoveryOfflineStore {
-  const DiscoveryOfflineStore({this.rootOverride});
+  const DiscoveryOfflineStore({this.rootOverride, this.trustedOrigin});
 
   final Directory? rootOverride;
+
+  /// The API origin supplied by trusted app configuration, never by the image.
+  final Uri? trustedOrigin;
   static final Random _nonce = Random();
 
   static const int maxItemBytes = 20 * 1024 * 1024;
@@ -20,8 +23,13 @@ class DiscoveryOfflineStore {
 
   /// A same-origin URL is not evidence of public disclosure. Automatic
   /// retention only recognizes the canonical published media-use endpoint.
-  static bool isPublishedRecognitionUri(Uri url) {
-    if (url.userInfo.isNotEmpty ||
+  static bool isPublishedRecognitionUri(Uri url, {Uri? trustedOrigin}) {
+    if (trustedOrigin == null ||
+        trustedOrigin.host.isEmpty ||
+        (trustedOrigin.scheme != 'http' && trustedOrigin.scheme != 'https') ||
+        url.origin != trustedOrigin.origin ||
+        url.host.isEmpty ||
+        url.userInfo.isNotEmpty ||
         url.hasQuery ||
         url.hasFragment ||
         (url.scheme != 'http' && url.scheme != 'https')) {
@@ -61,7 +69,7 @@ class DiscoveryOfflineStore {
   }
 
   Future<Uint8List?> recognizedImage(Uri url) async {
-    if (!isPublishedRecognitionUri(url)) return null;
+    if (!isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin)) return null;
     final file = await _recognitionFile(url);
     if (!await file.exists()) return null;
     final size = await file.length();
@@ -91,7 +99,7 @@ class DiscoveryOfflineStore {
   }
 
   Future<void> _retainRecognitionImageDirect(Uri url, Uint8List bytes) async {
-    if (!isPublishedRecognitionUri(url)) {
+    if (!isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin)) {
       throw const FormatException('Unpublished recognition media cannot persist');
     }
     if (bytes.isEmpty || bytes.length > maxRecognitionBytes) {
@@ -103,8 +111,23 @@ class DiscoveryOfflineStore {
     final partial = File('${target.path}.part-$nonce');
     try {
       await partial.writeAsBytes(bytes, flush: true);
-      if (await target.exists()) await target.delete();
-      await partial.rename(target.path);
+      // Preserve previously retained bytes if rename fails on this filesystem.
+      final backup = File('${target.path}.backup-$nonce');
+      var hadTarget = false;
+      try {
+        if (await target.exists()) {
+          await target.rename(backup.path);
+          hadTarget = true;
+        }
+        await partial.rename(target.path);
+      } catch (_) {
+        if (hadTarget && await backup.exists()) {
+          if (await target.exists()) await target.delete();
+          await backup.rename(target.path);
+        }
+        rethrow;
+      }
+      if (await backup.exists()) await backup.delete();
       await _pruneRecognition(target.parent);
     } on Object {
       if (await partial.exists()) await partial.delete();
@@ -156,12 +179,28 @@ class DiscoveryOfflineStore {
       );
     }
     final destination = await location(url);
-    final staging = File('${destination.path}.part');
+    final nonce = '${DateTime.now().microsecondsSinceEpoch}-'
+        '${_nonce.nextInt(1 << 32)}';
+    final staging = File('${destination.path}.part-$nonce');
+    final backup = File('${destination.path}.backup-$nonce');
+    var hadDestination = false;
     try {
-      if (await staging.exists()) await staging.delete();
       await source.copy(staging.path);
-      if (await destination.exists()) await destination.delete();
-      return await staging.rename(destination.path);
+      if (await destination.exists()) {
+        await destination.rename(backup.path);
+        hadDestination = true;
+      }
+      try {
+        final result = await staging.rename(destination.path);
+        if (await backup.exists()) await backup.delete();
+        return result;
+      } catch (_) {
+        if (hadDestination && await backup.exists()) {
+          if (await destination.exists()) await destination.delete();
+          await backup.rename(destination.path);
+        }
+        rethrow;
+      }
     } on Object {
       if (await staging.exists()) await staging.delete();
       rethrow;
