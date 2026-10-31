@@ -180,6 +180,38 @@ class PassportPublicIdentityTests(TestCase):
         self.assertContains(verification, snapshot.document_id)
         self.assertContains(verification, snapshot.payload_hash)
 
+    def test_verification_url_is_stable_and_legacy_signed_links_still_resolve(self):
+        from django.core import signing
+        from sharing.passport_documents import (
+            PASSPORT_VERIFY_SALT, passport_verification_token,
+            resolve_passport_verification_token,
+        )
+
+        url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
+        issued = self.client.get(url, {"document": "1"})
+        snapshot = issued.context["passport_snapshot"]
+        current_token = passport_verification_token(snapshot)
+        self.assertEqual(current_token, passport_verification_token(snapshot))
+        self.assertEqual(
+            issued.context["passport_verification_url"],
+            reverse("sharing:passport-verify", kwargs={"token": current_token}),
+        )
+        self.assertEqual(resolve_passport_verification_token(current_token).pk, snapshot.pk)
+
+        # Previously printed QR codes used TimestampSigner. They must not
+        # break when the canonical history link becomes deterministic.
+        legacy_token = signing.dumps(
+            {"passport_id": str(snapshot.pk), "payload_hash": snapshot.payload_hash},
+            salt=PASSPORT_VERIFY_SALT, compress=True,
+        )
+        self.assertEqual(resolve_passport_verification_token(legacy_token).pk, snapshot.pk)
+        self.assertEqual(
+            self.client.get(reverse("sharing:passport-verify", kwargs={
+                "token": legacy_token,
+            })).status_code,
+            200,
+        )
+
     def test_two_issued_versions_retain_their_own_dated_content(self):
         url = reverse("public-passport", kwargs={"identifier": "naomi-demo"})
         first = self.client.get(url, {"document": "1"})
