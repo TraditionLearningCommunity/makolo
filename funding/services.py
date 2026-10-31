@@ -148,7 +148,7 @@ def create_funding_contribution(*, funding, actor, amount, client_reference=""):
         raise PermissionDenied("Vous devez être connecté pour contribuer.")
     funding = (
         FundingDetails.objects.select_for_update()
-        .select_related("activity")
+        .select_related("activity", "activity__space", "activity__owner_profile")
         .get(pk=funding.pk)
     )
     if not funding_accepts_contributions(funding, at=timezone.now()):
