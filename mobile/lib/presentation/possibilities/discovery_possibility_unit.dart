@@ -296,13 +296,17 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 name.toLowerCase() != locality.toLowerCase()
             ? '$name, $locality'
             : name.isNotEmpty ? name : locality;
+        if (value.isEmpty) continue;
         final ordinal = (rolePositions[role] ?? 0) + 1;
         rolePositions[role] = ordinal;
         final repeated = (roleCounts[role] ?? 0) > 1;
         final label = roleLabels[role] ?? 'Lieu';
         add(
-          repeated ? 'place_${role}_$ordinal' :
-            role == 'primary' || role == 'venue' ? 'place' : 'place_$role',
+          repeated
+              ? 'place_${role}_$ordinal'
+              : (role == 'primary' || role == 'venue'
+                    ? 'place'
+                    : 'place_$role'),
           repeated ? '$label $ordinal' : label,
           value,
         );
