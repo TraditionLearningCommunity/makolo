@@ -3,7 +3,7 @@ from __future__ import annotations
 from urllib.parse import urlencode
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils import timezone
 
@@ -32,6 +32,8 @@ from organizations.space_work_presentation import (
     ordered_work_section_keys,
     work_presentation_for_space,
 )
+from requirements.contracts import RequirementAssessmentState
+from services.models import ServiceRequirementAssessment
 from services.selectors import service_journeys_visible_to
 from operations.occurrence_live import occurrence_live_phase
 from transport.models import TransportRoute, Vehicle
@@ -219,7 +221,7 @@ def _offer_item(offer, caps, *, space_slug):
     }
 
 
-def _journey_item(journey, caps, *, operator_case_url=None):
+def _journey_item(journey, caps, *, operator_case_url=None, space_slug=None):
     item = {
         "key": f"journey:{journey.pk}",
         "source": {"kind": "journey", "id": str(journey.pk)},
@@ -242,6 +244,9 @@ def _journey_item(journey, caps, *, operator_case_url=None):
         "links": {
             "activity": f"/api/v1/activities/{journey.activity_id}/",
             **({"detail": operator_case_url} if operator_case_url else {}),
+            **({
+                "selection": _source_selection_url(space_slug, "journey", journey.pk),
+            } if space_slug else {}),
         },
         "capabilities": _capabilities_for_activity(journey.activity_id, caps)
         + (["open_service_case"] if operator_case_url else []),
@@ -543,7 +548,9 @@ def build_space_work_projection(
         else:
             continue
         if (
-            space.archetype in {"generic", "community"}
+            space.archetype in {
+                "generic", "community", "education", "service_provider"
+            }
             and target == "upcoming"
             and str(occurrence.activity_id) not in next_occurrence_by_activity
         ):
@@ -622,7 +629,9 @@ def build_space_work_projection(
             else:
                 target = _journey_section(journey)
             if target:
-                _append(sections[target], _journey_item(journey, caps))
+                _append(sections[target], _journey_item(
+                    journey, caps, space_slug=space.slug,
+                ))
 
     if service_ids:
         journeys = (
@@ -655,7 +664,8 @@ def build_space_work_projection(
                 _append(
                     sections[target],
                     _journey_item(
-                        journey, caps, operator_case_url=operator_case_url
+                        journey, caps, operator_case_url=operator_case_url,
+                        space_slug=space.slug,
                     ),
                 )
 
@@ -667,9 +677,59 @@ def build_space_work_projection(
         for vehicle in _selected(vehicles, "vehicle", source_kind, source_id):
             _append(sections["vehicles"], _vehicle_item(vehicle, space_slug=space.slug))
 
+    # Only authorized operator case previews receive owner assessment counts.
+    # Never serialize evidence, notes, beneficiary or inferred Readiness here.
+    operator_rows = [
+        item
+        for section in sections.values()
+        for item in section["items"]
+        if (
+            item["kind"] == "service_case"
+            and "open_service_case" in item["capabilities"]
+        )
+    ]
+    if operator_rows:
+        case_ids = [row["source"]["id"] for row in operator_rows]
+        assessments = (
+            ServiceRequirementAssessment.objects
+            .filter(context__journey_id__in=case_ids)
+            .values("context__journey_id")
+            .annotate(
+                total=Count("pk"),
+                satisfied=Count(
+                    "pk", filter=Q(status=RequirementAssessmentState.SATISFIED)
+                ),
+                awaiting=Count(
+                    "pk", filter=Q(status__in=(
+                        RequirementAssessmentState.UNASSESSED,
+                        RequirementAssessmentState.PENDING,
+                    ))
+                ),
+                unsatisfied=Count(
+                    "pk", filter=Q(status=RequirementAssessmentState.UNSATISFIED)
+                ),
+            )
+        )
+        by_case = {
+            str(row["context__journey_id"]): row for row in assessments
+        }
+        for item in operator_rows:
+            summary = by_case.get(item["source"]["id"])
+            if summary is not None:
+                item["context"]["conditions"] = {
+                    "total": summary["total"],
+                    "satisfied": summary["satisfied"],
+                    "awaiting": summary["awaiting"],
+                    "unsatisfied": summary["unsatisfied"],
+                    # Owner assessments are facts, not a global ready/block flag.
+                    "basis": "service_requirement_assessment",
+                }
+
     # Keep the lasting Activity recognizable through its next known realization
     # without creating an "ongoing" state for a merely published Activity.
-    if space.archetype in {"generic", "community"}:
+    if space.archetype in {
+        "generic", "community", "education", "service_provider"
+    }:
         for item in sections["activities"]["items"]:
             activity_id = item["source"]["id"]
             next_occurrence = next_occurrence_by_activity.get(
@@ -690,8 +750,8 @@ def build_space_work_projection(
     if section_key:
         sections = {section_key: sections[section_key]}
 
-    # An additive, non-persistent Business World for the first two archetypes.
-    # It only references items already filtered by the owner selectors.
+    # Non-persistent Business World for each implemented composition group.
+    # It only references items already filtered by owner selectors.
     business_world = compose_space_work_business_world(
         archetype=space.archetype,
         label=preset.primary_business_label,
@@ -725,7 +785,10 @@ def build_space_work_projection(
                 "reading_groups": business_world["reading_groups"],
                 "next_occurrence_label": (
                     "Prochaine action"
-                    if space.archetype == "community" else "Prochaine date"
+                    if space.archetype == "community"
+                    else "Prochaine session" if space.archetype == "education"
+                    else "Prochaine réalisation" if space.archetype == "service_provider"
+                    else "Prochaine date"
                 ),
             } if business_world else {}),
         },
