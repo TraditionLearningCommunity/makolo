@@ -35,20 +35,15 @@ class PublicProfileAPITests(TestCase):
         self.assertNotIn("phone", profile)
         self.assertNotIn("address", profile)
 
-    def test_private_unsearchable_or_inactive_profiles_are_not_exposed(self):
-        for changes in (
-            {"public_profile": False},
-            {"searchable": False},
-        ):
-            self.profile.public_profile = True
-            self.profile.searchable = True
-            for field, value in changes.items():
-                setattr(self.profile, field, value)
-            self.profile.save()
-            self.assertEqual(self.client.get(self.url).status_code, 404)
+    def test_unsearchable_profile_remains_directly_accessible_but_private_is_hidden(self):
+        self.profile.searchable = False
+        self.profile.save(update_fields=["searchable", "updated_at"])
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.profile.public_profile = False
+        self.profile.save(update_fields=["public_profile", "updated_at"])
+        self.assertEqual(self.client.get(self.url).status_code, 404)
         self.profile.public_profile = True
-        self.profile.searchable = True
-        self.profile.save()
+        self.profile.save(update_fields=["public_profile", "updated_at"])
         self.owner.is_active = False
         self.owner.save(update_fields=["is_active"])
         self.assertEqual(self.client.get(self.url).status_code, 404)
