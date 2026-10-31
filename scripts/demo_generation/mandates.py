@@ -23,11 +23,21 @@ def main(argv=None):
     grantor=User.objects.filter(username=a.grantor,is_active=True).first()
     if grantor is None: p.error("Grantor inconnu ou inactif")
     now=timezone.now()
-    active_ids=(Occurrence.objects.filter(activity__slug__startswith="demo-",
-        activity__status=ActivityStatus.PUBLISHED,start_at__lte=now,end_at__gt=now)
-        .exclude(status__in=[OccurrenceStatus.CANCELLED,OccurrenceStatus.COMPLETED])
-        .values_list("activity_id",flat=True).distinct())
-    candidates=list(Activity.objects.filter(id__in=active_ids).order_by("title","id"))
+    live_occurrences=(Occurrence.objects.select_related("activity").filter(
+        activity__slug__startswith="demo-",
+        activity__status=ActivityStatus.PUBLISHED,
+        start_at__lte=now,end_at__gt=now,
+    ).exclude(status__in=[OccurrenceStatus.CANCELLED,OccurrenceStatus.COMPLETED])
+     .order_by("start_at","id"))
+    # Use the same earliest-active-first order as scale.py: a mandate must
+    # actually cover Journeys seeded in the current Live time window.
+    candidates=[]
+    seen=set()
+    for occurrence in live_occurrences:
+        if occurrence.activity_id in seen:
+            continue
+        seen.add(occurrence.activity_id)
+        candidates.append(occurrence.activity)
     def normalized(text):
         return "".join(c for c in unicodedata.normalize("NFKD",(text or "").lower())
                        if not unicodedata.combining(c))
