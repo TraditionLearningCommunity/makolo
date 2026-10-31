@@ -47,17 +47,16 @@ def with_billing_terms(product):
     )
 
 
-def personal_billing_obligations(subscription, *, offset=0, limit=20):
-    """One ordered, deduplicated source of financial obligations for this Profile.
-
-    Commercial billing and acquisition Requirement obligations may both point
-    at a PaymentObligation. Filtering by the canonical payer avoids suggesting
-    that a Profile can pay another subject's obligation.
-    """
-    if subscription.profile_id is None:
-        raise ValueError("personal_billing_obligations requires a Profile subscription")
+def subscription_billing_obligations(subscription, *, offset=0, limit=20):
+    """Payment-owned facts for the exact Subscription subject, no delegation."""
+    if subscription.profile_id is not None:
+        payer = Q(payer_profile_id=subscription.profile_id, payer_space__isnull=True)
+    elif subscription.space_id is not None:
+        payer = Q(payer_space_id=subscription.space_id, payer_profile__isnull=True)
+    else:
+        raise ValueError("Subscription subject is missing")
     obligations = (
-        PaymentObligation.objects.filter(payer_profile_id=subscription.profile_id)
+        PaymentObligation.objects.filter(payer)
         .filter(
             Q(subscription_billing_link__subscription=subscription)
             | Q(subscription_transition_links__transition__subscription=subscription)
@@ -88,3 +87,10 @@ def personal_billing_obligations(subscription, *, offset=0, limit=20):
         "items": rows,
         "next_offset": offset + limit if len(page) > limit else None,
     }
+
+
+def personal_billing_obligations(subscription, *, offset=0, limit=20):
+    """Retained personal entrypoint for its Web/native callers."""
+    if subscription.profile_id is None:
+        raise ValueError("personal_billing_obligations requires a Profile subscription")
+    return subscription_billing_obligations(subscription, offset=offset, limit=limit)
