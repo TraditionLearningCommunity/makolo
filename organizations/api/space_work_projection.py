@@ -32,6 +32,7 @@ from organizations.space_work_presentation import (
     work_presentation_for_space,
 )
 from services.selectors import service_journeys_visible_to
+from operations.occurrence_live import occurrence_live_phase
 from transport.models import TransportRoute, Vehicle
 
 
@@ -129,7 +130,10 @@ def _activity_item(activity, caps):
 def _occurrence_item(occurrence, caps):
     is_departure = hasattr(occurrence, "transport_departure")
     operation_visible = occurrence.activity_id in caps["operations"]
-    current_day_of = operation_visible and occurrence.is_ongoing
+    # Match the Operations owner phase: pre-arrival is already actionable.
+    current_day_of = operation_visible and occurrence_live_phase(occurrence) in {
+        "arrival", "live",
+    }
     place = primary_place_for_occurrence(occurrence)
     links = {
         "detail": f"/api/v1/occurrences/{occurrence.pk}/",
