@@ -499,8 +499,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     if (api == null) return; // Offline preview remains usable until expiry.
     try {
       final response = await api.get(
-        'api/v1/organizations/workspaces/' +
-        Uri.encodeComponent(space.slug) + '/team/',
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/team/',
       );
       final decoded = jsonDecode(response.body);
       if (decoded is! List) throw const FormatException('Expected team list');
@@ -512,12 +511,16 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       ];
       final actor = widget.runtime.actorContext?.value;
       if (!mounted || actor is! SpaceActorContext ||
-          actor.space.id != space.id) return;
+          actor.space.id != space.id) {
+        return;
+      }
       setState(() { _fullTeam = rows; _teamUnavailable = false; });
     } on MakoloApiError catch (error) {
       final active = widget.runtime.actorContext?.value;
       if (!mounted || active is! SpaceActorContext ||
-          active.space.id != space.id) return;
+          active.space.id != space.id) {
+        return;
+      }
       if (error.statusCode == 401 || error.statusCode == 403 ||
           error.statusCode == 404) {
         setState(() { _denied = true; _fullTeam = null; });
@@ -548,13 +551,17 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   }) async {
     final current = widget.runtime.actorContext?.value;
     if (_teamMutating || current is! SpaceActorContext ||
-        _space == null || current.space.id != _space!.id) return;
+        _space == null || current.space.id != _space!.id) {
+      return;
+    }
     final spaceId = current.space.id;
     setState(() => _teamMutating = true);
     try {
       await operation();
       if (!mounted || widget.runtime.actorContext?.value
-          is! SpaceActorContext) return;
+          is! SpaceActorContext) {
+        return;
+      }
       final currentActor = widget.runtime.actorContext!.value as SpaceActorContext;
       if (currentActor.space.id != spaceId) return;
       await _loadTeam(_space!);
@@ -656,8 +663,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       if (result == null || !mounted) return;
       await _mutateTeam(() async {
         await api.post(
-          'api/v1/organizations/workspaces/' +
-            Uri.encodeComponent(widget.slug) + '/team/',
+          'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/team/',
           body: result,
         );
       });
@@ -717,9 +723,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     if (chosen == null || !mounted) return;
     await _mutateTeam(() async {
       await api.patch(
-        'api/v1/organizations/workspaces/' +
-          Uri.encodeComponent(widget.slug) + '/team/' +
-          Uri.encodeComponent(id) + '/',
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/team/${Uri.encodeComponent(id)}/',
         body: {'role': chosen},
       );
     });
@@ -730,7 +734,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final api = widget.runtime.api;
     if (api == null || _fullTeam == null ||
         capabilities?['manage_team'] != true ||
-        capabilities?['manage_ownership'] != true) return;
+        capabilities?['manage_ownership'] != true) {
+      return;
+    }
     final candidates = _fullTeam!.where((row) =>
       _text(row['id']) != null && row['responsibility'] != 'space_owner'
     ).toList();
@@ -790,8 +796,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     if (selection == null || !mounted) return;
     await _mutateTeam(() async {
       await api.post(
-        'api/v1/organizations/workspaces/' +
-          Uri.encodeComponent(widget.slug) + '/ownership/transfer/',
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/ownership/transfer/',
         body: selection,
       );
     }, successMessage: 'Gouvernance actualisée.');
@@ -805,9 +810,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Retirer ce collaborateur ?'),
-        content: Text('Retirer ' + _depthRowLabel(row) +
-          ' peut révoquer ses Mandates. Le serveur protège '
-          'les contraintes de propriété du Space.'),
+        content: Text('Retirer ${_depthRowLabel(row)} peut révoquer ses Mandates. '
+          'Le serveur protège les contraintes de propriété du Space.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false),
             child: const Text('Annuler')),
@@ -821,9 +825,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     if (confirmed != true || !mounted) return;
     await _mutateTeam(() async {
       await api.delete(
-        'api/v1/organizations/workspaces/' +
-          Uri.encodeComponent(widget.slug) + '/team/' +
-          Uri.encodeComponent(id) + '/',
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/team/${Uri.encodeComponent(id)}/',
       );
     });
   }
@@ -907,7 +909,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final repository = widget.runtime.space;
     if (active is! SpaceActorContext || _space == null ||
         active.space.id != _space!.id || repository == null ||
-        repository.sync == null) return;
+        repository.sync == null) {
+      return;
+    }
     try {
       await repository.refreshUs(_space!);
       if (widget.depth == 'team') await _loadTeam(_space!);
