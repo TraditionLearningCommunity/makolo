@@ -355,11 +355,17 @@ class SpaceWorkGroup3Tests(TestCase):
         self.assertIsNone(result.data["selection"])
         self.assertNotIn("Foreign route", str(result.data))
 
-    def test_other_archetypes_do_not_inherit_group_three(self):
+    def test_media_composition_does_not_inherit_commerce_or_transport_groups(self):
         self.space.archetype = SpaceArchetype.MEDIA
         self.space.save(update_fields=["archetype", "updated_at"])
         self.activity("Production reconnue")
         self.client.force_authenticate(self.owner)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200, response.data)
-        self.assertNotIn("business_world", response.data)
+        world = response.data["business_world"]
+        self.assertEqual(world["preferred_language"], "Productions")
+        identities = [group["identity"] for group in world["reading_groups"]]
+        self.assertEqual(identities, ["productions"])
+        self.assertNotIn("orders", identities)
+        self.assertNotIn("departures", identities)
+        self.assertNotIn("portfolio", str(world).lower())
