@@ -1,0 +1,38 @@
+{% extends 'base/app.html' %}
+{% block title %}Confidentialité du Passeport · Makolo{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-4xl space-y-6 pb-16">
+  <header class="space-y-3">
+    <a href="{% url 'sharing:passport-me' %}" class="mk-btn mk-btn-secondary">← Mon Passeport</a>
+    <h1 class="mk-page-title">Confidentialité du Passeport</h1>
+    <p class="mk-page-copy">Choisissez qui peut consulter chacune des informations que vous présentez. L'identifiant Makolo reste visible pour identifier le porteur. Une sélection vide signifie « Moi uniquement ».</p>
+    <p class="text-sm opacity-70">Les modifications affectent le Passeport vivant. Les documents déjà exportés restent des documents datés.</p>
+  </header>
+  {% for section in sections %}
+  {% endfor %}
+  {% for heading, items in groups %}
+  {% endfor %}
+  <section class="space-y-3">
+    <h2 class="text-xl font-extrabold">Présentation</h2>
+    {% for item in fields %}
+      {% include 'sharing/passport_visibility_item.html' %}
+    {% endfor %}
+  </section>
+  <section class="space-y-3">
+    <h2 class="text-xl font-extrabold">Centres d’intérêt</h2>
+    {% for item in interests %}
+      {% include 'sharing/passport_visibility_item.html' %}
+    {% empty %}
+      <p class="text-sm opacity-70">Aucun intérêt renseigné.</p>
+    {% endfor %}
+  </section>
+  <section class="space-y-3">
+    <h2 class="text-xl font-extrabold">Ouvert à</h2>
+    {% for item in open_to %}
+      {% include 'sharing/passport_visibility_item.html' %}
+    {% empty %}
+      <p class="text-sm opacity-70">Aucune disponibilité renseignée.</p>
+    {% endfor %}
+  </section>
+</main>
+{% endblock %}
