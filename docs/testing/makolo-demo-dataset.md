@@ -188,3 +188,26 @@ python -m scripts.demo_generation inventory
 L'enchainement `generate` execute les dependances dans cet ordre : Espaces/Loyalty/Automation, donnees personnelles, Transport, Mandates Live, fondations Funding/Services/Obtention, leurs Journey et paiements sandbox, puis parcours transversaux, placement, Trust, Forms, medias. Il n'ajoute pas de media sans contexte ni ne donne d'autorite via la seule appartenance a un Groupe.
 
 **Important pour un vrai jeu de tests :** `plan` lit l'etat **avant** la generation. Ses compteurs `ops_no_journey` ou `scanner_candidates=0` peuvent donc disparaitre apres la creation des Journey, Access et Mandates en amont. Lire `audit` **apres** un petit `generate` pour mesurer la couverture obtenue. Si les services refusent une creation, corriger la cause racine et conserver leur validation, sans insertion SQL directe.
+
+## Fermeture des scenarios transversaux : session d'octobre 2026
+
+Le jeu de demonstration comporte maintenant les modules **personnels** (Discover/Veilles, Goals, suivi d'Espaces), **Espace et historique** (Space, Team, Mandates, Activity, Occurrence passe/en cours/demain, Loyalty et Membership gratuit, policies Automation), **commerce et Funding** (PaymentObligation, Payment sandbox, Ticket, Access), **Opportunities** (proposition et revue/deduplication autorisee) et **apres l'action** (`outcomes`: Journey `fulfilled`, Proof privee et reevaluation Goals apres AccessUse acceptee).
+
+Le module `aftercare.py` n'invente pas d'accomplissement : il exige un `AccessUse` dont le resultat est `accepted` pour une Journey confirmee et exclut les parcours Services qui ont leur propre politique de completion. Le module Trust cree ensuite des feedbacks admissibles et des signalements de demonstration contextualises, sans exposer de donnees personnelles.
+
+**Le plan ne remplit pas encore les domaines de configuration ou de fait exterieur suivants simplement parce que leur table est vide :** comptes tiers, credentials/secrets, moteur Observer/Interpreter/Prospector/Resolver, banques et paiements reels, historiques de livraison externe, analytics derivees non materialisees et marques de confiance sans fait source. Ces modeles restent dans l'inventaire dynamique et les cas d'essai des services correspondants.
+
+La priorite du simulateur est la coherence temporelle : les droits des operateurs ciblent les memes Occurrences Live que les Journey, le Scanner redecouvre les Events actifs, le paiement sandbox emprunte les vrais services, et `outcomes` realise les demarches ayant un passage accepte. Le test utilisateur demeure indispensable pour s'assurer que les frontends Web/Flutter affichent correctement les projections.
+
+Commandes de controle avant tout grand volume :
+
+```powershell
+python -m compileall -q scripts/demo_generation
+python -m unittest scripts.demo_generation.test_cli -v
+python manage.py check
+python -m scripts.demo_generation inventory
+python -m scripts.demo_generation audit
+python -m scripts.demo_generation plan --domains all --count 10 --profiles 10 --grant-roles
+```
+
+`inventory` donnait **339** modeles installes dans le journal du 31 octobre 2026 : ne pas figer ce nombre dans le code. La ventilation et les totaux changent quand de nouveaux modeles/migrations arrivent.
