@@ -278,6 +278,14 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   final Map<Circle, String> _circleKeys = {};
   int _pinGeneration = 0;
 
+  @override
+  void dispose() {
+    ++_pinGeneration;
+    _circleKeys.clear();
+    _mapController = null;
+    super.dispose();
+  }
+
   void _select(String key) {
     setState(() => _selectedCandidateKey = key);
     widget.onSelectionChanged?.call(key);
@@ -351,6 +359,13 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
         .toSet();
+    if (oldWidget.selection.collection.items != widget.selection.collection.items) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
+        }
+      });
+    }
     if (_selectedCandidateKey != null &&
         !keys.contains(_selectedCandidateKey)) {
       _selectedCandidateKey = null;
@@ -401,9 +416,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       onPage: widget.onPage,
       onRetry: widget.onRetry,
       selectedCandidateKey: _selectedCandidateKey,
-      onSelect: (item) => setState(() {
-        _select(item.candidateKey);
-      }),
+      onSelect: (item) => _select(item.candidateKey),
       selectionActionLabel: 'Voir sur la carte',
       fieldKey: widget.fieldKey,
     );
