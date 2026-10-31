@@ -413,7 +413,9 @@ class ZS3SpaceWorkProjectionTests(TestCase):
     def test_other_archetypes_do_not_inherit_generic_or_community_chapters(self):
         self.space.archetype = SpaceArchetype.COMMERCE
         self.space.save(update_fields=["archetype", "updated_at"])
-        self._activity("Catalogue existant")
+        catalogue = self._activity("Catalogue existant")
+        catalogue.status = ActivityStatus.PUBLISHED
+        catalogue.save(update_fields=["status", "updated_at"])
         self.client.force_authenticate(self.owner)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200, response.data)
