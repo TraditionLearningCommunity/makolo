@@ -18,9 +18,11 @@ class DeepLinkResolver {
       case 'space_work_journey':
       case 'space_work_activity':
       case 'space_commerce_order':
+      case 'space_payment_obligation':
         final expectedOwner = switch (target.kind.toLowerCase()) {
           'space_work_journey' => 'journey',
           'space_work_activity' => 'activity',
+          'space_payment_obligation' => 'payment_obligation',
           _ => 'commerce_order',
         };
         final link = target.link;
