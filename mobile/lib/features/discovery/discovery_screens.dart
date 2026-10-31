@@ -123,6 +123,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         if (mounted) unawaited(_rememberPosition(_query));
       });
     });
+    widget.repository.rememberExploration(_query);
     unawaited(_restorePositionThenAcquire());
   }
 
@@ -155,6 +156,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             mounted &&
             identical(_query, initial)) {
           setState(() => _query = restored);
+          widget.repository.rememberExploration(restored);
         }
       }
     } on Object {
@@ -239,6 +241,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         );
         if (mounted && identical(current, _query)) {
           setState(() => _query = const DiscoveryQuery());
+          widget.repository.rememberExploration(_query);
         }
       }
       await widget.repository.refreshItems(_query);
@@ -335,6 +338,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       await widget.repository.retainPresentedWindow(next);
       if (!mounted || !identical(current, _query)) return;
       setState(() => _query = next);
+      widget.repository.rememberExploration(next);
       await _rememberPosition(next);
       unawaited(_prefetchNext(next));
     } on Object {
@@ -503,6 +507,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   void initState() {
     super.initState();
     _query = widget.initialQuery;
+    widget.repository.rememberExploration(_query);
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
     if (_query.page > 1 && _query.continuation != null) {
       _pageTokens[_query.page] = _query.continuation!;
@@ -620,6 +625,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       _query = query;
       _refreshing = query.hasCriteria;
     });
+    widget.repository.rememberExploration(query);
     if (!query.hasCriteria) {
       _searchCoordinator.invalidate();
       return;
@@ -674,6 +680,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       page: page, continuation: token, clearContinuation: page == 1,
     );
     setState(() => _query = query);
+    widget.repository.rememberExploration(query);
     unawaited(_refreshPage(query));
   }
 
@@ -723,6 +730,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     _vertical = '';
     setState(() {
       _query = const DiscoveryQuery();
+      widget.repository.rememberExploration(_query);
       _locationMessage = null;
     });
   }
@@ -938,6 +946,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                                   'continuation_rejected') {
                                 final reset = _query.copyWith(page: 1);
                                 setState(() => _query = reset);
+                                widget.repository.rememberExploration(reset);
                                 unawaited(_refreshPage(reset));
                               } else {
                                 unawaited(_refreshPage(_query));
@@ -993,6 +1002,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   void initState() {
     super.initState();
     _query = widget.query;
+    widget.repository.rememberExploration(_query);
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
     if (_query.page > 1 && _query.continuation != null) {
       _pageTokens[_query.page] = _query.continuation!;
@@ -1005,6 +1015,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query.fingerprint != widget.query.fingerprint) {
       _query = widget.query;
+      widget.repository.rememberExploration(_query);
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
       _pageTokens.clear();
       if (_query.page > 1 && _query.continuation != null) {
@@ -1055,6 +1066,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       final first = current.copyWith(page: 1, clearContinuation: true);
       setState(() {
         _query = first;
+        widget.repository.rememberExploration(first);
         _pageTokens.clear();
         _loadMoreFailed = false;
       });
@@ -1102,6 +1114,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             if (mounted && identical(current, _query)) {
               setState(() {
                 _query = first;
+                widget.repository.rememberExploration(first);
                 _pageTokens.clear();
               });
               unawaited(_refresh());
@@ -1120,6 +1133,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       if (!mounted || !identical(current, _query)) return;
       setState(() {
         _query = next;
+        widget.repository.rememberExploration(next);
         _loadMoreFailed = false;
       });
     } on Object {
