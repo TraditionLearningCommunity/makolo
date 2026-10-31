@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 import 'subscription_actions_panel.dart';
+import 'subscription_billing_format.dart';
 
 /// Private subscription read model supplied by the canonical Subscriptions API.
 /// No absent or stale local record is interpreted as "no subscription".
@@ -80,9 +81,8 @@ class _BillingScreenState extends State<BillingScreen> {
     final current = _object(subscription['current_base']);
     final addons = subscription['active_addons'] is List
         ? subscription['active_addons'] as List : const [];
-    final billing = _object(_data?['billing']);
-    final obligations = billing?['items'] is List
-        ? billing!['items'] as List : const [];
+    final capacities = _data?['capabilities'] is List ? _data!['capabilities'] as List : const [];
+    final conditions = _data?['ongoing_conditions'] is List ? _data!['ongoing_conditions'] as List : const [];
     final transition = _object(_data?['transition']);
 
     return Column(
@@ -99,7 +99,10 @@ class _BillingScreenState extends State<BillingScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(_text(current['name'])),
-            subtitle: Text(_text(current['description'], fallback: 'Formule actuelle')),
+            subtitle: Text(
+              _text(current['description'], fallback: 'Formule actuelle') +
+              ' · ' + subscriptionPriceLabel(current['billing_terms']),
+            ),
           ),
         if (addons.isNotEmpty) ...[
           _heading('Options actives'),
@@ -109,7 +112,8 @@ class _BillingScreenState extends State<BillingScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(_text(_object(row)?['name'])),
                 subtitle: Text(_text(_object(row)?['description'],
-                    fallback: 'Option supplémentaire')),
+                    fallback: 'Option supplémentaire') +
+                  ' · ' + subscriptionPriceLabel(_object(row)?['billing_terms'])),
               ),
         ],
         if (transition != null) ...[
@@ -121,35 +125,35 @@ class _BillingScreenState extends State<BillingScreen> {
                 fallback: _text(transition['status_label']))),
           ),
         ],
-        _heading('Facturation'),
-        if (obligations.isEmpty)
-          const ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('Aucune obligation de facturation dans cette sélection.'),
-          ),
-        for (final row in obligations)
-          if (_object(row) != null)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.receipt_long_outlined),
-              title: Text(_text(_object(row)?['label'], fallback: 'Paiement')),
-              subtitle: Text(
-                _text(_object(row)?['amount'], fallback: '—') + ' ' +
-                _text(_object(row)?['currency'], fallback: '') + ' · ' +
-                _text(_object(row)?['status'], fallback: 'État à vérifier'),
+        if (conditions.isNotEmpty) ...[
+          _heading('Conditions à suivre'),
+          for (final row in conditions)
+            if (_object(row) != null)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(_text(_object(row)?['label'])),
+                subtitle: Text(_text(_object(row)?['detail'], fallback: 'Vérification en attente')),
               ),
-            ),
+        ],
+        if (capacities.isNotEmpty) ...[
+          _heading('Capacités de ma formule'),
+          for (final row in capacities)
+            if (_object(row) != null)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(_text(_object(row)?['name'])),
+                subtitle: Text(_text(_object(row)?['usage_label'], fallback: _text(
+                  _object(row)?['description'], fallback: 'Capacité incluse',
+                ))),
+                trailing: Text(_text(_object(row)?['value_label'], fallback: '—')),
+              ),
+        ],
         _heading('Gérer mon abonnement'),
         SubscriptionActionsPanel(
           runtime: widget.runtime,
           snapshot: _data!,
           onUpdated: _load,
         ),
-        if (billing?['next_offset'] != null)
-          const Padding(
-            padding: EdgeInsets.only(top: MakoloSpacing.md),
-            child: Text('D’autres éléments de facturation sont disponibles.'),
-          ),
       ],
     );
   }
