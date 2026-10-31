@@ -182,3 +182,46 @@ class PassportVisibilityIntegrationTests(TestCase):
         })
         policy.refresh_from_db()
         self.assertEqual(list(policy.audiences.values_list("kind", flat=True)), ["my_collectives"])
+
+    def test_company_and_organization_follow_independent_disclosure(self):
+        profile = UserProfile.objects.get(user=self.owner)
+        profile.company_name = "Atelier personnel"
+        profile.organization_name = "Association déclarée"
+        profile.save(update_fields=["company_name", "organization_name"])
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field",
+            field_key="company_name", audiences=[],
+        )
+        anonymous = self._public()
+        self.assertEqual(anonymous.identity["company_name"], "")
+        self.assertEqual(anonymous.identity["organization_name"], "Association déclarée")
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field",
+            field_key="company_name",
+            audiences=[{"kind": "selected_profile", "id": str(self.viewer.pk)}],
+        )
+        self.assertEqual(self._public(self.viewer).identity["company_name"], "Atelier personnel")
+        self.assertEqual(self._public(self.outsider).identity["company_name"], "")
+        from sharing.passport_documents import serialize_passport_projection
+        payload = serialize_passport_projection(self._public())
+        self.assertEqual(payload["identity"]["company_name"], "")
+        self.assertEqual(payload["identity"]["organization_name"], "Association déclarée")
+
+    def test_owner_complete_includes_groups_without_exposing_them_publicly(self):
+        group = Group.objects.create(name="Collectif personnel", owner_profile=self.owner)
+        complete = build_profile_passport(self.owner, variant="complete")
+        self.assertIn("Collectif personnel", [row["name"] for row in complete.group_affiliations])
+        public = self._public()
+        self.assertEqual(public.group_affiliations, ())
+        from sharing.passport_documents import serialize_passport_projection
+        self.assertEqual(serialize_passport_projection(public)["group_affiliations"], [])
+
+    def test_malformed_privacy_target_returns_400_without_server_error(self):
+        self.client.force_login(self.owner)
+        response = self.client.put(
+            self.endpoint, data={
+                "target_kind": "interest", "target_id": "not-a-uuid",
+                "audiences": [{"kind": "public"}],
+            }, content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
