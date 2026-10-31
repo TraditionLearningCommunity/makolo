@@ -16,7 +16,7 @@ from activities.models import Occurrence, OccurrenceStatus, OccurrenceTimingKind
 from authorization.constants import PermissionCode
 from authorization.selectors import activity_ids_with_direct_permission
 from journeys.collaboration_models import JourneyAssignmentStatus
-from journeys.models import JourneyRequest, RequestStatus
+from journeys.models import JourneyRequest, JourneyStatus, RequestStatus
 from services.attention_selectors import facilitator_attention_journeys, manager_attention_journeys
 from services.selectors import service_journeys_visible_to
 
@@ -169,6 +169,7 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
             JourneyRequest.objects.filter(
                 journey__activity_id__in=review_ids,
                 status=RequestStatus.PENDING,
+                journey__status__in=[JourneyStatus.SUBMITTED, JourneyStatus.PENDING_APPROVAL],
             ).filter(
                 Q(expires_at__isnull=True) | Q(expires_at__gt=observed_at)
             )
