@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -245,6 +248,7 @@ class DiscoverySpatialView extends StatefulWidget {
     this.initialSelectedCandidateKey,
     this.showMapOnCompact = false,
     this.fieldKey,
+    this.onSelectionChanged,
   });
 
   final DiscoveryFieldSelection selection;
@@ -261,6 +265,7 @@ class DiscoverySpatialView extends StatefulWidget {
   final String? initialSelectedCandidateKey;
   final bool showMapOnCompact;
   final String? fieldKey;
+  final ValueChanged<String?>? onSelectionChanged;
 
   @override
   State<DiscoverySpatialView> createState() => _DiscoverySpatialViewState();
@@ -269,6 +274,67 @@ class DiscoverySpatialView extends StatefulWidget {
 class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   static const _selector = DiscoverySelector();
   String? _selectedCandidateKey;
+  MapLibreMapController? _mapController;
+  final Map<Circle, String> _circleKeys = {};
+  int _pinGeneration = 0;
+
+  void _select(String key) {
+    setState(() => _selectedCandidateKey = key);
+    widget.onSelectionChanged?.call(key);
+    final anchors = _selector.spatialAnchorsFromCollection(widget.selection.collection);
+    for (final anchor in anchors) {
+      if (anchor.candidateKey != key) continue;
+      final controller = _mapController;
+      if (controller != null) {
+        unawaited(controller.animateCamera(CameraUpdate.newLatLng(
+          LatLng(anchor.latitude, anchor.longitude),
+        )).catchError((Object _) => false));
+      }
+      break;
+    }
+  }
+
+  void _mapCreated(MapLibreMapController controller) {
+    _mapController = controller;
+    _circleKeys.clear();
+    controller.onCircleTapped.add((circle) {
+      final key = _circleKeys[circle];
+      if (mounted && key != null) _select(key);
+    });
+  }
+
+  Future<void> _displayPins(List<DiscoverySpatialAnchor> anchors) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    final generation = ++_pinGeneration;
+    final seen = <String>{};
+    final selected = <DiscoverySpatialAnchor>[];
+    for (final anchor in anchors) {
+      final identity = '${anchor.candidateKey}:${anchor.latitude}:${anchor.longitude}';
+      if (seen.add(identity)) selected.add(anchor);
+    }
+    try {
+      await controller.clearCircles();
+      if (!mounted || _mapController != controller || generation != _pinGeneration) return;
+      final pins = await controller.addCircles([
+        for (final anchor in selected)
+          CircleOptions(
+            geometry: LatLng(anchor.latitude, anchor.longitude),
+            circleRadius: 8,
+            circleColor: '#6741D9',
+            circleStrokeWidth: 2,
+            circleStrokeColor: '#FFFFFF',
+          ),
+      ]);
+      if (!mounted || _mapController != controller || generation != _pinGeneration) return;
+      _circleKeys.clear();
+      for (var i = 0; i < pins.length && i < selected.length; i++) {
+        _circleKeys[pins[i]] = selected[i].candidateKey;
+      }
+    } on Object {
+      // Map rendering failure does not erase a real Discovery list entry.
+    }
+  }
 
   @override
   void initState() {
@@ -336,7 +402,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       onRetry: widget.onRetry,
       selectedCandidateKey: _selectedCandidateKey,
       onSelect: (item) => setState(() {
-        _selectedCandidateKey = item.candidateKey;
+        _select(item.candidateKey);
       }),
       selectionActionLabel: 'Voir sur la carte',
       fieldKey: widget.fieldKey,
@@ -353,7 +419,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         children: [
           Positioned.fill(
             child: ConfiguredMakoloMapView(
-              key: ValueKey('discover-map-${anchor.candidateKey}'),
+              key: ValueKey('discover-map-${widget.fieldKey ?? anchor.candidateKey}'),
+              onMapCreated: _mapCreated,
+              onStyleReady: () => unawaited(_displayPins(points)),
               config: widget.mapConfig,
               initialViewport: MapViewport(
                 center: MapCoordinate(anchor.latitude, anchor.longitude),
