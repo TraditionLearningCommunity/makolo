@@ -110,3 +110,44 @@ python -m scripts.demo_generation plan --domains media,forms,crm,groups,objectiv
 Les modules `media`, `engagement`, `community`, `live` et `audit` restent **internes** au dossier `scripts/demo_generation` ; tous les appels utilisateurs passent par la CLI unique.
 
 N'executer `generate` qu'apres un plan cible, et seulement sur SQLite de demo. La couverture `all` n'est pas une certification que les 338 tables reelles sont peuplees : elles contiennent aussi des projections, secrets, faits externes et tables d'infrastructure qu'il est dangereux de simuler par insertion directe.
+
+## Couverture exhaustive du registre Django (octobre 2026)
+
+`inventory` parcourt **tous** les modeles effectivement installes (338 dans la SQLite locale du 31 octobre), sans maintenir une liste de noms qui se perime :
+
+```powershell
+python -m scripts.demo_generation inventory
+python -m scripts.demo_generation audit
+```
+
+Chaque ligne du catalogue fournit le nom du modele, le nombre d'enregistrements et une **politique** : `domain` (scenario via services canoniques), `context` (depend d'un proprietaire/relation), `derived` (produit par le travail/event), `observed` (fait issu du runtime), `protected` (credential/secret), `runtime` (tables framework), `review` (domaine non classe). **Toutes les tables sont controlees ; aucune ligne fictive n'est inseree automatiquement dans les tables sensibles, d'audit ou techniques.** Ce choix preserve les invariants Makolo.
+
+`audit` presente maintenant deux mesures distinctes : **lignes dans le perimetre demo-** et **lignes dans l'ensemble de la SQLite**. Par exemple les 29 `FundingDetails`, 101 `ServiceDetails`, 27 `ObtentionDetails` de l'inventaire initial ne sont pas automatiquement des scenarii `demo-*`, mais ils ne doivent pas etre declares inexistants. L'etat `EXISTS_OUTSIDE_DEMO` signale explicitement cette difference.
+
+### Creation canonique des verticales manquantes
+
+Le module interne `foundations.py` cree, avec une identification `demo-generation-<domaine>-NNNN`, les **Activity + specialisee** de demonstration pour `funding`, `services` et `obtention` via les services metier. Les mandats d'autorite pour une Activity appartenant a un Profil sont ceux produits par la creation canonique ; pas de role global.
+
+```powershell
+python -m scripts.demo_generation plan --domains funding,services,obtention --count 4
+python -m scripts.demo_generation generate --domains funding,services,obtention --count 4
+python -m scripts.demo_generation audit
+```
+
+Les 4 cas par domaine restent des exemples : la commande `generate` doit etre testee localement avant des volumes eleves. Les intitules sont explicitement synthetiques et les paiements/reussites ne sont pas fictivement declares reels. Les modules `verticals.py` construisent ensuite les Journey, choix de mode et intentions de contribution **sur ces Activity**.
+
+### Parcours Live
+
+`scale.py` repartit maintenant la preparation des Journey sur des Occurrences distinctes (au lieu d'epuiser tous les profils sur la premiere) et selectionne pour les tests Scanner les **Event possedant une Occurrence actuellement active** plutot que les premiers UUID d'une table de milliers d'events. Ces corrections ciblent la cause des compteurs `scan_log: 0` / `queue_live: 0` lors de l'audit au 31 octobre.
+
+Une date glissante et une base immuable ne garantissent pas en permanence les memes Occurrences Live. Utiliser `timeline` explicitement lorsque necessaire, et ne jamais modifier silencieusement le temps de la production.
+
+### Partage
+
+`community.py` offre aussi `sharing` : creation idempotente de liens de partage pour des Activity publiques de demonstration via `create_activity_share`. Les jetons ne sont jamais imprimes ni exposes. `Sharing` n'accorde aucun droit d'Access.
+
+```powershell
+python -m scripts.demo_generation plan --domains sharing,groups,objectives --count 10
+```
+
+**Important :** avoir 338 modeles recenses et evalues est possible ; exiger des objets inventes dans chaque modele n'est pas une condition de maturite. Par exemple `ProviderCredential`, `SocialToken`, `Settlement`, `VerificationClaim`, `ObserverBlob`, `DomainEventConsumption`, `PaymentEvent` et les tables Django de session/blacklist ne constituent pas des activites utilisateur a simuler par lignes directes. L'inventaire sert a piloter leur couverture par scenarios/faits canoniques.
