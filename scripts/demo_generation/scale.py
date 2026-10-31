@@ -116,13 +116,19 @@ def main(argv=None):
     counts = Counter()
 
     # 1. Journey : reutiliser le service et ses validations d'eligibilite.
+    # Spread first among distinct Occurrences, especially those live now.
+    # The old nested loop spent the entire budget on one Occurrence and left
+    # Jour J/Live with no eligible beneficiaries on other Activities.
     considered = 0
-    for occurrence in occurrences:
+    if args.journeys and not profiles:
+        parser.error("Aucun profil world_ pour preparer les Journeys")
+    for batch in range((args.journeys + max(len(occurrences),1) - 1) // max(len(occurrences),1)):
         if considered >= args.journeys:
             break
-        for profile in profiles:
+        for offset, occurrence in enumerate(occurrences):
             if considered >= args.journeys:
                 break
+            profile = profiles[(batch + offset) % len(profiles)]
             considered += 1
             exists = Journey.objects.filter(occurrence=occurrence, beneficiary=profile,
                 workflow=WorkflowKind.REGISTRATION).exclude(
@@ -246,8 +252,16 @@ def main(argv=None):
     # puis appels reels a scan_ticket (AccessUse + ScanLog) dont doublons/refus.
     if args.scans:
         accepted = 0
-        events = Event.objects.filter(activity__slug__startswith="demo-",
-            activity__status=ActivityStatus.PUBLISHED).select_related("activity").order_by("id")
+        # Only inspect events with a currently active Occurrence. Ordering
+        # all 8k Event UUIDs previously missed all Live candidates in the cap.
+        live_activity_ids = Occurrence.objects.filter(
+            start_at__lte=now, end_at__gt=now, status=OccurrenceStatus.SCHEDULED,
+            activity__slug__startswith="demo-",
+            activity__status=ActivityStatus.PUBLISHED,
+        ).values("activity_id")
+        events = Event.objects.filter(
+            activity_id__in=live_activity_ids,
+        ).select_related("activity").order_by("activity__title", "id")
         for event in events[:max(50, min(500, args.scans * 3))]:
             if accepted >= args.scans:
                 break
