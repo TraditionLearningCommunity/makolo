@@ -863,7 +863,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                         Text(_depthRowDetail(row),
                           style: Theme.of(context).textTheme.bodySmall),
                         if (canManageTeam && _fullTeam != null &&
-                            _map(row) != null) ...[
+                            _map(row) != null &&
+                            (_map(row)?['responsibility'] != 'space_owner' ||
+                             _map(payload['capabilities'])?['manage_ownership'] == true)) ...[
                           const SizedBox(height: MakoloSpacing.sm),
                           Wrap(
                             spacing: MakoloSpacing.sm,
