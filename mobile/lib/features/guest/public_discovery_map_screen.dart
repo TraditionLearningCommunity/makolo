@@ -73,11 +73,14 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
     try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Public API unavailable');
-      final query = widget.query.copyWith(
-        page: next ? _collection.page + 1 : 1,
-        pageSize: 50,
-        continuation: next ? _collection.continuationToken : null,
-      );
+      // Map is another view of exactly the same public field. Its first
+      // request must not silently replace the selected page/size or cursor.
+      final query = next
+          ? widget.query.copyWith(
+              page: _collection.page + 1,
+              continuation: _collection.continuationToken,
+            )
+          : widget.query;
       final response = await api.publicGet(query.path);
       final wire = DiscoveryWire.receive(
         response.jsonObject(),
