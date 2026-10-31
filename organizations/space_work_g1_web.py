@@ -16,7 +16,7 @@ from funding.services import can_manage_funding
 
 from activities.models import Activity, Occurrence
 from authorization.constants import PermissionCode
-from authorization.selectors import can
+from authorization.services import can
 from organizations.models import SpaceArchetype
 
 from .api.space_work_projection import build_space_work_projection
@@ -138,7 +138,7 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
             )
             if (parent_projection or {}).get("selection"):
                 origin_page = self.request.GET.get("page")
-                if not (origin_page and origin_page.isdecimal()
+                if not (origin_page and len(origin_page) <= 5 and origin_page.isdecimal()
                         and 1 <= int(origin_page) <= 10000):
                     origin_page = None
                 parent_url = _work_depth_url(
