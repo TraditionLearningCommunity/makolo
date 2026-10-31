@@ -161,5 +161,27 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertIn("--apply", personal.call_args.args[0])
 
 
+
+    def test_accepted_access_outcomes_are_in_all(self):
+        self.assertIn("outcomes", parse_domains("all"))
+
+    def test_outcomes_are_previewed_without_write(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "outcomes", "--count", "8",
+        ])
+        with patch("scripts.demo_generation.aftercare.main") as aftercare:
+            run(args)
+        self.assertNotIn("--apply", aftercare.call_args.args[0])
+        self.assertIn("8", aftercare.call_args.args[0])
+
+    def test_completed_outcomes_use_explicit_generate(self):
+        args = build_parser().parse_args([
+            "generate", "--domains", "outcomes", "--count", "8",
+        ])
+        with patch("scripts.demo_generation.aftercare.main") as aftercare:
+            run(args)
+        self.assertIn("--apply", aftercare.call_args.args[0])
+
+
 if __name__ == "__main__":
     unittest.main()
