@@ -135,5 +135,31 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertIn(policy_for(credential)[0], {"observed", "protected"})
 
 
+
+    def test_personal_ecosystem_domains_are_supported(self):
+        domains = {"spaces", "loyalty", "automation", "discovery",
+                   "goals", "space", "funding", "commerce"}
+        self.assertTrue(domains.issubset(parse_domains("all")))
+
+    def test_personal_and_ecosystem_preview_do_not_write(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "spaces,loyalty,automation,discovery,goals,space",
+            "--count", "6", "--profiles", "6",
+        ])
+        with patch("scripts.demo_generation.ecosystem.main") as ecosystem, \
+             patch("scripts.demo_generation.personal.main") as personal:
+            run(args)
+        self.assertNotIn("--apply", ecosystem.call_args.args[0])
+        self.assertNotIn("--apply", personal.call_args.args[0])
+        self.assertIn("spaces", ecosystem.call_args.args[0])
+        self.assertIn("goals", personal.call_args.args[0])
+
+    def test_personal_domain_can_be_generated_without_global_mandates(self):
+        args = build_parser().parse_args(["generate", "--domains", "goals"])
+        with patch("scripts.demo_generation.personal.main") as personal:
+            run(args)
+        self.assertIn("--apply", personal.call_args.args[0])
+
+
 if __name__ == "__main__":
     unittest.main()
