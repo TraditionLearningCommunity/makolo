@@ -147,7 +147,7 @@ void main() {
       profileId: 'profile-a',
       rootOverride: supportRoot,
     );
-    await store.save(imagePath, imageBytes);
+    await tester.runAsync(() => store.save(imagePath, imageBytes));
     final api = _RecognitionApi(
       (_) async => throw const MakoloTransportError(
         'offline',
@@ -171,7 +171,8 @@ void main() {
     });
     await tester.pump();
     expect(find.byType(Image), findsOneWidget);
-    expect(await store.read(imagePath), orderedEquals(imageBytes));
+    final retained = await tester.runAsync(() => store.read(imagePath));
+    expect(retained, orderedEquals(imageBytes));
   });
 
   testWidgets('owner 403 revokes the local recognition copy', (tester) async {
@@ -179,7 +180,7 @@ void main() {
       profileId: 'profile-a',
       rootOverride: supportRoot,
     );
-    await store.save(imagePath, imageBytes);
+    await tester.runAsync(() => store.save(imagePath, imageBytes));
     final api = _RecognitionApi(
       (_) async => throw const MakoloApiError(
         statusCode: 403,
@@ -203,7 +204,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 30));
     });
     await tester.pump();
-    expect(await store.read(imagePath), isNull);
+    final retained = await tester.runAsync(() => store.read(imagePath));
+    expect(retained, isNull);
     expect(find.byType(Image), findsNothing);
   });
 }
