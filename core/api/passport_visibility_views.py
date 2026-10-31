@@ -10,7 +10,9 @@ from accounts.models import (
     ProfileVisibilityPolicy,
     ProfileVisibilityTargetKind as Target,
 )
-from accounts.profile_visibility import replace_profile_visibility
+from accounts.profile_visibility import replace_profile_visibility, _collective_memberships
+from groups.models import Group
+from organizations.models import Organization, Team
 from core.api.me_views import PersonalProjectionAPIView
 
 
@@ -47,7 +49,22 @@ class PersonalPassportVisibilityAPIView(PersonalProjectionAPIView):
                 ],
             }
 
+        memberships = _collective_memberships(profile)
         return {
+            "collectives": {
+                "spaces": [
+                    {"id": str(obj.pk), "label": obj.name, "kind": "selected_space"}
+                    for obj in Organization.objects.filter(pk__in=memberships["spaces"]).order_by("name")
+                ],
+                "teams": [
+                    {"id": str(obj.pk), "label": obj.name, "kind": "selected_team"}
+                    for obj in Team.objects.filter(pk__in=memberships["teams"]).order_by("name")
+                ],
+                "groups": [
+                    {"id": str(obj.pk), "label": obj.name, "kind": "selected_group"}
+                    for obj in Group.objects.filter(pk__in=memberships["groups"]).order_by("name")
+                ],
+            },
             "audience_kinds": [
                 "public", "my_collectives", "selected_space", "selected_team",
                 "selected_group", "selected_profile",
