@@ -36,7 +36,7 @@ Auparavant, `build_space_now_projection` renvoyait toujours `no_safe_selection_c
 - `organizations/test_zs6_space_projection_reconciliation.py` : initialisation partielle honnête, autorité Activity-limited, Occurrence en cours, non-divulgation d'une autre Activity, annulation exclue, demande owner sans mutation directe, refus Membership, changements de Mandate.
 - `organizations/test_ws2_space_now_discover_web.py` : état partiel honnête et rendu Web d'une situation owner.
 - `e2e/specs/ws2-space-now-discover.spec.mjs` : régime responsive et navigation vérifient désormais Now partiel sans faux calme ; Découvrir demeure indisponible.
-- `mobile/test/space_foundation_stabilization_test.dart` : fixture N1 valide et non-réutilisation d'une situation d'un autre Space au changement d'acteur.
+- `mobile/test/space_foundation_stabilization_test.dart` : fixture N1 valide et non-réutilisation d'une situation d'un autre Space au changement d'acteur.\n- `mobile/test/space_now_composition_test.dart` : `partial + []` ne devient jamais un calme établi et une action owner-depth ne devient pas un POST natif.
 
 **Ces tests ont été modifiés, pas exécutés.** Le conteneur ne possède ni clone du dépôt ni toolchain Dart/Flutter ; l'accès au dépôt s'est fait directement par le connecteur GitHub.
 
@@ -54,7 +54,7 @@ cd mobile
 bash tool/dart_format.sh write
 bash tool/dart_format.sh check
 flutter analyze
-flutter test test/space_foundation_stabilization_test.dart
+flutter test test/space_foundation_stabilization_test.dart test/space_now_composition_test.dart
 flutter run
 ```
 
