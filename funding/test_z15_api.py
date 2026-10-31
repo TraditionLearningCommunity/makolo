@@ -247,3 +247,33 @@ class Z15FundingApiTests(TestCase):
         self.owner.save(update_fields=["is_active"])
         self.assertFalse(public_fundings().filter(pk=personal.pk).exists())
         self.assertFalse(funding_accepts_contributions(personal))
+
+    def test_explicit_profile_privacy_hides_personal_public_funding(self):
+        from accounts.models import UserProfile
+        from activities.models import ActivityStatus, ActivityVisibility
+        from funding.services import create_funding
+
+        personal = create_funding(
+            actor=self.owner,
+            title="Fonds personnel avec choix de confidentialité",
+            currency="USD",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        self.assertTrue(public_fundings().filter(pk=personal.pk).exists())
+        privacy, _ = UserProfile.objects.get_or_create(user=self.owner)
+        privacy.public_profile = False
+        privacy.save(update_fields=["public_profile"])
+        self.assertFalse(public_fundings().filter(pk=personal.pk).exists())
+        self.assertFalse(funding_accepts_contributions(personal))
+
+        privacy.public_profile = True
+        privacy.searchable = False
+        privacy.save(update_fields=["public_profile", "searchable"])
+        self.assertFalse(public_fundings().filter(pk=personal.pk).exists())
+        self.assertFalse(funding_accepts_contributions(personal))
+
+        privacy.searchable = True
+        privacy.save(update_fields=["searchable"])
+        self.assertTrue(public_fundings().filter(pk=personal.pk).exists())
+        self.assertTrue(funding_accepts_contributions(personal))
