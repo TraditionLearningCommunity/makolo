@@ -6,6 +6,7 @@ collective calm: other owner domains are not yet covered by this selector.
 from __future__ import annotations
 
 from datetime import timedelta
+from urllib.parse import urlencode
 
 from django.db.models import Q
 from django.urls import reverse
@@ -22,6 +23,13 @@ from .space_work_projection import (
     _activity_scope_from_responsibility,
     _visible_activity_ids,
 )
+
+
+def _space_work_url(space, responsibility_key):
+    url = reverse("organizations:space-work", kwargs={"slug": space.slug})
+    if responsibility_key and responsibility_key != "all":
+        return f"{url}?{urlencode({'responsibility': responsibility_key})}"
+    return url
 
 
 SPACE_NOW_LIMIT = 24
@@ -165,7 +173,7 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                     + f"?status=pending&activity={activity_id}"
                 )
             else:
-                url = reverse("organizations:space-work", kwargs={"slug": space.slug})
+                url = _space_work_url(space, responsibility_key)
             items.append(_situation(
                 space=space, source_kind="journey_request", source_id=request.pk,
                 activity_id=activity_id,
@@ -211,7 +219,7 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
         candidates = list(cases[: SOURCE_SCAN_LIMIT + 1])
         scan_incomplete |= len(candidates) > SOURCE_SCAN_LIMIT
         for journey in candidates[:SOURCE_SCAN_LIMIT]:
-            url = reverse("organizations:space-work", kwargs={"slug": space.slug})
+            url = _space_work_url(space, responsibility_key)
             items.append(_situation(
                 space=space, source_kind="journey", source_id=journey.pk,
                 activity_id=journey.activity_id, human_context=journey.activity.title,
