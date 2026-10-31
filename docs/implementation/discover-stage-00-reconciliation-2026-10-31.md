@@ -83,10 +83,10 @@ Les modifications dépassent donc Discovery et touchent les surfaces et proprié
 | [#525](https://github.com/TraditionLearningCommunity/makolo/pull/525) | Décrit son transfert vers #522 : `PresentationMediaUse`, tests et documentation | Ne pas merger séparément ; distinguer association et livraison des médias |
 | [#526](https://github.com/TraditionLearningCommunity/makolo/pull/526) | Marquée superseded par #522 ; trois fichiers reportés, commits documentés | Ne pas rejouer les mêmes changements dans Flutter |
 | [#527](https://github.com/TraditionLearningCommunity/makolo/pull/527) | #522 annonce le transfert des quatre commits et la fermeture de #527 | Ne pas dupliquer `SyncEngine` / `SyncLifecycle` ; vérifier la régression dans le chantier 08 |
-| [#524](https://github.com/TraditionLearningCommunity/makolo/pull/524) | PR empilée sur #522 pour erreurs bêta Android ; la description ne confirme pas son transfert définitif | **Dépendance non résolue par le seul texte** : comparer son diff/état avant tout rebase ou cherry-pick ; ne pas supposer intégré |
-| [#528](https://github.com/TraditionLearningCommunity/makolo/pull/528) | Chantier Nous/Space reconnaissant des collisions avec les composants partagés de #522 | Ne pas merger à l'aveugle ; maintenir la frontière Nous et contrôler `accounts`, `organizations`, `mobile` commun |
+| [#524](https://github.com/TraditionLearningCommunity/makolo/pull/524) | **Ascendance Git confirmée** : `fix/android-discovery-beta-visible-errors-20261019` (`d5b06767085cd6ccd13fcd107956aa395b6a4a63`) est ancêtre de #522, comparaison `behind=0` | Les commits de la branche sont déjà dans l'histoire de #522 ; ne pas re-cherry-pick ni merger séparément ; validation de comportement reste due |
+| [#528](https://github.com/TraditionLearningCommunity/makolo/pull/528) | **Branches divergentes confirmées** : `feat/space-nous-mature-20261031` et #522 ont `merge-base=d0f0ec421c94c255fa4c0acd3509938a70c6322f` ; `#528...#522` montre un commit côté #528 absent de #522 au relevé | Ne pas merger à l'aveugle ; maintenir la frontière Nous et contrôler `accounts`, `organizations`, `mobile` commun |
 
-**Réconciliation terminée pour le chantier 00** signifie que les dépendances sont **identifiées et attribuées** ; elle ne prétend pas que #524/#528 sont intégrées, ni que leurs modifications sont nécessaires à la livraison de Découvrir.
+**Réconciliation terminée pour le chantier 00** signifie que les dépendances sont **identifiées, comparées et attribuées** : #524 est déjà dans l'ascendance de #522 ; #528 reste une branche divergente sans intégration présumée. Leurs comportements ne sont pas déclarés testés.
 
 ## 5. Carte des propriétaires et modules existants
 
@@ -121,7 +121,7 @@ Les chemins désignent des points d'entrée inspectés ou inventoriés, **pas** 
 | D-06 | **Dette legacy / déploiement** | Anciennes URL `PresentationAsset.file` et nouveaux `private_file` ; leur exposition effective dépend du routage et du stockage de déploiement. | 03 |
 | D-07 | **Couverture à mesurer** | Actions N3, relations/variantes, galerie, ressources, profondeur et comparaison conditionnelle sur chaque famille ; ne pas présumer absent sans tests. | 01, 04, 06, 07 |
 | D-08 | **Validation non attestée** | Cold start Android, changement de Profile, offline, révocation, Web/E2E et intégration finale n'ont pas de preuve vérifiée dans cet audit. | 08 puis 09 |
-| D-09 | **Coordination externe** | #524 empilée et #528 partage des composants ; leur état final doit être reconsulté avant intégration susceptible de les croiser. | 01 / 09 selon collision |
+| D-09 | **Coordination externe** | #524 est ancêtre de #522 : ne pas la rejouer. #528 est divergente : contrôler les collisions de composants partagés avant intégration. | 01 / 09 selon collision |
 
 **Terminologie :** `constaté` = localisé dans le code ; `risque` = chemin suspect sans incident reproduit ; `à mesurer` = couverture inconnue ; `non attesté` = aucune exécution vérifiée, et non « tests échoués ».
 
@@ -138,7 +138,7 @@ Les chemins désignent des points d'entrée inspectés ou inventoriés, **pas** 
 - [x] Branche, base et HEAD de référence identifiés.
 - [x] Périmètre de PR et migrations inventoriés.
 - [x] Contrats joints et documents du dépôt classés par provenance et autorité.
-- [x] Transferts des PR voisines recensés, incertitudes explicites.
+- [x] Transferts des PR voisines recensés, ascendance #524 et divergence #528 vérifiées.
 - [x] Propriétaires, modules, tests existants et responsabilités cartographiés.
 - [x] Écarts, risques et validations non prouvées assignés à des chantiers futurs.
 - [x] Règle de séquentialité et interdiction des nouvelles vérités fixées.
