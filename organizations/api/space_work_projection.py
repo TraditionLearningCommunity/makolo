@@ -24,7 +24,9 @@ from journeys.service_authorization import (
     CASE_SCOPE_VIEW_ASSIGNED,
     service_case_scope,
 )
-from organizations.space_product import operating_preset_for_space, operational_footprint_for_space
+from organizations.space_product import (
+    operating_preset_for_space, visible_operational_footprint_for_space,
+)
 from organizations.space_work_presentation import (
     ordered_work_section_keys,
     work_presentation_for_space,
@@ -470,7 +472,7 @@ def build_space_work_projection(
     transport_visible = (
         direct_portfolio
         and lens_ids is None
-        and "transport" in operational_footprint_for_space(space).signals
+        and "transport" in visible_operational_footprint_for_space(space, profile).signals
     )
     commerce_visible = bool(visible_ids & caps["commerce"])
     education_ids = visible_ids & caps["requests"]
@@ -641,7 +643,7 @@ def build_space_work_projection(
             _append(sections["vehicles"], _vehicle_item(vehicle, space_slug=space.slug))
 
     footprint = (
-        list(operational_footprint_for_space(space).signals)
+        list(visible_operational_footprint_for_space(space, profile).signals)
         if direct_portfolio
         else []
     )
