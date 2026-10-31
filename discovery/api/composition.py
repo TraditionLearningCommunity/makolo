@@ -269,7 +269,7 @@ def _saved_opportunity_ids(profile, opportunity_ids) -> set[str]:
     }
 
 
-def _activity_resource_previews(activity_ids, *, profile=None) -> dict[str, list[dict]]:
+def _activity_resource_previews(activity_ids, *, profile=None, occurrence_scope=None) -> dict[str, list[dict]]:
     """Expose authorized resource metadata, with a bounded inline TEXT sample.
 
     Preparation retains all document content, publication and reader authority.
@@ -294,13 +294,22 @@ def _activity_resource_previews(activity_ids, *, profile=None) -> dict[str, list
     )
     result: dict[str, list[dict]] = {}
     remaining_by_activity = {}
+    access_by_context = {}
     for resource in rows:
-        # The resource owner may restrict delivery even when the Activity
-        # itself is an admitted public Discovery candidate. Do not disclose
-        # either its body or its metadata if the reader will be denied.
-        if not can_view_resource(profile, resource):
-            continue
         activity_id = str(resource.activity_id)
+        # A public occurrence-specific Resource for an unrelated session is
+        # not a fact of the currently presented variant.
+        if occurrence_scope is not None and resource.occurrence_id is not None:
+            if str(resource.occurrence_id) not in occurrence_scope.get(activity_id, set()):
+                continue
+        # For published/public resources, delivery authority depends on the
+        # Activity, viewer and occurrence context (not on the file type).
+        # Cache that check, but never cache it across viewers or requests.
+        access_key = (activity_id, str(resource.occurrence_id) if resource.occurrence_id else None)
+        if access_key not in access_by_context:
+            access_by_context[access_key] = can_view_resource(profile, resource)
+        if not access_by_context[access_key]:
+            continue
         bucket = result.setdefault(activity_id, [])
         text = resource.text_content if resource.kind == ResourceKind.TEXT else None
         truncated = False
@@ -1280,7 +1289,15 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     owner_facts, opportunity_dates = _public_owner_facts(
         activity_ids, opportunity_ids,
     )
-    activity_resources = _activity_resource_previews(activity_ids, profile=profile)
+    resource_occurrence_scope = {activity_id: set() for activity_id in activity_ids}
+    for family, _, candidate in rows:
+        if family == "activity":
+            resource_occurrence_scope[str(candidate.activity_id)].update(
+                str(value) for value in candidate.matching_occurrence_ids
+            )
+    activity_resources = _activity_resource_previews(
+        activity_ids, profile=profile, occurrence_scope=resource_occurrence_scope,
+    )
     opportunity_resources = _opportunity_source_previews(opportunity_ids)
     public_spatial_facts, occurrence_variants = _public_occurrence_facts_for_rows(rows)
 
@@ -1431,8 +1448,10 @@ def paginated_projection(
     profile=None,
     include_internal_rows=False,
 ) -> dict:
-    composition = compose_discovery(params, profile=profile)
+    # Reject invalid/expired or cross-viewer continuations before executing
+    # the expensive owner search and aggregation.
     page, page_size = parse_page_params(params, profile=profile)
+    composition = compose_discovery(params, profile=profile)
     start = (page - 1) * page_size
     end = start + page_size
     page_rows = composition.rows[start:end]
