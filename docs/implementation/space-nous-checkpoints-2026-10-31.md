@@ -83,3 +83,7 @@ flutter analyze lib/features/space lib/app/router.dart
 ```
 
 Vérifier manuellement : visiteur et Profile hors Space (404 privé), membre sans Mandate, Activity-only, Mandate Space, bascule d'acteur pendant une profondeur, liste équipe complète, refus réseau, mutation settings interdite après révocation, Compact/Medium/Wide et UI Web. Le fait de récupérer un snapshot hors réseau n'autorise jamais une mutation.
+
+### Complément d'intégration native
+
+Les profondeurs Équipe et Gouvernance appellent les API canoniques Team et Ownership avec confirmation. Le serveur reste souverain sur les rôles et transferts. Une panne réseau conserve les observations locales non expirées, mais désactive les mutations ; une invalidation d'autorité masque les données sensibles. Aucun travail Passeport n'est inclus.
