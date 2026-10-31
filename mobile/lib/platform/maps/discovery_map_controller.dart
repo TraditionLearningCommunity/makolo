@@ -10,8 +10,8 @@ class DiscoveryMapController {
   const DiscoveryMapController(this._controller);
   final MapLibreMapController _controller;
 
-  Future<void> moveTo(double latitude, double longitude) =>
-      _controller.animateCamera(CameraUpdate.newLatLng(LatLng(latitude, longitude)));
+  Future<void> moveTo(double latitude, double longitude) => _controller
+      .animateCamera(CameraUpdate.newLatLng(LatLng(latitude, longitude)));
 
   void onPinTapped(void Function(Object) callback) {
     _controller.onCircleTapped.add(callback);
