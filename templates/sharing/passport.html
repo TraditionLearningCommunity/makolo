@@ -37,31 +37,6 @@
       <div class="footer-note">Ce Passeport Makolo est une présentation datée des informations choisies par le sujet et des éléments pouvant être établis ou attestés dans Makolo. Il ne constitue ni une pièce d’identité légale, ni un score de réputation ou d’employabilité. {% if passport_snapshot %}Son authenticité peut être vérifiée avec le QR code ou l’identifiant du document.{% else %}Les documents émis depuis ce Passeport peuvent être vérifiés par Makolo.{% endif %}</div></div></article>
 </div>
 <script defer src="{% static 'js/passport-print.js' %}"></script>
-<script>
-  document.querySelectorAll('[data-passport-share]').forEach(function (button) {
-    button.addEventListener('click', async function () {
-      var publicUrl = button.getAttribute('data-public-url');
-      if (!publicUrl) return;
-      if (navigator.share) {
-        try { await navigator.share({ title: 'Passeport Makolo', url: publicUrl }); }
-        catch (error) { if (error.name !== 'AbortError') window.prompt('Lien public :', publicUrl); }
-      } else {
-        try { await navigator.clipboard.writeText(publicUrl); button.textContent = 'Lien copié'; }
-        catch (error) { window.prompt('Lien public :', publicUrl); }
-      }
-    });
-  });
-  document.querySelectorAll('[data-passport-copy]').forEach(function (button) {
-    button.addEventListener('click', async function () {
-      var url = button.getAttribute('data-passport-copy');
-      try {
-        await navigator.clipboard.writeText(url);
-        button.textContent = 'Lien copié';
-      } catch (error) {
-        window.prompt('Copiez ce lien public :', url);
-      }
-    });
-  });
-</script>
+
 </body>
 </html>
