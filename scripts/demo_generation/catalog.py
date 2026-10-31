@@ -57,13 +57,13 @@ def policy_for(model):
     label = model._meta.label
     app = model._meta.app_label
     name = model.__name__.lower()
+    if name in {"providercredential", "socialtoken", "accesscredential",
+                "credential", "pushendpoint", "userdevice", "usersession"}:
+        return "protected", "Secret or user/device credential: use owner service only"
     if app in INFRASTRUCTURE_APPS:
         return "runtime", "Django or dependency framework"
     if app in RUNTIME_APPS:
         return "observed", "Process/engine evidence, not made-up observations"
-    if name in {"providercredential", "socialtoken", "accesscredential",
-                "credential", "pushendpoint", "userdevice", "usersession"}:
-        return "protected", "Secret or user/device credential: use owner service only"
     if app in DERIVED_APPS:
         return "derived", "Must follow actions and domain events"
     if app in DOMAIN_GENERATORS:
