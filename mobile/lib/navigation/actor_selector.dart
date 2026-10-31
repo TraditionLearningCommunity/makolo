@@ -98,6 +98,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
   }
 
   Future<void> _selectPersonal() async {
+    if (_switching) return;
     final controller = widget.runtime.actorContext;
     if (controller == null) return;
     await controller.selectPersonal();
@@ -116,6 +117,11 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
     setState(() { _switching = true; _error = null; });
     try {
       await repository!.refreshInventory();
+      final inventoryState = await repository.readSource(repository.inventorySource());
+      if (inventoryState.lastSuccessAt == null ||
+          inventoryState.invalidated || inventoryState.lastErrorCode != null) {
+        throw StateError('Inventaire non vérifié.');
+      }
       final authorized = (await repository.readInventory()).any(
         (space) => space.identity.id == summary.identity.id &&
             space.identity.slug == summary.identity.slug,
@@ -124,6 +130,13 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
         throw StateError('Cet Espace ne figure plus parmi vos accès autorisés.');
       }
       await repository.refreshWorkspace(summary.identity);
+      final workspaceState = await repository.readSource(
+        repository.workspaceSource(summary.identity),
+      );
+      if (workspaceState.lastSuccessAt == null ||
+          workspaceState.invalidated || workspaceState.lastErrorCode != null) {
+        throw StateError('Contexte Space non vérifié.');
+      }
       final current = controller.value;
       await controller.selectSpace(
         summary.identity,
@@ -196,7 +209,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                           ? const Icon(Icons.check)
                           : null,
                       selected: actor is PersonalActorContext,
-                      onTap: _selectPersonal,
+                      onTap: _switching ? null : _selectPersonal,
                     ),
                     for (final space in spaces)
                       ListTile(
