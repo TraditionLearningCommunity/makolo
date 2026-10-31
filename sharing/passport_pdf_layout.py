@@ -684,6 +684,14 @@ def render_passport_layout(payload, metadata, verify_url, *,
             (_value(row.get("team")), _value(row.get("space")) + " · Appartenance à l’équipe")
             for row in payload.get("team_affiliations") or []
         ]),
+        ("Mes groupes", [
+            (_value(row.get("name")), "Groupe accessible dans Moi")
+            for row in payload.get("group_affiliations") or []
+        ]),
+        ("Espaces accessibles", [
+            (_value(row.get("name")), "Contexte de travail, sans attestation d'appartenance")
+            for row in payload.get("authorized_space_affiliations") or []
+        ]),
         ("Mandats actifs", [
             (_value(row.get("role")), _value(row.get("space")) + " · Autorité en cours")
             for row in payload.get("active_space_mandates") or []
