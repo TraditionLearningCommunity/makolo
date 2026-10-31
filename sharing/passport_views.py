@@ -169,6 +169,19 @@ class PassportViewMixin(TemplateView):
                 "auto_print": is_print_document,
                 "public_identifier": public_identifier,
                 "public_passport_url": public_url,
+                "passport_is_audience_view": (
+                    projection.subject_kind == "profile"
+                    and self.variant == PASSPORT_PUBLIC
+                    and self.request.GET.get("audience") == "mine"
+                    and not is_document
+                ),
+                "passport_can_view_audience": (
+                    projection.subject_kind == "profile"
+                    and self.variant == PASSPORT_PUBLIC
+                    and self.request.user.is_authenticated
+                    and self.request.user.pk != self.subject.pk
+                    and not is_document
+                ),
                 "passport_history_url": (
                     reverse("sharing:passport-me-history")
                     if self.private_authorized and projection.subject_kind == "profile"
@@ -245,11 +258,12 @@ class ProfilePassportView(PassportViewMixin):
             # Collective visibility is not a permission to export a
             # non-public fact as a publicly verifiable document.
             viewer=(
-                None if (
-                    not self.private_authorized
-                    and any(self.request.GET.get(mode) == "1"
-                            for mode in ("download", "document", "pdf"))
-                ) else self.request.user
+                self.request.user if (
+                    variant == PASSPORT_PUBLIC
+                    and self.request.GET.get("audience") == "mine"
+                    and not any(self.request.GET.get(mode) == "1"
+                                for mode in ("download", "document", "pdf"))
+                ) else None
             ),
         )
 
