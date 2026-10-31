@@ -468,9 +468,9 @@ def _web_discovery_card(item):
         context_notes=tuple(
             fact.get("label")
             for fact in (item.get("assessment") or [])
-            if fact.get("state") in {"limiting", "unknown"} and fact.get("label")
+            if fact.get("state") == "limiting" and fact.get("label")
         )[:2],
-        variant_count=len(item.get("variants") or []),
+        variant_count=(len(item.get("variants") or []) if len(item.get("variants") or []) > 1 else 0),
         relation_count=len(item.get("relations") or []),
         participant_state=(
             SimpleNamespace(
