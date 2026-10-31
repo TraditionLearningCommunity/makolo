@@ -56,6 +56,21 @@
             <div class="min-w-0">
               <h4 class="font-extrabold">{{ item.title }}</h4>
               {% if item.context.work_label %}<p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.work_label }}</p>{% endif %}
+              {% if item.context.owner_state_label %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">{{ item.context.owner_state_label }}</p>{% endif %}
+              {% if item.context.transport %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                Route : {{ item.context.transport.route.name }}
+                {% if item.context.transport.vehicle %}· Véhicule : {{ item.context.transport.vehicle.label }}{% else %}· Véhicule non affecté{% endif %}
+              </p>
+              {% endif %}
+              {% if item.context.capacity %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                {% if not item.context.capacity.pool_active %}Capacité désactivée
+                {% elif item.context.capacity.unlimited %}Capacité sans limite définie
+                {% else %}Disponibilité : {{ item.context.capacity.available }} sur {{ item.context.capacity.total }}
+                {% endif %}
+              </p>
+              {% endif %}
               {% if item.summary %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ item.summary }}</p>{% endif %}
               {% if item.context.activity.title and item.context.activity.title != item.title %}
               <p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.activity.title }}</p>
