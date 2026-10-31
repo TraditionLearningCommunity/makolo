@@ -512,7 +512,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     ];
   }
 
-  Future<void> _mutateTeam(Future<void> Function() operation) async {
+  Future<void> _mutateTeam(Future<void> Function() operation, {
+    String successMessage = 'Équipe actualisée.',
+  }) async {
     final current = widget.runtime.actorContext?.value;
     if (_teamMutating || current is! SpaceActorContext ||
         _space == null || current.space.id != _space!.id) return;
@@ -536,7 +538,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       }
       if (mounted && !_denied) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Équipe actualisée.')),
+          SnackBar(content: Text(successMessage)),
         );
       }
     } on MakoloApiError catch (error) {
@@ -689,6 +691,78 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         body: {'role': chosen},
       );
     });
+  }
+
+  Future<void> _transferOwnership(Map<String, dynamic> payload) async {
+    final capabilities = _map(payload['capabilities']);
+    final api = widget.runtime.api;
+    if (api == null || _fullTeam == null ||
+        capabilities?['manage_team'] != true ||
+        capabilities?['manage_ownership'] != true) return;
+    final candidates = _fullTeam!.where((row) =>
+      _text(row['id']) != null && row['responsibility'] != 'space_owner'
+    ).toList();
+    if (candidates.isEmpty) return;
+    String? chosenId;
+    var relinquish = false;
+    final selection = await showDialog<Map<String, Object>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Transférer la propriété du Space'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Choisissez un collaborateur actif. '
+                'Le serveur validera sa présence et votre autorité.'),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                initialValue: chosenId,
+                hint: const Text('Nouveau propriétaire'),
+                items: [
+                  for (final row in candidates)
+                    DropdownMenuItem(
+                      value: _text(row['id'])!,
+                      child: Text(_depthRowLabel(row)),
+                    ),
+                ],
+                onChanged: (value) => update(() => chosenId = value),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Renoncer aussi à mon rôle de propriétaire'),
+                subtitle: const Text('Décoché : je reste propriétaire.'),
+                value: relinquish,
+                onChanged: (value) =>
+                  update(() => relinquish = value == true),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: chosenId == null ? null : () =>
+                Navigator.pop(context, <String, Object>{
+                  'target_membership_id': chosenId!,
+                  'relinquish_current_owner': relinquish,
+                }),
+              child: const Text('Confirmer le transfert'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selection == null || !mounted) return;
+    await _mutateTeam(() async {
+      await api.post(
+        'api/v1/organizations/workspaces/' +
+          Uri.encodeComponent(widget.slug) + '/ownership/transfer/',
+        body: selection,
+      );
+    }, successMessage: 'Gouvernance actualisée.');
   }
 
   Future<void> _removeTeamMember(Map<String, dynamic> row) async {
