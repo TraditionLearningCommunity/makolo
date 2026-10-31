@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -16,7 +15,7 @@ from rest_framework.views import APIView
 
 from authorization.constants import PermissionCode
 from authorization.selectors import activity_ids_with_direct_permission
-from journeys.models import JourneyRequest, RequestStatus
+from journeys.models import JourneyRequest, JourneyStatus, RequestStatus
 from journeys.services import approve_request, reject_request
 
 from .space_work_projection import (
@@ -82,6 +81,9 @@ class SpaceJourneyRequestAPIView(APIView):
         can_decide = (
             authorized_to_decide
             and owner.status == RequestStatus.PENDING
+            and owner.journey.status in {
+                JourneyStatus.SUBMITTED, JourneyStatus.PENDING_APPROVAL,
+            }
             and (owner.expires_at is None or owner.expires_at > timezone.now())
         )
         return {
