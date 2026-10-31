@@ -1102,6 +1102,12 @@ class _PassportBody extends StatelessWidget {
               team, if (space != null) space,
             ].join(' · ');
           }),
+      _section(context, 'Mes groupes',
+          _rows(collectives['group_affiliations']),
+          (row) => _text(row['name'])),
+      _section(context, 'Espaces accessibles',
+          _rows(collectives['authorized_space_affiliations']),
+          (row) => _text(row['name'])),
       _section(context, 'Mandats actifs',
           _rows(collectives['active_space_mandates']),
           (row) {
