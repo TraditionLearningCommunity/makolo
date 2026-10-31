@@ -66,6 +66,23 @@ DiscoveryQuery? retainedDiscoveryPosition(StoredProjection? marker) {
   );
 }
 
+/// Restore only presentation hints saved in the current Profile scope.
+/// Never convert a screen position into server-owned data.
+double? retainedDiscoveryScrollOffset(StoredProjection? marker) {
+  if (marker?.kind != 'discovery.presentation-position' ||
+      marker?.schemaVersion != 1) return null;
+  final value = marker!.payload['scroll_offset'];
+  if (value is! num || !value.isFinite || value < 0) return null;
+  return value.toDouble();
+}
+
+String? retainedDiscoveryFocusedCandidate(StoredProjection? marker) {
+  if (marker?.kind != 'discovery.presentation-position' ||
+      marker?.schemaVersion != 1) return null;
+  final key = marker!.payload['selected_candidate_key'];
+  return key is String && key.isNotEmpty ? key : null;
+}
+
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({
     super.key,
@@ -124,14 +141,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         _positionProjection,
         resourceKey: initial.mapFingerprint,
       );
-      final offset = marker?.payload['scroll_offset'];
-      if (offset is num && offset.isFinite && offset >= 0) {
-        _pendingScrollRestore = offset.toDouble();
-      }
-      final selected = marker?.payload['selected_candidate_key'];
-      if (selected is String && selected.isNotEmpty) {
-        _focusedCandidateKey = selected;
-      }
+      _pendingScrollRestore = retainedDiscoveryScrollOffset(marker);
+      _focusedCandidateKey = retainedDiscoveryFocusedCandidate(marker);
       final restored = retainedDiscoveryPosition(marker);
       if (restored != null) {
         final known = await widget.repository.readItems(restored);
