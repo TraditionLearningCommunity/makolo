@@ -19,6 +19,7 @@ from .models import PlanVersion
 from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
 from .product_preview import build_subscription_change_preview
 from .product_read import build_subscription_product_view
+from .personal_history import personal_transition_history
 from .runtime_models import Subscription
 from .security_services import (
     cancel_subscription_transition_for_actor,
@@ -105,6 +106,7 @@ def _snapshot(subscription):
         "transition": product.transition,
         "ongoing_conditions": product.ongoing_conditions,
         "billing": personal_billing_obligations(subscription),
+        "history": personal_transition_history(subscription),
     }
 
 class PersonalSubscriptionAPIView(APIView):
@@ -126,6 +128,19 @@ class PersonalSubscriptionObligationsAPIView(APIView):
         if offset < 0 or offset > 500:
             raise ValidationError({"offset": "Pagination hors limites."})
         return _private(personal_billing_obligations(_owned(request), offset=offset))
+
+
+class PersonalSubscriptionHistoryAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            offset = int(request.query_params.get("offset", "0"))
+        except (TypeError, ValueError):
+            raise ValidationError({"offset": "Pagination invalide."})
+        if offset < 0 or offset > 100000:
+            raise ValidationError({"offset": "Pagination hors limites."})
+        return _private(personal_transition_history(_owned(request), offset=offset))
 
 
 class PersonalSubscriptionPlanAPIView(APIView):
