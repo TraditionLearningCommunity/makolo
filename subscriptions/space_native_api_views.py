@@ -13,7 +13,8 @@ from rest_framework.views import APIView
 
 from .authorization import subscriptions_visible_to_actor
 from .billing_models import PlanVersionBillingTerms
-from .billing_presentation import subscription_billing_obligations, terms_as_dict
+from .billing_presentation import terms_as_dict
+from .space_billing_view import space_billing_for_actor
 from .contracts import SubscriptionTransitionKind
 from .native_api_views import _error, _key, _private, _replayed_intent, _snapshot
 from .personal_history import subscription_transition_history
@@ -44,18 +45,8 @@ def _can_manage(actor, subscription):
 
 
 def _space_snapshot(actor, subscription):
-    # Scope is recomputed for each response. A stale client-side Manage flag
-    # never confers server authority.
     payload = _snapshot(subscription, can_manage=_can_manage(actor, subscription))
-    # Payment details are a separate owner and may require FINANCE_VIEW.
-    from payments.selectors import obligations_visible_to
-    rows = payload["billing"]["items"]
-    visible_ids = set(
-        obligations_visible_to(actor).filter(pk__in=[row["id"] for row in rows])
-        .values_list("pk", flat=True)
-    )
-    for row in rows:
-        row["can_open_detail"] = any(str(pk) == row["id"] for pk in visible_ids)
+    payload["billing"] = space_billing_for_actor(actor, subscription)
     return _private(payload)
 
 
@@ -82,16 +73,9 @@ class SpaceSubscriptionObligationsAPIView(APIView):
 
     def get(self, request, slug):
         subscription = _space_subscription(request.user, slug)
-        payload = subscription_billing_obligations(subscription, offset=_offset(request))
-        from payments.selectors import obligations_visible_to
-        accessible = set(
-            obligations_visible_to(request.user)
-            .filter(pk__in=[row["id"] for row in payload["items"]])
-            .values_list("pk", flat=True)
+        return _private(
+            space_billing_for_actor(request.user, subscription, offset=_offset(request))
         )
-        for row in payload["items"]:
-            row["can_open_detail"] = any(str(pk) == row["id"] for pk in accessible)
-        return _private(payload)
 
 
 class SpaceSubscriptionHistoryAPIView(APIView):
