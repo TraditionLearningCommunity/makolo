@@ -175,6 +175,7 @@ def _occurrence_item(occurrence, caps):
         },
         "state": occurrence.status,
         "context": {
+            "owner_state_label": occurrence.get_status_display(),
             "place": {"id": str(place.pk), "name": place.name} if place else None,
             "activity": {
                 "id": str(occurrence.activity_id),
@@ -207,6 +208,7 @@ def _offer_item(offer, caps, *, space_slug):
         },
         "state": offer.status,
         "context": {
+            "owner_state_label": offer.get_status_display(),
             "pricing": {
                 "unit_price": str(offer.unit_price),
                 "currency": offer.currency,
@@ -286,6 +288,7 @@ def _order_item(order, caps, *, space_slug):
         },
         "state": order.status,
         "context": {
+            "owner_state_label": order.get_status_display(),
             "activity": {
                 "id": str(order.journey.activity_id),
                 "title": order.journey.activity.title,
@@ -312,6 +315,9 @@ def _route_item(route, *, space_slug):
         "timing": {},
         "state": "active" if route.active else "inactive",
         "context": {
+            "owner_state_label": (
+                "Route active" if route.active else "Route inactive"
+            ),
             "stops": [
                 {"id": str(stop.place_id), "name": stop.place.name,
                  "position": stop.position, "boarding_allowed": stop.boarding_allowed,
@@ -333,7 +339,12 @@ def _vehicle_item(vehicle, *, space_slug):
         "summary": None,
         "timing": {},
         "state": "active" if vehicle.active else "inactive",
-        "context": {"passenger_capacity": vehicle.passenger_capacity},
+        "context": {
+            "passenger_capacity": vehicle.passenger_capacity,
+            "owner_state_label": (
+                "Véhicule actif" if vehicle.active else "Véhicule inactif"
+            ),
+        },
         "links": {"selection": _source_selection_url(space_slug, "vehicle", vehicle.pk)},
         "capabilities": ["view"],
     }
