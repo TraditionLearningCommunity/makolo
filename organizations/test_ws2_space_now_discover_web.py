@@ -84,11 +84,22 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
             status=OccurrenceStatus.SCHEDULED,
         )
         self.client.force_login(self.owner)
-        response = self.client.get(self.web_url())
+        with patch(
+            "operations.occurrence_live.resolve_occurrence_live",
+            return_value={
+                "perspective": "space",
+                "next_action": {
+                    "type": "check_access",
+                    "reason": "operations.action_needed",
+                    "label": "Vérifier les accès maintenant.",
+                },
+            },
+        ):
+            response = self.client.get(self.web_url())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["projection_state"], "partial")
         self.assertContains(response, "Atelier en cours")
-        self.assertContains(response, "L&#x27;occurrence se déroule actuellement.")
+        self.assertContains(response, "Vérifier les accès maintenant.")
         self.assertContains(
             response,
             reverse(
