@@ -1,11 +1,11 @@
 # Makolo — registre de fermeture de Découvrir
 **Document vivant — responsable : branche [#522](https://github.com/TraditionLearningCommunity/makolo/pull/522)**  
 **Initialisé le :** 2026-10-31  
-**Chantier courant :** **01 — Vérités et capacités propriétaires**, **IMPLÉMENTÉ / VALIDATION CIBLÉE EN ATTENTE**. Compte rendu : [chantier 01](discover-stage-01-owner-facts-2026-10-31.md).  
+**Chantier courant :** **02 — Projection canonique Discovery, IMPLÉMENTATION LIVRÉE**. Compte rendu : [chantier 02](discover-stage-02-canonical-projection-2026-10-31.md). **Prochain : 03**, sans le commencer par ce document.  
 **Chantier 00 :** **FERMÉ — réconciliation documentaire**.  
 **Relevé de référence :** [chantier 00 — réconciliation](discover-stage-00-reconciliation-2026-10-31.md).
 
-> **RÈGLE DE PASSAGE : un chantier à la fois.** Les chantiers sont **séquentiels**, non parallèles. Ne jamais ouvrir N+1 tant que tous les critères de sortie de N ne sont pas satisfaits et documentés. Les statuts `présent/partiel` décrivent l'implémentation rencontrée dans le code, **pas** l'état d'exécution du chantier. Les étapes 01–09 restent `VERROUILLÉ` ou `À OUVRIR` tant qu'on n'a pas travaillé et validé leur sortie. L'exécution CI est une exigence de la fermeture globale 09, explicitement **hors chantier 00** et non lancée ici.
+> **RÈGLE DE PASSAGE : un chantier à la fois.** Les chantiers sont **séquentiels**, non parallèles. Ne jamais ouvrir l'implémentation N+1 tant que la livraison de code de N n'est pas achevée et documentée. À la demande explicite de l'utilisateur, la validation exécutée (tests/CI/appareil) est regroupée à l'étape 09 ; cela ne signifie ni tests verts ni certification anticipée. Les statuts `présent/partiel` décrivent l'implémentation rencontrée dans le code, **pas** l'état d'exécution du chantier. Les étapes 01–09 restent `VERROUILLÉ` ou `À OUVRIR` tant qu'on n'a pas travaillé et validé leur sortie. L'exécution CI est une exigence de la fermeture globale 09, explicitement **hors des chantiers 00–08** pour cette séquence de livraisons ; aucun résultat n'est revendiqué avant exécution.
 
 ## 0. Doctrine de fermeture et niveaux de preuve
 
@@ -24,7 +24,7 @@
 - `OUVERT_CONCEPTUEL` : capacité optionnelle ou non définie par un owner, non bloquante.
 - `FERMÉ` : critères de sortie du chantier satisfaits et consignés.
 
-**Critère de preuve minimal pour toute modification des chantiers 01–08 :** besoin et contrat, source de vérité, fichiers modifiés, test ciblé (ou limite explicite et action de validation), résultat, preuve que les permissions et l'identité sont préservées. Une validation non exécutée **n'est pas verte**.
+**Critère de livraison de code pour 01–08 :** besoin et contrat, source de vérité, fichiers modifiés, tests de régression ajoutés/ajustés, risques et handoff consignés. Les tests non exécutés restent **non vérifiés** jusqu'à 09 ; aucune étape n'est dite certifiée avant les preuves d'exécution.
 
 ### Anti-features protégées
 
@@ -35,9 +35,9 @@ Pas de modèle persistant générique `Possibility`, de scoring client, de deuxi
 | Étape | Nom | État d'exécution | Sortie vérifiable |
 | --- | --- | --- | --- |
 | **00** | Réconciliation et gel des contrats | **FERMÉ** | [Inventaire daté](discover-stage-00-reconciliation-2026-10-31.md), sources et frontières, registre unique |
-| **01** | Vérités et capacités propriétaires | **IMPLÉMENTÉ — TESTS NON EXÉCUTÉS** | [Relevé owner 01](discover-stage-01-owner-facts-2026-10-31.md), correctifs Funding/Services, 6 tests ajoutés ; clôture suspendue à validation ciblée |
-| **02** | Projection canonique Discovery | **VERROUILLÉ** | API collection/détail, admission, identité, sécurité, frais de connaissance et pagination contractuels |
-| **03** | Médias, ressources et stockage | **VERROUILLÉ** | Publication/retrait, accès, URL first-party, viewers, volumes et compatibilité legacy contrôlés |
+| **01** | Vérités et capacités propriétaires | **LIVRÉ EN CODE — validation différée à 09** | [Relevé owner 01](discover-stage-01-owner-facts-2026-10-31.md), correctifs Funding/Services, six tests ajoutés |
+| **02** | Projection canonique Discovery | **LIVRÉ EN CODE — validation différée à 09** | [Relevé projection 02](discover-stage-02-canonical-projection-2026-10-31.md), admission Services, ressources, prix, pagination et tests |
+| **03** | Médias, ressources et stockage | **PROCHAIN CHANTIER** | Publication/retrait, accès, URL first-party, viewers, volumes et compatibilité legacy contrôlés |
 | **04** | Presentation N1 | **VERROUILLÉ** | N1 compact/wide et Web adaptés, faits utiles et actions sans CTA fictif |
 | **05** | Recherche, carte et navigation | **VERROUILLÉ** | Une query/selection à travers liste, carte, détail et retour, continuation et état spatial préservés |
 | **06** | N2, variantes et comparaison conditionnelle | **VERROUILLÉ** | Profondeur owner-backed, inconnues et variantes sans comparaison universelle inventée |
@@ -68,17 +68,17 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 
 | ID | Exigence contractuelle | Observation au 31/10 | Source / preuve d'entrée | Responsable de fermeture |
 | --- | --- | --- | --- | --- |
-| R01 | Possibilité distincte du modèle brut, identité owner stable | `EXISTANT_SOURCE` | `discovery/api/composition.py`, `discovery/api/projections.py` | 02 |
-| R02 | Admission, visibilité, Groupe et non-divulgation | `PARTIEL` — tests couvrent des cas, matrice complète à valider | `discovery/api/test_mature_discovery.py` | 02 |
-| R03 | Champ multi-famille sans classement local | `EXISTANT_SOURCE` | `discovery/unified.py`, `discovery/api/composition.py` | 02 |
+| R01 | Possibilité distincte du modèle brut, identité owner stable | `EXISTANT_SOURCE` conservé ; aucun nouveau modèle ni ID métier artificiel, implémentation 02 livrée | `discovery/api/composition.py`, `discovery/api/projections.py` | 02 |
+| R02 | Admission, visibilité, Groupe et non-divulgation | `ÉCART_CODE` corrigé pour Services via selector owner ; ressources contrôlées par Preparation et tests ajoutés, non exécutés | `discovery/unified.py`, `discovery/api/composition.py`, `discovery/api/test_mature_discovery.py` | 02 |
+| R03 | Champ multi-famille sans classement local | `EXISTANT_SOURCE` préservé ; aucune nouvelle pertinence locale, aucun score | `discovery/unified.py`, `discovery/api/composition.py` | 02 |
 | R04 | Faits et prix établis par Commerce | `OWNER_EXTERNE`, mécanisme identifié | `commerce/offer_price_facts.py` | 01 |
 | R05 | Horaires/Occurrences/variantes sans inférence | `PARTIEL` | `discovery/api/composition.py`, modèles Activity | 01 puis 02 |
 | R06 | Lieux multiples, public/privé et rôles transports | `PARTIEL` | `discovery/api/composition.py`, tests API | 01 puis 02/05 |
 | R07 | Conditions et fraîcheur des Opportunities | `OWNER_EXTERNE`, mécanisme identifié | `opportunities/knowledge.py` | 01 |
 | R08 | Conditions de Funding sans éligibilité fictive | `ÉCART_CODE` corrigé côté owner : Space suspendu/archivé/retiré refuse désormais publication/contribution ; tests ajoutés, non exécutés | `funding/selectors.py`, `funding/services.py`, `funding/test_z15_api.py` | 01 |
 | R09 | Handoff Service owner et Journey idempotente | Selector Web/natif owner harmonisé, tests de retrait ajoutés non exécutés ; Discovery doit réutiliser ce gate en étape 02 | `services/views.py`, `services/api_views.py`, `services/native_start.py`, `services/test_native_start_api.py` | 01 puis 07 |
-| R10 | Ressources publiques, sans données restreintes | `PARTIEL` — volume inline à borner sans cacher les items | `discovery/api/composition.py` | 02 puis 03 |
-| R11 | Cohérence collection/détail/médias | `PARTIEL` | `discovery/api/media_bindings.py`, `test_media_bindings.py` | 02 puis 03 |
+| R10 | Ressources publiques, sans données restreintes | `ÉCART_CODE` corrigé : droits Preparation, scope Occurrence, textes inline bornés sans supprimer les références ; tests non exécutés | `discovery/api/composition.py`, `discovery/api/test_resource_previews.py` | 02 ; livraison/stockage 03 |
+| R11 | Cohérence collection/détail/médias | Collection/détail conservent la même composition et admission owner ; droits et fichiers des médias encore réservés à 03 | `discovery/api/composition.py`, `discovery/api/media_bindings.py`, `discovery/api/test_mature_discovery.py` | 02 ; médias 03 |
 | R12 | Media-use owner, statut publié, retrait | `EXISTANT_SOURCE`, déploiement legacy à contrôler | `presentations/media_delivery.py`, `test_media_use.py` | 03 |
 | R13 | Rétention automatique de médias réellement first-party | `ÉCART_CODE` — vérification du chemin sans origine de confiance suffisante | `discovery_offline_store.dart`, `retained_public_discovery_image.dart` | 03 puis 08 |
 | R14 | N1 contextualisé et adaptatif | `PARTIEL` — rendu présent, acceptation exhaustive non attestée | `discovery_possibility_unit.dart`, `discovery-n1-layout-contract.md` | 04 |
@@ -114,18 +114,18 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 **Sorties vérifiées :** relevé daté, 381 chemins / six migrations, héritage de PR, propriétaires et tests, registre R01–R28, frontières de responsabilité et séquence obligatoire.  
 **Non réalisé volontairement :** tests, CI, correction de code des étapes suivantes, déploiement et merge.
 
-### 01 — Faits et capacités propriétaires **IMPLÉMENTÉ / TESTS CIBLÉS EN ATTENTE**
+### 01 — Faits et capacités propriétaires **LIVRÉ EN CODE / VALIDATION À 09**
 **Entrée :** R04–R09, frontières R10/R12, `docs/architecture/owner-facts-native-actions.md`. **Résultat technique :** [relevé de réalisation 01](discover-stage-01-owner-facts-2026-10-31.md).  
 **Travail :** inspecter pour chaque owner les modèles, selectors/services, API et tests ; partir de fixtures concrètes (Activity/Occurrence, Commerce, Geography/Transport, Opportunity, Funding, Service, Preparation). Corriger uniquement les faits réellement absents ou faux chez leur propriétaire, en réutilisant les fonctions existantes ; prouver la publication/visibilité, temporalité, variations et inconnues.  
 **Sortie exigée :** une matrice par owner avec statut `CONFORME_PROUVÉ` ou un écart corrigé, chemin réel, résultat de tests ciblés, contrat de consommation pour 02 ; aucune nouvelle vérité Discovery.  
 **Bloquant pour 02 :** un fait propriétaire encore indéfini, une autorisation floue, ou un champ ambigu dont Discovery devrait deviner le sens.
 
-### 02 — Projection Discovery **VERROUILLÉ**
+### 02 — Projection Discovery **LIVRÉ EN CODE / VALIDATION À 09**
 **Entrée :** sorties 01 ; R01–R03, R10–R11.  
 **Travail :** admission, identité, déduplication, familles, faits/provenance, collection/detail, pagination, sécurité et payload borné.  
-**Sortie :** tests API et contrat réel documenté ; aucun objet de projection persistant ajouté.
+**Sortie livrée :** code de l'admission et de la projection, scénarios API ajoutés, [dossier 02](discover-stage-02-canonical-projection-2026-10-31.md) ; aucun objet de projection persistant ajouté. Tests non exécutés, résultat non certifié.
 
-### 03 — Médias et ressources **VERROUILLÉ**
+### 03 — Médias et ressources **PROCHAIN CHANTIER**
 **Entrée :** sorties 02 ; R12–R13 et fichiers Preparation/Presentation.  
 **Travail :** ownership/publication, médias first-party, ressources TEXT/FILE/URL, streaming/Reader, ancienne exposition publique et révocation, stockage sûr et budget.  
 **Sortie :** scénarios de lecture/retrait/rejet sur stockage et URLs réels, sans média inventé ni exposition privée.
@@ -167,13 +167,14 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | 2026-10-31 | 00 | Relevé `discover-stage-00-reconciliation-2026-10-31.md` ; main `d0f0ec4`, branche observée `7fc2418`, 381 fichiers, six migrations ; contrats joints examinés | Inventaire et frontières fixés |
 | 2026-10-31 | 00 | Différences document historique ↔ runtime déclarées ; transferts #523/#525/#526/#527 reconnus ; **ascendance #524 vérifiée**, **divergence #528 vérifiée** | Pas de re-cherry-pick #524, pas de merge aveugle #528 |
 | 2026-10-31 | 00 | **Chantier 00 fermé.** Aucun test, CI, changement fonctionnel ou merge. | **Prochain chantier autorisé : 01 exclusivement** |
-| 2026-10-31 | 01 | Implémentation propriétaire Funding/Services sur #522 : visibilité du porteur, refus de nouvelle contribution et de démarrage après retrait ; six tests ajoutés, contrat des huit propriétaires consigné dans `discover-stage-01-owner-facts-2026-10-31.md`. | **Étape 01 non fermée : tests ciblés non exécutés. Étape 02 verrouillée.** |
+| 2026-10-31 | 01 | Implémentation propriétaire Funding/Services sur #522 : visibilité du porteur, refus de nouvelle contribution et de démarrage après retrait ; six tests ajoutés, contrat des huit propriétaires consigné dans `discover-stage-01-owner-facts-2026-10-31.md`. | **Livrée en code ; certification différée à 09 sur demande utilisateur.** |
+| 2026-10-31 | 02 | Projection multi-famille Discovery réconciliée avec Services, droits Preparation et scope Occurrence, texte inline borné, URLs publiques validées, prix Commerce prioritaires, curseur validé avant composition, erreurs HTTP 400 ; tests et document `discover-stage-02-canonical-projection-2026-10-31.md`. | **Livrée en code, tests non exécutés ; prochain chantier 03 seulement.** |
 
-Pour chaque nouvelle clôture : ajouter une ligne `date | étape | HEAD de fin | fichiers | tests exécutés + résultats | anomalies restantes | décision de passage`. Ne jamais écrire `FERMÉ` pour un chantier dont les preuves n'existent pas.
+Pour chaque livraison : ajouter une ligne `date | étape | commit de fin | fichiers | tests ajoutés | résultats exécutés (ou « non exécutés ») | anomalies restantes`. Le mot **certifié** reste réservé à l'exécution du chantier 09.
 
 ## 6. Instruction impérative pour la suite
 
 1. Recharger le HEAD courant et le delta depuis l'état du chantier 00 ; vérifier les collisions sans refaire toute l'analyse.
-2. **Terminer la validation ciblée du chantier 01** : le code et les cas de régression sont écrits ; exécuter les tests recensés dans `discover-stage-01-owner-facts-2026-10-31.md`, résoudre tout échec et inscrire les résultats.
-3. Mettre à jour ce registre dans **#522** avec les résultats exacts ; déclarer 01 `FERMÉ` seulement lorsque ses critères sont prouvés.
-4. Seulement ensuite ouvrir **02**. Ne pas pré-implémenter 02–09, même si des parties sont déjà présentes.
+2. La validation exécutée de 01 et 02 est différée à la certification 09, selon l'instruction explicite de l'utilisateur. Ne jamais prétendre que les tests ont réussi.
+3. Conserver dans **#522** la traçabilité des livraisons 01 et 02 ; toute régression ultérieure se corrige à l'étape active avec un test ciblé.
+4. **Ouvrir uniquement le chantier 03** lors de la prochaine instruction, sans anticiper 04–09.
