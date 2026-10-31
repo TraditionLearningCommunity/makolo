@@ -55,6 +55,7 @@
           <article class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div class="min-w-0">
               <h4 class="font-extrabold">{{ item.title }}</h4>
+              {% if item.context.work_label %}<p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.work_label }}</p>{% endif %}
               {% if item.summary %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ item.summary }}</p>{% endif %}
               {% if item.context.activity.title and item.context.activity.title != item.title %}
               <p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.activity.title }}</p>
@@ -67,6 +68,13 @@
                 {% if item.context.next_occurrence.start_time %}· {{ item.context.next_occurrence.start_time|time:"H:i" }}{% endif %}
               </p>
               {% endif %}
+              {% if item.context.conditions %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                Conditions évaluées : {{ item.context.conditions.satisfied }} / {{ item.context.conditions.total }} satisfaites
+                {% if item.context.conditions.awaiting %}· {{ item.context.conditions.awaiting }} à évaluer{% endif %}
+                {% if item.context.conditions.unsatisfied %}· {{ item.context.conditions.unsatisfied }} non satisfaites{% endif %}
+              </p>
+              {% endif %}
               <div class="mt-2 flex flex-wrap gap-2">
                 {% if item.timing.start_date %}<span class="mk-badge">{{ item.timing.start_date|date:"d/m/Y" }}</span>{% endif %}
                 {% if item.timing.start_time %}<span class="mk-badge">{{ item.timing.start_time|time:"H:i" }}</span>{% endif %}
@@ -74,7 +82,7 @@
               </div>
             </div>
             {% if item.owner_url %}
-            <a class="mk-btn mk-btn-secondary shrink-0" href="{{ item.owner_url }}">Ouvrir</a>
+            <a class="mk-btn mk-btn-secondary shrink-0" href="{{ item.owner_url }}">{{ item.owner_label }}</a>
             {% endif %}
           </article>
         </li>
