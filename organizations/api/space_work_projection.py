@@ -549,7 +549,7 @@ def build_space_work_projection(
         ):
             # Source order is chronological. This is a real, permitted
             # Occurrence, not a synthetic Activity lifecycle or readiness.
-            next_occurrence_by_activity[occurrence.activity_id] = {
+            next_occurrence_by_activity[str(occurrence.activity_id)] = {
                 "id": str(occurrence.pk),
                 "label": occurrence.label or occurrence.activity.title,
                 "start_date": occurrence.start_date,
@@ -675,11 +675,6 @@ def build_space_work_projection(
             next_occurrence = next_occurrence_by_activity.get(
                 activity_id
             )
-            if next_occurrence is None:
-                # Activity ids are UUIDs; keys above use their canonical type.
-                from uuid import UUID
-
-                next_occurrence = next_occurrence_by_activity.get(UUID(activity_id))
             if next_occurrence is not None:
                 item["context"]["next_occurrence"] = next_occurrence
 
