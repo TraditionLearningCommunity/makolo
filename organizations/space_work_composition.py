@@ -1,4 +1,4 @@
-"""Derived Métier presentation: Generic / Community, without owner truth duplication."""
+"""Derived Métier reading perspectives; no owner truth or authority duplication."""
 from __future__ import annotations
 
 from organizations.models import SpaceArchetype
@@ -22,6 +22,28 @@ _GRAMMARS = {
          ("offers", "routes", "vehicles")),
         ("history", "Actions passées", ("completed",)),
     ),
+    # Programmes are durable Activities; Sessions are Occurrences.
+    SpaceArchetype.EDUCATION: (
+        ("portfolio", "Nos programmes", ("activities",)),
+        ("sessions", "Sessions et préparation",
+         ("upcoming", "active", "preparation")),
+        ("registrations", "Inscriptions et démarches",
+         ("requests", "blocked")),
+        ("specialized", "Autres activités réelles",
+         ("offers", "routes", "vehicles")),
+        ("history", "Parcours et sessions passés", ("completed",)),
+    ),
+    # Prestations offered != engaged Service Journey cases.
+    SpaceArchetype.SERVICE_PROVIDER: (
+        ("requests", "Demandes à examiner", ("requests",)),
+        ("cases", "Dossiers à accompagner",
+         ("preparation", "active", "blocked")),
+        ("portfolio", "Prestations proposées", ("activities",)),
+        ("occurrences", "Rendez-vous et réalisations", ("upcoming",)),
+        ("specialized", "Autres réalités opérées",
+         ("offers", "routes", "vehicles")),
+        ("history", "Prestations passées", ("completed",)),
+    ),
 }
 _QUESTIONS = {
     SpaceArchetype.GENERIC: (
@@ -32,6 +54,14 @@ _QUESTIONS = {
         "Qu’est-ce que nous faisons concrètement avancer ensemble, "
         "sur le terrain ou dans la durée ?"
     ),
+    SpaceArchetype.EDUCATION: (
+        "Quels programmes faisons-nous vivre, quelles sessions préparons-nous "
+        "et où en sont les inscriptions et conditions nécessaires ?"
+    ),
+    SpaceArchetype.SERVICE_PROVIDER: (
+        "Quelles prestations proposons-nous, quelles demandes traiter et "
+        "quels dossiers accompagner jusqu’au résultat ?"
+    ),
 }
 _CALM = {
     SpaceArchetype.GENERIC: (
@@ -41,6 +71,14 @@ _CALM = {
     SpaceArchetype.COMMUNITY: (
         "Rien ne demande d’intervention dans cette vue. "
         "Les initiatives portées par le collectif restent accessibles."
+    ),
+    SpaceArchetype.EDUCATION: (
+        "Aucune session ni inscription ne demande d’intervention dans cette "
+        "vue. Les programmes restent accessibles."
+    ),
+    SpaceArchetype.SERVICE_PROVIDER: (
+        "Aucune demande ni dossier ne demande d’intervention dans cette vue. "
+        "Les prestations proposées restent accessibles."
     ),
 }
 
@@ -78,9 +116,18 @@ def compose_space_work_business_world(*, archetype, label, sections, limited, is
             "section_keys": remaining,
         })
 
-    has_continuity = any(g["identity"] == "continuity" for g in chapters)
+    operational_groups = (
+        {"continuity"} if archetype in {
+            SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY
+        } else {"sessions", "registrations"} if archetype == SpaceArchetype.EDUCATION
+        else {"requests", "cases", "occurrences"}
+    )
+    has_continuity = any(g["identity"] in operational_groups for g in chapters)
     has_portfolio = any(g["identity"] == "portfolio" for g in chapters)
-    if is_root and has_portfolio and not has_continuity:
+    if (
+        is_root and has_portfolio and not has_continuity
+        and archetype != SpaceArchetype.EDUCATION
+    ):
         chapters.sort(key=lambda g: 0 if g["identity"] == "portfolio" else 1)
 
     order = [k for g in chapters for k in g["section_keys"]]
