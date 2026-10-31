@@ -13,7 +13,6 @@ from authorization.models import AuthorityScope, Mandate, MandateStatus
 from organizations.models import TeamMembership, TeamMembershipStatus
 from organizations.permissions import organization_has_public_profile
 from topics.models import ProfileInterest, ProfileOpenTo, Topic
-from topics.services import public_profile_interests, public_profile_open_to
 from trust.credential_models import CredentialStatus, CredentialType
 from trust.credential_selectors import credentials_for_profile, credentials_issued_by_space
 from trust.models import ProofStatus
