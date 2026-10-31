@@ -7,6 +7,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
+import '../../network/api_error.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/contracts/space_presentation.dart';
 import '../../presentation/projection_surface_adapter.dart';
@@ -139,8 +140,20 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             : null;
         searchFailed = false;
       });
+    } on MakoloApiError catch (error) {
+      if (!mounted || version != searchVersion ||
+          actor?.space.id != space.id) return;
+      setState(() {
+        results = null;
+        searchFailed = true;
+      });
+      if (error.statusCode == 401 || error.statusCode == 403 ||
+          error.statusCode == 404) {
+        await refresh();
+      }
     } on Object {
-      if (!mounted || version != searchVersion) return;
+      if (!mounted || version != searchVersion ||
+          actor?.space.id != space.id) return;
       setState(() {
         results = null;
         searchFailed = true;
@@ -314,9 +327,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             'Aperçu local partiel. Lancez la recherche pour consulter toutes les relations autorisées.',
           ),
         if (groups.values.every((rows) => rows.isEmpty))
-          const Text(
-            'Aucune relation correspondante dans les données visibles.',
-          ),
+          Text(query.isEmpty
+              ? 'Aucune relation enregistrée dans les collections visibles.'
+              : 'Aucune relation correspondante dans les données visibles.'),
         for (final entry in groups.entries) ...[
           if (entry.value.isNotEmpty)
             Padding(
