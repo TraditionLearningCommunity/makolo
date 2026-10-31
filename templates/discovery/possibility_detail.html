@@ -1,0 +1,117 @@
+{% extends discovery_base_template %}
+{% block title %}{{ card.title }} | Découvrir Makolo{% endblock %}
+{% block workspace_layout %}explore{% endblock %}
+{% block content %}
+<main class="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6" data-mk-surface="discover-n2">
+  <a href="{{ return_url }}" class="mk-btn mk-btn-ghost"><i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>Retour à Découvrir</a>
+  <article class="mk-panel space-y-6 p-5 sm:p-8">
+    <header class="space-y-3">
+      {% if card.operator_name %}<p class="text-sm" style="color:var(--mk-muted)">Proposé par {{ card.operator_name }}</p>{% endif %}
+      {% if card.type_labels %}<div class="flex flex-wrap gap-2">{% for label in card.type_labels %}<span class="mk-badge">{{ label }}</span>{% endfor %}</div>{% endif %}
+      <h1 class="mk-page-title">{{ card.title }}</h1>
+      {% if card.summary %}<p class="text-base">{{ card.summary }}</p>{% endif %}
+      {% if card.description and card.description != card.summary %}<div class="whitespace-pre-line text-sm" style="color:var(--mk-muted)">{{ card.description }}</div>{% endif %}
+    </header>
+
+    {% if card.facts %}
+    <section aria-label="Faits établis" class="space-y-3">
+      <h2 class="text-lg font-bold">Informations pratiques</h2>
+      <dl class="grid gap-3 sm:grid-cols-2">
+        {% for fact in card.facts %}
+        <div class="rounded-xl border p-3" style="border-color:var(--mk-border)">
+          <dt class="text-xs" style="color:var(--mk-muted)">{{ fact.label }}</dt>
+          <dd class="mt-1 font-semibold">{{ fact.value }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+    </section>
+    {% endif %}
+
+    {% if n2.assessment.favorable or n2.assessment.limiting or n2.assessment.unknown %}
+    <section aria-label="Connaissance de cette possibilité" class="space-y-3">
+      <h2 class="text-lg font-bold">Ce qui est établi</h2>
+      {% if n2.assessment.favorable %}
+      <div><h3 class="font-semibold">Points favorables</h3><ul class="mt-1 list-disc pl-5">{% for label in n2.assessment.favorable %}<li>{{ label }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      {% if n2.assessment.limiting %}
+      <div><h3 class="font-semibold">Points à considérer</h3><ul class="mt-1 list-disc pl-5">{% for label in n2.assessment.limiting %}<li>{{ label }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      {% if n2.assessment.unknown %}
+      <div><h3 class="font-semibold">Informations non établies</h3><ul class="mt-1 list-disc pl-5">{% for label in n2.assessment.unknown %}<li>{{ label }}</li>{% endfor %}</ul></div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if n2.variants %}
+    <section aria-label="Variantes propriétaire" class="space-y-3">
+      <h2 class="text-lg font-bold">Réalisations proposées</h2>
+      <div class="grid gap-3 sm:grid-cols-2">
+        {% for variant in n2.variants %}
+        <div class="rounded-xl border p-4" style="border-color:var(--mk-border)">
+          <h3 class="font-semibold">Variante {{ forloop.counter }}</h3>
+          {% if variant.start %}<p class="text-sm">Début : {{ variant.start }}</p>{% endif %}
+          {% if variant.end %}<p class="text-sm">Fin : {{ variant.end }}</p>{% endif %}
+          {% for place in variant.places %}<p class="text-sm">Lieu : {{ place }}</p>{% endfor %}
+          {% if not variant.start and not variant.end and not variant.places %}
+          <p class="text-sm" style="color:var(--mk-muted)">Date et lieu non renseignés dans cette variante.</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if n2.comparison %}
+    <section aria-label="Comparaison conditionnelle des variantes" class="space-y-3">
+      <h2 class="text-lg font-bold">Comparer les variantes connues</h2>
+      <p class="text-sm" style="color:var(--mk-muted)">Seules les dimensions établies pour toutes les variantes sont affichées. Aucun classement automatique.</p>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[400px] text-left text-sm">
+          <thead><tr><th scope="col" class="p-3">Fait</th>{% for variant in n2.variants %}<th scope="col" class="p-3">Variante {{ forloop.counter }}</th>{% endfor %}</tr></thead>
+          <tbody>
+            {% for row in n2.comparison %}
+            <tr class="border-t" style="border-color:var(--mk-border)">
+              <th scope="row" class="p-3">{{ row.label }}</th>
+              {% for value in row.values %}<td class="p-3">{{ value }}</td>{% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if n2.relations %}
+    <section class="space-y-2" aria-label="Relations publiées">
+      <h2 class="text-lg font-bold">Relations indiquées</h2>
+      <ul class="list-disc pl-5">{% for relation in n2.relations %}<li>{{ relation }}</li>{% endfor %}</ul>
+      <p class="text-xs" style="color:var(--mk-muted)">Une relation n’est pas nécessairement une alternative.</p>
+    </section>
+    {% endif %}
+
+    {% if card.representation.image_url or card.gallery_media %}
+    <section aria-label="Médias publiés">
+      <h2 class="mb-3 text-lg font-bold">Images</h2>
+      <div class="flex gap-3 overflow-x-auto">
+        {% if card.representation.image_url %}<img src="{{ card.representation.image_url }}" alt="Visuel de {{ card.title }}" class="max-h-80 max-w-[75vw] rounded-xl object-contain" loading="lazy">{% endif %}
+        {% for media in card.gallery_media %}<img src="{{ media.resource.url }}" alt="{{ media.resource.alt_text|default:card.title }}" class="max-h-80 max-w-[75vw] rounded-xl object-contain" loading="lazy">{% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if card.resources %}
+    <section aria-label="Documents et ressources" class="space-y-3">
+      <h2 class="text-lg font-bold">Documents et ressources</h2>
+      <div class="grid gap-3">{% for resource in card.resources %}{% include "discovery/_resource_item.html" %}{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    {% if n2.freshness %}<p class="text-xs" style="color:var(--mk-muted)">Vérification : {{ n2.freshness }}</p>{% endif %}
+    {% if n2_item.links.web and n2_item.links.web != "#" %}
+    <div class="border-t pt-4" style="border-color:var(--mk-border)">
+      <a href="{{ n2_item.links.web }}" class="mk-btn mk-btn-secondary">Voir la profondeur du propriétaire</a>
+    </div>
+    {% endif %}
+  </article>
+</main>
+{% endblock %}
