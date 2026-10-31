@@ -39,7 +39,7 @@ def main(argv=None):
     from services.services import create_service_journey
     from funding.models import FundingDetails, FundingContribution
     from funding.services import create_funding_contribution
-    from django.conf import settings
+    from django.test.utils import override_settings
     from payments.models import Payment, PaymentProvider, PaymentMethod, PaymentStatus
     from payments.services import initiate_obligation_payment, complete_sandbox_payment
     if connection.vendor != "sqlite":
@@ -128,7 +128,7 @@ def main(argv=None):
     # Funding payment is a *real sandbox service transition* from its
     # existing PaymentObligation. Never produce fake settled ledger rows.
     if "funding" in selected:
-        sandbox_enabled = bool(getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False))
+        sandbox_enabled = connection.vendor == "sqlite"
         contributions = (FundingContribution.objects.filter(
             funding__activity__slug__startswith="demo-generation-funding-",
             contributor_profile__username__startswith="world_",
@@ -149,15 +149,16 @@ def main(argv=None):
                 counts["funding_payments_planned"] += 1
                 continue
             try:
-                with transaction.atomic():
-                    payment = initiate_obligation_payment(
-                        obligation=obligation, actor=contribution.contributor_profile,
-                        provider=PaymentProvider.SANDBOX,
-                        method=PaymentMethod.MOBILE_MONEY,
-                        idempotency_key="makolo-demo-funding:" + str(contribution.pk))
-                    if payment.status != PaymentStatus.SUCCEEDED:
-                        complete_sandbox_payment(
-                            payment=payment, actor=contribution.contributor_profile)
+                with override_settings(PAYMENTS_SANDBOX_ENABLED=True):
+                    with transaction.atomic():
+                        payment = initiate_obligation_payment(
+                            obligation=obligation, actor=contribution.contributor_profile,
+                            provider=PaymentProvider.SANDBOX,
+                            method=PaymentMethod.MOBILE_MONEY,
+                            idempotency_key="makolo-demo-funding:" + str(contribution.pk))
+                        if payment.status != PaymentStatus.SUCCEEDED:
+                            complete_sandbox_payment(
+                                payment=payment, actor=contribution.contributor_profile)
                 counts["funding_payments_completed"] += 1
             except (ValidationError, PermissionDenied):
                 counts["funding_payments_rejected"] += 1
