@@ -1,7 +1,7 @@
 """Group 2: owner-backed Programmes and Prestations, with minimum disclosure."""
 from datetime import timedelta
 
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -38,6 +38,7 @@ class SpaceWorkGroup2Tests(TestCase):
             role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner,
         )
         self.client = APIClient()
+        self.web = Client()
         self.url = "/api/v1/organizations/workspaces/group-2/work/"
 
     def activity(self, title):
@@ -207,6 +208,59 @@ class SpaceWorkGroup2Tests(TestCase):
         self.assertNotIn(beneficiary.email, str(result.data))
         self.client.force_authenticate(self.outsider)
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_web_programme_first_and_next_real_session(self):
+        self.space.archetype = SpaceArchetype.EDUCATION
+        self.space.save(update_fields=["archetype", "updated_at"])
+        programme = self.activity("Programme de langues")
+        Occurrence.objects.create(
+            activity=programme, label="Session linguistique",
+            start_at=timezone.now() + timedelta(days=4),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.web.force_login(self.owner)
+        response = self.web.get("/spaces/group-2/work/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nos programmes")
+        self.assertContains(response, "Sessions et préparation")
+        self.assertContains(response, "Prochaine session")
+        self.assertContains(response, "Session linguistique")
+        self.assertEqual(
+            [section["key"] for section in response.context["work_sections"]],
+            ["activities", "upcoming"],
+        )
+
+    def test_web_case_handoff_is_owner_backed_without_private_summary(self):
+        self.space.archetype = SpaceArchetype.SERVICE_PROVIDER
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self.activity("Prestation personnalisée")
+        ServiceDetails.objects.create(
+            activity=activity, service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
+        )
+        client = self.beneficiary("group2-web-beneficiary")
+        case = Journey.objects.create(
+            initiated_by=client, beneficiary=client, activity=activity,
+            workflow=WorkflowKind.SERVICE, status=JourneyStatus.IN_PROGRESS,
+        )
+        ServiceJourneyContext.objects.create(
+            journey=case, objective="Contenu confidentiel",
+        )
+        operator = self.beneficiary("group2-web-operator")
+        grant_activity_role(
+            profile=operator, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
+        self.web.force_login(operator)
+        response = self.web.get("/spaces/group-2/work/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dossiers à accompagner")
+        self.assertContains(response, "Prestations proposées")
+        self.assertContains(response, "Dossier de prestation")
+        self.assertContains(response, "Ouvrir le dossier")
+        self.assertContains(response, f"/services/operator/journeys/{case.pk}/")
+        self.assertNotContains(response, client.email)
+        self.assertNotContains(response, "Contenu confidentiel")
 
     def test_other_archetypes_keep_existing_contract(self):
         self.space.archetype = SpaceArchetype.CREATIVE
