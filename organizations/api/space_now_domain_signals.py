@@ -6,6 +6,7 @@ recomputes readiness nor infers urgency from the mere existence of records.
 from __future__ import annotations
 
 from datetime import timedelta
+from urllib.parse import urlencode
 
 from django.db.models import Exists, F, OuterRef, Q
 from django.urls import reverse
@@ -334,9 +335,16 @@ def select_additional_space_now(
                 native_link=(
                     f"/space/{space.slug}/retrieval/payment_obligation/{obligation.pk}"
                 ),
-                web_url=reverse(
-                    "organizations:space-payment-obligation",
-                    kwargs={"slug": space.slug, "obligation_id": obligation.pk},
+                web_url=(
+                    reverse(
+                        "organizations:space-payment-obligation",
+                        kwargs={"slug": space.slug, "obligation_id": obligation.pk},
+                    )
+                    + (
+                        f"?{urlencode({'responsibility': responsibility_key})}"
+                        if responsibility_key and responsibility_key != "all"
+                        else ""
+                    )
                 ),
                 observed_at=observed_at,
                 action_label="Examiner l'obligation",
