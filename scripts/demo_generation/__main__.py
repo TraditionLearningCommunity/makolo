@@ -48,7 +48,7 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations
     if a.action=="inventory":
         scale.main(["--inventory"])
         content.main()
@@ -89,6 +89,12 @@ def run(a):
         if apply: argv.append("--apply")
         mandates.main(argv)
     verticals_selected=set(VERTICALS)&domains
+    foundation_selected=verticals_selected&{"funding","services","obtention"}
+    if foundation_selected:
+        argv=["--domains",",".join(sorted(foundation_selected)),
+              "--count",str(min(a.count,100))]
+        if apply: argv.append("--apply")
+        foundations.main(argv)
     if verticals_selected:
         argv=["--domains",",".join(sorted(verticals_selected)),
               "--per-domain",str(min(a.count,2000)),"--profiles",str(a.profiles)]
