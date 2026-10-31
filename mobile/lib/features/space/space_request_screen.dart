@@ -295,6 +295,16 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
                     ),
                   ),
                 ),
+                if (request['message'] is String &&
+                    (request['message'] as String).trim().isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.lg),
+                  MakoloSection(
+                    title: 'Précisions communiquées',
+                    child: MakoloCard(
+                      child: Text(request['message'] as String),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: MakoloSpacing.lg),
                 if (canDecide) ...[
                   FilledButton.icon(
