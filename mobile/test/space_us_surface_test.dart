@@ -78,6 +78,9 @@ void main() {
       await tester.ensureVisible(find.text('Explorer les relations'));
       await tester.tap(find.text('Explorer les relations'));
       expect(routes, ['/space/atelier/us/relationships']);
+      await tester.ensureVisible(find.text('Consulter les faits de confiance'));
+      await tester.tap(find.text('Consulter les faits de confiance'));
+      expect(routes.last, '/space/atelier/us/trust');
     });
   }
 
