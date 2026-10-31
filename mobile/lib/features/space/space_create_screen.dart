@@ -44,6 +44,11 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       _created = true;
       // A POST response does not substitute for a current authority inventory.
       await repository.refreshInventory();
+      final state = await repository.readSource(repository.inventorySource());
+      if (state.lastSuccessAt == null || state.invalidated ||
+          state.lastErrorCode != null) {
+        throw StateError('Inventaire non vérifié.');
+      }
       final authorized = (await repository.readInventory()).any(
         (space) => space.identity.id == identity.id &&
             space.identity.slug == identity.slug,
@@ -52,6 +57,11 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
         throw StateError('L’accès à cet Espace doit être vérifié.');
       }
       await repository.refreshWorkspace(identity);
+      final verified = await repository.readSource(repository.workspaceSource(identity));
+      if (verified.lastSuccessAt == null || verified.invalidated ||
+          verified.lastErrorCode != null) {
+        throw StateError('Autorité non vérifiée.');
+      }
       await actor.selectSpace(identity);
       if (mounted) context.go('/space/now');
     } on Object {
