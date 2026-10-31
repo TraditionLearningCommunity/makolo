@@ -39,6 +39,27 @@ Auparavant, `build_space_now_projection` renvoyait toujours `no_safe_selection_c
 - `organizations/console_views.py` et `templates/organizations/console/requests.html` : boutons de décision Web masqués dès qu'ils ne sont plus autorisés, expirés ou hors contexte ; la validation backend ne change pas.
 - Les retours de profondeur native relancent la projection Now, sans succès optimiste ni transfert d'autorité.
 
+## Extension des owners confirmés — 31 octobre 2026
+
+L'extension `organizations/api/space_now_domain_signals.py` complète la sélection existante **sans nouvel état persistant ni écriture métier**. Elle ne sélectionne aucun objet simplement parce qu'il existe.
+
+| Domaine propriétaire | Admission fondée sur un fait | Non-admission | Autorité / profondeur |
+| --- | --- | --- | --- |
+| Operations | Incident HIGH/CRITICAL encore OPEN/INVESTIGATING, rattaché à l'Activity autorisée | incident clos, mineur, sans Activity admissible | `ACTIVITY_OPERATIONS_VIEW`; Jour J ou Activity natifs et Operations Web |
+| Access | Dernier refus de passage pertinent enregistré par `AccessUse` pendant une Occurrence active, dans les six dernières heures | AccessCredential lui-même, passage accepté ensuite, ancien refus, hors portée | `ACTIVITY_ACCESS_VIEW` **et** `ACTIVITY_OPERATIONS_VIEW`; Jour J / console Access |
+| Capacity | `held + committed > total` établi par `capacity_availability_many`, pool actif et quantité bornée | sold-out normal, nombre inféré, Placement | `ACTIVITY_CAPACITY_VIEW`; Activity/Jour J et console propriétaire |
+| Commerce | Commande PAYEE SPACE réellement PENDING avec `expires_at` dans les 24 heures | commande ordinaire, statut terminal, simple vente sans horizon | `ORDERS_VIEW` Space + perspective Activity; profondeur native Commerce Order autorisée |
+| Payments | Dernière tentative `FAILED` dans les trois jours, Commerce Order encore PENDING, sans tentative ultérieure ni réussite | historique de paiement, Payment du buyer personnel, faux échec encore pertinent | `ORDERS_VIEW` **et** `FINANCE_VIEW` Space; détail native Commerce + finance Web |
+| Automation | `AutomationExecution.FAILED` récent sur la règle d'une Activity gérable | règle sans exécution échouée, échec passé, règle d'autre Activity | `ACTIVITY_MANAGE`, Activity native / console Automation |
+
+- Les scans sources sont techniquement bornés et `has_more` reste honnête si une source dépasse son budget. Les Situations réellement admises **ne sont plus coupées à un Top 24 artificiel**.
+- Les labels descriptifs ne contiennent ni identité du bénéficiaire, ni credential, ni secret, ni PII financière. La provenance demeure un identifiant propriétaire, les conséquences non établies restent `unknown`.
+- Le Web conserve les profondeurs owner, Flutter résout uniquement des chemins relatifs de formes autorisées pour `space_work_activity`, `space_work_journey` et `space_commerce_order` ; les écrans réévaluent l'autorité à l'ouverture.
+- La proximité d'un paiement ou d'une commande sans action connue n'est jamais convertie en mutation ou en autorité. Les anomalies et les échéances ont des réponses d'Action, de compréhension ou d'attente distinctes.
+- Ni une source absente, ni un tableau vide ne suffisent à établir le calme global. Les autres propriétaires et les signaux Space sans contrat restent **hors couverture**.
+
+**Tests ajoutés :** `organizations/test_space_now_domain_signals.py` vérifie portée Activity, incidents fermés/mineurs, refus Access et passage accepté ultérieur, sold-out sans alerte, surallocation réelle, horizon Commerce explicite, paiement supersédé, échec Automation et sortie après résolution. `mobile/test/space_now_composition_test.dart` vérifie en plus les profondeurs natives autorisées et le rejet des URLs externes.
+
 ## Vérifications intégrées au code
 
 - `organizations/test_zs6_space_projection_reconciliation.py` : sélection partielle, perspective Activity limitée, Occurrence sans action non admise, signal Operations confirmé, demande owner et permission de décision, IDOR inter-Space, demande expirée, double commande refusée, révocation de Mandate, Services assigné uniquement.
@@ -56,7 +77,7 @@ Depuis la branche de #522, après avoir sauvegardé tout travail non commité :
 git fetch origin
 git switch fix/discover-a-continuation-context-20261014
 git pull --ff-only origin fix/discover-a-continuation-context-20261014
-python manage.py test organizations.test_zs6_space_projection_reconciliation organizations.test_ws2_space_now_discover_web
+python manage.py test organizations.test_zs6_space_projection_reconciliation organizations.test_ws2_space_now_discover_web organizations.test_space_now_domain_signals
 python manage.py check
 cd mobile
 bash tool/dart_format.sh write
@@ -70,7 +91,7 @@ Contrôler physiquement : passage Moi ↔ Space, acteur et perspective, Occurren
 
 ## Limites et critères de fermeture restant ouverts
 
-Cette verticale couvre les interventions Operations effectivement signalées, les `JourneyRequest` réellement en attente et les dossiers Services signalés aux opérateurs, pas la totalité des domaines Space. Les domaines qui ne disposent pas encore d'un signal owner sûre (autres opérations, Access, Capacity, Commerce, Payment, ressources, dépendances externes...) ne sont pas intégrés automatiquement. Les médias privés et mutations génériques ne sont pas exposés sans contrat propriétaire. La décision native de demande utilise uniquement le service JourneyRequest transactionnel existant. La conclusion `calm` reste interdite tant que la couverture transversale ne peut l'établir.
+Cette verticale couvre les interventions Operations effectivement signalées, les `JourneyRequest` réellement en attente et les dossiers Services signalés aux opérateurs ; elle prend aussi en charge les faits explicites d'Access, Capacity, Commerce, Payments et Automation décrits ci-dessus. Elle **ne prétend toujours pas couvrir toutes les nuances et propriétaires** de ces domaines. Les domaines qui ne disposent pas encore d'un signal owner sûre (autres opérations, Access, Capacity, Commerce, Payment, ressources, dépendances externes...) ne sont pas intégrés automatiquement. Les médias privés et mutations génériques ne sont pas exposés sans contrat propriétaire. La décision native de demande utilise uniquement le service JourneyRequest transactionnel existant. La conclusion `calm` reste interdite tant que la couverture transversale ne peut l'établir.
 
 L'expérience peut être testée dès ce checkpoint, mais la **fermeture Mature complète** nécessite encore la couverture owner pertinente, les validations visuelles Android/Web, les tests locaux ciblés, le formatage Flutter canonique et les gates pertinentes avant tout merge.
 
