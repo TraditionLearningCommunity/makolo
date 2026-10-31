@@ -45,6 +45,7 @@ import '../features/settings/billing_screen.dart';
 import '../features/settings/change_password_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
+import '../features/space/space_us_settings_screen.dart';
 import '../features/space/space_insight_screen.dart';
 import '../features/space/space_work_collection_screen.dart';
 import '../features/space/space_repository.dart';
@@ -612,6 +613,13 @@ GoRouter createMakoloRouter(
         builder: (context, state) => SpaceInsightScreen(
           runtime: runtime,
           surface: SpaceProjectionKind.pilot,
+        ),
+      ),
+      GoRoute(
+        path: '/space/:slug/us/settings',
+        builder: (context, state) => SpaceUsSettingsScreen(
+          runtime: runtime,
+          slug: state.pathParameters['slug']!,
         ),
       ),
       GoRoute(
