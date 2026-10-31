@@ -136,7 +136,9 @@ class PresentationMediaUseTests(TestCase):
             actor=self.owner, activity=self.activity, asset=a2,
             purpose=PresentationMediaPurpose.RECOGNIZE, alt_text="Deuxième affiche",
         )
-        with self.assertNumQueries(1):
+        # One owner query, one Group gate query and one media-use query.
+        # The number of associations must not cause N+1 reads.
+        with self.assertNumQueries(3):
             public_presentation_media_for_activities([self.activity])
 
     def test_space_asset_requires_same_space(self):
@@ -270,3 +272,109 @@ class PresentationMediaUseTests(TestCase):
         response.close()
         retire_presentation_media(actor=self.owner, media_use=use)
         self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_private_profile_withdrawal_removes_projection_and_delivery(self):
+        use = self._associate()
+        publish_presentation_media(actor=self.owner, media_use=use)
+        url = reverse("presentations:published-media-file", kwargs={"use_id": use.pk})
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(
+            len(public_presentation_media_for_activities([self.activity])[str(self.activity.pk)]), 1,
+        )
+        privacy = UserProfile.objects.get(user=self.owner)
+        for key in ("public_profile", "searchable"):
+            with self.subTest(key=key):
+                setattr(privacy, key, False)
+                privacy.save(update_fields=[key])
+                self.assertEqual(public_presentation_media_for_activities([self.activity]), {})
+                self.assertEqual(self.client.get(url).status_code, 404)
+                setattr(privacy, key, True)
+                privacy.save(update_fields=[key])
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_canceled_occurrence_media_is_never_projected_or_delivered(self):
+        from activities.models import OccurrenceStatus
+
+        use = self._associate(occurrence=self.occurrence)
+        publish_presentation_media(actor=self.owner, media_use=use)
+        url = reverse("presentations:published-media-file", kwargs={"use_id": use.pk})
+        before = public_presentation_media_for_activities(
+            [self.activity], occurrences=[self.occurrence]
+        )[str(self.activity.pk)]
+        self.assertEqual(len(before), 1)
+        self.occurrence.status = OccurrenceStatus.CANCELLED
+        self.occurrence.save(update_fields=["status"])
+        after = public_presentation_media_for_activities(
+            [self.activity], occurrences=[self.occurrence]
+        )[str(self.activity.pk)]
+        self.assertEqual(after, [])
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_group_eligibility_limits_media_projection_and_delivery_to_viewer(self):
+        from groups.models import (
+            ActivityGroupEligibility, ActivityGroupEligibilityStatus,
+            Group, GroupMembership, GroupMembershipStatus,
+        )
+
+        use = self._associate()
+        publish_presentation_media(actor=self.owner, media_use=use)
+        group = Group.objects.create(name="Media readers", created_by=self.owner)
+        ActivityGroupEligibility.objects.create(
+            group=group, activity=self.activity,
+            status=ActivityGroupEligibilityStatus.APPROVED,
+            requested_by=self.owner, decided_by=self.owner,
+            decided_at=timezone.now(),
+        )
+        url = reverse("presentations:published-media-file", kwargs={"use_id": use.pk})
+        self.assertEqual(public_presentation_media_for_activities([self.activity]), {})
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+        GroupMembership.objects.create(
+            group=group, profile=self.owner, status=GroupMembershipStatus.ACTIVE
+        )
+        self.client.force_login(self.owner)
+        projected = public_presentation_media_for_activities(
+            [self.activity], profile=self.owner
+        )
+        self.assertEqual(len(projected[str(self.activity.pk)]), 1)
+        accepted = self.client.get(url)
+        self.assertEqual(accepted.status_code, 200)
+        accepted.close()
+
+    def test_space_owner_retraction_removes_media_from_projection_and_delivery(self):
+        from organizations.models import SpaceLifecycle
+
+        space = create_organization(creator=self.owner, name="Presentation privacy Space")
+        activity = create_activity(
+            space=space, created_by=self.owner, title="Space media",
+            status=ActivityStatus.PUBLISHED,
+        )
+        asset = PresentationAsset(
+            provenance=Provenance.SPACE, owner_space=space,
+            uploaded_by=self.owner, mime_type="image/png", size=4,
+            checksum="a" * 64,
+        )
+        asset.file.save("private-space-test.png", ContentFile(b"test"), save=False)
+        asset.save()
+        use = associate_presentation_media(
+            actor=self.owner, activity=activity, asset=asset,
+            purpose=PresentationMediaPurpose.RECOGNIZE,
+            alt_text="Space published media",
+        )
+        publish_presentation_media(actor=self.owner, media_use=use)
+        url = reverse("presentations:published-media-file", kwargs={"use_id": use.pk})
+        self.assertEqual(self.client.get(url).status_code, 200)
+        for field, state in (
+            ("public_profile", False),
+            ("searchable", False),
+            ("verification_status", "suspended"),
+            ("lifecycle", SpaceLifecycle.ARCHIVED),
+        ):
+            with self.subTest(field=field):
+                previous = getattr(space, field)
+                setattr(space, field, state)
+                space.save(update_fields=[field])
+                self.assertEqual(public_presentation_media_for_activities([activity]), {})
+                self.assertEqual(self.client.get(url).status_code, 404)
+                setattr(space, field, previous)
+                space.save(update_fields=[field])
