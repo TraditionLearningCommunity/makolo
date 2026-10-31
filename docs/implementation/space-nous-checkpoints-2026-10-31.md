@@ -126,3 +126,14 @@ Travaux **implémentés et poussés** sur la PR #522, sans modifier le domaine P
 - Avertissements Dart `prefer_interpolation_to_compose_strings`, `curly_braces_in_flow_control_structures` et `use_null_aware_elements` nettoyés dans les fichiers Nous concernés, sans modification de logique métier ni des autorisations.
 - Retour Django : 26/27 tests réussissaient ; une assertion cherchait le mot `permissions` dans tout le HTML de Nous. La trace indiquait que l'occurrence venait d'une phrase explicative de la surface relationnelle. La version courante du template dit désormais `respecte ses propres règles d’accès`, ce qui supprime la cause du conflit **sans modifier ni supprimer l'assertion de test**.
 - Les correctifs sont poussés dans la même PR #522. Aucun test ni CI exécuté depuis cet environnement ; **attendre les nouveaux résultats du poste local avant de déclarer vert**.
+
+
+## Retour Flutter du 31 octobre — test d'interaction et contexte acteur
+
+Le poste local confirme **27/27 tests Django** réussis et `flutter analyze` sans problème. Les tests Flutter restaient rouges pour deux causes identifiées :
+
+- Les boutons Confiance/Paramètres/Piloter étaient présents dans un `ListView` plus grand que la fenêtre. `ensureVisible` seul n'avait pas rendu leur centre atteignable par `tap` dans le banc de test. Les scénarios de trois largeurs font désormais défiler `Scrollable` avec `scrollUntilVisible`, puis attendent la stabilisation avant d'activer le bouton.
+- Les tests historiques de commutation d'acteur simulaient une sélection UI avec un `WorkspaceContextRepository` sans moteur de synchronisation. Or le sélecteur réel impose désormais une revalidation réseau de l'inventaire et du Workspace (invariant sécurité). Les tests de shell utilisent les transitions explicites du contrôleur, tandis qu'un test séparé vérifie que le sélecteur **refuse** de passer au Space lorsque le contexte n'est pas vérifiable hors réseau. Aucun contrôle de production n'a été affaibli.
+- La profondeur Équipe expose légitimement le titre dans l'AppBar et le corps ; le test vérifie maintenant précisément le titre de l'AppBar au lieu d'imposer une occurrence globale unique.
+
+Corrections enregistrées dans la PR #522 ; **aucune nouvelle exécution Flutter dans cet environnement**, verdict vert non revendiqué.
