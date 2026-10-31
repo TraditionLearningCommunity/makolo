@@ -88,7 +88,8 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
         .toSet();
-    if (_focusedCandidateKey != null && !keys.contains(_focusedCandidateKey)) {
+    if (_focusedCandidateKey != null && keys.isNotEmpty &&
+        !keys.contains(_focusedCandidateKey)) {
       _focusedCandidateKey = null;
     }
   }
@@ -311,11 +312,22 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       if (anchor.candidateKey != key) continue;
       final controller = _mapController;
       if (controller != null) {
-        unawaited(controller.animateCamera(CameraUpdate.newLatLng(
-          LatLng(anchor.latitude, anchor.longitude),
-        )).catchError((Object _) => false));
+        unawaited(_moveCamera(controller, anchor));
       }
       break;
+    }
+  }
+
+  Future<void> _moveCamera(
+    MapLibreMapController controller,
+    DiscoverySpatialAnchor anchor,
+  ) async {
+    try {
+      await controller.animateCamera(CameraUpdate.newLatLng(
+        LatLng(anchor.latitude, anchor.longitude),
+      ));
+    } on Object {
+      // The list selection remains usable while the map is unavailable.
     }
   }
 
@@ -487,7 +499,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           ),
         ],
       ),
-      compactFallback: field,
+      compactFallback: widget.showMapOnCompact ? null : field,
+      minSpatialWidth: widget.showMapOnCompact ? 0 : MakoloLayout.mapMinWidth,
     );
 
     return MakoloAdaptiveSplit(
