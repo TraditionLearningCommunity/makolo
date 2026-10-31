@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:makolo/features/settings/billing_screen.dart';
+import 'package:makolo_mobile/features/settings/subscription_billing_format.dart';
 
 void main() {
   test('Unknown billing terms are not confused with free', () {
