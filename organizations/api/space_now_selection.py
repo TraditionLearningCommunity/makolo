@@ -200,9 +200,9 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 reason="journey_request_pending",
                 turn="collective" if can_decide else "none",
                 response_type="decide" if can_decide else "understand",
-                destination="activity", web_url=url,
+                destination="space_request", web_url=url,
                 observed_at=observed_at,
-                action_label="Examiner la demande" if can_decide else "Voir l'activité",
+                action_label="Examiner la demande" if can_decide else "Consulter la demande",
             ))
 
     all_case_ids = visible & set(activity_ids_with_direct_permission(
@@ -237,7 +237,8 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
             .filter(
                 Q(pk__in=attention_ids) | Q(pk__in=manager_ids),
             )
-            .select_related("activity")
+            .exclude(beneficiary=profile)
+            .select_related("activity", "service_context")
             .distinct()
             .order_by("-created_at", "pk")
         )
