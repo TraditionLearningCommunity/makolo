@@ -68,7 +68,7 @@ La liste de fichiers est un inventaire GitHub de la PR, **pas** une validation f
 ### Non exécuté / non prétendu terminé
 
 - Les tests Django, Flutter, analyseur Dart et la CI **n'ont pas été exécutés** à la demande de l'utilisateur (exécution locale prévue). Aucun résultat vert n'est revendiqué.
-- Les mutations complexes d'équipe et transfert d'ownership demeurent dans leurs API/Web owners existants. Ce chantier n'a pas inventé de catalogue de rôles ni de formulaire client susceptible d'octroyer un Mandate imprudemment.
+- Les opérations natives d'équipe et de transfert de propriété appellent les API owners existantes avec contrôle serveur. Les options de rôles viennent du catalogue canonique autorisé. Aucun Mandate n'est généré par une projection.
 - L'édition native de la visibilité publique est une mutation autorisée de l'identité Space ; les autres domaines publics restent propriétaires de leur découverte.
 - Les profondeurs Trust, Pilot et Relations utilisent leurs propriétaires et flux existants ; aucune projection Passport n'est introduite.
 - Aucune migration ni modification de `main`. PR #522 non fusionnée.
