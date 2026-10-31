@@ -95,6 +95,77 @@ DiscoveryFieldSelection selection({
 }
 
 void main() {
+  test('N1 added-at is relative without changing an Occurrence date', () {
+    final now = DateTime(2026, 10, 31, 14);
+    expect(
+      discoveryAddedAtLabel(now.subtract(const Duration(minutes: 2)), now),
+      'il y a 2 min',
+    );
+    expect(
+      discoveryAddedAtLabel(now.subtract(const Duration(hours: 2)), now),
+      'il y a 2 h',
+    );
+    expect(
+      discoveryAddedAtLabel(now.subtract(const Duration(days: 1)), now),
+      'Hier',
+    );
+    expect(
+      discoveryAddedAtLabel(now.subtract(const Duration(days: 14)), now),
+      'il y a 2 sem.',
+    );
+    expect(discoveryAddedAtLabel(now.add(const Duration(days: 1)), now), '');
+    expect(
+      discoveryAddedAtLabel(
+        now.subtract(const Duration(hours: 2)),
+        now,
+        french: false,
+      ),
+      '2 h ago',
+    );
+  });
+
+  testWidgets('N1 preserves established transport availability and place roles', (
+    tester,
+  ) async {
+    final transport = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'transport-facts',
+      candidateKey: 'activity:transport-facts',
+      title: 'Déplacement vers Kolwezi',
+      summary: 'Trajet confirmé.',
+      owner: 'Transport Makolo',
+      availability: 'Indisponible',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'availability': {'state': 'sold_out'},
+        'spatial_facts': [
+          {'role': 'departure', 'place': {'name': 'Lubumbashi'}},
+          {'role': 'stopover', 'place': {'name': 'Likasi'}},
+          {'role': 'arrival', 'place': {'name': 'Kolwezi'}},
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [transport]),
+        onOpen: (_) {},
+      ),
+    );
+    expect(find.text('Informations pratiques'), findsOneWidget);
+    expect(find.text('Indisponible'), findsOneWidget);
+    expect(find.text('Départ'), findsOneWidget);
+    expect(find.text('Lubumbashi'), findsOneWidget);
+    expect(find.text('Escale'), findsOneWidget);
+    expect(find.text('Likasi'), findsOneWidget);
+    expect(find.text('Arrivée'), findsOneWidget);
+    expect(find.text('Kolwezi'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 public Service start enters the same N3 login handoff', (
     tester,
   ) async {
