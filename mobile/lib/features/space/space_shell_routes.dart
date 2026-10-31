@@ -639,7 +639,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final roles = _teamRoleOptions(payload);
     final id = _text(row['id']);
     if (api == null || roles.isEmpty || id == null) return;
-    var selected = roles.first['code']!;
+    final currentRole = _text(row['responsibility']);
+    String? selected = roles.any((role) => role['code'] == currentRole)
+        ? currentRole : null;
     final chosen = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -653,6 +655,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               DropdownButtonFormField<String>(
                 initialValue: selected,
                 isExpanded: true,
+                hint: const Text('Choisir un rôle'),
                 items: [
                   for (final role in roles)
                     DropdownMenuItem(
@@ -670,7 +673,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             TextButton(onPressed: () => Navigator.pop(context),
               child: const Text('Annuler')),
             FilledButton(
-              onPressed: () => Navigator.pop(context, selected),
+              onPressed: selected == null ? null : () => Navigator.pop(context, selected),
               child: const Text('Confirmer le changement'),
             ),
           ],
