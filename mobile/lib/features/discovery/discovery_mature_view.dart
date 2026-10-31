@@ -39,6 +39,8 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.onMap,
     this.fieldKey,
     this.scrollController,
+    this.initialFocusedCandidateKey,
+    this.onFocusedCandidateChanged,
   });
 
   final DiscoveryFieldSelection selection;
@@ -55,6 +57,8 @@ class DiscoveryExplorationView extends StatefulWidget {
   final ValueChanged<String?>? onMap;
   final String? fieldKey;
   final ScrollController? scrollController;
+  final String? initialFocusedCandidateKey;
+  final ValueChanged<String?>? onFocusedCandidateChanged;
 
   @override
   State<DiscoveryExplorationView> createState() =>
@@ -65,8 +69,22 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
   String? _focusedCandidateKey;
 
   @override
+  void initState() {
+    super.initState();
+    _focusedCandidateKey = widget.initialFocusedCandidateKey;
+  }
+
+  void _focus(String? candidateKey) {
+    setState(() => _focusedCandidateKey = candidateKey);
+    widget.onFocusedCandidateChanged?.call(candidateKey);
+  }
+
+  @override
   void didUpdateWidget(covariant DiscoveryExplorationView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialFocusedCandidateKey != widget.initialFocusedCandidateKey) {
+      _focusedCandidateKey = widget.initialFocusedCandidateKey;
+    }
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
         .toSet();
@@ -107,6 +125,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             loadMoreFailed: widget.loadMoreFailed,
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
+            selectedCandidateKey: _focusedCandidateKey,
             onMap: widget.onMap == null ? null : () => widget.onMap!(_focusedCandidateKey),
             fieldKey: widget.fieldKey,
             scrollController: widget.scrollController,
@@ -129,9 +148,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             fieldKey: widget.fieldKey,
             scrollController: widget.scrollController,
           selectedCandidateKey: _focusedCandidateKey,
-          onSelect: (item) => setState(() {
-            _focusedCandidateKey = item.candidateKey;
-          }),
+          onSelect: (item) => _focus(item.candidateKey),
           selectOnCardTap: true,
         );
         if (focused == null) return field;
@@ -142,7 +159,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           focus: _DiscoveryFocusPane(
             item: focused,
             baseUri: widget.baseUri,
-            onClose: () => setState(() => _focusedCandidateKey = null),
+            onClose: () => _focus(null),
             onOpen: () => widget.onOpen(focused),
           ),
           narrow: field,
