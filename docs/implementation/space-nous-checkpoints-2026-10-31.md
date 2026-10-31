@@ -87,3 +87,34 @@ Vérifier manuellement : visiteur et Profile hors Space (404 privé), membre san
 ### Complément d'intégration native
 
 Les profondeurs Équipe et Gouvernance appellent les API canoniques Team et Ownership avec confirmation. Le serveur reste souverain sur les rôles et transferts. Une panne réseau conserve les observations locales non expirées, mais désactive les mutations ; une invalidation d'autorité masque les données sensibles. Aucun travail Passeport n'est inclus.
+
+
+## Fermeture des profondeurs et comportements Nous — 31 octobre 2026
+
+Travaux **implémentés et poussés** sur la PR #522, sans modifier le domaine Passeport/Sharing, les migrations ni `main`.
+
+### Profondeurs utiles
+
+- **Responsabilités** : les Mandates existants, présentés comme perspectives et non comme autorisations nouvelles, proposent une continuation vers Métier selon le `key` exact reçu du serveur ; Web passe `?responsibility=mandate:…` (encodé) à la route Métier propriétaire, Flutter change seulement `ActorPerspective`, puis ouvre `/space/work`. Le serveur revalide.
+- **Relations Web** : chaque ligne d'équipe, groupe, contact CRM, audience ou partenaire visible peut ouvrir la sélection relationnelle bornée `?kind=…&id=…` ; sa route propriétaire n'est proposée qu'après vérification par la projection.
+- **Relations Flutter** : `SpaceInsightScreen` est verrouillé au slug d'origine sur les routes Nous. Son état de recherche est annulé au changement d'acteur ; au retour du détail propriétaire, recherche temporaire effacée puis projection réactualisée. Refus d'une recherche à code 401/403/404 : nouvelle vérification de l'owner source, sans conserver un résultat distant potentiellement obsolète.
+- **Gouvernance** : les faits de propriété restent des Mandates actifs ; transfert confirmé vers l'API `ownership/transfer/` existante, choix explicite du collaborateur actif, conservation de la propriété actuelle par défaut et vérifications serveur inchangées.
+- **Confiance** : l'écran natif affiche les `claims` actives de `workspace.verification` (type, état, validité éventuelle), jamais un score. La racine Nous présente maintenant le handoff Confiance uniquement s'il est effectivement autorisé par le serveur.
+- **Équipe et Paramètres** : mutations natives existantes, toujours confirmées par les API propriétaires ; pas de droits déduits d'une simple appartenance.
+
+### Comportements fermés
+
+- Au retour d'un écran natif propriétaire vers la racine Nous, rafraîchissement de la projection Nous.
+- Les pages Web Nous et Relations sont explicitement `Cache-Control: private, no-store`.
+- Pendant la résolution d'un deep link, le changement d'acteur engagé par la personne n'est pas écrasé par une réponse d'inventaire tardive.
+- À chaque changement d'acteur, les détails complets de Team en mémoire sont éliminés ; un retour au Space d'origine exige une nouvelle acquisition.
+- Les snapshots locaux non expirés peuvent servir d'observation quand l'API est indisponible, mais aucune mutation Team/Ownership n'est proposée sans source récemment validée. Une invalidation d'autorité reste bloquante. Les profondeurs manquantes ou expirées proposent un véritable réessai.
+- Les états vides de Relations distinguent une collection autorisée mais vide, une recherche sans correspondance et un contexte dépourvu d'autorité.
+
+### Tests de contrat modifiés, non exécutés
+
+- `organizations/test_ws4_space_web.py` : handoffs vers Métier, encodage de la perspective, relations directement consultables, confidentialité/no-store.
+- `mobile/test/space_actor_shell_test.dart` : faits de confiance affichés et disparition de la Team après changement d'acteur.
+- `mobile/test/space_us_surface_test.dart` : ouverture du handoff Confiance, en complément des contrôles de visibilité et de lien inter-Space existants.
+
+**À valider localement par l'utilisateur** : Django, Flutter analyzer, widgets, retour depuis une opération, permissions IDOR, révocation avec réseau et hors réseau. Aucune CI lancée, aucun merge effectué, aucun résultat de test revendiqué.
