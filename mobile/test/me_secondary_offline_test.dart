@@ -74,6 +74,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     await tester.pumpWidget(MaterialApp(
       home: MeConsiderationsScreen(
@@ -97,6 +103,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     final titles = [
       'Culture', 'Design', 'Entrepreneuriat', 'Formation',
@@ -145,6 +157,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     await personal.store.putProjection(
       kind: 'personal.me.passport',
@@ -196,6 +214,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     final discovery = DiscoveryRepository(
       database: database,
@@ -217,6 +241,12 @@ void main() {
   testWidgets('saved opportunities remain readable offline', (tester) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     await tester.pumpWidget(MaterialApp(
       home: MeSavedScreen(
@@ -237,6 +267,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     await personal.store.putProjection(
       kind: 'personal.me.preview',
@@ -271,6 +307,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     await tester.pumpWidget(MaterialApp(
       home: MePassportScreen(api: _OfflineApi(), personal: personal),
@@ -292,6 +334,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     await personal.store.putProjection(
       kind: 'personal.me.account_editor',
@@ -332,6 +380,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     await personal.store.putProjection(
       kind: 'personal.me.account_editor',
@@ -398,6 +452,12 @@ void main() {
   ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
+    // Drift closes stream subscriptions on a zero-duration timer. Unmount
+    // before closing SQLite and drain that timer within the widget test.
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
     final personal = await _seed(database);
     await tester.pumpWidget(MaterialApp(
       home: MeProfileScreen(api: _OfflineApi(), personal: personal),
