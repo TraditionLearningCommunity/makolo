@@ -212,8 +212,6 @@ class DemoGenerationCLITests(unittest.TestCase):
         from scripts.demo_generation.validate import main
         fake = MagicMock()
         fake.settings_dict = {"NAME": "db.sqlite3", "TEST": {"NAME": "db.sqlite3"}}
-        with patch("scripts.demo_generation.validate.main") as untouched:
-            untouched.assert_not_called()
         with patch("django.db.connections", {"default": fake}):
             with self.assertRaises(SystemExit):
                 main(["--quick"])
