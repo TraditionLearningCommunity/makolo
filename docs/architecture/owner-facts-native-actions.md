@@ -3,7 +3,11 @@
 > Chantier serveur transverse, **sans nouveau domaine métier**. Base initiale :
 > `main@d0f0ec421c94c255fa4c0acd3509938a70c6322f`.
 > Les tests, migrations, selectors et API en cours priment sur ce document.
-> Cette branche **ne modifie pas Discovery ni Flutter**.
+> Ce texte décrivait initialement le sous-chantier des owners ; sa formule de
+> périmètre « ne modifie pas Discovery ni Flutter » est **historique** et ne
+> décrit pas à elle seule toute la PR #522 après consolidation.
+> Relevé actuel : [chantier 01 / propriétaires](../implementation/discover-stage-01-owner-facts-2026-10-31.md).
+> Les tests ciblés de ce relevé n'ont pas encore été exécutés.
 
 ## Problème et frontière
 
@@ -150,3 +154,33 @@ Puis exécuter les tests pertinents de Commerce, Opportunities et Services,
 ainsi que PostgreSQL pour l'unicité et les rejeux concurrents. Ne pas
 fusionner si la CI est rouge. Les scénarios Guest, autre Profile, Group gate,
 conflit d'idempotence et compatibilité Web sont des critères de sortie.
+
+
+## Mise à jour : publication du porteur et interdiction des nouveaux engagements (31 octobre 2026)
+
+La publication de l'Activity ne suffit plus à exposer un Funding ou un
+Service porté par un Espace qui a retiré son profil public/recherchable,
+qui est archivé ou suspendu. Le selector propriétaire doit contrôler
+`Organization.public_profile`, `searchable`, `lifecycle=active`
+et `verification_status != suspended`. Une Activity personnelle
+avec un propriétaire `User.is_active=False` n'est pas une offre publique.
+
+- **Funding** : `public_fundings` applique ces conditions à la découverte et
+  à la lecture publique. `funding_accepts_contributions` interdit également
+  la **création d'une nouvelle contribution et de son PaymentObligation**
+  lorsqu'un porteur rétracte sa publication ou est suspendu. L'API de récupération
+  d'une contribution déjà créée demeure distincte de cette décision ;
+  aucune annulation rétroactive de paiement n'est inférée.
+- **Services** : `services.views.public_services` est le selector commun
+  du catalogue Web et du démarrage natif. `services.api_views` réutilise
+  ce selector avant le contrôle d'éligibilité de Groupe, sans déléguer de
+  Permission à Discovery. Les Journeys existantes ne sont pas effacées.
+- **Consommateur Discovery** : `discovery/unified.py` contient encore un
+  filtre local Service historiquement plus large ; sa réconciliation est une
+  obligation explicite de l'étape 02, non une raison de démultiplier le selector.
+
+Quatre tests de non-régression ont été ajoutés dans
+`funding/test_z15_api.py` et `services/test_native_start_api.py` :
+retrait du profil public, fin de recherchabilité, archive, suspension,
+inactivation de propriétaire personnel, absence de nouvelle contribution ou
+Journey. **Écriture vérifiée sur la branche, exécution non attestée.**
