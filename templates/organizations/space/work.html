@@ -73,6 +73,7 @@
                 Conditions évaluées : {{ item.context.conditions.satisfied }} / {{ item.context.conditions.total }} satisfaites
                 {% if item.context.conditions.awaiting %}· {{ item.context.conditions.awaiting }} à évaluer{% endif %}
                 {% if item.context.conditions.unsatisfied %}· {{ item.context.conditions.unsatisfied }} non satisfaites{% endif %}
+                {% if item.context.conditions.not_applicable %}· {{ item.context.conditions.not_applicable }} sans objet{% endif %}
               </p>
               {% endif %}
               <div class="mt-2 flex flex-wrap gap-2">
