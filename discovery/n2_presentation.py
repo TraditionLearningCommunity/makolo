@@ -62,7 +62,11 @@ def build_n2_presentation(projection):
 
     variants = []
     seen = set()
-    for variant in projection.get("variants") or []:
+    identity = projection.get("identity") or {}
+    if not isinstance(identity, dict):
+        identity = {}
+    allow_occurrence_variants = identity.get("family") == "activity"
+    for variant in (projection.get("variants") or []) if allow_occurrence_variants else ():
         if not isinstance(variant, dict):
             continue
         occurrence = variant.get("occurrence") or {}
