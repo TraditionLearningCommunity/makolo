@@ -218,6 +218,13 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
             end_at=now + timedelta(minutes=20),
             status=OccurrenceStatus.SCHEDULED,
         )
+        # Local Activity management does not implicitly grant Operations.
+        # An explicit Operations Mandate is required to see live owner signals.
+        grant_activity_role(
+            profile=self.activity_actor, activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+            granted_by=self.owner,
+        )
         self.client.force_authenticate(self.activity_actor)
         # A running Occurrence without an owner action is not automatically Now.
         with patch(
@@ -449,6 +456,16 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         )
         self.client.force_authenticate(self.owner)
         self.assertEqual(self.client.get(url).status_code, 200)
+        # Ownership may never be left vacant. Transfer continuity first,
+        # then prove that a genuinely revoked viewer cannot decide.
+        successor = User.objects.create_user(
+            username="zs6-successor",
+            email="zs6-successor@test.local", password="x",
+        )
+        grant_space_role(
+            profile=successor, space=self.space,
+            role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner,
+        )
         revoke_mandate(mandate=self.owner_mandate, actor=self.owner)
         self.assertEqual(
             self.client.post(url, {"decision": "approve"}, format="json").status_code,
