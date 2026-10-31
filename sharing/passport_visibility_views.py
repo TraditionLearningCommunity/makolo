@@ -9,7 +9,7 @@ from django.views.generic import TemplateView
 
 from accounts.models import ProfileVisibilityTargetKind as Target
 from accounts.profile_visibility import replace_profile_visibility
-from core.api.passport_visibility_views import PersonalPassportVisibilityAPIView
+from accounts.profile_visibility_projection import build_profile_visibility_settings
 from topics.models import ProfileInterest, ProfileOpenTo
 
 
@@ -19,7 +19,7 @@ class ProfilePassportVisibilityView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        data = PersonalPassportVisibilityAPIView._payload(self.request.user)
+        data = build_profile_visibility_settings(self.request.user)
         labels = {
             "name": "Nom", "avatar": "Photo", "bio": "À propos",
             "profession": "Profession", "city": "Ville", "country": "Pays",
