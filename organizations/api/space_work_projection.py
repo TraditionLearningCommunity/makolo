@@ -881,6 +881,7 @@ def build_space_work_projection(
         sections=sections,
         limited=not direct_portfolio or lens_ids is not None,
         is_root=not (source_kind or source_id or section_key or offset),
+        today=today,
     )
     reading_order = (
         [
@@ -906,6 +907,8 @@ def build_space_work_projection(
                 "question": business_world["question"],
                 "calm_message": business_world["calm_message"],
                 "reading_groups": business_world["reading_groups"],
+                **({"today_departures": business_world["today_departures"]}
+                   if "today_departures" in business_world else {}),
                 "next_occurrence_label": (
                     "Prochaine action"
                     if space.archetype == "community"
