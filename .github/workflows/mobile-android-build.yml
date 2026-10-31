@@ -6,16 +6,7 @@ on:
     paths:
       - "mobile/lib/**"
       - "mobile/android/**"
-      - "mobile/pubspec.yaml"
-      - "mobile/pubspec.lock"
-      - "mobile/.flutter-version"
-      - "mobile/config/dev.json"
-      - ".github/workflows/mobile-android-build.yml"
-  push:
-    branches: [main]
-    paths:
-      - "mobile/lib/**"
-      - "mobile/android/**"
+      - "mobile/assets/**"
       - "mobile/pubspec.yaml"
       - "mobile/pubspec.lock"
       - "mobile/.flutter-version"

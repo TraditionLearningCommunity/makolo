@@ -1,6 +1,12 @@
 name: Mobile Format
 
 on:
+  # Temporary branch-only, one-shot activation to apply the canonical Dart formatter.
+  # Remove this push trigger after the formatter has committed its changes.
+  push:
+    branches: [fix/discover-a-continuation-context-20261014]
+    paths:
+      - ".github/workflows/mobile-format.yml"
   workflow_dispatch:
     inputs:
       target_ref:
@@ -21,7 +27,7 @@ jobs:
     steps:
       - name: Validate target branch
         env:
-          TARGET_REF: ${{ inputs.target_ref }}
+          TARGET_REF: ${{ inputs.target_ref || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -33,7 +39,7 @@ jobs:
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.target_ref }}
+          ref: ${{ inputs.target_ref || github.ref_name }}
           fetch-depth: 0
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
@@ -55,7 +61,7 @@ jobs:
 
       - name: Commit formatting when needed
         env:
-          TARGET_REF: ${{ inputs.target_ref }}
+          TARGET_REF: ${{ inputs.target_ref || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail

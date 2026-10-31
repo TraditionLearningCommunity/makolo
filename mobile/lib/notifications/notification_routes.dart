@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../app/runtime/app_runtime.dart';
-import '../features/settings/notification_preferences_screen.dart';
+import '../features/settings/notification_preferences_screen.dart' as settings;
 import '../navigation/secondary_screen.dart';
 import 'notification_repository.dart';
 import 'notification_screens.dart';
@@ -19,7 +19,7 @@ List<RouteBase> notificationRoutes(AppRuntime runtime) => [
           message: 'Les préférences ne sont pas disponibles dans ce contexte.',
         );
       }
-      return NotificationPreferencesScreen(
+      return settings.NotificationPreferencesScreen(
         repository: NotificationRepository(
           database: database,
           store: store,
