@@ -20,7 +20,6 @@ class PublicProfileAPIView(APIView):
             get_user_model().objects.filter(
                 is_active=True,
                 profile__public_profile=True,
-                profile__searchable=True,
             ),
             pk=profile_id,
         )
