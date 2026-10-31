@@ -7,10 +7,10 @@
 {% if error %}<p>{{ error }}</p>{% else %}
 <p>Document <strong>{{ document_id }}</strong>. Le partage est indépendant de la publication du Passeport et peut être révoqué.</p>
 <label for="link">Lien de consultation de cette version émise</label>
-<input id="link" readonly value="{{ share_url }}" onclick="this.select()">
-<p><button type="button" onclick="navigator.clipboard.writeText(document.getElementById('link').value).then(()=>this.textContent='Copié')">Copier ce lien</button></p>
+<input id="link" readonly value="{{ share_url }}">
+<p><button type="button" data-passport-copy-created>Copier ce lien</button></p>
 <p class="muted">Expire le {{ expires_at|date:"d/m/Y à H:i" }}. Cette adresse donne accès à cette seule version sélectionnée. Transmettez-la uniquement aux personnes voulues.</p>
 <p class="muted">Conservez ce lien maintenant : Makolo n'enregistre pas le jeton lisible. Il reste possible de révoquer le partage depuis votre historique.</p>
 {% endif %}
 {% if history_url %}<a href="{{ history_url }}">Retour aux versions datées</a>{% endif %}
-</div></main></body></html>
+</div></main><script defer src="{% static 'js/passport-share-created.js' %}"></script></body></html>
