@@ -1084,7 +1084,7 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertEqual(service["price"]["reason"], "no_applicable_offer")
         self.assertIsNone(service["price"]["minimum"])
 
-        offer = Offer.objects.create(
+        Offer.objects.create(
             activity=self.service_activity, name="Accompagnement au dossier",
             unit_price=Decimal("15.00"), currency="USD",
             status=OfferStatus.ACTIVE, payment_mode=PaymentMode.UPFRONT,
@@ -1111,4 +1111,3 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertIsNone(mixed["price"]["minimum"])
         self.assertIsNone(mixed["price"]["currency"])
         self.assertEqual(mixed["price"]["offer_count"], 2)
-        self.assertEqual(offer.pk is not None, True)
