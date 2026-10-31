@@ -1,4 +1,5 @@
 from django.urls import include, path
+from payments.space_obligation_views import SpacePayerObligationWebView
 
 from transport.console_views import (
     TransportConsoleCreateDepartureView,
@@ -92,6 +93,7 @@ urlpatterns = [
     path("new/", OrganizationCreateView.as_view(), name="create"),
     path("<slug:slug>/", SpaceNowView.as_view(), name="console-entry"),
     path("<slug:slug>/discover/", SpaceDiscoverView.as_view(), name="space-discover"),
+    path("<slug:slug>/payment-obligations/<uuid:obligation_id>/", SpacePayerObligationWebView.as_view(), name="space-payment-obligation"),
     path("<slug:slug>/mark/", SpaceMarkWS5View.as_view(), name="space-mark"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/day-of/", SpaceOccurrenceDayOfView.as_view(), name="space-occurrence-day-of"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/live/", SpaceOccurrenceLiveView.as_view(), name="space-occurrence-live"),
