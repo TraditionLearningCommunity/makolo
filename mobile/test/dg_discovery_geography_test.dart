@@ -37,6 +37,67 @@ void main() {
     await database.close();
   });
 
+  test('the same Discovery search survives route -> map -> search', () {
+    const original = DiscoveryQuery(
+      text: 'concert', place: 'Lubumbashi', when: 'week',
+      period: 'upcoming', vertical: 'activity', price: 'paid',
+      dateFrom: '2026-11-01', dateTo: '2026-11-30',
+      latitude: -11.66, longitude: 27.48, radiusKm: 25,
+      page: 3, pageSize: 12, continuation: 'signed+opaque/==',
+    );
+    final location = original.routeLocation(
+      '/discover/map', selectedCandidateKey: 'activity:concert-1',
+    );
+    final uri = Uri.parse(location);
+    expect(uri.path, '/discover/map');
+    expect(uri.queryParameters['selected'], 'activity:concert-1');
+    final restored = DiscoveryQuery.fromRouteParameters(uri.queryParameters);
+    expect(restored.parameters['q'], original.parameters['q']);
+    expect(restored.parameters['place'], original.parameters['place']);
+    expect(restored.parameters['when'], original.parameters['when']);
+    expect(restored.parameters['period'], original.parameters['period']);
+    expect(restored.parameters['vertical'], original.parameters['vertical']);
+    expect(restored.parameters['price'], original.parameters['price']);
+    expect(restored.parameters['lat'], original.parameters['lat']);
+    expect(restored.parameters['lon'], original.parameters['lon']);
+    expect(restored.parameters['radius_km'], original.parameters['radius_km']);
+    expect(restored.parameters['date_from'], original.parameters['date_from']);
+    expect(restored.parameters['date_to'], original.parameters['date_to']);
+    expect(restored.page, 3);
+    expect(restored.pageSize, 12);
+    expect(restored.continuation, 'signed+opaque/==');
+    expect(restored.mapFingerprint, original.mapFingerprint);
+    final returnToSearch = restored.routeLocation(
+      '/discover/search',
+      selectedCandidateKey: uri.queryParameters['selected'],
+    );
+    expect(Uri.parse(returnToSearch).queryParameters['selected'],
+        'activity:concert-1');
+    expect(
+      DiscoveryQuery.fromRouteParameters(
+        Uri.parse(returnToSearch).queryParameters,
+      ).fingerprint,
+      original.fingerprint,
+    );
+  });
+
+  test('invalid route coordinates and unsupported cursors cannot widen search', () {
+    final query = DiscoveryQuery.fromRouteParameters({
+      'q': 'formation', 'lat': '999', 'lon': '27.5',
+      'radius_km': '25', 'page': '5', 'continuation': '',
+      'page_size': '10000',
+    });
+    expect(query.text, 'formation');
+    expect(query.latitude, isNull);
+    expect(query.longitude, isNull);
+    expect(query.radiusKm, isNull);
+    expect(query.page, 1);
+    expect(query.continuation, isNull);
+    expect(query.pageSize, 24);
+    expect(query.parameters, isNot(containsPair('lat', '999')));
+    expect(query.hasCriteria, isTrue);
+  });
+
   test(
     'Discovery source fingerprints query and keeps server pages separate',
     () {
