@@ -31,12 +31,20 @@ Auparavant, `build_space_now_projection` renvoyait toujours `no_safe_selection_c
 - L'état partiel vide a un message dédié, distinct d'une erreur de transport, avec actualisation explicite.
 - Une sélection partielle non vide conserve un indicateur discret sur sa couverture.
 
+### Propriétaire de décision JourneyRequest (Web + mobile)
+
+- `organizations/api/space_request_views.py` et `organizations/api/urls.py` : `GET/POST /api/v1/organizations/workspaces/<slug>/requests/<request_id>/`. Réponse restreinte au Space courant, au viewer et à sa perspective actuelle ; seul un `JourneyRequest` effectivement visible est retourné, sans identifiants privés du demandeur. `POST` appelle uniquement `journeys.services.approve_request/reject_request`, toujours avec revalidation propriétaire et transaction.
+- `mobile/lib/features/space/space_request_screen.dart` : profondeur native en ligne, informations communiquées par le propriétaire, confirmation explicite, vérification du résultat réel, message de refus ou conflit, effacement sur changement de contexte.
+- `mobile/lib/navigation/deep_link_resolver.dart` et `mobile/lib/app/router.dart` : chemins propriétaires Space enregistrés. La profondeur Services ne permet pas de lien externe arbitraire.
+- `organizations/console_views.py` et `templates/organizations/console/requests.html` : boutons de décision Web masqués dès qu'ils ne sont plus autorisés, expirés ou hors contexte ; la validation backend ne change pas.
+- Les retours de profondeur native relancent la projection Now, sans succès optimiste ni transfert d'autorité.
+
 ## Vérifications intégrées au code
 
-- `organizations/test_zs6_space_projection_reconciliation.py` : initialisation partielle honnête, autorité Activity-limited, Occurrence en cours, non-divulgation d'une autre Activity, annulation exclue, demande owner sans mutation directe, refus Membership, changements de Mandate.
-- `organizations/test_ws2_space_now_discover_web.py` : état partiel honnête et rendu Web d'une situation owner.
+- `organizations/test_zs6_space_projection_reconciliation.py` : sélection partielle, perspective Activity limitée, Occurrence sans action non admise, signal Operations confirmé, demande owner et permission de décision, IDOR inter-Space, demande expirée, double commande refusée, révocation de Mandate, Services assigné uniquement.
+- `organizations/test_ws2_space_now_discover_web.py` : état partiel honnête, rendu Web d'un signal Operations et masquage des contrôles de décision sans autorité.
 - `e2e/specs/ws2-space-now-discover.spec.mjs` : régime responsive et navigation vérifient désormais Now partiel sans faux calme ; Découvrir demeure indisponible.
-- `mobile/test/space_foundation_stabilization_test.dart` : fixture N1 valide et non-réutilisation d'une situation d'un autre Space au changement d'acteur.\n- `mobile/test/space_now_composition_test.dart` : `partial + []` ne devient jamais un calme établi et une action owner-depth ne devient pas un POST natif.
+- `mobile/test/space_foundation_stabilization_test.dart` : fixture N1 valide et non-réutilisation d'une situation d'un autre Space au changement d'acteur.\n- `mobile/test/space_now_composition_test.dart` : `partial + []` ne devient pas un calme établi, la décision est une profondeur propriétaire, les liens Services doivent rester relatifs et sûrs.
 
 **Ces tests ont été modifiés, pas exécutés.** Le conteneur ne possède ni clone du dépôt ni toolchain Dart/Flutter ; l'accès au dépôt s'est fait directement par le connecteur GitHub.
 
