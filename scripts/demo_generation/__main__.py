@@ -48,10 +48,9 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog
     if a.action=="inventory":
-        scale.main(["--inventory"])
-        content.main()
+        catalog.main([])
         return
     if a.action=="audit":
         audit.main(["--at",a.at] if a.at else [])
