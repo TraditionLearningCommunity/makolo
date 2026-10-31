@@ -62,7 +62,7 @@ Contrôler physiquement : passage Moi ↔ Space, acteur et perspective, Occurren
 
 ## Limites et critères de fermeture restant ouverts
 
-Cette verticale ne couvre actuellement **que** les Occurrences en cours et les demandes d'inscription/prestation en attente. Les domaines qui ne disposent pas encore d'un signal owner sûre (autres opérations, Access, Capacity, Commerce, Payment, ressources, dépendances externes...) ne sont pas intégrés automatiquement. Les médias privés et mutations directes ne sont pas exposés sans contrat propriétaire. La conclusion `calm` reste interdite tant que la couverture transversale ne peut l'établir.
+Cette verticale ne couvre actuellement **que** les Occurrences en cours et les \`JourneyRequest\` en attente et les dossiers de prestation soumis/en attente. Les domaines qui ne disposent pas encore d'un signal owner sûre (autres opérations, Access, Capacity, Commerce, Payment, ressources, dépendances externes...) ne sont pas intégrés automatiquement. Les médias privés et mutations directes ne sont pas exposés sans contrat propriétaire. La conclusion `calm` reste interdite tant que la couverture transversale ne peut l'établir.
 
 L'expérience peut être testée dès ce checkpoint, mais la **fermeture Mature complète** nécessite encore la couverture owner pertinente, les validations visuelles Android/Web, les tests locaux ciblés, le formatage Flutter canonique et les gates pertinentes avant tout merge.
 
