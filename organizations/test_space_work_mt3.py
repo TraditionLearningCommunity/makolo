@@ -14,6 +14,7 @@ from funding.models import FundingDetails
 from funding.services import can_manage_funding
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, SpaceArchetype
+from services.models import ServiceDetails, ServiceJourneyContext, ServiceKind
 
 
 class SpaceWorkG1DepthTests(TestCase):
@@ -238,6 +239,37 @@ class SpaceWorkG1DepthTests(TestCase):
                 self.client.get(self.depth_url("activity", activity.pk)).status_code,
                 404,
             )
+
+    def test_mixed_service_journey_uses_real_operator_owner_handoff(self):
+        self.space.archetype = SpaceArchetype.GENERIC
+        self.space.save(update_fields=["archetype", "updated_at"])
+        activity = self.activity("Aide administrative")
+        ServiceDetails.objects.create(
+            activity=activity, service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
+        )
+        beneficiary = User.objects.create_user(
+            username="mt3-service-beneficiary", password="x",
+        )
+        case = Journey.objects.create(
+            initiated_by=beneficiary, beneficiary=beneficiary,
+            activity=activity, workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.IN_PROGRESS,
+        )
+        operator = User.objects.create_user(username="mt3-operator", password="x")
+        grant_activity_role(
+            profile=operator, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_login(operator)
+        before = self.client.get(self.depth_url("journey", case.pk))
+        self.assertEqual(before.status_code, 200)
+        self.assertNotContains(before, "Ouvrir le dossier de prestation")
+        ServiceJourneyContext.objects.create(journey=case)
+        after = self.client.get(self.depth_url("journey", case.pk))
+        self.assertEqual(after.status_code, 200)
+        self.assertContains(after, "Ouvrir le dossier de prestation")
+        self.assertContains(after, reverse("services:operator-case", kwargs={"pk": case.pk}))
 
     def test_journey_n2_is_contextual_without_private_beneficiary(self):
         activity = self.activity("Action citoyenne")
