@@ -30,7 +30,7 @@ def main(argv=None):
     from django.db import connection, transaction
     from django.utils import timezone
     from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
-    from activities.services import create_activity, create_occurrence
+    from activities.services import create_activity, create_occurrence, complete_occurrence
     from organizations.models import Organization, TeamMembership
     from organizations.services import create_organization, add_or_update_member
     from loyalty.models import LoyaltyProgram, LoyaltyTier, MembershipPlan, MembershipSubscription
@@ -120,10 +120,13 @@ def main(argv=None):
                     continue
                 try:
                     with transaction.atomic():
-                        create_occurrence(
+                        occurrence = create_occurrence(
                             activity=activity, timezone="Africa/Lubumbashi",
                             label="DEMO " + label, start_at=start,
-                            end_at=start+duration, status=state)
+                            end_at=start+duration, status=OccurrenceStatus.SCHEDULED)
+                        if state == OccurrenceStatus.COMPLETED:
+                            complete_occurrence(occurrence=occurrence)
+                            counts["occurrences_completed"] += 1
                     counts["occurrences_created"] += 1
                 except ValidationError:
                     counts["occurrences_rejected"] += 1
