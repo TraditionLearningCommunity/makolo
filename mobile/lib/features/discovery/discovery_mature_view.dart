@@ -500,7 +500,9 @@ class _DiscoveryScrollableField extends StatelessWidget {
           key: PageStorageKey<String>(
             fieldKey == null
                 ? (autoLoadMore ? 'discover-continuous-field' : 'discover-page-${selection.collection.page}')
-                : 'discover-$fieldKey-${selection.collection.page}',
+                : (autoLoadMore
+                    ? 'discover-$fieldKey-continuous'
+                    : 'discover-$fieldKey-${selection.collection.page}'),
           ),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(
