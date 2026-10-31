@@ -130,7 +130,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
               if (context.canPop()) {
                 context.pop();
               } else {
-                context.go('/discover');
+                context.go(widget.query.routeLocation('/discover'));
               }
             },
             icon: const Icon(Icons.arrow_back),
