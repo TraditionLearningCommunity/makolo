@@ -41,7 +41,8 @@ SOURCE_SCAN_LIMIT = 100
 def _situation(
     *, space, source_kind, source_id, activity_id, human_context, subject,
     state, why_now, reason, turn, response_type, destination, web_url,
-    observed_at, action_label=None,
+    observed_at, action_label=None, native_id=None, native_link=None,
+    deadline_at=None,
 ):
     source = {"kind": source_kind, "id": str(source_id)}
     owner = source
@@ -49,9 +50,12 @@ def _situation(
     handoff = {
         "type": "owner",
         "target": destination,
-        "id": str(source_id) if destination != "activity" else str(activity_id),
+        "id": str(native_id) if native_id is not None else (
+            str(source_id) if destination != "activity" else str(activity_id)
+        ),
+        **({"link": native_link} if native_link else {}),
         **({"link": f"/space/{space.slug}/retrieval/journey/{source_id}"}
-           if destination == "space_work_journey" else {}),
+           if destination == "space_work_journey" and not native_link else {}),
     }
     return {
         "id": f"space-now:{space.pk}:{source_kind}:{source_id}",
@@ -73,6 +77,8 @@ def _situation(
             "decide": "decision",
         }.get(response_type, "adaptation"),
         "exit_condition": {"state": "unknown"},
+        **({"timing": {"deadline_at": deadline_at.isoformat()}}
+           if deadline_at is not None else {}),
         "owner_depth": {"source": owner, "links": {"web": web_url}},
         "knowledge_context": {
             "knowledge_state": "known",
@@ -266,8 +272,30 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 observed_at=observed_at, action_label="Consulter le dossier",
             ))
 
-    # Deterministic priority across owner sources; not a generic relevance score.
-    order = {"occurrence": 0, "journey_request": 1, "journey": 2}
+    # Other domains only contribute explicitly established attention. The
+    # projection remains bounded and makes no false global-calm claim.
+    from .space_now_domain_signals import select_additional_space_now
+
+    extra, extra_truncated = select_additional_space_now(
+        profile=profile, space=space, visible=visible,
+        observed_at=observed_at, responsibility_key=responsibility_key,
+        make_situation=_situation,
+    )
+    items.extend(extra)
+    scan_incomplete |= extra_truncated
+
+    # Stable owner priority is not a popularity/relevance score.
+    order = {
+        "operations_incident": 0,
+        "occurrence": 1,
+        "access_use": 2,
+        "capacity_pool": 3,
+        "journey_request": 4,
+        "payment": 5,
+        "commerce_order": 6,
+        "journey": 7,
+        "automation_execution": 8,
+    }
     items.sort(key=lambda row: (
         order.get(row["source"]["kind"], 2),
         row["human_context"].casefold(),
