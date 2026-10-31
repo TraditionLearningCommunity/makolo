@@ -555,35 +555,69 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         : widget.depth == 'ownership'
         ? _map(payload['ownership'])
         : null;
-    final rows = widget.depth == 'team' && _fullTeam != null
-        ? _fullTeam
+    final allRows = widget.depth == 'team' && _fullTeam != null
+        ? _fullTeam!
         : section?['items'];
+    final rows = allRows is List
+        ? allRows.where((row) =>
+            widget.depth != 'responsibilities' ||
+            _map(row)?['combined'] != true).toList()
+        : const <dynamic>[];
+    final intro = switch (widget.depth) {
+      'team' => 'Les collaborateurs actuellement visibles dans cette équipe.',
+      'responsibilities' =>
+        'Ce que nous portons, sans déduire une autorité de cette responsabilité.',
+      'ownership' =>
+        'Les Mandates de propriétaire actifs, indépendants des appartenances.',
+      'trust' => 'Les faits de vérification établis dans ce contexte.',
+      _ => 'Cette profondeur dépend de vos droits sur le Space actif.',
+    };
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
         padding: const EdgeInsets.all(MakoloSpacing.lg),
         children: [
-          Text('Nous', style: Theme.of(context).textTheme.labelLarge),
+          Text(title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: MakoloSpacing.sm),
-          Text(
-            'Cette profondeur reste attachée au Space actif et à son autorité serveur.',
-          ),
+          Text(intro, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: MakoloSpacing.lg),
           if (widget.depth == 'trust')
             Text(
               _map(payload['trust'])?['verified'] == true
-                  ? 'Identité de l’Espace vérifiée dans un périmètre connu.'
-                  : 'Aucun fait public de vérification actif n’est projeté.',
+                  ? 'Des faits publics de vérification sont établis.'
+                  : 'Aucun fait public de vérification établi.',
             )
-          else if (rows is List && rows.isNotEmpty)
-            for (final row in rows)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(_depthRowLabel(row)),
-                subtitle: Text(_depthRowDetail(row)),
-              )
+          else if (rows.isEmpty)
+            const MakoloEmptyState(title: 'Aucun élément visible ici.')
           else
-            const Text('Aucun élément visible dans ce contexte.'),
+            for (final row in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                child: MakoloCard(
+                  padding: const EdgeInsets.all(MakoloSpacing.md),
+                  child: Row(children: [
+                    Icon(
+                      widget.depth == 'team'
+                          ? Icons.person_outline
+                          : widget.depth == 'ownership'
+                              ? Icons.verified_user_outlined
+                              : Icons.assignment_ind_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: MakoloSpacing.md),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_depthRowLabel(row),
+                          style: Theme.of(context).textTheme.titleSmall),
+                        const SizedBox(height: 4),
+                        Text(_depthRowDetail(row),
+                          style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    )),
+                  ]),
+                ),
+              ),
           if (widget.depth == 'team' && _fullTeam == null &&
               section?['has_more'] == true)
             const Text('Aperçu partiel : tous les membres ne sont pas chargés.'),
@@ -604,8 +638,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     'team' => 'Équipe',
     'responsibilities' => 'Responsabilités',
     'relationships' => 'Personnes & relations',
-    'ownership' => 'Ownership',
-    'trust' => 'Trust',
+    'ownership' => 'Gouvernance',
+    'trust' => 'Confiance',
     'pilot' => 'Piloter',
     'settings' => 'Paramètres institutionnels',
     _ => 'Nous',
@@ -627,7 +661,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     return _text(responsibility?['label']) ??
         _text(activity?['title']) ??
         (widget.depth == 'team' ? 'Membre de l’équipe' :
-          'Fait projeté par le serveur');
+          widget.depth == 'ownership' ? 'Mandate de propriétaire' :
+          'Portée collective');
   }
 
   Map<String, dynamic>? _map(Object? value) => value is Map
