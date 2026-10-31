@@ -10,6 +10,8 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import TemplateView
 
+from .billing_models import PlanVersionBillingTerms
+from .billing_presentation import personal_billing_obligations, terms_as_dict, with_billing_terms
 from .contracts import SubscriptionTransitionKind, SubscriptionTransitionStatus
 from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
 from .product_preview import build_subscription_change_preview
@@ -45,7 +47,8 @@ class ProfileSubscriptionView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         subscription = _profile_subscription(self.request.user)
-        context["product"] = build_subscription_product_view(subscription, can_manage=True)
+        context["product"] = with_billing_terms(build_subscription_product_view(subscription, can_manage=True))
+        context["personal_billing"] = personal_billing_obligations(subscription)
         return context
 
 
@@ -58,13 +61,14 @@ class ProfileSubscriptionPreviewView(LoginRequiredMixin, TemplateView):
         subscription = _profile_subscription(self.request.user)
         target = get_self_service_target(subscription, self.kwargs["plan_version_id"])
         kind = transition_kind_for_target(target)
+        terms = PlanVersionBillingTerms.objects.filter(plan_version=target).first()
+        preview = build_subscription_change_preview(
+            subscription=subscription, kind=kind, target_plan_version=target,
+        )
+        preview["billing_terms"] = terms_as_dict(terms)
         context.update(
             {
-                "product_preview": build_subscription_change_preview(
-                    subscription=subscription,
-                    kind=kind,
-                    target_plan_version=target,
-                ),
+                "product_preview": preview,
                 "idempotency_key": secrets.token_urlsafe(24),
                 "confirm_url_name": "subscriptions:change",
                 "back_url_name": "subscriptions:home",
