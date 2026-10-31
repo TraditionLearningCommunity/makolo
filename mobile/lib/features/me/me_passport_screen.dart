@@ -1125,8 +1125,6 @@ class _PassportBody extends StatelessWidget {
       ('first_name', 'Prénom'),
       ('last_name', 'Nom'),
       ('username', 'Identifiant Makolo'),
-      ('company', 'Entreprise'),
-      ('organization', 'Organisation'),
       ('city', 'Ville'),
       ('country', 'Pays'),
       ('language', 'Langue'),
