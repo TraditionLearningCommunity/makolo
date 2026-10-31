@@ -64,6 +64,16 @@ L'extension `organizations/api/space_now_domain_signals.py` complète la sélect
 
 **Tests ajoutés :** `organizations/test_space_now_domain_signals.py` vérifie portée Activity, incidents fermés/mineurs, refus Access et passage accepté ultérieur, sold-out sans alerte, surallocation réelle, horizon d'une commande payante et exclusion de la commande gratuite, paiement supersédé, obligation institutionnelle échue et payeur inter-Space refusé, échec Automation et sortie après résolution. `mobile/test/space_now_composition_test.dart` vérifie en plus les profondeurs natives autorisées et le rejet des URLs externes.
 
+### Retour de validation locale — permissions et révocation (31 octobre 2026)
+
+Le premier lancement de `organizations.test_zs6_space_projection_reconciliation`, `organizations.test_ws2_space_now_discover_web` et `organizations.test_space_now_domain_signals` a découvert 31 tests, avec 4 échecs et 1 erreur. Les 5 défauts provenaient des scénarios de test, pas d'une raison démontrée d'élargir les droits en production :
+
+- `ACTIVITY_LOCAL_MANAGER` ne possède pas `ACTIVITY_OPERATIONS_VIEW`. Les scénarios d'Occurrence, d'Incident et d'AccessUse exigent désormais une délégation explicite `ACTIVITY_OPERATIONS_MANAGER` sur la même Activity. Aucun transfert implicite de permission depuis Membership ou Activity Manage.
+- `revoke_mandate` interdit la suppression du dernier `SPACE_OWNER`. Le test crée un second propriétaire légitime, retire ensuite le Mandate initial et exige toujours un refus `404` pour toute décision prise par l'ancien propriétaire, sans mutation de la demande.
+- Les assertions d'admission, de confidentialité et de sécurité sont conservées. Aucun test n'a été supprimé, relâché ou contourné.
+
+**À relancer localement :** `python manage.py test organizations.test_zs6_space_projection_reconciliation organizations.test_ws2_space_now_discover_web organizations.test_space_now_domain_signals`. Les tests ne sont **pas attestés verts** tant qu'une nouvelle exécution locale ne l'a pas confirmé.
+
 ## Vérifications intégrées au code
 
 - `organizations/test_zs6_space_projection_reconciliation.py` : sélection partielle, perspective Activity limitée, Occurrence sans action non admise, signal Operations confirmé, demande owner et permission de décision, IDOR inter-Space, demande expirée, double commande refusée, révocation de Mandate, Services assigné uniquement.
