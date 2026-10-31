@@ -99,6 +99,7 @@ def select_additional_space_now(
                 access_id=OuterRef("access_id"),
                 result=AccessUseResult.ACCEPTED,
                 used_at__gt=OuterRef("used_at"),
+                used_at__lte=observed_at,
             )
             qs = (
                 AccessUse.objects.filter(
@@ -107,6 +108,7 @@ def select_additional_space_now(
                     access__activity__space=space,
                     occurrence_id=F("access__occurrence_id"),
                     used_at__gte=observed_at - timedelta(hours=6),
+                    used_at__lte=observed_at,
                     result__in=rejected,
                 )
                 .annotate(accepted_later=Exists(settled_passage))
@@ -219,6 +221,7 @@ def select_additional_space_now(
                     commerce_order__status=CommerceOrderStatus.PENDING,
                     status=PaymentStatus.FAILED,
                     created_at__gte=observed_at - timedelta(days=3),
+                    created_at__lte=observed_at,
                 )
                 .annotate(superseded=Exists(superseding))
                 .filter(superseded=False)
