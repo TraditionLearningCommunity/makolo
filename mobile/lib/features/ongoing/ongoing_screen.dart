@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../platform/links/ongoing_url_opener.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../data/files/profile_recognition_image_store.dart';
@@ -605,7 +605,7 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
     if (!mounted) return;
     if (resource['kind'] == 'url' && uri != null) {
       try {
-        final opened = await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+        final opened = await openOngoingUrl(uri);
         if (!opened && mounted) _openFailure();
       } on Object {
         if (mounted) _openFailure();
