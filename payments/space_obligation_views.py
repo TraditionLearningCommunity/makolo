@@ -93,6 +93,11 @@ class SpacePayerObligationWebView(SpaceWebMixin):
     space_page_title = "Obligation financière"
     space_nav_key = ""
 
+    def get(self, request, *args, **kwargs):
+        response = super().get(request, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         responsibility = self.selected_responsibility["key"]
