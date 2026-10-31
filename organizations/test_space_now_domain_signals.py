@@ -3,6 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -317,15 +318,14 @@ class SpaceNowDomainSignalTests(TestCase):
         self.assertEqual(read["Cache-Control"], "private, no-store")
         self.assertNotIn("payer_profile", str(read.data))
         self.client.force_login(self.owner)
-        web = self.client.get(
-            f"/organizations/{self.space.slug}/payment-obligations/{obligation.pk}/"
-        )
-        # Confirm the same owner is accessible through the existing Space Web
-        # shell and has no mutation or pay-by-proxy interface.
-        self.assertIn(web.status_code, (200, 301, 302))
-        if web.status_code == 200:
-            self.assertContains(web, "11.00 USD")
-            self.assertContains(web, "Frais à régler pour cet Espace")
+        web = self.client.get(reverse(
+            "organizations:space-payment-obligation",
+            kwargs={"slug": self.space.slug, "obligation_id": obligation.pk},
+        ))
+        # Owner read is not a payment-by-proxy or an authority transfer.
+        self.assertEqual(web.status_code, 200)
+        self.assertContains(web, "11.00 USD")
+        self.assertContains(web, "Frais à régler pour cet Espace")
 
         limited = self._now(self.limited)
         self.assertFalse(any(
