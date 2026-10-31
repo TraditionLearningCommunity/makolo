@@ -841,6 +841,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
           for (final option in const [
             ('avatar', 'Photo'), ('bio', 'À propos'),
             ('profession', 'Profession'),
+            ('company_name', 'Entreprise renseignée'),
+            ('organization_name', 'Organisation renseignée'),
             ('location', 'Localisation'), ('links', 'Liens'),
             ('interests', 'Intérêts'), ('open_to', 'Ouvert à'),
           ])
@@ -972,6 +974,8 @@ class _PassportBody extends StatelessWidget {
         'Mon passeport';
     final bio = _text(identity['bio']);
     final profession = _text(identity['profession']);
+    final companyName = _text(identity['company_name']);
+    final organizationName = _text(identity['organization_name']);
     final location = _text(identity['location']);
     final links = _rows(identity['links']);
     final privateDetails = _map(data['private_details']);
@@ -1026,6 +1030,19 @@ class _PassportBody extends StatelessWidget {
                   ?.copyWith(color: Colors.white70)),
         ]),
       ),
+      if (companyName != null || organizationName != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (companyName != null)
+                Text('Entreprise renseignée · $companyName'),
+              if (organizationName != null)
+                Text('Organisation renseignée · $organizationName'),
+            ],
+          ),
+        ),
       if (privateDetails.isNotEmpty) _personalDetails(context, privateDetails),
       if (bio != null) Padding(
         padding: const EdgeInsets.only(top: 18),
