@@ -47,7 +47,7 @@ Le marqueur local de la **racine** `discovery.presentation-position` contient ma
 
 `DiscoveryExplorationView` accepte un focus initial et notifie les changements d'élément sélectionné. Les écrans de recherche/carte liés par `GoRouter.push` restent montés sous le détail ; lorsqu'un écran est reconstruit via URL, les paramètres et la sélection sont réinjectés plutôt qu'inférés depuis le contenu.
 
-La recherche publique invitée lit les mêmes critères d'URL et maintient les champs `place`, date, type et prix ; son retour autonome de Carte vers Découvrir transporte les paramètres et le curseur plutôt que de faire `go('/discover')`. Une URL spatiale invalide est refusée explicitement pour les deux parcours.
+La recherche publique invitée lit les mêmes critères d'URL et maintient le texte, le lieu, la date, les bornes de dates, la période, le type, le prix, les coordonnées/rayon owner-backed et la taille de page ; son retour autonome de Carte vers Découvrir transporte les paramètres et le curseur plutôt que de faire `go('/discover')`. Modifier le lieu nommé efface les anciennes coordonnées du lien plutôt que de les combiner arbitrairement. Une URL spatiale invalide est refusée explicitement pour les deux parcours.
 
 ## 3. Fichiers modifiés
 
