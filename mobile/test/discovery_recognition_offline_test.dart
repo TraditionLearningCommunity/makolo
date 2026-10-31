@@ -143,4 +143,35 @@ void main() {
     expect(entries.single.path.endsWith('.image'), isTrue);
   });
 
+  test('owner revocation wins over a pending recognition write', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-revoke-media-');
+    addTearDown(() async => root.delete(recursive: true));
+    final store = DiscoveryOfflineStore(
+      rootOverride: root,
+      trustedOrigin: Uri.parse('https://makolo.example'),
+    );
+    final uri = publicUse(23);
+    final write = store.retainRecognitionImage(uri, Uint8List.fromList([1, 2]));
+    final revoke = store.removeRecognitionImage(uri);
+    await Future.wait([write, revoke]);
+    expect(await store.recognizedImage(uri), isNull);
+  });
+
+  test('manual Reader retention replacement and removal serialize correctly', () async {
+    final root = await Directory.systemTemp.createTemp('makolo-reader-revoke-');
+    addTearDown(() async => root.delete(recursive: true));
+    final store = DiscoveryOfflineStore(
+      rootOverride: root,
+      trustedOrigin: Uri.parse('https://makolo.example'),
+    );
+    final url = Uri.parse('https://makolo.example/documents/guide.pdf');
+    final src = File('${root.path}/guide.pdf');
+    await src.writeAsBytes([1, 2, 3]);
+    final write = store.save(url, src);
+    final remove = store.remove(url);
+    await write;
+    await remove;
+    expect(await store.retained(url), isNull);
+  });
+
 }
