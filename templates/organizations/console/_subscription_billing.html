@@ -6,7 +6,9 @@
     </div>
     <a href="{% url 'organizations:console-subscription-billing' space.slug %}" class="mk-btn mk-btn-secondary">Voir la facturation</a>
   </div>
-  {% if space_billing.items %}
+  {% if space_billing.visibility == 'restricted' %}
+  <p class="mt-4 text-sm" style="color:var(--mk-muted)">Les détails financiers sont réservés aux personnes disposant de l’autorité Finances sur cet Espace.</p>
+  {% elif space_billing.items %}
   <ul class="mt-4 space-y-3">
     {% for obligation in space_billing.items %}
     <li class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
