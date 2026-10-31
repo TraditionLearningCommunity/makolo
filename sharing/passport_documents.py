@@ -99,21 +99,45 @@ def profile_public_snapshot_still_disclosable(snapshot):
     """
     if snapshot.subject_kind != PublicSubjectKind.PROFILE or not snapshot.profile_id:
         return False
+    from accounts.profile_visibility import ProfileVisibilityResolver
     from .passport import PASSPORT_PUBLIC, build_profile_passport
 
+    visibility = ProfileVisibilityResolver(owner=snapshot.profile)
     current = serialize_passport_projection(build_profile_passport(
         snapshot.profile, variant=PASSPORT_PUBLIC,
     ))
     dated = snapshot.payload or {}
     identity = dated.get("identity") or {}
-    current_identity = current["identity"]
+    # A dated Passport must retain its original wording when a biography,
+    # profession or name is edited. Only a withdrawal of *disclosure* can
+    # suppress public reading; comparing old text against live text would
+    # incorrectly make every past edition disappear after a normal edit.
     for key in (
-        "name", "bio", "profession", "company_name",
-        "organization_name", "location", "links",
+        "name", "bio", "profession", "company_name", "organization_name",
     ):
-        old = identity.get(key)
-        # Older snapshots may have no value for newly introduced attributes.
-        if old and old != current_identity.get(key):
+        if identity.get(key) and not visibility.field(key):
+            return False
+    if identity.get("location") and not (
+        visibility.field("city") and visibility.field("country")
+    ):
+        # Older snapshots have one location string without per-field IDs.
+        # Requiring both permissions is conservative when either is hidden.
+        return False
+    link_keys = {
+        "Site web": "website",
+        "LinkedIn": "linkedin_url",
+        "Facebook": "facebook_url",
+        "Instagram": "instagram_url",
+        "TikTok": "tiktok_url",
+        "X / Twitter": "x_url",
+        "YouTube": "youtube_url",
+    }
+    for pair in identity.get("links") or ():
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            return False
+        label = str(pair[0])
+        field_key = link_keys.get(label)
+        if field_key is None or not visibility.field(field_key):
             return False
     if not set(dated.get("interests") or []).issubset(set(current["interests"])):
         return False
