@@ -33,7 +33,6 @@ def _space_work_url(space, responsibility_key):
     return url
 
 
-SPACE_NOW_LIMIT = 24
 # Bounded source scans do not establish exhaustive coverage; never declare calm.
 SOURCE_SCAN_LIMIT = 100
 
@@ -301,16 +300,17 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
         row["human_context"].casefold(),
         row["id"],
     ))
-    page = items[:SPACE_NOW_LIMIT]
+    # Do not hide admitted situations behind an arbitrary Top N. Source scans
+    # remain bounded for predictable reads and explicit partial coverage.
     return {
-        "items": page,
-        "has_more": scan_incomplete or len(items) > SPACE_NOW_LIMIT,
+        "items": items,
+        "has_more": scan_incomplete,
         "selection": {
             "state": "partial",
             "reason": "owner_coverage_incomplete",
         },
         "coverage_state": "partial",
-        "actor_attention_state": "active" if page else "unknown",
+        "actor_attention_state": "active" if items else "unknown",
         "freshness": {
             # Time of reading is not the age of the underlying owner facts.
             "state": "unknown",
