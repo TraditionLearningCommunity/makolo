@@ -1,7 +1,7 @@
 # Makolo — registre de fermeture de Découvrir
 **Document vivant — responsable : branche [#522](https://github.com/TraditionLearningCommunity/makolo/pull/522)**  
 **Initialisé le :** 2026-10-31  
-**Chantier courant :** **03 — Médias, ressources et stockage, CODE LIVRÉ**. Compte rendu : [chantier 03](discover-stage-03-media-resources-2026-10-31.md). **Prochain : 04**, sans le commencer par ce document.  
+**Chantier courant :** **04 — Presentation N1, CODE LIVRÉ**. Compte rendu : [chantier 04](discover-stage-04-presentation-n1-2026-10-31.md). **Prochain : 05**, sans commencer la navigation par ce document.  
 **Chantier 00 :** **FERMÉ — réconciliation documentaire**.  
 **Relevé de référence :** [chantier 00 — réconciliation](discover-stage-00-reconciliation-2026-10-31.md).
 
@@ -38,8 +38,8 @@ Pas de modèle persistant générique `Possibility`, de scoring client, de deuxi
 | **01** | Vérités et capacités propriétaires | **LIVRÉ EN CODE — validation différée à 09** | [Relevé owner 01](discover-stage-01-owner-facts-2026-10-31.md), correctifs Funding/Services, six tests ajoutés |
 | **02** | Projection canonique Discovery | **LIVRÉ EN CODE — validation différée à 09** | [Relevé projection 02](discover-stage-02-canonical-projection-2026-10-31.md), admission Services, ressources, prix, pagination et tests |
 | **03** | Médias, ressources et stockage | **CODE LIVRÉ — migration physique et validation différées** | [Relevé média 03](discover-stage-03-media-resources-2026-10-31.md) : gate owner commun, fichiers, Flutter, imports éditoriaux MPS privés, commande de migration conservatrice ; déploiement non réalisé |
-| **04** | Presentation N1 | **PROCHAIN CHANTIER** | N1 compact/wide et Web adaptés, faits utiles et actions sans CTA fictif |
-| **05** | Recherche, carte et navigation | **VERROUILLÉ** | Une query/selection à travers liste, carte, détail et retour, continuation et état spatial préservés |
+| **04** | Presentation N1 | **LIVRÉ EN CODE — validation différée à 09** | [Relevé N1 04](discover-stage-04-presentation-n1-2026-10-31.md) : huit zones, ajout relatif, sens des faits et des contextes, média MIME/alt ; tests enregistrés |
+| **05** | Recherche, carte et navigation | **PROCHAIN CHANTIER** | Une query/selection à travers liste, carte, détail et retour, continuation et état spatial préservés |
 | **06** | N2, variantes et comparaison conditionnelle | **VERROUILLÉ** | Profondeur owner-backed, inconnues et variantes sans comparaison universelle inventée |
 | **07** | Save, Watch, Sharing, engagements N3 | **VERROUILLÉ** | Transitions autorisées, idempotence si nécessaire, retour owner confirmé |
 | **08** | Local-first et confidentialité | **VERROUILLÉ** | Snapshots, reprise, offline, profils, cache/révocation et cold-start contrôlés |
@@ -81,8 +81,8 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | R11 | Cohérence collection/détail/médias | Collection/détail conservent la même composition et admission owner ; droits et fichiers des médias encore réservés à 03 | `discovery/api/composition.py`, `discovery/api/media_bindings.py`, `discovery/api/test_mature_discovery.py` | 02 ; médias 03 |
 | R12 | Media-use owner, statut publié, retrait | `ÉCART_CODE` corrigé : media selector/livraison même admission owner, Group et Occurrence ; audit/migration legacy ajoutés, exécution non réalisée | `presentations/media_selectors.py`, `media_delivery.py`, `management/commands/harden_presentation_media_assets.py` | 03 ; migration déploiement |
 | R13 | Rétention automatique de médias réellement first-party | `ÉCART_CODE` corrigé : origine de confiance obligatoire, remplacement non destructeur, retrait sérialisé ; tests écrits non exécutés | `mobile/lib/presentation/possibilities/discovery_offline_store.dart`, `mobile/lib/presentation/media/retained_public_discovery_image.dart` | 03 ; états offline 08 |
-| R14 | N1 contextualisé et adaptatif | `PARTIEL` — rendu présent, acceptation exhaustive non attestée | `discovery_possibility_unit.dart`, `discovery-n1-layout-contract.md` | 04 |
-| R15 | N1 dates à droite, faits stables, ressources dépliables | `PARTIEL` — implémentation à vérifier en UX réelle | `discovery_possibility_unit.dart` | 04 |
+| R14 | N1 contextualisé et adaptatif | `ÉCART_CODE` corrigé : rôles géographiques, notes limitantes et variantes owner, section pratique adaptative, MIME/alt galerie ; tests N1 écrits, non exécutés | `discovery_possibility_unit.dart`, `discovery/views.py`, `templates/discovery/_universal_card.html` | 04 |
+| R15 | N1 dates à droite, faits stables, ressources dépliables | Date ajout humanisée à droite et accessible exactement, description dépliable, deux ressources puis toutes et trois interactions réutilisées ; tests écrits non exécutés | `discovery_possibility_unit.dart`, `templates/discovery/_universal_card.html`, tests Flutter/Web | 04 |
 | R16 | Recherche/filtres/continuation sur mêmes critères | `PARTIEL` — root et Search utilisent des chemins distincts | `discovery_screens.dart`, `discovery_repository.dart` | 05 |
 | R17 | Carte liée au même champ et aux mêmes critères | `ÉCART_CODE` — route autonome utilise la query par défaut | `discovery_routes.dart`, `discovery_screens.dart` | 05 |
 | R18 | Retour, sélection, scroll et contexte après redémarrage | `ÉCART_CODE` — sauvegarde page/curseur seulement dans le mécanisme relevé | `discovery.presentation-position` | 05 puis 08 |
@@ -130,12 +130,12 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 **Travail :** ownership/publication, médias first-party, ressources TEXT/FILE/URL, streaming/Reader, ancienne exposition publique et révocation, stockage sûr et budget.  
 **Sortie livrée :** [relevé 03](discover-stage-03-media-resources-2026-10-31.md) : gate owner partagé, liens contrôlés, client Flutter first-party, migration historique opt-in et tests écrits. Les tests, fichiers de production et CDN ne sont pas vérifiés. Les anciens liens éditoriaux `hero_image` réclament une action de migration avant suppression physique.
 
-### 04 — N1 **PROCHAIN CHANTIER**
+### 04 — N1 **LIVRÉ EN CODE / VALIDATION À 09**
 **Entrée :** sorties 03 ; R14–R15.  
 **Travail :** huit zones, description expandable, faits fixes, contexte, date ajout à droite, galerie, ressources et actions, responsive Web/Flutter.  
-**Sortie :** N1 compact/wide/accessibilité et variantes métier prouvées.
+**Sortie de code livrée :** [relevé 04](discover-stage-04-presentation-n1-2026-10-31.md), huit zones préservées, date ajout relative, faits contextualisés, médias owner et tests ciblés écrits. Compatibilité réelle Flutter/Web non attestée sans exécution.
 
-### 05 — Exploration / Carte / Navigation **VERROUILLÉ**
+### 05 — Exploration / Carte / Navigation **PROCHAIN CHANTIER**
 **Entrée :** sorties 04 ; R16–R19.  
 **Travail :** query transférée dans la route Map, sélection, retour, état/pagination, géographie, Scroll/camera, recherche, filtres, curseur invalide.  
 **Sortie :** tests de traversée complète des mêmes critères, sans deuxième champ ou changement silencieux.
@@ -169,13 +169,14 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | 2026-10-31 | 00 | **Chantier 00 fermé.** Aucun test, CI, changement fonctionnel ou merge. | **Prochain chantier autorisé : 01 exclusivement** |
 | 2026-10-31 | 01 | Implémentation propriétaire Funding/Services sur #522 : visibilité du porteur, refus de nouvelle contribution et de démarrage après retrait ; six tests ajoutés, contrat des huit propriétaires consigné dans `discover-stage-01-owner-facts-2026-10-31.md`. | **Livrée en code ; certification différée à 09 sur demande utilisateur.** |
 | 2026-10-31 | 02 | Projection multi-famille Discovery réconciliée avec Services, droits Preparation et scope Occurrence, texte inline borné, URLs publiques validées, prix Commerce prioritaires, curseur validé avant composition, erreurs HTTP 400 ; tests et document `discover-stage-02-canonical-projection-2026-10-31.md`. | **Livrée en code, tests non exécutés.** |
-| 2026-10-31 | 03 | Gate Publication/Delivery owner+Group+Occurrence, trusted API origin Flutter, sauvegarde atomique/retrait sérialisé, nouveaux MPS hero en privé, commande migration legacy optionnelle et tests, dossier `discover-stage-03-media-resources-2026-10-31.md`. | **Code livré ; migration physique, CDN, anciens `hero_image` et tests non exécutés ; prochain chantier 04.** |
+| 2026-10-31 | 03 | Gate Publication/Delivery owner+Group+Occurrence, trusted API origin Flutter, sauvegarde atomique/retrait sérialisé, nouveaux MPS hero en privé, commande migration legacy optionnelle et tests, dossier `discover-stage-03-media-resources-2026-10-31.md`. | **Code livré ; migration physique, CDN, anciens `hero_image` et tests non exécutés.** |
+| 2026-10-31 | 04 | N1 Web/Flutter : date d'ajout relative à droite, signification des faits temporaux/spatiaux, absence d'inférence, notes limitantes et variantes réelles, galerie MIME/alt et sections conditionnelles ; tests dédiés dans `discovery_mature_screen_test.dart` et `test_m8b_mature_discover.py`, relevé `discover-stage-04-presentation-n1-2026-10-31.md`. | **Code livré, tests non exécutés ; prochain chantier 05 exclusivement.** |
 
 Pour chaque livraison : ajouter une ligne `date | étape | commit de fin | fichiers | tests ajoutés | résultats exécutés (ou « non exécutés ») | anomalies restantes`. Le mot **certifié** reste réservé à l'exécution du chantier 09.
 
 ## 6. Instruction impérative pour la suite
 
 1. Recharger le HEAD courant et le delta depuis l'état du chantier 00 ; vérifier les collisions sans refaire toute l'analyse.
-2. La validation exécutée de 01 et 02 est différée à la certification 09, selon l'instruction explicite de l'utilisateur. Ne jamais prétendre que les tests ont réussi.
-3. Conserver dans **#522** la traçabilité des livraisons 01 et 02 ; toute régression ultérieure se corrige à l'étape active avec un test ciblé.
-4. **Ouvrir uniquement le chantier 04** à la prochaine instruction, sans anticiper 05–09. Les opérations physiques de stockage et la certification restent distinctes des livraisons de code.
+2. La validation exécutée de 01–04 est différée à la certification 09, selon l'instruction explicite de l'utilisateur. Ne jamais prétendre que les tests ont réussi.
+3. Conserver dans **#522** la traçabilité des livraisons 01–04 ; toute régression ultérieure se corrige à l'étape active avec un test ciblé.
+4. **Ouvrir uniquement le chantier 05** à la prochaine instruction, sans anticiper 06–09. Les opérations physiques de stockage et la certification restent distinctes des livraisons de code.
