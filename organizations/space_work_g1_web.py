@@ -196,7 +196,7 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                 "url": _work_depth_url(
                     self.space, "occurrence", occurrence.pk,
                     responsibility=responsibility, origin_section=origin_section,
-                    origin="activity", page=page.number,
+                    origin="activity", page=page.number if page.number > 1 else None,
                 ),
             } for occurrence in page.object_list]
         else:
