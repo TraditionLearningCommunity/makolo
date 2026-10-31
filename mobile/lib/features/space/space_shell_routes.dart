@@ -867,9 +867,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           builder: (context, snapshot) {
             final payload = snapshot.data?.payload;
             if (payload == null) {
-              return MakoloSecondaryScreen(
-                title: _depthTitle(widget.depth),
+              return MakoloErrorState(
                 message: 'Cette profondeur ne peut pas être actualisée pour le moment.',
+                onRetry: _retryDepth,
               );
             }
             final handoffs = payload['handoffs'];
@@ -885,20 +885,42 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             final freshness = WorkspaceContextRepository.surfaceFreshness
                 .evaluate(snapshot.data!, now: DateTime.now());
             if (freshness == FreshnessState.expired) {
-              return MakoloSecondaryScreen(
-                title: _depthTitle(widget.depth),
+              return MakoloErrorState(
                 message: 'Cette observation n’est plus assez récente pour être utilisée.',
+                onRetry: _retryDepth,
               );
             }
             return _depthBody(
               context,
               payload,
-              observationOnly: state.lastErrorCode != null,
+              observationOnly: state.lastErrorCode != null ||
+                  state.lastSuccessAt == null,
             );
           },
         );
       },
     );
+  }
+
+  Future<void> _retryDepth() async {
+    final active = widget.runtime.actorContext?.value;
+    final repository = widget.runtime.space;
+    if (active is! SpaceActorContext || _space == null ||
+        active.space.id != _space!.id || repository == null ||
+        repository.sync == null) return;
+    try {
+      await repository.refreshUs(_space!);
+      if (widget.depth == 'team') await _loadTeam(_space!);
+    } on MakoloApiError catch (error) {
+      if (!mounted) return;
+      if (error.statusCode == 401 || error.statusCode == 403 ||
+          error.statusCode == 404) {
+        setState(() { _denied = true; _fullTeam = null; });
+      }
+    } on Object {
+      // Keep the last non-expired observation; owner-source state reports
+      // the failure and no offline action can be submitted from it.
+    }
   }
 
   Future<void> _openResponsibility(String key) async {
