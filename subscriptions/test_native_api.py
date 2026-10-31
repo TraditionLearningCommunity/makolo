@@ -237,3 +237,30 @@ class NativePersonalSubscriptionTests(TestCase):
         self.assertEqual(
             {row["status"] for row in first["items"] + second["items"]}, {"pending"}
         )
+
+    def test_personal_history_only_shows_own_transition(self):
+        # Canonical transitions remain attributable to the exact Profile.
+        request_subscription_transition_for_actor(
+            actor=self.owner, subscription_id=self.subscription.pk,
+            kind=SubscriptionTransitionKind.BASE_SWITCH,
+            target_plan_version_id=self.version.pk,
+            request_origin="self_service", idempotency_key="native-history-owner",
+        )
+        self.client.force_login(self.owner)
+        home = self.client.get(reverse("subscriptions_native:me"))
+        self.assertEqual(home.status_code, 200)
+        history = home.json()["history"]["items"]
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["target_name"], self.version.name)
+        page = self.client.get(reverse("subscriptions_native:history"))
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page["Cache-Control"], "private, no-store")
+        web = self.client.get(reverse("subscriptions:history"))
+        self.assertContains(web, self.version.name)
+        self.client.force_login(self.other)
+        other = self.client.get(reverse("subscriptions_native:history"))
+        self.assertEqual(other.status_code, 200)
+        self.assertEqual(other.json()["items"], [])
+        self.assertNotContains(
+            self.client.get(reverse("subscriptions:history")), self.version.name
+        )
