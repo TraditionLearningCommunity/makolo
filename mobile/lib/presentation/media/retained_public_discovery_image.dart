@@ -35,7 +35,8 @@ class _RetainedPublicDiscoveryImageState
   int _generation = 0;
 
   DiscoveryOfflineStore get _store =>
-      widget.storeOverride ?? DiscoveryOfflineStore(trustedOrigin: widget.trustedOrigin);
+      widget.storeOverride ??
+      DiscoveryOfflineStore(trustedOrigin: widget.trustedOrigin);
 
   @override
   void initState() {
@@ -59,7 +60,8 @@ class _RetainedPublicDiscoveryImageState
     final url = widget.url;
     final store = _store;
     if (!DiscoveryOfflineStore.isPublishedRecognitionUri(
-      url, trustedOrigin: widget.trustedOrigin,
+      url,
+      trustedOrigin: widget.trustedOrigin,
     )) {
       return;
     }
@@ -75,9 +77,9 @@ class _RetainedPublicDiscoveryImageState
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 10);
     try {
-      final request = await client.getUrl(url).timeout(
-        const Duration(seconds: 12),
-      );
+      final request = await client
+          .getUrl(url)
+          .timeout(const Duration(seconds: 12));
       request.followRedirects = false;
       final response = await request.close().timeout(
         const Duration(seconds: 12),

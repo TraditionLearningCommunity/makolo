@@ -21,6 +21,7 @@ class SearchFilterBar extends StatelessWidget {
 
   final Widget searchField;
   final Widget filters;
+
   /// Rebuilds modal filters when the owner's criteria change while open.
   final WidgetBuilder? filtersBuilder;
   final Listenable? filtersRefresh;
@@ -87,8 +88,7 @@ class SearchFilterBar extends StatelessWidget {
                         margin: EdgeInsets.zero,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(MakoloRadii.card),
+                          borderRadius: BorderRadius.circular(MakoloRadii.card),
                           side: BorderSide(color: colors.outlineVariant),
                         ),
                         child: Padding(

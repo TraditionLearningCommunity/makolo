@@ -240,12 +240,14 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         final profileUsername = identity is Map ? identity['username'] : null;
         final avatarUrl = identity is Map ? identity['avatar_url'] : null;
         final baseUri = widget.runtime.api?.baseUri;
-        final resolvedAvatar = avatarUrl is String && avatarUrl.isNotEmpty &&
-                baseUri != null
+        final resolvedAvatar =
+            avatarUrl is String && avatarUrl.isNotEmpty && baseUri != null
             ? baseUri.resolve(avatarUrl)
             : null;
-        final validAvatar = resolvedAvatar != null &&
-            (resolvedAvatar.scheme == 'https' || resolvedAvatar.scheme == 'http') &&
+        final validAvatar =
+            resolvedAvatar != null &&
+            (resolvedAvatar.scheme == 'https' ||
+                resolvedAvatar.scheme == 'http') &&
             resolvedAvatar.host == baseUri!.host;
         final avatarLetter =
             displayName is String && displayName.trim().isNotEmpty
@@ -269,15 +271,17 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             onNotifications: () => unawaited(_openSecondary('/notifications')),
             onSearch: actor is PersonalActorContext
                 ? () => context.push(
-                    widget.runtime.discovery?.activeExploration
-                            .routeLocation('/discover/search') ??
+                    widget.runtime.discovery?.activeExploration.routeLocation(
+                          '/discover/search',
+                        ) ??
                         '/discover/search',
                   )
                 : null,
             onMap: actor is PersonalActorContext
                 ? () => context.push(
-                    widget.runtime.discovery?.activeExploration
-                            .routeLocation('/discover/map') ??
+                    widget.runtime.discovery?.activeExploration.routeLocation(
+                          '/discover/map',
+                        ) ??
                         '/discover/map',
                   )
                 : null,

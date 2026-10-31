@@ -72,7 +72,8 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
       if (status.lastSuccessAt != null &&
           !status.invalidated &&
           status.lastErrorCode == null &&
-          mounted && query == _query) {
+          mounted &&
+          query == _query) {
         // Only a few known, already listed details: no speculative document
         // downloads and no change to presentation order.
         unawaited(_warmDetails(query));
@@ -444,18 +445,27 @@ class _ResourcesView {
 
     final needle = query.trim().toLowerCase();
     return _ResourcesView(
-      documents: List.unmodifiable(locallyFiltered
-          ? documents.where((item) =>
-              item.title.toLowerCase().contains(needle)).toList()
-          : documents),
-      proofs: List.unmodifiable(locallyFiltered
-          ? proofs.where((item) =>
-              item.title.toLowerCase().contains(needle)).toList()
-          : proofs),
-      credentials: List.unmodifiable(locallyFiltered
-          ? credentials.where((item) =>
-              item.title.toLowerCase().contains(needle)).toList()
-          : credentials),
+      documents: List.unmodifiable(
+        locallyFiltered
+            ? documents
+                  .where((item) => item.title.toLowerCase().contains(needle))
+                  .toList()
+            : documents,
+      ),
+      proofs: List.unmodifiable(
+        locallyFiltered
+            ? proofs
+                  .where((item) => item.title.toLowerCase().contains(needle))
+                  .toList()
+            : proofs,
+      ),
+      credentials: List.unmodifiable(
+        locallyFiltered
+            ? credentials
+                  .where((item) => item.title.toLowerCase().contains(needle))
+                  .toList()
+            : credentials,
+      ),
       hasMore: locallyFiltered
           ? false
           : page['has_more'] == true || lastPage['has_more'] == true,

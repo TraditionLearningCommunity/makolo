@@ -343,9 +343,11 @@ class NowSelector {
       whyNow: whyNow,
       whyNowReason: whyNowReason,
       serverState: serverState,
-      subject: _semanticString(raw['subject'], 'label') ?? _string(raw['subject']),
+      subject:
+          _semanticString(raw['subject'], 'label') ?? _string(raw['subject']),
       delta: _semanticString(raw['delta'], 'meaning') ?? _string(raw['delta']),
-      exitCondition: _semanticString(raw['exit_condition'], 'label') ??
+      exitCondition:
+          _semanticString(raw['exit_condition'], 'label') ??
           _string(raw['exit_condition']),
       consequence: _semanticString(raw['consequence'], 'effect'),
       consequenceState: _semanticString(raw['consequence'], 'state'),

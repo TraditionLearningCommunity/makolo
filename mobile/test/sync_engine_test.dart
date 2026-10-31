@@ -186,15 +186,18 @@ void main() {
       final path = request.url.path;
       if (path == '/api/v1/me/now/') return nowReply.future;
       if (path == '/api/v1/me/interoperability/') {
-        return MockResponse(jsonEncode({
-          'schema_version': 'z16.v1',
-          'context': 'profile',
-          'providers': <Object>[],
-          'connections': <Object>[],
-          'actions': <Object>[],
-          'extensions': <Object>[],
-          'webhooks': <Object>[],
-        }), 200);
+        return MockResponse(
+          jsonEncode({
+            'schema_version': 'z16.v1',
+            'context': 'profile',
+            'providers': <Object>[],
+            'connections': <Object>[],
+            'actions': <Object>[],
+            'extensions': <Object>[],
+            'webhooks': <Object>[],
+          }),
+          200,
+        );
       }
       final key = switch (path) {
         '/api/v1/me/ongoing/' => 'personal.ongoing',
@@ -205,15 +208,18 @@ void main() {
       if (seen.length == 2 && !otherRootsSeen.isCompleted) {
         otherRootsSeen.complete();
       }
-      return MockResponse(jsonEncode({
-        'meta': {
-          'projection': key,
-          'schema_version': 1,
-          'generated_at': '2026-10-30T09:00:00Z',
-          'scope': 'personal',
-        },
-        'data': {'items': <Object>[]},
-      }), 200);
+      return MockResponse(
+        jsonEncode({
+          'meta': {
+            'projection': key,
+            'schema_version': 1,
+            'generated_at': '2026-10-30T09:00:00Z',
+            'scope': 'personal',
+          },
+          'data': {'items': <Object>[]},
+        }),
+        200,
+      );
     });
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
@@ -238,15 +244,20 @@ void main() {
       expect(seen, containsAll(['personal.ongoing', 'personal.me']));
     } finally {
       if (!nowReply.isCompleted) {
-        nowReply.complete(MockResponse(jsonEncode({
-          'meta': {
-            'projection': 'personal.now',
-            'schema_version': 1,
-            'generated_at': '2026-10-30T09:00:00Z',
-            'scope': 'personal',
-          },
-          'data': {'items': <Object>[]},
-        }), 200));
+        nowReply.complete(
+          MockResponse(
+            jsonEncode({
+              'meta': {
+                'projection': 'personal.now',
+                'schema_version': 1,
+                'generated_at': '2026-10-30T09:00:00Z',
+                'scope': 'personal',
+              },
+              'data': {'items': <Object>[]},
+            }),
+            200,
+          ),
+        );
       }
       await refresh;
     }

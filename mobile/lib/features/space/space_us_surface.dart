@@ -21,7 +21,8 @@ class SpaceUsSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final identity = _map(payload['identity']);
     final authority = _map(payload['authority']);
-    final limited = authority?['scope'] == 'activity_limited' ||
+    final limited =
+        authority?['scope'] == 'activity_limited' ||
         authority?['limited_to_activities'] == true;
     final name = _value(identity?['name']) ?? fallbackSpaceName;
     final description = _value(identity?['description']);
@@ -40,10 +41,13 @@ class SpaceUsSurface extends StatelessWidget {
     final responsibilities = _rows(_map(payload['responsibilities'])?['items'])
         .where((item) => item['combined'] != true)
         .toList(growable: false);
-    final teamVisible = !limited &&
+    final teamVisible =
+        !limited &&
         team?['visibility'] != 'restricted' &&
         team?['items'] is List;
-    final teamRows = teamVisible ? _rows(team?['items']) : const <Map<String, dynamic>>[];
+    final teamRows = teamVisible
+        ? _rows(team?['items'])
+        : const <Map<String, dynamic>>[];
     final ownershipRows = !limited && ownership?['visibility'] != 'restricted'
         ? _rows(ownership?['items'])
         : const <Map<String, dynamic>>[];
@@ -88,9 +92,13 @@ class SpaceUsSurface extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Nous', style: text.labelLarge?.copyWith(
-                      color: scheme.primary, fontWeight: FontWeight.w700,
-                    )),
+                    Text(
+                      'Nous',
+                      style: text.labelLarge?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: MakoloSpacing.sm),
                     Container(
                       width: double.infinity,
@@ -103,152 +111,241 @@ class SpaceUsSurface extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            width: 58, height: 58,
+                            width: 58,
+                            height: 58,
                             decoration: BoxDecoration(
                               color: scheme.primary,
                               borderRadius: BorderRadius.circular(18),
                             ),
-                            child: Icon(Icons.apartment_rounded,
-                              size: 30, color: scheme.onPrimary),
+                            child: Icon(
+                              Icons.apartment_rounded,
+                              size: 30,
+                              color: scheme.onPrimary,
+                            ),
                           ),
                           const SizedBox(width: MakoloSpacing.md),
-                          Expanded(child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (institutionalLabel != null) ...[
-                                Text(institutionalLabel, style: text.labelMedium?.copyWith(
-                                  color: scheme.primary, fontWeight: FontWeight.w700,
-                                )),
-                                const SizedBox(height: 4),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (institutionalLabel != null) ...[
+                                  Text(
+                                    institutionalLabel,
+                                    style: text.labelMedium?.copyWith(
+                                      color: scheme.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                Text(
+                                  name,
+                                  style: text.headlineSmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                if (description != null) ...[
+                                  const SizedBox(height: MakoloSpacing.sm),
+                                  Text(description, style: text.bodyMedium),
+                                ],
+                                if (place.isNotEmpty) ...[
+                                  const SizedBox(height: MakoloSpacing.sm),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.place_outlined,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          place,
+                                          style: text.bodySmall,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
-                              Text(name, style: text.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              )),
-                              if (description != null) ...[
-                                const SizedBox(height: MakoloSpacing.sm),
-                                Text(description, style: text.bodyMedium),
-                              ],
-                              if (place.isNotEmpty) ...[
-                                const SizedBox(height: MakoloSpacing.sm),
-                                Row(children: [
-                                  const Icon(Icons.place_outlined, size: 16),
-                                  const SizedBox(width: 4),
-                                  Flexible(child: Text(place,
-                                    style: text.bodySmall)),
-                                ]),
-                              ],
-                            ],
-                          )),
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    if (lifecycle == 'suspended' || lifecycle == 'archived') ...[
+                    if (lifecycle == 'suspended' ||
+                        lifecycle == 'archived') ...[
                       const SizedBox(height: MakoloSpacing.md),
-                      _notice(context, lifecycle == 'archived'
-                        ? 'Cet Espace est archivé.' : 'Cet Espace est suspendu.'),
+                      _notice(
+                        context,
+                        lifecycle == 'archived'
+                            ? 'Cet Espace est archivé.'
+                            : 'Cet Espace est suspendu.',
+                      ),
                     ],
                     if (limited) ...[
                       const SizedBox(height: MakoloSpacing.md),
-                      _notice(context,
+                      _notice(
+                        context,
                         'Contexte limité à certaines activités. '
-                        'Les données institutionnelles privées ne sont pas exposées.'),
+                        'Les données institutionnelles privées ne sont pas exposées.',
+                      ),
                     ],
                     const SizedBox(height: MakoloSpacing.xl),
-                    _sectionTitle(context, 'Notre organisation',
-                      'Les responsabilités connues dans ce contexte.'),
+                    _sectionTitle(
+                      context,
+                      'Notre organisation',
+                      'Les responsabilités connues dans ce contexte.',
+                    ),
                     if (responsibilities.isEmpty)
-                      _quiet(context,
-                        'Aucune responsabilité supplémentaire visible.')
+                      _quiet(
+                        context,
+                        'Aucune responsabilité supplémentaire visible.',
+                      )
                     else
-                      _panel(context, children: [
-                        for (final item in responsibilities)
-                          _fact(
-                            context,
-                            Icons.assignment_ind_outlined,
-                            _value(item['label']) ?? 'Responsabilité',
-                            _value(_map(item['activity'])?['title']) ??
-                                'Périmètre collectif',
-                          ),
-                      ]),
+                      _panel(
+                        context,
+                        children: [
+                          for (final item in responsibilities)
+                            _fact(
+                              context,
+                              Icons.assignment_ind_outlined,
+                              _value(item['label']) ?? 'Responsabilité',
+                              _value(_map(item['activity'])?['title']) ??
+                                  'Périmètre collectif',
+                            ),
+                        ],
+                      ),
                     if (route('responsibilities') case final target?) ...[
-                      _action(context, 'Comprendre les responsabilités',
-                        target, open),
+                      _action(
+                        context,
+                        'Comprendre les responsabilités',
+                        target,
+                        open,
+                      ),
                     ],
                     if (!limited) ...[
                       const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(context, 'L’équipe',
-                        'Les personnes visibles, sans confondre appartenance et autorité.'),
+                      _sectionTitle(
+                        context,
+                        'L’équipe',
+                        'Les personnes visibles, sans confondre appartenance et autorité.',
+                      ),
                       if (teamVisible) ...[
-                        _panel(context, children: [
-                          if (teamRows.isEmpty)
-                            _quiet(context, 'Aucun membre actif visible.')
-                          else
-                            for (final person in teamRows)
-                              _fact(context, Icons.person_outline_rounded,
-                                _value(_map(person['profile'])?['name']) ??
-                                    'Membre',
-                                'Équipe principale'),
-                          if (team?['has_more'] == true)
-                            _quiet(context,
-                              'Aperçu partiel de l’équipe.'),
-                        ]),
+                        _panel(
+                          context,
+                          children: [
+                            if (teamRows.isEmpty)
+                              _quiet(context, 'Aucun membre actif visible.')
+                            else
+                              for (final person in teamRows)
+                                _fact(
+                                  context,
+                                  Icons.person_outline_rounded,
+                                  _value(_map(person['profile'])?['name']) ??
+                                      'Membre',
+                                  'Équipe principale',
+                                ),
+                            if (team?['has_more'] == true)
+                              _quiet(context, 'Aperçu partiel de l’équipe.'),
+                          ],
+                        ),
                         if (route('team') case final target?)
                           _action(context, 'Ouvrir l’équipe', target, open),
                       ] else
-                        _quiet(context,
+                        _quiet(
+                          context,
                           'La composition de l’équipe est réservée '
-                          'aux personnes autorisées.'),
+                          'aux personnes autorisées.',
+                        ),
                     ],
                     if (!limited && relationSections.isNotEmpty) ...[
                       const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(context,
+                      _sectionTitle(
+                        context,
                         _value(relations?['label']) ?? 'Personnes & relations',
-                        'Les liens connus, selon la visibilité de leurs propriétaires.'),
-                      _panel(context, children: [
-                        for (final entry in relationSections.entries)
-                          _fact(context, _relationIcon(entry.key),
-                            _relationLabel(entry.key),
-                            _relationSummary(_map(entry.value))),
-                      ]),
+                        'Les liens connus, selon la visibilité de leurs propriétaires.',
+                      ),
+                      _panel(
+                        context,
+                        children: [
+                          for (final entry in relationSections.entries)
+                            _fact(
+                              context,
+                              _relationIcon(entry.key),
+                              _relationLabel(entry.key),
+                              _relationSummary(_map(entry.value)),
+                            ),
+                        ],
+                      ),
                       if (route('relationships') case final target?)
-                        _action(context, 'Explorer les relations', target, open),
+                        _action(
+                          context,
+                          'Explorer les relations',
+                          target,
+                          open,
+                        ),
                     ],
                     if (ownershipRows.isNotEmpty) ...[
                       const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(context, 'Gouvernance',
-                        'Mandates institutionnels, distincts des membres de l’équipe.'),
-                      _panel(context, children: [
-                        for (final owner in ownershipRows)
-                          _fact(context, Icons.verified_user_outlined,
-                            _value(_map(owner['profile'])?['name']) ??
-                                'Représentant',
-                            _value(_map(owner['responsibility'])?['label']) ??
-                                'Autorité Space'),
-                      ]),
+                      _sectionTitle(
+                        context,
+                        'Gouvernance',
+                        'Mandates institutionnels, distincts des membres de l’équipe.',
+                      ),
+                      _panel(
+                        context,
+                        children: [
+                          for (final owner in ownershipRows)
+                            _fact(
+                              context,
+                              Icons.verified_user_outlined,
+                              _value(_map(owner['profile'])?['name']) ??
+                                  'Représentant',
+                              _value(_map(owner['responsibility'])?['label']) ??
+                                  'Autorité Space',
+                            ),
+                        ],
+                      ),
                       if (route('ownership') case final target?)
-                        _action(context, 'Voir la gouvernance',
-                          target, open),
+                        _action(context, 'Voir la gouvernance', target, open),
                     ],
                     if (route('trust') case final target?) ...[
                       const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(context, 'Confiance',
-                        'Des faits vérifiables, sans classement global du collectif.'),
-                      _notice(context,
+                      _sectionTitle(
+                        context,
+                        'Confiance',
+                        'Des faits vérifiables, sans classement global du collectif.',
+                      ),
+                      _notice(
+                        context,
                         _map(payload['trust'])?['verified'] == true
-                          ? 'Des faits publics de vérification sont établis.'
-                          : 'Aucun fait public de vérification actif n’est projeté.'),
-                      _action(context, 'Consulter les faits de confiance',
-                        target, open),
+                            ? 'Des faits publics de vérification sont établis.'
+                            : 'Aucun fait public de vérification actif n’est projeté.',
+                      ),
+                      _action(
+                        context,
+                        'Consulter les faits de confiance',
+                        target,
+                        open,
+                      ),
                     ],
                     if (settingsTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.lg),
-                      _action(context, 'Modifier les informations collectives',
-                        settingsTarget, open),
+                      _action(
+                        context,
+                        'Modifier les informations collectives',
+                        settingsTarget,
+                        open,
+                      ),
                     ],
                     if (pilotTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.lg),
-                      _action(context, 'Comprendre notre activité',
-                        pilotTarget, open),
+                      _action(
+                        context,
+                        'Comprendre notre activité',
+                        pilotTarget,
+                        open,
+                      ),
                     ],
                     const SizedBox(height: MakoloSpacing.xl),
                   ],
@@ -263,13 +360,18 @@ class SpaceUsSurface extends StatelessWidget {
 
   static Map<String, dynamic>? _map(Object? value) {
     if (value is! Map) return null;
-    return {for (final entry in value.entries)
-      if (entry.key is String) entry.key as String: entry.value};
+    return {
+      for (final entry in value.entries)
+        if (entry.key is String) entry.key as String: entry.value,
+    };
   }
 
   static List<Map<String, dynamic>> _rows(Object? value) {
     if (value is! List) return const [];
-    return value.map(_map).whereType<Map<String, dynamic>>().toList(growable: false);
+    return value
+        .map(_map)
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
   }
 
   static String? _value(Object? value) =>
@@ -305,39 +407,48 @@ class SpaceUsSurface extends StatelessWidget {
   }
 
   static Widget _sectionTitle(
-    BuildContext context, String title, String subtitle,
+    BuildContext context,
+    String title,
+    String subtitle,
   ) => Padding(
     padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          fontWeight: FontWeight.w700,
-        )),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 4),
         Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
       ],
     ),
   );
 
-  static Widget _panel(BuildContext context, {required List<Widget> children}) =>
-      Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: MakoloSpacing.md,
-            vertical: MakoloSpacing.sm,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children,
-          ),
-        ),
-      );
+  static Widget _panel(
+    BuildContext context, {
+    required List<Widget> children,
+  }) => Card(
+    margin: EdgeInsets.zero,
+    clipBehavior: Clip.antiAlias,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: MakoloSpacing.md,
+        vertical: MakoloSpacing.sm,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    ),
+  );
 
   static Widget _fact(
-    BuildContext context, IconData icon, String name, String subtitle,
+    BuildContext context,
+    IconData icon,
+    String name,
+    String subtitle,
   ) => Padding(
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
     child: Row(
@@ -345,22 +456,23 @@ class SpaceUsSurface extends StatelessWidget {
       children: [
         Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
         const SizedBox(width: MakoloSpacing.md),
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(name, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 3),
-            Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-          ],
-        )),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 3),
+              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
       ],
     ),
   );
 
   static Widget _quiet(BuildContext context, String message) => Padding(
     padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-    child: Text(message,
-      style: Theme.of(context).textTheme.bodySmall),
+    child: Text(message, style: Theme.of(context).textTheme.bodySmall),
   );
 
   static Widget _notice(BuildContext context, String message) => Container(
@@ -370,16 +482,21 @@ class SpaceUsSurface extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
     ),
-    child: Row(children: [
-      const Icon(Icons.info_outline, size: 20),
-      const SizedBox(width: MakoloSpacing.sm),
-      Expanded(child: Text(message,
-        style: Theme.of(context).textTheme.bodySmall)),
-    ]),
+    child: Row(
+      children: [
+        const Icon(Icons.info_outline, size: 20),
+        const SizedBox(width: MakoloSpacing.sm),
+        Expanded(
+          child: Text(message, style: Theme.of(context).textTheme.bodySmall),
+        ),
+      ],
+    ),
   );
 
   static Widget _action(
-    BuildContext context, String label, String target,
+    BuildContext context,
+    String label,
+    String target,
     ValueChanged<String> open,
   ) => Align(
     alignment: Alignment.centerLeft,

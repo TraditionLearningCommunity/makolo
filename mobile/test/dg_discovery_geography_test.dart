@@ -39,14 +39,24 @@ void main() {
 
   test('the same Discovery search survives route -> map -> search', () {
     const original = DiscoveryQuery(
-      text: 'concert', place: 'Lubumbashi', when: 'week',
-      period: 'upcoming', vertical: 'activity', price: 'paid',
-      dateFrom: '2026-11-01', dateTo: '2026-11-30',
-      latitude: -11.66, longitude: 27.48, radiusKm: 25,
-      page: 3, pageSize: 12, continuation: 'signed+opaque/==',
+      text: 'concert',
+      place: 'Lubumbashi',
+      when: 'week',
+      period: 'upcoming',
+      vertical: 'activity',
+      price: 'paid',
+      dateFrom: '2026-11-01',
+      dateTo: '2026-11-30',
+      latitude: -11.66,
+      longitude: 27.48,
+      radiusKm: 25,
+      page: 3,
+      pageSize: 12,
+      continuation: 'signed+opaque/==',
     );
     final location = original.routeLocation(
-      '/discover/map', selectedCandidateKey: 'activity:concert-1',
+      '/discover/map',
+      selectedCandidateKey: 'activity:concert-1',
     );
     final uri = Uri.parse(location);
     expect(uri.path, '/discover/map');
@@ -71,8 +81,10 @@ void main() {
       '/discover/search',
       selectedCandidateKey: uri.queryParameters['selected'],
     );
-    expect(Uri.parse(returnToSearch).queryParameters['selected'],
-        'activity:concert-1');
+    expect(
+      Uri.parse(returnToSearch).queryParameters['selected'],
+      'activity:concert-1',
+    );
     expect(
       DiscoveryQuery.fromRouteParameters(
         Uri.parse(returnToSearch).queryParameters,
@@ -84,30 +96,35 @@ void main() {
   test('invalid geographic route filters are rejected, never relaxed', () {
     expect(
       () => DiscoveryQuery.fromRouteParameters({
-        'q': 'formation', 'lat': '999', 'lon': '27.5', 'radius_km': '25',
+        'q': 'formation',
+        'lat': '999',
+        'lon': '27.5',
+        'radius_km': '25',
       }),
       throwsFormatException,
     );
     expect(
       () => DiscoveryQuery.fromRouteParameters({
-        'q': 'formation', 'lat': '-11.66',
+        'q': 'formation',
+        'lat': '-11.66',
       }),
       throwsFormatException,
     );
     expect(
       () => DiscoveryQuery.fromRouteParameters({
-        'lat': '-11.66', 'lon': '27.48', 'radius_km': 'invalid',
+        'lat': '-11.66',
+        'lon': '27.48',
+        'radius_km': 'invalid',
       }),
       throwsFormatException,
     );
     expect(
-      () => DiscoveryQuery.fromRouteParameters({
-        'q': 'formation', 'page': '5',
-      }),
+      () => DiscoveryQuery.fromRouteParameters({'q': 'formation', 'page': '5'}),
       throwsFormatException,
     );
     final valid = DiscoveryQuery.fromRouteParameters({
-      'q': 'formation', 'page_size': '10000',
+      'q': 'formation',
+      'page_size': '10000',
     });
     expect(valid.text, 'formation');
     expect(valid.pageSize, 24);

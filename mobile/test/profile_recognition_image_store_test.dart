@@ -18,8 +18,7 @@ class _RecognitionApi implements MakoloApiClient {
   Future<Uint8List> getPresentationImage(String path) => fetch(path);
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -57,25 +56,28 @@ void main() {
     );
   });
 
-  test('published recognition bytes survive a cache purge and restart', () async {
-    const profile = 'profile-a';
-    final store = ProfileRecognitionImageStore(
-      profileId: profile,
-      rootOverride: supportRoot,
-    );
-    await store.save(imagePath, imageBytes);
+  test(
+    'published recognition bytes survive a cache purge and restart',
+    () async {
+      const profile = 'profile-a';
+      final store = ProfileRecognitionImageStore(
+        profileId: profile,
+        rootOverride: supportRoot,
+      );
+      await store.save(imagePath, imageBytes);
 
-    final reconstructible = Directory('${supportRoot.path}/cache');
-    await reconstructible.create(recursive: true);
-    await File('${reconstructible.path}/unused.tmp').writeAsString('cache');
-    await reconstructible.delete(recursive: true);
+      final reconstructible = Directory('${supportRoot.path}/cache');
+      await reconstructible.create(recursive: true);
+      await File('${reconstructible.path}/unused.tmp').writeAsString('cache');
+      await reconstructible.delete(recursive: true);
 
-    final restarted = ProfileRecognitionImageStore(
-      profileId: profile,
-      rootOverride: supportRoot,
-    );
-    expect(await restarted.read(imagePath), orderedEquals(imageBytes));
-  });
+      final restarted = ProfileRecognitionImageStore(
+        profileId: profile,
+        rootOverride: supportRoot,
+      );
+      expect(await restarted.read(imagePath), orderedEquals(imageBytes));
+    },
+  );
 
   test('one Profile cannot read a second Profile recognition copy', () async {
     final a = ProfileRecognitionImageStore(
@@ -98,34 +100,43 @@ void main() {
     expect(await b.read(imagePath), orderedEquals(imageBytes));
   });
 
-  test('concurrent recognition saves cannot corrupt the durable image', () async {
-    final store = ProfileRecognitionImageStore(
-      profileId: 'profile-a',
-      rootOverride: supportRoot,
-    );
-    final first = Uint8List.fromList([1, 2, 3]);
-    final second = Uint8List.fromList([4, 5, 6]);
-    await Future.wait([store.save(imagePath, first), store.save(imagePath, second)]);
-    expect(await store.read(imagePath), orderedEquals(second));
-  });
+  test(
+    'concurrent recognition saves cannot corrupt the durable image',
+    () async {
+      final store = ProfileRecognitionImageStore(
+        profileId: 'profile-a',
+        rootOverride: supportRoot,
+      );
+      final first = Uint8List.fromList([1, 2, 3]);
+      final second = Uint8List.fromList([4, 5, 6]);
+      await Future.wait([
+        store.save(imagePath, first),
+        store.save(imagePath, second),
+      ]);
+      expect(await store.read(imagePath), orderedEquals(second));
+    },
+  );
 
-  test('automatic recognition has a ten-image rolling budget per Profile', () async {
-    final store = ProfileRecognitionImageStore(
-      profileId: 'profile-a',
-      rootOverride: supportRoot,
-    );
-    for (var i = 0; i < 13; i++) {
-      await store.save(imageFor(i + 2), Uint8List.fromList([i + 1]));
-      await Future<void>.delayed(const Duration(milliseconds: 3));
-    }
-    final retained = <int>[];
-    for (var i = 0; i < 13; i++) {
-      if (await store.read(imageFor(i + 2)) != null) retained.add(i);
-    }
-    expect(retained.length, ProfileRecognitionImageStore.maxRetainedImages);
-    expect(retained, contains(12));
-    expect(retained, isNot(contains(0)));
-  });
+  test(
+    'automatic recognition has a ten-image rolling budget per Profile',
+    () async {
+      final store = ProfileRecognitionImageStore(
+        profileId: 'profile-a',
+        rootOverride: supportRoot,
+      );
+      for (var i = 0; i < 13; i++) {
+        await store.save(imageFor(i + 2), Uint8List.fromList([i + 1]));
+        await Future<void>.delayed(const Duration(milliseconds: 3));
+      }
+      final retained = <int>[];
+      for (var i = 0; i < 13; i++) {
+        if (await store.read(imageFor(i + 2)) != null) retained.add(i);
+      }
+      expect(retained.length, ProfileRecognitionImageStore.maxRetainedImages);
+      expect(retained, contains(12));
+      expect(retained, isNot(contains(0)));
+    },
+  );
 
   test('empty recognition bytes cannot overwrite a durable file', () async {
     final store = ProfileRecognitionImageStore(
@@ -140,41 +151,39 @@ void main() {
     expect(await store.read(imagePath), orderedEquals(imageBytes));
   });
 
-  testWidgets('transport failure shows retained media without an offline page', (
-    tester,
-  ) async {
-    final store = ProfileRecognitionImageStore(
-      profileId: 'profile-a',
-      rootOverride: supportRoot,
-    );
-    await tester.runAsync(() => store.save(imagePath, imageBytes));
-    final api = _RecognitionApi(
-      (_) async => throw const MakoloTransportError(
-        'offline',
-        'unreachable',
-      ),
-    );
-    await tester.runAsync(() async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: RetainedRecognitionImage(
-            api: api,
-            profileId: 'profile-a',
-            path: imagePath,
-            alt: 'Photo publiée',
-            storeOverride: store,
-            placeholder: const Icon(Icons.image_not_supported_outlined),
-          ),
-        ),
+  testWidgets(
+    'transport failure shows retained media without an offline page',
+    (tester) async {
+      final store = ProfileRecognitionImageStore(
+        profileId: 'profile-a',
+        rootOverride: supportRoot,
       );
-      // Start filesystem-backed restoration in the real async zone.
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
-    await tester.pumpAndSettle();
-    expect(find.byType(Image), findsOneWidget);
-    final retained = await tester.runAsync(() => store.read(imagePath));
-    expect(retained, orderedEquals(imageBytes));
-  });
+      await tester.runAsync(() => store.save(imagePath, imageBytes));
+      final api = _RecognitionApi(
+        (_) async => throw const MakoloTransportError('offline', 'unreachable'),
+      );
+      await tester.runAsync(() async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: RetainedRecognitionImage(
+              api: api,
+              profileId: 'profile-a',
+              path: imagePath,
+              alt: 'Photo publiée',
+              storeOverride: store,
+              placeholder: const Icon(Icons.image_not_supported_outlined),
+            ),
+          ),
+        );
+        // Start filesystem-backed restoration in the real async zone.
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+      expect(find.byType(Image), findsOneWidget);
+      final retained = await tester.runAsync(() => store.read(imagePath));
+      expect(retained, orderedEquals(imageBytes));
+    },
+  );
 
   testWidgets('owner 403 revokes the local recognition copy', (tester) async {
     final store = ProfileRecognitionImageStore(

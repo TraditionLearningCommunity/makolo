@@ -13,9 +13,13 @@ Map<String, dynamic> _projection({bool limited = false}) => {
   'authority': {'scope': limited ? 'activity_limited' : 'space'},
   'team': {
     'visibility': limited ? 'restricted' : 'visible',
-    'items': limited ? [] : [
-      {'profile': {'name': 'Amina'}},
-    ],
+    'items': limited
+        ? []
+        : [
+            {
+              'profile': {'name': 'Amina'},
+            },
+          ],
   },
   'responsibilities': {
     'items': [
@@ -25,18 +29,27 @@ Map<String, dynamic> _projection({bool limited = false}) => {
   },
   'ownership': {
     'visibility': limited ? 'restricted' : 'visible',
-    'items': limited ? [] : [
-      {'profile': {'name': 'Kasa'}, 'responsibility': {'label': 'Propriétaire'}},
-    ],
+    'items': limited
+        ? []
+        : [
+            {
+              'profile': {'name': 'Kasa'},
+              'responsibility': {'label': 'Propriétaire'},
+            },
+          ],
   },
   'relationships': {
     'label': 'Personnes & relations',
-    'sections': limited ? {} : {
-      'partners': {
-        'items': [{'name': 'Partenaire Alpha'}],
-        'has_more': false,
-      },
-    },
+    'sections': limited
+        ? {}
+        : {
+            'partners': {
+              'items': [
+                {'name': 'Partenaire Alpha'},
+              ],
+              'has_more': false,
+            },
+          },
   },
   'trust': {'verified': false},
   'handoffs': {
@@ -54,20 +67,26 @@ Map<String, dynamic> _projection({bool limited = false}) => {
 
 void main() {
   for (final width in [360.0, 834.0, 1440.0]) {
-    testWidgets('Nous is readable at width ' + width.toString(), (tester) async {
+    testWidgets('Nous is readable at width ' + width.toString(), (
+      tester,
+    ) async {
       tester.view.physicalSize = Size(width, 1100);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       final routes = <String>[];
-      await tester.pumpWidget(MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Scaffold(body: SpaceUsSurface(
-          payload: _projection(),
-          fallbackSpaceName: 'Fallback',
-          onOpen: routes.add,
-        )),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Scaffold(
+            body: SpaceUsSurface(
+              payload: _projection(),
+              fallbackSpaceName: 'Fallback',
+              onOpen: routes.add,
+            ),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Atelier collectif'), findsOneWidget);
       expect(find.text('Coordination'), findsOneWidget);
@@ -106,15 +125,21 @@ void main() {
     });
   }
 
-  testWidgets('activity-only projection never shows institution data', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      theme: buildMakoloTheme(),
-      home: Scaffold(body: SpaceUsSurface(
-        payload: _projection(limited: true),
-        fallbackSpaceName: 'Fallback',
-        onOpen: (_) {},
-      )),
-    ));
+  testWidgets('activity-only projection never shows institution data', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: _projection(limited: true),
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Coordination'), findsOneWidget);
     expect(find.text('Amina'), findsNothing);
@@ -131,13 +156,18 @@ void main() {
     final projection = _projection();
     (projection['handoffs'] as Map<String, dynamic>)['relationships'] =
         '/space/autre/us/relationships';
-    await tester.pumpWidget(MaterialApp(
-      theme: buildMakoloTheme(),
-      home: Scaffold(body: SpaceUsSurface(
-        payload: projection, fallbackSpaceName: 'Fallback',
-        onOpen: (_) => fail('Cross-Space route should not open'),
-      )),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) => fail('Cross-Space route should not open'),
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Explorer les relations'), findsNothing);
   });

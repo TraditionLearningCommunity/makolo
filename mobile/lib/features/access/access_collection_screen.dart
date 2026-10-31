@@ -126,15 +126,17 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
         builder: (context, pagesSnapshot) {
           final pages = pagesSnapshot.data ?? const <StoredProjection>[];
           final view = _AccessCollectionView.fromPages(
-            pages, relationship: _relationship,
+            pages,
+            relationship: _relationship,
           );
           final hasKnownFirstPage = pages.any(
             (page) =>
                 page.kind == AccessRepository.collectionProjectionKind &&
-                page.resourceKey == widget.repository.collectionResourceKey(
-                  relationship: _relationship,
-                  offset: 0,
-                ),
+                page.resourceKey ==
+                    widget.repository.collectionResourceKey(
+                      relationship: _relationship,
+                      offset: 0,
+                    ),
           );
           return StreamBuilder<AccessSourceState>(
             stream: _source,
@@ -199,10 +201,10 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                                   Text(
                                     !hasKnownFirstPage
                                         ? 'Vos accès ne sont pas encore '
-                                            'disponibles sur cet appareil.'
+                                              'disponibles sur cet appareil.'
                                         : _relationship == _mine
-                                            ? 'Aucun accès disponible pour le moment.'
-                                            : 'Aucun accès obtenu pour une autre personne.',
+                                        ? 'Aucun accès disponible pour le moment.'
+                                        : 'Aucun accès obtenu pour une autre personne.',
                                     textAlign: TextAlign.center,
                                   ),
                                   if (!hasKnownFirstPage) ...[

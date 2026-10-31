@@ -1393,7 +1393,9 @@ void main() {
       tester.element(find.byKey(const Key('guest-spaces-page-retry'))),
     ).removeCurrentSnackBar();
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('guest-spaces-page-retry')));
+    await tester.ensureVisible(
+      find.byKey(const Key('guest-spaces-page-retry')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('guest-spaces-page-retry')));
     await tester.pumpAndSettle();

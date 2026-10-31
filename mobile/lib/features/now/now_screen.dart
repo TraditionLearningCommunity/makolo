@@ -115,8 +115,9 @@ class _NowScreenState extends State<NowScreen> {
         _pagedItems
           ..clear()
           ..addAll(restored);
-        _pageContinuation =
-            Map<String, dynamic>.from(facts['continuation'] as Map);
+        _pageContinuation = Map<String, dynamic>.from(
+          facts['continuation'] as Map,
+        );
         _pageFailed = false;
       });
     } on Object {

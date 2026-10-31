@@ -293,10 +293,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       if (place is Map) {
         final name = (place['name'] ?? '').toString().trim();
         final locality = (place['locality'] ?? '').toString().trim();
-        final value = name.isNotEmpty && locality.isNotEmpty &&
+        final value =
+            name.isNotEmpty &&
+                locality.isNotEmpty &&
                 name.toLowerCase() != locality.toLowerCase()
             ? '$name, $locality'
-            : name.isNotEmpty ? name : locality;
+            : name.isNotEmpty
+            ? name
+            : locality;
         if (value.isEmpty) continue;
         final ordinal = (rolePositions[role] ?? 0) + 1;
         rolePositions[role] = ordinal;
@@ -1204,12 +1208,20 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Informations pratiques', style: theme.textTheme.titleSmall),
+                        Text(
+                          'Informations pratiques',
+                          style: theme.textTheme.titleSmall,
+                        ),
                         const SizedBox(height: MakoloSpacing.sm),
                         if (_reliableFacts.isNotEmpty) _facts(context),
-                        for (final note in widget.detailMode ? const <String>[] : _contextNotes)
+                        for (final note
+                            in widget.detailMode
+                                ? const <String>[]
+                                : _contextNotes)
                           Padding(
-                            padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                            padding: const EdgeInsets.only(
+                              top: MakoloSpacing.xs,
+                            ),
                             child: Text(
                               note,
                               style: theme.textTheme.bodySmall?.copyWith(

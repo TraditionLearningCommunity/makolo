@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+
 import '../../platform/sharing/share_gateway.dart';
+
 import 'package:flutter/services.dart';
 
 import '../../design/makolo_theme.dart';
@@ -17,7 +19,12 @@ import 'me_passport_visibility_screen.dart';
 
 /// Native presentation of the same server-owned Passport variants as Web.
 class MePassportScreen extends StatefulWidget {
-  const MePassportScreen({super.key, required this.api, this.personal, this.onEdit});
+  const MePassportScreen({
+    super.key,
+    required this.api,
+    this.personal,
+    this.onEdit,
+  });
   final MakoloApiClient api;
   final PersonalRepository? personal;
   final VoidCallback? onEdit;
@@ -69,14 +76,16 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final params = _passportParams();
     // The selection is part of the document identity: no cross-variant reuse.
     final ordered = params.keys.toList()..sort();
-    return ordered.map((key) {
-      final value = params[key];
-      if (value is List) {
-        final sorted = value.map((v) => v.toString()).toList()..sort();
-        return '$key=${sorted.join(",")}';
-      }
-      return '$key=$value';
-    }).join('&');
+    return ordered
+        .map((key) {
+          final value = params[key];
+          if (value is List) {
+            final sorted = value.map((v) => v.toString()).toList()..sort();
+            return '$key=${sorted.join(",")}';
+          }
+          return '$key=$value';
+        })
+        .join('&');
   }
 
   Future<void> _restorePassport() async {
@@ -86,10 +95,13 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final key = _passportStorageKey();
     try {
       final snapshot = await personal.store.readProjection(
-        'personal.me.passport', resourceKey: key,
+        'personal.me.passport',
+        resourceKey: key,
       );
-      if (snapshot != null && snapshot.payload['variant'] == _variant &&
-          mounted && key == _passportStorageKey()) {
+      if (snapshot != null &&
+          snapshot.payload['variant'] == _variant &&
+          mounted &&
+          key == _passportStorageKey()) {
         setState(() {
           _cachedPassport = snapshot.payload;
           _cachedVariantKey = key;
@@ -132,8 +144,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
     if (uri == null) return;
     final base = widget.api.baseUri;
     if ((uri.hasAuthority || uri.hasScheme) &&
-        (uri.host != base.host || uri.scheme != base.scheme ||
-         uri.port != base.port)) {
+        (uri.host != base.host ||
+            uri.scheme != base.scheme ||
+            uri.port != base.port)) {
       return;
     }
     final path = uri.hasAuthority
@@ -178,19 +191,24 @@ class _MePassportScreenState extends State<MePassportScreen> {
     if (name == null) return null;
     final place = _map(identity['location']);
     final location = [
-      _text(place['city']), _text(place['country']),
+      _text(place['city']),
+      _text(place['country']),
     ].whereType<String>().join(', ');
     return <String, dynamic>{
       'variant': 'complete',
       'identity': {
-        'name': name, 'username': identity['username'],
+        'name': name,
+        'username': identity['username'],
         'avatar_url': identity['avatar_url'],
-        'profession': identity['profession'], 'bio': identity['bio'],
-        'location': location, 'links': const [],
+        'profession': identity['profession'],
+        'bio': identity['bio'],
+        'location': location,
+        'links': const [],
       },
       'declared': {
         'interests':
-            root?.collection('considerations', 'interests')?['items'] ?? const [],
+            root?.collection('considerations', 'interests')?['items'] ??
+            const [],
         'open_to':
             root?.collection('considerations', 'open_to')?['items'] ?? const [],
       },
@@ -207,29 +225,36 @@ class _MePassportScreenState extends State<MePassportScreen> {
     if (preferLocal && requestedVariant != 'public') {
       try {
         final stored = await widget.personal?.store.readProjection(
-          'personal.me.passport', resourceKey: resourceKey,
+          'personal.me.passport',
+          resourceKey: resourceKey,
         );
-        if (stored != null && stored.payload['variant'] == requestedVariant &&
-            epoch == _loadEpoch && resourceKey == _passportStorageKey()) {
-
+        if (stored != null &&
+            stored.payload['variant'] == requestedVariant &&
+            epoch == _loadEpoch &&
+            resourceKey == _passportStorageKey()) {
           if (mounted) {
             setState(() {
-            _cachedPassport = stored.payload;
-            _cachedVariantKey = resourceKey;
-            _onlineReady = false;
+              _cachedPassport = stored.payload;
+              _cachedVariantKey = resourceKey;
+              _onlineReady = false;
             });
           }
           // Return the local owner projection immediately; remote work is
           // background reconciliation and never blocks the visible Passport.
-          unawaited(_load(preferLocal: false).then((data) {
-            if (!mounted || _variant != requestedVariant ||
-                resourceKey != _passportStorageKey()) {
-              return;
-            }
-            setState(() => _future = Future.value(data));
-          }).catchError((Object _) {
-            // The existing local Passport remains the presentation.
-          }));
+          unawaited(
+            _load(preferLocal: false)
+                .then((data) {
+                  if (!mounted ||
+                      _variant != requestedVariant ||
+                      resourceKey != _passportStorageKey()) {
+                    return;
+                  }
+                  setState(() => _future = Future.value(data));
+                })
+                .catchError((Object _) {
+                  // The existing local Passport remains the presentation.
+                }),
+          );
           return stored.payload;
         }
       } on Object {
@@ -237,37 +262,46 @@ class _MePassportScreenState extends State<MePassportScreen> {
       }
       try {
         final preview = await _rootPassportPreview();
-        if (preview != null && epoch == _loadEpoch &&
+        if (preview != null &&
+            epoch == _loadEpoch &&
             resourceKey == _passportStorageKey()) {
-
           if (mounted) {
             setState(() {
-            _cachedPassport = preview;
-            _cachedVariantKey = resourceKey;
-            _onlineReady = false;
+              _cachedPassport = preview;
+              _cachedVariantKey = resourceKey;
+              _onlineReady = false;
             });
           }
-          unawaited(_load(preferLocal: false).then((fresh) {
-            if (!mounted || requestedVariant != _variant ||
-                resourceKey != _passportStorageKey()) {
-              return;
-            }
-            setState(() => _future = Future.value(fresh));
-          }).catchError((Object _) {}));
+          unawaited(
+            _load(preferLocal: false)
+                .then((fresh) {
+                  if (!mounted ||
+                      requestedVariant != _variant ||
+                      resourceKey != _passportStorageKey()) {
+                    return;
+                  }
+                  setState(() => _future = Future.value(fresh));
+                })
+                .catchError((Object _) {}),
+          );
           return preview;
         }
       } on Object {
         // The root may not have been received on this device yet.
       }
     }
-    final url = Uri(path: 'api/v1/me/passport/',
-      queryParameters: _passportParams()).toString();
+    final url = Uri(
+      path: 'api/v1/me/passport/',
+      queryParameters: _passportParams(),
+    ).toString();
     try {
       final response = await widget.api.get(url);
       final data = ProjectionEnvelope.parse(
-        response.jsonObject(), expectedProjection: 'personal.me.passport',
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport',
       ).data;
-      if (epoch != _loadEpoch || requestedVariant != _variant ||
+      if (epoch != _loadEpoch ||
+          requestedVariant != _variant ||
           resourceKey != _passportStorageKey() ||
           data['variant'] != requestedVariant) {
         throw const FormatException('Outdated or invalid Passport variant');
@@ -286,10 +320,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
       }
       if (mounted) {
         setState(() {
-        _onlineReady = true;
-        _cachedPassport = data;
-        _cachedVariantKey = resourceKey;
-      });
+          _onlineReady = true;
+          _cachedPassport = data;
+          _cachedVariantKey = resourceKey;
+        });
       }
       if (requestedVariant == 'complete') {
         _full = data;
@@ -300,7 +334,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
       _persistAvatar(data);
       return data;
     } on Object catch (error) {
-      if (epoch != _loadEpoch || requestedVariant != _variant ||
+      if (epoch != _loadEpoch ||
+          requestedVariant != _variant ||
           resourceKey != _passportStorageKey()) {
         rethrow;
       }
@@ -311,7 +346,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
         if (widget.personal != null) {
           try {
             await widget.personal!.store.deleteProjection(
-              'personal.me.passport', resourceKey: resourceKey,
+              'personal.me.passport',
+              resourceKey: resourceKey,
             );
           } on Object {
             // The revoked document is still removed from the active view.
@@ -327,12 +363,16 @@ class _MePassportScreenState extends State<MePassportScreen> {
         }
         rethrow;
       }
-      final local = widget.personal == null || requestedVariant == 'public' ? null :
-          await widget.personal!.store.readProjection(
-            'personal.me.passport', resourceKey: resourceKey,
-          );
-      final fallback = requestedVariant == 'public' ? null : (local?.payload ??
-          (_cachedVariantKey == resourceKey ? _cachedPassport : null));
+      final local = widget.personal == null || requestedVariant == 'public'
+          ? null
+          : await widget.personal!.store.readProjection(
+              'personal.me.passport',
+              resourceKey: resourceKey,
+            );
+      final fallback = requestedVariant == 'public'
+          ? null
+          : (local?.payload ??
+                (_cachedVariantKey == resourceKey ? _cachedPassport : null));
       if (fallback != null && fallback['variant'] == requestedVariant) {
         if (mounted) setState(() => _onlineReady = false);
         return fallback;
@@ -344,8 +384,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
   static Map<String, dynamic> _map(Object? raw) => raw is Map
       ? raw.map((key, value) => MapEntry(key.toString(), value))
       : <String, dynamic>{};
-  static List<Map<String, dynamic>> _rows(Object? raw) => raw is List
-      ? raw.whereType<Map>().map(_map).toList() : const [];
+  static List<Map<String, dynamic>> _rows(Object? raw) =>
+      raw is List ? raw.whereType<Map>().map(_map).toList() : const [];
   static String? _text(Object? raw) =>
       raw is String && raw.trim().isNotEmpty ? raw.trim() : null;
 
@@ -397,31 +437,39 @@ class _MePassportScreenState extends State<MePassportScreen> {
           ...identity,
           'avatar_url': '',
           'links': [
-            for (final link in identity['links'] is List
-                ? identity['links'] as List : const [])
+            for (final link
+                in identity['links'] is List
+                    ? identity['links'] as List
+                    : const [])
               if (link is List && link.length >= 2)
                 {'label': link[0], 'url': link[1]},
           ],
         },
         'private_details': version['variant'] == 'complete'
-            ? _map(identity['owner_details']) : <String, dynamic>{},
+            ? _map(identity['owner_details'])
+            : <String, dynamic>{},
         'declared': {
           'interests': [
-            for (final item in payload['interests'] is List
-                ? payload['interests'] as List : const [])
-              {'topic': {'label': item.toString()}},
+            for (final item
+                in payload['interests'] is List
+                    ? payload['interests'] as List
+                    : const [])
+              {
+                'topic': {'label': item.toString()},
+              },
           ],
           'open_to': [
             for (final item in _rows(payload['open_to']))
-              {'label': [
-                if (_text(item['kind']) != null) item['kind'],
-                if (_text(item['topic']) != null) item['topic'],
-              ].join(' · ')},
+              {
+                'label': [
+                  if (_text(item['kind']) != null) item['kind'],
+                  if (_text(item['topic']) != null) item['topic'],
+                ].join(' · '),
+              },
           ],
         },
         'activities': [
-          for (final row in rows)
-            {...row, 'status_label': row['status']},
+          for (final row in rows) {...row, 'status_label': row['status']},
         ],
         'established': {
           'proofs': [
@@ -448,18 +496,24 @@ class _MePassportScreenState extends State<MePassportScreen> {
         },
       };
       await showModalBottomSheet<void>(
-        context: context, isScrollControlled: true, showDragHandle: true,
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
         builder: (context) => SafeArea(
           child: FractionallySizedBox(
             heightFactor: 0.85,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 32),
               children: [
-                Text('Version du ${_historicalDate(version['generated_at'])}',
-                  style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Version du ${_historicalDate(version['generated_at'])}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 5),
-                Text(version['document_id']?.toString() ?? '',
-                  style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  version['document_id']?.toString() ?? '',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 if (version['revoked'] == true)
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
@@ -476,9 +530,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
       );
     } on Object {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Cette version datée n’est pas disponible.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cette version datée n’est pas disponible.'),
+        ),
+      );
     }
   }
 
@@ -519,9 +575,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
       await const SystemShareGateway().shareText(url);
     } on Object {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Partage de cette version indisponible.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Partage de cette version indisponible.')),
+      );
     }
   }
 
@@ -536,113 +592,140 @@ class _MePassportScreenState extends State<MePassportScreen> {
       final entries = _rows(history['items']);
       var hasMore = history['has_more'] == true;
       var nextOffset = history['next_offset'] is int
-          ? history['next_offset'] as int : entries.length;
+          ? history['next_offset'] as int
+          : entries.length;
       var loading = false;
 
       await showModalBottomSheet<void>(
-        context: context, isScrollControlled: true, showDragHandle: true,
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
         builder: (sheetContext) => StatefulBuilder(
           builder: (sheetContext, updateSheet) => SafeArea(
             child: FractionallySizedBox(
               heightFactor: 0.75,
-              child: Column(children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Versions datées',
-                      style: Theme.of(sheetContext).textTheme.titleLarge),
-                  ),
-                ),
-                Expanded(
-                  child: entries.isEmpty
-                      ? const Center(child: Text('Aucune version émise.'))
-                      : ListView.builder(
-                          itemCount: entries.length,
-                          itemBuilder: (context, index) {
-                            final row = entries[index];
-                            final revoked = row['revoked'] == true;
-                            final intact = row['integrity_ok'] == true;
-                            return ListTile(
-                              leading: Icon(revoked
-                                  ? Icons.history_toggle_off
-                                  : Icons.history_outlined),
-                              title: Text(row['document_id']?.toString() ?? ''),
-                              subtitle: Text(
-                                '${_historicalDate(row['generated_at'])} · '
-                                '${row['variant'] ?? ''}'
-                                '${revoked ? ' · Révoqué' : ''}'
-                                '${!intact ? ' · Non intègre' : ''}',
-                              ),
-                              onTap: !intact || row['id'] == null ? null : () {
-                                final id = row['id'].toString();
-                                Navigator.pop(sheetContext);
-                                _openDatedVersion(id);
-                              },
-                              trailing: !revoked && intact &&
-                                      row['variant'] != 'complete' &&
-                                      row['id'] != null
-                                  ? IconButton(
-                                      tooltip: 'Partager cette version',
-                                      icon: const Icon(Icons.share_outlined),
-                                      onPressed: () {
-                                        final id = row['id'].toString();
-                                        Navigator.pop(sheetContext);
-                                        _shareDatedVersion(id);
-                                      },
-                                    )
-                                  : null,
-                            );
-                          },
-                        ),
-                ),
-                if (hasMore)
+              child: Column(
+                children: [
                   Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: TextButton(
-                      onPressed: loading ? null : () async {
-                        updateSheet(() => loading = true);
-                        try {
-                          final page = await widget.api.get(
-                            'api/v1/me/passport/history/?offset=$nextOffset',
-                          );
-                          final data = ProjectionEnvelope.parse(
-                            page.jsonObject(),
-                            expectedProjection: 'personal.me.passport.history',
-                          ).data;
-                          if (!sheetContext.mounted) return;
-                          updateSheet(() {
-                            entries.addAll(_rows(data['items']));
-                            hasMore = data['has_more'] == true;
-                            nextOffset = data['next_offset'] is int
-                                ? data['next_offset'] as int : entries.length;
-                          });
-                        } on Object {
-                          if (!sheetContext.mounted) return;
-                          ScaffoldMessenger.of(sheetContext).showSnackBar(
-                            const SnackBar(
-                              content: Text('Chargement des versions indisponible.'),
-                            ),
-                          );
-                        } finally {
-                          if (sheetContext.mounted) {
-                            updateSheet(() => loading = false);
-                          }
-                        }
-                      },
-                      child: Text(loading ? 'Chargement…' : 'Voir plus de versions'),
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Versions datées',
+                        style: Theme.of(sheetContext).textTheme.titleLarge,
+                      ),
                     ),
                   ),
-              ]),
+                  Expanded(
+                    child: entries.isEmpty
+                        ? const Center(child: Text('Aucune version émise.'))
+                        : ListView.builder(
+                            itemCount: entries.length,
+                            itemBuilder: (context, index) {
+                              final row = entries[index];
+                              final revoked = row['revoked'] == true;
+                              final intact = row['integrity_ok'] == true;
+                              return ListTile(
+                                leading: Icon(
+                                  revoked
+                                      ? Icons.history_toggle_off
+                                      : Icons.history_outlined,
+                                ),
+                                title: Text(
+                                  row['document_id']?.toString() ?? '',
+                                ),
+                                subtitle: Text(
+                                  '${_historicalDate(row['generated_at'])} · '
+                                  '${row['variant'] ?? ''}'
+                                  '${revoked ? ' · Révoqué' : ''}'
+                                  '${!intact ? ' · Non intègre' : ''}',
+                                ),
+                                onTap: !intact || row['id'] == null
+                                    ? null
+                                    : () {
+                                        final id = row['id'].toString();
+                                        Navigator.pop(sheetContext);
+                                        _openDatedVersion(id);
+                                      },
+                                trailing:
+                                    !revoked &&
+                                        intact &&
+                                        row['variant'] != 'complete' &&
+                                        row['id'] != null
+                                    ? IconButton(
+                                        tooltip: 'Partager cette version',
+                                        icon: const Icon(Icons.share_outlined),
+                                        onPressed: () {
+                                          final id = row['id'].toString();
+                                          Navigator.pop(sheetContext);
+                                          _shareDatedVersion(id);
+                                        },
+                                      )
+                                    : null,
+                              );
+                            },
+                          ),
+                  ),
+                  if (hasMore)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: TextButton(
+                        onPressed: loading
+                            ? null
+                            : () async {
+                                updateSheet(() => loading = true);
+                                try {
+                                  final page = await widget.api.get(
+                                    'api/v1/me/passport/history/?offset=$nextOffset',
+                                  );
+                                  final data = ProjectionEnvelope.parse(
+                                    page.jsonObject(),
+                                    expectedProjection:
+                                        'personal.me.passport.history',
+                                  ).data;
+                                  if (!sheetContext.mounted) return;
+                                  updateSheet(() {
+                                    entries.addAll(_rows(data['items']));
+                                    hasMore = data['has_more'] == true;
+                                    nextOffset = data['next_offset'] is int
+                                        ? data['next_offset'] as int
+                                        : entries.length;
+                                  });
+                                } on Object {
+                                  if (!sheetContext.mounted) return;
+                                  ScaffoldMessenger.of(
+                                    sheetContext,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Chargement des versions indisponible.',
+                                      ),
+                                    ),
+                                  );
+                                } finally {
+                                  if (sheetContext.mounted) {
+                                    updateSheet(() => loading = false);
+                                  }
+                                }
+                              },
+                        child: Text(
+                          loading ? 'Chargement…' : 'Voir plus de versions',
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
       );
     } on Object {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Historique indisponible sans connexion.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Historique indisponible sans connexion.'),
+        ),
+      );
     }
   }
 
@@ -652,15 +735,19 @@ class _MePassportScreenState extends State<MePassportScreen> {
     try {
       final directory = await getTemporaryDirectory();
       final file = '${directory.path}/passeport-makolo-$_variant.pdf';
-      final url = Uri(path: 'api/v1/me/passport/pdf/',
-        queryParameters: _passportParams()).toString();
+      final url = Uri(
+        path: 'api/v1/me/passport/pdf/',
+        queryParameters: _passportParams(),
+      ).toString();
       await widget.api.download(url, destinationPath: file);
       return file;
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Exportation du Passeport indisponible.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Exportation du Passeport indisponible.'),
+          ),
+        );
       }
       return null;
     } finally {
@@ -681,14 +768,14 @@ class _MePassportScreenState extends State<MePassportScreen> {
         bytes: await File(file).readAsBytes(),
       );
       if (!mounted || saved == null) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Passeport PDF enregistré.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passeport PDF enregistré.')),
+      );
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Enregistrement du PDF impossible.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enregistrement du PDF impossible.')),
+        );
       }
     }
   }
@@ -697,35 +784,39 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final publicPath = _text(_map(data['links'])['public_web']);
     final canShareLink =
         _map(data['projection'])['public_profile_enabled'] == true &&
-        publicPath != null && publicPath.startsWith('/') &&
+        publicPath != null &&
+        publicPath.startsWith('/') &&
         !publicPath.startsWith('//');
     final action = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.history_outlined),
-            title: const Text('Partager une version émise'),
-            subtitle: const Text(
-              'Émettez d’abord un PDF. Choisissez ensuite la version et '
-              'créez un lien de lecture expirant, sans rendre le Passeport public.',
-            ),
-            onTap: () => Navigator.pop(context, 'history'),
-          ),
-          if (canShareLink) ...[
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             ListTile(
-              leading: const Icon(Icons.link_rounded),
-              title: const Text('Partager le lien public'),
-              onTap: () => Navigator.pop(context, 'link'),
+              leading: const Icon(Icons.history_outlined),
+              title: const Text('Partager une version émise'),
+              subtitle: const Text(
+                'Émettez d’abord un PDF. Choisissez ensuite la version et '
+                'créez un lien de lecture expirant, sans rendre le Passeport public.',
+              ),
+              onTap: () => Navigator.pop(context, 'history'),
             ),
-            ListTile(
-              leading: const Icon(Icons.copy_rounded),
-              title: const Text('Copier le lien public'),
-              onTap: () => Navigator.pop(context, 'copy'),
-            ),
+            if (canShareLink) ...[
+              ListTile(
+                leading: const Icon(Icons.link_rounded),
+                title: const Text('Partager le lien public'),
+                onTap: () => Navigator.pop(context, 'link'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.copy_rounded),
+                title: const Text('Copier le lien public'),
+                onTap: () => Navigator.pop(context, 'copy'),
+              ),
+            ],
           ],
-        ]),
+        ),
       ),
     );
     if (action == null || !mounted) return;
@@ -738,9 +829,9 @@ class _MePassportScreenState extends State<MePassportScreen> {
       if (action == 'copy') {
         await Clipboard.setData(ClipboardData(text: url));
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Lien public copié.'),
-          ));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Lien public copié.')));
         }
       } else {
         await const SystemShareGateway().shareText(url);
@@ -758,16 +849,18 @@ class _MePassportScreenState extends State<MePassportScreen> {
       await _sharePassport(data);
     } on Object {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Partage indisponible sans connexion.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Partage indisponible sans connexion.')),
+      );
     }
   }
 
   Future<void> _configureVisibility() async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => MePassportVisibilityScreen(api: widget.api),
-    ));
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MePassportVisibilityScreen(api: widget.api),
+      ),
+    );
     if (!mounted) return;
     setState(() {
       _onlineReady = false;
@@ -780,7 +873,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
 
   void _toggle(Set<String> values, String id, bool enabled) {
     setState(() {
-      if (enabled) { values.add(id); } else { values.remove(id); }
+      if (enabled) {
+        values.add(id);
+      } else {
+        values.remove(id);
+      }
       _onlineReady = false;
       _future = _load();
     });
@@ -790,97 +887,128 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final source = _full ?? data;
     final topics = _rows(source['topic_options']);
     final theme = Theme.of(context);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: [
-          for (final option in const [
-            ('complete', 'Complet'), ('public', 'Public'),
-            ('thematic', 'Thématique'), ('custom', 'Personnalisé'),
-          ])
-            Padding(
-              padding: const EdgeInsets.only(right: 7),
-              child: ChoiceChip(
-                label: Text(option.$2),
-                selected: _variant == option.$1,
-                onSelected: (_) => _select(option.$1),
-              ),
-            ),
-        ]),
-      ),
-      if (_variant == 'thematic') ...[
-        const SizedBox(height: 10),
-        if (topics.isEmpty)
-          const Text('Aucun thème disponible.')
-        else
-          DropdownButtonFormField<String>(
-            initialValue: _topic,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Thème', border: OutlineInputBorder(),
-            ),
-            items: [
-              for (final topic in topics)
-                if (topic['code'] != null)
-                  DropdownMenuItem(
-                    value: topic['code'].toString(),
-                    child: Text(topic['label']?.toString() ?? ''),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final option in const [
+                ('complete', 'Complet'),
+                ('public', 'Public'),
+                ('thematic', 'Thématique'),
+                ('custom', 'Personnalisé'),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(right: 7),
+                  child: ChoiceChip(
+                    label: Text(option.$2),
+                    selected: _variant == option.$1,
+                    onSelected: (_) => _select(option.$1),
                   ),
+                ),
             ],
-            onChanged: (code) => setState(() {
-              _topic = code;
-              _onlineReady = false;
-              _future = _load();
-            }),
           ),
-      ],
-      if (_variant == 'custom') ...[
-        const SizedBox(height: 14),
-        Text('À présenter', style: theme.textTheme.titleMedium),
-        Wrap(spacing: 6, children: [
-          for (final option in const [
-            ('avatar', 'Photo'), ('bio', 'À propos'),
-            ('profession', 'Profession'),
-            ('company_name', 'Entreprise renseignée'),
-            ('organization_name', 'Organisation renseignée'),
-            ('location', 'Localisation'), ('links', 'Liens'),
-            ('interests', 'Intérêts'), ('open_to', 'Ouvert à'),
-          ])
-            FilterChip(
-              label: Text(option.$2),
-              selected: _sections.contains(option.$1),
-              onSelected: (v) => _toggle(_sections, option.$1, v),
+        ),
+        if (_variant == 'thematic') ...[
+          const SizedBox(height: 10),
+          if (topics.isEmpty)
+            const Text('Aucun thème disponible.')
+          else
+            DropdownButtonFormField<String>(
+              initialValue: _topic,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Thème',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final topic in topics)
+                  if (topic['code'] != null)
+                    DropdownMenuItem(
+                      value: topic['code'].toString(),
+                      child: Text(topic['label']?.toString() ?? ''),
+                    ),
+              ],
+              onChanged: (code) => setState(() {
+                _topic = code;
+                _onlineReady = false;
+                _future = _load();
+              }),
             ),
-        ]),
-        _selection('Activités', _rows(source['activities']), _activities,
-            (row) => _text(row['title'])),
-        _selection('Faits établis',
-            _rows(_map(source['established'])['proofs']), _proofs,
-            (row) => _text(row['proof_type_label'])),
-        _selection('Attestations',
-            _rows(_map(source['issued'])['credentials']), _credentials,
-            (row) => _text(row['title'])),
+        ],
+        if (_variant == 'custom') ...[
+          const SizedBox(height: 14),
+          Text('À présenter', style: theme.textTheme.titleMedium),
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final option in const [
+                ('avatar', 'Photo'),
+                ('bio', 'À propos'),
+                ('profession', 'Profession'),
+                ('company_name', 'Entreprise renseignée'),
+                ('organization_name', 'Organisation renseignée'),
+                ('location', 'Localisation'),
+                ('links', 'Liens'),
+                ('interests', 'Intérêts'),
+                ('open_to', 'Ouvert à'),
+              ])
+                FilterChip(
+                  label: Text(option.$2),
+                  selected: _sections.contains(option.$1),
+                  onSelected: (v) => _toggle(_sections, option.$1, v),
+                ),
+            ],
+          ),
+          _selection(
+            'Activités',
+            _rows(source['activities']),
+            _activities,
+            (row) => _text(row['title']),
+          ),
+          _selection(
+            'Faits établis',
+            _rows(_map(source['established'])['proofs']),
+            _proofs,
+            (row) => _text(row['proof_type_label']),
+          ),
+          _selection(
+            'Attestations',
+            _rows(_map(source['issued'])['credentials']),
+            _credentials,
+            (row) => _text(row['title']),
+          ),
+        ],
       ],
-    ]);
+    );
   }
 
-  Widget _selection(String heading, List<Map<String, dynamic>> rows,
-      Set<String> selected, String? Function(Map<String, dynamic>) label) {
+  Widget _selection(
+    String heading,
+    List<Map<String, dynamic>> rows,
+    Set<String> selected,
+    String? Function(Map<String, dynamic>) label,
+  ) {
     if (rows.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const SizedBox(height: 10),
-      Text(heading, style: Theme.of(context).textTheme.labelLarge),
-      for (final row in rows)
-        if (row['id'] != null && label(row) != null)
-          CheckboxListTile(
-            dense: true, contentPadding: EdgeInsets.zero,
-            title: Text(label(row)!),
-            value: selected.contains(row['id'].toString()),
-            onChanged: (enabled) => _toggle(
-              selected, row['id'].toString(), enabled == true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        Text(heading, style: Theme.of(context).textTheme.labelLarge),
+        for (final row in rows)
+          if (row['id'] != null && label(row) != null)
+            CheckboxListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(label(row)!),
+              value: selected.contains(row['id'].toString()),
+              onChanged: (enabled) =>
+                  _toggle(selected, row['id'].toString(), enabled == true),
             ),
-          ),
-    ]);
+      ],
+    );
   }
 
   @override
@@ -916,10 +1044,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
         // FutureBuilder may retain the previous variant while a new request
         // is pending. Never show that data as if it were the new variant.
         final stored = _cachedVariantKey == _passportStorageKey()
-            ? _cachedPassport : null;
+            ? _cachedPassport
+            : null;
         final futureData = snapshot.data;
         final exact = futureData != null && futureData['variant'] == _variant
-            ? futureData : null;
+            ? futureData
+            : null;
         if (stored == null && exact == null) {
           return const SizedBox.expand();
         }
@@ -929,8 +1059,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
           children: [
             _options(data),
             const SizedBox(height: 16),
-            _PassportBody(data: data, baseUri: widget.api.baseUri,
-              cachedAvatar: _cachedAvatar),
+            _PassportBody(
+              data: data,
+              baseUri: widget.api.baseUri,
+              cachedAvatar: _cachedAvatar,
+            ),
             if (widget.onEdit != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
@@ -948,8 +1081,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
 }
 
 class _PassportBody extends StatelessWidget {
-  const _PassportBody({required this.data, required this.baseUri,
-    this.cachedAvatar});
+  const _PassportBody({
+    required this.data,
+    required this.baseUri,
+    this.cachedAvatar,
+  });
   final Map<String, dynamic> data;
   final Uri baseUri;
   final Uint8List? cachedAvatar;
@@ -959,8 +1095,8 @@ class _PassportBody extends StatelessWidget {
       : <String, dynamic>{};
   static String? _text(Object? value) =>
       value is String && value.trim().isNotEmpty ? value.trim() : null;
-  static List<Map<String, dynamic>> _rows(Object? value) => value is List
-      ? value.whereType<Map>().map(_map).toList() : const [];
+  static List<Map<String, dynamic>> _rows(Object? value) =>
+      value is List ? value.whereType<Map>().map(_map).toList() : const [];
 
   @override
   Widget build(BuildContext context) {
@@ -969,8 +1105,10 @@ class _PassportBody extends StatelessWidget {
     final established = _map(data['established']);
     final issued = _map(data['issued']);
     final collectives = _map(data['collectives']);
-    final name = _text(identity['display_name']) ??
-        _text(identity['name']) ?? _text(identity['username']) ??
+    final name =
+        _text(identity['display_name']) ??
+        _text(identity['name']) ??
+        _text(identity['username']) ??
         'Mon passeport';
     final bio = _text(identity['bio']);
     final profession = _text(identity['profession']);
@@ -980,144 +1118,211 @@ class _PassportBody extends StatelessWidget {
     final links = _rows(identity['links']);
     final privateDetails = _map(data['private_details']);
     final avatar = _text(identity['avatar_url']);
-    final avatarUri = avatar == null ? null :
-        (avatar.startsWith('/') && !avatar.startsWith('//')
-            ? baseUri.resolve(avatar)
-            : Uri.tryParse(avatar));
-    final safeAvatar = avatarUri != null &&
+    final avatarUri = avatar == null
+        ? null
+        : (avatar.startsWith('/') && !avatar.startsWith('//')
+              ? baseUri.resolve(avatar)
+              : Uri.tryParse(avatar));
+    final safeAvatar =
+        avatarUri != null &&
         (avatarUri.scheme == 'https' || avatarUri.scheme == 'http') &&
         avatarUri.host == baseUri.host;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [MakoloColors.indigo, MakoloColors.deep],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [MakoloColors.indigo, MakoloColors.deep],
+            ),
+            borderRadius: BorderRadius.circular(MakoloRadii.large),
           ),
-          borderRadius: BorderRadius.circular(MakoloRadii.large),
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            if (cachedAvatar != null && avatar != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(cachedAvatar!, width: 54, height: 54,
-                  fit: BoxFit.cover),
-              )
-            else if (safeAvatar)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(avatarUri.toString(), width: 54, height: 54,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const Icon(
-                    Icons.badge_outlined, color: Colors.white, size: 42),
-                ),
-              )
-            else
-              const Icon(Icons.badge_outlined, color: Colors.white, size: 42),
-            const Spacer(),
-            Text('MAKOLO', style: Theme.of(context).textTheme.labelMedium
-              ?.copyWith(color: Colors.white70, letterSpacing: 2)),
-          ]),
-          const SizedBox(height: 18),
-          Text(name, style: Theme.of(context).textTheme.headlineSmall
-              ?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
-          if (profession != null) Text(profession,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white70)),
-          if (location != null) Text(location,
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: Colors.white70)),
-        ]),
-      ),
-      if (companyName != null || organizationName != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (companyName != null)
-                Text('Entreprise renseignée · $companyName'),
-              if (organizationName != null)
-                Text('Organisation renseignée · $organizationName'),
+              Row(
+                children: [
+                  if (cachedAvatar != null && avatar != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        cachedAvatar!,
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  else if (safeAvatar)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        avatarUri.toString(),
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.badge_outlined,
+                          color: Colors.white,
+                          size: 42,
+                        ),
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.badge_outlined,
+                      color: Colors.white,
+                      size: 42,
+                    ),
+                  const Spacer(),
+                  Text(
+                    'MAKOLO',
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(color: Colors.white70, letterSpacing: 2),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(
+                name,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (profession != null)
+                Text(
+                  profession,
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: Colors.white70),
+                ),
+              if (location != null)
+                Text(
+                  location,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: Colors.white70),
+                ),
             ],
           ),
         ),
-      if (privateDetails.isNotEmpty) _personalDetails(context, privateDetails),
-      if (bio != null) Padding(
-        padding: const EdgeInsets.only(top: 18),
-        child: Text(bio, style: Theme.of(context).textTheme.bodyLarge),
-      ),
-      if (links.isNotEmpty) ...[
-        const SizedBox(height: 18),
-        Text('Liens', style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(fontWeight: FontWeight.w800)),
-        for (final link in links)
-          if (_text(link['label']) != null && _text(link['url']) != null)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: Text(link['label'].toString()),
-              subtitle: SelectableText(link['url'].toString()),
+        if (companyName != null || organizationName != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (companyName != null)
+                  Text('Entreprise renseignée · $companyName'),
+                if (organizationName != null)
+                  Text('Organisation renseignée · $organizationName'),
+              ],
             ),
-      ],
-      _section(context, 'Centres d’intérêt', _rows(declared['interests']),
-          (row) => _text(_map(row['topic'])['label'])),
-      _section(context, 'Ouvert à', _rows(declared['open_to']),
-          (row) => _text(row['label'])),
-      _section(context, 'Activités portées', _rows(data['activities']),
-          (row) {
-            final title = _text(row['title']);
-            final status = _text(row['status_label']);
-            return title == null ? null : [
-              title, if (status != null) status,
-            ].join(' · ');
-          }),
-      _section(context, 'Faits établis', _rows(established['proofs']),
-          (row) {
-            final type = _text(row['proof_type_label']);
-            final activity = _text(_map(row['activity'])['title']);
-            return type == null ? null : [
-              type, if (activity != null) activity,
-            ].join(' · ');
-          }),
-      _section(context, 'Attestations reçues', _rows(issued['credentials']),
-          (row) {
-            final title = _text(row['title']);
-            final issuer = _map(row['issuer']);
-            final issuerName = _text(issuer['name']) ??
-                _text(issuer['display_name']);
-            final status = _text(row['status_label']);
-            return title == null ? null : [
-              title, if (issuerName != null) 'Délivrée par $issuerName',
-              if (status != null) status,
-            ].join(' · ');
-          }),
-      _section(context, 'Équipes et Espaces',
+          ),
+        if (privateDetails.isNotEmpty)
+          _personalDetails(context, privateDetails),
+        if (bio != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 18),
+            child: Text(bio, style: Theme.of(context).textTheme.bodyLarge),
+          ),
+        if (links.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Text(
+            'Liens',
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          for (final link in links)
+            if (_text(link['label']) != null && _text(link['url']) != null)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(link['label'].toString()),
+                subtitle: SelectableText(link['url'].toString()),
+              ),
+        ],
+        _section(
+          context,
+          'Centres d’intérêt',
+          _rows(declared['interests']),
+          (row) => _text(_map(row['topic'])['label']),
+        ),
+        _section(
+          context,
+          'Ouvert à',
+          _rows(declared['open_to']),
+          (row) => _text(row['label']),
+        ),
+        _section(context, 'Activités portées', _rows(data['activities']), (
+          row,
+        ) {
+          final title = _text(row['title']);
+          final status = _text(row['status_label']);
+          return title == null
+              ? null
+              : [title, if (status != null) status].join(' · ');
+        }),
+        _section(context, 'Faits établis', _rows(established['proofs']), (row) {
+          final type = _text(row['proof_type_label']);
+          final activity = _text(_map(row['activity'])['title']);
+          return type == null
+              ? null
+              : [type, if (activity != null) activity].join(' · ');
+        }),
+        _section(context, 'Attestations reçues', _rows(issued['credentials']), (
+          row,
+        ) {
+          final title = _text(row['title']);
+          final issuer = _map(row['issuer']);
+          final issuerName =
+              _text(issuer['name']) ?? _text(issuer['display_name']);
+          final status = _text(row['status_label']);
+          return title == null
+              ? null
+              : [
+                  title,
+                  if (issuerName != null) 'Délivrée par $issuerName',
+                  if (status != null) status,
+                ].join(' · ');
+        }),
+        _section(
+          context,
+          'Équipes et Espaces',
           _rows(collectives['team_affiliations']),
           (row) {
             final team = _text(row['team']);
             final space = _text(row['space']);
-            return team == null ? null : [
-              team, if (space != null) space,
-            ].join(' · ');
-          }),
-      _section(context, 'Mes groupes',
+            return team == null
+                ? null
+                : [team, if (space != null) space].join(' · ');
+          },
+        ),
+        _section(
+          context,
+          'Mes groupes',
           _rows(collectives['group_affiliations']),
-          (row) => _text(row['name'])),
-      _section(context, 'Espaces accessibles',
+          (row) => _text(row['name']),
+        ),
+        _section(
+          context,
+          'Espaces accessibles',
           _rows(collectives['authorized_space_affiliations']),
-          (row) => _text(row['name'])),
-      _section(context, 'Mandats actifs',
+          (row) => _text(row['name']),
+        ),
+        _section(
+          context,
+          'Mandats actifs',
           _rows(collectives['active_space_mandates']),
           (row) {
             final role = _text(row['role']);
             final space = _text(row['space']);
-            return role == null ? null : [
-              role, if (space != null) space,
-            ].join(' · ');
-          }),
-    ]);
+            return role == null
+                ? null
+                : [role, if (space != null) space].join(' · ');
+          },
+        ),
+      ],
+    );
   }
 
   Widget _personalDetails(BuildContext context, Map<String, dynamic> details) {
@@ -1141,111 +1346,166 @@ class _PassportBody extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: 24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(Icons.person_outline_rounded, color: colors.primary, size: 21),
-          const SizedBox(width: 9),
-          Text('Informations personnelles', style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w800)),
-        ]),
-        const SizedBox(height: 4),
-        Text('Visible uniquement dans mon passeport complet',
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: colors.onSurfaceVariant)),
-        const SizedBox(height: 12),
-        for (final field in visible)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              SizedBox(width: 126, child: Text(field.$2,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: colors.onSurfaceVariant))),
-              const SizedBox(width: 8),
-              Expanded(child: SelectableText(details[field.$1].toString(),
-                style: Theme.of(context).textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600))),
-            ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.person_outline_rounded,
+                color: colors.primary,
+                size: 21,
+              ),
+              const SizedBox(width: 9),
+              Text(
+                'Informations personnelles',
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ],
           ),
-      ]),
+          const SizedBox(height: 4),
+          Text(
+            'Visible uniquement dans mon passeport complet',
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          for (final field in visible)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 126,
+                    child: Text(
+                      field.$2,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SelectableText(
+                      details[field.$1].toString(),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _section(BuildContext context, String title,
-      List<Map<String, dynamic>> rows,
-      String? Function(Map<String, dynamic>) label) {
+  Widget _section(
+    BuildContext context,
+    String title,
+    List<Map<String, dynamic>> rows,
+    String? Function(Map<String, dynamic>) label,
+  ) {
     final titles = rows.map(label).whereType<String>().toSet().toList();
     if (titles.isEmpty) return const SizedBox.shrink();
     final colors = Theme.of(context).colorScheme;
     final isInterest = title == 'Centres d’intérêt';
     final isOpening = title == 'Ouvert à';
     final isDeclared = isInterest || isOpening;
-    final icon = isInterest ? Icons.interests_outlined
-        : isOpening ? Icons.handshake_outlined
-        : title == 'Activités portées' ? Icons.event_available_outlined
-        : title == 'Faits établis' ? Icons.verified_outlined
+    final icon = isInterest
+        ? Icons.interests_outlined
+        : isOpening
+        ? Icons.handshake_outlined
+        : title == 'Activités portées'
+        ? Icons.event_available_outlined
+        : title == 'Faits établis'
+        ? Icons.verified_outlined
         : Icons.workspace_premium_outlined;
     return Padding(
       padding: const EdgeInsets.only(top: 28),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(icon, size: 21, color: colors.primary),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w800)),
-          ),
-          Text('${titles.length}', style: Theme.of(context).textTheme.labelLarge
-              ?.copyWith(color: colors.onSurfaceVariant)),
-        ]),
-        const SizedBox(height: 12),
-        if (isDeclared)
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              for (final value in titles)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13, vertical: 9),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(100),
-                    color: colors.primary.withValues(alpha: 0.07),
-                    border: Border.all(
-                      color: colors.primary.withValues(alpha: 0.15)),
-                  ),
-                  child: Text(value,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600)),
+              Icon(icon, size: 21, color: colors.primary),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
+              ),
+              Text(
+                '${titles.length}',
+                style: Theme.of(context).textTheme.labelLarge
+                    ?.copyWith(color: colors.onSurfaceVariant),
+              ),
             ],
-          )
-        else
-          Column(
-            children: [
-              for (var index = 0; index < titles.length; index++) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: colors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(icon, size: 18, color: colors.primary),
+          ),
+          const SizedBox(height: 12),
+          if (isDeclared)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final value in titles)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 9,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(titles[index],
-                      style: Theme.of(context).textTheme.bodyLarge)),
-                  ]),
-                ),
-                if (index != titles.length - 1)
-                  Divider(height: 1, color: colors.outlineVariant),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(100),
+                      color: colors.primary.withValues(alpha: 0.07),
+                      border: Border.all(
+                        color: colors.primary.withValues(alpha: 0.15),
+                      ),
+                    ),
+                    child: Text(
+                      value,
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
               ],
-            ],
-          ),
-      ]),
+            )
+          else
+            Column(
+              children: [
+                for (var index = 0; index < titles.length; index++) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: colors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(icon, size: 18, color: colors.primary),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            titles[index],
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (index != titles.length - 1)
+                    Divider(height: 1, color: colors.outlineVariant),
+                ],
+              ],
+            ),
+        ],
+      ),
     );
   }
-
 }

@@ -9,8 +9,11 @@ import 'me_local_preview.dart';
 /// Full owner-backed saved collection; the Moi root presents only three rows.
 class MeSavedScreen extends StatefulWidget {
   const MeSavedScreen({
-    super.key, required this.api, required this.personal,
-    required this.onOpen, required this.onDiscover,
+    super.key,
+    required this.api,
+    required this.personal,
+    required this.onOpen,
+    required this.onDiscover,
   });
   final MakoloApiClient api;
   final PersonalRepository personal;
@@ -41,22 +44,30 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   Future<void> _bootstrap() async {
     try {
       final saved = await widget.personal.store.readProjection(
-        _savedProjectionKind, resourceKey: _savedResourceKey,
+        _savedProjectionKind,
+        resourceKey: _savedResourceKey,
       );
       final payload = saved?.payload;
       final actor = payload?['actor'];
       final items = payload?['items'];
-      if (mounted && actor is Map && actor['type'] == 'profile' &&
+      if (mounted &&
+          actor is Map &&
+          actor['type'] == 'profile' &&
           actor['id']?.toString() == widget.personal.store.profileId &&
-          items is List && payload?['next_offset'] is int &&
+          items is List &&
+          payload?['next_offset'] is int &&
           payload?['has_more'] is bool) {
-        final known = items.whereType<Map>()
-            .map((row) => row.map(
-                (key, value) => MapEntry(key.toString(), value)))
+        final known = items
+            .whereType<Map>()
+            .map(
+              (row) => row.map((key, value) => MapEntry(key.toString(), value)),
+            )
             .where((row) => row['id'] != null && row['activity'] is Map)
             .toList();
         setState(() {
-          _rows..clear()..addAll(known);
+          _rows
+            ..clear()
+            ..addAll(known);
           _offset = payload!['next_offset'] as int;
           _hasMore = payload['has_more'] as bool;
           _hasKnownCollection = true;
@@ -72,9 +83,12 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
 
   Future<void> _restoreRootPreview() async {
     try {
-      final snapshot = await widget.personal.store.readProjection('personal.me');
+      final snapshot = await widget.personal.store.readProjection(
+        'personal.me',
+      );
       final local = MeLocalPreview.forProfile(
-        snapshot, widget.personal.store.profileId,
+        snapshot,
+        widget.personal.store.profileId,
       );
       final bookmarks = local?.collection('considerations', 'bookmarks');
       if (mounted && bookmarks != null) {
@@ -118,32 +132,43 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
 
   Future<void> _next({bool reset = false}) async {
     if (_loading || (!reset && !_hasMore) || (!reset && _failed)) return;
-    setState(() { _loading = true; _failed = false; });
+    setState(() {
+      _loading = true;
+      _failed = false;
+    });
     final offset = reset ? 0 : _offset;
     try {
       final uri = Uri(
         path: 'api/v1/me/preview/considerations/',
-        queryParameters: {'family': 'bookmarks', 'offset': '$offset', 'limit': '24'},
+        queryParameters: {
+          'family': 'bookmarks',
+          'offset': '$offset',
+          'limit': '24',
+        },
       );
       final response = await widget.api.get(uri.toString());
       final data = ProjectionEnvelope.parse(
-        response.jsonObject(), expectedProjection: 'personal.me.preview',
+        response.jsonObject(),
+        expectedProjection: 'personal.me.preview',
       ).data;
       final part = data['collection'];
       final actor = data['actor'];
       if (actor is! Map ||
           actor['type'] != 'profile' ||
           actor['id']?.toString() != widget.personal.store.profileId ||
-          data['family'] != 'bookmarks' || data['offset'] != offset ||
-          part is! Map || part['items'] is! List ||
-          part['has_more'] is! bool || part['next_offset'] is! int ||
+          data['family'] != 'bookmarks' ||
+          data['offset'] != offset ||
+          part is! Map ||
+          part['items'] is! List ||
+          part['has_more'] is! bool ||
+          part['next_offset'] is! int ||
           part['next_offset'] < offset ||
           (part['has_more'] == true && (part['items'] as List).isEmpty)) {
         throw const FormatException('Invalid saved collection');
       }
       if (!mounted) return;
       final known = <String>{
-        for (final row in reset ? <Map<String,dynamic>>[] : _rows)
+        for (final row in reset ? <Map<String, dynamic>>[] : _rows)
           if (row['id'] != null) row['id'].toString(),
       };
       final nextRows = <Map<String, dynamic>>[];
@@ -170,7 +195,11 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
         if (mounted) _checkEnd();
       });
     } on Object {
-      if (mounted) setState(() { _loading = false; _failed = true; });
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
     }
   }
 
@@ -185,9 +214,11 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       // The server confirmed removal. Preserve other known rows if refresh
       // fails; do not replace the entire offline collection with an error.
       setState(() {
-        _rows.removeWhere((row) =>
-            row['activity'] is Map &&
-            (row['activity'] as Map)['id']?.toString() == activityId);
+        _rows.removeWhere(
+          (row) =>
+              row['activity'] is Map &&
+              (row['activity'] as Map)['id']?.toString() == activityId,
+        );
         _offset = 0;
         _hasMore = true;
         _failed = false;
@@ -209,14 +240,17 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
       try {
         final root = await widget.api.get('api/v1/me/');
         final envelope = ProjectionEnvelope.parse(
-          root.jsonObject(), expectedProjection: 'personal.me',
+          root.jsonObject(),
+          expectedProjection: 'personal.me',
         );
         if (envelope.data['actor'] is Map &&
             (envelope.data['actor'] as Map)['id']?.toString() ==
                 widget.personal.store.profileId) {
           await widget.personal.store.putProjection(
-            kind: 'personal.me', schemaVersion: envelope.schemaVersion,
-            payload: envelope.data, receivedAt: DateTime.now().toUtc(),
+            kind: 'personal.me',
+            schemaVersion: envelope.schemaVersion,
+            payload: envelope.data,
+            receivedAt: DateTime.now().toUtc(),
             sourceGeneratedAt: envelope.generatedAt,
           );
         }
@@ -234,7 +268,10 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
   }
 
   @override
-  void dispose() { _scroll.dispose(); super.dispose(); }
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -259,30 +296,40 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                 (row['activity'] as Map)['id'] != null)
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: DiscoveryOrbitIcon(saved: true,
-                  color: Theme.of(context).colorScheme.primary),
-                title: Text((row['activity'] as Map)['title']?.toString() ?? ''),
+                leading: DiscoveryOrbitIcon(
+                  saved: true,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text(
+                  (row['activity'] as Map)['title']?.toString() ?? '',
+                ),
                 trailing: IconButton(
                   tooltip: 'Retirer des enregistrements',
-                  onPressed: _removing == (row['activity'] as Map)['id'].toString()
-                      ? null : () => _remove((row['activity'] as Map)['id'].toString()),
-                  icon: DiscoveryOrbitIcon(saved: false,
-                    color: Theme.of(context).colorScheme.primary),
+                  onPressed:
+                      _removing == (row['activity'] as Map)['id'].toString()
+                      ? null
+                      : () =>
+                            _remove((row['activity'] as Map)['id'].toString()),
+                  icon: DiscoveryOrbitIcon(
+                    saved: false,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
-                onTap: () => widget.onOpen(
-                  (row['activity'] as Map)['id'].toString(),
-                ),
+                onTap: () =>
+                    widget.onOpen((row['activity'] as Map)['id'].toString()),
               ),
           if (!_loading && !_failed && !_hasMore)
-            Center(child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Text(
-                _rows.isEmpty && _hasKnownCollection
-                    ? 'Aucun enregistrement pour le moment.'
-                    : 'Vous avez tout exploré',
-                style: Theme.of(context).textTheme.bodySmall,
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  _rows.isEmpty && _hasKnownCollection
+                      ? 'Aucun enregistrement pour le moment.'
+                      : 'Vous avez tout exploré',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
-            )),
+            ),
         ],
       ),
     ),

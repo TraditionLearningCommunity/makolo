@@ -124,50 +124,63 @@ void main() {
     );
   });
 
-  testWidgets('N1 preserves established transport availability and place roles', (
-    tester,
-  ) async {
-    final transport = DiscoveryItemPresentation(
-      family: 'activity',
-      id: 'transport-facts',
-      candidateKey: 'activity:transport-facts',
-      title: 'Déplacement vers Kolwezi',
-      summary: 'Trajet confirmé.',
-      owner: 'Transport Makolo',
-      availability: 'Indisponible',
-      savedState: 'unknown',
-      capabilities: const {'view'},
-      links: const {},
-      wire: const {
-        'availability': {'state': 'sold_out'},
-        'spatial_facts': [
-          {'role': 'departure', 'place': {'name': 'Lubumbashi'}},
-          {'role': 'stopover', 'place': {'name': 'Likasi'}},
-          {'role': 'stopover', 'place': {'name': 'Fungurume'}},
-          {'role': 'arrival', 'place': {'name': 'Kolwezi'}},
-        ],
-      },
-    );
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: DiscoveryExplorationView(
-        selection: selection(items: [transport]),
-        onOpen: (_) {},
-      ),
-    );
-    expect(find.text('Informations pratiques'), findsOneWidget);
-    expect(find.text('Indisponible'), findsOneWidget);
-    expect(find.text('Départ'), findsOneWidget);
-    expect(find.text('Lubumbashi'), findsOneWidget);
-    expect(find.text('Escale 1'), findsOneWidget);
-    expect(find.text('Likasi'), findsOneWidget);
-    expect(find.text('Escale 2'), findsOneWidget);
-    expect(find.text('Fungurume'), findsOneWidget);
-    expect(find.text('Arrivée'), findsOneWidget);
-    expect(find.text('Kolwezi'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'N1 preserves established transport availability and place roles',
+    (tester) async {
+      final transport = DiscoveryItemPresentation(
+        family: 'activity',
+        id: 'transport-facts',
+        candidateKey: 'activity:transport-facts',
+        title: 'Déplacement vers Kolwezi',
+        summary: 'Trajet confirmé.',
+        owner: 'Transport Makolo',
+        availability: 'Indisponible',
+        savedState: 'unknown',
+        capabilities: const {'view'},
+        links: const {},
+        wire: const {
+          'availability': {'state': 'sold_out'},
+          'spatial_facts': [
+            {
+              'role': 'departure',
+              'place': {'name': 'Lubumbashi'},
+            },
+            {
+              'role': 'stopover',
+              'place': {'name': 'Likasi'},
+            },
+            {
+              'role': 'stopover',
+              'place': {'name': 'Fungurume'},
+            },
+            {
+              'role': 'arrival',
+              'place': {'name': 'Kolwezi'},
+            },
+          ],
+        },
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: DiscoveryExplorationView(
+          selection: selection(items: [transport]),
+          onOpen: (_) {},
+        ),
+      );
+      expect(find.text('Informations pratiques'), findsOneWidget);
+      expect(find.text('Indisponible'), findsOneWidget);
+      expect(find.text('Départ'), findsOneWidget);
+      expect(find.text('Lubumbashi'), findsOneWidget);
+      expect(find.text('Escale 1'), findsOneWidget);
+      expect(find.text('Likasi'), findsOneWidget);
+      expect(find.text('Escale 2'), findsOneWidget);
+      expect(find.text('Fungurume'), findsOneWidget);
+      expect(find.text('Arrivée'), findsOneWidget);
+      expect(find.text('Kolwezi'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('N1 shows owner limitations and multiple variants as context', (
     tester,
@@ -187,8 +200,12 @@ void main() {
           {'state': 'unknown', 'label': 'Disponibilité à confirmer'},
         ],
         'variants': [
-          {'occurrence': {'id': 'first'}},
-          {'occurrence': {'id': 'second'}},
+          {
+            'occurrence': {'id': 'first'},
+          },
+          {
+            'occurrence': {'id': 'second'},
+          },
         ],
       },
     );
@@ -1490,7 +1507,9 @@ void main() {
       const ValueKey('discover-map-action-activity:media'),
     );
     await tester.scrollUntilVisible(
-      mapAction, 160, scrollable: find.byType(Scrollable).first,
+      mapAction,
+      160,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.tap(mapAction);
@@ -1599,10 +1618,7 @@ void main() {
       ),
     );
 
-    expect(
-      find.text('Aucun résultat pour ces critères.'),
-      findsOneWidget,
-    );
+    expect(find.text('Aucun résultat pour ces critères.'), findsOneWidget);
     expect(find.text('Modifier mes critères'), findsOneWidget);
     expect(find.textContaining('hors connexion'), findsNothing);
   });
@@ -1623,14 +1639,8 @@ void main() {
       ),
     );
 
-    expect(
-      find.text('Connexion indisponible.'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Aucun résultat pour ces critères.'),
-      findsNothing,
-    );
+    expect(find.text('Connexion indisponible.'), findsOneWidget);
+    expect(find.text('Aucun résultat pour ces critères.'), findsNothing);
   });
 
   testWidgets('server unavailable names Makolo instead of blaming Internet', (
@@ -1649,12 +1659,7 @@ void main() {
       ),
     );
 
-    expect(
-      find.text(
-        'Service momentanément indisponible.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Service momentanément indisponible.'), findsOneWidget);
     expect(find.textContaining('Hors connexion'), findsNothing);
   });
 
@@ -1760,9 +1765,7 @@ void main() {
       tester,
       viewport: const Size(360, 800),
       child: DiscoveryExplorationView(
-        selection: selection(
-          states: const {DiscoveryFieldState.endOfField},
-        ),
+        selection: selection(states: const {DiscoveryFieldState.endOfField}),
         onOpen: (_) {},
         onPage: requested.add,
         autoLoadMore: true,

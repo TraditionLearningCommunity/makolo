@@ -10,6 +10,7 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'dio_testing.dart';
 
 import 'fakes.dart';
+
 import 'package:makolo_mobile/features/settings/billing_screen.dart';
 
 void main() {
@@ -34,8 +35,9 @@ void main() {
     expect(find.textContaining('prix'), findsNothing);
   });
 
-  testWidgets('renders a server-backed plan and a real billing obligation',
-      (tester) async {
+  testWidgets('renders a server-backed plan and a real billing obligation', (
+    tester,
+  ) async {
     final tokens = MemoryTokenStore(
       session: const AuthSession(
         profileId: 'profile-a',
@@ -48,30 +50,33 @@ void main() {
       tokenStore: tokens,
       dio: MockClient((request) async {
         expect(request.url.path, '/api/v1/subscriptions/me/');
-        return MockResponse(jsonEncode({
-          'subscription': {
-            'status': {
-              'label': 'Actif',
-              'explanation': 'Votre abonnement est opérationnel.',
-            },
-            'current_base': {
-              'name': 'Makolo Pro',
-              'description': 'Formule personnelle',
-            },
-            'active_addons': [],
-          },
-          'billing': {
-            'items': [
-              {
-                'label': 'Cotisation octobre',
-                'amount': '12.00',
-                'currency': 'USD',
-                'status': 'due',
+        return MockResponse(
+          jsonEncode({
+            'subscription': {
+              'status': {
+                'label': 'Actif',
+                'explanation': 'Votre abonnement est opérationnel.',
               },
-            ],
-            'next_offset': null,
-          },
-        }), 200);
+              'current_base': {
+                'name': 'Makolo Pro',
+                'description': 'Formule personnelle',
+              },
+              'active_addons': [],
+            },
+            'billing': {
+              'items': [
+                {
+                  'label': 'Cotisation octobre',
+                  'amount': '12.00',
+                  'currency': 'USD',
+                  'status': 'due',
+                },
+              ],
+              'next_offset': null,
+            },
+          }),
+          200,
+        );
       }).dio,
     );
     final runtime = AppRuntime(

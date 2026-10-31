@@ -593,7 +593,8 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
       return;
     }
     final title = (resource['title'] ?? 'Ressource').toString();
-    final text = resource['kind'] == 'text' && resource['text_content'] is String
+    final text =
+        resource['kind'] == 'text' && resource['text_content'] is String
         ? (resource['text_content'] as String).trim()
         : '';
     // A published text has a canonical read URL whenever the server supplies
@@ -621,7 +622,8 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
               inlineText: uri == null && text.isNotEmpty ? text : null,
               mimeType: resource['kind'] == 'text'
                   ? 'text/plain'
-                  : (resource['mime_type']?.toString().trim().isNotEmpty ?? false)
+                  : (resource['mime_type']?.toString().trim().isNotEmpty ??
+                        false)
                   ? resource['mime_type'].toString()
                   : 'application/octet-stream',
             ),
@@ -633,7 +635,9 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
 
   void _openFailure() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cette ressource ne peut pas être ouverte.')),
+      const SnackBar(
+        content: Text('Cette ressource ne peut pas être ouverte.'),
+      ),
     );
   }
 
@@ -666,7 +670,9 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
     final muted = theme.colorScheme.onSurfaceVariant;
     final shown = widget.compact && !_showAll ? entries.take(2) : entries;
     return Padding(
-      key: Key(widget.compact ? 'ongoing-n1-resources' : 'ongoing-n2-resources'),
+      key: Key(
+        widget.compact ? 'ongoing-n1-resources' : 'ongoing-n2-resources',
+      ),
       padding: EdgeInsets.fromLTRB(
         widget.compact ? 14 : 0,
         MakoloSpacing.sm,
@@ -682,7 +688,9 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
             Padding(
               padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
               child: InkWell(
-                key: ValueKey('ongoing-resource-${resource['id'] ?? resource['title']}'),
+                key: ValueKey(
+                  'ongoing-resource-${resource['id'] ?? resource['title']}',
+                ),
                 onTap: _canOpen(resource) ? () => _open(resource) : null,
                 borderRadius: BorderRadius.circular(MakoloRadii.small),
                 child: ConstrainedBox(
@@ -707,19 +715,27 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
                               ),
                             ),
                             if (resource['description'] is String &&
-                                (resource['description'] as String).trim().isNotEmpty)
+                                (resource['description'] as String)
+                                    .trim()
+                                    .isNotEmpty)
                               Text(
                                 resource['description'] as String,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: muted,
+                                ),
                               ),
                           ],
                         ),
                       ),
                       if (_canOpen(resource)) ...[
                         const SizedBox(width: MakoloSpacing.xs),
-                        Icon(Icons.chevron_right_rounded, size: 18, color: muted),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: muted,
+                        ),
                       ],
                     ],
                   ),
@@ -729,9 +745,11 @@ class _OngoingResourceListState extends State<_OngoingResourceList> {
           if (widget.compact && entries.length > 2)
             TextButton(
               onPressed: () => setState(() => _showAll = !_showAll),
-              child: Text(_showAll
-                  ? 'Voir moins de ressources'
-                  : 'Voir les ${entries.length} ressources'),
+              child: Text(
+                _showAll
+                    ? 'Voir moins de ressources'
+                    : 'Voir les ${entries.length} ressources',
+              ),
             ),
         ],
       ),
@@ -824,8 +842,7 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
           )
         : null;
     final saved = _confirmedSaved ?? (possibility?.savedState == 'saved');
-    final canSave =
-        possibility?.canSave == true && widget.onSave != null;
+    final canSave = possibility?.canSave == true && widget.onSave != null;
 
     // A calm continuity needs no empty toolbar when no operation exists.
     if (!canSave && !canShare && route == null) {
@@ -1060,9 +1077,7 @@ class _OngoingProtectedImage extends StatelessWidget {
     profileId: profileId,
     path: Uri.parse(imageUrl).path,
     alt: label,
-    placeholder: const Center(
-      child: Icon(Icons.image_not_supported_outlined),
-    ),
+    placeholder: const Center(child: Icon(Icons.image_not_supported_outlined)),
   );
 }
 
@@ -1089,9 +1104,8 @@ void _openOngoingProtectedMedia(
               final path = Uri.parse(imageUrl).path;
               final retained = profileId == null
                   ? null
-                  : await ProfileRecognitionImageStore(
-                      profileId: profileId,
-                    ).read(path);
+                  : await ProfileRecognitionImageStore(profileId: profileId)
+                        .read(path);
               return retained ?? api.getPresentationImage(path);
             },
           ),
@@ -1141,14 +1155,18 @@ class _OngoingRow extends StatelessWidget {
     final summary = _ongoingSummary(item.title, item.synthesis);
     final supporting = _supportingLine();
     final imageUrl = ongoingRecognitionImageUrl(item.mediaUrl, baseUri);
-    final imageMime = item.mediaBindings
-        .where((binding) =>
-            binding['purpose'] == 'RECOGNIZE' &&
-            binding['resource'] is Map &&
-            (binding['resource'] as Map)['url'] == item.mediaUrl)
-        .map((binding) => (binding['resource'] as Map)['mime_type'])
-        .whereType<String>()
-        .firstOrNull ?? 'image/png';
+    final imageMime =
+        item.mediaBindings
+            .where(
+              (binding) =>
+                  binding['purpose'] == 'RECOGNIZE' &&
+                  binding['resource'] is Map &&
+                  (binding['resource'] as Map)['url'] == item.mediaUrl,
+            )
+            .map((binding) => (binding['resource'] as Map)['mime_type'])
+            .whereType<String>()
+            .firstOrNull ??
+        'image/png';
     final whenLabel = MakoloHumanization.humanizeOwnerWhenLabel(
       item.whenLabel,
       now: DateTime.now(),
@@ -1533,8 +1551,11 @@ class _OngoingFocus extends StatelessWidget {
       if (mime != 'image/jpeg' && mime != 'image/png') continue;
       final url = ongoingRecognitionImageUrl(raw['url']?.toString(), baseUri);
       if (url == null || !seen.add(url)) continue;
-      available.add((url, raw['alt_text']?.toString() ?? item.title,
-          mime.toString()));
+      available.add((
+        url,
+        raw['alt_text']?.toString() ?? item.title,
+        mime.toString(),
+      ));
     }
     if (available.isEmpty || api == null) return const SizedBox.shrink();
     return Padding(
@@ -1576,11 +1597,8 @@ class _OngoingFocus extends StatelessWidget {
     );
   }
 
-  Widget _resources() => _OngoingResourceList(
-    item: item,
-    baseUri: baseUri,
-    compact: false,
-  );
+  Widget _resources() =>
+      _OngoingResourceList(item: item, baseUri: baseUri, compact: false);
 
   @override
   Widget build(BuildContext context) {

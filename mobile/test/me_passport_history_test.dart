@@ -12,15 +12,19 @@ class _DatedPassportApi implements MakoloApiClient {
   Uri get baseUri => Uri.parse('https://example.test/');
 
   ApiResponse _envelope(String projection, Map<String, dynamic> data) =>
-      ApiResponse(200, jsonEncode({
-        'meta': {
-          'projection': projection,
-          'schema_version': 1,
-          'scope': 'personal',
-          'generated_at': '2026-10-30T12:00:00Z',
-        },
-        'data': data,
-      }), const {});
+      ApiResponse(
+        200,
+        jsonEncode({
+          'meta': {
+            'projection': projection,
+            'schema_version': 1,
+            'scope': 'personal',
+            'generated_at': '2026-10-30T12:00:00Z',
+          },
+          'data': data,
+        }),
+        const {},
+      );
 
   @override
   Future<ApiResponse> get(
@@ -57,14 +61,16 @@ class _DatedPassportApi implements MakoloApiClient {
         'count': 1,
         'has_more': false,
         'next_offset': 1,
-        'items': [{
-          'id': _versionId,
-          'document_id': 'PM-P-20261030-11111111',
-          'variant': 'complete',
-          'generated_at': '2026-10-30T10:00:00Z',
-          'revoked': false,
-          'integrity_ok': true,
-        }],
+        'items': [
+          {
+            'id': _versionId,
+            'document_id': 'PM-P-20261030-11111111',
+            'variant': 'complete',
+            'generated_at': '2026-10-30T10:00:00Z',
+            'revoked': false,
+            'integrity_ok': true,
+          },
+        ],
       });
     }
     return _envelope('personal.me.passport', {
@@ -87,20 +93,24 @@ class _DatedPassportApi implements MakoloApiClient {
 }
 
 void main() {
-  testWidgets('dated Passport opens the issued content instead of live content', (
-    tester,
-  ) async {
-    await tester.pumpWidget(MaterialApp(
-      home: MePassportScreen(api: _DatedPassportApi()),
-    ));
-    await tester.pumpAndSettle();
-    expect(find.text('Présentation actuellement mise à jour.'), findsOneWidget);
-    await tester.tap(find.byTooltip('Versions datées'));
-    await tester.pumpAndSettle();
-    expect(find.text('PM-P-20261030-11111111'), findsOneWidget);
-    await tester.tap(find.text('PM-P-20261030-11111111'));
-    await tester.pumpAndSettle();
-    expect(find.text('Présentation telle qu’émise.'), findsOneWidget);
-    expect(find.text('Recherche'), findsOneWidget);
-  });
+  testWidgets(
+    'dated Passport opens the issued content instead of live content',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: MePassportScreen(api: _DatedPassportApi())),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Présentation actuellement mise à jour.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('Versions datées'));
+      await tester.pumpAndSettle();
+      expect(find.text('PM-P-20261030-11111111'), findsOneWidget);
+      await tester.tap(find.text('PM-P-20261030-11111111'));
+      await tester.pumpAndSettle();
+      expect(find.text('Présentation telle qu’émise.'), findsOneWidget);
+      expect(find.text('Recherche'), findsOneWidget);
+    },
+  );
 }

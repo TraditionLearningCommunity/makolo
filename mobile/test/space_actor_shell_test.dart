@@ -404,36 +404,34 @@ void main() {
     await tester.tap(find.text('Space X'));
     await tester.pumpAndSettle();
     expect(harness.actorContext.value, const PersonalActorContext());
-    expect(
-      find.textContaining('Une connexion est nécessaire'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Une connexion est nécessaire'), findsOneWidget);
     await _disposeUi(tester);
   });
 
-  testWidgets('validated actor transition switches the shell from personal to Space', (
-    tester,
-  ) async {
-    final harness = await _harness();
-    addTearDown(harness.close);
-    await _pump(tester, harness);
+  testWidgets(
+    'validated actor transition switches the shell from personal to Space',
+    (tester) async {
+      final harness = await _harness();
+      addTearDown(harness.close);
+      await _pump(tester, harness);
 
-    expect(find.text('En cours'), findsOneWidget);
-    expect(find.text('Moi'), findsOneWidget);
-    expect(find.text('Métier'), findsNothing);
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.text('Moi'), findsOneWidget);
+      expect(find.text('Métier'), findsNothing);
 
-    await _switchShellActor(tester, harness, 'Space X');
+      await _switchShellActor(tester, harness, 'Space X');
 
-    expect(harness.actorContext.value, isA<SpaceActorContext>());
-    expect(find.text('Space Now'), findsOneWidget);
-    expect(find.text('Métier'), findsOneWidget);
-    expect(find.text('Nous'), findsOneWidget);
-    expect(find.text('En cours'), findsNothing);
-    expect(find.text('Space X'), findsOneWidget);
-    expect(find.text('Toutes mes responsabilités'), findsOneWidget);
-    await _disposeUi(tester);
-    await harness.close();
-  });
+      expect(harness.actorContext.value, isA<SpaceActorContext>());
+      expect(find.text('Space Now'), findsOneWidget);
+      expect(find.text('Métier'), findsOneWidget);
+      expect(find.text('Nous'), findsOneWidget);
+      expect(find.text('En cours'), findsNothing);
+      expect(find.text('Space X'), findsOneWidget);
+      expect(find.text('Toutes mes responsabilités'), findsOneWidget);
+      await _disposeUi(tester);
+      await harness.close();
+    },
+  );
 
   testWidgets('actor switch preserves the semantic door and branch state', (
     tester,

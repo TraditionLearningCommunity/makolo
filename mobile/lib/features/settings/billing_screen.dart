@@ -34,7 +34,8 @@ class _BillingScreenState extends State<BillingScreen> {
   void didUpdateWidget(covariant BillingScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.runtime != widget.runtime ||
-        oldWidget.runtime.session?.profileId != widget.runtime.session?.profileId) {
+        oldWidget.runtime.session?.profileId !=
+            widget.runtime.session?.profileId) {
       _requestRevision++;
       _data = null;
       _error = null;
@@ -46,41 +47,52 @@ class _BillingScreenState extends State<BillingScreen> {
   Future<void> _load() async {
     final api = widget.runtime.api;
     final requestRevision = ++_requestRevision;
-    bool isCurrent() => mounted &&
+    bool isCurrent() =>
+        mounted &&
         requestRevision == _requestRevision &&
         identical(widget.runtime.api, api);
     if (api == null) {
       if (isCurrent()) {
         setState(() {
           _loading = false;
-          _error = 'La consultation de votre abonnement nécessite une connexion.';
+          _error =
+              'La consultation de votre abonnement nécessite une connexion.';
         });
       }
       return;
     }
-    if (isCurrent()) setState(() { _loading = true; _error = null; });
+    if (isCurrent())
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
     try {
       final response = await api.get('api/v1/subscriptions/me/');
       if (isCurrent()) setState(() => _data = response.jsonObject());
     } on Object {
       if (isCurrent()) {
-        setState(() => _error = 'Impossible de vérifier votre abonnement. '
-            'Les dernières informations affichées peuvent avoir changé.');
+        setState(
+          () => _error =
+              'Impossible de vérifier votre abonnement. '
+              'Les dernières informations affichées peuvent avoir changé.',
+        );
       }
     } finally {
       if (isCurrent()) setState(() => _loading = false);
     }
   }
 
-  Map<String, dynamic>? _object(Object? value) =>
-      value is Map ? value.map((key, item) => MapEntry(key.toString(), item)) : null;
+  Map<String, dynamic>? _object(Object? value) => value is Map
+      ? value.map((key, item) => MapEntry(key.toString(), item))
+      : null;
 
   String _text(Object? value, {String fallback = 'Non renseigné'}) =>
       value is String && value.trim().isNotEmpty ? value.trim() : fallback;
 
   Widget _heading(String title) => Padding(
     padding: const EdgeInsets.only(
-      top: MakoloSpacing.lg, bottom: MakoloSpacing.sm,
+      top: MakoloSpacing.lg,
+      bottom: MakoloSpacing.sm,
     ),
     child: Text(title, style: Theme.of(context).textTheme.titleMedium),
   );
@@ -101,15 +113,21 @@ class _BillingScreenState extends State<BillingScreen> {
                   children: [
                     const Icon(Icons.check_circle_outline, size: 18),
                     const SizedBox(width: 8),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_text(item['title'], fallback: 'Avantage inclus')),
-                        if (item['description'] case final description?)
-                          Text(description.toString(),
-                            style: Theme.of(context).textTheme.bodySmall),
-                      ],
-                    )),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _text(item['title'], fallback: 'Avantage inclus'),
+                          ),
+                          if (item['description'] case final description?)
+                            Text(
+                              description.toString(),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -122,7 +140,8 @@ class _BillingScreenState extends State<BillingScreen> {
     final value = num.tryParse(row['value']?.toString() ?? '');
     final used = num.tryParse(row['usage']?.toString() ?? '');
     final limitProgress = value != null && value > 0 && used != null
-        ? (used / value).clamp(0.0, 1.0).toDouble() : null;
+        ? (used / value).clamp(0.0, 1.0).toDouble()
+        : null;
     final allowed = row['allowed'] == true;
     final overLimit = row['over_limit'] == true;
     return Card(
@@ -134,15 +153,24 @@ class _BillingScreenState extends State<BillingScreen> {
           children: [
             Row(
               children: [
-                Expanded(child: Text(_text(row['name']),
-                  style: Theme.of(context).textTheme.titleSmall)),
+                Expanded(
+                  child: Text(
+                    _text(row['name']),
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
                 Text(_text(row['value_label'], fallback: 'À vérifier')),
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              _text(row['usage_label'], fallback: _text(row['description'],
-                fallback: allowed ? 'Disponible' : 'Capacité limitée')),
+              _text(
+                row['usage_label'],
+                fallback: _text(
+                  row['description'],
+                  fallback: allowed ? 'Disponible' : 'Capacité limitée',
+                ),
+              ),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (limitProgress != null) ...[
@@ -160,7 +188,9 @@ class _BillingScreenState extends State<BillingScreen> {
             else if (!allowed)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
-                child: Text('Cette capacité n’est pas utilisable actuellement.'),
+                child: Text(
+                  'Cette capacité n’est pas utilisable actuellement.',
+                ),
               ),
           ],
         ),
@@ -181,9 +211,14 @@ class _BillingScreenState extends State<BillingScreen> {
     final status = _object(subscription['status']);
     final current = _object(subscription['current_base']);
     final addons = subscription['active_addons'] is List
-        ? subscription['active_addons'] as List : const [];
-    final capacities = _data?['capabilities'] is List ? _data!['capabilities'] as List : const [];
-    final conditions = _data?['ongoing_conditions'] is List ? _data!['ongoing_conditions'] as List : const [];
+        ? subscription['active_addons'] as List
+        : const [];
+    final capacities = _data?['capabilities'] is List
+        ? _data!['capabilities'] as List
+        : const [];
+    final conditions = _data?['ongoing_conditions'] is List
+        ? _data!['ongoing_conditions'] as List
+        : const [];
     final transition = _object(_data?['transition']);
 
     return Column(
@@ -196,9 +231,10 @@ class _BillingScreenState extends State<BillingScreen> {
           title: Text(_text(status?['label'], fallback: 'État à vérifier')),
           subtitle: Text(
             _text(status?['explanation'], fallback: 'État de l’abonnement') +
-            (subscriptionDateLabel(status?['grace_until']).isNotEmpty
-              ? ' · Échéance ' + subscriptionDateLabel(status?['grace_until'])
-              : ''),
+                (subscriptionDateLabel(status?['grace_until']).isNotEmpty
+                    ? ' · Échéance ' +
+                          subscriptionDateLabel(status?['grace_until'])
+                    : ''),
           ),
         ),
         if (current != null)
@@ -209,8 +245,10 @@ class _BillingScreenState extends State<BillingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_text(current['name']),
-                    style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    _text(current['name']),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                   const SizedBox(height: 6),
                   Text(subscriptionPriceLabel(current['billing_terms'])),
                   if (current['description'] != null)
@@ -224,7 +262,9 @@ class _BillingScreenState extends State<BillingScreen> {
             ),
           )
         else
-          const Text('Aucune formule de base active n’est associée à cet abonnement.'),
+          const Text(
+            'Aucune formule de base active n’est associée à cet abonnement.',
+          ),
         if (addons.isNotEmpty) ...[
           _heading('Options actives'),
           for (final row in addons)
@@ -235,10 +275,14 @@ class _BillingScreenState extends State<BillingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_text(_object(row)?['name']),
-                        style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        _text(_object(row)?['name']),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       const SizedBox(height: 6),
-                      Text(subscriptionPriceLabel(_object(row)?['billing_terms'])),
+                      Text(
+                        subscriptionPriceLabel(_object(row)?['billing_terms']),
+                      ),
                       if (_object(row)?['description'] != null)
                         Text(_text(_object(row)?['description'])),
                       _benefits(_object(row)?['benefits']),
@@ -252,13 +296,19 @@ class _BillingScreenState extends State<BillingScreen> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(_text(transition['target_name'])),
-            subtitle: Text(_text(transition['status_explanation'],
-                fallback: _text(transition['status_label']))),
+            subtitle: Text(
+              _text(
+                transition['status_explanation'],
+                fallback: _text(transition['status_label']),
+              ),
+            ),
           ),
           if (transition['total_conditions'] is int &&
               (transition['total_conditions'] as int) > 0)
-            Text('Conditions remplies : ${transition['completed_conditions']} '
-              '/ ${transition['total_conditions']}'),
+            Text(
+              'Conditions remplies : ${transition['completed_conditions']} '
+              '/ ${transition['total_conditions']}',
+            ),
           if (transition['conditions'] is List)
             for (final condition in transition['conditions'] as List)
               if (_object(condition) case final item?)
@@ -268,7 +318,7 @@ class _BillingScreenState extends State<BillingScreen> {
                   title: Text(_text(item['label'])),
                   subtitle: Text(
                     subscriptionConditionStatusLabel(item['state']) +
-                    (item['detail'] == null ? '' : ' · ${item['detail']}'),
+                        (item['detail'] == null ? '' : ' · ${item['detail']}'),
                   ),
                 ),
         ],
@@ -280,16 +330,19 @@ class _BillingScreenState extends State<BillingScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(_text(_object(row)?['label'])),
                 subtitle: Text(
-                  subscriptionConditionStatusLabel(_object(row)?['state']) + ' · ' +
-                  _text(_object(row)?['detail'], fallback: 'Vérification en attente'),
+                  subscriptionConditionStatusLabel(_object(row)?['state']) +
+                      ' · ' +
+                      _text(
+                        _object(row)?['detail'],
+                        fallback: 'Vérification en attente',
+                      ),
                 ),
               ),
         ],
         if (capacities.isNotEmpty) ...[
           _heading('Capacités de ma formule'),
           for (final row in capacities)
-            if (_object(row) != null)
-              _capabilityTile(_object(row)!),
+            if (_object(row) != null) _capabilityTile(_object(row)!),
         ],
         _heading('Gérer mon abonnement'),
         SubscriptionActionsPanel(
@@ -317,11 +370,17 @@ class _BillingScreenState extends State<BillingScreen> {
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-                      child: Text(_error!, style: TextStyle(
-                        color: Theme.of(context).colorScheme.error)),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
                     ),
                   if (_data == null)
-                    const Text('Aucune information fiable n’est disponible pour le moment.')
+                    const Text(
+                      'Aucune information fiable n’est disponible pour le moment.',
+                    )
                   else
                     _content(),
                 ],

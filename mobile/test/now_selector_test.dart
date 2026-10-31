@@ -56,17 +56,19 @@ void main() {
 
   test('preserves only owner-supplied subject, delta and exit condition', () {
     final result = selector.select(
-      projection: projection(items: const [
-        {
-          'id': 'now:semantic',
-          'human_context': 'Voyage Kolwezi',
-          'state_meaning': 'Une réponse est attendue.',
-          'subject': {'label': 'Réservation'},
-          'delta': {'meaning': 'Le statut a changé.'},
-          'exit_condition': {'label': 'La réservation est confirmée.'},
-          'response': {'type': 'wait'},
-        },
-      ]),
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:semantic',
+            'human_context': 'Voyage Kolwezi',
+            'state_meaning': 'Une réponse est attendue.',
+            'subject': {'label': 'Réservation'},
+            'delta': {'meaning': 'Le statut a changé.'},
+            'exit_condition': {'label': 'La réservation est confirmée.'},
+            'response': {'type': 'wait'},
+          },
+        ],
+      ),
       now: now,
     );
     final situation = result.situations.single;
@@ -78,17 +80,19 @@ void main() {
 
   test('only owner deadline state qualifies an old Now date', () {
     final result = selector.select(
-      projection: projection(items: const [
-        {
-          'id': 'now:overdue',
-          'human_context': 'Inscription',
-          'state_meaning': 'Une vérification reste nécessaire.',
-          'timing': {
-            'deadline_at': '2026-10-03T10:00:00+00:00',
-            'deadline_state': 'overdue',
+      projection: projection(
+        items: const [
+          {
+            'id': 'now:overdue',
+            'human_context': 'Inscription',
+            'state_meaning': 'Une vérification reste nécessaire.',
+            'timing': {
+              'deadline_at': '2026-10-03T10:00:00+00:00',
+              'deadline_state': 'overdue',
+            },
           },
-        },
-      ]),
+        ],
+      ),
       now: now,
     );
     expect(result.situations.single.metadata, contains('Échéance dépassée'));
@@ -268,10 +272,7 @@ void main() {
       now: now,
     );
 
-    expect(
-      result.situations.single.metadata,
-      contains('07/10/2026 · 20:00'),
-    );
+    expect(result.situations.single.metadata, contains('07/10/2026 · 20:00'));
   });
 
   test(

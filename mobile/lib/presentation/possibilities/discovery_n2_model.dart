@@ -30,11 +30,11 @@ class DiscoveryN2ComparisonRow {
 
 class DiscoveryN2Depth {
   DiscoveryN2Depth(DiscoveryItemPresentation item)
-      : assessments = _assessments(item),
-        variants = _variants(item),
-        relations = _relations(item),
-        provenance = _provenance(item),
-        freshness = _freshness(item);
+    : assessments = _assessments(item),
+      variants = _variants(item),
+      relations = _relations(item),
+      provenance = _provenance(item),
+      freshness = _freshness(item);
 
   final List<DiscoveryN2Assessment> assessments;
   final List<DiscoveryN2Variant> variants;
@@ -63,15 +63,19 @@ class DiscoveryN2Depth {
     return List.unmodifiable(rows);
   }
 
-  static List<DiscoveryN2Assessment> _assessments(DiscoveryItemPresentation item) {
+  static List<DiscoveryN2Assessment> _assessments(
+    DiscoveryItemPresentation item,
+  ) {
     const states = {'favorable', 'limiting', 'unknown'};
     final seen = <String>{};
     final result = <DiscoveryN2Assessment>[];
     for (final raw in item.assessment) {
       final state = (raw['state'] ?? '').toString();
       final label = (raw['label'] ?? '').toString().trim();
-      if (!states.contains(state) || label.isEmpty ||
-          !seen.add('$state:$label')) continue;
+      if (!states.contains(state) ||
+          label.isEmpty ||
+          !seen.add('$state:$label'))
+        continue;
       result.add(DiscoveryN2Assessment(state, label));
     }
     return List.unmodifiable(result);
@@ -80,13 +84,18 @@ class DiscoveryN2Depth {
   static String? _text(Object? value) {
     if (value is! String) return null;
     final text = value.trim();
-    if (text.isEmpty || const {'unknown', 'null', 'none', 'n/a'}.contains(
-      text.toLowerCase(),
-    )) return null;
+    if (text.isEmpty ||
+        const {'unknown', 'null', 'none', 'n/a'}.contains(text.toLowerCase()))
+      return null;
     return text;
   }
 
-  static String? _time(Map data, String direct, String fallbackDate, String fallbackTime) {
+  static String? _time(
+    Map data,
+    String direct,
+    String fallbackDate,
+    String fallbackTime,
+  ) {
     final exact = _text(data[direct]);
     if (exact != null) {
       return exact.replaceFirst('T', ' ');
@@ -106,15 +115,19 @@ class DiscoveryN2Depth {
     for (final fact in item.spatialFacts) {
       final occurrence = fact['occurrence'];
       final place = fact['place'];
-      if (occurrence is! Map || place is! Map ||
-          occurrence['kind'] != 'occurrence') continue;
+      if (occurrence is! Map ||
+          place is! Map ||
+          occurrence['kind'] != 'occurrence')
+        continue;
       final id = _text(occurrence['id']);
       if (id == null) continue;
       final name = _text(place['name']);
       final locality = _text(place['locality']);
-      final label = name == null ? locality :
-          (locality != null && name.toLowerCase() != locality.toLowerCase()
-              ? '$name, $locality' : name);
+      final label = name == null
+          ? locality
+          : (locality != null && name.toLowerCase() != locality.toLowerCase()
+                ? '$name, $locality'
+                : name);
       if (label == null) continue;
       final places = byOccurrence.putIfAbsent(id, () => []);
       if (!places.contains(label)) places.add(label);
@@ -129,12 +142,14 @@ class DiscoveryN2Depth {
       if (id == null || !seen.add(id)) continue;
       final timing = raw['timing'];
       final schedule = timing is Map ? timing : const {};
-      result.add(DiscoveryN2Variant(
-        id: id,
-        start: _time(schedule, 'start_at', 'start_date', 'start_time'),
-        end: _time(schedule, 'end_at', 'end_date', 'end_time'),
-        places: List.unmodifiable(byOccurrence[id] ?? const <String>[]),
-      ));
+      result.add(
+        DiscoveryN2Variant(
+          id: id,
+          start: _time(schedule, 'start_at', 'start_date', 'start_time'),
+          end: _time(schedule, 'end_at', 'end_date', 'end_time'),
+          places: List.unmodifiable(byOccurrence[id] ?? const <String>[]),
+        ),
+      );
     }
     return List.unmodifiable(result);
   }

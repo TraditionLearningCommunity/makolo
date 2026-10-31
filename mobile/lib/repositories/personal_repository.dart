@@ -212,7 +212,10 @@ class PersonalRepository {
         latest.sourceGeneratedAt != current.sourceGeneratedAt) {
       return;
     }
-    Map<String, dynamic> revised(String family, List<Map<String, dynamic>> rows) {
+    Map<String, dynamic> revised(
+      String family,
+      List<Map<String, dynamic>> rows,
+    ) {
       final old = section[family];
       return {
         if (old is Map) ...old.map((k, v) => MapEntry(k.toString(), v)),
@@ -222,6 +225,7 @@ class PersonalRepository {
         'has_more': false,
       };
     }
+
     final updated = Map<String, dynamic>.from(section)
       ..['interests'] = revised('interests', topics)
       ..['open_to'] = revised('open_to', opens);

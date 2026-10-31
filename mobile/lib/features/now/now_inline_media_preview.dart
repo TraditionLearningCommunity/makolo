@@ -135,7 +135,8 @@ class _NowInlineMediaPreviewState extends State<NowInlineMediaPreview> {
     // Only genuinely published recognition photos are retained automatically.
     // A private Journey artifact is still downloaded transiently on demand.
     final path = nowAuthorizedMediaPath(widget.media);
-    final published = widget.media.kind == NowMediaKind.image &&
+    final published =
+        widget.media.kind == NowMediaKind.image &&
         widget.media.purpose == NowMediaPurpose.recognize &&
         widget.media.resourceRef.startsWith('presentation_media_use:') &&
         path != null;

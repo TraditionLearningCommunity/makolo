@@ -34,9 +34,7 @@ List<T> sortOngoingCalendarMoments<T>(
     } else {
       final chronology = left.compareTo(right);
       if (chronology != 0) {
-        return order == OngoingCalendarOrder.oldest
-            ? chronology
-            : -chronology;
+        return order == OngoingCalendarOrder.oldest ? chronology : -chronology;
       }
     }
     return titleOf(a).compareTo(titleOf(b));
@@ -250,14 +248,15 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
         final continuation = projection.payload['continuation'];
         final token = continuation is Map ? continuation['token'] : null;
         final hasMore = token is String && token.isNotEmpty;
-        final stale = projection.freshUntil != null &&
+        final stale =
+            projection.freshUntil != null &&
             projection.freshUntil!.isBefore(DateTime.now().toUtc());
 
         final filterLabel = _specificDay != null
             ? MakoloHumanization.formatLongDate(_specificDay!)
             : _period != null
             ? '${MakoloHumanization.formatLongDate(_period!.start)} – '
-                '${MakoloHumanization.formatLongDate(_period!.end)}'
+                  '${MakoloHumanization.formatLongDate(_period!.end)}'
             : null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -289,7 +288,9 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
             if (stale)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Text('Dernières dates connues · à confirmer après actualisation.'),
+                child: Text(
+                  'Dernières dates connues · à confirmer après actualisation.',
+                ),
               ),
             Expanded(
               child: events.isEmpty && !hasMore
@@ -318,7 +319,9 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
                                         ? null
                                         : () => _loadMore(projection),
                                     icon: const Icon(Icons.expand_more_rounded),
-                                    label: Text(_loadError ?? 'Afficher les autres dates'),
+                                    label: Text(
+                                      _loadError ?? 'Afficher les autres dates',
+                                    ),
                                   ),
                           );
                         }
@@ -346,11 +349,16 @@ class _OngoingCalendarScreenState extends State<OngoingCalendarScreen> {
                                     date,
                                     maxLines: 2,
                                     textAlign: TextAlign.end,
-                                    style: Theme.of(context).textTheme.labelMedium,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelMedium,
                                   ),
                                 ),
                                 const SizedBox(width: 4),
-                                const Icon(Icons.chevron_right_rounded, size: 18),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 18,
+                                ),
                               ],
                             ),
                           ),

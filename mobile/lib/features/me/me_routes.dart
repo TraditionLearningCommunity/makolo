@@ -80,26 +80,30 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
       routes: [
         GoRoute(
           path: 'considerations',
-          builder: (context, state) => runtime.api == null || runtime.personal == null
+          builder: (context, state) =>
+              runtime.api == null || runtime.personal == null
               ? const MakoloSecondaryScreen(
                   title: 'Ce qui compte pour moi',
                   message: 'Préférences momentanément indisponibles.',
                 )
               : MeConsiderationsScreen(
-                  api: runtime.api!, personal: runtime.personal!,
+                  api: runtime.api!,
+                  personal: runtime.personal!,
                   onSaved: () => context.push('/me/saved'),
                   onWatches: () => context.push('/discover/watches'),
                 ),
         ),
         GoRoute(
           path: 'saved',
-          builder: (context, state) => runtime.api == null || runtime.personal == null
+          builder: (context, state) =>
+              runtime.api == null || runtime.personal == null
               ? const MakoloSecondaryScreen(
                   title: 'Mes enregistrements',
                   message: 'Enregistrements momentanément indisponibles.',
                 )
               : MeSavedScreen(
-                  api: runtime.api!, personal: runtime.personal!,
+                  api: runtime.api!,
+                  personal: runtime.personal!,
                   onOpen: (id) => context.push('/activities/$id'),
                   onDiscover: () => context.go('/discover'),
                 ),
@@ -113,7 +117,8 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   message: 'Profil momentanément indisponible.',
                 )
               : MeProfileScreen(
-                  api: runtime.api!, personal: runtime.personal!,
+                  api: runtime.api!,
+                  personal: runtime.personal!,
                   drafts: runtime.drafts,
                   openAvatarPicker: state.uri.queryParameters['avatar'] == '1',
                 ),

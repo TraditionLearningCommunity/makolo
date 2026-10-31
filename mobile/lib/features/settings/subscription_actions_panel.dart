@@ -36,7 +36,8 @@ String _actionError(Object error) {
 String _uniqueIntent() {
   final random = Random.secure();
   return List.generate(
-    24, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    24,
+    (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
   ).join();
 }
 
@@ -55,7 +56,8 @@ class SubscriptionActionsPanel extends StatefulWidget {
   final Future<void> Function() onUpdated;
 
   @override
-  State<SubscriptionActionsPanel> createState() => _SubscriptionActionsPanelState();
+  State<SubscriptionActionsPanel> createState() =>
+      _SubscriptionActionsPanelState();
 }
 
 class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
@@ -69,14 +71,16 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
   bool _loadingHistory = false;
 
   bool _sameSubject(AppRuntime runtime, String? profileId) =>
-      mounted && identical(widget.runtime, runtime) &&
+      mounted &&
+      identical(widget.runtime, runtime) &&
       runtime.session?.profileId == profileId;
 
   @override
   void initState() {
     super.initState();
     _offset = _object(widget.snapshot['billing'])?['next_offset'] as int?;
-    _historyOffset = _object(widget.snapshot['history'])?['next_offset'] as int?;
+    _historyOffset =
+        _object(widget.snapshot['history'])?['next_offset'] as int?;
   }
 
   @override
@@ -87,7 +91,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
       _extraBills.clear();
       _extraHistory.clear();
       _offset = _object(widget.snapshot['billing'])?['next_offset'] as int?;
-      _historyOffset = _object(widget.snapshot['history'])?['next_offset'] as int?;
+      _historyOffset =
+          _object(widget.snapshot['history'])?['next_offset'] as int?;
       _error = null;
     }
   }
@@ -106,17 +111,31 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('• ' + _value(
-                    _object(row)?['label'] ?? _object(row)?['title'], _value(row),
-                  )),
+                  Text(
+                    '• ' +
+                        _value(
+                          _object(row)?['label'] ?? _object(row)?['title'],
+                          _value(row),
+                        ),
+                  ),
                   if (_object(row) case final detail?)
-                    if (_value(detail['detail'], _value(detail['description'])).isNotEmpty)
+                    if (_value(
+                      detail['detail'],
+                      _value(detail['description']),
+                    ).isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(left: 16),
                         child: Text(
-                          _value(detail['detail'], _value(detail['description'])) +
-                          (detail['state'] == null ? '' : ' · ' +
-                            subscriptionConditionStatusLabel(detail['state'])),
+                          _value(
+                                detail['detail'],
+                                _value(detail['description']),
+                              ) +
+                              (detail['state'] == null
+                                  ? ''
+                                  : ' · ' +
+                                        subscriptionConditionStatusLabel(
+                                          detail['state'],
+                                        )),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -152,7 +171,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
       }
       return;
     }
-    if (!_sameSubject(sourceRuntime, profileId) || widget.runtime.api != api) return;
+    if (!_sameSubject(sourceRuntime, profileId) || widget.runtime.api != api)
+      return;
     setState(() => _busy = false);
     final intent = _uniqueIntent();
     var confirming = false;
@@ -165,14 +185,20 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         builder: (sheetContext, setSheet) => SafeArea(
           child: Padding(
             padding: EdgeInsets.fromLTRB(
-              20, 8, 20, MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+              20,
+              8,
+              20,
+              MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
             ),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title, style: Theme.of(sheetContext).textTheme.headlineSmall),
+                  Text(
+                    title,
+                    style: Theme.of(sheetContext).textTheme.headlineSmall,
+                  ),
                   const SizedBox(height: 10),
                   Text(_value(preview['target_name'], title)),
                   if (_object(preview['billing_terms']) != null) ...[
@@ -190,65 +216,95 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                   for (final quota in _objects(preview['quota_changes'])) ...[
                     const SizedBox(height: 8),
                     Text(
-                      _value(quota['label']) + ' : ' +
-                      _value(quota['current_value'], '—') + ' → ' +
-                      _value(quota['target_value'], '—'),
+                      _value(quota['label']) +
+                          ' : ' +
+                          _value(quota['current_value'], '—') +
+                          ' → ' +
+                          _value(quota['target_value'], '—'),
                     ),
                   ],
                   if (preview['quota_changes'] is List &&
                       (preview['quota_changes'] as List).isNotEmpty)
                     const Padding(
                       padding: EdgeInsets.only(top: 6),
-                      child: Text('Les limites sont calculées selon votre usage actuel.'),
+                      child: Text(
+                        'Les limites sont calculées selon votre usage actuel.',
+                      ),
                     ),
                   if (preview['has_payment_requirement'] == true) ...[
                     const SizedBox(height: 12),
-                    const Text('Cette demande comporte une condition de paiement.'),
+                    const Text(
+                      'Cette demande comporte une condition de paiement.',
+                    ),
                   ],
                   const SizedBox(height: 12),
-                  const Text('La confirmation est soumise aux vérifications du serveur.'),
+                  const Text(
+                    'La confirmation est soumise aux vérifications du serveur.',
+                  ),
                   if (failed != null) ...[
                     const SizedBox(height: 10),
-                    Text(failed!, style: TextStyle(
-                      color: Theme.of(sheetContext).colorScheme.error,
-                    )),
+                    Text(
+                      failed!,
+                      style: TextStyle(
+                        color: Theme.of(sheetContext).colorScheme.error,
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 18),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: confirming ? null : () => Navigator.pop(sheetContext),
+                          onPressed: confirming
+                              ? null
+                              : () => Navigator.pop(sheetContext),
                           child: const Text('Retour'),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: FilledButton(
-                          onPressed: confirming ? null : () async {
-                            setSheet(() {
-                              confirming = true;
-                              failed = null;
-                            });
-                            try {
-                              await api.post(endpoint, body: {'idempotency_key': intent});
-                              if (!_sameSubject(sourceRuntime, profileId) || widget.runtime.api != api) return;
-                              await widget.onUpdated();
-                              if (sheetContext.mounted) Navigator.pop(sheetContext);
-                            } on Object catch (error) {
-                              // The intent key is unchanged, including after a lost response.
-                              if (_sameSubject(sourceRuntime, profileId) && widget.runtime.api == api) {
-                                await widget.onUpdated();
-                              }
-                              if (sheetContext.mounted) {
-                                setSheet(() {
-                                  failed = _actionError(error);
-                                  confirming = false;
-                                });
-                              }
-                            }
-                          },
-                          child: Text(confirming ? 'Confirmation…' : 'Confirmer'),
+                          onPressed: confirming
+                              ? null
+                              : () async {
+                                  setSheet(() {
+                                    confirming = true;
+                                    failed = null;
+                                  });
+                                  try {
+                                    await api.post(
+                                      endpoint,
+                                      body: {'idempotency_key': intent},
+                                    );
+                                    if (!_sameSubject(
+                                          sourceRuntime,
+                                          profileId,
+                                        ) ||
+                                        widget.runtime.api != api)
+                                      return;
+                                    await widget.onUpdated();
+                                    if (sheetContext.mounted)
+                                      Navigator.pop(sheetContext);
+                                  } on Object catch (error) {
+                                    // The intent key is unchanged, including after a lost response.
+                                    if (_sameSubject(
+                                          sourceRuntime,
+                                          profileId,
+                                        ) &&
+                                        widget.runtime.api == api) {
+                                      await widget.onUpdated();
+                                    }
+                                    if (sheetContext.mounted) {
+                                      setSheet(() {
+                                        failed = _actionError(error);
+                                        confirming = false;
+                                      });
+                                    }
+                                  }
+                                },
+                          child: Text(
+                            confirming ? 'Confirmation…' : 'Confirmer',
+                          ),
                         ),
                       ),
                     ],
@@ -270,8 +326,14 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(action == 'complete' ? 'Finaliser le changement ?' : 'Annuler la demande ?'),
-        content: const Text('Makolo vérifiera à nouveau vos droits et les conditions.'),
+        title: Text(
+          action == 'complete'
+              ? 'Finaliser le changement ?'
+              : 'Annuler la demande ?',
+        ),
+        content: const Text(
+          'Makolo vérifiera à nouveau vos droits et les conditions.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -284,15 +346,22 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         ],
       ),
     );
-    if (confirmed != true || !_sameSubject(sourceRuntime, profileId) ||
-        widget.runtime.api != api) return;
+    if (confirmed != true ||
+        !_sameSubject(sourceRuntime, profileId) ||
+        widget.runtime.api != api)
+      return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await api.post('api/v1/subscriptions/me/transitions/' +
-        Uri.encodeComponent(id) + '/' + action + '/');
+      await api.post(
+        'api/v1/subscriptions/me/transitions/' +
+            Uri.encodeComponent(id) +
+            '/' +
+            action +
+            '/',
+      );
       if (_sameSubject(sourceRuntime, profileId) && widget.runtime.api == api) {
         await widget.onUpdated();
       }
@@ -319,14 +388,18 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         'api/v1/subscriptions/me/obligations/?offset=' + offset.toString(),
       )).jsonObject();
       if (!_sameSubject(sourceRuntime, profileId) ||
-          widget.runtime.api != api || widget.snapshot != snapshot) return;
+          widget.runtime.api != api ||
+          widget.snapshot != snapshot)
+        return;
       final previous = {
         ..._objects(_object(widget.snapshot['billing'])?['items']),
         ..._extraBills,
       }.map((row) => _value(row['id'])).toSet();
       final next = _objects(result['items']);
       setState(() {
-        _extraBills.addAll(next.where((row) => previous.add(_value(row['id']))));
+        _extraBills.addAll(
+          next.where((row) => previous.add(_value(row['id']))),
+        );
         _offset = result['next_offset'] as int?;
       });
     } on Object catch (error) {
@@ -349,14 +422,18 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         'api/v1/subscriptions/me/transitions/?offset=' + offset.toString(),
       )).jsonObject();
       if (!_sameSubject(runtime, profileId) ||
-          widget.runtime.api != api || widget.snapshot != snapshot) return;
+          widget.runtime.api != api ||
+          widget.snapshot != snapshot)
+        return;
       final seen = {
         ..._objects(_object(widget.snapshot['history'])?['items']),
         ..._extraHistory,
       }.map((item) => _value(item['id'])).toSet();
       setState(() {
-        _extraHistory.addAll(_objects(result['items'])
-          .where((item) => seen.add(_value(item['id']))));
+        _extraHistory.addAll(
+          _objects(result['items'])
+              .where((item) => seen.add(_value(item['id']))),
+        );
         _historyOffset = result['next_offset'] as int?;
       });
     } on Object catch (error) {
@@ -390,32 +467,38 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Text(_error!, style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
-            )),
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         for (final row in addons)
           OutlinedButton(
-            onPressed: _busy || hasOpenTransition ? null : () => _preview(
-              'api/v1/subscriptions/me/addons/' +
-              Uri.encodeComponent(_value(row['item_id'])) + '/remove/',
-              'Retirer ' + _value(row['name'], 'cette option'),
+            onPressed: _busy || hasOpenTransition
+                ? null
+                : () => _preview(
+                    'api/v1/subscriptions/me/addons/' +
+                        Uri.encodeComponent(_value(row['item_id'])) +
+                        '/remove/',
+                    'Retirer ' + _value(row['name'], 'cette option'),
+                  ),
+            child: Text(
+              'Examiner le retrait de ' + _value(row['name'], 'l’option'),
             ),
-            child: Text('Examiner le retrait de ' + _value(row['name'], 'l’option')),
           ),
         if (transition != null && transition['open'] == true) ...[
           const SizedBox(height: 8),
           if (transition['status'] == 'ready')
             FilledButton(
-              onPressed: _busy ? null : () => _transition(
-                _value(transition['id']), 'complete',
-              ),
+              onPressed: _busy
+                  ? null
+                  : () => _transition(_value(transition['id']), 'complete'),
               child: const Text('Finaliser le changement prêt'),
             ),
           OutlinedButton(
-            onPressed: _busy ? null : () => _transition(
-              _value(transition['id']), 'cancel',
-            ),
+            onPressed: _busy
+                ? null
+                : () => _transition(_value(transition['id']), 'cancel'),
             child: const Text('Annuler la demande'),
           ),
         ],
@@ -430,24 +513,34 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             leading: const Icon(Icons.history_rounded),
             title: Text(_value(event['target_name'], 'Changement')),
             subtitle: Text(
-              _value(event['kind_label']) + ' · ' +
-              _value(event['status_label'], 'À vérifier') +
-              (subscriptionDateLabel(event['requested_at']).isEmpty
-                ? '' : ' · ' + subscriptionDateLabel(event['requested_at'])),
+              _value(event['kind_label']) +
+                  ' · ' +
+                  _value(event['status_label'], 'À vérifier') +
+                  (subscriptionDateLabel(event['requested_at']).isEmpty
+                      ? ''
+                      : ' · ' + subscriptionDateLabel(event['requested_at'])),
             ),
           ),
         if (_historyOffset != null)
           TextButton(
             onPressed: _loadingHistory ? null : _moreHistory,
-            child: Text(_loadingHistory ? 'Chargement…' : 'Voir les demandes précédentes'),
+            child: Text(
+              _loadingHistory ? 'Chargement…' : 'Voir les demandes précédentes',
+            ),
           ),
         const SizedBox(height: 16),
-        Text('Formules disponibles', style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Formules disponibles',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         if (hasOpenTransition)
-          const Text('Terminez ou annulez la demande en cours avant de lancer un autre changement.'),
+          const Text(
+            'Terminez ou annulez la demande en cours avant de lancer un autre changement.',
+          ),
 
-        if (catalog.isEmpty) const Text('Aucune autre formule proposée actuellement.'),
+        if (catalog.isEmpty)
+          const Text('Aucune autre formule proposée actuellement.'),
         for (final option in catalog) ...[
           Card(
             child: Padding(
@@ -455,19 +548,29 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(option['plan_type'] == 'addon' ? 'Option' : 'Formule',
-                    style: Theme.of(context).textTheme.labelSmall),
+                  Text(
+                    option['plan_type'] == 'addon' ? 'Option' : 'Formule',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
                   const SizedBox(height: 3),
-                  Text(_value(option['name']), style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    _value(option['name']),
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 6),
                   Text(subscriptionPriceLabel(option['billing_terms'])),
                   if (_value(option['description']).isNotEmpty)
                     Text(_value(option['description'])),
                   _list('Ce que comprend cette formule', option['benefits']),
                   const SizedBox(height: 6),
-                  Text(option['current'] == true
-                    ? 'Déjà inclus dans votre abonnement'
-                    : _value(option['eligibility_label'], 'Disponibilité à confirmer')),
+                  Text(
+                    option['current'] == true
+                        ? 'Déjà inclus dans votre abonnement'
+                        : _value(
+                            option['eligibility_label'],
+                            'Disponibilité à confirmer',
+                          ),
+                  ),
                   if (_value(option['eligibility_explanation']).isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -481,11 +584,16 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: FilledButton(
-                        onPressed: _busy ? null : () => _preview(
-                          'api/v1/subscriptions/me/plans/' +
-                          Uri.encodeComponent(_value(option['plan_version_id'])) + '/',
-                          'Examiner cette formule',
-                        ),
+                        onPressed: _busy
+                            ? null
+                            : () => _preview(
+                                'api/v1/subscriptions/me/plans/' +
+                                    Uri.encodeComponent(
+                                      _value(option['plan_version_id']),
+                                    ) +
+                                    '/',
+                                'Examiner cette formule',
+                              ),
                         child: const Text('Examiner le changement'),
                       ),
                     ),
@@ -495,8 +603,10 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           ),
         ],
         const SizedBox(height: 18),
-        Text('Facturation de mon abonnement',
-          style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Facturation de mon abonnement',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 8),
         if (bills.isEmpty)
           const Text('Aucune obligation financière liée à cet abonnement.'),
@@ -505,30 +615,40 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             child: ListTile(
               title: Text(_value(obligation['label'], 'Facturation')),
               subtitle: Text(
-                _value(obligation['amount']) + ' ' +
-                _value(obligation['currency']) + ' · ' +
-                subscriptionObligationStatusLabel(obligation['status']) +
-                (subscriptionDateLabel(obligation['due_at']).isEmpty ? '' :
-                  ' · Échéance ' + subscriptionDateLabel(obligation['due_at'])),
+                _value(obligation['amount']) +
+                    ' ' +
+                    _value(obligation['currency']) +
+                    ' · ' +
+                    subscriptionObligationStatusLabel(obligation['status']) +
+                    (subscriptionDateLabel(obligation['due_at']).isEmpty
+                        ? ''
+                        : ' · Échéance ' +
+                              subscriptionDateLabel(obligation['due_at'])),
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: _value(obligation['id']).isEmpty ? null : () async {
-                final sourceRuntime = widget.runtime;
-                final profileId = sourceRuntime.session?.profileId;
-                await context.push(
-                  '/payments/obligations/' +
-                  Uri.encodeComponent(_value(obligation['id'])),
-                );
-                if (_sameSubject(sourceRuntime, profileId)) {
-                  await widget.onUpdated();
-                }
-              },
+              onTap: _value(obligation['id']).isEmpty
+                  ? null
+                  : () async {
+                      final sourceRuntime = widget.runtime;
+                      final profileId = sourceRuntime.session?.profileId;
+                      await context.push(
+                        '/payments/obligations/' +
+                            Uri.encodeComponent(_value(obligation['id'])),
+                      );
+                      if (_sameSubject(sourceRuntime, profileId)) {
+                        await widget.onUpdated();
+                      }
+                    },
             ),
           ),
         if (_offset != null)
           TextButton(
             onPressed: _loadingMore ? null : _more,
-            child: Text(_loadingMore ? 'Chargement…' : 'Voir les autres éléments de facturation'),
+            child: Text(
+              _loadingMore
+                  ? 'Chargement…'
+                  : 'Voir les autres éléments de facturation',
+            ),
           ),
         const SizedBox(height: 8),
         Text(

@@ -274,10 +274,7 @@ void main() {
 
     expect(find.byType(BrandMoment), findsNothing);
 
-    expect(
-      find.text('Now indisponible.'),
-      findsOneWidget,
-    );
+    expect(find.text('Now indisponible.'), findsOneWidget);
 
     expect(requests, 1);
 
@@ -292,10 +289,7 @@ void main() {
 
     expect(requests, greaterThanOrEqualTo(1));
 
-    expect(
-      find.text('Now indisponible.'),
-      findsOneWidget,
-    );
+    expect(find.text('Now indisponible.'), findsOneWidget);
 
     // Unmount live Drift subscriptions before disposal.
     await tester.pumpWidget(const SizedBox.shrink());

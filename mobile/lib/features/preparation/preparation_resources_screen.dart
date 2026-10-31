@@ -106,7 +106,8 @@ class _PreparationResourcesScreenState
         'image/png' => 'png',
         'image/jpeg' => 'jpg',
         'text/csv' => 'csv',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' =>
+          'docx',
         _ => 'bin',
       };
       final saved = await const AndroidDeviceDownloads().save(

@@ -43,8 +43,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     final current = widget.runtime.actorContext?.value;
     return current is SpaceActorContext &&
             (widget.expectedSlug == null ||
-             current.space.slug == widget.expectedSlug)
-        ? current : null;
+                current.space.slug == widget.expectedSlug)
+        ? current
+        : null;
   }
 
   @override
@@ -70,7 +71,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     }
     if (oldWidget.runtime != widget.runtime ||
         oldWidget.surface != widget.surface ||
-      oldWidget.expectedSlug != widget.expectedSlug) {
+        oldWidget.expectedSlug != widget.expectedSlug) {
       searchVersion++;
       results = null;
       searchFailed = false;
@@ -141,21 +142,20 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
         searchFailed = false;
       });
     } on MakoloApiError catch (error) {
-      if (!mounted || version != searchVersion ||
-          actor?.space.id != space.id) {
+      if (!mounted || version != searchVersion || actor?.space.id != space.id) {
         return;
       }
       setState(() {
         results = null;
         searchFailed = true;
       });
-      if (error.statusCode == 401 || error.statusCode == 403 ||
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
           error.statusCode == 404) {
         await refresh();
       }
     } on Object {
-      if (!mounted || version != searchVersion ||
-          actor?.space.id != space.id) {
+      if (!mounted || version != searchVersion || actor?.space.id != space.id) {
         return;
       }
       setState(() {
@@ -259,7 +259,8 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
   Widget relationsBody(Map<String, dynamic> payload) {
     final sections = payload['sections'];
     if (sections is! Map || sections.isEmpty) {
-      final limited = spaceMap(payload['authority'])?['scope'] == 'activity_limited';
+      final limited =
+          spaceMap(payload['authority'])?['scope'] == 'activity_limited';
       return MakoloEmptyState(
         title: limited
             ? 'Relations globales réservées aux autorités du Space.'
@@ -331,9 +332,11 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             'Aperçu local partiel. Lancez la recherche pour consulter toutes les relations autorisées.',
           ),
         if (groups.values.every((rows) => rows.isEmpty))
-          Text(query.isEmpty
-              ? 'Aucune relation enregistrée dans les collections visibles.'
-              : 'Aucune relation correspondante dans les données visibles.'),
+          Text(
+            query.isEmpty
+                ? 'Aucune relation enregistrée dans les collections visibles.'
+                : 'Aucune relation correspondante dans les données visibles.',
+          ),
         for (final entry in groups.entries) ...[
           if (entry.value.isNotEmpty)
             Padding(

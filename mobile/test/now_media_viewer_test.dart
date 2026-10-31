@@ -16,22 +16,35 @@ NowMediaBindingPresentation binding({
 
 void main() {
   test('published recognition media uses only its first-party UUID route', () {
-    const path = '/presentation/media/uses/11111111-2222-4333-8444-555555555555/file/';
-    NowMediaBindingPresentation recognition(String? url, {String ref = 'presentation_media_use:11111111-2222-4333-8444-555555555555'}) =>
-        NowMediaBindingPresentation(
-          resourceRef: ref,
-          target: NowMediaTarget.subject,
-          purpose: NowMediaPurpose.recognize,
-          kind: NowMediaKind.image,
-          authorized: true,
-          url: url,
-          presentationRank: 'primary',
-        );
+    const path =
+        '/presentation/media/uses/11111111-2222-4333-8444-555555555555/file/';
+    NowMediaBindingPresentation recognition(
+      String? url, {
+      String ref =
+          'presentation_media_use:11111111-2222-4333-8444-555555555555',
+    }) => NowMediaBindingPresentation(
+      resourceRef: ref,
+      target: NowMediaTarget.subject,
+      purpose: NowMediaPurpose.recognize,
+      kind: NowMediaKind.image,
+      authorized: true,
+      url: url,
+      presentationRank: 'primary',
+    );
     expect(nowAuthorizedMediaPath(recognition(path)), path.substring(1));
     expect(nowAuthorizedMediaPath(recognition('$path?token=secret')), isNull);
-    expect(nowAuthorizedMediaPath(recognition('https://example.test$path')), isNull);
-    expect(nowAuthorizedMediaPath(recognition('/presentation/media/uses/../file/')), isNull);
-    expect(nowAuthorizedMediaPath(recognition(path, ref: 'journey_artifact:fake')), isNull);
+    expect(
+      nowAuthorizedMediaPath(recognition('https://example.test$path')),
+      isNull,
+    );
+    expect(
+      nowAuthorizedMediaPath(recognition('/presentation/media/uses/../file/')),
+      isNull,
+    );
+    expect(
+      nowAuthorizedMediaPath(recognition(path, ref: 'journey_artifact:fake')),
+      isNull,
+    );
   });
 
   test('only owner-authorized first-party API media can be opened', () {

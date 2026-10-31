@@ -284,7 +284,8 @@ class _SpaceProjectionBody extends StatelessWidget {
         children: [
           const MakoloEmptyState(
             title: 'Aucune situation établie dans cette perspective.',
-            body: 'La couverture actuelle reste partielle. Makolo ne peut pas '
+            body:
+                'La couverture actuelle reste partielle. Makolo ne peut pas '
                 'encore conclure que tout est en ordre pour cet Espace.',
             icon: Icons.info_outline_rounded,
           ),
@@ -426,7 +427,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       _teamUnavailable = false;
     });
     final current = widget.runtime.actorContext?.value;
-    if (current is SpaceActorContext && _space != null &&
+    if (current is SpaceActorContext &&
+        _space != null &&
         current.space.id == _space!.id) {
       final repository = widget.runtime.space;
       if (repository != null && repository.sync != null) {
@@ -447,7 +449,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   Future<void> _resolveSpace() async {
     final repository = widget.runtime.space;
     if (repository == null) {
-      if (mounted) setState(() { _denied = true; _loading = false; });
+      if (mounted)
+        setState(() {
+          _denied = true;
+          _loading = false;
+        });
       return;
     }
     final actorBeforeLookup = widget.runtime.actorContext?.value;
@@ -456,7 +462,10 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     // Never replace a user-initiated actor change that happened while the
     // inventory was loading for an old deep link.
     if (widget.runtime.actorContext?.value != actorBeforeLookup) {
-      setState(() { _denied = true; _loading = false; });
+      setState(() {
+        _denied = true;
+        _loading = false;
+      });
       return;
     }
     SpaceSummary? summary;
@@ -506,24 +515,35 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       final rows = <Map<String, dynamic>>[
         for (final item in decoded)
           if (item is Map)
-            {for (final entry in item.entries)
-              if (entry.key is String) entry.key as String: entry.value},
+            {
+              for (final entry in item.entries)
+                if (entry.key is String) entry.key as String: entry.value,
+            },
       ];
       final actor = widget.runtime.actorContext?.value;
-      if (!mounted || actor is! SpaceActorContext ||
+      if (!mounted ||
+          actor is! SpaceActorContext ||
           actor.space.id != space.id) {
         return;
       }
-      setState(() { _fullTeam = rows; _teamUnavailable = false; });
+      setState(() {
+        _fullTeam = rows;
+        _teamUnavailable = false;
+      });
     } on MakoloApiError catch (error) {
       final active = widget.runtime.actorContext?.value;
-      if (!mounted || active is! SpaceActorContext ||
+      if (!mounted ||
+          active is! SpaceActorContext ||
           active.space.id != space.id) {
         return;
       }
-      if (error.statusCode == 401 || error.statusCode == 403 ||
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
           error.statusCode == 404) {
-        setState(() { _denied = true; _fullTeam = null; });
+        setState(() {
+          _denied = true;
+          _fullTeam = null;
+        });
       } else {
         setState(() => _teamUnavailable = true);
       }
@@ -546,23 +566,27 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     ];
   }
 
-  Future<void> _mutateTeam(Future<void> Function() operation, {
+  Future<void> _mutateTeam(
+    Future<void> Function() operation, {
     String successMessage = 'Équipe actualisée.',
   }) async {
     final current = widget.runtime.actorContext?.value;
-    if (_teamMutating || current is! SpaceActorContext ||
-        _space == null || current.space.id != _space!.id) {
+    if (_teamMutating ||
+        current is! SpaceActorContext ||
+        _space == null ||
+        current.space.id != _space!.id) {
       return;
     }
     final spaceId = current.space.id;
     setState(() => _teamMutating = true);
     try {
       await operation();
-      if (!mounted || widget.runtime.actorContext?.value
-          is! SpaceActorContext) {
+      if (!mounted ||
+          widget.runtime.actorContext?.value is! SpaceActorContext) {
         return;
       }
-      final currentActor = widget.runtime.actorContext!.value as SpaceActorContext;
+      final currentActor =
+          widget.runtime.actorContext!.value as SpaceActorContext;
       if (currentActor.space.id != spaceId) return;
       await _loadTeam(_space!);
       final repository = widget.runtime.space;
@@ -575,26 +599,30 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         }
       }
       if (mounted && !_denied) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(successMessage)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(successMessage)));
       }
     } on MakoloApiError catch (error) {
       if (!mounted) return;
-      if (error.statusCode == 401 || error.statusCode == 403 ||
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
           error.statusCode == 404) {
-        setState(() { _denied = true; _fullTeam = null; });
+        setState(() {
+          _denied = true;
+          _fullTeam = null;
+        });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
       }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(
-            'Action indisponible. Le serveur n’a pas confirmé la modification.',
-          )),
+          const SnackBar(
+            content: Text(
+              'Action indisponible. Le serveur n’a pas confirmé la modification.',
+            ),
+          ),
         );
       }
     } finally {
@@ -617,19 +645,25 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('La personne doit déjà posséder un Profil Makolo. '
+                const Text(
+                  'La personne doit déjà posséder un Profil Makolo. '
                   'Le rôle choisi crée une autorité explicite et sera vérifié '
-                  'par le serveur.'),
+                  'par le serveur.',
+                ),
                 TextField(
                   controller: email,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'E-mail du Profil'),
+                  decoration: const InputDecoration(
+                    labelText: 'E-mail du Profil',
+                  ),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: selected,
                   isExpanded: true,
                   hint: const Text('Choisir une responsabilité'),
-                  decoration: const InputDecoration(labelText: 'Responsabilité'),
+                  decoration: const InputDecoration(
+                    labelText: 'Responsabilité',
+                  ),
                   items: [
                     for (final role in roles)
                       DropdownMenuItem(
@@ -644,8 +678,10 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               ],
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler')),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler'),
+              ),
               FilledButton(
                 onPressed: () {
                   if (email.text.trim().isEmpty || selected == null) return;
@@ -673,7 +709,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   }
 
   Future<void> _changeTeamRole(
-    Map<String, dynamic> row, Map<String, dynamic> payload,
+    Map<String, dynamic> row,
+    Map<String, dynamic> payload,
   ) async {
     final api = widget.runtime.api;
     final roles = _teamRoleOptions(payload);
@@ -681,7 +718,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     if (api == null || roles.isEmpty || id == null) return;
     final currentRole = _text(row['responsibility']);
     String? selected = roles.any((role) => role['code'] == currentRole)
-        ? currentRole : null;
+        ? currentRole
+        : null;
     final chosen = await showDialog<String>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -710,10 +748,14 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annuler'),
+            ),
             FilledButton(
-              onPressed: selected == null ? null : () => Navigator.pop(context, selected),
+              onPressed: selected == null
+                  ? null
+                  : () => Navigator.pop(context, selected),
               child: const Text('Confirmer le changement'),
             ),
           ],
@@ -732,14 +774,19 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   Future<void> _transferOwnership(Map<String, dynamic> payload) async {
     final capabilities = _map(payload['capabilities']);
     final api = widget.runtime.api;
-    if (api == null || _fullTeam == null ||
+    if (api == null ||
+        _fullTeam == null ||
         capabilities?['manage_team'] != true ||
         capabilities?['manage_ownership'] != true) {
       return;
     }
-    final candidates = _fullTeam!.where((row) =>
-      _text(row['id']) != null && row['responsibility'] != 'space_owner'
-    ).toList();
+    final candidates = _fullTeam!
+        .where(
+          (row) =>
+              _text(row['id']) != null &&
+              row['responsibility'] != 'space_owner',
+        )
+        .toList();
     if (candidates.isEmpty) return;
     String? chosenId;
     var relinquish = false;
@@ -751,8 +798,10 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Choisissez un collaborateur actif. '
-                'Le serveur validera sa présence et votre autorité.'),
+              const Text(
+                'Choisissez un collaborateur actif. '
+                'Le serveur validera sa présence et votre autorité.',
+              ),
               DropdownButtonFormField<String>(
                 isExpanded: true,
                 initialValue: chosenId,
@@ -771,8 +820,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                 title: const Text('Renoncer aussi à mon rôle de propriétaire'),
                 subtitle: const Text('Décoché : je reste propriétaire.'),
                 value: relinquish,
-                onChanged: (value) =>
-                  update(() => relinquish = value == true),
+                onChanged: (value) => update(() => relinquish = value == true),
               ),
             ],
           ),
@@ -782,11 +830,12 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               child: const Text('Annuler'),
             ),
             FilledButton(
-              onPressed: chosenId == null ? null : () =>
-                Navigator.pop(context, <String, Object>{
-                  'target_membership_id': chosenId!,
-                  'relinquish_current_owner': relinquish,
-                }),
+              onPressed: chosenId == null
+                  ? null
+                  : () => Navigator.pop(context, <String, Object>{
+                      'target_membership_id': chosenId!,
+                      'relinquish_current_owner': relinquish,
+                    }),
               child: const Text('Confirmer le transfert'),
             ),
           ],
@@ -810,11 +859,15 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Retirer ce collaborateur ?'),
-        content: Text('Retirer ${_depthRowLabel(row)} peut révoquer ses Mandates. '
-          'Le serveur protège les contraintes de propriété du Space.'),
+        content: Text(
+          'Retirer ${_depthRowLabel(row)} peut révoquer ses Mandates. '
+          'Le serveur protège les contraintes de propriété du Space.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Confirmer le retrait'),
@@ -895,8 +948,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             return _depthBody(
               context,
               payload,
-              observationOnly: state.lastErrorCode != null ||
-                  state.lastSuccessAt == null,
+              observationOnly:
+                  state.lastErrorCode != null || state.lastSuccessAt == null,
             );
           },
         );
@@ -907,8 +960,10 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   Future<void> _retryDepth() async {
     final active = widget.runtime.actorContext?.value;
     final repository = widget.runtime.space;
-    if (active is! SpaceActorContext || _space == null ||
-        active.space.id != _space!.id || repository == null ||
+    if (active is! SpaceActorContext ||
+        _space == null ||
+        active.space.id != _space!.id ||
+        repository == null ||
         repository.sync == null) {
       return;
     }
@@ -917,9 +972,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       if (widget.depth == 'team') await _loadTeam(_space!);
     } on MakoloApiError catch (error) {
       if (!mounted) return;
-      if (error.statusCode == 401 || error.statusCode == 403 ||
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
           error.statusCode == 404) {
-        setState(() { _denied = true; _fullTeam = null; });
+        setState(() {
+          _denied = true;
+          _fullTeam = null;
+        });
       }
     } on Object {
       // Keep the last non-expired observation; owner-source state reports
@@ -930,8 +989,10 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   Future<void> _openResponsibility(String key) async {
     final controller = widget.runtime.actorContext;
     final current = controller?.value;
-    if (current is! SpaceActorContext || _space == null ||
-        current.space.id != _space!.id || !key.startsWith('mandate:')) {
+    if (current is! SpaceActorContext ||
+        _space == null ||
+        current.space.id != _space!.id ||
+        !key.startsWith('mandate:')) {
       return;
     }
     try {
@@ -942,9 +1003,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text(
-            'Impossible de sélectionner cette responsabilité pour le moment.',
-          )),
+          const SnackBar(
+            content: Text(
+              'Impossible de sélectionner cette responsabilité pour le moment.',
+            ),
+          ),
         );
       }
     }
@@ -967,20 +1030,27 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         ? _fullTeam!
         : section?['items'];
     final rows = allRows is List
-        ? allRows.where((row) =>
-            widget.depth != 'responsibilities' ||
-            _map(row)?['combined'] != true).toList()
+        ? allRows
+              .where(
+                (row) =>
+                    widget.depth != 'responsibilities' ||
+                    _map(row)?['combined'] != true,
+              )
+              .toList()
         : const <dynamic>[];
-    final canManageTeam = !observationOnly && widget.depth == 'team' &&
+    final canManageTeam =
+        !observationOnly &&
+        widget.depth == 'team' &&
         _map(payload['capabilities'])?['manage_team'] == true &&
         _teamRoleOptions(payload).isNotEmpty;
-    final canTransferOwnership = !observationOnly && widget.depth == 'ownership' &&
+    final canTransferOwnership =
+        !observationOnly &&
+        widget.depth == 'ownership' &&
         _map(payload['capabilities'])?['manage_team'] == true &&
         _map(payload['capabilities'])?['manage_ownership'] == true;
     final intro = switch (widget.depth) {
       'team' => 'Les collaborateurs actuellement visibles dans cette équipe.',
-      'responsibilities' =>
-        'Ce que nous portons, sans déduire une autorité de cette responsabilité.',
+      'responsibilities' => 'Ce que nous portons, sans déduire une autorité de cette responsabilité.',
       'ownership' =>
         'Les Mandates de propriétaire actifs, indépendants des appartenances.',
       'trust' => 'Les faits de vérification établis dans ce contexte.',
@@ -997,7 +1067,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           if (observationOnly) ...[
             const SizedBox(height: MakoloSpacing.md),
             const MakoloStatus(
-              label: 'Observation conservée hors réseau. Actions indisponibles.',
+              label:
+                  'Observation conservée hors réseau. Actions indisponibles.',
               tone: MakoloStatusTone.info,
               icon: Icons.cloud_off_outlined,
             ),
@@ -1014,17 +1085,19 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           if (canTransferOwnership) ...[
             if (_fullTeam == null)
               OutlinedButton.icon(
-                onPressed: _teamMutating
-                  ? null : () => _loadTeam(_space!),
+                onPressed: _teamMutating ? null : () => _loadTeam(_space!),
                 icon: const Icon(Icons.group_add_outlined),
                 label: const Text('Choisir un nouveau propriétaire'),
               )
-            else if (_fullTeam!.any((row) =>
-                _text(row['id']) != null &&
-                row['responsibility'] != 'space_owner'))
+            else if (_fullTeam!.any(
+              (row) =>
+                  _text(row['id']) != null &&
+                  row['responsibility'] != 'space_owner',
+            ))
               FilledButton.icon(
                 onPressed: _teamMutating
-                  ? null : () => _transferOwnership(payload),
+                    ? null
+                    : () => _transferOwnership(payload),
                 icon: const Icon(Icons.verified_user_outlined),
                 label: const Text('Transférer la propriété'),
               )
@@ -1050,26 +1123,32 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_text(fact['claim_type']) ??
-                                'Fait de vérification',
-                                style: Theme.of(context).textTheme.titleSmall),
+                            Text(
+                              _text(fact['claim_type']) ??
+                                  'Fait de vérification',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
                             if (_text(fact['status']) case final status?)
                               Text('État : $status'),
                             if (fact['valid_until'] != null)
-                              Text('Validité annoncée : ${fact['valid_until']}'),
+                              Text(
+                                'Validité annoncée : ${fact['valid_until']}',
+                              ),
                           ],
                         ),
                       ),
                     )
+                  else
+                    const MakoloEmptyState(
+                      title: 'Aucun fait public de vérification actif.',
+                    )
               else
                 const MakoloEmptyState(
-                  title: 'Aucun fait public de vérification actif.',
-                )
-            else
-              const MakoloEmptyState(
-                title: 'Faits de vérification indisponibles.',
-              ),
-            const Text('Ces faits ne constituent pas un score global de confiance.'),
+                  title: 'Faits de vérification indisponibles.',
+                ),
+            const Text(
+              'Ces faits ne constituent pas un score global de confiance.',
+            ),
           ] else if (rows.isEmpty)
             const MakoloEmptyState(title: 'Aucun élément visible ici.')
           else
@@ -1078,66 +1157,89 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                 padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
                 child: MakoloCard(
                   padding: const EdgeInsets.all(MakoloSpacing.md),
-                  child: Row(children: [
-                    Icon(
-                      widget.depth == 'team'
-                          ? Icons.person_outline
-                          : widget.depth == 'ownership'
-                              ? Icons.verified_user_outlined
-                              : Icons.assignment_ind_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(width: MakoloSpacing.md),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_depthRowLabel(row),
-                          style: Theme.of(context).textTheme.titleSmall),
-                        const SizedBox(height: 4),
-                        Text(_depthRowDetail(row),
-                          style: Theme.of(context).textTheme.bodySmall),
-                        if (widget.depth == 'responsibilities' &&
-                            _text(_map(row)?['key'])?.startsWith('mandate:') == true) ...[
-                          const SizedBox(height: MakoloSpacing.sm),
-                          TextButton.icon(
-                            onPressed: observationOnly
-                                ? null
-                                : () => _openResponsibility(
-                                    _text(_map(row)?['key'])!),
-                            icon: const Icon(Icons.arrow_forward_rounded),
-                            label: const Text('Voir ce que je porte'),
-                          ),
-                        ],
-                        if (canManageTeam && _fullTeam != null &&
-                            _map(row) != null &&
-                            (_map(row)?['responsibility'] != 'space_owner' ||
-                             _map(payload['capabilities'])?['manage_ownership'] == true)) ...[
-                          const SizedBox(height: MakoloSpacing.sm),
-                          Wrap(
-                            spacing: MakoloSpacing.sm,
-                            children: [
-                              TextButton(
-                                onPressed: _teamMutating
-                                    ? null : () => _changeTeamRole(
-                                        _map(row)!, payload),
-                                child: const Text('Responsabilité'),
-                              ),
-                              TextButton(
-                                onPressed: _teamMutating
-                                    ? null : () => _removeTeamMember(_map(row)!),
-                                child: const Text('Retirer'),
+                  child: Row(
+                    children: [
+                      Icon(
+                        widget.depth == 'team'
+                            ? Icons.person_outline
+                            : widget.depth == 'ownership'
+                            ? Icons.verified_user_outlined
+                            : Icons.assignment_ind_outlined,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: MakoloSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _depthRowLabel(row),
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _depthRowDetail(row),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if (widget.depth == 'responsibilities' &&
+                                _text(_map(row)?['key'])
+                                        ?.startsWith('mandate:') ==
+                                    true) ...[
+                              const SizedBox(height: MakoloSpacing.sm),
+                              TextButton.icon(
+                                onPressed: observationOnly
+                                    ? null
+                                    : () => _openResponsibility(
+                                        _text(_map(row)?['key'])!,
+                                      ),
+                                icon: const Icon(Icons.arrow_forward_rounded),
+                                label: const Text('Voir ce que je porte'),
                               ),
                             ],
-                          ),
-                        ],
-                      ],
-                    )),
-                  ]),
+                            if (canManageTeam &&
+                                _fullTeam != null &&
+                                _map(row) != null &&
+                                (_map(row)?['responsibility'] !=
+                                        'space_owner' ||
+                                    _map(
+                                          payload['capabilities'],
+                                        )?['manage_ownership'] ==
+                                        true)) ...[
+                              const SizedBox(height: MakoloSpacing.sm),
+                              Wrap(
+                                spacing: MakoloSpacing.sm,
+                                children: [
+                                  TextButton(
+                                    onPressed: _teamMutating
+                                        ? null
+                                        : () => _changeTeamRole(
+                                            _map(row)!,
+                                            payload,
+                                          ),
+                                    child: const Text('Responsabilité'),
+                                  ),
+                                  TextButton(
+                                    onPressed: _teamMutating
+                                        ? null
+                                        : () => _removeTeamMember(_map(row)!),
+                                    child: const Text('Retirer'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-          if (widget.depth == 'team' && _fullTeam == null &&
+          if (widget.depth == 'team' &&
+              _fullTeam == null &&
               section?['has_more'] == true)
-            const Text('Aperçu partiel : tous les membres ne sont pas chargés.'),
+            const Text(
+              'Aperçu partiel : tous les membres ne sont pas chargés.',
+            ),
           if (widget.depth == 'team' && _teamUnavailable)
             TextButton.icon(
               onPressed: () => _loadTeam(_space!),
@@ -1177,9 +1279,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final activity = _map(row?['activity']);
     return _text(responsibility?['label']) ??
         _text(activity?['title']) ??
-        (widget.depth == 'team' ? 'Membre de l’équipe' :
-          widget.depth == 'ownership' ? 'Mandate de propriétaire' :
-          'Portée collective');
+        (widget.depth == 'team'
+            ? 'Membre de l’équipe'
+            : widget.depth == 'ownership'
+            ? 'Mandate de propriétaire'
+            : 'Portée collective');
   }
 
   Map<String, dynamic>? _map(Object? value) => value is Map

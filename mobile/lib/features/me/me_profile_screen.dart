@@ -14,8 +14,13 @@ import 'me_country_choices.dart';
 
 /// Passport editing mode backed by the existing Accounts owner API.
 class MeProfileScreen extends StatefulWidget {
-  const MeProfileScreen({super.key, required this.api, required this.personal,
-    this.drafts, this.openAvatarPicker = false});
+  const MeProfileScreen({
+    super.key,
+    required this.api,
+    required this.personal,
+    this.drafts,
+    this.openAvatarPicker = false,
+  });
   final MakoloApiClient api;
   final PersonalRepository personal;
   final DraftRepository? drafts;
@@ -74,14 +79,27 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     final fields = profile is Map ? profile : const <String, dynamic>{};
     return {
       for (final key in const [
-        'first_name', 'last_name', 'bio', 'phone', 'website',
-        'linkedin_url', 'facebook_url', 'instagram_url', 'tiktok_url',
-        'x_url', 'youtube_url', 'language',
+        'first_name',
+        'last_name',
+        'bio',
+        'phone',
+        'website',
+        'linkedin_url',
+        'facebook_url',
+        'instagram_url',
+        'tiktok_url',
+        'x_url',
+        'youtube_url',
+        'language',
       ])
         key: user[key]?.toString() ?? '',
       for (final key in const [
-        'profession', 'city', 'country', 'company_name',
-        'organization_name', 'address',
+        'profession',
+        'city',
+        'country',
+        'company_name',
+        'organization_name',
+        'address',
       ])
         key: fields[key]?.toString() ?? '',
       'public_profile': fields['public_profile'] != false,
@@ -158,19 +176,24 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     if (drafts == null || !_loaded) return;
     final payload = _currentEditor();
     final profileId = widget.personal.store.profileId;
-    _draftWrites = _draftWrites.catchError((Object _) {}).then((_) =>
-        drafts.saveLocal(
-          draftId: 'accounts-profile-editor-$profileId',
-          owner: _draftOwner,
-          resourceKind: _draftKind,
-          resourceId: profileId,
-          payload: payload,
-        ));
+    _draftWrites = _draftWrites
+        .catchError((Object _) {})
+        .then(
+          (_) => drafts.saveLocal(
+            draftId: 'accounts-profile-editor-$profileId',
+            owner: _draftOwner,
+            resourceKind: _draftKind,
+            resourceId: profileId,
+            payload: payload,
+          ),
+        );
   }
 
   Future<void> _bootstrap() async {
     try {
-      final snapshot = await widget.personal.store.readProjection('personal.me');
+      final snapshot = await widget.personal.store.readProjection(
+        'personal.me',
+      );
       final local = MeLocalPreview.forProfile(
         snapshot,
         widget.personal.store.profileId,
@@ -245,26 +268,29 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     final source = await showModalBottomSheet<bool>(
       context: context,
       showDragHandle: true,
-      builder: (context) => SafeArea(child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('Choisir une photo'),
-            onTap: () => Navigator.pop(context, false),
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text('Prendre une photo'),
-            onTap: () => Navigator.pop(context, true),
-          ),
-        ],
-      )),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choisir une photo'),
+              onTap: () => Navigator.pop(context, false),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Prendre une photo'),
+              onTap: () => Navigator.pop(context, true),
+            ),
+          ],
+        ),
+      ),
     );
     if (source == null || !mounted) return;
     try {
-      final image = await ImagePickerSystemMediaPicker()
-          .pickImage(capture: source);
+      final image = await ImagePickerSystemMediaPicker().pickImage(
+        capture: source,
+      );
       if (image == null || !mounted) return;
       final approved = await showDialog<bool>(
         context: context,
@@ -273,11 +299,15 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ClipOval(child: Image.file(
-                File(image.path),
-                width: 152, height: 152, fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const Icon(Icons.person, size: 90),
-              )),
+              ClipOval(
+                child: Image.file(
+                  File(image.path),
+                  width: 152,
+                  height: 152,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const Icon(Icons.person, size: 90),
+                ),
+              ),
               const SizedBox(height: 14),
               const Text('Utiliser cette photo sur mon passeport ?'),
             ],
@@ -295,13 +325,21 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         ),
       );
       if (approved != true || !mounted) return;
-      setState(() { _saving = true; _error = null; _confirmation = null; });
+      setState(() {
+        _saving = true;
+        _error = null;
+        _confirmation = null;
+      });
       await widget.api.upload(
         'api/v1/accounts/auth/profile/update/',
         method: 'PATCH',
-        files: [MakoloUploadFile(
-          fieldName: 'avatar', path: image.path, filename: image.name,
-        )],
+        files: [
+          MakoloUploadFile(
+            fieldName: 'avatar',
+            path: image.path,
+            filename: image.name,
+          ),
+        ],
       );
       // Keep the confirmed portrait in the durable private file area, not OS
       // image cache. Owner projection refresh still reconciles the server fact.
@@ -333,7 +371,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     try {
       final response = await widget.api.get('api/v1/me/');
       final envelope = ProjectionEnvelope.parse(
-        response.jsonObject(), expectedProjection: 'personal.me',
+        response.jsonObject(),
+        expectedProjection: 'personal.me',
       );
       final actor = envelope.data['actor'];
       if (actor is! Map ||
@@ -428,7 +467,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       _saving = false;
       _confirmation = submittedRevision != _editRevision
           ? 'Les modifications envoyées sont enregistrées. '
-              'Vos changements plus récents restent à enregistrer.'
+                'Vos changements plus récents restent à enregistrer.'
           : refreshed
           ? 'Modifications enregistrées.'
           : 'Enregistré. Actualisation en attente.';
@@ -444,9 +483,18 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       _city,
       _country,
       _bio,
-      _phone, _website, _linkedin, _facebook, _instagram,
-      _tiktok, _x, _youtube, _company, _organization,
-      _language, _address,
+      _phone,
+      _website,
+      _linkedin,
+      _facebook,
+      _instagram,
+      _tiktok,
+      _x,
+      _youtube,
+      _company,
+      _organization,
+      _language,
+      _address,
     ]) {
       controller.dispose();
     }
@@ -517,10 +565,12 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                     items: const [
                       DropdownMenuItem(value: 'fr', child: Text('Français')),
                     ],
-                    onChanged: _saving ? null : (value) {
-                      _language.text = value ?? 'fr';
-                      _rememberEdits();
-                    },
+                    onChanged: _saving
+                        ? null
+                        : (value) {
+                            _language.text = value ?? 'fr';
+                            _rememberEdits();
+                          },
                   ),
                 ),
                 ExpansionTile(
@@ -542,22 +592,26 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   title: const Text('Passeport public'),
                   subtitle: const Text('Autoriser la présentation publique'),
                   value: _publicProfile,
-                  onChanged: _saving ? null : (value) =>
-                      setState(() {
-                        _publicProfile = value;
-                        _rememberEdits();
-                      }),
+                  onChanged: _saving
+                      ? null
+                      : (value) => setState(() {
+                          _publicProfile = value;
+                          _rememberEdits();
+                        }),
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Visible dans la recherche'),
-                  subtitle: const Text('Être proposé dans la recherche Makolo, indépendamment de l’accès direct au Passeport'),
+                  subtitle: const Text(
+                    'Être proposé dans la recherche Makolo, indépendamment de l’accès direct au Passeport',
+                  ),
                   value: _searchable,
-                  onChanged: _saving ? null : (value) =>
-                      setState(() {
-                        _searchable = value;
-                        _rememberEdits();
-                      }),
+                  onChanged: _saving
+                      ? null
+                      : (value) => setState(() {
+                          _searchable = value;
+                          _rememberEdits();
+                        }),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
@@ -579,9 +633,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         Text(
           identity == null
               ? 'Les informations du profil ne sont pas encore '
-                  'disponibles sur cet appareil.'
+                    'disponibles sur cet appareil.'
               : 'Dernières informations du profil connues sur cet appareil. '
-                  'La modification nécessite une connexion.',
+                    'La modification nécessite une connexion.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         if (name != null && name.trim().isNotEmpty) ...[
@@ -609,9 +663,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     padding: const EdgeInsets.only(top: 24, bottom: 16),
     child: Text(
       title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w700,
-      ),
+      style: Theme.of(context).textTheme.titleMedium
+          ?.copyWith(fontWeight: FontWeight.w700),
     ),
   );
 
@@ -627,9 +680,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         if (query.isEmpty) {
           return makoloCountries.take(30);
         }
-        return makoloCountries.where((country) =>
-          country.label.toLowerCase().contains(query) ||
-          country.code.toLowerCase().startsWith(query));
+        return makoloCountries.where(
+          (country) =>
+              country.label.toLowerCase().contains(query) ||
+              country.code.toLowerCase().startsWith(query),
+        );
       },
       onSelected: (country) {
         setState(() {
@@ -650,7 +705,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
               prefixIcon: Icon(Icons.public_outlined),
               border: OutlineInputBorder(),
               isDense: true,
-              contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 15,
+              ),
             ),
             onChanged: (value) {
               if (value != _selectedCountry?.label) {
@@ -680,7 +738,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         labelText: label,
         border: const OutlineInputBorder(),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 15,
+        ),
       ),
     ),
   );

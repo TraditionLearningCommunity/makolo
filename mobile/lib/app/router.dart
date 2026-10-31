@@ -253,10 +253,7 @@ GoRouter createMakoloRouter(
           builder: (context, state) {
             final query = publicDiscoveryQuery(state.uri.queryParameters);
             if (query == null) return invalidDiscoveryRoute();
-            return PublicDiscoveryMapScreen(
-              runtime: runtime,
-              query: query,
-            );
+            return PublicDiscoveryMapScreen(runtime: runtime, query: query);
           },
         ),
         GoRoute(

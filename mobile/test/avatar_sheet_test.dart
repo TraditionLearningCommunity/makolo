@@ -88,36 +88,38 @@ void main() {
     },
   );
 
-  testWidgets('Avatar hides 100 percent when applicable profile steps are complete', (
-    tester,
-  ) async {
-    final runtime = await _runtimeWithIdentity(complete: true);
+  testWidgets(
+    'Avatar hides 100 percent when applicable profile steps are complete',
+    (tester) async {
+      final runtime = await _runtimeWithIdentity(complete: true);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => showMakoloAvatarSheet(context, runtime: runtime),
-              child: const Text('Avatar'),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () =>
+                    showMakoloAvatarSheet(context, runtime: runtime),
+                child: const Text('Avatar'),
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('Avatar'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Avatar'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Amina'), findsOneWidget);
-    expect(find.textContaining('renseigné'), findsNothing);
+      expect(find.text('Amina'), findsOneWidget);
+      expect(find.textContaining('renseigné'), findsNothing);
 
-    Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 1));
-    await tester.runAsync(runtime.close);
-  });
+      Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.runAsync(runtime.close);
+    },
+  );
 }

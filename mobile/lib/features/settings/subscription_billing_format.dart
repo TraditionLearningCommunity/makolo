@@ -17,8 +17,10 @@ String subscriptionPriceLabel(Object? raw) {
   final count = raw['period_count'] is int
       ? raw['period_count'] as int
       : int.tryParse(raw['period_count']?.toString() ?? '') ?? 1;
-  final cadence = (count > 1 ? count.toString() + ' ' : '') +
-      unit + (count > 1 && unit != 'mois' ? 's' : '');
+  final cadence =
+      (count > 1 ? count.toString() + ' ' : '') +
+      unit +
+      (count > 1 && unit != 'mois' ? 's' : '');
   return currency + ' ' + amount + ' / ' + cadence;
 }
 

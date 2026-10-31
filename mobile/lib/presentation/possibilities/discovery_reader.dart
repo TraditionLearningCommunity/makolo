@@ -27,10 +27,12 @@ class DiscoveryReaderItem {
   final String title;
   final Uri uri;
   final String mimeType;
+
   /// Authenticated loader for published recognition media. This is called
   /// through the owner-gated Makolo API, never an unauthenticated HTTP client.
   /// Only publicly published recognition images may use offline retention.
   final Future<Uint8List> Function()? authorizedImageBytes;
+
   /// Public text already carried by a permitted owner projection.
   /// It is not fetched again and does not create a new document identity.
   final String? inlineText;
@@ -223,8 +225,10 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
         setState(() => _imageBytes = bytes);
       } on Object {
         if (mounted && generation == _generation) {
-          setState(() => _failure =
-              'Lecture indisponible. Vérifiez la connexion et les droits.');
+          setState(
+            () => _failure =
+                'Lecture indisponible. Vérifiez la connexion et les droits.',
+          );
         }
       } finally {
         if (mounted && generation == _generation) {
@@ -349,7 +353,8 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   }
 
   Future<void> _toggleOffline() async {
-    if (_offlineBusy || _item.mimeType == 'text/html' ||
+    if (_offlineBusy ||
+        _item.mimeType == 'text/html' ||
         _item.inlineText != null) {
       return;
     }
@@ -399,7 +404,8 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     if (item.authorizedImageBytes != null) {
       File? generated;
       try {
-        generated = _retainedFile ?? _temporaryFile ?? await _fetchTemporary(item);
+        generated =
+            _retainedFile ?? _temporaryFile ?? await _fetchTemporary(item);
         await widget.sharing.shareFiles(paths: [generated.path]);
       } on Object {
         if (mounted) {
@@ -409,7 +415,8 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
         }
       } finally {
         if (generated != null &&
-            generated != _retainedFile && generated != _temporaryFile) {
+            generated != _retainedFile &&
+            generated != _temporaryFile) {
           try {
             if (await generated.exists()) await generated.delete();
           } on FileSystemException {
@@ -438,9 +445,9 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     final uri = _item.uri;
     if (_item.inlineText == null && !discoverySafeDestination(uri)) return;
     try {
-      await Clipboard.setData(ClipboardData(
-        text: _item.inlineText ?? uri.toString(),
-      ));
+      await Clipboard.setData(
+        ClipboardData(text: _item.inlineText ?? uri.toString()),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Copié.')));

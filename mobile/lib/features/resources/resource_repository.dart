@@ -188,10 +188,12 @@ class ResourceRepository {
     int limit = defaultLimit,
   }) async {
     final key = collectionSourceKey(query: query, offset: offset, limit: limit);
-    final rows = await (database.select(database.syncSources)
-          ..where((row) =>
-              row.profileId.equals(profileId) & row.sourceKey.equals(key)))
-        .getSingleOrNull();
+    final rows =
+        await (database.select(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) & row.sourceKey.equals(key),
+            ))
+            .getSingleOrNull();
     return rows == null
         ? ResourceSourceState.unknown
         : ResourceSourceState(
@@ -213,11 +215,13 @@ class ResourceRepository {
       _watchSource('resource:$assetId');
 
   Future<ResourceSourceState> readDetailSource(String assetId) async {
-    final row = await (database.select(database.syncSources)
-          ..where((item) =>
-              item.profileId.equals(profileId) &
-              item.sourceKey.equals('resource:$assetId')))
-        .getSingleOrNull();
+    final row =
+        await (database.select(database.syncSources)..where(
+              (item) =>
+                  item.profileId.equals(profileId) &
+                  item.sourceKey.equals('resource:$assetId'),
+            ))
+            .getSingleOrNull();
     return row == null
         ? ResourceSourceState.unknown
         : ResourceSourceState(

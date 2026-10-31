@@ -291,58 +291,66 @@ void main() {
     expect(savedItem().mediaPath, isNull);
   });
 
-  testWidgets('Moi limits saved preview to three and opens the full collection', (
-    tester,
-  ) async {
-    final payload = _fullPayload();
-    final considerations = payload['considerations'] as Map<String, dynamic>;
-    considerations['bookmarks'] = {
-      'count': 5,
-      'items': [
-        for (var index = 0; index < 5; index++)
-          {
-            'id': 'bookmark-$index',
-            'activity': {
-              'id': 'activity-$index',
-              'title': 'Possibilité $index',
+  testWidgets(
+    'Moi limits saved preview to three and opens the full collection',
+    (tester) async {
+      final payload = _fullPayload();
+      final considerations = payload['considerations'] as Map<String, dynamic>;
+      considerations['bookmarks'] = {
+        'count': 5,
+        'items': [
+          for (var index = 0; index < 5; index++)
+            {
+              'id': 'bookmark-$index',
+              'activity': {
+                'id': 'activity-$index',
+                'title': 'Possibilité $index',
+              },
             },
+        ],
+        'has_more': false,
+      };
+      var opened = '';
+      final selection = selector.select(
+        projection: _projection(payload),
+        now: now,
+      );
+      expect(
+        selection.territories
+            .singleWhere((t) => t.presentation.key == 'considerations')
+            .savedCount,
+        5,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(
+          selection: selection,
+          onOpenDestination: (destination) {
+            opened = destination.kind;
+            return true;
           },
-      ],
-      'has_more': false,
-    };
-    var opened = '';
-    final selection = selector.select(
-      projection: _projection(payload), now: now,
-    );
-    expect(selection.territories.singleWhere(
-        (t) => t.presentation.key == 'considerations').savedCount, 5);
-    await PresentationHarness.pump(
-      tester, viewport: const Size(430, 932),
-      child: MeView(
-        selection: selection,
-        onOpenDestination: (destination) {
-          opened = destination.kind;
-          return true;
-        },
-      ),
-    );
-    expect(find.text('Possibilité 0'), findsOneWidget);
-    expect(find.text('Possibilité 1'), findsOneWidget);
-    expect(find.text('Possibilité 2'), findsOneWidget);
-    expect(find.text('Possibilité 3'), findsNothing);
-    expect(find.text('Possibilité 4'), findsNothing);
-    expect(find.text('Vous avez tout exploré'), findsNothing);
-    await tester.ensureVisible(find.text('Voir les 5 enregistrements'));
-    await tester.tap(find.text('Voir les 5 enregistrements'));
-    expect(opened, 'saved_collection');
-  });
+        ),
+      );
+      expect(find.text('Possibilité 0'), findsOneWidget);
+      expect(find.text('Possibilité 1'), findsOneWidget);
+      expect(find.text('Possibilité 2'), findsOneWidget);
+      expect(find.text('Possibilité 3'), findsNothing);
+      expect(find.text('Possibilité 4'), findsNothing);
+      expect(find.text('Vous avez tout exploré'), findsNothing);
+      await tester.ensureVisible(find.text('Voir les 5 enregistrements'));
+      await tester.tap(find.text('Voir les 5 enregistrements'));
+      expect(opened, 'saved_collection');
+    },
+  );
 
   testWidgets('tapping personal choices heading opens its native owner', (
     tester,
   ) async {
     var kind = '';
     final selection = selector.select(
-      projection: _projection(_fullPayload()), now: now,
+      projection: _projection(_fullPayload()),
+      now: now,
     );
     await PresentationHarness.pump(
       tester,

@@ -600,28 +600,32 @@ void main() {
     );
   });
 
-  test('native Space creation uses the owner without granting client authority', () async {
-    var posted = false;
-    final harness = await _harness(
-      handler: (request) async {
-        if (request.url.path == '/api/v1/organizations/workspaces/' &&
-            request.data != null) {
-          final payload = request.data as Map;
-          expect(payload['name'], 'Association Lumière');
-          expect(payload['public_profile'], false);
-          posted = true;
-          return MockResponse(jsonEncode(_workspace()), 201);
-        }
-        throw StateError('Unexpected request: ' + request.url.path);
-      },
-    );
-    addTearDown(harness.close);
+  test(
+    'native Space creation uses the owner without granting client authority',
+    () async {
+      var posted = false;
+      final harness = await _harness(
+        handler: (request) async {
+          if (request.url.path == '/api/v1/organizations/workspaces/' &&
+              request.data != null) {
+            final payload = request.data as Map;
+            expect(payload['name'], 'Association Lumière');
+            expect(payload['public_profile'], false);
+            posted = true;
+            return MockResponse(jsonEncode(_workspace()), 201);
+          }
+          throw StateError('Unexpected request: ' + request.url.path);
+        },
+      );
+      addTearDown(harness.close);
 
-    final identity = await harness.repository.createSpace(
-      name: ' Association Lumière ', publicProfile: false,
-    );
-    expect(posted, isTrue);
-    expect(identity, SpaceActorIdentity(id: 'space-x', slug: 'space-x'));
-    expect(harness.actorContext.value, const PersonalActorContext());
-  });
+      final identity = await harness.repository.createSpace(
+        name: ' Association Lumière ',
+        publicProfile: false,
+      );
+      expect(posted, isTrue);
+      expect(identity, SpaceActorIdentity(id: 'space-x', slug: 'space-x'));
+      expect(harness.actorContext.value, const PersonalActorContext());
+    },
+  );
 }

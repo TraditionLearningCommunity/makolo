@@ -187,7 +187,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
 
     if (!mounted) return;
     if (widget.initialFilters?.hasCriteria != true &&
-        widget.initialQuery.isEmpty && widget.initialVertical.isEmpty) {
+        widget.initialQuery.isEmpty &&
+        widget.initialVertical.isEmpty) {
       final query = saved?['query'];
       if (query is String) _search.text = query;
       final place = saved?['place'];
@@ -549,8 +550,10 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       _date.isNotEmpty ||
                       _price.isNotEmpty ||
                       _place.text.trim().isNotEmpty ||
-                      _latitude != null || _period.isNotEmpty ||
-                      _dateFrom.isNotEmpty || _dateTo.isNotEmpty,
+                      _latitude != null ||
+                      _period.isNotEmpty ||
+                      _dateFrom.isNotEmpty ||
+                      _dateTo.isNotEmpty,
                   filters: const SizedBox.shrink(),
                   filtersRefresh: _filterRevision,
                   filtersBuilder: (_) => DiscoveryFilterFields(
@@ -665,9 +668,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
-                      onPressed: () => context.push(
-                        _query.routeLocation('/discover/map'),
-                      ),
+                      onPressed: () =>
+                          context.push(_query.routeLocation('/discover/map')),
                       icon: const Icon(Icons.map_outlined),
                       label: const Text('Voir sur la carte'),
                     ),

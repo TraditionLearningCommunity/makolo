@@ -19,8 +19,10 @@ class DiscoveryN2DepthSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final depth = DiscoveryN2Depth(item);
-    if (depth.assessments.isEmpty && depth.variants.isEmpty &&
-        depth.relations.isEmpty && depth.freshness == null) {
+    if (depth.assessments.isEmpty &&
+        depth.variants.isEmpty &&
+        depth.relations.isEmpty &&
+        depth.freshness == null) {
       return const SizedBox.shrink();
     }
     final theme = Theme.of(context);
@@ -59,8 +61,11 @@ class DiscoveryN2DepthSection extends StatelessWidget {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(group.$3, size: 18,
-                                color: theme.colorScheme.onSurfaceVariant),
+                              Icon(
+                                group.$3,
+                                size: 18,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                               const SizedBox(width: MakoloSpacing.sm),
                               Expanded(child: Text(fact.label)),
                             ],
@@ -81,14 +86,18 @@ class DiscoveryN2DepthSection extends StatelessWidget {
             const SizedBox(height: MakoloSpacing.xs),
             for (var index = 0; index < depth.variants.length; index++)
               Card(
-                key: ValueKey('discover-n2-variant-${depth.variants[index].id}'),
+                key: ValueKey(
+                  'discover-n2-variant-${depth.variants[index].id}',
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(MakoloSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Variante ${index + 1}',
-                        style: theme.textTheme.titleSmall),
+                      Text(
+                        'Variante ${index + 1}',
+                        style: theme.textTheme.titleSmall,
+                      ),
                       if (depth.variants[index].start != null)
                         Text('Début : ${depth.variants[index].start}'),
                       if (depth.variants[index].end != null)
@@ -98,17 +107,18 @@ class DiscoveryN2DepthSection extends StatelessWidget {
                       if (depth.variants[index].start == null &&
                           depth.variants[index].end == null &&
                           depth.variants[index].places.isEmpty)
-                        Text('Date et lieu non renseignés dans cette variante.',
-                          style: theme.textTheme.bodySmall),
+                        Text(
+                          'Date et lieu non renseignés dans cette variante.',
+                          style: theme.textTheme.bodySmall,
+                        ),
                       if (onOpenOccurrence != null) ...[
                         const SizedBox(height: MakoloSpacing.xs),
                         TextButton.icon(
                           key: ValueKey(
                             'discover-n2-owner-occurrence-${depth.variants[index].id}',
                           ),
-                          onPressed: () => onOpenOccurrence!(
-                            depth.variants[index].id,
-                          ),
+                          onPressed: () =>
+                              onOpenOccurrence!(depth.variants[index].id),
                           icon: const Icon(Icons.open_in_new_rounded),
                           label: const Text('Consulter cette réalisation'),
                         ),
@@ -120,8 +130,10 @@ class DiscoveryN2DepthSection extends StatelessWidget {
           ],
           if (comparison.isNotEmpty) ...[
             const SizedBox(height: MakoloSpacing.md),
-            Text('Comparer les variantes connues',
-              style: theme.textTheme.titleMedium),
+            Text(
+              'Comparer les variantes connues',
+              style: theme.textTheme.titleMedium,
+            ),
             const SizedBox(height: MakoloSpacing.xs),
             Text(
               'Seules les dimensions renseignées pour toutes les variantes '
@@ -139,11 +151,12 @@ class DiscoveryN2DepthSection extends StatelessWidget {
                 ],
                 rows: [
                   for (final row in comparison)
-                    DataRow(cells: [
-                      DataCell(Text(row.label)),
-                      for (final value in row.values)
-                        DataCell(Text(value)),
-                    ]),
+                    DataRow(
+                      cells: [
+                        DataCell(Text(row.label)),
+                        for (final value in row.values) DataCell(Text(value)),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -163,8 +176,10 @@ class DiscoveryN2DepthSection extends StatelessWidget {
           ],
           if (depth.freshness != null) ...[
             const SizedBox(height: MakoloSpacing.md),
-            Text('Vérification : ${depth.freshness}',
-              style: theme.textTheme.bodySmall),
+            Text(
+              'Vérification : ${depth.freshness}',
+              style: theme.textTheme.bodySmall,
+            ),
           ],
         ],
       ),

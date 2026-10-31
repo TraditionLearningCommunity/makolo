@@ -46,7 +46,8 @@ void main() {
     const foreignLink = StructuredDestination(
       kind: 'space_work_journey',
       id: 'journey-a',
-      link: 'https://external.invalid/space/space-a/retrieval/journey/journey-a',
+      link:
+          'https://external.invalid/space/space-a/retrieval/journey/journey-a',
     );
     expect(
       NowScreen.ownerPathFor(authorized),
@@ -94,54 +95,59 @@ void main() {
     expect(NowScreen.ownerPathFor(query), isNull);
   });
 
-  test('Cross-domain Space signals stay owner-backed and do not claim calm', () {
-    final result = selector.select(
-      projection: _spaceNowProjection([
-        {
-          'id': 'space-now:space-a:payment:payment-1',
-          'source': {'kind': 'payment', 'id': 'payment-1'},
-          'human_context': 'Commande C-10',
-          'state_meaning': 'Dernière tentative de paiement échouée',
-          'why_now': {
-            'reason': 'payment_failed_order_pending',
-            'meaning': 'Le paiement a échoué alors que la commande attend.',
+  test(
+    'Cross-domain Space signals stay owner-backed and do not claim calm',
+    () {
+      final result = selector.select(
+        projection: _spaceNowProjection([
+          {
+            'id': 'space-now:space-a:payment:payment-1',
+            'source': {'kind': 'payment', 'id': 'payment-1'},
+            'human_context': 'Commande C-10',
+            'state_meaning': 'Dernière tentative de paiement échouée',
+            'why_now': {
+              'reason': 'payment_failed_order_pending',
+              'meaning': 'Le paiement a échoué alors que la commande attend.',
+            },
+            'consequence': {'state': 'unknown'},
+            'response': {'type': 'monitor'},
+            'handoffs': [
+              {
+                'type': 'owner',
+                'target': 'space_commerce_order',
+                'id': 'order-1',
+                'link': '/space/space-a/retrieval/commerce_order/order-1',
+              },
+            ],
+            'business_actions': [
+              {
+                'capability': 'open_owner',
+                'label': 'Vérifier le paiement',
+                'href': '/spaces/space-a/payments/',
+                'interaction_depth': 'domain_depth',
+                'confirmation_required': false,
+              },
+            ],
           },
-          'consequence': {'state': 'unknown'},
-          'response': {'type': 'monitor'},
-          'handoffs': [
-            {
-              'type': 'owner',
-              'target': 'space_commerce_order',
-              'id': 'order-1',
-              'link': '/space/space-a/retrieval/commerce_order/order-1',
-            },
-          ],
-          'business_actions': [
-            {
-              'capability': 'open_owner',
-              'label': 'Vérifier le paiement',
-              'href': '/spaces/space-a/payments/',
-              'interaction_depth': 'domain_depth',
-              'confirmation_required': false,
-            },
-          ],
-        },
-      ]),
-      now: observedAt,
-    );
-    expect(result.isCalm, isFalse);
-    expect(result.situations, hasLength(1));
-    final item = result.situations.single;
-    expect(item.whyNowReason, 'payment_failed_order_pending');
-    expect(item.consequenceState, 'unknown');
-    expect(item.ownerDestination?.kind, 'space_commerce_order');
-    expect(
-      NowScreen.ownerPathFor(item.ownerDestination!),
-      '/space/space-a/retrieval/commerce_order/order-1',
-    );
-    expect(item.businessActions.single.interactionDepth,
-        NowInteractionDepth.domainDepth);
-  });
+        ]),
+        now: observedAt,
+      );
+      expect(result.isCalm, isFalse);
+      expect(result.situations, hasLength(1));
+      final item = result.situations.single;
+      expect(item.whyNowReason, 'payment_failed_order_pending');
+      expect(item.consequenceState, 'unknown');
+      expect(item.ownerDestination?.kind, 'space_commerce_order');
+      expect(
+        NowScreen.ownerPathFor(item.ownerDestination!),
+        '/space/space-a/retrieval/commerce_order/order-1',
+      );
+      expect(
+        item.businessActions.single.interactionDepth,
+        NowInteractionDepth.domainDepth,
+      );
+    },
+  );
 
   test('Space payer obligations use a strictly scoped native owner link', () {
     const owned = StructuredDestination(
@@ -167,47 +173,53 @@ void main() {
     expect(NowScreen.ownerPathFor(external), isNull);
   });
 
-  test('Space owner situation uses common Now semantics without direct POST', () {
-    final result = selector.select(
-      projection: _spaceNowProjection([
-        {
-          'id': 'space-now:space-a:journey_request:req-a',
-          'human_context': 'Inscription',
-          'source': {'kind': 'journey_request', 'id': 'req-a'},
-          'subject': {'label': 'Demande en attente'},
-          'state_meaning': 'Demande reçue, en attente de décision',
-          'why_now': {
-            'reason': 'journey_request_pending',
-            'meaning': 'Une demande attend une décision.',
-          },
-          'consequence': {'state': 'unknown', 'effect': null},
-          'response': {'type': 'decide', 'label': 'Examiner la demande'},
-          'handoffs': [
-            {'type': 'owner', 'target': 'space_request', 'id': 'req-a'},
-          ],
-          'business_actions': [
-            {
-              'capability': 'open_owner',
-              'label': 'Examiner la demande',
-              'href': '/spaces/test/requests/',
-              'interaction_depth': 'domain_depth',
-              'confirmation_required': false,
+  test(
+    'Space owner situation uses common Now semantics without direct POST',
+    () {
+      final result = selector.select(
+        projection: _spaceNowProjection([
+          {
+            'id': 'space-now:space-a:journey_request:req-a',
+            'human_context': 'Inscription',
+            'source': {'kind': 'journey_request', 'id': 'req-a'},
+            'subject': {'label': 'Demande en attente'},
+            'state_meaning': 'Demande reçue, en attente de décision',
+            'why_now': {
+              'reason': 'journey_request_pending',
+              'meaning': 'Une demande attend une décision.',
             },
-          ],
-        },
-      ]),
-      now: observedAt,
-    );
-    expect(result.situations, hasLength(1));
-    final situation = result.situations.single;
-    expect(situation.whyNowReason, 'journey_request_pending');
-    expect(situation.consequence, isNull);
-    expect(situation.consequenceState, 'unknown');
-    expect(situation.ownerDestination?.kind, 'space_request');
-    expect(NowScreen.ownerPathFor(situation.ownerDestination!), '/space/requests/req-a');
-    expect(situation.businessActions, hasLength(1));
-    final action = situation.businessActions.single;
-    expect(action.interactionDepth, NowInteractionDepth.domainDepth);
-    expect(NowOwnerAction.authorizedPath(situation, action), isNull);
-  });
+            'consequence': {'state': 'unknown', 'effect': null},
+            'response': {'type': 'decide', 'label': 'Examiner la demande'},
+            'handoffs': [
+              {'type': 'owner', 'target': 'space_request', 'id': 'req-a'},
+            ],
+            'business_actions': [
+              {
+                'capability': 'open_owner',
+                'label': 'Examiner la demande',
+                'href': '/spaces/test/requests/',
+                'interaction_depth': 'domain_depth',
+                'confirmation_required': false,
+              },
+            ],
+          },
+        ]),
+        now: observedAt,
+      );
+      expect(result.situations, hasLength(1));
+      final situation = result.situations.single;
+      expect(situation.whyNowReason, 'journey_request_pending');
+      expect(situation.consequence, isNull);
+      expect(situation.consequenceState, 'unknown');
+      expect(situation.ownerDestination?.kind, 'space_request');
+      expect(
+        NowScreen.ownerPathFor(situation.ownerDestination!),
+        '/space/requests/req-a',
+      );
+      expect(situation.businessActions, hasLength(1));
+      final action = situation.businessActions.single;
+      expect(action.interactionDepth, NowInteractionDepth.domainDepth);
+      expect(NowOwnerAction.authorizedPath(situation, action), isNull);
+    },
+  );
 }

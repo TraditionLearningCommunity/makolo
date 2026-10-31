@@ -56,8 +56,10 @@ DiscoveryQuery? retainedDiscoveryPosition(StoredProjection? marker) {
   }
   final page = marker!.payload['page'];
   final continuation = marker.payload['continuation'];
-  if (page is! int || page < 2 ||
-      continuation is! String || continuation.isEmpty) {
+  if (page is! int ||
+      page < 2 ||
+      continuation is! String ||
+      continuation.isEmpty) {
     return null;
   }
   return const DiscoveryQuery().copyWith(
@@ -70,7 +72,8 @@ DiscoveryQuery? retainedDiscoveryPosition(StoredProjection? marker) {
 /// Never convert a screen position into server-owned data.
 double? retainedDiscoveryScrollOffset(StoredProjection? marker) {
   if (marker?.kind != 'discovery.presentation-position' ||
-      marker?.schemaVersion != 1) return null;
+      marker?.schemaVersion != 1)
+    return null;
   final value = marker!.payload['scroll_offset'];
   if (value is! num || !value.isFinite || value < 0) return null;
   return value.toDouble();
@@ -78,7 +81,8 @@ double? retainedDiscoveryScrollOffset(StoredProjection? marker) {
 
 String? retainedDiscoveryFocusedCandidate(StoredProjection? marker) {
   if (marker?.kind != 'discovery.presentation-position' ||
-      marker?.schemaVersion != 1) return null;
+      marker?.schemaVersion != 1)
+    return null;
   final key = marker!.payload['selected_candidate_key'];
   return key is String && key.isNotEmpty ? key : null;
 }
@@ -178,7 +182,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           'page': current.page,
           'continuation': current.continuation,
           'scroll_offset': _fieldScroll.hasClients
-              ? _fieldScroll.offset : (_pendingScrollRestore ?? 0.0),
+              ? _fieldScroll.offset
+              : (_pendingScrollRestore ?? 0.0),
           'selected_candidate_key': _focusedCandidateKey,
         },
       );
@@ -418,12 +423,15 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             );
             if (_pendingScrollRestore != null && projection != null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted || !_fieldScroll.hasClients || _pendingScrollRestore == null) return;
+                if (!mounted ||
+                    !_fieldScroll.hasClients ||
+                    _pendingScrollRestore == null)
+                  return;
                 final restored = _pendingScrollRestore!;
                 _pendingScrollRestore = null;
-                _fieldScroll.jumpTo(restored.clamp(
-                  0.0, _fieldScroll.position.maxScrollExtent,
-                ));
+                _fieldScroll.jumpTo(
+                  restored.clamp(0.0, _fieldScroll.position.maxScrollExtent),
+                );
               });
             }
             return RefreshIndicator(
@@ -444,9 +452,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 },
                 onMap: (selected) {
                   unawaited(_rememberPosition(_query));
-                  context.push(_query.routeLocation(
-                    '/discover/map', selectedCandidateKey: selected,
-                  ));
+                  context.push(
+                    _query.routeLocation(
+                      '/discover/map',
+                      selectedCandidateKey: selected,
+                    ),
+                  );
                 },
                 onPage: (_) => unawaited(_loadNextPage()),
                 autoLoadMore: true,
@@ -682,7 +693,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (!mounted || !identical(current, _query)) return;
     if (page > 1 && token != null) _pageTokens[page] = token;
     final query = current.copyWith(
-      page: page, continuation: token, clearContinuation: page == 1,
+      page: page,
+      continuation: token,
+      clearContinuation: page == 1,
     );
     setState(() => _query = query);
     widget.repository.rememberExploration(query);
@@ -941,9 +954,13 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             shareApi: widget.repository.api,
                             fieldKey: _query.mapFingerprint,
                             initialFocusedCandidateKey: _selectedCandidateKey,
-                            onFocusedCandidateChanged: (key) => _selectedCandidateKey = key,
+                            onFocusedCandidateChanged: (key) =>
+                                _selectedCandidateKey = key,
                             onMap: (selected) => context.push(
-                              _query.routeLocation('/discover/map', selectedCandidateKey: selected),
+                              _query.routeLocation(
+                                '/discover/map',
+                                selectedCandidateKey: selected,
+                              ),
                             ),
                             onPage: _movePage,
                             onRetry: () {
@@ -1066,8 +1083,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
-    if (rejected && current.page > 1 &&
-        mounted && identical(current, _query)) {
+    if (rejected && current.page > 1 && mounted && identical(current, _query)) {
       final first = current.copyWith(page: 1, clearContinuation: true);
       setState(() {
         _query = first;
@@ -1104,7 +1120,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       }
       if (!mounted || !identical(current, _query)) return;
       final next = current.copyWith(
-        page: target, continuation: token, clearContinuation: target == 1,
+        page: target,
+        continuation: token,
+        clearContinuation: target == 1,
       );
       if (token != null) _pageTokens[target] = token;
       var acquired = await widget.repository.readItems(next);
@@ -1131,7 +1149,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         acquired = await widget.repository.readItems(next);
       }
       if (!mounted || !identical(current, _query)) return;
-      if (acquired == null || _selector.collection(acquired).page != next.page) {
+      if (acquired == null ||
+          _selector.collection(acquired).page != next.page) {
         throw const FormatException('Page de carte incompatible');
       }
       if (next.page > 1) await widget.repository.retainPresentedWindow(next);
@@ -1158,8 +1177,10 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             key: const Key('discover-map-open-search'),
             tooltip: 'Rechercher avec les mêmes critères',
             onPressed: () => context.push(
-              _query.routeLocation('/discover/search',
-                selectedCandidateKey: _selectedCandidateKey),
+              _query.routeLocation(
+                '/discover/search',
+                selectedCandidateKey: _selectedCandidateKey,
+              ),
             ),
             icon: const Icon(Icons.search_rounded),
           ),
@@ -1179,18 +1200,20 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             ),
             initialData: DiscoverySourceState.unknown,
             builder: (context, sourceSnapshot) {
-              final source = sourceSnapshot.data ?? DiscoverySourceState.unknown;
+              final source =
+                  sourceSnapshot.data ?? DiscoverySourceState.unknown;
               final selection = _selector.select(
                 projection: snapshot.data,
                 hasCriteria: _query.hasCriteria,
                 refreshing: _refreshing,
-                reachability: source.reachability ==
-                        ReachabilityState.unreachable
+                reachability:
+                    source.reachability == ReachabilityState.unreachable
                     ? MakoloReachabilityCue.temporarilyUnavailable
                     : source.lastSuccessAt != null
-                        ? MakoloReachabilityCue.reachable
-                        : MakoloReachabilityCue.unknown,
-                failure: _loadMoreFailed ||
+                    ? MakoloReachabilityCue.reachable
+                    : MakoloReachabilityCue.unknown,
+                failure:
+                    _loadMoreFailed ||
                         source.lastErrorCode != null ||
                         snapshot.hasError ||
                         sourceSnapshot.hasError
@@ -1199,27 +1222,27 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 sourceErrorCode: source.lastErrorCode,
               );
               return DiscoverySpatialView(
-            key: ValueKey('discover-map-field-${_query.mapFingerprint}'),
-            selection: selection,
-            mapConfig: widget.mapConfig,
-            showMapOnCompact: true,
-            fieldKey: _query.mapFingerprint,
-            initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
-            onSelectionChanged: (key) => _selectedCandidateKey = key,
-            onPage: (page) => unawaited(_navigateToPage(page)),
-            loadMoreFailed: _loadMoreFailed,
-            onSave: (item) =>
-                _saveDiscoveryPossibility(widget.repository, item, _query),
-            baseUri: widget.repository.api.baseUri,
-            shareApi: widget.repository.api,
-            onRetry: () => unawaited(_refresh()),
-            onOpen: (item) {
-              if (widget.onOpenItem != null) {
-                widget.onOpenItem!(item.family, item.id);
-              } else if (item.occurrenceId != null) {
-                widget.onOpenOccurrence(item.occurrenceId!);
-              }
-            },
+                key: ValueKey('discover-map-field-${_query.mapFingerprint}'),
+                selection: selection,
+                mapConfig: widget.mapConfig,
+                showMapOnCompact: true,
+                fieldKey: _query.mapFingerprint,
+                initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
+                onSelectionChanged: (key) => _selectedCandidateKey = key,
+                onPage: (page) => unawaited(_navigateToPage(page)),
+                loadMoreFailed: _loadMoreFailed,
+                onSave: (item) =>
+                    _saveDiscoveryPossibility(widget.repository, item, _query),
+                baseUri: widget.repository.api.baseUri,
+                shareApi: widget.repository.api,
+                onRetry: () => unawaited(_refresh()),
+                onOpen: (item) {
+                  if (widget.onOpenItem != null) {
+                    widget.onOpenItem!(item.family, item.id);
+                  } else if (item.occurrenceId != null) {
+                    widget.onOpenOccurrence(item.occurrenceId!);
+                  }
+                },
               );
             },
           );
@@ -1433,8 +1456,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         final activity = raw['activity'] as Map;
         if (activity['id']?.toString() != requestedId) continue;
         final label = activity['title'];
-        if (label is String && label.trim().isNotEmpty &&
-            mounted && widget.activityId == requestedId) {
+        if (label is String &&
+            label.trim().isNotEmpty &&
+            mounted &&
+            widget.activityId == requestedId) {
           setState(() => _knownSavedTitle = label.trim());
         }
         break;
@@ -1454,7 +1479,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
       final source = await widget.repository.readSource(
         widget.repository.activitySource(requestedId),
       );
-      if (source.ownerUnavailable && mounted &&
+      if (source.ownerUnavailable &&
+          mounted &&
           widget.activityId == requestedId) {
         setState(() => _knownSavedTitle = null);
       }
@@ -1493,10 +1519,12 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               body: MakoloNetworkContextFrame(
                 child: activity == null
                     ? _knownSavedTitle == null
-                        ? const SizedBox.expand()
-                        : ListView(children: [
-                            MakoloDetailHeader(title: _knownSavedTitle!),
-                          ])
+                          ? const SizedBox.expand()
+                          : ListView(
+                              children: [
+                                MakoloDetailHeader(title: _knownSavedTitle!),
+                              ],
+                            )
                     : ListView(
                         padding: const EdgeInsets.only(
                           bottom: MakoloSpacing.xl,

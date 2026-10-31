@@ -70,7 +70,8 @@ class _ProfileAvatarImageState extends State<ProfileAvatarImage> {
       final api = widget.api;
       if (api == null) return;
       final received = await store.refreshFromOwner(
-        api: api, avatarUrl: widget.url,
+        api: api,
+        avatarUrl: widget.url,
       );
       if (mounted && generation == _generation && received != null) {
         setState(() => _bytes = received);
@@ -85,7 +86,10 @@ class _ProfileAvatarImageState extends State<ProfileAvatarImage> {
     final bytes = _bytes;
     if (bytes == null) return widget.fallback;
     return Image.memory(
-      bytes, width: widget.size, height: widget.size, fit: BoxFit.cover,
+      bytes,
+      width: widget.size,
+      height: widget.size,
+      fit: BoxFit.cover,
       gaplessPlayback: true,
       errorBuilder: (_, _, _) => widget.fallback,
     );

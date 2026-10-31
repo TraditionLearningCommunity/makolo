@@ -164,7 +164,8 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       );
       // Published recognition photos already seen in Now remain readable
       // without a server. Private Journey files never enter this store.
-      final published = widget.media.kind == NowMediaKind.image &&
+      final published =
+          widget.media.kind == NowMediaKind.image &&
           widget.media.purpose == NowMediaPurpose.recognize &&
           widget.media.resourceRef.startsWith('presentation_media_use:') &&
           profile != null;
@@ -181,8 +182,8 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
           destinationPath: file.path,
           cancel: _cancel,
         );
-        if (recognition != null && await file.length() <=
-            ProfileRecognitionImageStore.maxImageBytes) {
+        if (recognition != null &&
+            await file.length() <= ProfileRecognitionImageStore.maxImageBytes) {
           try {
             await recognition.save(mediaKey, await file.readAsBytes());
           } on Object {
@@ -256,7 +257,10 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
           : (widget.media.mimeType ?? 'application/octet-stream');
       final name = await widget.downloads.save(
         source: source,
-        fileName: makoloDownloadName(widget.media.label ?? 'Média Makolo', extension),
+        fileName: makoloDownloadName(
+          widget.media.label ?? 'Média Makolo',
+          extension,
+        ),
         mimeType: mime,
       );
       if (mounted) {
@@ -268,7 +272,9 @@ class _NowMediaViewerState extends State<NowMediaViewer> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Téléchargement impossible. Vérifiez les droits et l’appareil.'),
+            content: Text(
+              'Téléchargement impossible. Vérifiez les droits et l’appareil.',
+            ),
           ),
         );
       }

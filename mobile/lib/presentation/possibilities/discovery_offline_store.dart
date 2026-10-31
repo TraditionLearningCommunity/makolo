@@ -69,7 +69,8 @@ class DiscoveryOfflineStore {
   }
 
   Future<Uint8List?> recognizedImage(Uri url) async {
-    if (!isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin)) return null;
+    if (!isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin))
+      return null;
     final file = await _recognitionFile(url);
     if (!await file.exists()) return null;
     final size = await file.length();
@@ -100,13 +101,16 @@ class DiscoveryOfflineStore {
 
   Future<void> _retainRecognitionImageDirect(Uri url, Uint8List bytes) async {
     if (!isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin)) {
-      throw const FormatException('Unpublished recognition media cannot persist');
+      throw const FormatException(
+        'Unpublished recognition media cannot persist',
+      );
     }
     if (bytes.isEmpty || bytes.length > maxRecognitionBytes) {
       throw const FormatException('Invalid published recognition image');
     }
     final target = await _recognitionFile(url);
-    final nonce = '${DateTime.now().microsecondsSinceEpoch}-'
+    final nonce =
+        '${DateTime.now().microsecondsSinceEpoch}-'
         '${_nonce.nextInt(1 << 32)}';
     final partial = File('${target.path}.part-$nonce');
     try {
@@ -191,7 +195,8 @@ class DiscoveryOfflineStore {
       );
     }
     final destination = await location(url);
-    final nonce = '${DateTime.now().microsecondsSinceEpoch}-'
+    final nonce =
+        '${DateTime.now().microsecondsSinceEpoch}-'
         '${_nonce.nextInt(1 << 32)}';
     final staging = File('${destination.path}.part-$nonce');
     final backup = File('${destination.path}.backup-$nonce');

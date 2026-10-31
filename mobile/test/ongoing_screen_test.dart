@@ -60,11 +60,10 @@ class _NeverUsedStore implements ProfileStore {
 
 class _UnavailableImageApi implements MakoloApiClient {
   @override
-  Future<Uint8List> getPresentationImage(String path) async =>
-      base64Decode(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
-        'AAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
-      );
+  Future<Uint8List> getPresentationImage(String path) async => base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+    'AAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==',
+  );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -91,12 +90,24 @@ void main() {
           order: choice,
         ).map((moment) => moment.$1).toList();
 
-    expect(order(OngoingCalendarOrder.upcoming),
-        ['next', 'later', 'yesterday', 'old']);
-    expect(order(OngoingCalendarOrder.oldest),
-        ['old', 'yesterday', 'next', 'later']);
-    expect(order(OngoingCalendarOrder.newest),
-        ['later', 'next', 'yesterday', 'old']);
+    expect(order(OngoingCalendarOrder.upcoming), [
+      'next',
+      'later',
+      'yesterday',
+      'old',
+    ]);
+    expect(order(OngoingCalendarOrder.oldest), [
+      'old',
+      'yesterday',
+      'next',
+      'later',
+    ]);
+    expect(order(OngoingCalendarOrder.newest), [
+      'later',
+      'next',
+      'yesterday',
+      'old',
+    ]);
   });
 
   test('N1 only resolves same-origin owner media over HTTP(S)', () {
@@ -117,17 +128,11 @@ void main() {
   test('owner datetime labels are contextual, not technical or re-zoned', () {
     final now = DateTime(2026, 10, 30, 12);
     expect(
-      MakoloHumanization.humanizeOwnerWhenLabel(
-        '09/12/2026 · 09:06',
-        now: now,
-      ),
+      MakoloHumanization.humanizeOwnerWhenLabel('09/12/2026 · 09:06', now: now),
       contains('déc. 2026 · 09:06'),
     );
     expect(
-      MakoloHumanization.humanizeOwnerWhenLabel(
-        '30/10/2026',
-        now: now,
-      ),
+      MakoloHumanization.humanizeOwnerWhenLabel('30/10/2026', now: now),
       'Aujourd’hui',
     );
     expect(
@@ -398,38 +403,40 @@ void main() {
   testWidgets('N1 public resources use the Discovery reading affordance', (
     tester,
   ) async {
-    final projection = _projection(items: const [
-      {
-        'id': 'resources',
-        'kind': 'journey',
-        'source': {'kind': 'journey', 'id': 'resources'},
-        'title': 'Préparer un trajet',
-        'summary': 'Une étape à venir.',
-        'resources': [
-          {
-            'id': 'file-1',
-            'title': 'Image documentaire de démonstration',
-            'kind': 'file',
-            'mime_type': 'image/png',
-            'download_url': '/preparation/resources/file-1/download/',
-          },
-          {
-            'id': 'text-1',
-            'title': 'Informations pratiques',
-            'kind': 'text',
-            'text_content': 'Préparer les documents nécessaires.',
-          },
-          {
-            'id': 'file-bad',
-            'title': 'Fichier non autorisé',
-            'kind': 'file',
-            'download_url': 'https://elsewhere.invalid/private.pdf',
-          },
-        ],
-        'capabilities': [],
-        'links': {},
-      },
-    ]);
+    final projection = _projection(
+      items: const [
+        {
+          'id': 'resources',
+          'kind': 'journey',
+          'source': {'kind': 'journey', 'id': 'resources'},
+          'title': 'Préparer un trajet',
+          'summary': 'Une étape à venir.',
+          'resources': [
+            {
+              'id': 'file-1',
+              'title': 'Image documentaire de démonstration',
+              'kind': 'file',
+              'mime_type': 'image/png',
+              'download_url': '/preparation/resources/file-1/download/',
+            },
+            {
+              'id': 'text-1',
+              'title': 'Informations pratiques',
+              'kind': 'text',
+              'text_content': 'Préparer les documents nécessaires.',
+            },
+            {
+              'id': 'file-bad',
+              'title': 'Fichier non autorisé',
+              'kind': 'file',
+              'download_url': 'https://elsewhere.invalid/private.pdf',
+            },
+          ],
+          'capabilities': [],
+          'links': {},
+        },
+      ],
+    );
     await PresentationHarness.pump(
       tester,
       child: OngoingScreen(
@@ -470,33 +477,38 @@ void main() {
     await tester.tap(find.text('Préparer un trajet'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('ongoing-n2-resources')), findsOneWidget);
-    expect(find.byKey(const ValueKey('ongoing-resource-file-1')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('ongoing-resource-file-1')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('recognition media reuses Discovery reader actions', (
     tester,
   ) async {
-    final projection = _projection(items: const [
-      {
-        'id': 'media-zoom',
-        'kind': 'journey',
-        'source': {'kind': 'journey', 'id': 'media-zoom'},
-        'title': 'Mon document',
-        'summary': 'En cours.',
-        'media_bindings': [
-          {
-            'purpose': 'RECOGNIZE',
-            'resource': {
-              'url': '/presentation/media/uses/abc/file/',
-              'alt_text': 'Document privé',
-              'mime_type': 'image/png',
+    final projection = _projection(
+      items: const [
+        {
+          'id': 'media-zoom',
+          'kind': 'journey',
+          'source': {'kind': 'journey', 'id': 'media-zoom'},
+          'title': 'Mon document',
+          'summary': 'En cours.',
+          'media_bindings': [
+            {
+              'purpose': 'RECOGNIZE',
+              'resource': {
+                'url': '/presentation/media/uses/abc/file/',
+                'alt_text': 'Document privé',
+                'mime_type': 'image/png',
+              },
             },
-          },
-        ],
-        'capabilities': [],
-        'links': {},
-      },
-    ]);
+          ],
+          'capabilities': [],
+          'links': {},
+        },
+      ],
+    );
     await PresentationHarness.pump(
       tester,
       child: OngoingScreen(

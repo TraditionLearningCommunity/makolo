@@ -62,9 +62,10 @@ class MakoloAvatarSheet extends StatelessWidget {
 
   Widget _avatarInitial(String? letter) => letter == null
       ? const Icon(Icons.person_outline)
-      : Text(letter, style: const TextStyle(
-          fontSize: 18, fontWeight: FontWeight.w700,
-        ));
+      : Text(
+          letter,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        );
 
   void _closeThen(BuildContext context, VoidCallback action) {
     Navigator.of(context).pop();
@@ -95,11 +96,12 @@ class MakoloAvatarSheet extends StatelessWidget {
               : null;
           final avatarValue = identity?['avatar_url'];
           final baseUri = runtime.api?.baseUri;
-          final avatarUri = avatarValue is String && avatarValue.isNotEmpty &&
-                  baseUri != null
+          final avatarUri =
+              avatarValue is String && avatarValue.isNotEmpty && baseUri != null
               ? baseUri.resolve(avatarValue)
               : null;
-          final safeAvatar = avatarUri != null &&
+          final safeAvatar =
+              avatarUri != null &&
               (avatarUri.scheme == 'https' || avatarUri.scheme == 'http') &&
               avatarUri.host == baseUri!.host;
 
@@ -120,14 +122,16 @@ class MakoloAvatarSheet extends StatelessWidget {
                       foregroundColor: Theme.of(context)
                           .colorScheme
                           .onPrimaryContainer,
-                      child: ClipOval(child: ProfileAvatarImage(
-                        profileId: runtime.personal?.store.profileId,
-                         api: runtime.api,
-                         revision: snapshot.data?.receivedAt,
-                        url: safeAvatar ? avatarUri.toString() : null,
-                        size: 48,
-                        fallback: _avatarInitial(firstLetter),
-                      )),
+                      child: ClipOval(
+                        child: ProfileAvatarImage(
+                          profileId: runtime.personal?.store.profileId,
+                          api: runtime.api,
+                          revision: snapshot.data?.receivedAt,
+                          url: safeAvatar ? avatarUri.toString() : null,
+                          size: 48,
+                          fallback: _avatarInitial(firstLetter),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: MakoloSpacing.md),
                     Expanded(
@@ -151,9 +155,12 @@ class MakoloAvatarSheet extends StatelessWidget {
                               completionPercentage < 100 &&
                               activation?['is_complete'] != true)
                             Padding(
-                              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                              padding: const EdgeInsets.only(
+                                top: MakoloSpacing.xs,
+                              ),
                               child: Text(
-                                completionPercentage.toString() + ' % renseigné',
+                                completionPercentage.toString() +
+                                    ' % renseigné',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),

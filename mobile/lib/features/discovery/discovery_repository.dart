@@ -39,23 +39,29 @@ class DiscoveryQuery {
       final raw = params[name];
       if (raw == null) return null;
       final parsed = double.tryParse(raw);
-      if (parsed == null || !parsed.isFinite ||
-          parsed < minimum || parsed > maximum) return null;
+      if (parsed == null ||
+          !parsed.isFinite ||
+          parsed < minimum ||
+          parsed > maximum)
+        return null;
       return parsed;
     }
 
     int positive(String name, int fallback, int maximum) {
       final value = int.tryParse(params[name] ?? '');
-      return value != null && value >= 1 && value <= maximum
-          ? value : fallback;
+      return value != null && value >= 1 && value <= maximum ? value : fallback;
     }
 
     final lat = coordinate('lat', -90, 90);
     final lon = coordinate('lon', -180, 180);
     final radius = coordinate('radius_km', 0, 100000);
-    final hasSpatial = params.containsKey('lat') ||
-        params.containsKey('lon') || params.containsKey('radius_km');
-    final validLocation = lat != null && lon != null &&
+    final hasSpatial =
+        params.containsKey('lat') ||
+        params.containsKey('lon') ||
+        params.containsKey('radius_km');
+    final validLocation =
+        lat != null &&
+        lon != null &&
         (!params.containsKey('radius_km') || radius != null);
     if (hasSpatial && !validLocation) {
       throw const FormatException('Invalid spatial Discovery filters');
@@ -79,10 +85,12 @@ class DiscoveryQuery {
       longitude: validLocation ? lon : null,
       radiusKm: validLocation ? radius : null,
       page: page > 1 && continuation != null && continuation.isNotEmpty
-          ? page : 1,
+          ? page
+          : 1,
       pageSize: positive('page_size', 24, 100),
-      continuation: page > 1 && continuation != null &&
-              continuation.isNotEmpty ? continuation : null,
+      continuation: page > 1 && continuation != null && continuation.isNotEmpty
+          ? continuation
+          : null,
     );
   }
 
@@ -466,11 +474,14 @@ class DiscoveryRepository {
     final collection = selector.collection(projection);
     if (collection.page != query.page) return;
     final rows = collection.items;
-    final bounded = rows.skip(
-      rows.length > maxPresentedWindowItems
-          ? rows.length - maxPresentedWindowItems
-          : 0,
-    ).map((item) => item.wire).toList(growable: false);
+    final bounded = rows
+        .skip(
+          rows.length > maxPresentedWindowItems
+              ? rows.length - maxPresentedWindowItems
+              : 0,
+        )
+        .map((item) => item.wire)
+        .toList(growable: false);
     final previous = await store.readProjection(
       presentedWindowKind,
       resourceKey: query.mapFingerprint,

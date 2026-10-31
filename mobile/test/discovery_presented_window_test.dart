@@ -7,8 +7,7 @@ import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 class _OfflineApi implements MakoloApiClient {
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Map<String, dynamic> _item(int index) => {
@@ -33,15 +32,11 @@ Map<String, dynamic> _page(int page, int start, String? next) => {
   'count': 72,
   'has_next': next != null,
   'results': List.generate(24, (index) => _item(start + index)),
-  'continuation': {
-    'state': next == null ? 'end' : 'more',
-    'token': next,
-  },
+  'continuation': {'state': next == null ? 'end' : 'more', 'token': next},
 };
 
 void main() {
-  test('Discovery rotates old raw pages while preserving latest 50 facts and cursor',
-      () async {
+  test('Discovery rotates old raw pages while preserving latest 50 facts and cursor', () async {
     final db = MakoloDatabase.memory();
     addTearDown(db.close);
     final store = ProfileStore(db, 'profile-a');

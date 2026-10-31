@@ -82,13 +82,15 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
   @override
   void didUpdateWidget(covariant DiscoveryExplorationView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialFocusedCandidateKey != widget.initialFocusedCandidateKey) {
+    if (oldWidget.initialFocusedCandidateKey !=
+        widget.initialFocusedCandidateKey) {
       _focusedCandidateKey = widget.initialFocusedCandidateKey;
     }
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
         .toSet();
-    if (_focusedCandidateKey != null && keys.isNotEmpty &&
+    if (_focusedCandidateKey != null &&
+        keys.isNotEmpty &&
         !keys.contains(_focusedCandidateKey)) {
       _focusedCandidateKey = null;
     }
@@ -127,7 +129,11 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
             selectedCandidateKey: _focusedCandidateKey,
-            onMap: widget.onMap == null ? null : () => widget.onMap!(focused?.isMappable == true ? _focusedCandidateKey : null),
+            onMap: widget.onMap == null
+                ? null
+                : () => widget.onMap!(
+                    focused?.isMappable == true ? _focusedCandidateKey : null,
+                  ),
             fieldKey: widget.fieldKey,
             scrollController: widget.scrollController,
           );
@@ -145,9 +151,13 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           loadMoreFailed: widget.loadMoreFailed,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
-            onMap: widget.onMap == null ? null : () => widget.onMap!(focused?.isMappable == true ? _focusedCandidateKey : null),
-            fieldKey: widget.fieldKey,
-            scrollController: widget.scrollController,
+          onMap: widget.onMap == null
+              ? null
+              : () => widget.onMap!(
+                  focused?.isMappable == true ? _focusedCandidateKey : null,
+                ),
+          fieldKey: widget.fieldKey,
+          scrollController: widget.scrollController,
           selectedCandidateKey: _focusedCandidateKey,
           onSelect: (item) => _focus(item.candidateKey),
           selectOnCardTap: true,
@@ -307,7 +317,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   void _select(String key) {
     setState(() => _selectedCandidateKey = key);
     widget.onSelectionChanged?.call(key);
-    final anchors = _selector.spatialAnchorsFromCollection(widget.selection.collection);
+    final anchors = _selector.spatialAnchorsFromCollection(
+      widget.selection.collection,
+    );
     for (final anchor in anchors) {
       if (anchor.candidateKey != key) continue;
       final controller = _mapController;
@@ -323,9 +335,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     DiscoverySpatialAnchor anchor,
   ) async {
     try {
-      await controller.animateCamera(CameraUpdate.newLatLng(
-        LatLng(anchor.latitude, anchor.longitude),
-      ));
+      await controller.animateCamera(
+        CameraUpdate.newLatLng(LatLng(anchor.latitude, anchor.longitude)),
+      );
     } on Object {
       // The list selection remains usable while the map is unavailable.
     }
@@ -347,12 +359,16 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final seen = <String>{};
     final selected = <DiscoverySpatialAnchor>[];
     for (final anchor in anchors) {
-      final identity = '${anchor.candidateKey}:${anchor.latitude}:${anchor.longitude}';
+      final identity =
+          '${anchor.candidateKey}:${anchor.latitude}:${anchor.longitude}';
       if (seen.add(identity)) selected.add(anchor);
     }
     try {
       await controller.clearCircles();
-      if (!mounted || _mapController != controller || generation != _pinGeneration) return;
+      if (!mounted ||
+          _mapController != controller ||
+          generation != _pinGeneration)
+        return;
       final pins = await controller.addCircles([
         for (final anchor in selected)
           CircleOptions(
@@ -363,7 +379,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
             circleStrokeColor: '#FFFFFF',
           ),
       ]);
-      if (!mounted || _mapController != controller || generation != _pinGeneration) return;
+      if (!mounted ||
+          _mapController != controller ||
+          generation != _pinGeneration)
+        return;
       _circleKeys.clear();
       for (var i = 0; i < pins.length && i < selected.length; i++) {
         _circleKeys[pins[i]] = selected[i].candidateKey;
@@ -382,22 +401,31 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   @override
   void didUpdateWidget(covariant DiscoverySpatialView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialSelectedCandidateKey != widget.initialSelectedCandidateKey) {
+    if (oldWidget.initialSelectedCandidateKey !=
+        widget.initialSelectedCandidateKey) {
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
     }
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
         .toSet();
-    if (oldWidget.selection.collection.items != widget.selection.collection.items) {
+    if (oldWidget.selection.collection.items !=
+        widget.selection.collection.items) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          unawaited(_displayPins(_selector.spatialAnchorsFromCollection(widget.selection.collection)));
+          unawaited(
+            _displayPins(
+              _selector.spatialAnchorsFromCollection(
+                widget.selection.collection,
+              ),
+            ),
+          );
         }
       });
     }
     // Empty during network acquisition is not proof that the previously
     // selected candidate was revoked. Reconcile once a real field arrives.
-    if (_selectedCandidateKey != null && keys.isNotEmpty &&
+    if (_selectedCandidateKey != null &&
+        keys.isNotEmpty &&
         !keys.contains(_selectedCandidateKey)) {
       _selectedCandidateKey = null;
     }
@@ -463,7 +491,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         children: [
           Positioned.fill(
             child: ConfiguredMakoloMapView(
-              key: ValueKey('discover-map-${widget.fieldKey ?? anchor.candidateKey}'),
+              key: ValueKey(
+                'discover-map-${widget.fieldKey ?? anchor.candidateKey}',
+              ),
               onMapCreated: _mapCreated,
               onStyleReady: () => unawaited(_displayPins(points)),
               config: widget.mapConfig,
@@ -612,10 +642,12 @@ class _DiscoveryScrollableField extends StatelessWidget {
           controller: scrollController,
           key: PageStorageKey<String>(
             fieldKey == null
-                ? (autoLoadMore ? 'discover-continuous-field' : 'discover-page-${selection.collection.page}')
+                ? (autoLoadMore
+                      ? 'discover-continuous-field'
+                      : 'discover-page-${selection.collection.page}')
                 : (autoLoadMore
-                    ? 'discover-$fieldKey-continuous'
-                    : 'discover-$fieldKey-${selection.collection.page}'),
+                      ? 'discover-$fieldKey-continuous'
+                      : 'discover-$fieldKey-${selection.collection.page}'),
           ),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(
@@ -629,10 +661,12 @@ class _DiscoveryScrollableField extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: Text(
-                        'Opportunités à découvrir',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      )),
+                      Expanded(
+                        child: Text(
+                          'Opportunités à découvrir',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
                       if (onMap != null)
                         IconButton(
                           key: const Key('discover-field-open-map'),
@@ -677,18 +711,23 @@ class _DiscoveryScrollableField extends StatelessWidget {
                   if (autoLoadMore && loadMoreFailed) ...[
                     const SizedBox(height: MakoloSpacing.md),
                     TextButton(
-                      onPressed: onPage == null ? null : () => onPage!(selection.collection.page + 1),
+                      onPressed: onPage == null
+                          ? null
+                          : () => onPage!(selection.collection.page + 1),
                       child: const Text('Réessayer le chargement'),
                     ),
                   ],
-                  if (!loadingMore && !loadMoreFailed && selection.states.contains(
-                    DiscoveryFieldState.endOfField,
-                  )) ...[
+                  if (!loadingMore &&
+                      !loadMoreFailed &&
+                      selection.states.contains(
+                        DiscoveryFieldState.endOfField,
+                      )) ...[
                     const SizedBox(height: MakoloSpacing.lg),
                     const _DiscoveryEndOfField(),
                   ],
-                  if (!autoLoadMore && (selection.collection.page > 1 ||
-                      selection.collection.hasNext)) ...[
+                  if (!autoLoadMore &&
+                      (selection.collection.page > 1 ||
+                          selection.collection.hasNext)) ...[
                     const SizedBox(height: MakoloSpacing.lg),
                     _DiscoveryPagination(
                       collection: selection.collection,
@@ -778,10 +817,12 @@ class _DiscoveryMedia extends StatelessWidget {
       // Only public first-party images are retained automatically. An
       // external URL keeps its existing non-persistent presentation.
       final mediaBaseUri = baseUri;
-      child = mediaBaseUri != null &&
+      child =
+          mediaBaseUri != null &&
               resolved.origin == mediaBaseUri.origin &&
               DiscoveryOfflineStore.isPublishedRecognitionUri(
-                resolved, trustedOrigin: mediaBaseUri,
+                resolved,
+                trustedOrigin: mediaBaseUri,
               )
           ? RetainedPublicDiscoveryImage(
               url: resolved,
@@ -1049,10 +1090,7 @@ class _DiscoveryEndOfField extends StatelessWidget {
         ),
         child: const Padding(
           padding: EdgeInsets.all(MakoloSpacing.md),
-          child: Text(
-            'Vous avez tout exploré.',
-            textAlign: TextAlign.center,
-          ),
+          child: Text('Vous avez tout exploré.', textAlign: TextAlign.center),
         ),
       ),
     );

@@ -122,15 +122,17 @@ void main() {
           },
         },
       );
-      await tester.pumpWidget(MaterialApp(
-        theme: buildMakoloTheme(),
-        home: ResourceDetailScreen(
-          assetId: 'asset-seen',
-          repository: repository,
-          personal: PersonalRepository(store),
-          onOpenJourney: (_) {},
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: ResourceDetailScreen(
+            assetId: 'asset-seen',
+            repository: repository,
+            personal: PersonalRepository(store),
+            onOpenJourney: (_) {},
+          ),
         ),
-      ));
+      );
       await tester.pump();
       expect(find.text('Document déjà connu'), findsOneWidget);
       expect(find.textContaining('Attestation · Sensible'), findsOneWidget);

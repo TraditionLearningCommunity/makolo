@@ -8,40 +8,44 @@ import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
 import 'support/presentation_harness.dart';
 
 void main() {
-  test('S5 owner-backed composition remains dominant over incidental media', () {
-    const situation = NowSituationPresentation(
-      identity: 'now:composed',
-      reference: StructuredDestination(kind: 'now', id: 'now:composed'),
-      humanContext: 'Deux rendez-vous',
-      meaning: 'Un conflit nécessite une décision.',
-      emphasis: NowPresentationEmphasis.primary,
-      whyNow: 'Les deux créneaux se recouvrent.',
-      consequence: 'Une présence simultanée est impossible.',
-      responseType: 'decide',
-      relationMembers: [
-        NowRelationMemberPresentation(id: 'a', label: 'Rendez-vous A'),
-        NowRelationMemberPresentation(id: 'b', label: 'Rendez-vous B'),
-      ],
-      relations: [
-        NowRelationPresentation(
-          kind: 'conflict',
-          memberIds: ['a', 'b'],
-          summary: 'Même créneau',
-        ),
-      ],
-      mediaBindings: [
-        NowMediaBindingPresentation(
-          resourceRef: 'presentation_media_use:11111111-2222-4333-8444-555555555555',
-          target: NowMediaTarget.subject,
-          purpose: NowMediaPurpose.recognize,
-          kind: NowMediaKind.image,
-          authorized: true,
-          presentationRank: 'primary',
-        ),
-      ],
-    );
-    expect(topologyFor(situation), NowTopology.composition);
-  });
+  test(
+    'S5 owner-backed composition remains dominant over incidental media',
+    () {
+      const situation = NowSituationPresentation(
+        identity: 'now:composed',
+        reference: StructuredDestination(kind: 'now', id: 'now:composed'),
+        humanContext: 'Deux rendez-vous',
+        meaning: 'Un conflit nécessite une décision.',
+        emphasis: NowPresentationEmphasis.primary,
+        whyNow: 'Les deux créneaux se recouvrent.',
+        consequence: 'Une présence simultanée est impossible.',
+        responseType: 'decide',
+        relationMembers: [
+          NowRelationMemberPresentation(id: 'a', label: 'Rendez-vous A'),
+          NowRelationMemberPresentation(id: 'b', label: 'Rendez-vous B'),
+        ],
+        relations: [
+          NowRelationPresentation(
+            kind: 'conflict',
+            memberIds: ['a', 'b'],
+            summary: 'Même créneau',
+          ),
+        ],
+        mediaBindings: [
+          NowMediaBindingPresentation(
+            resourceRef:
+                'presentation_media_use:11111111-2222-4333-8444-555555555555',
+            target: NowMediaTarget.subject,
+            purpose: NowMediaPurpose.recognize,
+            kind: NowMediaKind.image,
+            authorized: true,
+            presentationRank: 'primary',
+          ),
+        ],
+      );
+      expect(topologyFor(situation), NowTopology.composition);
+    },
+  );
 
   test('G01 fixtures select five distinct real Now architectures', () {
     const expected = <String, NowTopology>{

@@ -35,13 +35,19 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
     final repository = widget.runtime.space;
     final actor = widget.runtime.actorContext;
     if (repository?.sync == null || actor == null) {
-      setState(() => _error = 'Une connexion est nécessaire pour créer un Espace.');
+      setState(
+        () => _error = 'Une connexion est nécessaire pour créer un Espace.',
+      );
       return;
     }
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       final identity = await repository!.createSpace(
-        name: _name.text, publicProfile: _publicProfile,
+        name: _name.text,
+        publicProfile: _publicProfile,
       );
       _createdIdentity = identity;
       if (mounted) setState(() => _created = true);
@@ -50,10 +56,12 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       if (mounted) context.go('/space/now');
     } on Object {
       if (mounted) {
-        setState(() => _error = _created
-            ? 'Espace créé. La vérification de votre accès est indisponible. '
-              'Utilisez « Vérifier mon accès » pour reprendre sans recréer cet Espace.'
-            : 'La création n’a pas été confirmée. Vérifiez votre connexion avant de réessayer.');
+        setState(
+          () => _error = _created
+              ? 'Espace créé. La vérification de votre accès est indisponible. '
+                    'Utilisez « Vérifier mon accès » pour reprendre sans recréer cet Espace.'
+              : 'La création n’a pas été confirmée. Vérifiez votre connexion avant de réessayer.',
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -94,13 +102,18 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
     if (_saving) return;
     final identity = _createdIdentity;
     if (identity == null) return;
-    setState(() { _saving = true; _error = null; });
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
     try {
       await _verifyCreatedSpace(identity);
       if (mounted) context.go('/space/now');
     } on Object {
-      if (mounted) setState(() => _error =
-          'La vérification reste indisponible. Aucun accès n’a été accordé.');
+      if (mounted)
+        setState(
+          () => _error = 'La vérification reste indisponible. Aucun accès n’a été accordé.',
+        );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -127,13 +140,15 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(labelText: 'Nom de l’Espace'),
                 validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Indiquez un nom.' : null,
+                    ? 'Indiquez un nom.'
+                    : null,
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: _publicProfile,
-                onChanged: _saving || _created ? null :
-                    (value) => setState(() => _publicProfile = value),
+                onChanged: _saving || _created
+                    ? null
+                    : (value) => setState(() => _publicProfile = value),
                 title: const Text('Présentation publique'),
                 subtitle: const Text(
                   'Désactivée par défaut. Les données des membres restent privées.',
@@ -141,10 +156,14 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
               ),
               if (_error != null)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: MakoloSpacing.md,
+                  ),
                   child: Text(
                     _error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               const SizedBox(height: MakoloSpacing.lg),

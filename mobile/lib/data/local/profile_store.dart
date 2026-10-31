@@ -127,7 +127,6 @@ class ProfileStore {
             freshnessPolicyId: Value(freshnessPolicyId),
           ),
         );
-
   }
 
   Future<int> deleteProjection(String kind, {String resourceKey = ''}) {

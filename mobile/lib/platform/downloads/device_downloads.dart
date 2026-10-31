@@ -61,7 +61,8 @@ String makoloDownloadName(String title, String extension) {
   final stem = safeTitle.isEmpty ? 'Document Makolo' : safeTitle;
   final bounded = stem.length > 90 ? stem.substring(0, 90).trimRight() : stem;
   final cleanExtension = extension.toLowerCase().replaceAll(
-    RegExp(r'[^a-z0-9]'), '',
+    RegExp(r'[^a-z0-9]'),
+    '',
   );
   return '$bounded.${cleanExtension.isEmpty ? 'bin' : cleanExtension}';
 }

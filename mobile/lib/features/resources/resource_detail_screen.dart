@@ -68,7 +68,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         ResourceRepository.collectionProjectionKind,
       );
       final known = _ResourceDetail.fromKnownCollection(pages, assetId);
-      if (mounted && widget.assetId == assetId &&
+      if (mounted &&
+          widget.assetId == assetId &&
           identical(widget.repository, repository)) {
         setState(() => _cachedSummary = known);
       }
@@ -138,7 +139,9 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Enregistré dans Téléchargements : $exportedName')),
+        SnackBar(
+          content: Text('Enregistré dans Téléchargements : $exportedName'),
+        ),
       );
     } on Object {
       if (!mounted) return;
@@ -229,8 +232,13 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? ResourceSourceState.unknown;
               if (source.invalidated &&
-                  const {'permission_denied', 'not_found', 'api_error',
-                    'http_403', 'http_404'}.contains(source.lastErrorCode)) {
+                  const {
+                    'permission_denied',
+                    'not_found',
+                    'api_error',
+                    'http_403',
+                    'http_404',
+                  }.contains(source.lastErrorCode)) {
                 return const Center(
                   child: Text('Cette ressource n’est plus accessible.'),
                 );
@@ -507,8 +515,8 @@ class _ResourceDetail {
           title: _string(row['title']) ?? 'Ressource',
           kindLabel: _string(row['asset_kind_label']) ?? 'Document',
           sensitivity: 'unknown',
-          sensitivityLabel: _string(row['sensitivity_label']) ??
-              'Sensibilité inconnue',
+          sensitivityLabel:
+              _string(row['sensitivity_label']) ?? 'Sensibilité inconnue',
           archived: _string(row['status']) == 'archived',
           currentVersion: null,
           versions: const [],

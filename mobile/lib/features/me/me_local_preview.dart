@@ -39,8 +39,7 @@ class MeLocalPreview {
     return <String, dynamic>{
       ...raw.map((key, value) => MapEntry(key.toString(), value)),
       'items': [
-        for (final item in items)
-          Map<String, dynamic>.from(item as Map),
+        for (final item in items) Map<String, dynamic>.from(item as Map),
       ],
     };
   }

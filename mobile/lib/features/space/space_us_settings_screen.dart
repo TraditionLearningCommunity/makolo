@@ -82,23 +82,31 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
     final current = actor;
     final api = widget.runtime.api;
     if (current == null || api == null) {
-      if (mounted) setState(() { loading = false; authorized = false; });
+      if (mounted)
+        setState(() {
+          loading = false;
+          authorized = false;
+        });
       return;
     }
     final expectedId = current.space.id;
-    setState(() { loading = true; error = null; authorized = false; });
+    setState(() {
+      loading = true;
+      error = null;
+      authorized = false;
+    });
     try {
       final response = await api.get(usPath);
       final payload = response.jsonObject();
       final identity = payload['identity'];
       final caps = payload['capabilities'];
-      if (identity is! Map || caps is! Map ||
+      if (identity is! Map ||
+          caps is! Map ||
           identity['id']?.toString() != expectedId ||
           caps['update_space'] != true) {
         throw const FormatException('Settings not available for this actor');
       }
-      if (!mounted || version != loadVersion ||
-          actor?.space.id != expectedId) {
+      if (!mounted || version != loadVersion || actor?.space.id != expectedId) {
         return;
       }
       name.text = identity['name']?.toString() ?? '';
@@ -113,14 +121,14 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
         loadedSpaceId = expectedId;
       });
     } on Object {
-      if (!mounted || version != loadVersion ||
-          actor?.space.id != expectedId) {
+      if (!mounted || version != loadVersion || actor?.space.id != expectedId) {
         return;
       }
       setState(() {
         loading = false;
         authorized = false;
-        error = 'Impossible de vérifier les droits et les informations '
+        error =
+            'Impossible de vérifier les droits et les informations '
             'actuelles. Reconnectez-vous puis réessayez.';
       });
     }
@@ -129,13 +137,19 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
   Future<void> save() async {
     final current = actor;
     final api = widget.runtime.api;
-    if (!authorized || saving || current == null || api == null ||
+    if (!authorized ||
+        saving ||
+        current == null ||
+        api == null ||
         current.space.id != loadedSpaceId ||
         form.currentState?.validate() != true) {
       return;
     }
     final expectedId = current.space.id;
-    setState(() { saving = true; error = null; });
+    setState(() {
+      saving = true;
+      error = null;
+    });
     try {
       // No local mutation: the server checks SPACE_MANAGE at PATCH time.
       await api.patch(
@@ -167,19 +181,24 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       await load();
     } on MakoloApiError catch (failure) {
       if (!mounted || actor?.space.id != expectedId) return;
-      if (failure.statusCode == 401 || failure.statusCode == 403 ||
+      if (failure.statusCode == 401 ||
+          failure.statusCode == 403 ||
           failure.statusCode == 404) {
         setState(() {
           authorized = false;
-          error = 'Votre autorité a changé. Cet espace ne peut plus être modifié.';
+          error =
+              'Votre autorité a changé. Cet espace ne peut plus être modifié.';
         });
       } else {
-        setState(() { error = failure.message; });
+        setState(() {
+          error = failure.message;
+        });
       }
     } on Object {
       if (!mounted || actor?.space.id != expectedId) return;
       setState(() {
-        error = 'Enregistrement indisponible. '
+        error =
+            'Enregistrement indisponible. '
             'Aucun changement local n’a été considéré comme confirmé.';
       });
     } finally {
@@ -197,87 +216,106 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
               child: Text('Sélectionnez le Space autorisé pour le modifier.'),
             )
           : loading
-              ? const Center(child: CircularProgressIndicator())
-              : !authorized
-                  ? ListView(
-                      padding: const EdgeInsets.all(MakoloSpacing.lg),
-                      children: [
-                        Text(error ?? 'Cette modification est indisponible.'),
-                        TextButton.icon(
-                          onPressed: load,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Réessayer'),
-                        ),
-                      ],
-                    )
-                  : Form(
-                      key: form,
-                      child: ListView(
-                        padding: const EdgeInsets.all(MakoloSpacing.lg),
-                        children: [
-                          Text('Informations collectives',
-                            style: Theme.of(context).textTheme.titleLarge),
-                          const SizedBox(height: MakoloSpacing.sm),
-                          const Text('Ces changements engagent le Space. '
-                            'Le serveur vérifie votre autorité à chaque enregistrement.'),
-                          const SizedBox(height: MakoloSpacing.lg),
-                          TextFormField(
-                            controller: name,
-                            maxLength: 180,
-                            decoration: const InputDecoration(labelText: 'Nom du Space'),
-                            validator: (v) => (v?.trim().isEmpty ?? true)
-                                ? 'Le nom est nécessaire.' : null,
-                          ),
-                          TextFormField(
-                            controller: description,
-                            maxLines: 4,
-                            decoration: const InputDecoration(labelText: 'Présentation'),
-                          ),
-                          TextFormField(
-                            controller: website,
-                            keyboardType: TextInputType.url,
-                            decoration: const InputDecoration(labelText: 'Site web'),
-                          ),
-                          TextFormField(
-                            controller: email,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(labelText: 'Contact général'),
-                          ),
-                          TextFormField(
-                            controller: phone,
-                            keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(labelText: 'Téléphone général'),
-                          ),
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Profil public'),
-                            subtitle: const Text(
-                              'Autoriser la présence publique prévue par le Space. '
-                              'Les règles de découverte restent distinctes.',
-                            ),
-                            value: publicProfile,
-                            onChanged: saving
-                                ? null : (value) => setState(() => publicProfile = value),
-                          ),
-                          if (error != null) ...[
-                            const SizedBox(height: MakoloSpacing.sm),
-                            Text(error!, style: TextStyle(
-                              color: Theme.of(context).colorScheme.error)),
-                          ],
-                          const SizedBox(height: MakoloSpacing.md),
-                          FilledButton.icon(
-                            onPressed: saving ? null : save,
-                            icon: saving
-                                ? const SizedBox(
-                                    height: 16, width: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.save_outlined),
-                            label: const Text('Enregistrer les modifications'),
-                          ),
-                        ],
+          ? const Center(child: CircularProgressIndicator())
+          : !authorized
+          ? ListView(
+              padding: const EdgeInsets.all(MakoloSpacing.lg),
+              children: [
+                Text(error ?? 'Cette modification est indisponible.'),
+                TextButton.icon(
+                  onPressed: load,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Réessayer'),
+                ),
+              ],
+            )
+          : Form(
+              key: form,
+              child: ListView(
+                padding: const EdgeInsets.all(MakoloSpacing.lg),
+                children: [
+                  Text(
+                    'Informations collectives',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                  const Text(
+                    'Ces changements engagent le Space. '
+                    'Le serveur vérifie votre autorité à chaque enregistrement.',
+                  ),
+                  const SizedBox(height: MakoloSpacing.lg),
+                  TextFormField(
+                    controller: name,
+                    maxLength: 180,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom du Space',
+                    ),
+                    validator: (v) => (v?.trim().isEmpty ?? true)
+                        ? 'Le nom est nécessaire.'
+                        : null,
+                  ),
+                  TextFormField(
+                    controller: description,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Présentation',
+                    ),
+                  ),
+                  TextFormField(
+                    controller: website,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(labelText: 'Site web'),
+                  ),
+                  TextFormField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Contact général',
+                    ),
+                  ),
+                  TextFormField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Téléphone général',
+                    ),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Profil public'),
+                    subtitle: const Text(
+                      'Autoriser la présence publique prévue par le Space. '
+                      'Les règles de découverte restent distinctes.',
+                    ),
+                    value: publicProfile,
+                    onChanged: saving
+                        ? null
+                        : (value) => setState(() => publicProfile = value),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: MakoloSpacing.sm),
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
                       ),
                     ),
+                  ],
+                  const SizedBox(height: MakoloSpacing.md),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: const Text('Enregistrer les modifications'),
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }

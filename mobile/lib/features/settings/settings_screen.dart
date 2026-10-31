@@ -134,13 +134,18 @@ class AppSettingsScreen extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.lg),
               const Divider(),
               const SizedBox(height: MakoloSpacing.md),
-              Text('Préférences', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Préférences',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               if (onNotifications != null)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.notifications_outlined),
                   title: const Text('Notifications'),
-                  subtitle: const Text('Canaux, types de messages et heures calmes'),
+                  subtitle: const Text(
+                    'Canaux, types de messages et heures calmes',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: onNotifications,
                 ),
@@ -149,7 +154,9 @@ class AppSettingsScreen extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.lock_outline),
                   title: const Text('Confidentialité du Profil'),
-                  subtitle: const Text('Visibilité et présence dans les recherches'),
+                  subtitle: const Text(
+                    'Visibilité et présence dans les recherches',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: onPrivacy,
                 ),
@@ -163,15 +170,18 @@ class AppSettingsScreen extends StatelessWidget {
                   onTap: onSecurity,
                 ),
               const SizedBox(height: MakoloSpacing.md),
-              Text('Données sur cet appareil',
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Données sur cet appareil',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.offline_bolt_outlined),
                 title: Text('Disponibilité hors ligne'),
                 subtitle: Text(
                   'Les informations personnelles déjà synchronisées peuvent rester disponibles. '
-                  'Les droits et actions partagées sont vérifiés par le serveur.'),
+                  'Les droits et actions partagées sont vérifiés par le serveur.',
+                ),
               ),
               const SizedBox(height: MakoloSpacing.lg),
               const Divider(),

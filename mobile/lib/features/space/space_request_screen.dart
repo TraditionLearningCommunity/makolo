@@ -123,7 +123,8 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       if (!mounted || epoch != _epoch || !_actorValid) return;
       setState(() {
         _owner = null;
-        _error = 'Le propriétaire ne rend plus cette demande accessible '
+        _error =
+            'Le propriétaire ne rend plus cette demande accessible '
             'dans ce contexte. Vérifiez la connexion ou vos droits.';
       });
     } finally {
@@ -169,10 +170,7 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
     try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('API indisponible');
-      final response = await api.post(
-        _path,
-        body: {'decision': decision},
-      );
+      final response = await api.post(_path, body: {'decision': decision});
       if (response.statusCode != 200) {
         throw StateError('Le propriétaire n’a pas confirmé cette décision.');
       }
@@ -192,13 +190,16 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       await _load();
       if (!mounted || !_actorValid) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Décision confirmée par le propriétaire.')),
+        const SnackBar(
+          content: Text('Décision confirmée par le propriétaire.'),
+        ),
       );
     } on Object {
       if (!mounted || !_actorValid || epoch != _epoch) return;
       setState(() {
         _owner = null;
-        _error = 'La décision n’est pas confirmée ici. '
+        _error =
+            'La décision n’est pas confirmée ici. '
             'Actualisez la demande avant toute nouvelle tentative.';
       });
     } finally {
@@ -213,7 +214,10 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
     final space = _map(_owner?['space']);
     final capabilities = _map(_owner?['capabilities']);
     final canDecide =
-        _actorValid && !_loading && !_sending && capabilities?['decide'] == true;
+        _actorValid &&
+        !_loading &&
+        !_sending &&
+        capabilities?['decide'] == true;
     final submittedRaw = request?['submitted_at'];
     final submittedAt = submittedRaw is String
         ? DateTime.tryParse(submittedRaw)?.toLocal()

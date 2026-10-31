@@ -49,14 +49,14 @@ class MakoloPrimaryHeader extends StatelessWidget
   final String? profileUsername;
 
   Widget _avatarFallback(BuildContext context) => Center(
-        child: Text(
-          avatarLetter ?? '?',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
+    child: Text(
+      avatarLetter ?? '?',
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimaryContainer,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
@@ -209,12 +209,14 @@ class MakoloPrimaryHeader extends StatelessWidget
                 shape: BoxShape.circle,
                 color: Theme.of(context).colorScheme.primaryContainer,
               ),
-              child: ClipOval(child: ProfileAvatarImage(
-                profileId: avatarProfileId,
-                url: avatarUrl,
-                size: 36,
-                fallback: _avatarFallback(context),
-              )),
+              child: ClipOval(
+                child: ProfileAvatarImage(
+                  profileId: avatarProfileId,
+                  url: avatarUrl,
+                  size: 36,
+                  fallback: _avatarFallback(context),
+                ),
+              ),
             ),
           ),
         ),
