@@ -111,5 +111,29 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertIn("--apply", media.call_args.args[0])
 
 
+
+    def test_live_journey_pairs_cover_occurrences_before_repeating(self):
+        from scripts.demo_generation.scale import distributed_pairs
+        pairs = list(distributed_pairs(["o1", "o2", "o3"], ["u1", "u2"], 6))
+        self.assertEqual([occ for occ, _ in pairs], [
+            "o1", "o2", "o3", "o1", "o2", "o3"])
+        self.assertEqual(len(set(pairs)), 6)
+
+    def test_live_journey_pairs_handle_missing_candidates(self):
+        from scripts.demo_generation.scale import distributed_pairs
+        self.assertEqual(list(distributed_pairs([], ["u1"], 100)), [])
+        self.assertEqual(list(distributed_pairs(["o1"], [], 100)), [])
+
+    def test_model_policy_classifies_secrets_without_seeding(self):
+        from types import SimpleNamespace
+        from scripts.demo_generation.catalog import policy_for
+        credential = SimpleNamespace(
+            __name__="ProviderCredential",
+            _meta=SimpleNamespace(label="intelligence.ProviderCredential",
+                                  app_label="intelligence"))
+        # Storage/engine observation policy also prevents generic seeding.
+        self.assertIn(policy_for(credential)[0], {"observed", "protected"})
+
+
 if __name__ == "__main__":
     unittest.main()
