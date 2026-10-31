@@ -4,6 +4,7 @@ import '../features/continuity/personal_owner_depth_screen.dart';
 
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/access/access_routes.dart';
@@ -68,6 +69,24 @@ GoRouter createMakoloRouter(
       : runtime.recovery.awaitingAuthentication
       ? '/login'
       : '/welcome';
+
+  DiscoveryQuery? publicDiscoveryQuery(Map<String, String> parameters) {
+    try {
+      return DiscoveryQuery.fromRouteParameters(parameters);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  Widget invalidDiscoveryRoute() => const Scaffold(
+    body: Center(
+      child: Text(
+        'Ces critères géographiques sont invalides. '
+        'Revenez à Découvrir pour les modifier.',
+        textAlign: TextAlign.center,
+      ),
+    ),
+  );
 
   void logout() {
     unawaited(
@@ -218,21 +237,25 @@ GoRouter createMakoloRouter(
         ),
         GoRoute(
           path: '/discover',
-          builder: (context, state) => GuestDiscoverScreen(
-            runtime: runtime,
-            initialQuery: state.uri.queryParameters['q'] ?? '',
-            initialVertical: state.uri.queryParameters['vertical'] ?? '',
-            initialFilters: DiscoveryQuery.fromRouteParameters(
-              state.uri.queryParameters,
-            ),
-          ),
+          builder: (context, state) {
+            final query = publicDiscoveryQuery(state.uri.queryParameters);
+            if (query == null) return invalidDiscoveryRoute();
+            return GuestDiscoverScreen(
+              runtime: runtime,
+              initialQuery: query.text,
+              initialVertical: query.vertical,
+              initialFilters: query,
+            );
+          },
         ),
         GoRoute(
           path: '/discover/map',
           builder: (context, state) {
+            final query = publicDiscoveryQuery(state.uri.queryParameters);
+            if (query == null) return invalidDiscoveryRoute();
             return PublicDiscoveryMapScreen(
               runtime: runtime,
-              query: DiscoveryQuery.fromRouteParameters(state.uri.queryParameters),
+              query: query,
             );
           },
         ),
