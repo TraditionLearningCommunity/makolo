@@ -59,6 +59,14 @@
               {% if item.context.activity.title and item.context.activity.title != item.title %}
               <p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.activity.title }}</p>
               {% endif %}
+              {% if item.context.next_occurrence %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                {{ projection.presentation.next_occurrence_label }} :
+                {{ item.context.next_occurrence.label }}
+                {% if item.context.next_occurrence.start_date %}· {{ item.context.next_occurrence.start_date|date:"d/m/Y" }}{% endif %}
+                {% if item.context.next_occurrence.start_time %}· {{ item.context.next_occurrence.start_time|time:"H:i" }}{% endif %}
+              </p>
+              {% endif %}
               <div class="mt-2 flex flex-wrap gap-2">
                 {% if item.timing.start_date %}<span class="mk-badge">{{ item.timing.start_date|date:"d/m/Y" }}</span>{% endif %}
                 {% if item.timing.start_time %}<span class="mk-badge">{{ item.timing.start_time|time:"H:i" }}</span>{% endif %}
