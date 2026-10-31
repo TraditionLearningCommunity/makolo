@@ -55,6 +55,29 @@ DISCOVERY_API_PAGE_SIZE = 20
 DISCOVERY_API_MAX_PAGE_SIZE = 50
 
 DISCOVERY_CONTINUATION_SALT = "makolo.discovery.items.v1"
+# Keep all public resource identities visible without embedding every full
+# document in an N1 collection. Full TEXT lives at its owner read endpoint.
+DISCOVERY_RESOURCE_INLINE_CHARS = 1400
+DISCOVERY_RESOURCE_ACTIVITY_INLINE_BUDGET = 8400
+
+
+def _safe_public_http_url(raw):
+    if not isinstance(raw, str) or raw != raw.strip() or any(
+        char in raw for char in "\r\n\t"
+    ):
+        return None
+    try:
+        parts = urlsplit(raw)
+        if (
+            parts.scheme.lower() not in {"http", "https"}
+            or not parts.hostname
+            or parts.username is not None
+            or parts.password is not None
+        ):
+            return None
+    except ValueError:
+        return None
+    return raw
 
 
 @dataclass(frozen=True)
@@ -246,10 +269,19 @@ def _saved_opportunity_ids(profile, opportunity_ids) -> set[str]:
     }
 
 
-def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
+def _activity_resource_previews(activity_ids, *, profile=None) -> dict[str, list[dict]]:
+    """Expose authorized resource metadata, with a bounded inline TEXT sample.
+
+    Preparation retains all document content, publication and reader authority.
+    Discovery keeps *every* admitted resource identity, without a silent
+    six-item or other presentation cutoff; long text is opened via read_url.
+    """
     if not activity_ids:
         return {}
-    from preparation.models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility
+    from preparation.models import (
+        ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility,
+    )
+    from preparation.services import can_view_resource
 
     rows = (
         ActivityResource.objects.filter(
@@ -257,12 +289,29 @@ def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
             status=ResourceStatus.PUBLISHED,
             visibility=ResourceVisibility.PUBLIC,
         )
+        .select_related("activity", "activity__space", "activity__owner_profile")
         .order_by("activity_id", "title", "-version", "id")
     )
     result: dict[str, list[dict]] = {}
+    remaining_by_activity = {}
     for resource in rows:
+        # The resource owner may restrict delivery even when the Activity
+        # itself is an admitted public Discovery candidate. Do not disclose
+        # either its body or its metadata if the reader will be denied.
+        if not can_view_resource(profile, resource):
+            continue
         activity_id = str(resource.activity_id)
         bucket = result.setdefault(activity_id, [])
+        text = resource.text_content if resource.kind == ResourceKind.TEXT else None
+        truncated = False
+        if text is not None:
+            remaining = remaining_by_activity.get(
+                activity_id, DISCOVERY_RESOURCE_ACTIVITY_INLINE_BUDGET,
+            )
+            excerpt = text[: min(DISCOVERY_RESOURCE_INLINE_CHARS, remaining)]
+            truncated = len(excerpt) < len(text)
+            remaining_by_activity[activity_id] = remaining - len(excerpt)
+            text = excerpt
         bucket.append(
             {
                 "id": str(resource.pk),
@@ -271,23 +320,20 @@ def _activity_resource_previews(activity_ids) -> dict[str, list[dict]]:
                 "kind": resource.kind,
                 "mime_type": resource.mime_type or None,
                 "external_url": (
-                    resource.external_url
+                    _safe_public_http_url(resource.external_url)
                     if resource.kind == ResourceKind.URL
-                    and urlsplit(resource.external_url).scheme.lower() in {"https", "http"}
-                    and urlsplit(resource.external_url).netloc
                     else None
                 ),
                 "read_url": (
-                    reverse("preparation:resource-text", kwargs={"resource_id": resource.pk})
+                    reverse(
+                        "preparation:resource-text",
+                        kwargs={"resource_id": resource.pk},
+                    )
                     if resource.kind == ResourceKind.TEXT
                     else None
                 ),
-                "text_content": (
-                    resource.text_content
-                    if resource.kind == ResourceKind.TEXT
-                    else None
-                ),
-                "text_truncated": False,
+                "text_content": text,
+                "text_truncated": truncated,
                 "download_url": (
                     reverse(
                         "preparation:resource-download",
@@ -324,7 +370,7 @@ def _opportunity_source_previews(opportunity_ids) -> dict[str, list[dict]]:
                 "description": "Source publique de référence.",
                 "kind": "url",
                 "mime_type": None,
-                "external_url": source.url,
+                "external_url": _safe_public_http_url(source.url),
                 "download_url": None,
             }
         )
@@ -615,7 +661,7 @@ def _service_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
     """A Service start is prevalidated and executed by Services, not Discovery."""
     if not activity_ids:
         return {}
-    from services.models import ServiceDetails
+    from services.views import public_services
 
     authenticated = _authenticated(profile)
     # The Activity has already passed public Discovery admission. Guests may
@@ -641,9 +687,7 @@ def _service_handoffs(activity_ids, *, profile=None) -> dict[str, dict]:
                 }
             ),
         }
-        for service in ServiceDetails.objects.filter(
-            activity_id__in=activity_ids,
-        )
+        for service in public_services().filter(activity_id__in=activity_ids)
     }
 
 
@@ -1236,7 +1280,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     owner_facts, opportunity_dates = _public_owner_facts(
         activity_ids, opportunity_ids,
     )
-    activity_resources = _activity_resource_previews(activity_ids)
+    activity_resources = _activity_resource_previews(activity_ids, profile=profile)
     opportunity_resources = _opportunity_source_previews(opportunity_ids)
     public_spatial_facts, occurrence_variants = _public_occurrence_facts_for_rows(rows)
 
