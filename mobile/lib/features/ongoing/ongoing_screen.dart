@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../platform/links/ongoing_url_opener.dart';
 
 import '../../data/local/profile_store.dart';
