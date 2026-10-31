@@ -9,7 +9,10 @@ from accounts.models import User
 from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
-from journeys.models import Journey, JourneyStatus, WorkflowKind
+from journeys.models import (
+    Journey, JourneyRequest, JourneyStatus, RequestPurpose,
+    WorkflowKind,
+)
 from opportunities.models import (
     Opportunity, OpportunityKind, OpportunityRequirement,
     OpportunityRequirementKind, OpportunityRevision,
@@ -84,6 +87,8 @@ class SpaceWorkGroup2Tests(TestCase):
         self.assertEqual(request["source"]["id"], str(registration.pk))
         self.assertEqual(request["context"]["work_label"], "Inscription")
         self.assertEqual(request["continuity_facet"]["next"], [])
+        self.assertNotIn("open_request", request["capabilities"])
+        self.assertNotIn("request_detail", request["links"])
         self.assertNotIn(learner.email, str(result.data))
         selected = self.client.get(request["links"]["selection"])
         self.assertEqual(selected.status_code, 200, selected.data)
@@ -93,6 +98,35 @@ class SpaceWorkGroup2Tests(TestCase):
         self.client.force_authenticate(self.outsider)
         self.assertEqual(self.client.get(request["links"]["selection"]).status_code,
                          404)
+
+    def test_registration_decision_handoff_requires_real_request(self):
+        self.space.archetype = SpaceArchetype.EDUCATION
+        self.space.save(update_fields=["archetype", "updated_at"])
+        programme = self.activity("Formation à inscription")
+        learner = self.beneficiary("group2-actual-request")
+        journey = Journey.objects.create(
+            initiated_by=learner, beneficiary=learner, activity=programme,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.PENDING_APPROVAL,
+        )
+        real_request = JourneyRequest.objects.create(
+            journey=journey, requester=learner,
+            purpose=RequestPurpose.REGISTRATION,
+        )
+        self.client.force_authenticate(self.owner)
+        result = self.client.get(self.url)
+        self.assertEqual(result.status_code, 200, result.data)
+        row = result.data["sections"]["requests"]["items"][0]
+        self.assertIn("open_request", row["capabilities"])
+        self.assertIn(str(real_request.pk), row["links"]["request_detail"])
+        detail = self.client.get(row["links"]["request_detail"])
+        self.assertEqual(detail.status_code, 200, detail.data)
+        self.assertEqual(detail.data["request"]["id"], str(real_request.pk))
+        self.assertNotIn(learner.email, str(result.data))
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(
+            self.client.get(row["links"]["request_detail"]).status_code, 404
+        )
 
     def test_services_separates_requests_cases_and_offers(self):
         self.space.archetype = SpaceArchetype.SERVICE_PROVIDER
