@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 import 'subscription_actions_panel.dart';
@@ -10,9 +11,11 @@ import 'subscription_billing_format.dart';
 /// Private subscription read model supplied by the canonical Subscriptions API.
 /// No absent or stale local record is interpreted as "no subscription".
 class BillingScreen extends StatefulWidget {
-  const BillingScreen({super.key, required this.runtime});
+  const BillingScreen({super.key, required this.runtime, this.spaceSlug, this.expectedSpaceId});
 
   final AppRuntime runtime;
+  final String? spaceSlug;
+  final String? expectedSpaceId;
 
   @override
   State<BillingScreen> createState() => _BillingScreenState();
@@ -24,16 +27,53 @@ class _BillingScreenState extends State<BillingScreen> {
   String? _error;
   int _requestRevision = 0;
 
+  bool get _spaceMode => widget.spaceSlug != null;
+
+  SpaceActorContext? get _currentSpace {
+    final actor = widget.runtime.actorContext?.value;
+    if (actor is! SpaceActorContext ||
+        actor.space.slug != widget.spaceSlug ||
+        actor.space.id != widget.expectedSpaceId) return null;
+    return actor;
+  }
+
+  void _onActorChanged() {
+    if (!_spaceMode || !mounted) return;
+    _requestRevision++;
+    setState(() {
+      _data = null;
+      _error = null;
+      _loading = _currentSpace != null;
+    });
+    if (_currentSpace != null) unawaited(_load());
+  }
+
   @override
   void initState() {
     super.initState();
+    if (_spaceMode) widget.runtime.actorContext?.addListener(_onActorChanged);
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    if (_spaceMode) widget.runtime.actorContext?.removeListener(_onActorChanged);
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(covariant BillingScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime.actorContext != widget.runtime.actorContext ||
+        oldWidget.spaceSlug != widget.spaceSlug) {
+      if (oldWidget.spaceSlug != null) {
+        oldWidget.runtime.actorContext?.removeListener(_onActorChanged);
+      }
+      if (_spaceMode) widget.runtime.actorContext?.addListener(_onActorChanged);
+    }
     if (oldWidget.runtime != widget.runtime ||
+        oldWidget.spaceSlug != widget.spaceSlug ||
+        oldWidget.expectedSpaceId != widget.expectedSpaceId ||
         oldWidget.runtime.session?.profileId !=
             widget.runtime.session?.profileId) {
       _requestRevision++;
@@ -47,10 +87,26 @@ class _BillingScreenState extends State<BillingScreen> {
   Future<void> _load() async {
     final api = widget.runtime.api;
     final requestRevision = ++_requestRevision;
+    final expectedSpaceId = widget.expectedSpaceId;
+    final expectedSlug = widget.spaceSlug;
     bool isCurrent() =>
         mounted &&
         requestRevision == _requestRevision &&
-        identical(widget.runtime.api, api);
+        identical(widget.runtime.api, api) &&
+        (!_spaceMode ||
+          (_currentSpace != null &&
+           widget.expectedSpaceId == expectedSpaceId &&
+           widget.spaceSlug == expectedSlug));
+    if (_spaceMode && _currentSpace == null) {
+      if (mounted && requestRevision == _requestRevision) {
+        setState(() {
+          _data = null;
+          _loading = false;
+          _error = 'Sélectionnez cet Espace dans « Agir comme » pour consulter son abonnement.';
+        });
+      }
+      return;
+    }
     if (api == null) {
       if (isCurrent()) {
         setState(() {
@@ -67,8 +123,21 @@ class _BillingScreenState extends State<BillingScreen> {
         _error = null;
       });
     try {
-      final response = await api.get('api/v1/subscriptions/me/');
-      if (isCurrent()) setState(() => _data = response.jsonObject());
+      final path = _spaceMode
+          ? 'api/v1/subscriptions/spaces/${Uri.encodeComponent(expectedSlug!)}/'
+          : 'api/v1/subscriptions/me/';
+      final response = await api.get(path);
+      final payload = response.jsonObject();
+      if (_spaceMode) {
+        final space = _object(payload['space']);
+        final subscription = _object(payload['subscription']);
+        if (space?['id']?.toString() != expectedSpaceId ||
+            space?['slug']?.toString() != expectedSlug ||
+            subscription?['subject_type'] != 'space') {
+          throw const FormatException('Space Subscription identity mismatch');
+        }
+      }
+      if (isCurrent()) setState(() => _data = payload);
     } on Object {
       if (isCurrent()) {
         setState(
@@ -203,7 +272,7 @@ class _BillingScreenState extends State<BillingScreen> {
     if (subscription == null) {
       return const ListTile(
         contentPadding: EdgeInsets.zero,
-        title: Text('Aucun abonnement personnel actif ou enregistré.'),
+        title: Text('Aucun abonnement actif ou enregistré pour ce sujet.'),
         subtitle: Text('Cette information provient du serveur Makolo.'),
       );
     }
@@ -224,7 +293,7 @@ class _BillingScreenState extends State<BillingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading('Mon abonnement'),
+        _heading(_spaceMode ? 'Abonnement de cet Espace' : 'Mon abonnement'),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.verified_outlined),
@@ -340,15 +409,17 @@ class _BillingScreenState extends State<BillingScreen> {
               ),
         ],
         if (capacities.isNotEmpty) ...[
-          _heading('Capacités de ma formule'),
+          _heading(_spaceMode ? 'Capacités de cet Espace' : 'Capacités de ma formule'),
           for (final row in capacities)
             if (_object(row) != null) _capabilityTile(_object(row)!),
         ],
-        _heading('Gérer mon abonnement'),
+        _heading(_spaceMode ? 'Abonnement de l’Espace' : 'Gérer mon abonnement'),
         SubscriptionActionsPanel(
           runtime: widget.runtime,
           snapshot: _data!,
           onUpdated: _load,
+          spaceSlug: widget.spaceSlug,
+          expectedSpaceId: widget.expectedSpaceId,
         ),
       ],
     );
@@ -357,7 +428,9 @@ class _BillingScreenState extends State<BillingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Abonnement & facturation')),
+      appBar: AppBar(title: Text(
+        _spaceMode ? 'Abonnement de l’Espace' : 'Abonnement & facturation',
+      )),
       body: _loading && _data == null
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
