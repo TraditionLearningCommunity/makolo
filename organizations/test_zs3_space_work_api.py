@@ -372,6 +372,44 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertNotIn(str(private.pk), str(response.data))
         self.assertEqual(world["perspectives"][0]["creation_actions"], [])
 
+    def test_generic_keeps_real_commerce_reality_without_changing_archetype(self):
+        activity = self._activity("Distribution solidaire")
+        activity.status = "published"
+        activity.save(update_fields=["status", "updated_at"])
+        Offer.objects.create(
+            activity=activity, name="Kit disponible", status=OfferStatus.ACTIVE,
+        )
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        world = response.data["business_world"]
+        self.assertEqual(response.data["archetype"], "generic")
+        self.assertEqual(
+            [g["identity"] for g in world["reading_groups"]],
+            ["portfolio", "specialized"],
+        )
+        self.assertEqual(
+            world["reading_groups"][1]["section_keys"], ["offers"]
+        )
+        self.assertIn("Kit disponible", str(response.data["sections"]["offers"]))
+
+    def test_community_group_is_not_itself_an_initiative(self):
+        self.space.archetype = SpaceArchetype.COMMUNITY
+        self.space.save(update_fields=["archetype", "updated_at"])
+        Group.objects.create(
+            name="Bénévoles", space=self.space, created_by=self.owner
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["business_world"]["reading_groups"], [])
+        self.assertNotIn("Bénévoles", str(response.data["sections"]))
+
     def test_other_archetypes_do_not_inherit_first_group_business_world(self):
         self.space.archetype = SpaceArchetype.COMMERCE
         self.space.save(update_fields=["archetype", "updated_at"])
