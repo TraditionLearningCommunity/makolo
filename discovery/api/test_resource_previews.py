@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
@@ -5,7 +7,7 @@ from accounts.models import UserProfile
 from django.test import TestCase
 from django.utils import timezone
 
-from activities.models import Activity, ActivityStatus, ActivityVisibility
+from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence
 from preparation.models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility
 
 from .composition import (
@@ -32,10 +34,10 @@ class DiscoveryDocumentaryPreviewTests(TestCase):
         UserProfile.objects.get_or_create(user=owner, defaults={"public_profile": True, "searchable": True})
 
     def _resource(self, key, *, kind=ResourceKind.TEXT, visibility=ResourceVisibility.PUBLIC,
-                  content="Instructions", external_url=""):
+                  content="Instructions", external_url="", occurrence=None):
         return ActivityResource.objects.create(
             activity=self.activity, created_by=self.owner,
-            title=key, key=key, kind=kind,
+            occurrence=occurrence, title=key, key=key, kind=kind,
             text_content=content if kind == ResourceKind.TEXT else "",
             external_url=external_url if kind == ResourceKind.URL else "",
             status=ResourceStatus.PUBLISHED, visibility=visibility,
@@ -120,3 +122,27 @@ class DiscoveryDocumentaryPreviewTests(TestCase):
         self.assertIsNone(_safe_public_http_url("https://user:pass@example.test/help"))
         self.assertIsNone(_safe_public_http_url("https://example.test\nmalformed"))
         self.assertIsNone(_safe_public_http_url("//example.test/unsafe"))
+
+    def test_occurrence_specific_resource_stays_with_admitted_variant(self):
+        first = Occurrence.objects.create(
+            activity=self.activity,
+            start_at=timezone.now() + timedelta(days=1),
+            end_at=timezone.now() + timedelta(days=1, hours=1),
+        )
+        other = Occurrence.objects.create(
+            activity=self.activity,
+            start_at=timezone.now() + timedelta(days=2),
+            end_at=timezone.now() + timedelta(days=2, hours=1),
+        )
+        self._resource("common")
+        self._resource("first-only", occurrence=first)
+        self._resource("other-only", occurrence=other)
+        scoped = _activity_resource_previews(
+            [self.activity.pk],
+            occurrence_scope={str(self.activity.pk): {str(first.pk)}},
+        )[str(self.activity.pk)]
+        self.assertEqual(
+            {resource["title"] for resource in scoped},
+            {"common", "first-only"},
+        )
+        self.assertNotIn("other-only", str(scoped))
