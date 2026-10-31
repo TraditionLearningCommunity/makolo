@@ -9,7 +9,7 @@ from accounts.models import User
 from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.platform_services import grant_platform_role
-from authorization.services import grant_activity_role, grant_space_role
+from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
 from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
 from groups.models import Group, GroupMembership
 from journeys.models import Journey, JourneyStatus, WorkflowKind
@@ -270,7 +270,7 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             email="zs3-scanner-mandate@test.local",
             password="x",
         )
-        grant_activity_role(
+        scanner_mandate = grant_activity_role(
             profile=scanner,
             activity=sensitive,
             role_code=SystemRoleCode.ACTIVITY_SCANNER,
@@ -289,6 +289,8 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(selected.status_code, 200, selected.data)
         self.assertIsNone(selected.data["selection"])
         self.assertNotIn(sensitive.title, str(selected.data))
+        revoke_mandate(mandate=scanner_mandate, actor=self.owner)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
 
     def test_order_detail_uses_existing_owner_api_and_current_permissions(self):
         activity = self._activity("Commande dans l'Espace")
