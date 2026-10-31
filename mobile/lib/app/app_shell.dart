@@ -190,7 +190,6 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       runtime: widget.runtime,
       onConnections: () => context.push('/connections'),
       onBilling: () => context.push('/billing'),
-      onAccount: () => context.push('/account'),
       onSettings: () => context.push('/settings'),
       onSwitchAccount: widget.onSwitchAccount,
       onLogout: widget.onLogout,
@@ -239,6 +238,17 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
         final identity = snapshot.data?.payload['identity'];
         final displayName = identity is Map ? identity['display_name'] : null;
         final profileUsername = identity is Map ? identity['username'] : null;
+        final avatarUrl = identity is Map ? identity['avatar_url'] : null;
+        final baseUri = widget.runtime.api?.baseUri;
+        final resolvedAvatar =
+            avatarUrl is String && avatarUrl.isNotEmpty && baseUri != null
+            ? baseUri.resolve(avatarUrl)
+            : null;
+        final validAvatar =
+            resolvedAvatar != null &&
+            (resolvedAvatar.scheme == 'https' ||
+                resolvedAvatar.scheme == 'http') &&
+            resolvedAvatar.host == baseUri!.host;
         final avatarLetter =
             displayName is String && displayName.trim().isNotEmpty
             ? displayName.trim().substring(0, 1).toUpperCase()
@@ -249,6 +259,10 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           appBar: MakoloPrimaryHeader(
             kind: _headerKind,
             avatarLetter: avatarLetter,
+            avatarUrl: validAvatar ? resolvedAvatar.toString() : null,
+            avatarProfileId: widget.runtime.personal?.store.profileId,
+            avatarApi: widget.runtime.api,
+            avatarRevision: snapshot.data?.receivedAt,
             profileUsername: profileUsername is String ? profileUsername : null,
             hasConversationAttention: _hasConversationAttention == true,
             hasUnreadNotifications: _hasUnreadNotifications == true,
@@ -256,10 +270,20 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             onConversations: () => unawaited(_openSecondary('/conversations')),
             onNotifications: () => unawaited(_openSecondary('/notifications')),
             onSearch: actor is PersonalActorContext
-                ? () => context.push('/discover/search')
+                ? () => context.push(
+                    widget.runtime.discovery?.activeExploration.routeLocation(
+                          '/discover/search',
+                        ) ??
+                        '/discover/search',
+                  )
                 : null,
             onMap: actor is PersonalActorContext
-                ? () => context.push('/discover/map')
+                ? () => context.push(
+                    widget.runtime.discovery?.activeExploration.routeLocation(
+                          '/discover/map',
+                        ) ??
+                        '/discover/map',
+                  )
                 : null,
             onCalendar: actor is PersonalActorContext
                 ? () => context.push('/ongoing/calendar')

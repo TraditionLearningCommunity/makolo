@@ -1,0 +1,96 @@
+{# N2: a composed reading of the same owner facts as N1. No new state or authority. #}
+<section class="mk-now-n2-pane mk-now-n2-pane--{{ item.topology }}" aria-label="Comprendre {{ item.context_label }}">
+  <header class="mk-now-n2-header">
+    <p class="mk-eyebrow">Maintenant</p>
+    <h2>{{ item.context_label }}</h2>
+    {% if item.state %}<p class="mk-now-n2-meaning">{{ item.state }}</p>
+    {% elif item.summary %}<p class="mk-now-n2-meaning">{{ item.summary }}</p>{% endif %}
+    {% if item.deadline_label %}<p class="mk-now-label">{{ item.deadline_label }}</p>{% endif %}
+  </header>
+  {% if item.subject and item.subject != item.context_label %}
+    <section class="mk-now-n2-section"><h3>Sujet</h3><p>{{ item.subject }}</p></section>
+  {% endif %}
+  {% if item.delta and item.delta != item.state %}
+    <section class="mk-now-n2-section"><h3>Ce qui a changé</h3><p>{{ item.delta }}</p></section>
+  {% endif %}
+  {% if item.topology == "media" and item.inline_media %}
+    {% with media=item.inline_media.0 %}
+    <figure class="mk-now-n2-media">
+      {% if media.kind == "image" %}<img src="{{ media.url }}" alt="{{ media.label }}" loading="lazy" decoding="async">
+      {% elif media.kind == "pdf" %}<iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" referrerpolicy="no-referrer"></iframe>
+      {% elif media.kind == "document" %}<iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
+      {% elif media.kind == "video" %}<video src="{{ media.url }}" controls preload="metadata" playsinline aria-label="{{ media.label }}"></video>
+      {% elif media.kind == "audio" %}<audio src="{{ media.url }}" controls preload="none" aria-label="{{ media.label }}"></audio>{% endif %}
+      <figcaption>{{ media.label }}</figcaption>
+    </figure>
+    {% endwith %}
+  {% endif %}
+  {% if item.topology == "waiting" %}
+    <section class="mk-now-n2-section mk-now-n2-wait">
+      <h3>En attente</h3>
+      <p>{{ item.turn|default:"La suite dépend d’une prochaine réponse." }}</p>
+      {% if item.horizon %}<p>{{ item.horizon }}</p>{% endif %}
+      {% if item.exit_condition %}<p>{{ item.exit_condition }}</p>{% endif %}
+    </section>
+  {% endif %}
+  {% if item.topology == "composition" %}
+    {% if item.relation_summaries %}
+      <section class="mk-now-n2-section">
+        {% for summary in item.relation_summaries %}<p class="mk-now-n2-relation">{{ summary }}</p>{% endfor %}
+      </section>
+    {% endif %}
+    {% if item.relation_members %}
+      <section class="mk-now-n2-section" aria-label="Éléments concernés">
+        <ul class="mk-now-n2-relations">
+          {% for member in item.relation_members %}
+          <li><strong>{{ member.label }}</strong>{% if member.subtext %}<span>{{ member.subtext }}</span>{% endif %}</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  {% endif %}
+  {% if item.knowledge_state and item.knowledge_state != "known" and item.knowledge_state != "fresh" %}
+    <p class="mk-now-unit__knowledge">Information à vérifier</p>
+  {% endif %}
+  {% if item.consequence %}
+    <section class="mk-now-n2-section">
+      <h3>Ce que ça change</h3>
+      <p>{{ item.consequence }}</p>
+    </section>
+  {% endif %}
+  {% if item.why_now and item.why_now != item.summary and item.why_now != item.state %}
+    <section class="mk-now-n2-section">
+      <h3>Pourquoi maintenant</h3>
+      <p>{{ item.why_now }}</p>
+    </section>
+  {% endif %}
+  {% if item.preparation %}
+    <section class="mk-now-n2-section">
+      <h3>Déjà préparé</h3>
+      {% for preparation in item.preparation %}<p>{{ preparation }}</p>{% endfor %}
+    </section>
+  {% endif %}
+  {% if item.inline_media %}
+    <section class="mk-now-n2-section mk-now-n2-resources" aria-label="Médias utiles">
+      {% for media in item.inline_media %}
+      <div class="mk-now-n2-resource">
+        <a href="{{ media.url }}" target="_self">{{ media.label }}</a>
+        <a href="{{ media.download_url }}" download>Enregistrer sur l’appareil</a>
+      </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+  {% if item.direct_actions %}
+    <div class="mk-now-business-actions" aria-label="Décision">
+      {% for action in item.direct_actions %}
+      <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
+        {% csrf_token %}
+        <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
+        <output aria-live="polite" role="status"></output>
+      </form>
+      {% endfor %}
+    </div>
+  {% elif item.url %}
+    <a class="mk-now-cta" href="{{ item.url }}">{{ item.action_label }}</a>
+  {% endif %}
+</section>

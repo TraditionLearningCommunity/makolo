@@ -1,20 +1,12 @@
 name: Mobile Android Build
+run-name: "Mobile DEV APK - ${{ github.head_ref || github.ref_name }}"
 
 on:
   pull_request:
     paths:
       - "mobile/lib/**"
       - "mobile/android/**"
-      - "mobile/pubspec.yaml"
-      - "mobile/pubspec.lock"
-      - "mobile/.flutter-version"
-      - "mobile/config/dev.json"
-      - ".github/workflows/mobile-android-build.yml"
-  push:
-    branches: [main]
-    paths:
-      - "mobile/lib/**"
-      - "mobile/android/**"
+      - "mobile/assets/**"
       - "mobile/pubspec.yaml"
       - "mobile/pubspec.lock"
       - "mobile/.flutter-version"
@@ -58,11 +50,25 @@ jobs:
           git diff --exit-code -- pubspec.lock
       - name: Generate Dart sources
         run: dart run build_runner build --delete-conflicting-outputs
+      - name: Validate remote DEV API
+        run: |
+          set -euo pipefail
+          jq -e '
+            .MAKOLO_ENVIRONMENT == "dev"
+            and (.MAKOLO_API_BASE_URL | type == "string"
+                 and test("^https://[^/]+/?$"))
+            and (.MAKOLO_API_BASE_URL | test(
+              "^https://(localhost|127\\.0\\.0\\.1|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|[^/]*\\.local)([:/]|$)";
+              "i"
+            ) | not)
+          ' config/dev.json > /dev/null
+          echo "DEV build configured for a remote HTTPS API."
       - name: Build Android debug
         run: flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json
       - name: Upload DEV APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: makolo-dev-debug-apk
+          name: makolo-dev-debug-apk-${{ github.event.pull_request.head.sha || github.sha }}
           path: mobile/build/app/outputs/flutter-apk/app-dev-debug.apk
           if-no-files-found: error
+          retention-days: 14

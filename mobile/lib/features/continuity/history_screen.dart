@@ -39,7 +39,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String? _selectedHistoryKey;
   List<StoredProjection> _remotePages = [];
   bool _searching = false;
-  bool _searchFailed = false;
   int _searchGeneration = 0;
   bool _loadingMore = false;
   bool _requestedInitialRefresh = false;
@@ -98,7 +97,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final filter = _filter;
     setState(() {
       _searching = true;
-      _searchFailed = false;
     });
     try {
       final nextOffset = more && _remoteHistory != null
@@ -135,7 +133,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           generation == _searchGeneration &&
           _query == query &&
           _filter == filter) {
-        setState(() => _searchFailed = true);
+        // Preserve the already available local History on remote failure.
       }
     } finally {
       if (mounted &&
@@ -243,9 +241,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   title: 'Aucun historique à afficher',
                   body: 'Les expériences terminées apparaîtront ici.',
                 ),
-                initialLoading: const MakoloLoadingState(
-                  label: 'Chargement de l’historique…',
-                ),
+                initialLoading: const SizedBox.expand(),
                 onRetry: _refreshFirst,
                 content: Row(
                   children: [
@@ -304,28 +300,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text(
-                                  'Historique partiel. Résultats locaux puis '
-                                  'actualisation chez les propriétaires.',
-                                ),
-                              ),
-                              IconButton(
-                                tooltip:
-                                    'Rechercher dans tout l’historique visible',
-                                onPressed: _searching ? null : _remoteSearch,
-                                icon: const Icon(Icons.search),
-                              ),
-                            ],
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              tooltip: 'Rechercher dans l’historique',
+                              onPressed: _searching ? null : _remoteSearch,
+                              icon: const Icon(Icons.search),
+                            ),
                           ),
                           if (_searching) const LinearProgressIndicator(),
-                          if (_searchFailed)
-                            const Text(
-                              'Recherche distante indisponible. '
-                              'Les pages locales restent consultables.',
-                            ),
+
                           if (visible.isEmpty)
                             const Text(
                               'Aucun élément correspondant parmi les '

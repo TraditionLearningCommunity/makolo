@@ -1,0 +1,101 @@
+<article class="mk-ongoing-unit" data-ongoing-unit data-ongoing-id="{{ item.id }}">
+  {% for fact in item.temporal_facts %}
+    <span hidden data-ongoing-calendar-moment
+      data-ongoing-sort="{{ fact.at|default:fact.date }}"
+      data-ongoing-when="{{ fact.display_when }}"
+      data-ongoing-label="{{ fact.label }}"
+      data-ongoing-title="{{ item.title }}"
+      data-ongoing-target="{{ item.id }}"></span>
+  {% endfor %}
+  {% include "core/_ongoing_card.html" with expanded=False %}
+  {% include "core/_ongoing_card.html" with expanded=True %}
+
+  {% if item.details %}
+    <details class="mk-ongoing-unit__more">
+      <summary>
+        <span class="mk-ongoing-unit__closed">Voir plus</span>
+        <span class="mk-ongoing-unit__opened">Voir moins</span>
+        <i data-lucide="chevron-down" aria-hidden="true"></i>
+      </summary>
+      <div class="mk-ongoing-unit__details">
+        {% for section, values in item.details %}
+          <section>
+            <h3>{{ section }}</h3>
+            {% for value in values %}<p>{{ value }}</p>{% endfor %}
+          </section>
+        {% endfor %}
+      </div>
+    </details>
+  {% endif %}
+
+  <button type="button" class="mk-ongoing-n2-trigger" data-ongoing-focus-trigger="{{ item.id }}" aria-controls="ongoing-detail" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+  <template data-ongoing-focus="{{ item.id }}">
+    {% include "core/_ongoing_n2_focus.html" with item=item %}
+  </template>
+
+  {% if item.can_save or item.url or item.can_share %}
+  <div class="mk-ongoing-unit__actions" role="group" aria-label="Actions pour {{ item.title }}">
+    {% if item.can_save and item.possibility.links.saved %}
+      <form class="mk-ongoing-unit__save" data-ongoing-save data-save-url="{{ item.possibility.links.saved }}" data-save-state="{{ item.possibility.saved_state }}" data-ongoing-activity="{{ item.possibility.id }}">
+        {% csrf_token %}
+        <button type="button" data-ongoing-save-toggle aria-pressed="{% if item.possibility.saved_state == 'saved' %}true{% else %}false{% endif %}">
+          <svg data-ongoing-orbit-available {% if item.possibility.saved_state == 'saved' %}hidden{% endif %} viewBox="0 0 24 24" width="21" height="21" fill="none" aria-hidden="true">
+            <path d="M5.2 17.6A8.7 8.7 0 0 1 16.9 5.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M18.4 7.2a8.6 8.6 0 0 1 .2 7.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="19.3" cy="17.6" r="1.45" fill="currentColor"/>
+          </svg>
+          <svg data-ongoing-orbit-saved {% if item.possibility.saved_state != 'saved' %}hidden{% endif %} viewBox="0 0 24 24" width="21" height="21" fill="none" aria-hidden="true">
+            <path d="M5.6 17.2a8.2 8.2 0 1 1 12.9-1.4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="12" cy="12" r="3.2" fill="currentColor"/>
+            <circle cx="19.2" cy="17.5" r="1.55" fill="currentColor"/>
+          </svg>
+          <span class="sr-only" data-ongoing-save-label>{% if item.possibility.saved_state == 'saved' %}Enregistré{% else %}Enregistrer{% endif %}</span>
+        </button>
+        <span class="sr-only" role="status" aria-live="polite" data-ongoing-save-feedback></span>
+      </form>
+    {% else %}
+      <span class="mk-ongoing-unit__action-disabled" title="Enregistrement non disponible pour cette continuité">
+        <span class="sr-only">Enregistrement indisponible</span>
+      </span>
+    {% endif %}
+
+    {% if item.url %}
+      <a class="mk-ongoing-unit__primary" href="{{ item.url }}" aria-label="{{ item.primary_label }}" title="{{ item.primary_label }}">
+        <i data-lucide="circle-play" aria-hidden="true"></i>
+        <span class="sr-only">{{ item.primary_label }}</span>
+      </a>
+    {% else %}
+      <span class="mk-ongoing-unit__action-disabled" title="Aucune action directe disponible">
+        Voir la suite
+      </span>
+    {% endif %}
+
+    {% if item.can_share and item.possibility.links.share %}
+      <div class="mk-ongoing-unit__share" data-makolo-share data-create-url="{{ item.possibility.links.share }}" data-profile-search-url="{% url 'sharing:profile-search' %}" data-share-title="{{ item.title }}" data-share-text="{{ item.summary }}">
+        <form hidden aria-hidden="true">{% csrf_token %}<input type="hidden" name="intent" value="view"></form>
+        <details>
+          <summary><i data-lucide="share-2" aria-hidden="true"></i><span class="sr-only">Partager</span></summary>
+          <div class="mk-ongoing-unit__share-menu" role="group" aria-label="Options de partage">
+            <button type="button" data-share-internal>Dans Makolo</button>
+            <button type="button" data-share-native>Partager avec…</button>
+            <button type="button" data-share-copy>Copier le lien</button>
+            <button type="button" data-share-qr-button>Afficher le QR</button>
+            <div data-share-internal-panel hidden>
+              <label>Rechercher un Profil
+                <input type="search" data-share-person-search autocomplete="off" placeholder="Nom ou identifiant public">
+              </label>
+              <div data-share-person-results role="listbox" aria-label="Profils Makolo"></div>
+            </div>
+            <p role="status" data-share-feedback aria-live="polite"></p>
+            <div data-share-qr-panel hidden><img data-share-qr alt="QR du lien de partage Makolo"></div>
+          </div>
+        </details>
+      </div>
+    {% else %}
+      <span class="mk-ongoing-unit__action-disabled" title="Cette continuité n’est pas partageable">
+        <i data-lucide="share-2" aria-hidden="true"></i> Partager
+      </span>
+    {% endif %}
+  </div>
+  {% endif %}
+</article>

@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'fakes.dart';
+import 'dio_testing.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +12,8 @@ import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/makolo_theme.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/sync/sync_engine.dart';
 import 'package:makolo_mobile/features/interoperability/connections_screen.dart';
 import 'package:makolo_mobile/repositories/interoperability_repository.dart';
 import 'package:makolo_mobile/sync/sync_status.dart';
@@ -402,6 +408,134 @@ void main() {
       find.textContaining('Le reste de Makolo continue de fonctionner'),
       findsOneWidget,
     );
+
+    await _unmount(tester);
+  });
+
+  testWidgets('refresh uses Z16 and retains a known connection after failure', (
+    tester,
+  ) async {
+    var online = true;
+    var serviceName = 'Service initial';
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final client = MockClient((request) async {
+      expect(request.url.path, '/api/v1/me/interoperability/');
+      if (!online) throw const SocketException('offline');
+      return MockResponse(
+        jsonEncode(
+          _payload(
+            connections: [
+              {
+                'id': 'personal-connection',
+                'scope': 'profile',
+                'owner': 'intelligence',
+                'provider_protocol': 'openai_compatible',
+                'display_name': serviceName,
+                'available': true,
+                'connected': true,
+                'usable': true,
+                'manageable': true,
+                'enabled': true,
+                'status': 'connected',
+                'health': 'healthy',
+                'capabilities': ['text_generate'],
+              },
+            ],
+          ),
+        ),
+        200,
+      );
+    });
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      dio: client.dio,
+      tokenStore: tokens,
+    );
+    addTearDown(api.close);
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final sync = SyncEngine(
+      api: api,
+      store: store,
+      database: database,
+      profileId: 'profile-a',
+    );
+    final runtime = AppRuntime(
+      tokens: tokens,
+      session: const AuthSession(
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+      recovery: SessionRecoveryController(),
+      database: database,
+      store: store,
+      interoperability: ProfileInteroperabilityRepository(store),
+      sync: sync,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ProfileConnectionsScreen(runtime: runtime),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.text('Service initial'), findsOneWidget);
+
+    serviceName = 'Service actualisé';
+    await tester.tap(find.byTooltip('Actualiser les connexions'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.text('Service actualisé'), findsOneWidget);
+    expect(find.text('Service initial'), findsNothing);
+
+    online = false;
+    await tester.tap(find.byTooltip('Actualiser les connexions'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.text('Service actualisé'), findsOneWidget);
+    expect(
+      find.text(
+        'Actualisation impossible. Le dernier état connu est conservé.',
+      ),
+      findsOneWidget,
+    );
+
+    await _unmount(tester);
+  });
+
+  testWidgets('an absent projection without a sync owner never spins forever', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-a');
+    final runtime = _runtimeWithStore(store, database);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: ProfileConnectionsScreen(runtime: runtime),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(
+      find.text('Impossible de vérifier vos connexions pour le moment.'),
+      findsOneWidget,
+    );
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Aucune connexion pour le moment'), findsNothing);
 
     await _unmount(tester);
   });

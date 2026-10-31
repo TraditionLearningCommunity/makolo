@@ -1,78 +1,248 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}Moi | Makolo{% endblock %}
 {% block content %}
-<div class="mk-mature-page mk-me-workspace" data-mk-surface="me">
-  <section class="mk-me-identity">
-    <div class="mk-me-avatar" aria-hidden="true">
-      {% if request.user.avatar %}<img src="{{ request.user.avatar.url }}" alt="">{% else %}<span>{{ request.user.username|first|upper }}</span>{% endif %}
-    </div>
-    <div>
-      <p class="mk-eyebrow">Moi</p>
+<link rel="stylesheet" href="{% static 'css/me-n1.css' %}">
+<main class="mk-me-n1" data-mk-surface="me" data-me-profile="{{ me_projection.actor.id }}" style="--me-saved-orbit: url('{% static 'icons/discovery-orbit-saved.svg' %}')">
+  <header class="mk-me-n1-identity">
+    <a class="mk-me-n1-avatar mk-me-n1-avatar-action" href="{% url 'account:profile' %}" aria-label="Modifier ma photo">
+      {% if me_projection.identity.avatar_url %}
+        <img src="{{ me_projection.identity.avatar_url }}" alt="" width="84" height="84" loading="eager" decoding="async">
+      {% else %}
+        <span>{{ me_projection.identity.display_name|first|upper }}</span>
+      {% endif %}
+      <span class="mk-me-n1-camera" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h-4L8 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-4z"/><circle cx="12" cy="13" r="3"/></svg></span>
+    </a>
+    <div class="mk-me-n1-person">
+      <p class="mk-me-n1-eyebrow">Moi</p>
       <h1>{{ me_projection.identity.display_name }}</h1>
-      {% if me_projection.identity.username %}<p>@{{ me_projection.identity.username }}</p>{% endif %}
-      {% if me_projection.identity.profession or me_projection.identity.location %}<p>{% if me_projection.identity.profession %}{{ me_projection.identity.profession }}{% endif %}{% if me_projection.identity.profession and me_projection.identity.location %} · {% endif %}{% if me_projection.identity.location.city %}{{ me_projection.identity.location.city }}{% endif %}{% if me_projection.identity.location.city and me_projection.identity.location.country %}, {% endif %}{% if me_projection.identity.location.country %}{{ me_projection.identity.location.country }}{% endif %}</p>{% endif %}
+      {% if me_projection.identity.profession or me_projection.identity.location %}
+        <p class="mk-me-n1-subtitle">{% if me_projection.identity.profession %}{{ me_projection.identity.profession }}{% endif %}{% if me_projection.identity.profession and me_projection.identity.location %} · {% endif %}{% if me_projection.identity.location.city %}{{ me_projection.identity.location.city }}{% endif %}{% if me_projection.identity.location.city and me_projection.identity.location.country %}, {% endif %}{% if me_projection.identity.location.country %}{{ me_projection.identity.location.country }}{% endif %}</p>
+      {% endif %}
+      {% if me_projection.identity.bio %}<p class="mk-me-n1-bio">{{ me_projection.identity.bio }}</p>{% endif %}
     </div>
-    <a href="{% url 'account:profile' %}" class="mk-compact-action">Modifier</a>
-  </section>
+    <a class="mk-me-n1-edit" href="{% url 'account:profile' %}">Modifier mon passeport <span aria-hidden="true">↗</span></a>
+  </header>
 
-  <div class="mk-me-grid">
-  <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Passeport Makolo</h2><p>Une représentation contrôlée de faits déjà établis autour de vous.</p></div><a href="{{ passport_url }}">Ouvrir</a></div>
-  </section>
+  <div class="mk-me-grid mk-me-n1-grid">
+    <section class="mk-me-n1-section" aria-labelledby="me-passport">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">✦</span>
+        <h2 id="me-passport">Passeport Makolo</h2>
+      </div>
+      <div class="mk-me-n1-panel mk-me-n1-passport">
+        <div class="mk-me-n1-passport-symbol" aria-hidden="true">M</div>
+        <div class="mk-me-n1-panel-copy">
+          <strong>Mon passeport</strong>
+          <span>À partager selon votre choix</span>
+        </div>
+        {% if me_projection.passport.available %}
+          <a class="mk-me-n1-arrow" href="{{ passport_url }}" aria-label="Ouvrir le Passeport Makolo">↗</a>
+        {% endif %}
+      </div>
+    </section>
 
-  <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Ce qui compte pour moi</h2><p>Ce que vous avez choisi de suivre, garder ou demander à Makolo de chercher.</p></div></div>
-    <div class="mk-chip-cloud">
-      {% for interest in interests %}<span>{{ interest.topic.label }}</span>{% endfor %}
-      {% for item in open_to %}<span>{{ item.get_kind_display }}{% if item.topic %} · {{ item.topic.label }}{% endif %}</span>{% endfor %}
-      {% for watch in watches %}<a href="{% url 'discovery:watch-list' %}">{{ watch.name }}</a>{% endfor %}
-      {% for bookmark in bookmarks %}<a href="{% url 'discovery:bookmarks' %}">{{ bookmark.activity.title }}</a>{% endfor %}
-      {% for follow in followed_spaces %}<span>{{ follow.organization.name }}</span>{% endfor %}
-      {% for follow in followed_profiles %}<span>{% if follow.organizer_profile.full_name %}{{ follow.organizer_profile.full_name }}{% else %}{{ follow.organizer_profile.username }}{% endif %}</span>{% endfor %}
-    </div>
-    {% if not interests and not open_to and not watches and not bookmarks and not followed_spaces and not followed_profiles %}<p class="mk-empty-copy">Rien n’est encore enregistré ici.</p>{% endif %}
-  </section>
+    <section class="mk-me-n1-section" aria-labelledby="me-considerations">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">◇</span>
+        <h2 id="me-considerations"><a href="{% url 'core:participant-me-choices' %}">Ce qui compte pour moi</a></h2>
+        <a class="mk-me-n1-heading-link" href="{% url 'core:participant-me-choices' %}" aria-label="Gérer ce qui compte pour moi">Gérer</a>
+      </div>
+      <div class="mk-me-n1-panel mk-me-n1-families">
+        <div class="mk-me-n1-direct-links">
+          <a href="{% url 'account:interests' %}">Intérêts</a>
+          <a href="{% url 'account:open-to' %}">Ouvert à</a>
+          <a href="{% url 'discovery:watch-list' %}">Veilles</a>
+        </div>
+        {% if me_projection.considerations.interests.items %}
+          <div class="mk-me-n1-family">
+            <h3>Intérêts <span>{{ me_projection.considerations.interests.count }}</span></h3>
+            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="interests" data-me-loaded="{{ me_projection.considerations.interests.items|length }}" data-me-more="{{ me_projection.considerations.interests.has_more|yesno:'true,false' }}">
+              {% for row in me_projection.considerations.interests.items %}<span data-me-id="{{ row.id }}" >{{ row.topic.label }}</span>{% endfor %}
+            </div>
+          </div>
+        {% endif %}
+        {% if me_projection.considerations.open_to.items %}
+          <div class="mk-me-n1-family">
+            <h3>Ouvert à <span>{{ me_projection.considerations.open_to.count }}</span></h3>
+            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="open_to" data-me-loaded="{{ me_projection.considerations.open_to.items|length }}" data-me-more="{{ me_projection.considerations.open_to.has_more|yesno:'true,false' }}">
+              {% for row in me_projection.considerations.open_to.items %}<span data-me-id="{{ row.id }}" >{{ row.label }}{% if row.topic.label %} · {{ row.topic.label }}{% endif %}</span>{% endfor %}
+            </div>
+          </div>
+        {% endif %}
+        {% if me_projection.considerations.watches.items %}
+          <div class="mk-me-n1-family">
+            <h3>Veilles <span>{{ me_projection.considerations.watches.count }}</span></h3>
+            <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="watches" data-me-owner-href="{% url 'discovery:watch-list' %}" data-me-loaded="{{ me_projection.considerations.watches.items|length }}" data-me-more="{{ me_projection.considerations.watches.has_more|yesno:'true,false' }}">
+              {% for row in me_projection.considerations.watches.items %}
+                <a  data-me-id="{{ row.id }}" href="{% url 'discovery:watch-detail' row.id %}"><span>{{ row.name }}</span><span aria-hidden="true">›</span></a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+        {% if me_projection.considerations.bookmarks.items %}
+          <div class="mk-me-n1-family">
+            <h3>Mes enregistrements <span>{{ me_projection.considerations.bookmarks.count }}</span></h3>
+            <div class="mk-me-n1-stacks" data-me-territory="considerations" data-me-family="bookmarks" data-me-owner-href="{% url 'discovery:bookmarks' %}" data-me-loaded="{{ me_projection.considerations.bookmarks.items|length }}" data-me-more="{{ me_projection.considerations.bookmarks.has_more|yesno:'true,false' }}">
+              {% for row in me_projection.considerations.bookmarks.items|slice:":3" %}
+                <a data-me-id="{{ row.id }}" href="{% url 'discovery:bookmarks' %}">
+                  <span class="mk-me-saved-orbit" role="img" aria-label="Enregistré"></span>
+                  <span class="mk-me-n1-saved-title">{{ row.activity.title }}</span>
+                  {% with media=row.media_bindings.0 %}
+                    {% if media.purpose == 'RECOGNIZE' and media.resource.url %}
+                      <img class="mk-me-n1-recognition" src="{{ media.resource.url }}" alt="" loading="lazy" decoding="async" width="72" height="56">
+                    {% endif %}
+                  {% endwith %}
+                  <span class="mk-me-n1-saved-chevron" aria-hidden="true">›</span>
+                </a>
+              {% endfor %}
+            </div>
+            <a class="mk-me-n1-see-all" href="{% url 'discovery:bookmarks' %}">Voir les {{ me_projection.considerations.bookmarks.count }} enregistrements <span aria-hidden="true">›</span></a>
+          </div>
+        {% endif %}
+        {% if me_projection.considerations.followed_spaces.items %}
+          <div class="mk-me-n1-family">
+            <h3>Espaces suivis <span>{{ me_projection.considerations.followed_spaces.count }}</span></h3>
+            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="followed_spaces" data-me-loaded="{{ me_projection.considerations.followed_spaces.items|length }}" data-me-more="{{ me_projection.considerations.followed_spaces.has_more|yesno:'true,false' }}">{% for row in me_projection.considerations.followed_spaces.items %}<span data-me-id="{{ row.id }}" >{{ row.space.name }}</span>{% endfor %}</div>
+          </div>
+        {% endif %}
+        {% if me_projection.considerations.followed_profiles.items %}
+          <div class="mk-me-n1-family">
+            <h3>Personnes suivies <span>{{ me_projection.considerations.followed_profiles.count }}</span></h3>
+            <div class="mk-me-n1-chips" data-me-territory="considerations" data-me-family="followed_profiles" data-me-loaded="{{ me_projection.considerations.followed_profiles.items|length }}" data-me-more="{{ me_projection.considerations.followed_profiles.has_more|yesno:'true,false' }}">{% for row in me_projection.considerations.followed_profiles.items %}<span data-me-id="{{ row.id }}" >{{ row.profile.display_name }}</span>{% endfor %}</div>
+          </div>
+        {% endif %}
+        {% if not me_projection.considerations.interests.items and not me_projection.considerations.open_to.items and not me_projection.considerations.watches.items and not me_projection.considerations.bookmarks.items and not me_projection.considerations.followed_spaces.items and not me_projection.considerations.followed_profiles.items %}
+          <p class="mk-me-n1-empty">Rien d'enregistré pour le moment.</p>
+        {% endif %}
+      </div>
+    </section>
 
-  <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Mes collectifs</h2><p>Les groupes, équipes et Espaces auxquels vous êtes réellement relié.</p></div><a href="{% url 'organizations:list' %}">Voir</a></div>
-    <div class="mk-me-list">
-      {% for space in authorized_spaces %}<div><strong>{{ space.name }}</strong><span>Vous pouvez agir dans cet Espace</span></div>{% endfor %}
-      {% for membership in team_memberships %}<div><strong>{{ membership.team.name }}</strong><span>{{ membership.team.organization.name }}</span></div>{% endfor %}
-      {% for group in my_groups %}<a href="{% url 'groups:detail' group.slug %}"><strong>{{ group.name }}</strong><span>Groupe · ouvrir</span></a>{% endfor %}
-    </div>
-    {% if not authorized_spaces and not team_memberships and not my_groups %}<p class="mk-empty-copy">Aucun collectif à afficher pour le moment.</p>{% endif %}
-  </section>
+    <section class="mk-me-n1-section" aria-labelledby="me-collectives">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">◎</span>
+        <h2 id="me-collectives">Mes collectifs</h2>
+      </div>
+      <div class="mk-me-n1-panel">
+        {% if me_projection.collectives.authorized_spaces.items %}
+          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="authorized_spaces" data-me-loaded="{{ me_projection.collectives.authorized_spaces.items|length }}" data-me-more="{{ me_projection.collectives.authorized_spaces.has_more|yesno:'true,false' }}">Espaces</h3>
+          {% for row in me_projection.collectives.authorized_spaces.items %}
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
+              <span class="mk-me-n1-monogram" aria-hidden="true">{{ row.name|first|upper }}</span>
+              <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong><small>Vous pouvez agir ici</small></span>
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% if me_projection.collectives.teams.items %}
+          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="teams" data-me-loaded="{{ me_projection.collectives.teams.items|length }}" data-me-more="{{ me_projection.collectives.teams.has_more|yesno:'true,false' }}">Équipes</h3>
+          {% for row in me_projection.collectives.teams.items %}
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
+              <span class="mk-me-n1-monogram" aria-hidden="true">{{ row.name|first|upper }}</span>
+              <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong><small>{{ row.space.name }}</small></span>
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% if me_projection.collectives.groups.items %}
+          <h3 class="mk-me-n1-group" data-me-territory="collectives" data-me-family="groups" data-me-loaded="{{ me_projection.collectives.groups.items|length }}" data-me-more="{{ me_projection.collectives.groups.has_more|yesno:'true,false' }}">Groupes</h3>
+          {% for row in me_projection.collectives.groups.items %}
+            <a data-me-id="{{ row.id }}" class="mk-me-n1-person-row" href="{% url 'groups:detail' row.slug %}">
+              <span class="mk-me-n1-monogram" aria-hidden="true">{{ row.name|first|upper }}</span>
+              <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong><small>Groupe</small></span>
+              <span aria-hidden="true">›</span>
+            </a>
+          {% endfor %}
+        {% endif %}
+        {% if not me_projection.collectives.authorized_spaces.items and not me_projection.collectives.teams.items and not me_projection.collectives.groups.items %}
+          <p class="mk-me-n1-empty">Aucun collectif pour le moment.</p>
+        {% endif %}
+      </div>
+    </section>
 
-  <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Mes accès</h2><p>Les droits déjà accordés restent distincts de leur QR et de leur usage réel.</p></div><a href="{% url 'core:participant-accesses' %}">Voir</a></div>
-  </section>
+    <section class="mk-me-n1-section" aria-labelledby="me-access">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">↗</span>
+        <h2 id="me-access">Mes accès</h2>
+      </div>
+      <a class="mk-me-n1-panel mk-me-n1-handoff" href="{% url 'core:participant-accesses' %}">
+        <span class="mk-me-n1-handoff-icon" aria-hidden="true">⌁</span>
+        <span class="mk-me-n1-row-copy"><strong>Mes droits et invitations</strong><small>Billets, réservations et invitations</small></span>
+        <span class="mk-me-n1-arrow" aria-hidden="true">↗</span>
+      </a>
+    </section>
 
-  <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Mes ressources</h2><p>Documents, faits établis et attestations restent distincts, mais se retrouvent au même endroit quand ils peuvent vous servir.</p></div><a href="{% url 'personal_assets:list' %}">Bibliothèque</a></div>
-    <div class="mk-me-list">
-      {% for asset in resources %}<div><strong>{{ asset.title }}</strong><span>Document{% if asset.kind %} · {{ asset.get_kind_display }}{% endif %}</span></div>{% endfor %}
-      {% for proof in proofs %}<div><strong>{{ proof.get_proof_type_display }}</strong><span>Fait établi · {{ proof.journey.activity.title }}{% if proof.status %} · {{ proof.get_status_display }}{% endif %}</span></div>{% endfor %}
-      {% for credential in credentials %}<div><strong>{{ credential.title }}</strong><span>Attestation · {{ credential.issuer_display_name }}{% if credential.status %} · {{ credential.get_status_display }}{% endif %}</span></div>{% endfor %}
-    </div>
-    {% if not resources and not proofs and not credentials %}<p class="mk-empty-copy">Aucune ressource personnelle à afficher.</p>{% endif %}
-  </section>
+    <section class="mk-me-n1-section" aria-labelledby="me-history">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">↶</span>
+        <h2 id="me-history">Mon historique</h2>
+      </div>
+      <a class="mk-me-n1-panel mk-me-n1-handoff" href="{% url 'core:participant-history' %}">
+        <span class="mk-me-n1-handoff-icon" aria-hidden="true">↶</span>
+        <span class="mk-me-n1-row-copy"><strong>Retrouver mon parcours</strong></span>
+        <span class="mk-me-n1-arrow" aria-hidden="true">›</span>
+      </a>
+    </section>
 
-  {% if support_links %}
-  <section class="mk-me-section">
-    <div class="mk-section-heading"><div><h2>Ce qui peut déjà vous aider</h2><p>Des relations ou avantages déjà établis, seulement lorsqu’ils peuvent réellement vous servir.</p></div></div>
-    <div class="mk-me-list">
-      {% for item in support_links %}<a href="{{ item.url }}"><strong>{{ item.label }}</strong><span>{{ item.detail }}</span></a>{% endfor %}
-    </div>
-  </section>
-  {% endif %}
+    <section class="mk-me-n1-section" aria-labelledby="me-resources">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">▤</span>
+        <h2 id="me-resources">Mes ressources</h2>
+        <a class="mk-me-n1-heading-link" href="{% url 'personal_assets:list' %}">Voir tout</a>
+      </div>
+      <div class="mk-me-n1-panel">
+        {% if me_projection.resources.documents.items %}
+          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="documents" data-me-loaded="{{ me_projection.resources.documents.items|length }}" data-me-more="{{ me_projection.resources.documents.has_more|yesno:'true,false' }}">Documents <span>{{ me_projection.resources.documents.count }}</span></h3>
+          {% for row in me_projection.resources.documents.items %}
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
+              <span class="mk-me-n1-document-icon" aria-hidden="true">▤</span>
+              <span class="mk-me-n1-row-copy"><strong>{{ row.title }}</strong><small>{{ row.asset_kind_label }}</small></span>
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% if me_projection.resources.proofs.items %}
+          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="proofs" data-me-loaded="{{ me_projection.resources.proofs.items|length }}" data-me-more="{{ me_projection.resources.proofs.has_more|yesno:'true,false' }}">Preuves <span>{{ me_projection.resources.proofs.count }}</span></h3>
+          {% for row in me_projection.resources.proofs.items %}
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
+              <span class="mk-me-n1-document-icon" aria-hidden="true">✓</span>
+              <span class="mk-me-n1-row-copy"><strong>{{ row.proof_type_label }}</strong><small>{{ row.status_label }}</small></span>
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% if me_projection.resources.credentials.items %}
+          <h3 class="mk-me-n1-group" data-me-territory="resources" data-me-family="credentials" data-me-loaded="{{ me_projection.resources.credentials.items|length }}" data-me-more="{{ me_projection.resources.credentials.has_more|yesno:'true,false' }}">Attestations <span>{{ me_projection.resources.credentials.count }}</span></h3>
+          {% for row in me_projection.resources.credentials.items %}
+            <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
+              <span class="mk-me-n1-document-icon" aria-hidden="true">✧</span>
+              <span class="mk-me-n1-row-copy"><strong>{{ row.title }}</strong><small>{{ row.credential_type_label }}{% if row.status_label %} · {{ row.status_label }}{% endif %}</small></span>
+            </div>
+          {% endfor %}
+        {% endif %}
+        {% if not me_projection.resources.documents.items and not me_projection.resources.proofs.items and not me_projection.resources.credentials.items %}
+          <p class="mk-me-n1-empty">Aucune ressource pour le moment.</p>
+        {% endif %}
+      </div>
+    </section>
 
+
+
+    {% if support_links %}
+      <section class="mk-me-n1-section" aria-labelledby="me-support">
+        <div class="mk-me-n1-heading">
+          <span class="mk-me-n1-icon" aria-hidden="true">✧</span>
+          <h2 id="me-support">Mes appuis</h2>
+        </div>
+        <div class="mk-me-n1-panel">
+          {% for item in support_links %}
+            <a class="mk-me-n1-person-row" href="{{ item.url }}">
+              <span class="mk-me-n1-monogram" aria-hidden="true">{{ item.label|first|upper }}</span>
+              <span class="mk-me-n1-row-copy"><strong>{{ item.label }}</strong></span>
+              <span aria-hidden="true">›</span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
   </div>
 
-  <div class="mk-secondary-actions">
-    <a href="{% url 'core:participant-history' %}">Historique</a>
-    <a href="{% url 'core:participant-search' %}">Rechercher dans Makolo</a>
-    <a href="{% url 'discovery:bookmarks' %}">Éléments gardés</a>
-    <a href="{% url 'discovery:watch-list' %}">Veilles</a>
-  </div>
-</div>
+
+</main>
 {% endblock %}

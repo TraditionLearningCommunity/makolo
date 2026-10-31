@@ -7,12 +7,14 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import FormView, TemplateView
 
 from access.services import revoke_access
 from activities.models import Activity
 from authorization.constants import PermissionCode
+from authorization.selectors import activity_ids_with_direct_permission
 from authorization.services import can
 from automation.services import ensure_policy
 from events.forms import EventForm
@@ -215,7 +217,18 @@ class SpaceConsoleRequestsView(SpaceConsoleMixin, TemplateView):
                 | Q(journey__beneficiary__email__icontains=q)
                 | Q(message__icontains=q)
             )
-        context["page_obj"] = self.paginate(queryset)
+        page = self.paginate(queryset)
+        decision_ids = set(activity_ids_with_direct_permission(
+            self.request.user, PermissionCode.ACTIVITY_REQUESTS_DECIDE
+        ))
+        now = timezone.now()
+        for item in page.object_list:
+            item.viewer_can_decide = (
+                item.journey.activity_id in decision_ids
+                and item.status == "pending"
+                and (item.expires_at is None or item.expires_at > now)
+            )
+        context["page_obj"] = page
         context["activities"] = activities_for_console(self.space_console)
         context["status_filter"] = status
         context["activity_filter"] = activity_id

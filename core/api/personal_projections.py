@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from django.core import signing
 from django.db import models
@@ -37,6 +39,9 @@ from core.personal_surface_orchestration import (
 )
 from core.read_models import build_personal_ongoing_read_model
 
+
+NOW_LIMIT = 12
+NOW_CONTINUATION_SALT = "makolo.personal.now.v1"
 
 ONGOING_LIMIT = 18
 ONGOING_CONTINUATION_SALT = "makolo.personal.ongoing.v1"
@@ -389,7 +394,8 @@ def _decorate_now_semantics(
             "knowledge_context": {
                 "provenance": [source],
                 "freshness": {
-                    "state": "fresh",
+                    # The projection timestamp does not establish owner-data freshness.
+                    "state": "unknown",
                     "observed_at": _iso(observed_at),
                 },
                 "knowledge_state": "known",
@@ -409,7 +415,24 @@ def _decorate_now_semantics(
     )
 
 
-def build_personal_now_projection(profile, *, observed_at=None):
+def now_continuation_offset(token, *, profile):
+    """Return the next owner-scoped page; a token never selects the actor."""
+    if not token:
+        return 0
+    payload = signing.loads(
+        token,
+        salt=NOW_CONTINUATION_SALT,
+        max_age=60 * 60,
+    )
+    if not isinstance(payload, dict) or payload.get("viewer") != str(profile.pk):
+        raise ValueError("Continuation belongs to another viewer.")
+    offset = payload.get("offset")
+    if type(offset) is not int or offset < NOW_LIMIT or offset % NOW_LIMIT:
+        raise ValueError("Invalid Now continuation offset.")
+    return offset
+
+
+def build_personal_now_projection(profile, *, observed_at=None, continuation_offset=0):
     observed_at = observed_at or timezone.now()
     result, metadata = resolve_mature_home_contextual_actions(
         profile,
@@ -459,14 +482,92 @@ def build_personal_now_projection(profile, *, observed_at=None):
         for _, item in items
         if item["source"]["kind"] == "journey"
     }
-    occurrence_by_journey = {
-        str(pk): occurrence_id
-        for pk, occurrence_id in Journey.objects.filter(
-            pk__in=journey_ids,
-            beneficiary=profile,
-        ).values_list("pk", "occurrence_id")
-        if occurrence_id is not None
-    }
+    occurrence_by_journey = {}
+    if journey_ids:
+        occurrence_by_journey = {
+            str(pk): occurrence_id
+            for pk, occurrence_id in Journey.objects.filter(
+                pk__in=journey_ids,
+                beneficiary=profile,
+            ).values_list("pk", "occurrence_id")
+            if occurrence_id is not None
+        }
+    # Public recognition media is owned by Presentation and bound to an
+    # eligible Activity. It must not reveal private Journey attachments.
+    public_recognition_by_journey = {}
+    if journey_ids:
+        from accounts.models import UserProfile
+        from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence
+        from groups.selectors import eligible_activity_ids_for_profile
+        from organizations.models import SpaceLifecycle
+        from presentations.media_selectors import public_presentation_media_for_activities
+
+        linked = {
+            str(pk): activity_id
+            for pk, activity_id in Journey.objects.filter(
+                pk__in=journey_ids, beneficiary=profile
+            ).values_list("pk", "activity_id")
+            if activity_id is not None
+        }
+        candidates = list(Activity.objects.filter(
+            pk__in=set(linked.values()),
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        ).select_related("space"))
+        eligible = set(eligible_activity_ids_for_profile(profile, [a.pk for a in candidates]))
+        public_owners = set(UserProfile.objects.filter(
+            user_id__in=[a.owner_profile_id for a in candidates if a.owner_profile_id],
+            public_profile=True, searchable=True, user__is_active=True,
+        ).values_list("user_id", flat=True))
+        allowed = [
+            a for a in candidates
+            if a.pk in eligible and (
+                (
+                    a.space_id is not None
+                    and a.space.public_profile
+                    and a.space.searchable
+                    and a.space.lifecycle == SpaceLifecycle.ACTIVE
+                    and a.space.verification_status != "suspended"
+                ) or (a.space_id is None and a.owner_profile_id in public_owners)
+            )
+        ]
+        if allowed:
+            occurrence_ids = set(occurrence_by_journey.values())
+            occurrences = Occurrence.objects.filter(
+                pk__in=occurrence_ids,
+                activity_id__in=[activity.pk for activity in allowed],
+            )
+            public_media = public_presentation_media_for_activities(
+                allowed, occurrences=occurrences,
+            )
+            for journey_id, activity_id in linked.items():
+                occurrence_id = occurrence_by_journey.get(journey_id)
+                images = [
+                    media for media in public_media.get(str(activity_id), [])
+                    if (media.occurrence_id is None or
+                        media.occurrence_id == str(occurrence_id))
+                    and media.mime_type in {"image/jpeg", "image/png"}
+                ]
+                images.sort(key=lambda media: (
+                    media.occurrence_id != str(occurrence_id),
+                    media.position,
+                    media.use_id,
+                ))
+                if images:
+                    media = images[0]
+                    public_recognition_by_journey[journey_id] = {
+                        "resource_ref": f"presentation_media_use:{media.use_id}",
+                        "target": "subject",
+                        "purpose": "recognize",
+                        "kind": "image",
+                        "mime_type": media.mime_type,
+                        "label": media.alt_text,
+                        "url": reverse("presentations:published-media-file",
+                                       kwargs={"use_id": media.use_id}),
+                        "authorized": True,
+                        "presentation_rank": "primary",
+                    }
+
     # These artifacts belong to their Journeys, not to Presentation.
     # Only documents already inside a Journey owned by this profile are
     # exposed. The download endpoint independently rechecks authorization.
@@ -546,9 +647,12 @@ def build_personal_now_projection(profile, *, observed_at=None):
             if "open_day_of" not in item["capabilities"]:
                 item["capabilities"].append("open_day_of")
         _decorate_now_semantics(action, item, observed_at=observed_at)
-        media = artifact_media_by_journey.get(journey_id)
-        if media:
-            item["media_bindings"] = list(media)
+        media = artifact_media_by_journey.get(journey_id) or []
+        recognition = public_recognition_by_journey.get(journey_id)
+        if recognition or media:
+            item["media_bindings"] = (
+                ([recognition] if recognition else []) + list(media)
+            )
 
     serialized_items = [item for _, item in items]
     for composed in dossier_dependency_now_situations(profile, observed_at=observed_at):
@@ -570,7 +674,13 @@ def build_personal_now_projection(profile, *, observed_at=None):
             serialized_items.append(composed)
         else:
             serialized_items[replace_at] = composed
+    # Page only after owner admission, permissions and composition.
+    if type(continuation_offset) is not int or continuation_offset < 0:
+        raise ValueError("Invalid Now continuation offset.")
     is_empty = not serialized_items
+    page = serialized_items[continuation_offset : continuation_offset + NOW_LIMIT + 1]
+    has_more = len(page) > NOW_LIMIT
+    page = page[:NOW_LIMIT]
     profile_id = str(profile.pk)
     return {
         "surface": "now_me",
@@ -584,8 +694,20 @@ def build_personal_now_projection(profile, *, observed_at=None):
         "actor_attention_state": "calm" if is_empty else "active",
         "capabilities": [],
         "handoffs": [],
-        "items": serialized_items,
-        "continuation": None,
+        "items": page,
+        "coverage_state": "partial" if has_more else "complete",
+        "continuation": (
+            None if is_empty else {
+                "state": "more" if has_more else "end",
+                "token": (
+                    signing.dumps(
+                        {"viewer": profile_id, "offset": continuation_offset + NOW_LIMIT},
+                        salt=NOW_CONTINUATION_SALT,
+                        compress=True,
+                    ) if has_more else None
+                ),
+            }
+        ),
         "terminal": {
             "state": "empty" if is_empty else "ok",
             # Human wording remains Presentation; the server owns the state.
@@ -762,8 +884,29 @@ def _journey_ongoing_item(journey, readiness):
     }
 
 
-def _access_ongoing_item(access):
+def _access_ongoing_item(access, *, profile):
+    # Access is a different owner, but can continue the same personal Journey.
+    # Never carry this identity across a transfer to another beneficiary.
+    journey = access.journey if access.journey_id else None
+    ticket = getattr(access, "ticket", None)
+    order = ticket.order if ticket is not None else None
+    waitlist = getattr(order, "waitlist_entry", None) if order is not None else None
+    waitlist_anchor = (
+        {"kind": "waitlist", "id": str(waitlist.pk)}
+        if waitlist is not None and waitlist.user_id == profile.pk
+        else None
+    )
+    journey_anchor = (
+        {"kind": "journey", "id": str(journey.pk)}
+        if journey is not None and journey.beneficiary_id == profile.pk
+        else None
+    )
+    anchor = waitlist_anchor or journey_anchor
     return {
+        "continuity_identity_anchor": anchor,
+        "continuity_related_basis": [
+            basis for basis in (waitlist_anchor, journey_anchor) if basis is not None
+        ],
         "kind": "access",
         "source": {"kind": "access", "id": str(access.pk)},
         "state": "available",
@@ -780,6 +923,10 @@ def _access_ongoing_item(access):
             else None
         ),
         "timing": _occurrence_timing(access.occurrence),
+        "access_window": {
+            "valid_from": _iso(access.valid_from) if access.valid_from else None,
+            "valid_until": _iso(access.valid_until) if access.valid_until else None,
+        },
         "place": _occurrence_place(access.occurrence),
         "capabilities": ["open_access"] + (["open_day_of"] if access.occurrence_id else []),
         "links": {
@@ -1055,9 +1202,341 @@ def _funding_ongoing_item(funding):
 
 
 def _ongoing_identity(item):
-    source = item["source"]
+    source = item.get("continuity_identity_anchor") or item["source"]
     material = f'{source["kind"]}:{source["id"]}'
     return hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
+
+
+def _ongoing_n1_when(timing):
+    """Humanized owner date, never an internal timestamp."""
+    raw = timing.get("start_at") or timing.get("start_date") or timing.get("deadline_date")
+    if not isinstance(raw, str) or not raw:
+        return None
+    try:
+        if "T" in raw or " " in raw:
+            instant = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            zone = timing.get("timezone")
+            if zone and instant.tzinfo is not None:
+                instant = instant.astimezone(ZoneInfo(zone))
+            return instant.strftime("%d/%m/%Y · %H:%M")
+        return date.fromisoformat(raw).strftime("%d/%m/%Y")
+    except (TypeError, ValueError, OverflowError, KeyError):
+        return None
+
+
+def _ongoing_n1(item):
+    """A small, additive display projection shared by Web and mobile."""
+    blocker = item.get("blocker")
+    interventions = item.get("actor_interventions") or []
+    continuation = item.get("continuation") or {}
+    if blocker:
+        cue, tone = "Une étape bloquée", "attention"
+    elif interventions:
+        cue, tone = "De votre côté", "action"
+    elif continuation.get("state") == "waiting":
+        cue, tone = "En attente", "calm"
+    elif item.get("state") == "available":
+        cue, tone = "Accès disponible", "ready"
+    else:
+        cue, tone = None, "calm"
+    title = item.get("title") or ""
+    summary = item.get("summary") or ""
+    next_item = item.get("next") or {}
+    supporting = next_item.get("title")
+    if supporting and supporting.strip().casefold() in {
+        title.strip().casefold(), summary.strip().casefold()
+    }:
+        supporting = None
+    place = item.get("place") or {}
+    return {
+        "cue": cue,
+        "tone": tone,
+        "supporting": supporting,
+        "when_label": _ongoing_n1_when(item.get("timing") or {}),
+        "place_label": place.get("name") or place.get("locality"),
+    }
+
+
+def _attach_ongoing_recognition_media(entries, items, *, viewer):
+    """Batch resolve published media against the same authorization as delivery."""
+    from accounts.models import UserProfile
+    from activities.models import Activity, ActivityStatus, ActivityVisibility, Occurrence
+    from groups.selectors import eligible_activity_ids_for_profile
+    from organizations.models import SpaceLifecycle
+    from presentations.media_selectors import public_presentation_media_for_activities
+    from tickets.models import Ticket, TicketType
+    from discovery.models import ActivityBookmark
+    from discovery.search import public_occurrences_for_activities
+    from groups.selectors import filter_queryset_by_activity_group_eligibility
+
+    # Ticket offers and transfers are personal pursuits of Event Activities.
+    # Resolve their owner links in batches rather than per displayed row.
+    type_ids = {
+        entry.value.ticket_type_id
+        for entry in entries if entry.kind == "waitlist"
+    }
+    ticket_ids = {
+        entry.value.ticket_id
+        for entry in entries if entry.kind == "transfer"
+    }
+    type_activities = {
+        str(ticket_type.pk): ticket_type.event.activity_id
+        for ticket_type in TicketType.objects.filter(
+            pk__in=type_ids
+        ).select_related("event")
+    } if type_ids else {}
+    ticket_activities = {
+        str(ticket.pk): ticket.event.activity_id
+        for ticket in Ticket.objects.filter(
+            pk__in=ticket_ids
+        ).select_related("event")
+    } if ticket_ids else {}
+
+    references = []
+    activity_ids = set()
+    occurrence_ids = set()
+    for entry in entries:
+        if entry.kind == "waitlist":
+            activity_id = type_activities.get(str(entry.value.ticket_type_id))
+            occurrence_id = None
+        elif entry.kind == "transfer":
+            activity_id = ticket_activities.get(str(entry.value.ticket_id))
+            occurrence_id = None
+        elif entry.kind in {"journey", "access", "funding"}:
+            activity_id = getattr(entry.value, "activity_id", None)
+            occurrence_id = getattr(entry.value, "occurrence_id", None)
+        else:
+            references.append((None, None))
+            continue
+        references.append((str(activity_id) if activity_id else None,
+                           str(occurrence_id) if occurrence_id else None))
+        if activity_id:
+            activity_ids.add(activity_id)
+        if occurrence_id:
+            occurrence_ids.add(occurrence_id)
+    if not activity_ids:
+        return
+
+    activities = list(
+        Activity.objects.filter(
+            pk__in=activity_ids,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        ).select_related("space")
+    )
+    group_eligible = set(
+        eligible_activity_ids_for_profile(viewer, [a.pk for a in activities])
+    )
+    public_profiles = set(
+        UserProfile.objects.filter(
+            user_id__in=[a.owner_profile_id for a in activities if a.owner_profile_id],
+            public_profile=True, searchable=True, user__is_active=True,
+        ).values_list("user_id", flat=True)
+    )
+    allowed = [
+        a for a in activities
+        if a.pk in group_eligible and (
+            (
+                a.space_id is not None
+                and a.space.public_profile and a.space.searchable
+                and a.space.lifecycle == SpaceLifecycle.ACTIVE
+                and a.space.verification_status != "suspended"
+            ) or (
+                a.space_id is None and a.owner_profile_id in public_profiles
+            )
+        )
+    ]
+    if not allowed:
+        return
+    occurrences = Occurrence.objects.filter(
+        pk__in=occurrence_ids, activity_id__in=[a.pk for a in allowed]
+    )
+    media_by_activity = public_presentation_media_for_activities(
+        allowed, occurrences=occurrences
+    )
+    # Share Discovery's published PUBLIC resources; private owner documents
+    # must use their own authorized endpoints and are never inferred here.
+    from discovery.api.composition import _activity_resource_previews
+    resources_by_activity = _activity_resource_previews([a.pk for a in allowed])
+    # Reuse Discovery's public admission, not just a published Activity flag.
+    # An Ongoing entry never transfers authority to share or save its owner.
+    discoverable = {
+        str(occurrence.activity_id)
+        for occurrence in filter_queryset_by_activity_group_eligibility(
+            public_occurrences_for_activities([a.pk for a in allowed]),
+            viewer,
+        )
+    }
+    family_by_activity = {activity_id: "activity" for activity_id in discoverable}
+    allowed_ids = {str(activity.pk) for activity in allowed}
+    # Some canonical services and fundings have no public Occurrence. They
+    # still exist in Discovery, but only its own selector may admit them.
+    from discovery.api.composition import detail_candidate
+    for entry, (activity_id, _) in zip(entries, references):
+        if not activity_id or activity_id not in allowed_ids:
+            continue
+        if activity_id in family_by_activity:
+            continue
+        if entry.kind == "funding":
+            candidates = ("funding_activity",)
+        elif entry.kind in {"journey", "access"}:
+            candidates = ("service_activity",)
+        else:
+            continue
+        for family in candidates:
+            if detail_candidate(family, activity_id, profile=viewer) is not None:
+                family_by_activity[activity_id] = family
+                break
+    saved_ids = {
+        str(activity_id)
+        for activity_id in ActivityBookmark.objects.filter(
+            user=viewer, activity_id__in=family_by_activity.keys()
+        ).values_list("activity_id", flat=True)
+    }
+    for item, (activity_id, occurrence_id) in zip(items, references):
+        if not activity_id:
+            continue
+        admissible = [
+            media for media in media_by_activity.get(activity_id, [])
+            if media.occurrence_id is None or media.occurrence_id == occurrence_id
+        ]
+        admissible.sort(key=lambda media: (
+            media.occurrence_id != occurrence_id, media.position, media.use_id
+        ))
+        family = family_by_activity.get(activity_id)
+        if family:
+            # Mutation and Sharing independently reauthorize this family at
+            # execution time. A presentation reference is never a mandate.
+            saved = activity_id in saved_ids
+            item["n1"]["possibility"] = {
+                "family": family,
+                "id": activity_id,
+                "saved_state": "saved" if saved else "not_saved",
+                "capabilities": ["unsave" if saved else "save", "share"],
+                "links": {
+                    "saved": reverse(
+                        "discovery_api:item-saved",
+                        kwargs={"family": family, "item_id": activity_id},
+                    ),
+                    "share": reverse(
+                        "sharing_api:possibility",
+                        kwargs={"family": family, "item_id": activity_id},
+                    ),
+                },
+            }
+        item["resources"] = list(resources_by_activity.get(activity_id, []))
+        item["media_bindings"] = [
+            {
+                "resource": {
+                    "kind": "presentation_media_use",
+                    "id": media.use_id,
+                    "url": reverse("presentations:published-media-file",
+                                   kwargs={"use_id": media.use_id}),
+                    "mime_type": media.mime_type,
+                    "alt_text": media.alt_text,
+                },
+                "target": {"kind": "ongoing_continuity", "id": item["id"]},
+                "purpose": "RECOGNIZE",
+            }
+            for media in admissible[:3]
+            if media.mime_type in {"image/jpeg", "image/png"}
+        ]
+
+
+def _ongoing_temporal_facts(item):
+    """Owner-established human dates only, never technical timestamps."""
+    facts = []
+    timing = item.get("timing") or {}
+    source = item["source"]
+    if timing.get("start_at") or timing.get("start_date"):
+        facts.append({
+            "kind": "occurrence_start",
+            "label": "Début",
+            "at": timing.get("start_at"),
+            "date": timing.get("start_date"),
+            "timezone": timing.get("timezone"),
+            "source": item.get("occurrence") or source,
+        })
+    next_item = item.get("next") or {}
+    due_at = (next_item.get("timing") or {}).get("due_at")
+    if due_at:
+        facts.append({
+            "kind": "next_due",
+            "label": next_item.get("title") or "Échéance",
+            "at": due_at,
+            "source": source,
+        })
+    expires_at = timing.get("offer_expires_at") or timing.get("expires_at")
+    if expires_at:
+        facts.append({
+            "kind": "decision_expires" if timing.get("offer_expires_at") else "expires",
+            "label": "Répondre avant" if timing.get("offer_expires_at") else "Expiration",
+            "at": expires_at,
+            "source": source,
+        })
+    access_window = item.get("access_window") or {}
+    for field, label in (
+        ("valid_from", "Accès utilisable dès"),
+        ("valid_until", "Accès valable jusqu'au"),
+    ):
+        if access_window.get(field):
+            facts.append({
+                "kind": field,
+                "label": label,
+                "at": access_window[field],
+                "source": source,
+            })
+    seen = {(fact.get("at"), fact.get("date")) for fact in facts}
+    for intervention in item.get("actor_interventions") or []:
+        window = intervention.get("timing") or {}
+        for field in ("due_at", "expires_at"):
+            at = window.get(field)
+            if not at or (at, None) in seen:
+                continue
+            facts.append({
+                "kind": "intervention_due",
+                "label": intervention.get("title") or "Échéance",
+                "at": at,
+                "source": source,
+            })
+            seen.add((at, None))
+    return facts
+
+
+def _attach_ongoing_private_journey_resources(items, *, viewer):
+    """Project metadata only when the beneficiary may export the artifact.
+
+    No raw file URL, private storage key, QR, or secret enters this read model.
+    Export warnings and authorization remain owned by JourneyArtifact.
+    """
+    from journeys.collaboration_models import JourneyArtifact
+    from sharing.document_services import can_export_journey_artifact
+
+    journey_ids = {
+        item["source"]["id"]
+        for item in items
+        if item["source"]["kind"] == "journey"
+    }
+    if not journey_ids:
+        return
+    grouped = {}
+    for artifact in (
+        JourneyArtifact.objects.filter(journey_id__in=journey_ids)
+        .select_related("journey")
+        .order_by("journey_id", "title", "-version", "id")
+    ):
+        if not can_export_journey_artifact(viewer, artifact, "download").allowed:
+            continue
+        grouped.setdefault(str(artifact.journey_id), []).append({
+            "kind": "journey_artifact",
+            "title": artifact.title,
+            "mime_type": artifact.mime_type,
+            "description": artifact.get_status_display(),
+            "owner": {"kind": "journey", "id": str(artifact.journey_id)},
+        })
+    for item in items:
+        if item["source"]["kind"] == "journey":
+            item["resources"].extend(grouped.get(item["source"]["id"], []))
 
 
 def _decorate_ongoing_semantics(item, *, observed_at):
@@ -1077,7 +1556,10 @@ def _decorate_ongoing_semantics(item, *, observed_at):
         {
             "id": identity,
             "continuity_identity": identity,
-            "continuity_basis": [source],
+            "continuity_basis": [
+                *(item.get("continuity_related_basis") or []),
+                source,
+            ],
             "human_context": item["title"],
             "synthesis": item["summary"],
             # C0 human aliases remain available beside the structured Mature
@@ -1130,9 +1612,11 @@ def _decorate_ongoing_semantics(item, *, observed_at):
                 "knowledge_state": "known",
             },
             "relation_projections": [],
-            "temporal_facts": [],
+            "temporal_facts": _ongoing_temporal_facts(item),
             "actions": list(item.get("actor_interventions", [])),
             "media_bindings": [],
+            "resources": [],
+            "n1": _ongoing_n1(item),
             "owner_depth": {
                 "source": source,
                 "links": {
@@ -1152,17 +1636,20 @@ def _decorate_ongoing_semantics(item, *, observed_at):
     )
 
 
-def ongoing_continuation_offset(token):
+def ongoing_continuation_offset(token, *, profile):
+    """Decode an opaque, viewer-bound continuation. Never select a Profile."""
     if not token:
         return 0
     payload = signing.loads(
         token,
         salt=ONGOING_CONTINUATION_SALT,
-        max_age=60 * 60 * 24,
+        max_age=60 * 60,
     )
-    offset = int(payload["offset"])
-    if offset < 0:
-        raise ValueError("Invalid continuation offset.")
+    if not isinstance(payload, dict) or payload.get("viewer") != str(profile.pk):
+        raise ValueError("Continuation belongs to another viewer.")
+    offset = payload.get("offset")
+    if type(offset) is not int or offset < ONGOING_LIMIT or offset % ONGOING_LIMIT:
+        raise ValueError("Invalid Ongoing continuation offset.")
     return offset
 
 
@@ -1192,7 +1679,7 @@ def build_personal_ongoing_projection(
         if entry.kind == "journey":
             items.append(_journey_ongoing_item(entry.value, entry.readiness))
         elif entry.kind == "access":
-            items.append(_access_ongoing_item(entry.value))
+            items.append(_access_ongoing_item(entry.value, profile=profile))
         elif entry.kind == "dossier":
             items.append(
                 _dossier_ongoing_item(
@@ -1213,6 +1700,9 @@ def build_personal_ongoing_projection(
 
     for item in items:
         _decorate_ongoing_semantics(item, observed_at=observed_at)
+
+    _attach_ongoing_recognition_media(entries, items, viewer=profile)
+    _attach_ongoing_private_journey_resources(items, viewer=profile)
 
     is_empty = not items
     profile_id = str(profile.pk)
@@ -1240,7 +1730,7 @@ def build_personal_ongoing_projection(
             "state": "more" if has_more else "end",
             "token": (
                 signing.dumps(
-                    {"offset": continuation_offset + ONGOING_LIMIT},
+                    {"offset": continuation_offset + ONGOING_LIMIT, "viewer": profile_id},
                     salt=ONGOING_CONTINUATION_SALT,
                     compress=True,
                 )

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../network/makolo_api_client.dart';
+
 import '../../design/behavior_primitives.dart';
 import '../../design/behavior_states.dart';
 import '../../design/makolo_components.dart';
@@ -20,6 +22,7 @@ class JourneyDetailScreen extends StatefulWidget {
     super.key,
     required this.journeyId,
     required this.repository,
+    this.api,
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
@@ -32,6 +35,7 @@ class JourneyDetailScreen extends StatefulWidget {
 
   final String journeyId;
   final JourneyRepository repository;
+  final MakoloApiClient? api;
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
   final void Function(String resourcesLink) onOpenResources;
@@ -50,6 +54,8 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
 
   bool _refreshing = false;
+  bool _respondingInvitation = false;
+  String? _invitationNotice;
   bool _requestedInitialRefresh = false;
 
   @override
@@ -101,6 +107,79 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
       // SyncSource records the failure while preserving usable local content.
     } finally {
       if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _respondToInvitation(String decision) async {
+    if (_respondingInvitation || widget.api == null) return;
+    setState(() {
+      _respondingInvitation = true;
+      _invitationNotice = null;
+    });
+    try {
+      final id = Uri.encodeComponent(widget.journeyId);
+      final endpoint = 'api/v1/me/journeys/$id/invitation/';
+      // The network owner is authoritative. A cached action is never enough.
+      final current = (await widget.api!.get(endpoint)).jsonObject();
+      final actions = current['capabilities'];
+      if (current['journey_id'] != widget.journeyId ||
+          actions is! List ||
+          !actions.contains(decision)) {
+        await _refresh();
+        if (mounted) {
+          setState(
+            () => _invitationNotice =
+                'Cette invitation a changé. Consultez son état actuel.',
+          );
+        }
+        return;
+      }
+      final result = (await widget.api!.post(
+        endpoint,
+        body: {'decision': decision},
+      )).jsonObject();
+      if (result['journey_id'] != widget.journeyId ||
+          (decision == 'accept' && result['status'] != 'confirmed') ||
+          (decision == 'decline' && result['status'] != 'cancelled')) {
+        throw const FormatException('Unconfirmed Journey invitation');
+      }
+      await _refresh();
+      if (mounted) {
+        setState(
+          () => _invitationNotice = decision == 'accept'
+              ? 'Invitation acceptée.'
+              : 'Invitation refusée.',
+        );
+      }
+    } on Object {
+      // Even a lost response may follow a successful owner mutation.
+      // Reconcile rather than implying the action failed.
+      try {
+        final id = Uri.encodeComponent(widget.journeyId);
+        final current = (await widget.api!.get(
+          'api/v1/me/journeys/$id/invitation/',
+        )).jsonObject();
+        await _refresh();
+        if (mounted) {
+          final status = current['status'];
+          setState(
+            () => _invitationNotice = status == 'confirmed'
+                ? 'Invitation acceptée.'
+                : status == 'cancelled'
+                ? 'Invitation refusée.'
+                : 'Vérifiez votre invitation avant de réessayer.',
+          );
+        }
+      } on Object {
+        if (mounted) {
+          setState(
+            () => _invitationNotice =
+                'Action à vérifier. Réessayez lorsque la connexion revient.',
+          );
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _respondingInvitation = false);
     }
   }
 
@@ -170,6 +249,10 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                   onRetry: _refresh,
                   content: _JourneyContent(
                     presentation: presentation,
+                    invitationEnabled:
+                        widget.api != null && !_respondingInvitation,
+                    invitationNotice: _invitationNotice,
+                    onInvitationDecision: _respondToInvitation,
                     onOpenForm: widget.onOpenForm,
                     onOpenRequirement: widget.onOpenRequirement,
                     onOpenResources: widget.onOpenResources,
@@ -192,6 +275,9 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
 class _JourneyContent extends StatelessWidget {
   const _JourneyContent({
     required this.presentation,
+    required this.invitationEnabled,
+    required this.invitationNotice,
+    required this.onInvitationDecision,
     required this.onOpenForm,
     required this.onOpenRequirement,
     required this.onOpenResources,
@@ -203,6 +289,9 @@ class _JourneyContent extends StatelessWidget {
   });
 
   final JourneyDetailPresentation presentation;
+  final bool invitationEnabled;
+  final String? invitationNotice;
+  final void Function(String decision) onInvitationDecision;
   final void Function(JourneyFormSummary form) onOpenForm;
   final void Function(JourneyReference requirement) onOpenRequirement;
   final void Function(String resourcesLink) onOpenResources;
@@ -232,6 +321,54 @@ class _JourneyContent extends StatelessWidget {
                   )!,
                 ),
         ),
+        if (presentation.canRespondInvitation) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+              vertical: MakoloSpacing.lg,
+            ),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(MakoloSpacing.inner),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Votre invitation',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: MakoloSpacing.md),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton(
+                          onPressed: invitationEnabled
+                              ? () => onInvitationDecision('accept')
+                              : null,
+                          child: const Text('Accepter'),
+                        ),
+                        OutlinedButton(
+                          onPressed: invitationEnabled
+                              ? () => onInvitationDecision('decline')
+                              : null,
+                          child: const Text('Refuser'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+        if (invitationNotice != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: Text(invitationNotice!),
+          ),
         if (presentation.nextActionLabel != null) ...[
           Padding(
             padding: const EdgeInsets.symmetric(

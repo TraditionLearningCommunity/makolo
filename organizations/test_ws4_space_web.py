@@ -88,7 +88,20 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(response, self.space.name)
         self.assertContains(response, "Équipe")
         self.assertContains(response, "Responsabilités")
-        self.assertContains(response, "Ownership")
+        self.assertContains(response, "Gouvernance")
+        self.assertIn("team", response.context["projection"]["relationships"]["sections"])
+        self.assertContains(response, "Explorer ces relations")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        mandate = next(
+            row for row in response.context["projection"]["responsibilities"]["items"]
+            if not row.get("combined")
+        )
+        from urllib.parse import quote
+
+        self.assertContains(
+            response,
+            f"?responsibility={quote(mandate['key'], safe='')}",
+        )
         self.assertContains(response, "Faits de vérification")
         self.assertContains(response, "Personnes & relations")
         self.assertContains(response, "Paramètres de l’Espace")
@@ -303,6 +316,11 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(response, "Collaborateur · Équipe")
         self.assertContains(response, "Contact CRM")
         self.assertContains(response, "Partenaire")
+        self.assertContains(response, "Comprendre cette relation")
+        self.assertContains(response, f"kind=team_member&amp;id=")
+        self.assertContains(response, f"kind=crm_contact&amp;id=")
+        self.assertContains(response, f"kind=partner&amp;id=")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertContains(response, self.member.full_name or self.member.username)
         html = response.content.decode()
         self.assertNotIn(self.member.email, html)

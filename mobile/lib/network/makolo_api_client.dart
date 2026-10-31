@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -321,6 +322,61 @@ class MakoloApiClient {
     }
     await partial.rename(destinationPath);
     return response;
+  }
+
+  /// Read a published, owner-gated image through the authenticated Makolo
+  /// transport. Widgets do not access bearer tokens, raw storage or Web.
+  /// These bytes are only held in memory for the current presentation.
+  Future<Uint8List> getPresentationImage(String path) async {
+    final uri = Uri.tryParse(path);
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        !path.startsWith('/')) {
+      throw const FormatException('Only same-origin media paths are permitted');
+    }
+    Future<Response<List<int>>> request(String bearer) async {
+      try {
+        return await _dio.get<List<int>>(
+          path,
+          options: Options(
+            responseType: ResponseType.bytes,
+            validateStatus: (_) => true,
+            headers: {
+              'Authorization': 'Bearer $bearer',
+              'Accept': 'image/jpeg, image/png',
+            },
+          ),
+        );
+      } on DioException catch (error) {
+        throw _transportError(error);
+      }
+    }
+
+    var session = await _requireSession();
+    var response = await request(session.accessToken);
+    if (response.statusCode == 401) {
+      session = await _refreshSingleFlight();
+      response = await request(session.accessToken);
+    }
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) {
+      throw MakoloApiError.fromResponse(status, '');
+    }
+    final mime = response.headers
+        .value(Headers.contentTypeHeader)
+        ?.split(';')
+        .first
+        .trim()
+        .toLowerCase();
+    if (mime != 'image/jpeg' && mime != 'image/png' && mime != 'image/webp') {
+      throw const FormatException('Unsupported presentation image type');
+    }
+    final data = response.data;
+    if (data == null || data.isEmpty || data.length > 8 * 1024 * 1024) {
+      throw const FormatException('Invalid presentation image payload');
+    }
+    return Uint8List.fromList(data);
   }
 
   Future<void> logoutCurrentSession() async {

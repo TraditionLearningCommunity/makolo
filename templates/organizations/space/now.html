@@ -1,40 +1,121 @@
 {% extends 'organizations/space/base.html' %}
 {% block space_content %}
-<section class="space-y-5" aria-labelledby="space-now-heading" data-space-surface="now" data-space-state="{{ projection_state }}">
-  <div class="max-w-3xl">
-    <span class="mk-kicker">Maintenant</span>
-    <h2 id="space-now-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">Qu’est-ce qui mérite notre attention maintenant ?</h2>
-    <p class="mt-3 text-sm leading-6" style="color:var(--mk-muted)">Makolo présente uniquement ce que le serveur a sélectionné pour ce Space et cette responsabilité.</p>
-  </div>
+<section class="mx-auto max-w-5xl space-y-8 pb-12" aria-labelledby="space-now-heading"
+         data-space-surface="now" data-space-state="{{ projection_state }}">
+  <header class="max-w-3xl space-y-3">
+    <span class="mk-kicker">Maintenant · {{ space.name }}</span>
+    <h2 id="space-now-heading" class="text-3xl font-extrabold tracking-[-.04em] sm:text-4xl">
+      Qu’est-ce qui mérite notre attention maintenant ?
+    </h2>
+    {% if projection.authority.limited_to_activities %}
+      <p class="text-sm leading-6" style="color:var(--mk-muted)">
+        Votre perspective couvre uniquement les activités auxquelles vous avez accès.
+      </p>
+    {% endif %}
+  </header>
 
   {% if projection_state == 'content' or projection_state == 'partial' %}
-    <div class="mk-panel p-5" role="status">
-      <p class="font-bold">{{ projection.items|length }} situation{{ projection.items|length|pluralize }} sélectionnée{{ projection.items|length|pluralize }} par le serveur.</p>
-      {% if projection_state == 'partial' %}
-        <p class="mt-2 text-sm" style="color:var(--mk-muted)">La sélection est partielle. Les éléments affichés restent utilisables ; Makolo ne complète pas les données manquantes dans le navigateur.</p>
-      {% else %}
-        <p class="mt-2 text-sm" style="color:var(--mk-muted)">La sélection et son ordre restent ceux du serveur.</p>
-      {% endif %}
-    </div>
+    {% if projection.items %}
+      <div class="space-y-6" aria-label="Situations actuelles de l’Espace">
+        {% for situation in projection.items %}
+          <article class="overflow-hidden rounded-3xl border shadow-sm"
+                   style="background:var(--mk-surface, #fff);border-color:var(--mk-border, #e5e7eb)"
+                   aria-labelledby="space-situation-{{ forloop.counter }}">
+            <div class="space-y-4 px-5 py-6 sm:px-8 sm:py-8">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="mk-kicker">Situation actuelle</span>
+                {% if situation.response.type == 'wait' %}
+                  <span class="rounded-full border px-3 py-1 text-xs">En attente</span>
+                {% elif situation.response.type == 'decide' %}
+                  <span class="rounded-full border px-3 py-1 text-xs">Décision dans le métier</span>
+                {% endif %}
+              </div>
+              <div class="space-y-2">
+                <h3 id="space-situation-{{ forloop.counter }}" class="text-xl font-bold tracking-tight sm:text-2xl">{{ situation.human_context }}</h3>
+                <p class="text-sm font-medium" style="color:var(--mk-muted)">{{ situation.subject.label }}</p>
+                <p class="text-base leading-7">{{ situation.state_meaning }}</p>
+              </div>
+              <div class="border-l-4 pl-4" style="border-color:#5232DB">
+                <p class="text-sm font-semibold">Pourquoi maintenant ?</p>
+                <p class="mt-1 leading-6">{{ situation.why_now.meaning }}</p>
+              </div>
+              {% if situation.consequence.state == 'known' and situation.consequence.effect %}
+                <p class="text-sm leading-6">{{ situation.consequence.effect }}</p>
+              {% endif %}
+              {% if situation.media_bindings %}
+                {% for medium in situation.media_bindings %}
+                  {% if medium.authorized and medium.url and medium.purpose == 'recognize' and medium.kind == 'image' %}
+                    <img src="{{ medium.url }}" alt="{{ medium.label|default:situation.human_context }}"
+                         loading="lazy" class="max-h-72 w-full rounded-2xl object-cover">
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+              {% if situation.business_actions %}
+                <div class="flex flex-wrap gap-3 pt-2">
+                  {% for action in situation.business_actions %}
+                    {% if action.interaction_depth == 'domain_depth' and action.href %}
+                      <a class="mk-btn {% if forloop.first %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}"
+                         href="{{ action.href }}">{{ action.label }}</a>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+            <details class="border-t px-5 py-4 sm:px-8" style="border-color:var(--mk-border, #e5e7eb)">
+              <summary class="cursor-pointer text-sm font-semibold">Comprendre la situation</summary>
+              <div class="mt-4 max-w-3xl space-y-3 text-sm leading-6">
+                <p><strong>État établi :</strong> {{ situation.state_meaning }}</p>
+                <p><strong>Ce qui compte :</strong> {{ situation.why_now.meaning }}</p>
+                {% if situation.consequence.state == 'unknown' %}
+                  <p style="color:var(--mk-muted)">La conséquence précise n'est pas encore établie par le domaine concerné.</p>
+                {% endif %}
+                {% if situation.turn.type == 'none' %}
+                  <p style="color:var(--mk-muted)">Aucune action directe n'est attribuée dans cette projection.</p>
+                {% endif %}
+                {% if situation.links.web %}
+                  <a class="font-semibold underline underline-offset-4" href="{{ situation.links.web }}">Ouvrir le contexte propriétaire</a>
+                {% endif %}
+              </div>
+            </details>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="rounded-3xl border px-6 py-10 sm:px-10" role="status"
+           style="background:var(--mk-surface, #fff);border-color:var(--mk-border, #e5e7eb)">
+        <h3 class="text-xl font-bold">Aucune situation établie dans cette perspective.</h3>
+        <p class="mt-3 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">
+          La couverture actuelle est partielle. Makolo ne peut pas encore conclure que tout est en ordre pour cet Espace.
+        </p>
+        <a class="mk-btn mk-btn-secondary mt-5" href="{{ space_work_url }}">Poursuivre dans Métier</a>
+      </div>
+    {% endif %}
+    {% if projection.selection.state == 'partial' %}
+      <p class="max-w-3xl border-l-2 pl-4 text-sm leading-6" role="status"
+         style="border-color:#5232DB;color:var(--mk-muted)">
+        Certaines situations sont connues, mais tous les domaines de cet Espace ne sont pas encore couverts.
+        {% if projection.has_more %}
+          Des situations supplémentaires existent au-delà de cet aperçu.
+          <a href="{{ space_work_url }}" class="font-semibold underline underline-offset-4">Poursuivre dans Métier</a>.
+        {% endif %}
+      </p>
+    {% endif %}
   {% elif projection_state == 'empty' %}
-    <div class="mk-panel p-6 sm:p-8" role="status">
-      <p class="text-xl font-extrabold">Tout est en ordre. ✓</p>
-      <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Le serveur indique qu’aucune situation ne demande votre intervention dans ce contexte.</p>
+    <div class="rounded-3xl border px-6 py-10" role="status">
+      <h3 class="text-xl font-bold">Tout est en ordre. ✓</h3>
+      <p class="mt-2">Le serveur a établi qu’aucune situation ne réclame d’attention dans ce contexte.</p>
     </div>
   {% elif projection_state == 'unavailable' %}
-    <div class="mk-panel p-6 sm:p-8" role="status">
-      <p class="text-xl font-extrabold">La sélection n’est pas encore disponible.</p>
-      <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Makolo ne peut pas encore déterminer de manière suffisamment sûre ce qui mérite votre attention ici. Cela ne signifie ni qu’il n’existe rien dans le Space, ni que tout est en ordre.</p>
-      <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary mt-5">Continuer dans les outils de l’Espace</a>
+    <div class="rounded-3xl border px-6 py-10" role="status">
+      <h3 class="text-xl font-bold">La sélection n’est pas encore disponible.</h3>
+      <p class="mt-3 text-sm leading-6">Cela ne signifie ni qu’il n’existe rien dans l’Espace, ni que tout est en ordre.</p>
+      <a href="{{ space_work_url }}" class="mk-btn mk-btn-secondary mt-5">Continuer dans Métier</a>
     </div>
   {% else %}
-    <div class="mk-panel p-6 sm:p-8" role="alert">
-      <p class="text-xl font-extrabold">Maintenant n’a pas pu être chargé.</p>
-      <p class="mt-2 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">Le contexte du Space est conservé. Réessayez cette page ou poursuivez dans les outils de l’Espace.</p>
-      <div class="mt-5 flex flex-wrap gap-2">
-        <a href="{{ space_root_url }}" class="mk-btn mk-btn-primary">Réessayer</a>
-        <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary">Ouvrir les outils de l’Espace</a>
-      </div>
+    <div class="rounded-3xl border px-6 py-10" role="alert">
+      <h3 class="text-xl font-bold">Maintenant n’a pas pu être chargé.</h3>
+      <p class="mt-3 text-sm">Le contexte de l’Espace reste conservé. Vous pouvez réessayer sans perdre votre position.</p>
+      <a href="{{ space_root_url }}" class="mk-btn mk-btn-primary mt-5">Réessayer</a>
     </div>
   {% endif %}
 </section>

@@ -5,6 +5,7 @@ import 'package:makolo_mobile/design/behavior_primitives.dart';
 import 'package:makolo_mobile/design/presentation_layout.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/me/me_screen.dart';
+import 'package:makolo_mobile/presentation/possibilities/discovery_save_icon.dart';
 import 'package:makolo_mobile/features/me/me_selector.dart';
 import 'package:makolo_mobile/repositories/personal_repository.dart';
 import 'package:makolo_mobile/sync/owner_source_state.dart';
@@ -237,6 +238,178 @@ void main() {
     );
   });
 
+  test('saved media requires an owner-backed recognition use', () {
+    final payload = _fullPayload();
+    final considerations = payload['considerations'] as Map<String, dynamic>;
+    final bookmark = <String, dynamic>{
+      'id': 'bookmark-1',
+      'activity': {'id': 'activity-1', 'title': 'Formation'},
+      'media_bindings': [
+        {
+          'purpose': 'RECOGNIZE',
+          'target': {'kind': 'activity', 'id': 'activity-1'},
+          'resource': {
+            'kind': 'presentation_media_use',
+            'id': 'use-1',
+            'url': '/presentations/media/uses/use-1/file/',
+            'mime_type': 'image/jpeg',
+            'alt_text': 'Salle de formation',
+          },
+        },
+      ],
+    };
+    considerations['bookmarks'] = {
+      'count': 1,
+      'items': [bookmark],
+      'has_more': false,
+    };
+    MeItemPresentation savedItem() {
+      final selected = selector.select(
+        projection: _projection(payload),
+        now: now,
+      );
+      return selected.territories
+          .singleWhere(
+            (section) => section.presentation.key == 'considerations',
+          )
+          .items
+          .singleWhere((item) => item.destination.kind == 'activity');
+    }
+
+    expect(savedItem().mediaPath, '/presentations/media/uses/use-1/file/');
+    expect(savedItem().mediaAlt, 'Salle de formation');
+
+    (bookmark['media_bindings'] as List)[0]['target']['id'] = 'other-activity';
+    expect(savedItem().mediaPath, isNull);
+    (bookmark['media_bindings'] as List)[0]['target']['id'] = 'activity-1';
+    (bookmark['media_bindings'] as List)[0]['resource']['url'] =
+        'https://external.example/media.jpg';
+    expect(savedItem().mediaPath, isNull);
+    (bookmark['media_bindings'] as List)[0]['resource']['url'] =
+        '/presentations/media/uses/use-1/file/';
+    (bookmark['media_bindings'] as List)[0]['purpose'] = 'UNDERSTAND';
+    expect(savedItem().mediaPath, isNull);
+  });
+
+  testWidgets(
+    'Moi limits saved preview to three and opens the full collection',
+    (tester) async {
+      final payload = _fullPayload();
+      final considerations = payload['considerations'] as Map<String, dynamic>;
+      considerations['bookmarks'] = {
+        'count': 5,
+        'items': [
+          for (var index = 0; index < 5; index++)
+            {
+              'id': 'bookmark-$index',
+              'activity': {
+                'id': 'activity-$index',
+                'title': 'Possibilité $index',
+              },
+            },
+        ],
+        'has_more': false,
+      };
+      var opened = '';
+      final selection = selector.select(
+        projection: _projection(payload),
+        now: now,
+      );
+      expect(
+        selection.territories
+            .singleWhere((t) => t.presentation.key == 'considerations')
+            .savedCount,
+        5,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(
+          selection: selection,
+          onOpenDestination: (destination) {
+            opened = destination.kind;
+            return true;
+          },
+        ),
+      );
+      expect(find.text('Possibilité 0'), findsOneWidget);
+      expect(find.text('Possibilité 1'), findsOneWidget);
+      expect(find.text('Possibilité 2'), findsOneWidget);
+      expect(find.text('Possibilité 3'), findsNothing);
+      expect(find.text('Possibilité 4'), findsNothing);
+      expect(find.text('Vous avez tout exploré'), findsNothing);
+      await tester.ensureVisible(find.text('Voir les 5 enregistrements'));
+      await tester.tap(find.text('Voir les 5 enregistrements'));
+      expect(opened, 'saved_collection');
+    },
+  );
+
+  testWidgets('tapping personal choices heading opens its native owner', (
+    tester,
+  ) async {
+    var kind = '';
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (destination) {
+          kind = destination.kind;
+          return true;
+        },
+      ),
+    );
+    await tester.ensureVisible(find.text('Ce qui compte pour moi'));
+    await tester.tap(find.text('Ce qui compte pour moi'));
+    expect(kind, 'considerations');
+  });
+
+  test('N1 uses owner counts, not locally inferred item totals', () {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    final byKey = {
+      for (final territory in selection.territories)
+        territory.presentation.key: territory,
+    };
+    expect(byKey['considerations']!.totalCount, 1);
+    expect(byKey['collectives']!.totalCount, 3);
+    expect(byKey['resources']!.totalCount, 3);
+    expect(selection.identityAvatarUrl, isNull);
+  });
+
+  testWidgets('N1 avatar has a legible local-first fallback', (tester) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(tester, child: MeView(selection: selection));
+    expect(find.text('GB'), findsOneWidget);
+    expect(find.text('Gilbert Bemwiz'), findsOneWidget);
+  });
+
+  testWidgets('wide large text stays in one readable territory column', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(900, 900),
+      textScale: 1.6,
+      child: MeView(selection: selection),
+    );
+    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    expect(find.byKey(const Key('me-territories-wide')), findsNothing);
+  });
+
   test('support is conditional on runtime availability', () {
     final withoutSupport = selector.select(
       projection: _projection(_fullPayload()),
@@ -356,13 +529,10 @@ void main() {
 
     await PresentationHarness.pump(tester, child: MeView(selection: selection));
 
-    expect(
-      find.text('Aucun Passeport disponible ici pour le moment.'),
-      findsOneWidget,
-    );
+    expect(find.text('Aucun passeport disponible.'), findsOneWidget);
     expect(find.text('Rien de déclaré pour le moment.'), findsOneWidget);
-    expect(find.text('Aucun collectif lié pour le moment.'), findsOneWidget);
-    expect(find.text('Aucune ressource disponible ici.'), findsOneWidget);
+    expect(find.text('Aucun collectif associé.'), findsOneWidget);
+    expect(find.text('Aucune ressource disponible.'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
@@ -425,36 +595,171 @@ void main() {
     expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
   });
 
-  testWidgets('resource N2 changes focus and back restores Moi', (
+  testWidgets(
+    'owner handoff opens a real destination without a fake Moi depth',
+    (tester) async {
+      final selection = selector.select(
+        projection: _projection(_fullPayload()),
+        now: now,
+      );
+      String? openedKind;
+      String? openedId;
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(
+          selection: selection,
+          onOpenDestination: (destination) {
+            openedKind = destination.kind;
+            openedId = destination.id;
+            return true;
+          },
+        ),
+      );
+
+      await tester.ensureVisible(find.text('Passeport.pdf'));
+      await tester.pump();
+      await tester.tap(find.text('Passeport.pdf'));
+      await tester.pump();
+
+      expect(openedKind, 'personal_asset');
+      expect(openedId, isNotEmpty);
+      expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
+      expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+    },
+  );
+
+  test('Passport and Group use explicit native owner destinations', () {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    final passport = selection.territories.singleWhere(
+      (t) => t.presentation.key == 'passport',
+    );
+    expect(passport.items.single.destination.kind, 'passport');
+    expect(passport.items.single.canOpen, isTrue);
+
+    final collectives = selection.territories.singleWhere(
+      (t) => t.presentation.key == 'collectives',
+    );
+    final groups = collectives.items.where(
+      (item) => item.destination.kind == 'group',
+    );
+    expect(groups, isNotEmpty);
+    expect(groups.every((item) => item.canOpen), isTrue);
+  });
+
+  testWidgets(
+    'compact Moi shows a single Passport card and concise saved items',
+    (tester) async {
+      final selection = selector.select(
+        projection: _projection(_fullPayload()),
+        now: now,
+      );
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(430, 932),
+        child: MeView(selection: selection, onOpenDestination: (_) => true),
+      );
+      expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+      final passport = find.byKey(const ValueKey('me-territory-passport'));
+      expect(passport, findsOneWidget);
+      expect(tester.getSize(passport).width, closeTo(430, 0.1));
+      expect(find.text('Mon passeport'), findsOneWidget);
+      expect(find.text('Enregistré'), findsNothing);
+      expect(find.text('Passeport.pdf'), findsOneWidget);
+
+      // No giant framed wrapper around the identity and territory content.
+      expect(find.byType(Card), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('saved opportunities reuse the filled Discover icon', (
+    tester,
+  ) async {
+    final payload = _fullPayload();
+    final considerations = payload['considerations'] as Map<String, dynamic>;
+    considerations['bookmarks'] = {
+      'count': 1,
+      'items': [
+        {
+          'id': 'bookmark-1',
+          'activity': {'id': 'activity-1', 'title': 'Possibilité conservée'},
+        },
+      ],
+      'has_more': false,
+    };
+    final selection = selector.select(
+      projection: _projection(payload),
+      now: now,
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(430, 932),
+      child: MeView(selection: selection, onOpenDestination: (_) => true),
+    );
+    await tester.scrollUntilVisible(
+      find.text('Possibilité conservée'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final saved = tester.widget<DiscoveryOrbitIcon>(
+      find.byType(DiscoveryOrbitIcon).first,
+    );
+    expect(saved.saved, isTrue);
+    expect(find.text('Enregistré'), findsNothing);
+  });
+
+  testWidgets('identity edit uses an explicit owner destination', (
     tester,
   ) async {
     final selection = selector.select(
       projection: _projection(_fullPayload()),
       now: now,
     );
-
+    String? kind;
     await PresentationHarness.pump(
       tester,
-      viewport: const Size(430, 932),
-      child: MeView(selection: selection),
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (destination) {
+          kind = destination.kind;
+          return true;
+        },
+      ),
     );
-
-    await tester.ensureVisible(find.text('Passeport.pdf'));
+    await tester.tap(find.byTooltip('Modifier mon passeport'));
     await tester.pump();
-    await tester.tap(find.text('Passeport.pdf'));
-    await tester.pump();
-
-    expect(find.byKey(const Key('me-depth-scroll')), findsOneWidget);
-    expect(find.text('Privé'), findsOneWidget);
-    expect(find.textContaining('Son usage dépendra'), findsNothing);
-    expect(find.textContaining('Requirement'), findsNothing);
-    expect(find.textContaining('AccessCredential'), findsNothing);
-
-    await tester.tap(find.widgetWithText(TextButton, 'Moi'));
-    await tester.pump();
-
+    expect(kind, 'profile_self');
     expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
-    expect(find.byKey(const Key('me-territories-compact')), findsOneWidget);
+  });
+
+  testWidgets('unknown owner item cannot open an invented depth', (
+    tester,
+  ) async {
+    final selection = selector.select(
+      projection: _projection(_fullPayload()),
+      now: now,
+    );
+    var invocations = 0;
+    await PresentationHarness.pump(
+      tester,
+      child: MeView(
+        selection: selection,
+        onOpenDestination: (_) {
+          invocations++;
+          return true;
+        },
+      ),
+    );
+    await tester.ensureVisible(find.text('Technologie'));
+    await tester.pump();
+    await tester.tap(find.text('Technologie'));
+    await tester.pump();
+    expect(invocations, 0);
+    expect(find.byKey(const Key('me-depth-scroll')), findsNothing);
   });
 
   testWidgets('body starts with identity without repeating Moi', (

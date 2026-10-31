@@ -1,14 +1,19 @@
+from datetime import timedelta
+from unittest.mock import patch
 from uuid import UUID
+
+from django.utils import timezone
 
 from django.test import TestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from activities.models import Activity
+from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
+from journeys.models import Journey, JourneyRequest, JourneyStatus, RequestStatus, WorkflowKind
 from organizations.models import (
     Organization,
     Team,
@@ -80,32 +85,35 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
 
     def test_now_and_discover_are_honest_bounded_contracts(self):
         self.client.force_authenticate(self.owner)
-        for suffix in ("now", "discover"):
-            response = self.client.get(self._url(suffix))
-            self.assertEqual(response.status_code, 200, response.data)
-            self.assertEqual(response.data["items"], [])
-            self.assertFalse(response.data["has_more"])
-            self.assertEqual(response.data["selection"]["state"], "unavailable")
-            self.assertEqual(
-                response.data["selection"]["reason"],
-                "no_safe_selection_contract",
-            )
+        now = self.client.get(self._url("now"))
+        self.assertEqual(now.status_code, 200, now.data)
+        self.assertEqual(now.data["items"], [])
+        self.assertFalse(now.data["has_more"])
+        # Now can select owner-backed facts, but not yet claim full coverage.
+        self.assertEqual(now.data["selection"]["state"], "partial")
+        self.assertEqual(now.data["selection"]["reason"], "owner_coverage_incomplete")
+        self.assertEqual(now.data["actor_attention_state"], "unknown")
+        self.assertEqual(now.data["actor"]["type"], "space")
+        self.assertEqual(now.data["viewer"]["id"], str(self.owner.pk))
+        self.assertEqual(now.data["freshness"]["state"], "unknown")
+
+        discover = self.client.get(self._url("discover"))
+        self.assertEqual(discover.status_code, 200, discover.data)
+        self.assertEqual(discover.data["items"], [])
+        self.assertFalse(discover.data["has_more"])
+        self.assertEqual(discover.data["selection"]["state"], "unavailable")
+        self.assertEqual(
+            discover.data["selection"]["reason"],
+            "no_safe_selection_contract",
+        )
+        for response in (now, discover):
             serialized = str(response.data).lower()
             for forbidden in (
-                "score",
-                "rank",
-                "relevance",
-                "probability",
-                "accesscredential",
-                "private_key",
-                "api_token",
-                "qr_token",
+                "score", "rank", "relevance", "probability",
+                "accesscredential", "private_key", "api_token", "qr_token",
             ):
                 self.assertNotIn(forbidden, serialized)
-            self.assertEqual(
-                response["Cache-Control"],
-                "private, no-store",
-            )
+            self.assertEqual(response["Cache-Control"], "private, no-store")
 
     def test_now_and_discover_authority_matrix(self):
         for suffix in ("now", "discover"):
@@ -159,6 +167,21 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         )
         self.assertEqual(malformed.status_code, 404)
 
+    def test_selected_activity_perspective_does_not_look_space_wide(self):
+        extra_mandate = grant_activity_role(
+            profile=self.owner, activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            self._url("now"),
+            {"responsibility": f"mandate:{extra_mandate.pk}"},
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["authority"]["scope"], "activity_limited")
+        self.assertTrue(response.data["authority"]["limited_to_activities"])
+
     def test_revoked_mandate_removes_projection_access(self):
         self.client.force_authenticate(self.activity_actor)
         before = self.client.get(self._url("now"))
@@ -166,6 +189,331 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         revoke_mandate(mandate=self.activity_mandate, actor=self.owner)
         after = self.client.get(self._url("now"))
         self.assertEqual(after.status_code, 404)
+
+    def test_now_owner_occurrence_is_current_and_navigation_is_scoped(self):
+        now = timezone.now()
+        current = Occurrence.objects.create(
+            activity=self.activity,
+            label="Départ réel",
+            start_at=now - timedelta(minutes=20),
+            end_at=now + timedelta(minutes=40),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        cancelled = Occurrence.objects.create(
+            activity=self.activity,
+            label="Départ annulé",
+            start_at=now - timedelta(minutes=10),
+            end_at=now + timedelta(minutes=20),
+            status=OccurrenceStatus.CANCELLED,
+        )
+        other = Activity.objects.create(
+            title="Activité confidentielle",
+            slug="zs6-private",
+            created_by=self.owner,
+            space=self.space,
+        )
+        other_occurrence = Occurrence.objects.create(
+            activity=other,
+            start_at=now - timedelta(minutes=10),
+            end_at=now + timedelta(minutes=20),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        # Local Activity management does not implicitly grant Operations.
+        # An explicit Operations Mandate is required to see live owner signals.
+        grant_activity_role(
+            profile=self.activity_actor, activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(self.activity_actor)
+        # A running Occurrence without an owner action is not automatically Now.
+        with patch(
+            "operations.occurrence_live.resolve_occurrence_live",
+            return_value={"perspective": "operator", "next_action": {"type": "none"}},
+        ):
+            quiet = self.client.get(self._url("now"))
+        self.assertEqual(quiet.data["items"], [])
+
+        def operations_fact(*, occurrence, actor, observed_at):
+            if occurrence.pk != current.pk:
+                return {"perspective": "operator", "next_action": {"type": "none"}}
+            return {
+                "perspective": "operator",
+                "next_action": {
+                    "type": "inspect_access",
+                    "reason": "operations.access_check",
+                    "label": "Vérifier les accès à l'entrée.",
+                },
+            }
+
+        with patch(
+            "operations.occurrence_live.resolve_occurrence_live",
+            side_effect=operations_fact,
+        ):
+            response = self.client.get(self._url("now"))
+        self.assertEqual(response.status_code, 200, response.data)
+        items = response.data["items"]
+        self.assertEqual(len(items), 1, items)
+        item = items[0]
+        self.assertEqual(item["source"], {"kind": "occurrence", "id": str(current.pk)})
+        self.assertEqual(item["why_now"]["reason"], "operations.access_check")
+        self.assertEqual(item["consequence"]["state"], "unknown")
+        self.assertFalse(item["media_bindings"])
+        self.assertTrue(item["links"]["web"].endswith(
+            f"/occurrences/{current.pk}/day-of/"
+        ))
+        self.assertEqual(item["handoffs"][0]["target"], "space_occurrence_day_of")
+        self.assertNotIn(str(cancelled.pk), str(items))
+        self.assertNotIn(str(other_occurrence.pk), str(items))
+        self.assertEqual(response.data["selection"]["state"], "partial")
+
+    def test_now_registration_request_is_owner_backed_not_a_mutation(self):
+        applicant = User.objects.create_user(
+            username="zs6-applicant", email="zs6-applicant@test.local", password="x"
+        )
+        journey = Journey.objects.create(
+            initiated_by=applicant,
+            beneficiary=applicant,
+            activity=self.activity,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        # A submitted Journey alone is not a canonical request to decide.
+        self.client.force_authenticate(self.owner)
+        without_request = self.client.get(self._url("now"))
+        self.assertFalse(any(
+            row["source"]["kind"] == "journey_request"
+            for row in without_request.data["items"]
+        ))
+        pending_request = JourneyRequest.objects.create(
+            journey=journey,
+            requester=applicant,
+            status=RequestStatus.PENDING,
+        )
+        response = self.client.get(self._url("now"))
+        self.assertEqual(response.status_code, 200, response.data)
+        items = [
+            row for row in response.data["items"]
+            if row["source"]["id"] == str(pending_request.pk)
+        ]
+        self.assertEqual(len(items), 1, response.data)
+        item = items[0]
+        self.assertEqual(item["why_now"]["reason"], "journey_request_pending")
+        self.assertEqual(item["consequence"]["state"], "unknown")
+        self.assertFalse(any(
+            action.get("interaction_depth") == "direct_now"
+            for action in item["business_actions"]
+        ))
+        self.assertFalse(any("beneficiary" in key for key in item))
+        self.client.force_authenticate(self.team_only)
+        self.assertEqual(self.client.get(self._url("now")).status_code, 404)
+
+    def test_assigned_service_scope_does_not_promote_personal_journey(self):
+        from journeys.collaboration_models import (
+            JourneyAssignment, JourneyAssignmentResponsibility,
+            JourneyAssignmentStatus,
+            JourneyBlocker, JourneyBlockerSeverity,
+        )
+
+        facilitator = User.objects.create_user(
+            username="zs6-facilitator",
+            email="zs6-facilitator@test.local",
+            password="x",
+        )
+        grant_activity_role(
+            profile=facilitator, activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR,
+            granted_by=self.owner,
+        )
+        own_case = Journey.objects.create(
+            initiated_by=facilitator,
+            beneficiary=facilitator,
+            activity=self.activity,
+            workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.SUBMITTED,
+        )
+        beneficiary = User.objects.create_user(
+            username="zs6-service-beneficiary",
+            email="zs6-service-beneficiary@test.local",
+            password="x",
+        )
+        assigned_case = Journey.objects.create(
+            initiated_by=beneficiary, beneficiary=beneficiary,
+            activity=self.activity, workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.SUBMITTED,
+        )
+        JourneyAssignment.objects.create(
+            journey=assigned_case,
+            profile=facilitator,
+            responsibility=JourneyAssignmentResponsibility.LEAD,
+            status=JourneyAssignmentStatus.ACTIVE,
+        )
+        # Services itself must signal an actionable condition.
+        JourneyBlocker.objects.create(
+            journey=assigned_case,
+            title="Blocage opérateur",
+            severity=JourneyBlockerSeverity.HIGH,
+        )
+        self.client.force_authenticate(facilitator)
+        response = self.client.get(self._url("now"))
+        self.assertEqual(response.status_code, 200, response.data)
+        case_ids = {
+            row["source"]["id"] for row in response.data["items"]
+            if row["source"]["kind"] == "journey"
+        }
+        self.assertIn(str(assigned_case.pk), case_ids)
+        self.assertNotIn(str(own_case.pk), case_ids)
+
+    def test_request_owner_depth_rechecks_scope_and_confirms_only_owner_mutation(self):
+        applicant = User.objects.create_user(
+            username="zs6-request-user",
+            email="zs6-request-user@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=applicant, beneficiary=applicant,
+            activity=self.activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        owner_request = JourneyRequest.objects.create(
+            journey=journey, requester=applicant,
+        )
+        url = reverse(
+            "organizations_api:workspace-request-detail",
+            kwargs={"slug": self.space.slug, "request_id": owner_request.pk},
+        )
+        self.client.force_authenticate(self.team_only)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_authenticate(self.owner)
+        foreign_space = Organization.objects.create(
+            name="Autre propriétaire", slug="zs6-foreign-private",
+            created_by=self.owner,
+        )
+        foreign_activity = Activity.objects.create(
+            title="Dossier d'un autre Space", slug="zs6-foreign-request",
+            space=foreign_space, created_by=self.owner,
+        )
+        foreign_journey = Journey.objects.create(
+            initiated_by=applicant, beneficiary=applicant,
+            activity=foreign_activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        foreign_request = JourneyRequest.objects.create(
+            journey=foreign_journey, requester=applicant,
+        )
+        foreign_url = reverse(
+            "organizations_api:workspace-request-detail",
+            kwargs={"slug": self.space.slug, "request_id": foreign_request.pk},
+        )
+        self.assertEqual(self.client.get(foreign_url).status_code, 404)
+        self.assertEqual(
+            self.client.post(foreign_url, {"decision": "approve"}, format="json").status_code,
+            404,
+        )
+        read = self.client.get(url)
+        self.assertEqual(read.status_code, 200, read.data)
+        self.assertEqual(read.data["request"]["id"], str(owner_request.pk))
+        self.assertTrue(read.data["capabilities"]["decide"])
+        self.assertNotIn("requester", str(read.data))
+        self.assertEqual(read["Cache-Control"], "private, no-store")
+
+        denied_lens = self.client.get(
+            url, {"responsibility": "mandate:00000000-0000-0000-0000-000000000000"},
+        )
+        self.assertEqual(denied_lens.status_code, 404)
+        self.assertEqual(
+            self.client.post(url, {"decision": "invalid"}, format="json").status_code,
+            400,
+        )
+        decision = self.client.post(url, {"decision": "approve"}, format="json")
+        self.assertEqual(decision.status_code, 200, decision.data)
+        self.assertTrue(decision.data["confirmed_by_owner"])
+        self.assertEqual(decision.data["request"]["status"], RequestStatus.APPROVED)
+        self.assertFalse(decision.data["capabilities"]["decide"])
+        owner_request.refresh_from_db()
+        self.assertEqual(owner_request.status, RequestStatus.APPROVED)
+        self.assertEqual(
+            self.client.post(url, {"decision": "approve"}, format="json").status_code,
+            409,
+        )
+
+    def test_request_owner_depth_denies_revoked_mandate_before_post(self):
+        applicant = User.objects.create_user(
+            username="zs6-revoked-applicant",
+            email="zs6-revoked-applicant@test.local", password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=applicant, beneficiary=applicant,
+            activity=self.activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        owner_request = JourneyRequest.objects.create(
+            journey=journey, requester=applicant,
+        )
+        url = reverse(
+            "organizations_api:workspace-request-detail",
+            kwargs={"slug": self.space.slug, "request_id": owner_request.pk},
+        )
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        # Ownership may never be left vacant. Transfer continuity first,
+        # then prove that a genuinely revoked viewer cannot decide.
+        successor = User.objects.create_user(
+            username="zs6-successor",
+            email="zs6-successor@test.local", password="x",
+        )
+        grant_space_role(
+            profile=successor, space=self.space,
+            role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner,
+        )
+        revoke_mandate(mandate=self.owner_mandate, actor=self.owner)
+        self.assertEqual(
+            self.client.post(url, {"decision": "approve"}, format="json").status_code,
+            404,
+        )
+        owner_request.refresh_from_db()
+        self.assertEqual(owner_request.status, RequestStatus.PENDING)
+
+    def test_expired_request_is_not_a_now_decision(self):
+        applicant = User.objects.create_user(
+            username="zs6-expired",
+            email="zs6-expired@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=applicant, beneficiary=applicant,
+            activity=self.activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        old = timezone.now() - timedelta(days=3)
+        expired = JourneyRequest.objects.create(
+            journey=journey, requester=applicant,
+            submitted_at=old,
+            expires_at=old + timedelta(days=1),
+        )
+        self.client.force_authenticate(self.owner)
+        now = self.client.get(self._url("now"))
+        self.assertFalse(any(
+            row["source"]["id"] == str(expired.pk)
+            for row in now.data["items"]
+        ))
+        url = reverse(
+            "organizations_api:workspace-request-detail",
+            kwargs={"slug": self.space.slug, "request_id": expired.pk},
+        )
+        self.assertEqual(self.client.get(url).data["capabilities"]["decide"], False)
+        self.assertEqual(
+            self.client.post(url, {"decision": "approve"}, format="json").status_code,
+            409,
+        )
+
+    def test_now_partial_empty_never_claims_collective_calm(self):
+        self.client.force_authenticate(self.activity_actor)
+        response = self.client.get(self._url("now"))
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["selection"]["state"], "partial")
+        self.assertEqual(response.data["actor_attention_state"], "unknown")
+        self.assertEqual(response.data["items"], [])
 
     def test_final_zs_routes_are_mounted_without_shadowing(self):
         expected = {

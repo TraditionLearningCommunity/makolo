@@ -1,0 +1,71 @@
+{% for item in items %}
+<article class="mk-now-unit mk-now-unit--{{ item.topology }}" id="now-{{ item.identity }}" data-now-identity="{{ item.identity }}" aria-label="{{ item.context_label }}">
+  <div class="mk-now-unit__head">
+    {% if item.deadline_label %}<p class="mk-now-label">{{ item.deadline_label }}</p>{% endif %}
+    <h2>{{ item.context_label }}</h2>
+    {% if item.subject and item.subject != item.context_label %}<p class="mk-now-unit__subject">{{ item.subject }}</p>{% endif %}
+    {% if item.delta and item.delta != item.state %}<p class="mk-now-unit__delta">{{ item.delta }}</p>{% endif %}
+    {% if item.state %}<p class="mk-now-unit__meaning">{{ item.state }}</p>{% elif item.summary %}<p class="mk-now-unit__meaning">{{ item.summary }}</p>{% endif %}
+  </div>
+  {% if item.topology == "media" and item.inline_media %}
+    {% with media=item.inline_media.0 %}
+    <figure class="mk-now-unit__hero">
+      {% if media.kind == "image" %}<img src="{{ media.url }}" alt="{{ media.label }}" loading="lazy">
+      {% elif media.kind == "pdf" or media.kind == "document" %}<iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
+      {% elif media.kind == "video" %}<video src="{{ media.url }}" controls preload="metadata" playsinline aria-label="{{ media.label }}"></video>
+      {% elif media.kind == "audio" %}<audio src="{{ media.url }}" controls preload="none" aria-label="{{ media.label }}"></audio>{% endif %}
+    </figure>
+    {% endwith %}
+  {% endif %}
+  {% if item.topology == "waiting" %}
+    <p class="mk-now-wait">{{ item.turn|default:"En attente de la prochaine réponse." }}</p>
+    {% if item.horizon %}<p>{{ item.horizon }}</p>{% endif %}
+    {% if item.exit_condition %}<p class="mk-now-unit__exit">{{ item.exit_condition }}</p>{% endif %}
+  {% elif item.topology == "composition" %}
+    {% for summary in item.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
+  {% endif %}
+  {% if item.knowledge_state and item.knowledge_state != "known" and item.knowledge_state != "fresh" %}
+    <p class="mk-now-unit__knowledge">Information à vérifier</p>
+  {% endif %}
+  {% if item.direct_actions %}
+    <div class="mk-now-business-actions" aria-label="Décision">
+      {% for action in item.direct_actions %}
+      <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
+        {% csrf_token %}
+        <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
+        <output aria-live="polite" role="status"></output>
+      </form>
+      {% endfor %}
+    </div>
+  {% elif item.url %}
+    <a class="mk-now-cta" href="{{ item.url }}">{{ item.action_label }}</a>
+  {% endif %}
+  <button type="button" class="mk-now-n2-trigger" data-now-focus-trigger="{{ item.identity }}" aria-controls="now-n2-focus" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+  <template data-now-focus="{{ item.identity }}">
+    {% include "core/_now_n2_focus.html" with item=item %}
+  </template>
+  {% if item.why_now or item.consequence or item.preparation or item.relation_members or item.inline_media %}
+    <details class="mk-now-unit__more">
+      <summary><span class="mk-now-unit__closed">Voir plus</span><span class="mk-now-unit__opened">Voir moins</span></summary>
+      <div class="mk-now-unit__depth">
+        {% if item.why_now and item.why_now != item.summary %}<p>{{ item.why_now }}</p>{% endif %}
+        {% if item.consequence %}<p>{{ item.consequence }}</p>{% endif %}
+        {% for preparation in item.preparation %}<p>{{ preparation }}</p>{% endfor %}
+        {% if item.topology == "composition" and item.relation_members %}
+        <ul aria-label="Démarches concernées">
+          {% for member in item.relation_members %}
+          <li>{{ member.label }}{% if member.subtext %} — {{ member.subtext }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% for media in item.inline_media %}
+        <p class="mk-now-unit__resource">
+          <a href="{{ media.url }}" target="_self">{{ media.label }}</a>
+          <a href="{{ media.download_url }}" download>Enregistrer sur l’appareil</a>
+        </p>
+        {% endfor %}
+      </div>
+    </details>
+  {% endif %}
+</article>
+{% endfor %}

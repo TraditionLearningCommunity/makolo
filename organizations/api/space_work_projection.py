@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Q
+from django.db.models import Count, Q
+from django.urls import reverse
 from django.utils import timezone
 
 from activities.models import Activity, ActivityStatus, Occurrence, OccurrenceStatus
@@ -14,14 +17,29 @@ from authorization.selectors import (
     has_direct_space_permission,
 )
 from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
+from capacity.selectors import capacity_availability_many
 from journeys.collaboration_models import JourneyBlockerStatus
-from journeys.models import Journey, JourneyStatus, WorkflowKind
-from organizations.space_product import operating_preset_for_space, operational_footprint_for_space
+from journeys.models import (
+    Journey, JourneyRequest, JourneyStatus, RequestStatus, WorkflowKind,
+)
+from journeys.service_authorization import (
+    CASE_SCOPE_VIEW_ALL,
+    CASE_SCOPE_VIEW_ASSIGNED,
+    service_case_scope,
+)
+from organizations.space_product import (
+    operating_preset_for_space, visible_operational_footprint_for_space,
+)
+from organizations.space_work_composition import compose_space_work_business_world
+from organizations.space_work_media import attach_space_work_recognition_media
 from organizations.space_work_presentation import (
     ordered_work_section_keys,
     work_presentation_for_space,
 )
+from requirements.contracts import RequirementAssessmentState
+from services.models import ServiceRequirementAssessment
 from services.selectors import service_journeys_visible_to
+from operations.occurrence_live import occurrence_live_phase
 from transport.models import TransportRoute, Vehicle
 
 
@@ -36,15 +54,33 @@ def _space_has_activity_portfolio_access(profile, space):
 
 
 def _mandated_activity_ids(profile, space):
+    """Only work-relevant authority may disclose Activity work details.
+
+    Scanner, marketing or other narrow Activity Mandates are not a grant to
+    read an Activity portfolio. Owner-specific read rights remain scoped to
+    their actual Activity, and downstream selectors recheck sensitive rows.
+    """
+    work_permissions = (
+        PermissionCode.ACTIVITY_VIEW,
+        PermissionCode.ACTIVITY_MANAGE,
+        PermissionCode.ACTIVITY_OPERATIONS_VIEW,
+        PermissionCode.ACTIVITY_COMMERCE_VIEW,
+        PermissionCode.ACTIVITY_REQUESTS_VIEW,
+        PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL,
+        PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED,
+    )
     return set(
         current_mandates()
         .filter(
             profile=profile,
             scope_type=AuthorityScope.ACTIVITY,
             activity__space=space,
+            role__role_permissions__permission__code__in=work_permissions,
+            role__role_permissions__permission__is_active=True,
         )
         .exclude(activity_id=None)
         .values_list("activity_id", flat=True)
+        .distinct()
     )
 
 
@@ -106,7 +142,10 @@ def _activity_item(activity, caps):
 def _occurrence_item(occurrence, caps):
     is_departure = hasattr(occurrence, "transport_departure")
     operation_visible = occurrence.activity_id in caps["operations"]
-    current_day_of = operation_visible and occurrence.is_ongoing
+    # Match the Operations owner phase: pre-arrival is already actionable.
+    current_day_of = operation_visible and occurrence_live_phase(occurrence) in {
+        "arrival", "live",
+    }
     place = primary_place_for_occurrence(occurrence)
     links = {
         "detail": f"/api/v1/occurrences/{occurrence.pk}/",
@@ -137,6 +176,7 @@ def _occurrence_item(occurrence, caps):
         },
         "state": occurrence.status,
         "context": {
+            "owner_state_label": occurrence.get_status_display(),
             "place": {"id": str(place.pk), "name": place.name} if place else None,
             "activity": {
                 "id": str(occurrence.activity_id),
@@ -148,7 +188,74 @@ def _occurrence_item(occurrence, caps):
     }
 
 
-def _offer_item(offer, caps):
+def _source_selection_url(space_slug, kind, identity, *, responsibility="all"):
+    """Owner-scoped read, never a capability or a navigation permission."""
+    return (
+        reverse("organizations_api:workspace-work", kwargs={"slug": space_slug})
+        + "?" + urlencode({
+            "kind": kind, "id": str(identity), "responsibility": responsibility,
+        })
+    )
+
+
+def _attach_work_handoffs(*, sections, space_slug, responsibility, offset=0,
+                          section_key=None):
+    """Attach owner openings only after filtering by permission and scope.
+
+    An entry can offer several N3 handoffs, never an inferred mutation. Every
+    target rechecks its own current authorization on opening or execution.
+    """
+    work_url = reverse("organizations_api:workspace-work", kwargs={"slug": space_slug})
+    for key, section in sections.items():
+        if section["has_more"]:
+            section["links"]["continuation"] = (
+                work_url + "?" + urlencode({
+                    "section": key,
+                    "offset": offset + PREVIEW_LIMIT if section_key else PREVIEW_LIMIT,
+                    "responsibility": responsibility,
+                })
+            )
+        for item in section["items"]:
+            source = item["source"]
+            item["entry_identity"] = item["key"]
+            item["owner_reference"] = dict(source)
+            # Only the displayed owner identity is established. Related
+            # owners and local snapshot freshness have independent contracts.
+            item["knowledge_context"] = {
+                "knowledge_state": "known",
+                "provenance": [dict(source)],
+                "coverage_state": section["coverage_state"],
+            }
+            links = item["links"]
+            capabilities = set(item.get("capabilities") or ())
+            handoffs = list(item.get("owner_handoffs") or ())
+            if "view" in capabilities:
+                selected = _source_selection_url(
+                    space_slug, source["kind"], source["id"],
+                    responsibility=responsibility,
+                )
+                links["selection"] = selected
+                handoffs.insert(0, {
+                    "intent": "inspect", "label": "Consulter",
+                    "owner": dict(source), "channel": "space_work",
+                    "url": selected,
+                })
+            if "open_service_case" in capabilities and links.get("detail"):
+                handoffs.append({
+                    "intent": "open_service_case", "label": "Ouvrir le dossier",
+                    "owner": dict(source), "channel": "web",
+                    "url": links["detail"],
+                })
+            if "open_day_of" in capabilities and links.get("day_of"):
+                handoffs.append({
+                    "intent": "open_day_of", "label": "Ouvrir Jour J",
+                    "owner": dict(source), "channel": "api",
+                    "url": links["day_of"],
+                })
+            item["owner_handoffs"] = handoffs
+
+
+def _offer_item(offer, caps, *, space_slug):
     return {
         "key": f"offer:{offer.pk}",
         "source": {"kind": "offer", "id": str(offer.pk)},
@@ -161,6 +268,7 @@ def _offer_item(offer, caps):
         },
         "state": offer.status,
         "context": {
+            "owner_state_label": offer.get_status_display(),
             "pricing": {
                 "unit_price": str(offer.unit_price),
                 "currency": offer.currency,
@@ -170,12 +278,15 @@ def _offer_item(offer, caps):
                 "title": offer.activity.title,
             }
         },
-        "links": {"activity": f"/api/v1/activities/{offer.activity_id}/"},
+        "links": {
+            "activity": f"/api/v1/activities/{offer.activity_id}/",
+            "selection": _source_selection_url(space_slug, "offer", offer.pk),
+        },
         "capabilities": _capabilities_for_activity(offer.activity_id, caps),
     }
 
 
-def _journey_item(journey, caps):
+def _journey_item(journey, caps, *, operator_case_url=None, space_slug=None):
     item = {
         "key": f"journey:{journey.pk}",
         "source": {"kind": "journey", "id": str(journey.pk)},
@@ -194,9 +305,20 @@ def _journey_item(journey, caps):
                 "title": journey.activity.title,
             },
             "workflow": journey.workflow,
+            "work_label": (
+                "Dossier de prestation"
+                if journey.workflow == WorkflowKind.SERVICE else "Inscription"
+            ),
         },
-        "links": {"activity": f"/api/v1/activities/{journey.activity_id}/"},
-        "capabilities": _capabilities_for_activity(journey.activity_id, caps),
+        "links": {
+            "activity": f"/api/v1/activities/{journey.activity_id}/",
+            **({"detail": operator_case_url} if operator_case_url else {}),
+            **({
+                "selection": _source_selection_url(space_slug, "journey", journey.pk),
+            } if space_slug else {}),
+        },
+        "capabilities": _capabilities_for_activity(journey.activity_id, caps)
+        + (["open_service_case"] if operator_case_url else []),
     }
     # A continuity facet is present only because this owner is a real,
     # progressive journey.  It is not a transversal Business Entry state.
@@ -207,17 +329,13 @@ def _journey_item(journey, caps):
             for blocker in journey.blockers.all()
             if blocker.status == JourneyBlockerStatus.ACTIVE
         ],
-        "next": [] if journey.status in {
-            JourneyStatus.FULFILLED,
-            JourneyStatus.REJECTED,
-            JourneyStatus.CANCELLED,
-            JourneyStatus.EXPIRED,
-        } else ["owner_transition"],
+        # Never imply an executable transition without a verified owner action.
+        "next": [],
     }
     return item
 
 
-def _order_item(order, caps):
+def _order_item(order, caps, *, space_slug):
     return {
         "key": f"commerce_order:{order.pk}",
         "source": {"kind": "commerce_order", "id": str(order.pk)},
@@ -230,17 +348,24 @@ def _order_item(order, caps):
         },
         "state": order.status,
         "context": {
+            "owner_state_label": order.get_status_display(),
             "activity": {
                 "id": str(order.journey.activity_id),
                 "title": order.journey.activity.title,
             }
         },
-        "links": {"activity": f"/api/v1/activities/{order.journey.activity_id}/"},
+        "links": {
+            "activity": f"/api/v1/activities/{order.journey.activity_id}/",
+            "detail": reverse(
+                "organizations_api:workspace-commerce-order-detail",
+                kwargs={"slug": space_slug, "order_id": order.pk},
+            ),
+        },
         "capabilities": _capabilities_for_activity(order.journey.activity_id, caps),
     }
 
 
-def _route_item(route):
+def _route_item(route, *, space_slug):
     return {
         "key": f"transport_route:{route.pk}",
         "source": {"kind": "transport_route", "id": str(route.pk)},
@@ -250,6 +375,9 @@ def _route_item(route):
         "timing": {},
         "state": "active" if route.active else "inactive",
         "context": {
+            "owner_state_label": (
+                "Route active" if route.active else "Route inactive"
+            ),
             "stops": [
                 {"id": str(stop.place_id), "name": stop.place.name,
                  "position": stop.position, "boarding_allowed": stop.boarding_allowed,
@@ -257,12 +385,12 @@ def _route_item(route):
                 for stop in route.stops.all()
             ],
         },
-        "links": {},
+        "links": {"selection": _source_selection_url(space_slug, "transport_route", route.pk)},
         "capabilities": ["view"],
     }
 
 
-def _vehicle_item(vehicle):
+def _vehicle_item(vehicle, *, space_slug):
     return {
         "key": f"vehicle:{vehicle.pk}",
         "source": {"kind": "vehicle", "id": str(vehicle.pk)},
@@ -271,8 +399,13 @@ def _vehicle_item(vehicle):
         "summary": None,
         "timing": {},
         "state": "active" if vehicle.active else "inactive",
-        "context": {"passenger_capacity": vehicle.passenger_capacity},
-        "links": {},
+        "context": {
+            "passenger_capacity": vehicle.passenger_capacity,
+            "owner_state_label": (
+                "Véhicule actif" if vehicle.active else "Véhicule inactif"
+            ),
+        },
+        "links": {"selection": _source_selection_url(space_slug, "vehicle", vehicle.pk)},
         "capabilities": ["view"],
     }
 
@@ -432,13 +565,15 @@ def build_space_work_projection(
     transport_visible = (
         direct_portfolio
         and lens_ids is None
-        and "transport" in operational_footprint_for_space(space).signals
+        and "transport" in visible_operational_footprint_for_space(space, profile).signals
     )
     commerce_visible = bool(visible_ids & caps["commerce"])
     education_ids = visible_ids & caps["requests"]
-    education_visible = space.archetype == "education" and bool(education_ids)
+    # Archetype changes presentation, never the availability of an authorized
+    # domain. A mixed Space may handle registrations and service cases alike.
+    education_visible = bool(education_ids)
     service_ids = visible_ids & caps["service_cases"]
-    service_visible = space.archetype == "service_provider" and bool(service_ids)
+    service_visible = bool(service_ids)
     sections = _empty_sections(
         space=space,
         include_offers=commerce_visible,
@@ -466,9 +601,16 @@ def build_space_work_projection(
             continue
         _append(sections[target], _activity_item(activity, caps))
 
+    next_occurrence_by_activity = {}
+    capacity_pools_for_preview = {}
+    capacity_preview_rows = []
     occurrences = (
         Occurrence.objects.filter(activity__space=space, activity_id__in=visible_ids)
-        .select_related("activity", "transport_departure")
+        .select_related(
+            "activity", "transport_departure__vehicle",
+            "transport_departure__passenger_capacity_pool",
+            "activity__transport_service__route",
+        )
         .prefetch_related("place_links__place")
         .order_by("start_date", "start_time", "pk")
     )
@@ -489,24 +631,67 @@ def build_space_work_projection(
             target = "upcoming"
         else:
             continue
-        _append(sections[target], _occurrence_item(occurrence, caps))
+        if (
+            space.archetype in {
+                "generic", "community", "education", "service_provider",
+                "creative", "media",
+            }
+            and target == "upcoming"
+            and str(occurrence.activity_id) not in next_occurrence_by_activity
+        ):
+            # Source order is chronological. This is a real, permitted
+            # Occurrence, not a synthetic Activity lifecycle or readiness.
+            next_occurrence_by_activity[str(occurrence.activity_id)] = {
+                "id": str(occurrence.pk),
+                "label": occurrence.label or occurrence.activity.title,
+                "start_date": occurrence.start_date,
+                "start_time": occurrence.start_time,
+                "timezone": occurrence.timezone,
+            }
+        item = _occurrence_item(occurrence, caps)
+        if (
+            hasattr(occurrence, "transport_departure")
+            and occurrence.activity_id in caps["operations"]
+        ):
+            departure = occurrence.transport_departure
+            route = occurrence.activity.transport_service.route
+            item["context"]["transport"] = {
+                "departure_id": str(departure.pk),
+                "route": {"id": str(route.pk), "name": route.name},
+                "vehicle": (
+                    {"id": str(departure.vehicle_id), "label": departure.vehicle.label}
+                    if departure.vehicle_id else None
+                ),
+            }
+            if section_key is None or target == section_key:
+                capacity_pools_for_preview[
+                    departure.passenger_capacity_pool_id
+                ] = departure.passenger_capacity_pool
+                capacity_preview_rows.append(
+                    (item, departure.passenger_capacity_pool_id)
+                )
+        _append(sections[target], item)
 
     commerce_activity_ids = visible_ids & caps["commerce"]
     offers = (
         Offer.objects.filter(activity_id__in=commerce_activity_ids)
-        .select_related("activity")
+        .select_related("activity", "capacity_pool")
         .order_by("activity_id", "name", "pk")
     )
     for offer in _selected(offers, "offer", source_kind, source_id):
         if offer.status == OfferStatus.DRAFT:
             target = "preparation"
-        elif offer.status == OfferStatus.ACTIVE:
+        elif offer.status in {OfferStatus.ACTIVE, OfferStatus.INACTIVE}:
             target = "offers"
         elif offer.status == OfferStatus.ARCHIVED:
             target = "completed"
         else:
             continue
-        _append(sections[target], _offer_item(offer, caps))
+        item = _offer_item(offer, caps, space_slug=space.slug)
+        if offer.capacity_pool_id:
+            capacity_pools_for_preview[offer.capacity_pool_id] = offer.capacity_pool
+            capacity_preview_rows.append((item, offer.capacity_pool_id))
+        _append(sections[target], item)
 
     if has_direct_space_permission(profile, space, PermissionCode.ORDERS_VIEW):
         orders = (
@@ -531,7 +716,7 @@ def build_space_work_projection(
                 target = "completed"
             else:
                 continue
-            _append(sections[target], _order_item(order, caps))
+            _append(sections[target], _order_item(order, caps, space_slug=space.slug))
 
     if education_ids:
         journeys = (
@@ -555,13 +740,60 @@ def build_space_work_projection(
             else:
                 target = _journey_section(journey)
             if target:
-                _append(sections[target], _journey_item(journey, caps))
+                _append(sections[target], _journey_item(
+                    journey, caps, space_slug=space.slug,
+                ))
+
+    # A Journey awaiting approval is not proof that a decision Request exists.
+    # Link to the canonical JourneyRequest owner only when that exact owner is
+    # currently present. The owner endpoint rechecks permission and expiry.
+    registration_rows = [
+        item for section in sections.values() for item in section["items"]
+        if (
+            item["source"]["kind"] == "journey"
+            and item["context"].get("workflow") == WorkflowKind.REGISTRATION
+        )
+    ]
+    if registration_rows:
+        registration_ids = [row["source"]["id"] for row in registration_rows]
+        owner_requests = (
+            JourneyRequest.objects.filter(
+                journey_id__in=registration_ids,
+                journey__activity_id__in=education_ids,
+                journey__workflow=WorkflowKind.REGISTRATION,
+                status=RequestStatus.PENDING,
+            )
+            .order_by("-created_at", "pk")
+            .values("journey_id", "pk")
+        )
+        request_by_journey = {}
+        for request in owner_requests:
+            request_by_journey.setdefault(
+                str(request["journey_id"]), request["pk"]
+            )
+        for row in registration_rows:
+            request_id = request_by_journey.get(row["source"]["id"])
+            if request_id:
+                row["links"]["request_detail"] = (
+                    reverse(
+                        "organizations_api:workspace-request-detail",
+                        kwargs={"slug": space.slug, "request_id": request_id},
+                    ) + "?" + urlencode({
+                        "responsibility": responsibility_key or "all",
+                    })
+                )
+                row["capabilities"].append("open_request")
+                row.setdefault("owner_handoffs", []).append({
+                    "intent": "open_request", "label": "Examiner la demande",
+                    "owner": {"kind": "journey_request", "id": str(request_id)},
+                    "channel": "api", "url": row["links"]["request_detail"],
+                })
 
     if service_ids:
         journeys = (
             service_journeys_visible_to(profile)
             .filter(activity_id__in=service_ids)
-            .select_related("activity")
+            .select_related("activity", "service_context")
             .prefetch_related("blockers")
         )
         for journey in _selected(journeys, "journey", source_kind, source_id):
@@ -576,27 +808,177 @@ def build_space_work_projection(
             else:
                 target = _journey_section(journey)
             if target:
-                _append(sections[target], _journey_item(journey, caps))
+                case_scope = service_case_scope(profile, journey)
+                operator_case_url = (
+                    reverse("services:operator-case", kwargs={"pk": journey.pk})
+                    if (
+                        case_scope in {CASE_SCOPE_VIEW_ALL, CASE_SCOPE_VIEW_ASSIGNED}
+                        and hasattr(journey, "service_context")
+                    )
+                    else None
+                )
+                item = _journey_item(
+                    journey, caps, operator_case_url=operator_case_url,
+                    space_slug=space.slug,
+                )
+                if operator_case_url:
+                    item["context"]["service_outcome"] = (
+                        journey.service_context.current_outcome
+                    )
+                _append(sections[target], item)
 
     if transport_visible:
         routes = TransportRoute.objects.filter(space=space).prefetch_related("stops__place").order_by("name", "pk")
         for route in _selected(routes, "transport_route", source_kind, source_id):
-            _append(sections["routes"], _route_item(route))
+            _append(sections["routes"], _route_item(route, space_slug=space.slug))
         vehicles = Vehicle.objects.filter(space=space).order_by("label", "pk")
         for vehicle in _selected(vehicles, "vehicle", source_kind, source_id):
-            _append(sections["vehicles"], _vehicle_item(vehicle))
+            _append(sections["vehicles"], _vehicle_item(vehicle, space_slug=space.slug))
+
+    # One owner-selector read for the displayed CapacityPool facts; never
+    # infer actual vehicle occupancy or payment fulfilment from availability.
+    displayed_keys = {
+        item["key"] for section in sections.values()
+        for item in section["items"]
+    }
+    if capacity_preview_rows:
+        relevant = [
+            (item, pool_id) for item, pool_id in capacity_preview_rows
+            if item["key"] in displayed_keys
+        ]
+        if relevant:
+            pool_ids = {pool_id for _item, pool_id in relevant}
+            snapshots = capacity_availability_many(
+                [capacity_pools_for_preview[pk] for pk in pool_ids], now=now
+            )
+            for item, pool_id in relevant:
+                snapshot = snapshots[pool_id]
+                item["context"]["capacity"] = {
+                    "total": snapshot.total,
+                    "available": snapshot.available,
+                    "unlimited": snapshot.unlimited,
+                    "sold_out": snapshot.sold_out,
+                    "pool_active": capacity_pools_for_preview[pool_id].is_active,
+                    "basis": "capacity_pool",
+                }
+
+    # Only authorized operator case previews receive owner assessment counts.
+    # Never serialize evidence, notes, beneficiary or inferred Readiness here.
+    operator_rows = [
+        item
+        for section in sections.values()
+        for item in section["items"]
+        if (
+            item["kind"] == "service_case"
+            and "open_service_case" in item["capabilities"]
+        )
+    ]
+    if operator_rows:
+        case_ids = [row["source"]["id"] for row in operator_rows]
+        assessments = (
+            ServiceRequirementAssessment.objects
+            .filter(context__journey_id__in=case_ids)
+            .values("context__journey_id")
+            .annotate(
+                total=Count("pk"),
+                satisfied=Count(
+                    "pk", filter=Q(status=RequirementAssessmentState.SATISFIED)
+                ),
+                awaiting=Count(
+                    "pk", filter=Q(status__in=(
+                        RequirementAssessmentState.UNASSESSED,
+                        RequirementAssessmentState.PENDING,
+                    ))
+                ),
+                unsatisfied=Count(
+                    "pk", filter=Q(status=RequirementAssessmentState.UNSATISFIED)
+                ),
+                not_applicable=Count(
+                    "pk", filter=Q(status=RequirementAssessmentState.NOT_APPLICABLE)
+                ),
+            )
+        )
+        by_case = {
+            str(row["context__journey_id"]): row for row in assessments
+        }
+        for item in operator_rows:
+            summary = by_case.get(item["source"]["id"])
+            if summary is not None:
+                item["context"]["conditions"] = {
+                    "total": summary["total"],
+                    "satisfied": summary["satisfied"],
+                    "awaiting": summary["awaiting"],
+                    "unsatisfied": summary["unsatisfied"],
+                    "not_applicable": summary["not_applicable"],
+                    # Owner assessments are facts, not a global ready/block flag.
+                    "basis": "service_requirement_assessment",
+                }
+
+    # Keep the lasting Activity recognizable through its next known realization
+    # without creating an "ongoing" state for a merely published Activity.
+    if space.archetype in {
+        "generic", "community", "education", "service_provider",
+        "creative", "media",
+    }:
+        for item in sections["activities"]["items"]:
+            activity_id = item["source"]["id"]
+            next_occurrence = next_occurrence_by_activity.get(
+                activity_id
+            )
+            if next_occurrence is not None:
+                item["context"]["next_occurrence"] = next_occurrence
 
     footprint = (
-        list(operational_footprint_for_space(space).signals)
+        list(visible_operational_footprint_for_space(space, profile).signals)
         if direct_portfolio
         else []
     )
+    # A selected owner or paged section is not the complete Space world.
+    limited_coverage = (
+        not direct_portfolio or lens_ids is not None
+        or bool(source_kind or source_id or section_key or offset)
+    )
     for section in sections.values():
+        section["coverage_state"] = (
+            "partial" if limited_coverage else "established"
+        )
         section.pop("_enabled", None)
         section.pop("_offset", None)
         section.pop("_seen", None)
     if section_key:
         sections = {section_key: sections[section_key]}
+
+    _attach_work_handoffs(
+        sections=sections, space_slug=space.slug,
+        responsibility=responsibility_key or "all", offset=offset,
+        section_key=section_key,
+    )
+
+    # Published recognition only: the public delivery owner must authorize
+    # the very same media use. No asset or private storage URL is exposed.
+    attach_space_work_recognition_media(
+        profile=profile, space=space, sections=sections,
+    )
+
+    # Non-persistent Business World for each implemented composition group.
+    # It only references items already filtered by owner selectors.
+    business_world = compose_space_work_business_world(
+        archetype=space.archetype,
+        label=preset.primary_business_label,
+        sections=sections,
+        limited=not direct_portfolio or lens_ids is not None,
+        is_root=not (source_kind or source_id or section_key or offset),
+        today=today,
+    )
+    reading_order = (
+        [
+            key
+            for group in business_world["reading_groups"]
+            for key in group["section_keys"]
+        ]
+        if business_world else list(sections)
+    )
+
     return {
         "space": {
             "id": str(space.pk),
@@ -607,16 +989,33 @@ def build_space_work_projection(
         "primary_business_label": preset.primary_business_label,
         "presentation": {
             "empty_message": work_presentation_for_space(space).surface_empty_message,
-            "section_order": list(sections.keys()),
+            "section_order": reading_order,
+            **({
+                "question": business_world["question"],
+                "calm_message": business_world["calm_message"],
+                "reading_groups": business_world["reading_groups"],
+                **({"today_departures": business_world["today_departures"]}
+                   if "today_departures" in business_world else {}),
+                "next_occurrence_label": (
+                    "Prochaine action"
+                    if space.archetype == "community"
+                    else "Prochaine session" if space.archetype == "education"
+                    else "Prochaine réalisation" if space.archetype == "service_provider"
+                    else "Prochaine présentation" if space.archetype == "creative"
+                    else "Prochaine édition" if space.archetype == "media"
+                    else "Prochaine date"
+                ),
+            } if business_world else {}),
         },
+        **({"business_world": business_world} if business_world else {}),
         "authority": {
             "scope": "space" if direct_portfolio else "activity_limited",
             "limited_to_activities": not direct_portfolio,
         },
         "responsibility": responsibility_key or "all",
         "operational_footprint": {"signals": footprint},
-        "composition_state": "established",
-        "coverage_state": "established",
+        "composition_state": "partial" if limited_coverage else "established",
+        "coverage_state": "partial" if limited_coverage else "established",
         "sections": sections,
         "page": {"offset": offset if section_key else 0, "limit": PREVIEW_LIMIT},
         "selection": next(

@@ -48,6 +48,8 @@ def connection_status_label(connection: dict[str, Any]) -> str:
         return "Connecté · état à vérifier" if connected else "État à vérifier"
     if connected and connection.get("usable"):
         return "Connecté et disponible"
+    if connected and not connection.get("capabilities"):
+        return "Relié · aucune capacité active"
     if connected:
         return "Connecté"
     if connection.get("available"):
@@ -79,7 +81,7 @@ def present_provider(provider: dict[str, Any]) -> dict[str, Any]:
 
 def present_action(action: dict[str, Any]) -> dict[str, Any]:
     if action.get("available"):
-        status_label = "Disponible"
+        status_label = "Capacité disponible dans Makolo"
     elif action.get("requires_connection"):
         status_label = "Connexion requise"
     else:

@@ -7,13 +7,27 @@
     <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div class="min-w-0">
         <h2 id="space-work-heading" class="text-3xl font-extrabold tracking-[-.04em]">{{ projection.primary_business_label }}</h2>
-        <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?</p>
+        <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">{{ projection.presentation.question|default:"Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?" }}</p>
       </div>
       {% if projection.authority.limited_to_activities %}
       <span class="mk-badge">Vue limitée à vos activités autorisées</span>
       {% endif %}
     </div>
   </header>
+
+  {% if projection.presentation.today_departures %}
+  <section class="mk-panel p-4 sm:p-5" aria-label="Départs aujourd'hui">
+    <h3 class="text-base font-extrabold">Aujourd’hui · Départs réels</h3>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {% for departure in projection.presentation.today_departures %}
+      <a class="mk-btn mk-btn-secondary" href="#work-{{ departure.section }}">
+        {{ departure.title }}
+        {% if departure.start_time %}· {{ departure.start_time|time:"H:i" }}{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   {% if work_sections %}
   <nav class="flex gap-2 overflow-x-auto" aria-label="Sections de {{ projection.primary_business_label }}">
@@ -30,8 +44,15 @@
   </section>
   {% endif %}
 
+  {% if projection.presentation.calm_message and work_has_items %}
+  <p role="status" class="text-sm" style="color:var(--mk-muted)">{{ projection.presentation.calm_message }}</p>
+  {% endif %}
+
   <div class="grid gap-5">
     {% for section in work_sections %}
+    {% if section.chapter_title %}
+    <h3 class="text-lg font-extrabold tracking-tight" data-work-chapter="{{ section.key }}">{{ section.chapter_title }}</h3>
+    {% endif %}
     <section id="work-{{ section.key }}" class="mk-panel p-5 sm:p-6" aria-labelledby="work-{{ section.key }}-title">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -46,11 +67,50 @@
         {% for item in section.items %}
         <li class="py-4" data-work-item="{{ item.key }}">
           <article class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            {% if item.media_bindings %}
+            {% with media=item.media_bindings.0 %}
+            <figure class="shrink-0 overflow-hidden rounded-xl" style="width:112px;height:112px;background:var(--mk-surface,transparent)" data-work-recognition="{{ item.key }}">
+              <img src="{{ media.url }}" alt="{{ media.label }}" width="112" height="112" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover">
+            </figure>
+            {% endwith %}
+            {% endif %}
             <div class="min-w-0">
               <h4 class="font-extrabold">{{ item.title }}</h4>
+              {% if item.context.work_label %}<p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.work_label }}</p>{% endif %}
+              {% if item.context.owner_state_label %}<p class="mt-1 text-xs" style="color:var(--mk-subtle)">{{ item.context.owner_state_label }}</p>{% endif %}
+              {% if item.context.transport %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                Route : {{ item.context.transport.route.name }}
+                {% if item.context.transport.vehicle %}· Véhicule : {{ item.context.transport.vehicle.label }}{% else %}· Véhicule non affecté{% endif %}
+              </p>
+              {% endif %}
+              {% if item.context.capacity %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                {% if not item.context.capacity.pool_active %}Capacité désactivée
+                {% elif item.context.capacity.unlimited %}Capacité sans limite définie
+                {% else %}Disponibilité : {{ item.context.capacity.available }} sur {{ item.context.capacity.total }}
+                {% endif %}
+              </p>
+              {% endif %}
               {% if item.summary %}<p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ item.summary }}</p>{% endif %}
               {% if item.context.activity.title and item.context.activity.title != item.title %}
               <p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.activity.title }}</p>
+              {% endif %}
+              {% if item.context.next_occurrence %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                {{ projection.presentation.next_occurrence_label }} :
+                {{ item.context.next_occurrence.label }}
+                {% if item.context.next_occurrence.start_date %}· {{ item.context.next_occurrence.start_date|date:"d/m/Y" }}{% endif %}
+                {% if item.context.next_occurrence.start_time %}· {{ item.context.next_occurrence.start_time|time:"H:i" }}{% endif %}
+              </p>
+              {% endif %}
+              {% if item.context.conditions %}
+              <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+                Conditions évaluées : {{ item.context.conditions.satisfied }} / {{ item.context.conditions.total }} satisfaites
+                {% if item.context.conditions.awaiting %}· {{ item.context.conditions.awaiting }} à évaluer{% endif %}
+                {% if item.context.conditions.unsatisfied %}· {{ item.context.conditions.unsatisfied }} non satisfaites{% endif %}
+                {% if item.context.conditions.not_applicable %}· {{ item.context.conditions.not_applicable }} sans objet{% endif %}
+              </p>
               {% endif %}
               <div class="mt-2 flex flex-wrap gap-2">
                 {% if item.timing.start_date %}<span class="mk-badge">{{ item.timing.start_date|date:"d/m/Y" }}</span>{% endif %}
@@ -59,7 +119,7 @@
               </div>
             </div>
             {% if item.owner_url %}
-            <a class="mk-btn mk-btn-secondary shrink-0" href="{{ item.owner_url }}">Ouvrir</a>
+            <a class="mk-btn mk-btn-secondary shrink-0" href="{{ item.owner_url }}">{{ item.owner_label }}</a>
             {% endif %}
           </article>
         </li>

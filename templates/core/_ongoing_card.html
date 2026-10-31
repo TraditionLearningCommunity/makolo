@@ -1,14 +1,25 @@
-<a href="{{ item.url }}"
-   class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}"
+{% if item.url %}
+<a href="{{ item.url }}" data-ongoing-id="{{ item.id }}" data-ongoing-variant="{% if expanded %}expanded{% else %}compact{% endif %}" class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}"
    {% if expanded %}hx-get="{{ item.url }}" hx-target="#ongoing-detail-body" hx-select="#main-content" hx-swap="innerHTML" hx-push-url="false" hx-indicator="#ongoing-detail"{% endif %}>
+{% else %}
+<div data-ongoing-id="{{ item.id }}" data-ongoing-variant="{% if expanded %}expanded{% else %}compact{% endif %}" class="mk-ongoing-card mk-ongoing-card--{% if expanded %}expanded{% else %}compact{% endif %} mk-tone-{{ item.tone }}">
+{% endif %}
   <div class="mk-ongoing-card__body">
-    <div class="mk-ongoing-card__topline">
-      {% if item.timing %}<span>{{ item.timing.compact_label }}</span>{% endif %}
-      {% if item.place %}<span>{{ item.place.name }}</span>{% endif %}
+    <div class="mk-ongoing-card__meta">
+      {% if item.cue %}<span class="mk-ongoing-card__cue mk-ongoing-card__cue--{{ item.tone }}">{{ item.cue }}</span>{% endif %}
+      {% if item.when %}<span>{{ item.when }}</span>{% endif %}
     </div>
     <h2>{{ item.title }}</h2>
-    <p>{{ item.summary }}</p>
-    {% if item.next_action %}<strong>{{ item.next_action }}</strong>{% endif %}
+    {% if item.summary %}<p>{{ item.summary }}</p>{% endif %}
+    {% if item.next_action and item.next_action != item.summary and item.next_action != item.title %}
+      <span class="mk-ongoing-card__next">{{ item.next_action }}</span>
+    {% endif %}
+    {% if item.place %}<span class="mk-ongoing-card__place"><i data-lucide="map-pin" aria-hidden="true"></i>{{ item.place }}</span>{% endif %}
   </div>
-  <i data-lucide="chevron-right" aria-hidden="true"></i>
-</a>
+  {% if item.image_url %}
+    <div class="mk-ongoing-card__media">
+      <img src="{{ item.image_url }}" alt="{{ item.image_alt }}" loading="lazy" decoding="async">
+    </div>
+  {% endif %}
+  {% if item.url %}<i class="mk-ongoing-card__chevron" data-lucide="chevron-right" aria-hidden="true"></i>{% endif %}
+{% if item.url %}</a>{% else %}</div>{% endif %}

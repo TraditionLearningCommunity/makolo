@@ -132,6 +132,34 @@ class ResourceRepository {
     ),
   );
 
+  Future<StoredProjection?> readDetail(String assetId) =>
+      store.readProjection(detailProjectionKind, resourceKey: assetId);
+
+  /// Metadata only. Never download resource bytes without explicit intent.
+  /// Owners enforce access independently for each keyed resource.
+  Future<void> warmKnownDetails(
+    Iterable<String> assetIds, {
+    int limit = 8,
+  }) async {
+    if (sync == null) return;
+    final seen = <String>{};
+    var acquired = 0;
+    for (final assetId in assetIds) {
+      if (assetId.isEmpty || !seen.add(assetId)) continue;
+      if (acquired >= limit) break;
+      if (await readDetail(assetId) != null) continue;
+      acquired++;
+      try {
+        await refreshDetail(assetId);
+        final status = await readDetailSource(assetId);
+        if (status.reachability == ReachabilityState.unreachable) break;
+      } on Object {
+        // An unreachable owner must not trigger a chain of more requests.
+        break;
+      }
+    }
+  }
+
   Future<void> refreshCollectionPage({
     required String query,
     required int offset,
@@ -154,6 +182,27 @@ class ResourceRepository {
     await engine.refreshSource(detailSourceFor(assetId));
   }
 
+  Future<ResourceSourceState> readCollectionSource({
+    required String query,
+    int offset = 0,
+    int limit = defaultLimit,
+  }) async {
+    final key = collectionSourceKey(query: query, offset: offset, limit: limit);
+    final rows =
+        await (database.select(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) & row.sourceKey.equals(key),
+            ))
+            .getSingleOrNull();
+    return rows == null
+        ? ResourceSourceState.unknown
+        : ResourceSourceState(
+            lastSuccessAt: rows.lastSuccessAt,
+            invalidated: rows.invalidated,
+            lastErrorCode: rows.lastErrorCode,
+          );
+  }
+
   Stream<ResourceSourceState> watchCollectionSource({
     required String query,
     int offset = 0,
@@ -164,6 +213,23 @@ class ResourceRepository {
 
   Stream<ResourceSourceState> watchDetailSource(String assetId) =>
       _watchSource('resource:$assetId');
+
+  Future<ResourceSourceState> readDetailSource(String assetId) async {
+    final row =
+        await (database.select(database.syncSources)..where(
+              (item) =>
+                  item.profileId.equals(profileId) &
+                  item.sourceKey.equals('resource:$assetId'),
+            ))
+            .getSingleOrNull();
+    return row == null
+        ? ResourceSourceState.unknown
+        : ResourceSourceState(
+            lastSuccessAt: row.lastSuccessAt,
+            invalidated: row.invalidated,
+            lastErrorCode: row.lastErrorCode,
+          );
+  }
 
   Stream<ResourceSourceState> _watchSource(String sourceKey) {
     final query = database.select(database.syncSources)

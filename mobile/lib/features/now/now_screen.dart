@@ -18,6 +18,7 @@ export '../../presentation/contracts/now_presentation.dart'
     show NowTopology, topologyFor;
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
+import '../../sync/projection_contract.dart';
 import '../../sync/sync_engine.dart';
 import '../../sync/owner_source_state.dart';
 import '../../sync/sync_status.dart';
@@ -25,6 +26,7 @@ import 'now_selector.dart';
 import 'now_media_viewer.dart';
 import 'now_inline_media_preview.dart';
 import 'now_action_controller.dart';
+import 'now_display_labels.dart';
 
 class NowScreen extends StatefulWidget {
   const NowScreen({
@@ -61,21 +63,221 @@ class NowScreen extends StatefulWidget {
   }
 }
 
+/// Continuation facts belong to one observed Now response, never to a
+/// globally inferred role or a different Profile.
+bool nowContinuationMatchesRoot(
+  StoredProjection root,
+  Map<String, dynamic> continuation,
+) {
+  final actor = root.payload['actor'];
+  final actorId = actor is Map ? actor['id']?.toString() : null;
+  return actorId != null &&
+      continuation['actor_id'] == actorId &&
+      continuation['base_received_at'] ==
+          root.receivedAt.toUtc().toIso8601String() &&
+      continuation['items'] is List &&
+      continuation['continuation'] is Map;
+}
+
 class _NowScreenState extends State<NowScreen> {
   late Stream<StoredProjection?> _projectionStream;
   late Stream<OwnerSourceState> _sourceStream;
+  DateTime? _pagedBaseReceivedAt;
+  String? _pagedActorId;
+  final List<Map<String, dynamic>> _pagedItems = [];
+  Map<String, dynamic>? _pageContinuation;
+  bool _paging = false;
+  bool _pageFailed = false;
+  static const _continuationProjection = 'personal.now.continuation';
+
+  Future<void> _restorePages() async {
+    try {
+      final root = await widget.repository.store.readProjection('personal.now');
+      final local = await widget.repository.store.readProjection(
+        _continuationProjection,
+      );
+      if (!mounted || root == null || local == null) return;
+      final owner = root.payload['actor'];
+      final actorId = owner is Map ? owner['id']?.toString() : null;
+      final facts = local.payload;
+      if (!nowContinuationMatchesRoot(root, facts)) {
+        return;
+      }
+      final restored = <Map<String, dynamic>>[];
+      for (final raw in facts['items'] as List) {
+        if (raw is Map<String, dynamic>) restored.add(raw);
+      }
+      if (restored.isEmpty) return;
+      if (_paging) return;
+      setState(() {
+        _pagedBaseReceivedAt = root.receivedAt;
+        _pagedActorId = actorId;
+        _pagedItems
+          ..clear()
+          ..addAll(restored);
+        _pageContinuation = Map<String, dynamic>.from(
+          facts['continuation'] as Map,
+        );
+        _pageFailed = false;
+      });
+    } on Object {
+      // A corrupt local overlay must not hide the authoritative Now root.
+    }
+  }
+
+  Future<void> _rememberPages(
+    DateTime baseReceivedAt,
+    String? actorId,
+    List<Map<String, dynamic>> items,
+    Map<String, dynamic> continuation,
+  ) async {
+    if (actorId == null) return;
+    try {
+      await widget.repository.store.putProjection(
+        kind: _continuationProjection,
+        schemaVersion: 1,
+        payload: {
+          'actor_id': actorId,
+          'base_received_at': baseReceivedAt.toUtc().toIso8601String(),
+          'items': items,
+          'continuation': continuation,
+        },
+      );
+    } on Object {
+      // Device storage failure does not invalidate the visible server lot.
+    }
+  }
+
+  void _resetPages() {
+    _pagedBaseReceivedAt = null;
+    _pagedActorId = null;
+    _pagedItems.clear();
+    _pageContinuation = null;
+    _paging = false;
+    _pageFailed = false;
+  }
+
+  void _matchBase(StoredProjection projection) {
+    final actor = projection.payload['actor'];
+    final actorId = actor is Map ? actor['id']?.toString() : null;
+    if (_pagedBaseReceivedAt != projection.receivedAt ||
+        _pagedActorId != actorId) {
+      _resetPages();
+      _pagedBaseReceivedAt = projection.receivedAt;
+      _pagedActorId = actorId;
+    }
+  }
+
+  StoredProjection _withPages(StoredProjection projection) {
+    if (_pagedItems.isEmpty) return projection;
+    final original = projection.payload['items'];
+    final firstPage = original is List ? original : const <dynamic>[];
+    final identities = <String>{};
+    final merged = <dynamic>[];
+    for (final item in [...firstPage, ..._pagedItems]) {
+      if (item is! Map) continue;
+      final identity = item['continuity_identity'] ?? item['id'];
+      if (identity is String && !identities.add(identity)) continue;
+      merged.add(item);
+    }
+    return StoredProjection(
+      kind: projection.kind,
+      resourceKey: projection.resourceKey,
+      schemaVersion: projection.schemaVersion,
+      payload: {
+        ...projection.payload,
+        'items': merged,
+        if (_pageContinuation != null) 'continuation': _pageContinuation,
+      },
+      receivedAt: projection.receivedAt,
+      sourceGeneratedAt: projection.sourceGeneratedAt,
+      sourceUpdatedAt: projection.sourceUpdatedAt,
+      lastVerifiedOnlineAt: projection.lastVerifiedOnlineAt,
+      freshUntil: projection.freshUntil,
+      expiresAt: projection.expiresAt,
+      freshnessPolicyId: projection.freshnessPolicyId,
+    );
+  }
+
+  Future<void> _loadMore(StoredProjection base) async {
+    if (_paging || _pageFailed || widget.api == null || !mounted) return;
+    _matchBase(base);
+    final rawContinuation = _pageContinuation ?? base.payload['continuation'];
+    if (rawContinuation is! Map || rawContinuation['state'] != 'more') {
+      return;
+    }
+    final token = rawContinuation['token'];
+    if (token is! String || token.isEmpty) return;
+    final baseReceivedAt = base.receivedAt;
+    final actorId = _pagedActorId;
+    setState(() => _paging = true);
+    try {
+      final query = Uri(queryParameters: {'continuation': token}).query;
+      final response = await widget.api!.get('api/v1/me/now/?$query');
+      final envelope = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.now',
+        expectedScope: 'personal',
+      );
+      final data = envelope.data;
+      final actor = data['actor'];
+      final items = data['items'];
+      final next = data['continuation'];
+      if (actor is! Map ||
+          actor['id'] != actorId ||
+          items is! List ||
+          next is! Map ||
+          !const ['more', 'end'].contains(next['state']) ||
+          (next['state'] == 'more' &&
+              (items.isEmpty || next['token'] == token))) {
+        throw const FormatException('Invalid Now continuation page');
+      }
+      if (!mounted ||
+          _pagedBaseReceivedAt != baseReceivedAt ||
+          _pagedActorId != actorId) {
+        return;
+      }
+      setState(() {
+        _pagedItems.addAll(
+          items.whereType<Map>().map((item) => Map<String, dynamic>.from(item)),
+        );
+        _pageContinuation = Map<String, dynamic>.from(next);
+        _pageFailed = false;
+      });
+      await _rememberPages(
+        baseReceivedAt,
+        actorId,
+        List<Map<String, dynamic>>.from(_pagedItems),
+        Map<String, dynamic>.from(next),
+      );
+    } on Object {
+      if (mounted &&
+          _pagedBaseReceivedAt == baseReceivedAt &&
+          _pagedActorId == actorId) {
+        setState(() => _pageFailed = true);
+      }
+    } finally {
+      if (mounted && _pagedBaseReceivedAt == baseReceivedAt) {
+        setState(() => _paging = false);
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _bindStreams();
+    _restorePages();
   }
 
   @override
   void didUpdateWidget(covariant NowScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.repository != widget.repository) {
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.profileId != widget.profileId) {
+      _resetPages();
       _bindStreams();
+      _restorePages();
     }
   }
 
@@ -116,9 +318,8 @@ class _NowScreenState extends State<NowScreen> {
           source.lastErrorCode != null ||
           syncStatus?.state == SyncVisualState.failed) {
         return MakoloErrorState(
-          message: 'Now n’a pas pu être chargé.',
-          preservedMessage:
-              'Les données déjà enregistrées sur cet appareil sont conservées.',
+          message: 'Now indisponible.',
+          preservedMessage: '',
           onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
         );
       }
@@ -135,13 +336,14 @@ class _NowScreenState extends State<NowScreen> {
       }
 
       return const MakoloEmptyState(
-        title: 'Now n’est pas disponible pour le moment.',
+        title: 'Now indisponible.',
         icon: Icons.adjust,
       );
     }
 
+    _matchBase(projection);
     final selection = const NowSelector().select(
-      projection: projection,
+      projection: _withPages(projection),
       now: (widget.now?.call() ?? DateTime.now()).toUtc(),
       reachability: _reachability(source, syncStatus),
       failure:
@@ -158,11 +360,18 @@ class _NowScreenState extends State<NowScreen> {
       selection: selection,
       api: widget.api,
       profileId: widget.profileId,
-      refreshErrorMessage: source.lastErrorCode == null
-          ? null
-          : 'La mise à jour de Now a échoué.',
+      // The shell already signals connectivity; do not repeat it above
+      // previously available Now content.
+      refreshErrorMessage: null,
       onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
       onOpenOwner: (destination) => _openOwner(context, destination),
+      onLoadMore: () => _loadMore(projection),
+      loadingMore: _paging,
+      loadMoreFailed: _pageFailed,
+      onRetryMore: () {
+        setState(() => _pageFailed = false);
+        _loadMore(projection);
+      },
     );
     final sync = widget.sync;
     return sync == null
@@ -205,9 +414,17 @@ class NowView extends StatefulWidget {
     this.profileId,
     this.refreshErrorMessage,
     this.onRetry,
+    this.onLoadMore,
+    this.onRetryMore,
+    this.loadingMore = false,
+    this.loadMoreFailed = false,
   });
 
   final NowSelection selection;
+  final VoidCallback? onLoadMore;
+  final VoidCallback? onRetryMore;
+  final bool loadingMore;
+  final bool loadMoreFailed;
   final String? refreshErrorMessage;
   final VoidCallback? onRetry;
   final String? initialSelectedKey;
@@ -227,11 +444,32 @@ class _NowViewState extends State<NowView> {
   void initState() {
     super.initState();
     _selectedKey = widget.initialSelectedKey;
+    _fieldController.addListener(_maybeLoadMore);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
+  }
+
+  void _maybeLoadMore() {
+    if (!mounted ||
+        !_fieldController.hasClients ||
+        widget.loadingMore ||
+        widget.loadMoreFailed ||
+        widget.selection.continuation.state != NowContinuationState.more) {
+      return;
+    }
+    if (_fieldController.position.extentAfter < 480) {
+      widget.onLoadMore?.call();
+    }
   }
 
   @override
   void didUpdateWidget(covariant NowView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.selection.situations.length !=
+            widget.selection.situations.length ||
+        oldWidget.loadingMore != widget.loadingMore ||
+        oldWidget.loadMoreFailed != widget.loadMoreFailed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadMore());
+    }
     if (_selectedKey != null &&
         !_situations.any((item) => _keyOf(item) == _selectedKey)) {
       _selectedKey = null;
@@ -266,12 +504,24 @@ class _NowViewState extends State<NowView> {
       onOpenOwner: widget.onOpenOwner,
       api: widget.api,
       profileId: widget.profileId,
+      loadingMore: widget.loadingMore,
+      loadMoreFailed: widget.loadMoreFailed,
+      onRetryMore: widget.onRetryMore,
     );
 
     final content = selected == null
-        ? MakoloContentFrame(
-            maxContentWidth: MakoloLayout.calmMaxWidth,
-            child: field,
+        ? LayoutBuilder(
+            builder: (context, constraints) {
+              // Discover-style full width on phones; calm reading width on
+              // tablets and desktop, without a double mobile outer gutter.
+              if (constraints.maxWidth < MakoloLayout.mediumMinWidth) {
+                return field;
+              }
+              return MakoloContentFrame(
+                maxContentWidth: MakoloLayout.calmMaxWidth,
+                child: field,
+              );
+            },
           )
         : MakoloAdaptiveSplit(
             splitAt: MakoloLayout.nowFocusSplitMinWidth,
@@ -303,7 +553,7 @@ class _NowViewState extends State<NowView> {
     final surface = MakoloSurfaceStateView(
       state: state,
       recoverableErrorMessage: widget.refreshErrorMessage,
-      preservedMessage: 'Les données déjà enregistrées restent consultables.',
+      preservedMessage: '',
       onRetry: widget.onRetry,
       empty: widget.selection.isCalm
           ? const _NowCalm()
@@ -311,7 +561,11 @@ class _NowViewState extends State<NowView> {
       content: content,
     );
     final cues = <Widget>[
-      if (state.refreshing) const MakoloRefreshIndicator(),
+      if (state.refreshing)
+        Semantics(
+          label: 'Actualisation en cours',
+          child: const LinearProgressIndicator(minHeight: 2),
+        ),
       if (state.freshness != MakoloFreshnessCue.unknown &&
           state.freshness != MakoloFreshnessCue.current)
         MakoloFreshnessNotice(freshness: state.freshness),
@@ -364,8 +618,14 @@ class _NowField extends StatelessWidget {
     required this.onOpenOwner,
     required this.api,
     required this.profileId,
+    required this.loadingMore,
+    required this.loadMoreFailed,
+    required this.onRetryMore,
   });
 
+  final bool loadingMore;
+  final bool loadMoreFailed;
+  final VoidCallback? onRetryMore;
   final List<NowSituationPresentation> situations;
   final ScrollController controller;
   final String? selectedKey;
@@ -380,36 +640,66 @@ class _NowField extends StatelessWidget {
 
     final primary = situations.first;
     final secondary = situations.skip(1).toList(growable: false);
+    final theme = Theme.of(context);
 
     return ListView(
+      // A distinct gutter (rather than a line alone) separates Now units.
       key: const PageStorageKey<String>('now-field-scroll'),
       controller: controller,
-      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(
+        top: MakoloSpacing.sm,
+        bottom: MakoloSpacing.xl,
+      ),
       children: [
-        _NowPrimarySituation(
-          situation: primary,
-          selected: selectedKey == _keyOf(primary),
-          onSelect: () => onSelect(primary),
-          onOpenOwner: onOpenOwner,
-          api: api,
-          profileId: profileId,
+        Padding(
+          padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
+          child: _NowSituationUnit(
+            situation: primary,
+            selected: selectedKey == _keyOf(primary),
+            onSelect: () => onSelect(primary),
+            onOpenOwner: onOpenOwner,
+            api: api,
+            profileId: profileId,
+          ),
         ),
         if (secondary.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.strong),
-          Text(
-            'Aussi maintenant',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: MakoloSpacing.md),
-          for (var index = 0; index < secondary.length; index++) ...[
-            _NowSecondarySituation(
-              situation: secondary[index],
-              onSelect: () => onSelect(secondary[index]),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              MakoloSpacing.md,
+              MakoloSpacing.lg,
+              MakoloSpacing.md,
+              MakoloSpacing.sm,
             ),
-            if (index != secondary.length - 1)
-              const SizedBox(height: MakoloSpacing.md),
-          ],
+            child: Text('Aussi maintenant', style: theme.textTheme.titleMedium),
+          ),
+          for (final item in secondary)
+            Padding(
+              key: ValueKey('now-unit-${item.identity}'),
+              padding: const EdgeInsets.only(top: MakoloSpacing.md),
+              child: _NowSituationUnit(
+                situation: item,
+                selected: selectedKey == _keyOf(item),
+                onSelect: () => onSelect(item),
+                onOpenOwner: onOpenOwner,
+                api: api,
+                profileId: profileId,
+              ),
+            ),
         ],
+        if (loadingMore)
+          const Padding(
+            padding: EdgeInsets.all(MakoloSpacing.lg),
+            child: Center(child: CircularProgressIndicator.adaptive()),
+          )
+        else if (loadMoreFailed)
+          Center(
+            child: TextButton.icon(
+              onPressed: onRetryMore,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Réessayer'),
+            ),
+          ),
       ],
     );
   }
@@ -444,20 +734,21 @@ class _NowSemanticContent extends StatelessWidget {
     required this.api,
     required this.profileId,
     required this.onOpenOwner,
+    this.compact = false,
   });
 
   final NowSituationPresentation situation;
   final MakoloApiClient? api;
   final String? profileId;
   final ValueChanged<StructuredDestination>? onOpenOwner;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final topology = topologyFor(situation);
     final theme = Theme.of(context);
-    final dominantMedia = topology == NowTopology.media
-        ? situation.mediaBindings.firstWhere((media) => media.canDominate)
-        : null;
+    // Never promote a media reference to the lead visual unless the
+    // authenticated reader can actually open it on this device.
     final readable = situation.mediaBindings
         .where(
           (media) =>
@@ -466,6 +757,13 @@ class _NowSemanticContent extends StatelessWidget {
               nowAuthorizedMediaPath(media) != null,
         )
         .toList(growable: false);
+    NowMediaBindingPresentation? dominantMedia;
+    for (final media in readable) {
+      if (media.canDominate) {
+        dominantMedia = media;
+        break;
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -479,7 +777,7 @@ class _NowSemanticContent extends StatelessWidget {
             child: InkWell(
               onTap:
                   api != null && nowAuthorizedMediaPath(dominantMedia) != null
-                  ? () => _openMedia(context, dominantMedia)
+                  ? () => _openMedia(context, dominantMedia!)
                   : null,
               child: MakoloMediaFrame(
                 aspect: switch (dominantMedia.kind) {
@@ -514,17 +812,58 @@ class _NowSemanticContent extends StatelessWidget {
           ),
         ],
         if (topology == NowTopology.composition) ...[
-          for (final relation in situation.relations)
-            if (relation.summary != null)
-              Text(relation.summary!, style: theme.textTheme.titleMedium),
-          for (final member in situation.relationMembers)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.account_tree_outlined),
-              title: Text(member.label),
-              subtitle: member.subtext == null ? null : Text(member.subtext!),
+          if (!compact)
+            for (final relation in situation.relations)
+              if (_distinctPresentationText(relation.summary, [
+                    situation.meaning,
+                    situation.whyNow,
+                    situation.consequence,
+                  ])
+                  case final summary?)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                  child: Text(summary, style: theme.textTheme.bodyMedium),
+                ),
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Wrap(
+              spacing: MakoloSpacing.sm,
+              runSpacing: MakoloSpacing.xs,
+              children: [
+                for (final member in situation.relationMembers)
+                  Chip(
+                    visualDensity: VisualDensity.compact,
+                    label: Text(member.label),
+                  ),
+              ],
             ),
+          ),
         ],
+        if (situation.knowledgeState case final knowledge?)
+          if (knowledge != 'known' && knowledge != 'fresh')
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+              child: Text(
+                'Information à vérifier',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+        if (compact && situation.makoloPreparation.isNotEmpty)
+          for (final prepared in situation.makoloPreparation)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+              child: Text(prepared, style: theme.textTheme.bodyMedium),
+            ),
+        if (topology == NowTopology.waiting && situation.exitCondition != null)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Text(
+              situation.exitCondition!,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
         if (topology == NowTopology.waiting)
           Row(
             children: [
@@ -532,17 +871,18 @@ class _NowSemanticContent extends StatelessWidget {
               const SizedBox(width: MakoloSpacing.md),
               Expanded(
                 child: Text(
-                  situation.turnLabel ?? 'En attente de la prochaine réponse.',
+                  situation.turnLabel ?? 'En attente d’une évolution.',
                   style: theme.textTheme.bodyMedium,
                 ),
               ),
             ],
           ),
-        if (topology == NowTopology.action) ...[
+        if (situation.businessActions.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.md),
           NowActionGroup(
             key: ValueKey('now-actions-${situation.identity}'),
             situation: situation,
+            compact: compact,
             api: api,
             onOpenOwner:
                 situation.ownerDestination != null &&
@@ -561,7 +901,7 @@ class _NowSemanticContent extends StatelessWidget {
             ),
         if (dominantMedia != null && readable.contains(dominantMedia))
           TextButton.icon(
-            onPressed: () => _openMedia(context, dominantMedia),
+            onPressed: () => _openMedia(context, dominantMedia!),
             icon: const Icon(Icons.open_in_full_outlined),
             label: const Text('Lire dans Makolo'),
           ),
@@ -591,8 +931,10 @@ class _NowSemanticContent extends StatelessWidget {
   }
 }
 
-class _NowPrimarySituation extends StatelessWidget {
-  const _NowPrimarySituation({
+/// The same edge-to-edge, subtly separated N1 geometry as Discover.
+/// Situations remain owner-backed next steps, never arbitrary feed posts.
+class _NowSituationUnit extends StatelessWidget {
+  const _NowSituationUnit({
     required this.situation,
     required this.selected,
     required this.onSelect,
@@ -610,203 +952,166 @@ class _NowPrimarySituation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ownerDestination = situation.ownerDestination;
-    final ownerPath = ownerDestination == null
-        ? null
-        : NowScreen.ownerPathFor(ownerDestination);
-    final canOpenOwner =
-        situation.responseLabel != null &&
-        ownerPath != null &&
-        onOpenOwner != null;
+    final theme = Theme.of(context);
     final contextLabel = _distinctPresentationText(situation.humanContext, [
       situation.meaning,
+    ]);
+    final headline = nowDisplayHeadline(
+      situation.meaning,
+      situation.humanContext,
+    );
+    final title = contextLabel ?? headline;
+    final description = contextLabel == null
+        ? null
+        : _distinctPresentationText(headline, [title]);
+    final subject = _distinctPresentationText(situation.subject, [
+      title,
+      headline,
+      situation.humanContext,
     ]);
     final whyNow = _distinctPresentationText(situation.whyNow, [
       situation.meaning,
       situation.humanContext,
+      headline,
     ]);
     final consequence = _distinctPresentationText(situation.consequence, [
       situation.meaning,
       situation.humanContext,
+      headline,
       situation.whyNow,
     ]);
+    final delta = _distinctPresentationText(situation.delta, [
+      title,
+      headline,
+      situation.whyNow,
+    ]);
+    final owner = situation.ownerDestination;
+    final canOpenOwner =
+        owner != null &&
+        onOpenOwner != null &&
+        NowScreen.ownerPathFor(owner) != null &&
+        situation.responseLabel != null &&
+        situation.businessActions.isEmpty;
+
     return Semantics(
       container: true,
-      button: true,
-      selected: selected,
-      label: [
-        ?contextLabel,
-        situation.meaning,
-        ?consequence,
-        ?whyNow,
-      ].join('. '),
-      child: InkWell(
-        onTap: onSelect,
-        borderRadius: BorderRadius.circular(MakoloRadii.card),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (contextLabel != null) ...[
-                Text(
-                  contextLabel,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: MakoloSpacing.sm),
-              ],
-              Text(
-                situation.meaning,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              if (consequence != null) ...[
-                const SizedBox(height: MakoloSpacing.xs),
-                Text(
-                  consequence,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-              if (whyNow != null) ...[
-                const SizedBox(height: MakoloSpacing.md),
-                Text(
-                  whyNow,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-              _NowSemanticContent(
-                situation: situation,
-                api: api,
-                profileId: profileId,
-                onOpenOwner: onOpenOwner,
-              ),
-              if (situation.metadata.isNotEmpty) ...[
-                const SizedBox(height: MakoloSpacing.md),
-                MakoloMetadata(
-                  items: [
-                    for (final item in situation.metadata)
-                      MakoloMetadataItem(item),
-                  ],
-                ),
-              ],
-              if (canOpenOwner &&
-                  topologyFor(situation) != NowTopology.action) ...[
-                const SizedBox(height: MakoloSpacing.lg),
-                FilledButton(
-                  onPressed: () => onOpenOwner!(ownerDestination!),
-                  child: Text(situation.responseLabel ?? 'Ouvrir'),
-                ),
-              ],
-            ],
+      explicitChildNodes: true,
+      label: [title, ?description, ?consequence, ?whyNow].join('. '),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary.withValues(alpha: 0.04)
+              : theme.colorScheme.surface,
+          border: Border(
+            bottom: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _NowSecondarySituation extends StatelessWidget {
-  const _NowSecondarySituation({
-    required this.situation,
-    required this.onSelect,
-  });
-
-  final NowSituationPresentation situation;
-  final VoidCallback onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final contextLabel = _distinctPresentationText(situation.humanContext, [
-      situation.meaning,
-    ]);
-    final whyNow = _distinctPresentationText(situation.whyNow, [
-      situation.meaning,
-      situation.humanContext,
-    ]);
-    final topology = topologyFor(situation);
-    final showTurnCue =
-        topology == NowTopology.waiting && situation.turnLabel != null;
-    final showActionCue =
-        topology == NowTopology.action &&
-        situation.businessActions.isNotEmpty &&
-        situation.responseLabel != null;
-
-    return MakoloCard(
-      onTap: onSelect,
-      semanticLabel: [
-        ?contextLabel,
-        situation.meaning,
-        ?whyNow,
-        'Ouvrir le détail',
-      ].join('. '),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (contextLabel != null) ...[
-            Text(contextLabel, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: MakoloSpacing.sm),
-          ],
-          Text(
-            situation.meaning,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          if (whyNow != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              whyNow,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+        child: InkWell(
+          onTap: onSelect,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.md,
+              vertical: MakoloSpacing.compact,
             ),
-          ],
-          if (showTurnCue) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.hourglass_top_outlined,
-                  size: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: MakoloSpacing.xs),
-                Flexible(
-                  child: Text(
-                    situation.turnLabel!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(title, style: theme.textTheme.titleLarge),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                    const SizedBox(width: MakoloSpacing.sm),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
                 ),
+                if (situation.topology == NowTopology.media)
+                  _NowSemanticContent(
+                    situation: situation,
+                    compact: true,
+                    api: api,
+                    profileId: profileId,
+                    onOpenOwner: onOpenOwner,
+                  ),
+                if (subject != null) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(
+                    subject,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                if (description != null) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(description, style: theme.textTheme.bodyMedium),
+                ],
+                if (delta != null) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  Text(
+                    delta,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (consequence != null) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Text(
+                    consequence,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+                if (whyNow != null) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Text(
+                    whyNow,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                if (situation.topology != NowTopology.media)
+                  _NowSemanticContent(
+                    situation: situation,
+                    compact: true,
+                    api: api,
+                    profileId: profileId,
+                    onOpenOwner: onOpenOwner,
+                  ),
+                if (situation.metadata.isNotEmpty) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  MakoloMetadata(
+                    items: [
+                      for (final item in situation.metadata)
+                        MakoloMetadataItem(item),
+                    ],
+                  ),
+                ],
+                if (canOpenOwner) ...[
+                  const SizedBox(height: MakoloSpacing.xs),
+                  TextButton.icon(
+                    onPressed: () => onOpenOwner!(owner),
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: Text(
+                      nowDisplayHandoffLabel(
+                        situation.responseLabel!,
+                        situation.meaning,
+                        situation.humanContext,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
-          ],
-          if (showActionCue) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            MakoloStatus(
-              label: situation.responseLabel!,
-              tone: MakoloStatusTone.info,
-              icon: Icons.arrow_forward_rounded,
-            ),
-          ],
-          if (situation.metadata.isNotEmpty) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            MakoloMetadata(
-              items: [
-                for (final item in situation.metadata) MakoloMetadataItem(item),
-              ],
-            ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -827,14 +1132,25 @@ class _NowDepth extends StatelessWidget {
   final MakoloApiClient? api;
   final String? profileId;
 
+  Widget _section(String title, String content) => Padding(
+    padding: const EdgeInsets.only(top: MakoloSpacing.lg),
+    child: MakoloSection(
+      title: title,
+      padding: EdgeInsets.zero,
+      child: Text(content),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
+    final topology = topologyFor(situation);
     final ownerDestination = situation.ownerDestination;
     final canOpenOwner =
         ownerDestination != null &&
         NowScreen.ownerPathFor(ownerDestination) != null &&
         situation.responseLabel != null &&
-        onOpenOwner != null;
+        onOpenOwner != null &&
+        situation.businessActions.isEmpty;
     final contextLabel = _distinctPresentationText(situation.humanContext, [
       situation.meaning,
     ]);
@@ -846,8 +1162,28 @@ class _NowDepth extends StatelessWidget {
       situation.meaning,
       situation.whyNow,
     ]);
+    final delta = _distinctPresentationText(situation.delta, [
+      situation.meaning,
+      situation.humanContext,
+      situation.whyNow,
+    ]);
+    final subject = _distinctPresentationText(situation.subject, [
+      situation.humanContext,
+      situation.meaning,
+    ]);
+    final firstVisual =
+        topology == NowTopology.media ||
+        topology == NowTopology.waiting ||
+        topology == NowTopology.composition;
+    final detail = _NowSemanticContent(
+      situation: situation,
+      api: api,
+      profileId: profileId,
+      onOpenOwner: onOpenOwner,
+    );
 
     return SingleChildScrollView(
+      key: ValueKey('now-n2-scroll-${situation.identity}'),
       padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
       child: MakoloFocusPane(
         child: Column(
@@ -858,7 +1194,7 @@ class _NowDepth extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: onClose,
                 icon: const Icon(Icons.arrow_back_rounded),
-                label: const Text('Now'),
+                label: const Text('Maintenant'),
               ),
             ),
             const SizedBox(height: MakoloSpacing.md),
@@ -872,40 +1208,37 @@ class _NowDepth extends StatelessWidget {
               const SizedBox(height: MakoloSpacing.sm),
             ],
             Text(
-              situation.meaning,
+              nowDisplayHeadline(situation.meaning, situation.humanContext),
               style: Theme.of(context).textTheme.headlineMedium,
             ),
-            if (whyNow != null) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              MakoloSection(
-                title: 'Pourquoi maintenant',
-                padding: EdgeInsets.zero,
-                child: Text(whyNow),
-              ),
-            ],
-            if (consequence != null) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              MakoloSection(
-                title: 'Conséquence',
-                padding: EdgeInsets.zero,
-                child: Text(consequence),
-              ),
-            ],
-            _NowSemanticContent(
-              situation: situation,
-              api: api,
-              profileId: profileId,
-              onOpenOwner: onOpenOwner,
-            ),
-            if (situation.horizon != null &&
-                topologyFor(situation) == NowTopology.waiting) ...[
+            if (subject != null) _section('Sujet', subject),
+            if (delta != null) _section('Ce qui a changé', delta),
+            // S2, S4 and S5 lead with their evidence, waiting state or
+            // relation. S1 and S3 lead with meaning and consequences.
+            if (firstVisual) ...[
               const SizedBox(height: MakoloSpacing.md),
-              Text(situation.horizon!),
+              detail,
+            ],
+            if (consequence != null) _section('Ce que ça change', consequence),
+            if (whyNow != null) _section('Pourquoi maintenant', whyNow),
+            if (!firstVisual) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              detail,
+            ],
+            if (topology == NowTopology.waiting &&
+                situation.horizon != null) ...[
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                situation.horizon!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
             if (situation.makoloPreparation.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.lg),
               MakoloSection(
-                title: 'Préparé par Makolo',
+                title: 'Déjà préparé',
                 padding: EdgeInsets.zero,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -924,12 +1257,17 @@ class _NowDepth extends StatelessWidget {
                 ],
               ),
             ],
-            if (canOpenOwner &&
-                topologyFor(situation) != NowTopology.action) ...[
+            if (canOpenOwner) ...[
               const SizedBox(height: MakoloSpacing.xl),
-              OutlinedButton(
+              FilledButton(
                 onPressed: () => onOpenOwner!(ownerDestination),
-                child: Text(situation.responseLabel ?? 'Ouvrir la démarche'),
+                child: Text(
+                  nowDisplayHandoffLabel(
+                    situation.responseLabel!,
+                    situation.meaning,
+                    situation.humanContext,
+                  ),
+                ),
               ),
             ],
           ],

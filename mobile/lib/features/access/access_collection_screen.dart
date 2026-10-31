@@ -124,9 +124,19 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
         stream: _pages,
         initialData: const [],
         builder: (context, pagesSnapshot) {
+          final pages = pagesSnapshot.data ?? const <StoredProjection>[];
           final view = _AccessCollectionView.fromPages(
-            pagesSnapshot.data ?? const [],
+            pages,
             relationship: _relationship,
+          );
+          final hasKnownFirstPage = pages.any(
+            (page) =>
+                page.kind == AccessRepository.collectionProjectionKind &&
+                page.resourceKey ==
+                    widget.repository.collectionResourceKey(
+                      relationship: _relationship,
+                      offset: 0,
+                    ),
           );
           return StreamBuilder<AccessSourceState>(
             stream: _source,
@@ -166,7 +176,7 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                       ],
                     ),
                     if (source.reachability == ReachabilityState.unreachable &&
-                        view.items.isNotEmpty) ...[
+                        hasKnownFirstPage) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       Text(
                         'Dernier état connu sur cet appareil. '
@@ -186,11 +196,26 @@ class _AccessCollectionScreenState extends State<AccessCollectionScreen> {
                             ? const Center(
                                 child: CircularProgressIndicator.adaptive(),
                               )
-                            : Text(
-                                _relationship == _mine
-                                    ? 'Aucun accès disponible pour le moment.'
-                                    : 'Aucun accès obtenu pour une autre personne.',
-                                textAlign: TextAlign.center,
+                            : Column(
+                                children: [
+                                  Text(
+                                    !hasKnownFirstPage
+                                        ? 'Vos accès ne sont pas encore '
+                                              'disponibles sur cet appareil.'
+                                        : _relationship == _mine
+                                        ? 'Aucun accès disponible pour le moment.'
+                                        : 'Aucun accès obtenu pour une autre personne.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  if (!hasKnownFirstPage) ...[
+                                    const SizedBox(height: MakoloSpacing.sm),
+                                    TextButton.icon(
+                                      onPressed: _refreshFirst,
+                                      icon: const Icon(Icons.refresh_rounded),
+                                      label: const Text('Réessayer'),
+                                    ),
+                                  ],
+                                ],
                               ),
                       )
                     else

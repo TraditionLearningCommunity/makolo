@@ -14,6 +14,7 @@ from discovery.card_contract import (
     RepresentationPresentation,
 )
 
+from .composition import _primary_action_for_projection
 from .projections import (
     project_funding_possibility,
     project_occurrence_possibility,
@@ -125,6 +126,8 @@ class PossibilityProjectionContractTests(SimpleTestCase):
             candidate_key=f"activity:{activity_id}",
             activity_id=activity_id,
             occurrence_id=occurrence_id,
+            matching_count=1,
+            matching_occurrence_ids=[occurrence_id],
             timing_kind="exact",
             start_date=(now + timedelta(days=3)).date(),
             start_time=timezone.localtime(now + timedelta(days=3)).time().replace(tzinfo=None),
@@ -241,7 +244,7 @@ class PossibilityProjectionContractTests(SimpleTestCase):
         item = {
             "candidate_key": f"funding_activity:{activity_id}",
             "activity_id": activity_id,
-            "funding": SimpleNamespace(pk=funding_id),
+            "funding": SimpleNamespace(pk=funding_id, opens_at=None, closes_at=None),
         }
         card = _card(candidate_key=item["candidate_key"], activity_id=activity_id)
 
@@ -326,3 +329,87 @@ class PossibilityProjectionContractTests(SimpleTestCase):
         self.assertNotIn("availability_label", keys)
         self.assertNotIn("label", projection["personal_relation"])
         self.assertNotIn("access_credential", keys)
+
+
+class DiscoveryPrimaryActionHandoffTests(SimpleTestCase):
+    def test_web_only_owner_action_is_not_promoted_to_native(self):
+        projection = {
+            "links": {"detail": "/api/v1/discovery/items/activity/example/"},
+            "engagement": {
+                "owner": "activities",
+                "state": "owner_contract",
+                "capabilities": ["reserve"],
+                "links": {},
+                "presentation": {
+                    "capability": "reserve",
+                    "label": "Réserver",
+                    "web": "/events/example/reserve/",
+                    "web_enabled": True,
+                },
+            },
+        }
+        action = _primary_action_for_projection(projection)
+        self.assertEqual(action["code"], "detail")
+        self.assertEqual(action["destination"]["kind"], "detail")
+
+    def test_funding_action_points_to_owner_native_route(self):
+        funding_id = str(uuid.uuid4())
+        projection = {
+            "links": {"detail": "/api/v1/discovery/items/funding_activity/example/"},
+            "engagement": {
+                "owner": "funding",
+                "state": "owner_api",
+                "capabilities": ["contribute"],
+                "resource": {"kind": "funding", "id": funding_id},
+                "links": {
+                    "native": f"/funding/{funding_id}/contribute",
+                    "contribute": f"/api/v1/funding/{funding_id}/contributions/",
+                },
+            },
+        }
+        action = _primary_action_for_projection(projection)
+        self.assertEqual(action["code"], "contribute")
+        self.assertEqual(
+            action["destination"],
+            {"kind": "native", "path": f"/funding/{funding_id}/contribute"},
+        )
+
+    def test_obtention_action_uses_existing_native_journey_owner(self):
+        obtention_id = str(uuid.uuid4())
+        projection = {
+            "links": {"detail": "/api/v1/discovery/items/activity/example/"},
+            "engagement": {
+                "owner": "obtention",
+                "state": "owner_api",
+                "capabilities": ["start_journey"],
+                "resource": {"kind": "obtention", "id": obtention_id},
+                "links": {
+                    "native": f"/obtention/{obtention_id}/choose",
+                    "start_journey": f"/api/v1/obtention/{obtention_id}/journeys/",
+                },
+            },
+        }
+        action = _primary_action_for_projection(projection)
+        self.assertEqual(action["code"], "start_journey")
+        self.assertEqual(
+            action["destination"],
+            {"kind": "native", "path": f"/obtention/{obtention_id}/choose"},
+        )
+
+    def test_mismatched_funding_route_falls_back_to_detail(self):
+        projection = {
+            "links": {"detail": "/detail/"},
+            "engagement": {
+                "owner": "funding",
+                "state": "owner_api",
+                "capabilities": ["contribute"],
+                "resource": {"kind": "funding", "id": str(uuid.uuid4())},
+                "links": {
+                    "native": "/funding/other/contribute",
+                    "contribute": "/api/v1/funding/other/contributions/",
+                },
+            },
+        }
+        self.assertEqual(
+            _primary_action_for_projection(projection)["code"], "detail"
+        )

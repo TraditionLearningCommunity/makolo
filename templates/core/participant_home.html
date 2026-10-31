@@ -1,7 +1,8 @@
 {% extends 'base/app.html' %}
 {% block title %}Maintenant | Makolo{% endblock %}
 {% block content %}
-<div class="mk-mature-page" data-mk-surface="now" aria-live="polite">
+<div class="mk-mature-page mk-now-n2-layout" id="now-n2-layout" data-mk-surface="now" aria-live="polite">
+  <div class="mk-now-n2-field" id="now-n2-field">
   <section class="mk-mature-heading">
     <p class="mk-eyebrow">Maintenant</p>
     <p>Bonjour{% if request.user.first_name %}, {{ request.user.first_name|title }}{% endif %}.</p>
@@ -93,6 +94,10 @@
       {% elif home.primary_attention.url %}
         <a href="{{ home.primary_attention.url }}" class="mk-now-cta">{{ home.primary_attention.action_label }}</a>
       {% endif %}
+      <button type="button" class="mk-now-n2-trigger" data-now-focus-trigger="{{ home.primary_attention.identity }}" aria-controls="now-n2-focus" aria-expanded="false">Comprendre <span aria-hidden="true">›</span></button>
+      <template data-now-focus="{{ home.primary_attention.identity }}">
+        {% include "core/_now_n2_focus.html" with item=home.primary_attention %}
+      </template>
     </section>
     {% endif %}
 
@@ -104,68 +109,37 @@
     {% endif %}
 
     {% if home.action_items %}
-    <section class="mk-now-list" aria-label="Autres choses qui comptent maintenant">
-      {% for item in home.action_items %}
-        <article id="now-{{ item.identity }}" data-now-identity="{{ item.identity }}">
-          <div>
-            {% if item.deadline_label %}<p class="mk-now-label">{{ item.deadline_label }}</p>{% endif %}
-            <h2>{{ item.context_label }}</h2>
-            {% if item.state %}<p>{{ item.state }}</p>{% endif %}
-            <p>{{ item.summary }}</p>
-            {% if item.why_now %}<p>{{ item.why_now }}</p>{% endif %}
-            {% if item.consequence %}<p>{{ item.consequence }}</p>{% endif %}
-            {% if item.topology == "waiting" %}
-              <p class="mk-now-wait">{{ item.turn|default:"En attente de la prochaine réponse." }}</p>
-              {% if item.horizon %}<p>{{ item.horizon }}</p>{% endif %}
-            {% elif item.topology == "composition" %}
-              {% for summary in item.relation_summaries %}<p class="mk-now-relation">{{ summary }}</p>{% endfor %}
-            {% endif %}
-          </div>
-          {% if item.inline_media %}
-            <div class="mk-now-media" aria-label="Médias de cette situation">
-              {% for media in item.inline_media %}
-                {% if media.kind == "image" %}
-                  <img src="{{ media.url }}" alt="{{ media.label }}" loading="lazy">
-                {% elif media.kind == "pdf" %}
-                  <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" referrerpolicy="no-referrer"></iframe>
-                {% elif media.kind == "document" %}
-                  <iframe src="{{ media.url }}" title="{{ media.label }}" loading="lazy" sandbox="" referrerpolicy="no-referrer"></iframe>
-                {% elif media.kind == "video" %}
-                  <video src="{{ media.url }}" controls preload="metadata" playsinline aria-label="{{ media.label }}"></video>
-                {% elif media.kind == "audio" %}
-                  <audio src="{{ media.url }}" controls preload="none" aria-label="{{ media.label }}"></audio>
-                {% endif %}
-                <a href="{{ media.download_url }}" download>Enregistrer {{ media.label }}</a>
-              {% endfor %}
-            </div>
-          {% endif %}
-          {% if item.direct_actions %}
-            <div class="mk-now-business-actions" aria-label="Décision de la situation">
-              {% for action in item.direct_actions %}
-                <form method="post" action="{{ action.url }}" data-now-direct data-owner-id="{{ action.owner_id }}" data-owner-kind="{{ action.owner_kind }}" data-capability="{{ action.capability }}">
-                  {% csrf_token %}
-                  <button type="submit"{% if forloop.first %} class="mk-now-cta"{% endif %}>{{ action.label }}</button>
-                  <output aria-live="polite" role="status"></output>
-                </form>
-              {% endfor %}
-            </div>
-          {% elif item.url %}
-            <a href="{{ item.url }}">{{ item.action_label }}</a>
-          {% endif %}
-        </article>
-      {% endfor %}
+    <section class="mk-now-list" id="now-stream" aria-label="Autres choses qui comptent maintenant">
+      {% include "core/_now_stream_items.html" with items=home.action_items %}
     </section>
     {% elif not home.primary_attention %}
     <section class="mk-calm-state" aria-labelledby="home-undetermined-title">
       <h2 id="home-undetermined-title">Aucune situation à afficher.</h2>
       <p>Cette vue ne permet pas de conclure que tout est en ordre.</p>
     </section>
+    {% else %}
+    <section class="mk-now-list" id="now-stream" aria-label="Autres choses qui comptent maintenant"></section>
+    {% endif %}
+    {% if home.primary_attention %}
+    <div id="now-infinite" data-next-token="{{ home.continuation_token|default:'' }}" data-state="{{ home.continuation_state|default:'end' }}" aria-live="polite">
+      <span id="now-infinite-status">{% if home.continuation_state == "end" %}Vous avez tout exploré{% endif %}</span>
+    </div>
     {% endif %}
   {% endif %}
+  </div>
+  <aside class="mk-now-n2-focus" id="now-n2-focus" hidden aria-label="Comprendre la situation" aria-live="off">
+    <button type="button" class="mk-now-n2-close" id="now-n2-close">‹ Retour à Maintenant</button>
+    <div id="now-n2-content" tabindex="-1"></div>
+  </aside>
 </div>
+{% load static %}
+<script src="{% static 'js/now-n2-focus.js' %}"></script>
+<script src="{% static 'js/now-continuation.js' %}"></script>
 {% endblock %}
 {% block extra_js %}
   {{ block.super }}
   {% load static %}
   <script defer src="{% static 'js/now-owner-actions.js' %}"></script>
+  <script defer src="{% static 'js/now-continuation.js' %}"></script>
+  <script defer src="{% static 'js/now-n2-focus.js' %}"></script>
 {% endblock %}

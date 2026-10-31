@@ -1,0 +1,7 @@
+{% extends 'organizations/console/base.html' %}
+{% block console_content %}
+<div class="space-y-5">
+  <a href="{% url 'organizations:console-subscription' space.slug %}" class="mk-btn mk-btn-secondary">Revenir à l’abonnement de l’Espace</a>
+  {% include 'organizations/console/_subscription_history.html' %}
+</div>
+{% endblock %}

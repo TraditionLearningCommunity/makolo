@@ -100,7 +100,13 @@ class MakoloErrorState extends StatelessWidget {
 }
 
 class OfflineBanner extends StatelessWidget {
-  const OfflineBanner({super.key});
+  const OfflineBanner({
+    super.key,
+    this.message =
+        'Hors connexion · Ce qui est déjà disponible reste utilisable.',
+  });
+
+  final String message;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -112,10 +118,7 @@ class OfflineBanner extends StatelessWidget {
         vertical: MakoloSpacing.sm,
       ),
       color: context.makoloSurfaces.warning.withValues(alpha: 0.12),
-      child: const Text(
-        'Hors connexion · Ce qui est déjà disponible reste utilisable.',
-        textAlign: TextAlign.center,
-      ),
+      child: Text(message, textAlign: TextAlign.center),
     ),
   );
 }

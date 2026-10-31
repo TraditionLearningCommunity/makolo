@@ -125,6 +125,7 @@ class _LaunchGateState extends State<LaunchGate> {
 
       _LaunchStage.onboarding => OnboardingFlow(
         isAuthenticated: widget.runtime.isAuthenticated,
+        location: widget.runtime.location,
         onComplete: _finishOnboarding,
       ),
 

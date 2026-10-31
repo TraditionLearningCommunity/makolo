@@ -9,11 +9,18 @@ from .day_of_views import PersonalOccurrenceDayOfAPIView, PersonalOccurrenceLive
 from .me_views import (
     PersonalCollectivesAPIView,
     PersonalConsiderationsAPIView,
+    PersonalConsiderationSettingsAPIView,
     PersonalMeAPIView,
+    PersonalMeTerritoryPreviewAPIView,
     PersonalPartnersAPIView,
     PersonalPassportAPIView,
+    PersonalPassportPdfAPIView,
+    PersonalPassportHistoryAPIView,
+    PersonalPassportVersionAPIView,
+    PersonalPassportShareAPIView,
     PersonalResourcesAPIView,
 )
+from .passport_visibility_views import PersonalPassportVisibilityAPIView
 from .personal_views import PersonalNowAPIView, PersonalOngoingAPIView
 from .now_media_views import PersonalNowJourneyArtifactMediaAPIView
 from .z9_views import PersonalPartnerDetailAPIView
@@ -29,6 +36,7 @@ app_name = "personal-projections"
 
 urlpatterns = [
     path("", PersonalMeAPIView.as_view(), name="me"),
+    path("preview/<str:territory>/", PersonalMeTerritoryPreviewAPIView.as_view(), name="me-preview"),
     path("now/", PersonalNowAPIView.as_view(), name="now"),
     path(
         "now/media/journey-artifacts/<uuid:artifact_id>/",
@@ -56,6 +64,7 @@ urlpatterns = [
         PersonalAccessCredentialAPIView.as_view(),
         name="access-credential",
     ),
+    path("considerations/settings/", PersonalConsiderationSettingsAPIView.as_view(), name="consideration-settings"),
     path(
         "considerations/",
         PersonalConsiderationsAPIView.as_view(),
@@ -66,6 +75,11 @@ urlpatterns = [
         PersonalCollectivesAPIView.as_view(),
         name="collectives",
     ),
+    path("passport/visibility/", PersonalPassportVisibilityAPIView.as_view(), name="passport-visibility"),
+    path("passport/pdf/", PersonalPassportPdfAPIView.as_view(), name="passport-pdf"),
+    path("passport/history/", PersonalPassportHistoryAPIView.as_view(), name="passport-history"),
+    path("passport/history/<uuid:snapshot_id>/", PersonalPassportVersionAPIView.as_view(), name="passport-version"),
+    path("passport/history/<uuid:snapshot_id>/share/", PersonalPassportShareAPIView.as_view(), name="passport-share"),
     path(
         "passport/",
         PersonalPassportAPIView.as_view(),

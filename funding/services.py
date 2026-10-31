@@ -147,8 +147,8 @@ def create_funding_contribution(*, funding, actor, amount, client_reference=""):
     if not getattr(actor, "is_authenticated", False):
         raise PermissionDenied("Vous devez être connecté pour contribuer.")
     funding = (
-        FundingDetails.objects.select_for_update()
-        .select_related("activity")
+        FundingDetails.objects.select_for_update(of=("self",))
+        .select_related("activity", "activity__space", "activity__owner_profile")
         .get(pk=funding.pk)
     )
     if not funding_accepts_contributions(funding, at=timezone.now()):

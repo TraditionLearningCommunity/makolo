@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 
 from django.core import signing
 
 from .models import PassportSnapshot, PublicIdentifier, PublicSubjectKind
+from .passport import PASSPORT_PUBLIC, profile_has_public_passport, space_has_public_passport
 
 
 PASSPORT_VERIFY_SALT = "sharing.passport.verify.v1"
@@ -27,8 +29,12 @@ def serialize_passport_projection(projection):
             "name": projection.identity.get("name", ""),
             "bio": projection.identity.get("bio", ""),
             "profession": projection.identity.get("profession", ""),
+            "company_name": projection.identity.get("company_name", ""),
+            "organization_name": projection.identity.get("organization_name", ""),
             "location": projection.identity.get("location", ""),
             "links": list(projection.identity.get("links", ())),
+            "owner_details": (projection.identity.get("owner_details", {})
+                              if projection.variant == "complete" else {}),
         },
         "interests": [row.topic.label for row in projection.interests],
         "open_to": [
@@ -75,8 +81,84 @@ def serialize_passport_projection(projection):
             for row in projection.trust_verifications
         ],
         "credential_summary": list(projection.credential_summary),
+        "team_affiliations": list(projection.team_affiliations),
+        "group_affiliations": list(projection.group_affiliations),
+        "authorized_space_affiliations": list(projection.authorized_space_affiliations),
+        "active_space_mandates": list(projection.active_space_mandates),
+        "space_teams": list(projection.space_teams),
         "topics": [{"code": row.code, "label": row.label} for row in projection.topics],
     }
+
+
+def profile_public_snapshot_still_disclosable(snapshot):
+    """An issued public document cannot bypass current personal disclosure.
+
+    Keep historical integrity metadata, but hide dated payload if any
+    previously published personal fact is no longer publicly representable.
+    This does not reissue or mutate a signed document.
+    """
+    if snapshot.subject_kind != PublicSubjectKind.PROFILE or not snapshot.profile_id:
+        return False
+    from accounts.profile_visibility import ProfileVisibilityResolver
+    from .passport import PASSPORT_PUBLIC, build_profile_passport
+
+    visibility = ProfileVisibilityResolver(owner=snapshot.profile)
+    current = serialize_passport_projection(build_profile_passport(
+        snapshot.profile, variant=PASSPORT_PUBLIC,
+    ))
+    dated = snapshot.payload or {}
+    identity = dated.get("identity") or {}
+    # A dated Passport must retain its original wording when a biography,
+    # profession or name is edited. Only a withdrawal of *disclosure* can
+    # suppress public reading; comparing old text against live text would
+    # incorrectly make every past edition disappear after a normal edit.
+    for key in (
+        "name", "bio", "profession", "company_name", "organization_name",
+    ):
+        if identity.get(key) and not visibility.field(key):
+            return False
+    if identity.get("location") and not (
+        visibility.field("city") and visibility.field("country")
+    ):
+        # Older snapshots have one location string without per-field IDs.
+        # Requiring both permissions is conservative when either is hidden.
+        return False
+    link_keys = {
+        "Site web": "website",
+        "LinkedIn": "linkedin_url",
+        "Facebook": "facebook_url",
+        "Instagram": "instagram_url",
+        "TikTok": "tiktok_url",
+        "X / Twitter": "x_url",
+        "YouTube": "youtube_url",
+    }
+    for pair in identity.get("links") or ():
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2:
+            return False
+        label = str(pair[0])
+        field_key = link_keys.get(label)
+        if field_key is None or not visibility.field(field_key):
+            return False
+    if not set(dated.get("interests") or []).issubset(set(current["interests"])):
+        return False
+    current_open_to = {
+        (row.get("kind"), row.get("topic"))
+        for row in current["open_to"]
+    }
+    for row in dated.get("open_to") or []:
+        if (row.get("kind"), row.get("topic")) not in current_open_to:
+            return False
+    return True
+
+
+def snapshot_payload_is_intact(snapshot):
+    """Check the issued text payload without recomposing any live subject data."""
+    canonical = json.dumps(
+        snapshot.payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return hmac.compare_digest(digest, snapshot.payload_hash)
+
 
 
 def issue_passport_snapshot(projection):
@@ -87,6 +169,14 @@ def issue_passport_snapshot(projection):
         record = PublicIdentifier.objects.get(space=projection.subject)
         subject_kwargs = {"profile": None, "space": projection.subject}
 
+    public_at_issue = bool(
+        projection.variant == PASSPORT_PUBLIC
+        and (
+            profile_has_public_passport(projection.subject)
+            if projection.subject_kind == PublicSubjectKind.PROFILE
+            else space_has_public_passport(projection.subject)
+        )
+    )
     payload = serialize_passport_projection(projection)
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -94,6 +184,7 @@ def issue_passport_snapshot(projection):
         subject_kind=projection.subject_kind,
         public_identifier=record.identifier,
         variant=projection.variant,
+        public_at_issue=public_at_issue,
         payload=payload,
         payload_hash=digest,
         generated_at=projection.generated_at,
@@ -102,13 +193,34 @@ def issue_passport_snapshot(projection):
 
 
 def passport_verification_token(snapshot):
-    return signing.dumps(
-        {"passport_id": str(snapshot.pk)},
-        salt=PASSPORT_VERIFY_SALT,
+    """Stable signed link for one immutable document across QR and history.
+
+    TimestampSigner embeds the *time the URL was generated*, making the QR
+    URL and later history URL differ for the same snapshot. Issued document
+    tokens do not expire; the snapshot's revocation, hash and disclosure gates
+    remain authoritative.
+    """
+    return signing.Signer(salt=PASSPORT_VERIFY_SALT).sign_object(
+        {"passport_id": str(snapshot.pk), "payload_hash": snapshot.payload_hash},
         compress=True,
     )
 
 
 def resolve_passport_verification_token(token):
-    data = signing.loads(token, salt=PASSPORT_VERIFY_SALT)
-    return PassportSnapshot.objects.select_related("profile", "space").get(pk=data["passport_id"])
+    # Prior URLs used django.core.signing.dumps (TimestampSigner, three
+    # segments). Keep all already shared and printed verification links valid.
+    if token.count(":") == 2:
+        data = signing.loads(token, salt=PASSPORT_VERIFY_SALT)
+    else:
+        data = signing.Signer(salt=PASSPORT_VERIFY_SALT).unsign_object(token)
+    snapshot = PassportSnapshot.objects.select_related("profile", "space").get(
+        pk=data["passport_id"],
+    )
+    # Historical signed links originally carried only a snapshot id: keep
+    # reading those. New links also bind the issued fingerprint to the token.
+    issued_hash = data.get("payload_hash")
+    if issued_hash is not None and not hmac.compare_digest(
+        str(issued_hash), snapshot.payload_hash,
+    ):
+        raise signing.BadSignature("Document modifié depuis son émission.")
+    return snapshot

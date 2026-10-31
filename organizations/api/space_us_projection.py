@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from authorization.constants import PermissionCode, SystemRoleCode
-from authorization.models import AuthorityScope
+from authorization.constants import PermissionCode, STANDARD_SPACE_ROLE_CODES, SystemRoleCode
+from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates, has_direct_space_permission
 from organizations.models import TeamMembershipStatus
 
+from .space_relationships_projection import build_space_relationships_projection
 from .workspace_projection import build_space_workspace
 
 
@@ -35,11 +36,26 @@ def build_space_us_projection(*, profile, space):
 
     team = {
         "active_members": workspace.get("team_summary", {}).get("active_members"),
+        "visibility": "restricted",
+        "role_options": [],
         "items": [],
         "has_more": False,
         "links": {},
     }
     if can_manage_team:
+        team["visibility"] = "visible"
+        allowed_role_codes = set(STANDARD_SPACE_ROLE_CODES)
+        if not can_manage_ownership:
+            allowed_role_codes.discard(SystemRoleCode.SPACE_OWNER)
+        team["role_options"] = [
+            {"code": role.code, "label": role.name}
+            for role in Role.objects.filter(
+                scope_type=AuthorityScope.SPACE,
+                is_system=True,
+                is_active=True,
+                code__in=allowed_role_codes,
+            ).order_by("name", "code")
+        ]
         memberships = (
             space.teams.filter(is_default=True, memberships__status=TeamMembershipStatus.ACTIVE)
             .values("memberships__id", "memberships__user_id", "memberships__user__first_name", "memberships__user__last_name", "memberships__user__username")
@@ -64,7 +80,7 @@ def build_space_us_projection(*, profile, space):
         team["active_members"] = workspace.get("team_summary", {}).get("active_members", 0)
         team["links"] = {"team": f"/api/v1/organizations/workspaces/{space.slug}/team/"}
 
-    owners = {"items": [], "has_more": False, "links": {}}
+    owners = {"items": [], "has_more": False, "links": {}, "visibility": "restricted"}
     if can_manage_ownership:
         mandates = (
             current_mandates()
@@ -90,9 +106,26 @@ def build_space_us_projection(*, profile, space):
                 "authority_scope": {"kind": "space"},
             },
         )
+        owners["visibility"] = "visible"
         owners["links"] = {
             "transfer": f"/api/v1/organizations/workspaces/{space.slug}/ownership/transfer/"
         }
+
+    # Compose only the relation owner's already-authorized projection.  Nous
+    # presents these facts; it does not grant access to their owning domains.
+    relations = build_space_relationships_projection(profile=profile, space=space)
+    relation_sections = (relations or {}).get("sections", {})
+    relationships = {
+        "label": (relations or {}).get("label", "Personnes & relations"),
+        "sections": {
+            key: {
+                "items": value.get("items", [])[:4],
+                "has_more": value.get("has_more", False) or len(value.get("items", [])) > 4,
+            }
+            for key, value in relation_sections.items()
+        },
+        "visibility": "visible" if relation_sections else "restricted",
+    }
 
     modules = {row["key"]: row for row in workspace.get("modules", [])}
     institutional_links = {
@@ -129,7 +162,7 @@ def build_space_us_projection(*, profile, space):
     handoffs = {
         "responsibilities": f"/space/{space.slug}/us/responsibilities",
     }
-    if direct_space:
+    if relation_sections:
         handoffs["relationships"] = f"/space/{space.slug}/us/relationships"
     if can_manage_team:
         handoffs["team"] = f"/space/{space.slug}/us/team"
@@ -141,6 +174,12 @@ def build_space_us_projection(*, profile, space):
         handoffs["pilot"] = f"/space/{space.slug}/us/pilot"
     if workspace["capabilities"].get("update_space"):
         handoffs["settings"] = f"/space/{space.slug}/us/settings"
+    can_view_subscription = direct_space and (
+        has_direct_space_permission(profile, space, PermissionCode.SPACE_SUBSCRIPTION_VIEW)
+        or has_direct_space_permission(profile, space, PermissionCode.SPACE_SUBSCRIPTION_MANAGE)
+    )
+    if can_view_subscription:
+        handoffs["subscription"] = f"/space/{space.slug}/subscription"
 
     return {
         "identity": identity,
@@ -150,6 +189,7 @@ def build_space_us_projection(*, profile, space):
             "links": {},
         },
         "ownership": owners,
+        "relationships": relationships,
         "trust": workspace.get("verification", {"verified": False, "claims": []}),
         "organization": {
             "operating_preset": workspace.get("operating_preset", {}),

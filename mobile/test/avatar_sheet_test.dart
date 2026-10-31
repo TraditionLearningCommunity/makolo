@@ -10,14 +10,21 @@ import 'package:makolo_mobile/repositories/personal_repository.dart';
 
 import 'fakes.dart';
 
-Future<AppRuntime> _runtimeWithIdentity() async {
+Future<AppRuntime> _runtimeWithIdentity({bool complete = false}) async {
   final database = MakoloDatabase.memory();
   final store = ProfileStore(database, 'profile-a');
   await store.putProjection(
     kind: 'personal.me',
     schemaVersion: 1,
     payload: {
-      'identity': {'display_name': 'Amina'},
+      'identity': {
+        'display_name': 'Amina',
+        'username': 'amina',
+        'activation': {
+          'percentage': complete ? 100 : 33,
+          'is_complete': complete,
+        },
+      },
     },
   );
   return AppRuntime(
@@ -34,7 +41,6 @@ void main() {
   testWidgets(
     'Avatar exposes global app actions without Compte et paramètres',
     (tester) async {
-      var accountOpened = false;
       var settingsOpened = false;
       final runtime = await _runtimeWithIdentity();
       addTearDown(runtime.close);
@@ -50,7 +56,6 @@ void main() {
                   runtime: runtime,
                   onConnections: () {},
                   onBilling: () {},
-                  onAccount: () => accountOpened = true,
                   onSettings: () => settingsOpened = true,
                   onSwitchAccount: () {},
                   onLogout: () {},
@@ -66,58 +71,55 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Amina'), findsOneWidget);
-      expect(find.textContaining('% renseigné'), findsNothing);
+      expect(find.text('33 % renseigné'), findsOneWidget);
+      expect(find.text('@amina'), findsOneWidget);
       expect(find.text('Agir comme'), findsOneWidget);
       expect(find.text('Connexions'), findsOneWidget);
       expect(find.text('Abonnement & facturation'), findsOneWidget);
-      expect(find.text('Compte'), findsOneWidget);
+      expect(find.text('Compte'), findsNothing);
       expect(find.text('Paramètres'), findsOneWidget);
       expect(find.text('Changer de compte'), findsOneWidget);
       expect(find.text('Se déconnecter'), findsOneWidget);
       expect(find.text('Compte et paramètres'), findsNothing);
 
-      await tester.tap(find.text('Compte'));
-      await tester.pumpAndSettle();
-      expect(accountOpened, isTrue);
-
-      await tester.tap(find.text('Avatar'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Paramètres'));
       await tester.pumpAndSettle();
       expect(settingsOpened, isTrue);
     },
   );
 
-  testWidgets('Avatar keeps human identity concise without completion score', (
-    tester,
-  ) async {
-    final runtime = await _runtimeWithIdentity();
+  testWidgets(
+    'Avatar hides 100 percent when applicable profile steps are complete',
+    (tester) async {
+      final runtime = await _runtimeWithIdentity(complete: true);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildMakoloTheme(),
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => showMakoloAvatarSheet(context, runtime: runtime),
-              child: const Text('Avatar'),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMakoloTheme(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () =>
+                    showMakoloAvatarSheet(context, runtime: runtime),
+                child: const Text('Avatar'),
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('Avatar'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Avatar'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Amina'), findsOneWidget);
-    expect(find.textContaining('renseigné'), findsNothing);
+      expect(find.text('Amina'), findsOneWidget);
+      expect(find.textContaining('renseigné'), findsNothing);
 
-    Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump(const Duration(milliseconds: 1));
-    await tester.runAsync(runtime.close);
-  });
+      Navigator.of(tester.element(find.byType(MakoloAvatarSheet))).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.runAsync(runtime.close);
+    },
+  );
 }

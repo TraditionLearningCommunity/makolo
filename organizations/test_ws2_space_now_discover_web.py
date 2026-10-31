@@ -1,10 +1,13 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 
 from accounts.models import User
-from activities.models import Activity
+from activities.models import Activity, Occurrence, OccurrenceStatus
+from journeys.models import Journey, JourneyRequest, JourneyStatus, WorkflowKind
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role
@@ -49,13 +52,14 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
 
         return f"{url}?{urlencode(query)}"
 
-    def test_current_runtime_renders_unavailable_without_claiming_empty(self):
+    def test_now_partial_and_discover_unavailable_do_not_claim_calm(self):
         self.client.force_login(self.owner)
 
         now = self.client.get(self.web_url())
         self.assertEqual(now.status_code, 200)
-        self.assertEqual(now.context["projection_state"], "unavailable")
-        self.assertContains(now, "La sélection n’est pas encore disponible.")
+        self.assertEqual(now.context["projection_state"], "partial")
+        self.assertContains(now, "Aucune situation établie dans cette perspective.")
+        self.assertContains(now, "La couverture actuelle est partielle.")
         self.assertNotContains(now, "Tout est en ordre. ✓")
         self.assertNotContains(now, "no_safe_selection_contract")
 
@@ -65,6 +69,76 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
         self.assertContains(discover, "La sélection n’est pas encore disponible.")
         self.assertNotContains(discover, "no_safe_selection_contract")
         self.assertContains(discover, "Aucun candidat personnel, populaire ou récent n’est injecté")
+
+    def test_now_renders_actual_occurrence_with_owner_handoff(self):
+        instant = timezone.now()
+        occurrence = Occurrence.objects.create(
+            activity=Activity.objects.create(
+                title="Atelier opérationnel",
+                slug="ws2-atelier",
+                created_by=self.owner,
+                space=self.space,
+            ),
+            label="Atelier en cours",
+            start_at=instant - timedelta(minutes=15),
+            end_at=instant + timedelta(minutes=45),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client.force_login(self.owner)
+        with patch(
+            "operations.occurrence_live.resolve_occurrence_live",
+            return_value={
+                "perspective": "space",
+                "next_action": {
+                    "type": "check_access",
+                    "reason": "operations.action_needed",
+                    "label": "Vérifier les accès maintenant.",
+                },
+            },
+        ):
+            response = self.client.get(self.web_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["projection_state"], "partial")
+        self.assertContains(response, "Atelier en cours")
+        self.assertContains(response, "Vérifier les accès maintenant.")
+        self.assertContains(
+            response,
+            reverse(
+                "organizations:space-occurrence-day-of",
+                kwargs={"slug": self.space.slug, "occurrence_id": occurrence.pk},
+            ),
+        )
+        self.assertNotContains(response, "Tout est en ordre. ✓")
+
+    def test_web_request_controls_require_owner_decision_permission(self):
+        activity = Activity.objects.create(
+            title="Inscription de Space", slug="ws2-request",
+            space=self.space, created_by=self.owner,
+        )
+        applicant = User.objects.create_user(
+            username="ws2-applicant",
+            email="ws2-applicant@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=applicant, beneficiary=applicant,
+            activity=activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        JourneyRequest.objects.create(journey=journey, requester=applicant)
+        self.client.force_login(self.owner)
+        url = reverse("organizations:console-requests", kwargs={"slug": self.space.slug})
+        authorized = self.client.get(url)
+        self.assertEqual(authorized.status_code, 200)
+        self.assertContains(authorized, "Approuver")
+        with patch(
+            "organizations.console_views.activity_ids_with_direct_permission",
+            return_value=[],
+        ):
+            no_decision = self.client.get(url)
+        self.assertEqual(no_decision.status_code, 200)
+        self.assertNotContains(no_decision, "Approuver")
+        self.assertNotContains(no_decision, "Refuser")
 
     def test_projection_state_mapping_keeps_empty_unavailable_partial_and_error_distinct(self):
         self.assertEqual(

@@ -263,3 +263,246 @@ class NotificationPreference(UUIDModel, TimeStampedModel):
 
     def __str__(self):
         return f"@{self.user.username} notification preferences"
+
+
+# A Profile is the only owner of its presentation privacy choices.
+# These policies never duplicate the canonical values in Accounts or Topics.
+class ProfileVisibilityTargetKind(models.TextChoices):
+    FIELD = "field", "Information de profil"
+    INTEREST = "interest", "Centre d'intérêt"
+    OPEN_TO = "open_to", "Ouvert à"
+
+
+# Sensitive account information (email, phone, birth date, exact address,
+# coordinates, tokens) is deliberately absent from this allowlist.
+PROFILE_VISIBILITY_FIELDS = (
+    "name",
+    "avatar",
+    "bio",
+    "profession",
+    "country",
+    "city",
+    "company_name",
+    "organization_name",
+    "website",
+    "linkedin_url",
+    "facebook_url",
+    "instagram_url",
+    "tiktok_url",
+    "x_url",
+    "youtube_url",
+)
+
+
+class ProfileVisibilityPolicy(UUIDModel, TimeStampedModel):
+    """Owner-controlled visibility of one canonical, publishable Profile fact.
+
+    An absent policy leaves existing owner-domain visibility in force until
+    the resolver is integrated. A saved policy with no audiences means private.
+    """
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="visibility_policies",
+    )
+    target_kind = models.CharField(max_length=16, choices=ProfileVisibilityTargetKind.choices)
+    field_key = models.CharField(max_length=48, blank=True, default="")
+    interest = models.ForeignKey(
+        "topics.ProfileInterest",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="visibility_policies",
+    )
+    open_to = models.ForeignKey(
+        "topics.ProfileOpenTo",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="visibility_policies",
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(target_kind="field", field_key__in=tuple(PROFILE_VISIBILITY_FIELDS),
+                      interest__isnull=True, open_to__isnull=True)
+                    | Q(target_kind="interest", field_key="", interest__isnull=False, open_to__isnull=True)
+                    | Q(target_kind="open_to", field_key="", interest__isnull=True, open_to__isnull=False)
+                ),
+                name="prof_visibility_target_shape",
+            ),
+            models.UniqueConstraint(
+                fields=["owner", "field_key"],
+                condition=Q(target_kind="field"),
+                name="prof_vis_uniq_field",
+            ),
+            models.UniqueConstraint(
+                fields=["owner", "interest"],
+                condition=Q(target_kind="interest"),
+                name="prof_vis_uniq_interest",
+            ),
+            models.UniqueConstraint(
+                fields=["owner", "open_to"],
+                condition=Q(target_kind="open_to"),
+                name="prof_vis_uniq_open_to",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["owner", "target_kind"], name="prof_visibility_owner_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.target_kind == ProfileVisibilityTargetKind.FIELD:
+            if self.field_key not in PROFILE_VISIBILITY_FIELDS or self.interest_id or self.open_to_id:
+                raise ValidationError("La cible de confidentialité du Profil n'est pas autorisée.")
+        elif self.target_kind == ProfileVisibilityTargetKind.INTEREST:
+            if self.field_key or not self.interest_id or self.open_to_id:
+                raise ValidationError("Une politique d'intérêt exige un intérêt unique.")
+            if self.owner_id and self.interest.profile_id != self.owner_id:
+                raise ValidationError("Cet intérêt n'appartient pas au Profil.")
+        elif self.target_kind == ProfileVisibilityTargetKind.OPEN_TO:
+            if self.field_key or self.interest_id or not self.open_to_id:
+                raise ValidationError("Une politique Ouvert à exige une déclaration unique.")
+            if self.owner_id and self.open_to.profile_id != self.owner_id:
+                raise ValidationError("Cette déclaration n'appartient pas au Profil.")
+        else:
+            raise ValidationError("Type de cible de confidentialité inconnu.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class ProfileVisibilityAudienceKind(models.TextChoices):
+    PUBLIC = "public", "Tout le monde"
+    MY_COLLECTIVES = "my_collectives", "Mes collectifs"
+    SELECTED_SPACE = "selected_space", "Espace choisi"
+    SELECTED_TEAM = "selected_team", "Équipe choisie"
+    SELECTED_GROUP = "selected_group", "Groupe choisi"
+    SELECTED_PROFILE = "selected_profile", "Personne choisie"
+
+
+class ProfileVisibilityAudience(UUIDModel):
+    """An additive audience rule; current membership is resolved at read time.
+
+    No rows = owner only. PUBLIC makes other audience rules redundant, but they
+    can coexist. Membership grants visibility only when the owner chose it.
+    """
+
+    policy = models.ForeignKey(
+        ProfileVisibilityPolicy,
+        on_delete=models.CASCADE,
+        related_name="audiences",
+    )
+    kind = models.CharField(max_length=24, choices=ProfileVisibilityAudienceKind.choices)
+    selected_profile = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="profile_visibility_grants_received",
+    )
+    selected_space = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="profile_visibility_audiences",
+    )
+    selected_team = models.ForeignKey(
+        "organizations.Team",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="profile_visibility_audiences",
+    )
+    selected_group = models.ForeignKey(
+        "groups.Group",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="profile_visibility_audiences",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(kind__in=("public", "my_collectives"),
+                      selected_profile__isnull=True, selected_space__isnull=True,
+                      selected_team__isnull=True, selected_group__isnull=True)
+                    | Q(kind="selected_profile", selected_profile__isnull=False,
+                        selected_space__isnull=True, selected_team__isnull=True,
+                        selected_group__isnull=True)
+                    | Q(kind="selected_space", selected_profile__isnull=True,
+                        selected_space__isnull=False, selected_team__isnull=True,
+                        selected_group__isnull=True)
+                    | Q(kind="selected_team", selected_profile__isnull=True,
+                        selected_space__isnull=True, selected_team__isnull=False,
+                        selected_group__isnull=True)
+                    | Q(kind="selected_group", selected_profile__isnull=True,
+                        selected_space__isnull=True, selected_team__isnull=True,
+                        selected_group__isnull=False)
+                ),
+                name="prof_visibility_audience_shape",
+            ),
+            models.UniqueConstraint(
+                fields=["policy", "kind"],
+                condition=Q(kind__in=("public", "my_collectives")),
+                name="prof_vis_uniq_broad",
+            ),
+            models.UniqueConstraint(
+                fields=["policy", "selected_profile"],
+                condition=Q(kind="selected_profile"),
+                name="prof_vis_uniq_profile",
+            ),
+            models.UniqueConstraint(
+                fields=["policy", "selected_space"],
+                condition=Q(kind="selected_space"),
+                name="prof_vis_uniq_space",
+            ),
+            models.UniqueConstraint(
+                fields=["policy", "selected_team"],
+                condition=Q(kind="selected_team"),
+                name="prof_vis_uniq_team",
+            ),
+            models.UniqueConstraint(
+                fields=["policy", "selected_group"],
+                condition=Q(kind="selected_group"),
+                name="prof_vis_uniq_group",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["policy", "kind"], name="prof_visibility_aud_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        expected = {
+            ProfileVisibilityAudienceKind.PUBLIC: None,
+            ProfileVisibilityAudienceKind.MY_COLLECTIVES: None,
+            ProfileVisibilityAudienceKind.SELECTED_PROFILE: "selected_profile_id",
+            ProfileVisibilityAudienceKind.SELECTED_SPACE: "selected_space_id",
+            ProfileVisibilityAudienceKind.SELECTED_TEAM: "selected_team_id",
+            ProfileVisibilityAudienceKind.SELECTED_GROUP: "selected_group_id",
+        }
+        if self.kind not in expected:
+            raise ValidationError("Audience de confidentialité inconnue.")
+        selected = {
+            key for key in (
+                "selected_profile_id", "selected_space_id",
+                "selected_team_id", "selected_group_id"
+            ) if getattr(self, key)
+        }
+        required = expected[self.kind]
+        if selected != ({required} if required else set()):
+            raise ValidationError("L'audience ne correspond pas à son destinataire.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)

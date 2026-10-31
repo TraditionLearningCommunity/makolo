@@ -1,0 +1,27 @@
+<section class="mk-panel p-5 sm:p-6" aria-labelledby="personal-transition-history-title">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p class="mk-kicker">Mes changements</p>
+      <h2 id="personal-transition-history-title" class="mt-1 text-xl font-extrabold">Historique des demandes</h2>
+    </div>
+    <a href="{% url 'subscriptions:history' %}" class="mk-btn mk-btn-secondary">Voir l'historique</a>
+  </div>
+  {% if personal_history.items %}
+  <ul class="mt-4 space-y-3">
+    {% for transition in personal_history.items %}
+    <li class="flex flex-wrap justify-between gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
+      <div>
+        <p class="font-bold">{{ transition.target_name }}</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">{{ transition.kind_label }} · {{ transition.requested_at|date:'d/m/Y' }}</p>
+      </div>
+      <span class="mk-badge">{{ transition.status_label }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="mt-4 text-sm" style="color:var(--mk-muted)">Aucun changement de formule ou d'option enregistré.</p>
+  {% endif %}
+  {% if personal_history.next_offset is not None %}
+  <a href="{% url 'subscriptions:history' %}?offset={{personal_history.next_offset}}" class="mt-4 inline-flex min-h-11 items-center font-bold">Voir les demandes suivantes</a>
+  {% endif %}
+</section>

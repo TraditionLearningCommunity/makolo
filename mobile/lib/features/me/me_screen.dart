@@ -8,7 +8,11 @@ import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
 import '../../design/surface_states.dart';
 import '../../navigation/destination.dart';
+import '../../network/makolo_api_client.dart';
+import '../../presentation/possibilities/discovery_save_icon.dart';
 import '../../navigation/refresh_boundary.dart';
+import '../../navigation/profile_avatar_image.dart';
+import '../../presentation/media/retained_recognition_image.dart';
 import '../../repositories/personal_repository.dart';
 import '../../sync/freshness.dart';
 import '../../sync/owner_source_state.dart';
@@ -19,11 +23,13 @@ class MeScreen extends StatefulWidget {
   const MeScreen({
     super.key,
     required this.repository,
+    this.api,
     this.now,
     this.onOpenDestination,
   });
 
   final PersonalRepository repository;
+  final MakoloApiClient? api;
   final DateTime Function()? now;
   final bool Function(StructuredDestination destination)? onOpenDestination;
 
@@ -34,6 +40,10 @@ class MeScreen extends StatefulWidget {
 class _MeScreenState extends State<MeScreen> {
   late Stream<StoredProjection?> _projectionStream;
   late Stream<OwnerSourceState> _sourceStream;
+  StoredProjection? _last;
+  String? _loading;
+  bool _pageFailed = false;
+  bool _retryRequested = false;
 
   @override
   void initState() {
@@ -45,6 +55,9 @@ class _MeScreenState extends State<MeScreen> {
   void didUpdateWidget(covariant MeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.repository != widget.repository) {
+      _last = null;
+      _loading = null;
+      _pageFailed = false;
       _bindStreams();
     }
   }
@@ -92,6 +105,7 @@ class _MeScreenState extends State<MeScreen> {
       );
     }
 
+    _last = projection;
     final selection = const MeSelector().select(
       projection: projection,
       now: (widget.now?.call() ?? DateTime.now()).toUtc(),
@@ -105,8 +119,67 @@ class _MeScreenState extends State<MeScreen> {
 
     return MeView(
       selection: selection,
+      mediaApi: widget.api,
+      avatarProfileId: widget.repository.store.profileId,
+      avatarRevision: projection.receivedAt,
       onOpenDestination: widget.onOpenDestination,
+      loadingMore: _loading != null,
+      loadFailed: _pageFailed,
+      onRetry: () {
+        setState(() {
+          _pageFailed = false;
+          _retryRequested = true;
+        });
+        _loadNext(selection);
+      },
+      onReachEnd:
+          widget.api == null || syncStatus?.state == SyncVisualState.offline
+          ? null
+          : () => _loadNext(selection),
     );
+  }
+
+  Future<void> _loadNext(MeSelection selection) async {
+    if (_loading != null ||
+        (_pageFailed && !_retryRequested) ||
+        widget.api == null ||
+        _last == null) {
+      return;
+    }
+    _retryRequested = false;
+    const families = ['considerations', 'collectives', 'resources'];
+    final pending = selection.territories.where(
+      (territory) =>
+          territory.hasMore && families.contains(territory.presentation.key),
+    );
+    if (pending.isEmpty) return;
+    final territory = pending.first.presentation.key;
+    final repository = widget.repository;
+    setState(() => _loading = territory);
+    try {
+      final current =
+          await repository.store.readProjection('personal.me') ?? _last!;
+      await repository.loadMoreMe(
+        api: widget.api!,
+        current: current,
+        territory: territory,
+      );
+      // The next load must never be based on the old snapshot while the
+      // projection watcher is still delivering its update.
+      final latest = await repository.store.readProjection('personal.me');
+      if (!mounted || widget.repository != repository) return;
+      _last = latest;
+      setState(() {
+        _loading = null;
+        _pageFailed = false;
+      });
+    } on Object {
+      if (!mounted || widget.repository != repository) return;
+      setState(() {
+        _loading = null;
+        _pageFailed = true;
+      });
+    }
   }
 
   MakoloReachabilityCue _reachability(
@@ -127,10 +200,28 @@ class _MeScreenState extends State<MeScreen> {
 }
 
 class MeView extends StatefulWidget {
-  const MeView({super.key, required this.selection, this.onOpenDestination});
+  const MeView({
+    super.key,
+    required this.selection,
+    this.onOpenDestination,
+    this.mediaApi,
+    this.avatarProfileId,
+    this.avatarRevision,
+    this.onReachEnd,
+    this.onRetry,
+    this.loadingMore = false,
+    this.loadFailed = false,
+  });
 
   final MeSelection selection;
   final bool Function(StructuredDestination destination)? onOpenDestination;
+  final MakoloApiClient? mediaApi;
+  final String? avatarProfileId;
+  final Object? avatarRevision;
+  final VoidCallback? onReachEnd;
+  final VoidCallback? onRetry;
+  final bool loadingMore;
+  final bool loadFailed;
 
   @override
   State<MeView> createState() => _MeViewState();
@@ -138,31 +229,18 @@ class MeView extends StatefulWidget {
 
 class _MeViewState extends State<MeView> {
   final ScrollController _controller = ScrollController();
-  StructuredDestination? _selectedDestination;
 
-  MeItemPresentation? get _selectedItem {
-    final selected = _selectedDestination;
-    if (selected == null) {
-      return null;
-    }
-
-    for (final territory in widget.selection.territories) {
-      for (final item in territory.items) {
-        if (_sameDestination(item.destination, selected)) {
-          return item;
-        }
-      }
-    }
-
-    return null;
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_checkEnd);
   }
+
+  void _checkEnd() {}
 
   @override
   void didUpdateWidget(covariant MeView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_selectedDestination != null && _selectedItem == null) {
-      _selectedDestination = null;
-    }
   }
 
   @override
@@ -177,41 +255,26 @@ class _MeViewState extends State<MeView> {
       builder: (context, constraints) {
         final useTwoTerritories =
             constraints.maxWidth >= MakoloLayout.meTwoColumnMinWidth &&
+            MediaQuery.textScalerOf(context).scale(16) <= 21 &&
             widget.selection.contentfulTerritoryCount >= 2;
-        final selected = _selectedItem;
-
-        final field = MakoloContentFrame(
-          child: _MeField(
+        return MakoloSurfaceStateView(
+          state: widget.selection.state,
+          content: _MeField(
             selection: widget.selection,
             controller: _controller,
+            mediaApi: widget.mediaApi,
+            avatarProfileId: widget.avatarProfileId,
+            avatarRevision: widget.avatarRevision,
             useTwoTerritories: useTwoTerritories,
             onSelectItem: _selectItem,
-          ),
-        );
-
-        final content = selected == null
-            ? field
-            : MakoloAdaptiveSplit(
-                splitAt: MakoloLayout.meTwoColumnMinWidth,
-                field: field,
-                focus: MakoloContentFrame(
-                  child: _MeDepth(item: selected, onClose: _closeDepth),
-                ),
-                narrow: MakoloContentFrame(
-                  child: _MeDepth(item: selected, onClose: _closeDepth),
-                ),
-              );
-
-        return PopScope<Object?>(
-          canPop: _selectedDestination == null,
-          onPopInvokedWithResult: (didPop, result) {
-            if (!didPop && _selectedDestination != null) {
-              _closeDepth();
-            }
-          },
-          child: MakoloSurfaceStateView(
-            state: widget.selection.state,
-            content: content,
+            loadingMore: widget.loadingMore,
+            loadFailed: widget.loadFailed,
+            onRetry: widget.onRetry,
+            hasMore: widget.selection.territories.any((t) => t.hasMore),
+            hasOwnerNavigation: widget.onOpenDestination != null,
+            canConfirmExhaustion:
+                widget.onReachEnd != null ||
+                widget.selection.territories.every((t) => !t.hasMore),
           ),
         );
       },
@@ -219,24 +282,10 @@ class _MeViewState extends State<MeView> {
   }
 
   void _selectItem(MeItemPresentation item) {
-    if (widget.onOpenDestination?.call(item.destination) == true) {
-      return;
-    }
-    setState(() => _selectedDestination = item.destination);
-  }
-
-  void _closeDepth() {
-    if (_selectedDestination == null) {
-      return;
-    }
-    setState(() => _selectedDestination = null);
-  }
-
-  bool _sameDestination(
-    StructuredDestination left,
-    StructuredDestination right,
-  ) {
-    return left.kind == right.kind && left.id == right.id;
+    if (!item.canOpen) return;
+    widget.onOpenDestination?.call(item.destination);
+    // No generic fallback: the owner either opens its native route, or
+    // the N1 fact stays in place until that owner has a real client screen.
   }
 }
 
@@ -253,9 +302,7 @@ class _MeFirstAvailability extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final message = loading
-        ? 'Chargement…'
-        : 'Ces informations ne sont pas disponibles pour le moment.';
+    final message = loading ? 'Chargement…' : 'Profil indisponible.';
 
     return MakoloContentFrame(
       child: SingleChildScrollView(
@@ -319,138 +366,519 @@ class _MeField extends StatelessWidget {
   const _MeField({
     required this.selection,
     required this.controller,
+    required this.mediaApi,
+    this.avatarProfileId,
+    this.avatarRevision,
     required this.useTwoTerritories,
     required this.onSelectItem,
+    required this.loadingMore,
+    required this.loadFailed,
+    required this.onRetry,
+    required this.hasMore,
+    required this.hasOwnerNavigation,
+    required this.canConfirmExhaustion,
   });
 
   final MeSelection selection;
   final ScrollController controller;
+  final MakoloApiClient? mediaApi;
+  final String? avatarProfileId;
+  final Object? avatarRevision;
   final bool useTwoTerritories;
   final ValueChanged<MeItemPresentation> onSelectItem;
+  final bool loadingMore;
+  final bool loadFailed;
+  final VoidCallback? onRetry;
+  final bool hasMore;
+  final bool hasOwnerNavigation;
+  final bool canConfirmExhaustion;
 
   @override
   Widget build(BuildContext context) {
-    final territories = [
-      for (final territory in selection.territories)
-        _MeTerritory(territory: territory, onSelectItem: onSelectItem),
+    final edge = useTwoTerritories ? 0.0 : MakoloLayout.edgeCompact;
+    final territories = <Widget>[
+      for (final territory in selection.territories) ...[
+        if (territory.presentation.key == 'resources' &&
+            selection.canOpenHistory)
+          _MeHistorySection(
+            edge: edge,
+            onOpen: hasOwnerNavigation
+                ? () => onSelectItem(
+                    const MeItemPresentation(
+                      destination: StructuredDestination(
+                        kind: 'history',
+                        id: 'me',
+                      ),
+                      title: 'Mon historique',
+                      canOpen: true,
+                    ),
+                  )
+                : null,
+          ),
+        _MeTerritory(
+          key: ValueKey('me-territory-${territory.presentation.key}'),
+          territory: territory,
+          onSelectItem: onSelectItem,
+          hasOwnerNavigation: hasOwnerNavigation,
+          mediaApi: mediaApi,
+          mediaProfileId: avatarProfileId,
+          edge: edge,
+        ),
+      ],
+      if (selection.canOpenHistory &&
+          !selection.territories.any((t) => t.presentation.key == 'resources'))
+        _MeHistorySection(
+          edge: edge,
+          onOpen: hasOwnerNavigation
+              ? () => onSelectItem(
+                  const MeItemPresentation(
+                    destination: StructuredDestination(
+                      kind: 'history',
+                      id: 'me',
+                    ),
+                    title: 'Mon historique',
+                    canOpen: true,
+                  ),
+                )
+              : null,
+        ),
     ];
 
-    return ListView(
+    final field = ListView(
       key: const PageStorageKey<String>('me-field-scroll'),
       controller: controller,
-      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(
+        top: MakoloSpacing.sm,
+        bottom: MakoloSpacing.xl,
+      ),
       children: [
-        _MeIdentity(selection: selection),
-        const SizedBox(height: MakoloSpacing.strong),
-        Text(
-          'Déjà en place',
-          style: Theme.of(context).textTheme.headlineMedium,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: edge),
+          child: _MeIdentity(
+            selection: selection,
+            avatarProfileId: avatarProfileId,
+            avatarApi: mediaApi,
+            avatarRevision: avatarRevision,
+            onAvatarTap: hasOwnerNavigation
+                ? () => onSelectItem(
+                    const MeItemPresentation(
+                      destination: StructuredDestination(
+                        kind: 'avatar_edit',
+                        id: 'me',
+                      ),
+                      title: 'Modifier la photo',
+                      canOpen: true,
+                    ),
+                  )
+                : null,
+            onEdit: hasOwnerNavigation
+                ? () => onSelectItem(
+                    const MeItemPresentation(
+                      destination: StructuredDestination(
+                        kind: 'profile_self',
+                        id: 'me',
+                      ),
+                      title: 'Modifier mon passeport',
+                      canOpen: true,
+                    ),
+                  )
+                : null,
+          ),
         ),
-        const SizedBox(height: MakoloSpacing.xs),
-        Text(
-          'Ce qui est déjà là pour faciliter la suite.',
-          style: Theme.of(context).textTheme.bodyMedium
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: MakoloSpacing.lg),
+        const SizedBox(height: MakoloSpacing.inner),
         if (useTwoTerritories)
-          MakoloAdaptiveGrid(
-            key: const Key('me-territories-wide'),
-            minUnitWidth: 320,
-            maxColumns: 2,
-            children: territories,
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: edge),
+            child: MakoloAdaptiveGrid(
+              key: const Key('me-territories-wide'),
+              minUnitWidth: 320,
+              maxColumns: 2,
+              children: territories,
+            ),
           )
         else
           Column(
             key: const Key('me-territories-compact'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var index = 0; index < territories.length; index++) ...[
                 territories[index],
                 if (index != territories.length - 1)
-                  const SizedBox(height: MakoloSpacing.lg),
+                  const SizedBox(height: MakoloSpacing.inner),
               ],
             ],
           ),
       ],
     );
+    if (useTwoTerritories) {
+      return MakoloContentFrame(child: field);
+    }
+    return field;
   }
 }
 
 class _MeIdentity extends StatelessWidget {
-  const _MeIdentity({required this.selection});
+  const _MeIdentity({
+    required this.selection,
+    this.onEdit,
+    this.onAvatarTap,
+    this.avatarProfileId,
+    this.avatarApi,
+    this.avatarRevision,
+  });
 
   final MeSelection selection;
+  final VoidCallback? onEdit;
+  final VoidCallback? onAvatarTap;
+  final String? avatarProfileId;
+  final MakoloApiClient? avatarApi;
+  final Object? avatarRevision;
 
   @override
   Widget build(BuildContext context) {
     if (selection.identityState.failure == MakoloFailureCue.blocking) {
       return const MakoloErrorState(
-        message:
-            'Votre identité ne peut pas être présentée '
-            'correctement pour le moment.',
+        message: 'Votre identité est momentanément indisponible.',
       );
     }
 
+    final theme = Theme.of(context);
+    final name = selection.presentation.identityLabel;
     return Semantics(
       container: true,
-      header: true,
-      label: selection.presentation.identityLabel,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            selection.presentation.identityLabel,
-            style: Theme.of(context).textTheme.headlineLarge,
-          ),
-          if (selection.identitySubtitle != null) ...[
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              selection.identitySubtitle!,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+      label: name,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
+        child: Row(
+          children: [
+            Semantics(
+              button: onAvatarTap != null,
+              label: 'Modifier ma photo',
+              child: InkWell(
+                onTap: onAvatarTap,
+                borderRadius: BorderRadius.circular(40),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _MeAvatar(
+                      name: name,
+                      imageUrl: selection.identityAvatarUrl,
+                      profileId: avatarProfileId,
+                      api: avatarApi,
+                      revision: avatarRevision,
+                    ),
+                    if (onAvatarTap != null)
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.surface,
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_rounded,
+                            color: Colors.white,
+                            size: 13,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
+            const SizedBox(width: MakoloSpacing.compact),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (selection.identitySubtitle != null) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
+                    Text(
+                      selection.identitySubtitle!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (selection.identityDetail != null) ...[
+                    const SizedBox(height: MakoloSpacing.xs),
+                    Text(
+                      selection.identityDetail!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (onEdit != null)
+              IconButton(
+                tooltip: 'Modifier mon passeport',
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined),
+                color: theme.colorScheme.primary,
+              ),
           ],
-          if (selection.identityDetail != null) ...[
-            const SizedBox(height: MakoloSpacing.md),
-            Text(selection.identityDetail!),
-          ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MeHistorySection extends StatelessWidget {
+  const _MeHistorySection({required this.edge, this.onOpen});
+  final double edge;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            edge,
+            MakoloSpacing.sm,
+            edge,
+            MakoloSpacing.compact,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.history_rounded, color: colors.primary, size: 23),
+              const SizedBox(width: MakoloSpacing.compact),
+              Text(
+                'Mon historique',
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+        ),
+        Material(
+          color: colors.surface,
+          child: InkWell(
+            onTap: onOpen,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: edge, vertical: 15),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Retrouver mon parcours',
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ),
+                  if (onOpen != null)
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: colors.onSurfaceVariant,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MeAvatar extends StatelessWidget {
+  const _MeAvatar({
+    required this.name,
+    this.imageUrl,
+    this.profileId,
+    this.api,
+    this.revision,
+  });
+
+  final String name;
+  final String? imageUrl;
+  final String? profileId;
+  final MakoloApiClient? api;
+  final Object? revision;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final initials = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part.substring(0, 1).toUpperCase())
+        .join();
+    final placeholder = Container(
+      width: 64,
+      height: 64,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.10),
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        initials.isEmpty ? 'M' : initials,
+        style: theme.textTheme.titleLarge?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+    return ExcludeSemantics(
+      child: ClipOval(
+        child: ProfileAvatarImage(
+          profileId: profileId,
+          api: api,
+          url: imageUrl,
+          revision: revision,
+          size: 64,
+          fallback: placeholder,
+        ),
       ),
     );
   }
 }
 
 class _MeTerritory extends StatelessWidget {
-  const _MeTerritory({required this.territory, required this.onSelectItem});
+  const _MeTerritory({
+    super.key,
+    required this.territory,
+    required this.onSelectItem,
+    required this.hasOwnerNavigation,
+    required this.mediaApi,
+    this.mediaProfileId,
+    required this.edge,
+  });
 
   final MeTerritorySelection territory;
   final ValueChanged<MeItemPresentation> onSelectItem;
+  final bool hasOwnerNavigation;
+  final MakoloApiClient? mediaApi;
+  final String? mediaProfileId;
+  final double edge;
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme;
     final presentation = territory.presentation;
-
-    return MakoloSection(
-      title: presentation.label,
-      description: presentation.summary,
-      padding: EdgeInsets.zero,
-      child: _body(context),
+    final isPassport = presentation.key == 'passport';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            edge,
+            MakoloSpacing.sm,
+            edge,
+            MakoloSpacing.compact,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: presentation.key == 'considerations' && hasOwnerNavigation
+                  ? () => onSelectItem(
+                      const MeItemPresentation(
+                        destination: StructuredDestination(
+                          kind: 'considerations',
+                          id: 'mine',
+                        ),
+                        title: 'Ce qui compte pour moi',
+                        canOpen: true,
+                      ),
+                    )
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      _iconForTerritory(presentation.key),
+                      color: color.primary,
+                      size: 23,
+                    ),
+                    const SizedBox(width: MakoloSpacing.compact),
+                    Expanded(
+                      child: Text(
+                        presentation.label,
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    if (territory.totalCount > 0)
+                      Text(
+                        '${territory.totalCount}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: color.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    if (presentation.key == 'considerations' &&
+                        hasOwnerNavigation)
+                      const Padding(
+                        padding: EdgeInsetsDirectional.only(start: 6),
+                        child: Icon(Icons.chevron_right_rounded),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (isPassport)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: edge),
+            child: _body(context),
+          )
+        else
+          Material(
+            color: color.surface,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: edge,
+                vertical: MakoloSpacing.sm,
+              ),
+              child: _body(context),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _body(BuildContext context) {
-    final state = territory.presentation.state;
+  IconData _iconForTerritory(String key) => switch (key) {
+    'passport' => Icons.badge_outlined,
+    'considerations' => Icons.interests_outlined,
+    'collectives' => Icons.groups_outlined,
+    'accesses' => Icons.confirmation_number_outlined,
+    'resources' => Icons.folder_copy_outlined,
+    'support' => Icons.handshake_outlined,
+    _ => Icons.grid_view_outlined,
+  };
 
-    if (state.failure == MakoloFailureCue.blocking) {
+  Widget _body(BuildContext context) {
+    if (territory.presentation.state.failure == MakoloFailureCue.blocking) {
       return const MakoloErrorState(
-        message:
-            'Cette section n’est pas disponible '
-            'pour le moment.',
+        message: 'Cette section est momentanément indisponible.',
       );
     }
-
-    final content = switch (territory.presentation.key) {
+    return switch (territory.presentation.key) {
       'passport' => _passport(context),
       'considerations' => _considerations(context),
       'collectives' => _collectives(context),
@@ -458,102 +886,212 @@ class _MeTerritory extends StatelessWidget {
       'support' => _support(context),
       _ => _generic(context),
     };
-
-    return content;
   }
 
   Widget _passport(BuildContext context) {
     if (!territory.hasContent) {
-      return _empty(context, 'Aucun Passeport disponible ici pour le moment.');
+      return _empty(context, 'Aucun passeport disponible.');
     }
-
     final firstItem = territory.items.isNotEmpty ? territory.items.first : null;
-    final title = firstItem?.title ?? 'Disponible';
-    final subtitle =
-        firstItem?.subtitle ??
-        'Une vue de ce qui peut vous représenter selon le contexte.';
-
-    return MakoloCard(
-      onTap: firstItem == null ? null : () => onSelectItem(firstItem),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.badge_outlined,
-            color: Theme.of(context).colorScheme.primary,
+    final onOpen = firstItem != null && firstItem.canOpen && hasOwnerNavigation
+        ? () => onSelectItem(firstItem)
+        : null;
+    final textTheme = Theme.of(context).textTheme;
+    return Semantics(
+      button: onOpen != null,
+      label: 'Passeport Makolo. Ouvrir mon passeport.',
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(MakoloRadii.card),
+        clipBehavior: Clip.antiAlias,
+        child: Ink(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [MakoloColors.indigo, MakoloColors.deep],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.all(Radius.circular(MakoloRadii.card)),
           ),
-          const SizedBox(width: MakoloSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: MakoloSpacing.xs),
-                Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-              ],
+          child: InkWell(
+            onTap: onOpen,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.md,
+                vertical: MakoloSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.badge_outlined,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                  const SizedBox(width: MakoloSpacing.compact),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mon passeport',
+                          style: textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: MakoloSpacing.xs),
+                        Text(
+                          'À partager selon votre choix',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onOpen != null) ...[
+                    const SizedBox(width: MakoloSpacing.sm),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
-          if (firstItem != null) const Icon(Icons.chevron_right_rounded),
-        ],
+        ),
       ),
     );
   }
 
   Widget _considerations(BuildContext context) {
-    if (territory.items.isEmpty) {
-      return _empty(context, 'Rien de déclaré pour le moment.');
-    }
-
+    final saved = territory.items
+        .where((item) => item.destination.kind == 'activity')
+        .take(3)
+        .toList();
+    final interests = territory.items
+        .where((item) => item.destination.kind == 'topic')
+        .take(4)
+        .toList();
+    final openTo = territory.items
+        .where((item) => item.destination.kind == 'open_to')
+        .take(3)
+        .toList();
+    final colors = Theme.of(context).colorScheme;
+    final canNavigate = hasOwnerNavigation;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var index = 0; index < territory.items.length; index++) ...[
-          _MeConsideration(
-            item: territory.items[index],
-            onTap: () => onSelectItem(territory.items[index]),
+        if (interests.isNotEmpty || openTo.isNotEmpty) ...[
+          Wrap(
+            spacing: 7,
+            runSpacing: 6,
+            children: [
+              for (final item in [...interests, ...openTo])
+                _MeChip(item: item, onTap: null),
+            ],
           ),
-          if (index != territory.items.length - 1)
-            const Divider(height: MakoloSpacing.lg),
+          const SizedBox(height: MakoloSpacing.compact),
         ],
+        if (saved.isNotEmpty) ...[
+          Text(
+            'Mes enregistrements',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+          for (final item in saved)
+            _MeConsideration(
+              key: ValueKey(
+                'me-item-${item.destination.kind}-${item.destination.id}',
+              ),
+              item: item,
+              mediaApi: mediaApi,
+              profileId: mediaProfileId,
+              onTap: item.canOpen && canNavigate
+                  ? () => onSelectItem(item)
+                  : null,
+            ),
+        ],
+        if (canNavigate)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: () => onSelectItem(
+                const MeItemPresentation(
+                  destination: StructuredDestination(
+                    kind: 'saved_collection',
+                    id: 'mine',
+                  ),
+                  title: 'Mes enregistrements',
+                  canOpen: true,
+                ),
+              ),
+              icon: DiscoveryOrbitIcon(
+                saved: true,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              label: Text(
+                territory.savedCount > 0
+                    ? 'Voir les ${territory.savedCount} enregistrements'
+                    : 'Mes enregistrements',
+              ),
+            ),
+          ),
+        if (territory.items.isEmpty && !canNavigate)
+          _empty(context, 'Rien de déclaré pour le moment.'),
       ],
     );
   }
 
   Widget _collectives(BuildContext context) {
     if (territory.items.isEmpty) {
-      return _empty(context, 'Aucun collectif lié pour le moment.');
+      return _empty(context, 'Aucun collectif associé.');
     }
-
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
+          _MeIdentityRow(
+            item: item,
+            onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item)
+                : null,
+          ),
       ],
     );
   }
 
   Widget _resources(BuildContext context) {
     if (territory.items.isEmpty) {
-      return _empty(context, 'Aucune ressource disponible ici.');
+      return _empty(context, 'Aucune ressource disponible.');
     }
-
     return Column(
       children: [
         for (final item in territory.items)
-          _MeResourceRow(item: item, onTap: () => onSelectItem(item)),
+          _MeResourceRow(
+            item: item,
+            onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item)
+                : null,
+          ),
       ],
     );
   }
 
   Widget _support(BuildContext context) {
-    if (territory.items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
+    if (territory.items.isEmpty) return const SizedBox.shrink();
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
+          _MeIdentityRow(
+            item: item,
+            onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item)
+                : null,
+          ),
       ],
     );
   }
@@ -562,63 +1100,145 @@ class _MeTerritory extends StatelessWidget {
     if (territory.items.isEmpty) {
       return _empty(context, 'Rien ici pour le moment.');
     }
-
     return Column(
       children: [
         for (final item in territory.items)
-          _MeIdentityRow(item: item, onTap: () => onSelectItem(item)),
+          _MeIdentityRow(
+            item: item,
+            onTap: item.canOpen && hasOwnerNavigation
+                ? () => onSelectItem(item)
+                : null,
+          ),
       ],
     );
   }
 
   Widget _empty(BuildContext context, String message) {
-    return Text(
-      message,
-      style: Theme.of(context).textTheme.bodyMedium
-          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.compact),
+      child: Text(
+        message,
+        style: Theme.of(context).textTheme.bodyMedium
+            ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
+class _MeChip extends StatelessWidget {
+  const _MeChip({required this.item, this.onTap});
+
+  final MeItemPresentation item;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.primary.withValues(alpha: 0.07),
+      borderRadius: BorderRadius.circular(MakoloRadii.pill),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(MakoloRadii.pill),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: MakoloSpacing.compact,
+            vertical: MakoloSpacing.sm,
+          ),
+          child: Text(
+            item.title,
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
     );
   }
 }
 
 class _MeConsideration extends StatelessWidget {
-  const _MeConsideration({required this.item, required this.onTap});
+  const _MeConsideration({
+    super.key,
+    required this.item,
+    required this.onTap,
+    this.mediaApi,
+    this.profileId,
+  });
 
   final MeItemPresentation item;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final MakoloApiClient? mediaApi;
+  final String? profileId;
 
   @override
   Widget build(BuildContext context) {
-    final semanticLabel = [
-      item.title,
-      item.subtitle,
-    ].whereType<String>().join('. ');
-
+    final scheme = Theme.of(context).colorScheme;
+    final isSaved = item.destination.kind == 'activity';
     return Semantics(
-      button: true,
-      label: semanticLabel,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(MakoloRadii.control),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ),
-                if (item.subtitle != null)
-                  Text(
-                    item.subtitle!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      button: onTap != null,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: MakoloSpacing.compact,
+              ),
+              child: Row(
+                children: [
+                  if (isSaved) ...[
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Center(child: _MeSavedOrbit()),
+                    ),
+                    const SizedBox(width: MakoloSpacing.compact),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        if (item.subtitle != null) ...[
+                          const SizedBox(height: MakoloSpacing.xs),
+                          Text(
+                            item.subtitle!,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-              ],
+                  if (isSaved &&
+                      mediaApi != null &&
+                      profileId != null &&
+                      item.mediaPath != null) ...[
+                    const SizedBox(width: MakoloSpacing.sm),
+                    _MeRecognitionThumbnail(
+                      key: ValueKey(item.mediaPath),
+                      api: mediaApi!,
+                      profileId: profileId!,
+                      path: item.mediaPath!,
+                      alt: item.mediaAlt ?? item.title,
+                    ),
+                  ],
+                  if (onTap != null) ...[
+                    const SizedBox(width: MakoloSpacing.sm),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 21,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),
@@ -627,32 +1247,84 @@ class _MeConsideration extends StatelessWidget {
   }
 }
 
+/// Published recognition image reuses the Profile's private durable bytes.
+class _MeRecognitionThumbnail extends StatelessWidget {
+  const _MeRecognitionThumbnail({
+    super.key,
+    required this.api,
+    required this.profileId,
+    required this.path,
+    required this.alt,
+  });
+
+  final MakoloApiClient api;
+  final String profileId;
+  final String path;
+  final String alt;
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(10),
+    child: RetainedRecognitionImage(
+      api: api,
+      profileId: profileId,
+      path: path,
+      alt: alt,
+      width: 72,
+      height: 56,
+      placeholder: const SizedBox(width: 72, height: 56),
+    ),
+  );
+}
+
+class _MeSavedOrbit extends StatelessWidget {
+  const _MeSavedOrbit();
+
+  @override
+  Widget build(BuildContext context) {
+    return DiscoveryOrbitIcon(
+      saved: true,
+      color: Theme.of(context).colorScheme.primary,
+    );
+  }
+}
+
 class _MeIdentityRow extends StatelessWidget {
   const _MeIdentityRow({required this.item, required this.onTap});
 
   final MeItemPresentation item;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      minVerticalPadding: MakoloSpacing.sm,
-      onTap: onTap,
-      leading: Icon(_identityIcon(item.destination.kind)),
-      title: Text(item.title),
-      subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-      trailing: const Icon(Icons.chevron_right_rounded),
+    final scheme = Theme.of(context).colorScheme;
+    final initial = item.title.trim().isEmpty
+        ? 'M'
+        : item.title.trim().substring(0, 1).toUpperCase();
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        dense: true,
+        minVerticalPadding: MakoloSpacing.xs,
+        contentPadding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        onTap: onTap,
+        leading: CircleAvatar(
+          radius: 18,
+          backgroundColor: scheme.primary.withValues(alpha: 0.08),
+          child: Text(
+            initial,
+            style: Theme.of(context).textTheme.labelLarge
+                ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w800),
+          ),
+        ),
+        title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
+        subtitle: item.subtitle == null ? null : Text(item.subtitle!),
+        trailing: onTap == null
+            ? null
+            : const Icon(Icons.chevron_right_rounded, size: 21),
+      ),
     );
-  }
-
-  IconData _identityIcon(String kind) {
-    return switch (kind) {
-      'space' => Icons.business_outlined,
-      'team' => Icons.badge_outlined,
-      'group' => Icons.groups_outlined,
-      _ => Icons.group_outlined,
-    };
   }
 }
 
@@ -660,108 +1332,38 @@ class _MeResourceRow extends StatelessWidget {
   const _MeResourceRow({required this.item, required this.onTap});
 
   final MeItemPresentation item;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      minVerticalPadding: MakoloSpacing.sm,
-      onTap: onTap,
-      leading: Icon(_iconFor(item.destination.kind)),
-      title: Text(item.title),
-      subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-      trailing: const Icon(Icons.chevron_right_rounded),
-    );
-  }
-
-  IconData _iconFor(String kind) {
-    return switch (kind) {
-      'proof' => Icons.verified_outlined,
-      'credential' => Icons.workspace_premium_outlined,
-      'personal_asset' => Icons.folder_outlined,
-      'resource_collection' => Icons.inventory_2_outlined,
-      _ => Icons.description_outlined,
-    };
-  }
-}
-
-class _MeDepth extends StatelessWidget {
-  const _MeDepth({required this.item, required this.onClose});
-
-  final MeItemPresentation item;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      key: const Key('me-depth-scroll'),
-      padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.xl),
-      child: MakoloFocusPane(
-        child: FocusTraversalGroup(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton.icon(
-                  onPressed: onClose,
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  label: const Text('Moi'),
-                ),
-              ),
-              const SizedBox(height: MakoloSpacing.md),
-              Semantics(
-                header: true,
-                child: Text(
-                  item.title,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-              ),
-              if (item.subtitle != null) ...[
-                const SizedBox(height: MakoloSpacing.sm),
-                Text(
-                  item.subtitle!,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-              if (item.metadata.isNotEmpty) ...[
-                const SizedBox(height: MakoloSpacing.lg),
-                MakoloMetadata(
-                  items: [
-                    for (final label in item.metadata)
-                      MakoloMetadataItem(label),
-                  ],
-                ),
-              ],
-              if (_contextMessage(item.destination.kind)
-                  case final message?) ...[
-                const SizedBox(height: MakoloSpacing.xl),
-                Text(message, style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ],
-          ),
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        dense: true,
+        minVerticalPadding: MakoloSpacing.xs,
+        contentPadding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        onTap: onTap,
+        leading: Icon(
+          _iconFor(item.destination.kind),
+          size: 21,
+          color: scheme.primary,
         ),
+        title: Text(item.title, style: Theme.of(context).textTheme.bodyLarge),
+        subtitle: item.subtitle == null ? null : Text(item.subtitle!),
+        trailing: onTap == null
+            ? null
+            : const Icon(Icons.chevron_right_rounded, size: 21),
       ),
     );
   }
 
-  String? _contextMessage(String kind) {
-    return switch (kind.toLowerCase()) {
-      'personal_asset' => null,
-      'proof' =>
-        'Cette preuve fait partie de ce qui '
-            'est déjà établi autour de vous.',
-      'credential' =>
-        'Ce titre fait partie de ce qui '
-            'vous a déjà été délivré.',
-      'group' || 'team' => 'Votre lien avec ce collectif est visible ici.',
-      'space' =>
-        'Ce contexte est visible ici selon '
-            'les droits déjà établis par Makolo.',
-      _ => null,
-    };
-  }
+  IconData _iconFor(String kind) => switch (kind) {
+    'proof' => Icons.verified_outlined,
+    'credential' => Icons.workspace_premium_outlined,
+    'personal_asset' => Icons.folder_outlined,
+    'resource_collection' => Icons.inventory_2_outlined,
+    _ => Icons.description_outlined,
+  };
 }

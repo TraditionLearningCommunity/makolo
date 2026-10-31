@@ -1,4 +1,7 @@
+from datetime import datetime, time
 from types import SimpleNamespace
+
+from django.utils.dateparse import parse_date, parse_datetime
 
 from django.conf import settings
 from django.contrib import messages
@@ -8,7 +11,9 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
@@ -26,7 +31,8 @@ from .models import ActivityBookmark
 from .presentation import build_discovery_item, presenter_for
 from .search import get_public_occurrence, public_occurrences_for_activities, search_occurrences
 from .services import build_recommendations, public_discovery_events
-from .api.composition import paginated_projection
+from .api.composition import detail_projection, paginated_projection
+from .n2_presentation import build_n2_presentation
 from .telemetry import record_search
 from .unified import public_opportunity_discovery_items, public_service_discovery_items
 
@@ -168,6 +174,65 @@ def _discovery_fact(code, label, value, icon=None):
     return SimpleNamespace(code=code, label=label, value=value, icon=icon)
 
 
+def _discovery_first_person_action_label(label):
+    """Humanize a confirmed owner Web action without changing its capability."""
+    normalized = label.strip().casefold()
+    return {
+        "s'inscrire": "Je m'inscris",
+        "s’inscrire": "Je m’inscris",
+        "réserver": "Je réserve",
+        "payer": "Je paye",
+        "commander": "Je commande",
+        "candidater": "Je candidate",
+        "participer": "Je participe",
+        "acheter": "J’achète",
+        "louer": "Je loue",
+        "demander": "Je demande",
+        "contribuer": "Je contribue",
+        "postuler": "Je postule",
+    }.get(normalized, label)
+
+
+def _added_date_label(value, *, now=None):
+    """Friendly N1 added-at label; not an Occurrence date or guessed timestamp."""
+    if not value:
+        return ""
+    instant = parse_datetime(str(value))
+    if instant is None:
+        day = parse_date(str(value)[:10])
+        if day is None:
+            return ""
+        instant = timezone.make_aware(
+            datetime.combine(day, time.min),
+            timezone.get_current_timezone(),
+        )
+    if timezone.is_naive(instant):
+        instant = timezone.make_aware(instant, timezone.get_current_timezone())
+    current = now or timezone.now()
+    local = timezone.localtime(instant)
+    current = timezone.localtime(current)
+    delta = current - local
+    if delta.total_seconds() < 0:
+        return local.strftime("%d/%m/%Y")
+    days = (current.date() - local.date()).days
+    if days == 0:
+        minutes = int(delta.total_seconds() // 60)
+        if minutes < 1:
+            return "À l’instant"
+        if minutes < 60:
+            return f"il y a {minutes} min"
+        return f"il y a {int(delta.total_seconds() // 3600)} h"
+    if days == 1:
+        return "Hier"
+    if days == 2:
+        return "Avant-hier"
+    if days < 7:
+        return f"il y a {days} j"
+    if days < 30:
+        return f"il y a {days // 7} sem."
+    return local.strftime("%d/%m/%Y")
+
+
 def _web_discovery_card(item):
     identity = item["identity"]
     representation = item["representation"]
@@ -176,62 +241,151 @@ def _web_discovery_card(item):
     engagement = item.get("engagement") or {}
     engagement_presentation = engagement.get("presentation") or {}
 
-    facts = [
-        _discovery_fact(
-            fact.get("code") or "fact",
-            fact.get("label") or "",
-            fact.get("value") or "",
-            fact.get("icon"),
-        )
-        for fact in item.get("presentation_facts", [])
-    ]
+    # Classification is rendered under the title, never as a practical fact.
+    type_labels = []
+    def add_type(value):
+        text = str(value or "").strip()
+        if text and text.casefold() not in {label.casefold() for label in type_labels}:
+            type_labels.append(text)
+
+    add_type(representation.get("vertical_label"))
+    add_type(representation.get("eyebrow"))
+    facts = []
+    seen = set()
+    seen_labels = set()
+
+    def canonical_code(code):
+        normalized = str(code or "").strip().lower()
+        return {
+            "capacity": "availability",
+            "start_at": "when",
+            "start_date": "when",
+            "place_primary": "place",
+        }.get(normalized, normalized)
+
+    def add_fact(code, label, value, icon):
+        key = canonical_code(code)
+        normalized_label = str(label or "").strip().casefold()
+        if (
+            value is None
+            or not str(value).strip()
+            or str(value).strip().casefold() in {"unknown", "inconnu", "inconnue", "n/a", "à confirmer"}
+            or key in seen
+            or normalized_label in seen_labels
+        ):
+            return
+        seen.add(key)
+        seen_labels.add(normalized_label)
+        facts.append(_discovery_fact(key, label, value, icon))
+
+    for fact in item.get("presentation_facts") or []:
+        code = str(fact.get("code") or "fact")
+        label = str(fact.get("label") or "")
+        if code.casefold() == "type" or label.casefold() == "type":
+            add_type(fact.get("value"))
+        else:
+            add_fact(code, label, fact.get("value"), fact.get("icon"))
+
     timing = item.get("timing") or {}
     place = item.get("place")
     price = item.get("price") or {}
     availability = item.get("availability") or {}
-    if not facts:
-        if timing.get("start_at"):
-            facts.append(_discovery_fact("when", "Quand", timing["start_at"], "calendar-clock"))
-        elif timing.get("start_date"):
-            facts.append(_discovery_fact("when", "Quand", timing["start_date"], "calendar-clock"))
 
-        if place:
-            place_value = place.get("name") or place.get("locality")
-            if place.get("name") and place.get("locality") and place["locality"] != place["name"]:
-                place_value = f"{place['name']}, {place['locality']}"
-            if place_value:
-                facts.append(_discovery_fact("place", "Lieu", place_value, "map-pin"))
+    if timing.get("start_at"):
+        add_fact("when", "Quand", timing["start_at"], "calendar-clock")
+    elif timing.get("start_date"):
+        add_fact("when", "Quand", timing["start_date"], "calendar-clock")
 
-        if price.get("state") == "free":
-            facts.append(_discovery_fact("price", "Prix", "Gratuit", "wallet-cards"))
-        elif price.get("minimum") is not None:
-            value = str(price["minimum"])
-            if price.get("currency"):
-                value = f"{value} {price['currency']}"
-            facts.append(_discovery_fact("price", "Prix", value, "wallet-cards"))
+    if place:
+        place_value = place.get("name") or place.get("locality")
+        if place.get("name") and place.get("locality") and place["locality"] != place["name"]:
+            place_value = f"{place['name']}, {place['locality']}"
+        if place_value:
+            add_fact("place", "Lieu", place_value, "map-pin")
 
-        availability_state = availability.get("state")
-        if availability_state:
-            facts.append(
-                _discovery_fact(
-                    "availability",
-                    "Disponibilité",
-                    _AVAILABILITY_LABELS.get(availability_state, availability_state),
-                    "users",
-                )
+    if price.get("state") == "free":
+        add_fact("price", "Prix", "Gratuit", "wallet-cards")
+    elif price.get("minimum") is not None:
+        price_value = str(price["minimum"])
+        if (
+            price.get("state") == "range"
+            and price.get("maximum") is not None
+            and price["maximum"] != price["minimum"]
+        ):
+            price_value = f"{price_value} – {price['maximum']}"
+        elif price.get("state") in {"priced", "variant_dependent"}:
+            price_value = f"À partir de {price_value}"
+        if price.get("currency"):
+            price_value = f"{price_value} {price['currency']}"
+        add_fact("price", "Prix", price_value, "wallet-cards")
+
+    availability_state = availability.get("state")
+    if availability_state and availability_state != "unknown":
+        add_fact(
+            "availability",
+            "Disponibilité",
+            _AVAILABILITY_LABELS.get(availability_state, availability_state),
+            "users",
+        )
+    temporal_labels = {
+        "start_at": "Début",
+        "start_date": "Début",
+        "end_at": "Fin",
+        "end_date": "Fin",
+        "opens_at": "Ouverture",
+        "closes_at": "Clôture",
+        "deadline_at": "Date limite",
+    }
+    for fact in item.get("temporal_facts") or []:
+        kind = fact.get("kind") or ""
+        if kind in {"start_at", "start_date", "start_time"} and "when" in seen:
+            continue
+        if fact.get("value") is not None and kind in temporal_labels:
+            add_fact(kind, temporal_labels[kind], fact["value"], "calendar-clock")
+
+    spatial_labels = {
+        "primary": "Lieu",
+        "venue": "Lieu",
+        "departure": "Départ",
+        "arrival": "Arrivée",
+        "stopover": "Escale",
+        "boarding": "Embarquement",
+        "dropoff": "Débarquement",
+    }
+    spatial_facts = item.get("spatial_facts") or []
+    role_counts = {}
+    for fact in spatial_facts:
+        role = str(fact.get("role") or "").lower()
+        role_counts[role] = role_counts.get(role, 0) + 1
+    role_positions = {}
+    for fact in spatial_facts:
+        role = str(fact.get("role") or "").lower()
+        place = fact.get("place") or {}
+        if not isinstance(place, dict):
+            continue
+        name = str(place.get("name") or "").strip()
+        locality = str(place.get("locality") or "").strip()
+        display = f"{name}, {locality}" if name and locality and name.casefold() != locality.casefold() else (name or locality)
+        if display:
+            role_positions[role] = role_positions.get(role, 0) + 1
+            repeated = role_counts[role] > 1
+            ordinal = role_positions[role]
+            code = (
+                f"place_{role}_{ordinal}" if repeated
+                else "place" if role in {"primary", "venue"} else f"place_{role}"
             )
+            label = spatial_labels.get(role, "Lieu")
+            if repeated:
+                label = f"{label} {ordinal}"
+            add_fact(code, label, display, "map-pin")
 
     save_action = None
-    if (
-        links.get("web_saved")
-        or "save" in item.get("capabilities", [])
-        or "unsave" in item.get("capabilities", [])
-    ):
+    if links.get("web_saved"):
         is_saved = saved.get("state") == "saved"
         save_action = SimpleNamespace(
             code="unsave" if is_saved else "save",
             role="save",
-            label="Enregistré" if is_saved else "Enregistrer",
+            label="Enregistré" if is_saved else "J’enregistre",
             icon="orbit",
             state="saved" if is_saved else "available",
             url=links.get("web_saved"),
@@ -244,12 +398,24 @@ def _web_discovery_card(item):
         primary_action = SimpleNamespace(
             code=engagement_presentation.get("capability") or "open",
             role="primary",
-            label=engagement_presentation.get("label") or "Continuer",
-            icon="arrow-right",
+            label=_discovery_first_person_action_label(engagement_presentation.get("label") or "Continuer"),
+            icon={
+                "start": "play-circle",
+                "reserve": "ticket",
+                "book": "ticket",
+                "register": "user-plus",
+                "contribute": "hand-heart",
+                "buy": "shopping-bag",
+                "apply": "send",
+            }.get(engagement_presentation.get("capability"), "external-link"),
             state="available",
             url=engagement_presentation["web"],
             emphasis="primary",
-            enabled=bool(engagement_presentation.get("enabled", True)),
+            enabled=bool(
+                engagement_presentation.get(
+                    "web_enabled", engagement_presentation.get("enabled", False)
+                )
+            ),
         )
 
     share_action = None
@@ -273,6 +439,16 @@ def _web_discovery_card(item):
         "transport": "Opéré par",
     }.get(presentation_kind, "Proposé par")
 
+    added_date = None
+    date_info = item.get("date") or {}
+    if date_info.get("kind") == "added_at" and date_info.get("value"):
+        value = str(date_info["value"])
+        parsed = parse_datetime(value)
+        if parsed is not None:
+            added_date = timezone.localtime(parsed).date() if timezone.is_aware(parsed) else parsed.date()
+        else:
+            added_date = parse_date(value[:10])
+
     return SimpleNamespace(
         candidate_key=identity["candidate_key"],
         activity_id=(
@@ -283,12 +459,37 @@ def _web_discovery_card(item):
         occurrence_id=occurrence["id"] if occurrence else None,
         presentation_kind=presentation_kind,
         vertical_label=representation.get("vertical_label") or "Possibilité",
+        type_labels=tuple(type_labels),
+        date_display=added_date,
+        added_label=_added_date_label(date_info.get("value")) if added_date else "",
         title=representation["title"],
         summary=representation.get("summary") or "",
+        description=(item.get("detail") or {}).get("description") or "",
         operator_label=operator_label,
         operator_name=owner.get("display_name") or "",
+        owner=owner,
+        date=item.get("date"),
         representation=SimpleNamespace(**representation),
         facts=tuple(facts),
+        resources=tuple(
+            resource
+            for resource in (item.get("resources") or [])
+            if resource.get("title")
+        ),
+        gallery_media=tuple(
+            media
+            for media in (item.get("media_bindings") or [])
+            if (media.get("resource") or {}).get("mime_type", "").startswith("image/")
+            and (media.get("resource") or {}).get("url")
+            and (media.get("resource") or {}).get("url") != representation.get("image_url")
+        ),
+        context_notes=tuple(
+            fact.get("label")
+            for fact in (item.get("assessment") or [])
+            if fact.get("state") == "limiting" and fact.get("label")
+        )[:2],
+        variant_count=(len(item.get("variants") or []) if len(item.get("variants") or []) > 1 else 0),
+        relation_count=len(item.get("relations") or []),
         participant_state=(
             SimpleNamespace(
                 participant_state=item["participant_presentation"].get("state"),
@@ -305,6 +506,10 @@ def _web_discovery_card(item):
             secondary=(),
         ),
         url=links.get("web") or links.get("detail") or "#",
+        n2_url=reverse("discovery:possibility-detail", kwargs={
+            "family": identity["family"],
+            "item_id": identity["resource"]["id"],
+        }),
     )
 
 
@@ -500,6 +705,47 @@ class DiscoveryHomeView(TemplateView):
                     "max_zoom": settings.MAP_TILE_MAX_ZOOM,
                 },
             }
+        )
+        return context
+
+
+class DiscoveryPossibilityDetailView(TemplateView):
+    """The same authorized canonical detail as the mobile N2 owner projection."""
+
+    template_name = "discovery/possibility_detail.html"
+    allowed_families = frozenset({
+        "activity", "service_activity", "funding_activity", "opportunity",
+    })
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        family, item_id = kwargs["family"], kwargs["item_id"]
+        if family not in self.allowed_families:
+            raise Http404
+        try:
+            projection = detail_projection(family, item_id, profile=self.request.user)
+        except (ObjectDoesNotExist, ValidationError, ValueError, TypeError) as exc:
+            raise Http404 from exc
+        if projection is None:
+            raise Http404
+        context["discovery_base_template"] = (
+            "base/app.html" if self.request.user.is_authenticated
+            else "base/public.html"
+        )
+        context["n2_item"] = projection
+        context["card"] = _web_discovery_card(projection)
+        context["n2"] = build_n2_presentation(projection)
+        requested_return = self.request.GET.get("from", "")
+        context["return_url"] = (
+            requested_return
+            if requested_return.startswith("/discover/")
+            and not requested_return.startswith("//")
+            and url_has_allowed_host_and_scheme(
+                requested_return,
+                allowed_hosts={self.request.get_host()},
+                require_https=self.request.is_secure(),
+            )
+            else reverse("discovery:home")
         )
         return context
 

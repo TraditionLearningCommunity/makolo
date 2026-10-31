@@ -46,8 +46,16 @@ def _editorial_from_post(request, purpose, *, activity):
     }
     upload = request.FILES.get("hero_image")
     if upload and "hero_image" in allowed:
-        asset = create_presentation_asset(actor=request.user, uploaded_file=upload, activity=activity, owner_space=activity.space)
-        data["hero_image"] = asset.file.url
+        # Never create a new MPS hero under publicly served MEDIA_ROOT.
+        # The resulting link becomes readable only via an authorized
+        # Presentation binding (published or owner-only draft preview).
+        asset = create_presentation_asset(
+            actor=request.user, uploaded_file=upload,
+            activity=activity, owner_space=activity.space, protected=True,
+        )
+        data["hero_image"] = reverse(
+            "presentations:editorial-media-file", kwargs={"asset_id": asset.pk},
+        )
     return data
 
 
@@ -181,6 +189,7 @@ class ActivityPresentationStudioView(ActivityPresentationAuthorityMixin, Templat
         context.update(
             {
                 "activity": self.activity,
+                "media_uses": list(self.activity.presentation_media_uses.select_related("asset", "occurrence").order_by("position", "created_at")),
                 "purpose": purpose,
                 "purposes": PresentationPurpose.choices,
                 "template_options": template_options,

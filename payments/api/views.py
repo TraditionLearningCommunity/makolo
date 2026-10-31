@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.shortcuts import get_object_or_404
 
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -10,10 +11,18 @@ from rest_framework.views import APIView
 
 from authorization.constants import PermissionCode
 from authorization.services import activity_ids_with_permission, has_platform_authority, space_ids_with_permission
-from payments.models import PaymentMethod, PaymentProvider
-from payments.selectors import get_payment_events_visible_to, get_payments_visible_to
+from payments.models import (
+    PaymentMethod, PaymentProvider, PaymentObligationProcessingMode,
+    PaymentObligationStatus, PaymentStatus,
+)
+from payments.selectors import (
+    get_payment_events_visible_to, get_payments_visible_to,
+    obligations_visible_to,
+)
 from payments.services import (
     cancel_payment,
+    initiate_obligation_payment,
+    _obligation_payment_actor_can_initiate,
     complete_manual_payment,
     complete_sandbox_payment,
     process_sandbox_webhook,
@@ -27,6 +36,7 @@ from payments.throttles import (
 
 from .serializers import (
     ManualCompleteSerializer,
+    ObligationPaymentInitiateSerializer,
     PaymentCreateSerializer,
     PaymentEventSerializer,
     PaymentSerializer,
@@ -78,6 +88,78 @@ class PaymentConfigurationAPIView(APIView):
                 "sandbox_enabled": bool(getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False)),
             }
         )
+
+
+class PaymentObligationAPIView(APIView):
+    """Read and start an owner-verified obligation without a Web session."""
+    permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [PaymentInitiationThrottle]
+
+    def _obligation(self, request, pk):
+        return get_object_or_404(obligations_visible_to(request.user), pk=pk)
+
+    def get(self, request, pk):
+        obligation = self._obligation(request, pk)
+        can_pay = (
+            obligation.processing_mode == PaymentObligationProcessingMode.MAKOLO_PROVIDER
+            and obligation.status in {
+                PaymentObligationStatus.PENDING, PaymentObligationStatus.PROCESSING,
+            }
+            and _obligation_payment_actor_can_initiate(request.user, obligation)
+        )
+        active = obligation.payments.filter(
+            initiated_by=request.user,
+            status__in={PaymentStatus.PENDING, PaymentStatus.PROCESSING, PaymentStatus.SUCCEEDED},
+        ).order_by("-created_at").first()
+        response = Response({
+            "id": str(obligation.pk),
+            "label": obligation.label,
+            "amount": str(obligation.amount),
+            "currency": obligation.currency,
+            "status": obligation.status,
+            "processing_mode": obligation.processing_mode,
+            "capabilities": ["view", "pay"] if can_pay else ["view"],
+            "active_payment": (
+                {"id": str(active.pk), "status": active.status, "provider": active.provider}
+                if active else None
+            ),
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+    def post(self, request, pk):
+        obligation = self._obligation(request, pk)
+        serializer = ObligationPaymentInitiateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        values = dict(serializer.validated_data)
+        if not _obligation_payment_actor_can_initiate(request.user, obligation):
+            raise PermissionDenied("Cette obligation ne peut pas être réglée par ce compte.")
+        # Do not let an idempotent replay bypass owner authority or change provider.
+        prior = obligation.payments.filter(
+            idempotency_key=values["idempotency_key"],
+        ).first()
+        if prior and (
+            prior.initiated_by_id != request.user.pk
+            or prior.provider != values["provider"]
+            or prior.method != values["method"]
+        ):
+            raise ValidationError({
+                "idempotency_key": "Cette référence correspond à une autre tentative."
+            })
+        try:
+            payment = initiate_obligation_payment(
+                obligation=obligation,
+                actor=request.user,
+                **values,
+            )
+        except (DjangoPermissionDenied, DjangoValidationError) as exc:
+            _raise_service_error(exc)
+        response = Response(
+            PaymentSerializer(payment, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class PaymentViewSet(viewsets.ModelViewSet):

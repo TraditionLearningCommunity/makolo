@@ -132,7 +132,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
       expect(find.byType(NowScreen), findsNothing);
-      expect(find.text('Se connecter'), findsWidgets);
+      expect(find.byKey(const Key('guest-public-home')), findsOneWidget);
+      expect(find.byKey(const Key('guest-login-action')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();

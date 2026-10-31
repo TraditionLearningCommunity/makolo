@@ -90,6 +90,9 @@ class ProfileStore {
     return row == null ? null : _storedProjection(row);
   }
 
+  // Raw server pages and owner projections are kept intact. A bounded
+  // reserve of not-yet-presented Discovery items must be maintained at item
+  // level, not by evicting raw cursor pages or their dependencies.
   Future<void> putProjection({
     required String kind,
     String resourceKey = '',

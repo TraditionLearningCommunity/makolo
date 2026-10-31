@@ -174,7 +174,7 @@ def create_plan_template_version(*, template, actor, name=None):
 
 
 @transaction.atomic
-def create_service_journey(*, service, initiated_by, beneficiary=None, external_beneficiary=None, objective="", template=None, expires_at=None, opportunity=None, opportunity_revision=None):
+def create_service_journey(*, service, initiated_by, beneficiary=None, external_beneficiary=None, objective="", template=None, expires_at=None, opportunity=None, opportunity_revision=None, start_operation_fingerprint=None):
     service = ServiceDetails.objects.select_related("activity").get(pk=service.pk)
     if bool(beneficiary) == bool(external_beneficiary):
         raise ValidationError("Choisissez exactement un bénéficiaire Profile ou externe.")
@@ -201,6 +201,7 @@ def create_service_journey(*, service, initiated_by, beneficiary=None, external_
         opportunity=opportunity,
         opportunity_revision=opportunity_revision,
         objective=(objective or "").strip(),
+        start_operation_fingerprint=start_operation_fingerprint,
     )
     context.save()
     ensure_requirement_assessments(context=context)

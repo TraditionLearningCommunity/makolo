@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core import signing
+from django.http import HttpResponseBadRequest
 from django.db import models
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -36,8 +38,12 @@ from trust.credential_selectors import credentials_for_profile
 from trust.selectors import proofs_for_profile
 
 from .participant_selectors import participant_active_accesses, participant_active_journeys
-from core.api.personal_projections import build_personal_ongoing_projection
-from core.api.me_projection import build_personal_me_data
+from core.api.personal_projections import (
+    build_personal_ongoing_projection,
+    _ongoing_n1_when,
+    ongoing_continuation_offset,
+)
+from core.api.me_projection import build_personal_me_data, build_personal_considerations_data
 from .participant_presentation import occurrence_timing
 from .participant_views import HOME_READINESS_CANDIDATE_LIMIT, _access_card, _primary_place
 
@@ -182,60 +188,137 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
     fragment_template_name = "core/participant_ongoing_fragment.html"
     login_url = "core:login"
 
+    def get_template_names(self):
+        if (
+            self.request.GET.get("continuation")
+            and self.request.headers.get("X-Makolo-Continuation") == "1"
+        ):
+            return ["core/_ongoing_page_fragment.html"]
+        return super().get_template_names()
+
+    def get(self, request, *args, **kwargs):
+        token = request.GET.get("continuation")
+        if token:
+            try:
+                ongoing_continuation_offset(token, profile=request.user)
+            except (signing.BadSignature, KeyError, ValueError, TypeError):
+                return HttpResponseBadRequest("Suite de résultats indisponible.")
+        response = super().get(request, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     @staticmethod
     def _web_item(item):
+        """N1 web uses exactly the API's semantic and media projection."""
+        n1 = item.get("n1") or {}
+        media = next(
+            (
+                binding.get("resource") or {}
+                for binding in item.get("media_bindings") or []
+                if binding.get("purpose") == "RECOGNIZE"
+                and (binding.get("resource") or {}).get("url")
+            ),
+            {},
+        )
         links = item.get("links") or {}
-        blocker = item.get("blocker")
-        interventions = item.get("actor_interventions") or []
-        continuation = item.get("continuation")
-        ready = item.get("ready") or []
-        next_item = item.get("next")
-
-        summary = item.get("summary") or "Cette réalité continue."
-        if blocker:
-            tone = "attention"
-        elif interventions:
-            tone = "action"
-        elif continuation and continuation.get("state") == "waiting":
-            tone = "calm"
-        elif ready:
-            tone = "ready"
-        else:
-            tone = "calm"
-
-        next_action = ""
-        if interventions:
-            next_action = interventions[0].get("title") or ""
-        elif next_item:
-            next_action = next_item.get("title") or ""
-
-        timing = item.get("timing") or {}
-        compact_timing = ""
-        for key in ("start_at", "start_date", "due_at", "deadline_date", "expires_at"):
-            value = timing.get(key)
-            if value:
-                compact_timing = value
-                break
-
+        labels = {
+            "journey": "Continuer la démarche",
+            "access": "Voir mon accès",
+            "dossier": "Ouvrir le dossier",
+            "project": "Voir le projet",
+            "waitlist": "Suivre ma liste d’attente",
+            "transfer": "Voir le transfert",
+            "payment": "Suivre le paiement",
+            "funding": "Gérer le financement",
+        }
         return {
-            "kind": item.get("kind"),
-            "title": item.get("title") or "",
-            "summary": summary,
-            "tone": tone,
-            "next_action": next_action,
-            "timing": {"compact_label": compact_timing} if compact_timing else None,
-            "place": item.get("place"),
-            "url": links.get("web") or links.get("detail") or "#",
+            "primary_label": labels.get(item.get("kind"), "Voir la suite"),
+            "id": item.get("id"),
+            "title": item.get("human_context") or item.get("title") or "",
+            "summary": item.get("synthesis") or item.get("summary") or "",
+            "tone": n1.get("tone") or "calm",
+            "cue": n1.get("cue"),
+            "next_action": n1.get("supporting"),
+            "when": n1.get("when_label"),
+            "place": n1.get("place_label"),
+            "image_url": media.get("url"),
+            "image_alt": media.get("alt_text") or "",
+            "media_gallery": [
+                binding["resource"]
+                for binding in item.get("media_bindings") or []
+                if binding.get("purpose") == "RECOGNIZE"
+                and isinstance(binding.get("resource"), dict)
+                and binding["resource"].get("mime_type") in {"image/jpeg", "image/png"}
+                and binding["resource"].get("url")
+            ],
+            "resources": [
+                resource for resource in item.get("resources") or []
+                if isinstance(resource, dict) and resource.get("title")
+            ],
+            "temporal_facts": [
+                {
+                    **fact,
+                    "display_when": _ongoing_n1_when({
+                        "start_at": fact.get("at"),
+                        "start_date": fact.get("date"),
+                        "timezone": fact.get("timezone"),
+                    }),
+                }
+                for fact in item.get("temporal_facts") or []
+                if isinstance(fact, dict) and (fact.get("at") or fact.get("date"))
+            ],
+            "url": links.get("web"),
+            "possibility": n1.get("possibility"),
+            "can_save": bool(n1.get("possibility") and (
+                {"save", "unsave"} & set(
+                    n1["possibility"].get("capabilities") or []
+                )
+            )),
+            "can_share": bool(n1.get("possibility") and
+                "share" in (n1["possibility"].get("capabilities") or [])),
+            "details": tuple(
+                (label, tuple(value for value in entries if isinstance(value, str) and value.strip()))
+                for label, values in (
+                    ("Déjà réglé", item.get("settled") or []),
+                    ("De votre côté", item.get("my_side") or []),
+                    ("En attente", item.get("elsewhere") or []),
+                    ("Préparé par Makolo", item.get("makolo") or []),
+                    ("À venir", item.get("system_or_time") or []),
+                    ("À suivre", item.get("next_items") or []),
+                    ("À relier", item.get("relation_projections") or []),
+                    ("Résultat", [item["outcome"]] if item.get("outcome") else []),
+                    ("Ce qui bloque", [item["blocker"]] if item.get("blocker") else []),
+                    ("À vérifier", [item["unknown"]] if item.get("unknown") else []),
+                )
+                if (entries := [
+                    entry if isinstance(entry, str)
+                    else entry.get("label") or entry.get("title") or entry.get("summary")
+                    if isinstance(entry, dict) else None
+                    for entry in values
+                ])
+                and any(isinstance(value, str) and value.strip() for value in entries)
+            ),
         }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
         observed_at = get_request_context(self.request).observed_at
+        try:
+            offset = ongoing_continuation_offset(
+                self.request.GET.get("continuation"),
+                profile=profile,
+            )
+        except (signing.BadSignature, KeyError, TypeError, ValueError):
+            offset = 0
         data = build_personal_ongoing_projection(
             profile,
             observed_at=observed_at,
+            continuation_offset=offset,
         )
+        context["ongoing_next_token"] = (data.get("continuation") or {}).get("token")
+        context["ongoing_end_reached"] = (data.get("continuation") or {}).get("state") == "end"
+        context["ongoing_page_offset"] = offset
         items = data.get("items", [])
         ongoing_items = [self._web_item(item) for item in items]
         kinds = {item.get("kind") for item in items}
@@ -250,107 +333,67 @@ class MatureParticipantOngoingView(FragmentTemplateMixin, LoginRequiredMixin, Te
 
 
 class MatureParticipantMeView(LoginRequiredMixin, TemplateView):
+    """Web N1 consumes the same bounded private projection as Flutter."""
+
     template_name = "core/participant_me.html"
     login_url = "core:login"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         profile = self.request.user
-        context["me_projection"] = build_personal_me_data(
+        me_projection = build_personal_me_data(
             profile=profile,
             request=self.request,
         )
+        context["me_projection"] = me_projection
+        context["passport_url"] = reverse("sharing:passport-me")
 
-        interests = list(
-            ProfileInterest.objects.filter(profile=profile)
-            .select_related("topic")
-            .order_by("topic__label", "created_at")[:ME_PREVIEW_LIMIT]
-        )
-        open_to = list(
-            ProfileOpenTo.objects.filter(profile=profile, is_active=True)
-            .select_related("topic")
-            .order_by("kind", "created_at")[:ME_PREVIEW_LIMIT]
-        )
-        watches = list(
-            DiscoveryWatch.objects.filter(owner=profile)
-            .select_related("dossier")
-            .order_by("-updated_at", "id")[:ME_PREVIEW_LIMIT]
-        )
-        bookmarks = list(
-            ActivityBookmark.objects.filter(user=profile)
-            .select_related("activity")
-            .order_by("-created_at")[:ME_PREVIEW_LIMIT]
-        )
-        followed_spaces = list(
-            OrganizationFollow.objects.filter(user=profile)
-            .select_related("organization")
-            .order_by("-followed_at")[:ME_PREVIEW_LIMIT]
-        )
-        followed_profiles = list(
-            ProfileFollow.objects.filter(user=profile)
-            .select_related("organizer_profile")
-            .order_by("-followed_at")[:ME_PREVIEW_LIMIT]
-        )
-        team_memberships = list(
-            TeamMembership.objects.filter(user=profile, status=TeamMembershipStatus.ACTIVE)
-            .select_related("team__organization")
-            .order_by("team__organization__name", "team__name")[:ME_PREVIEW_LIMIT]
-        )
-        spaces = list(authorized_spaces(profile)[:ME_PREVIEW_LIMIT])
-        groups = list(groups_for_profile(profile)[:ME_PREVIEW_LIMIT])
-        resources = list(personal_assets_for_controller(profile)[:ME_PREVIEW_LIMIT])
-        credentials = list(credentials_for_profile(profile)[:ME_PREVIEW_LIMIT])
-        proofs = list(proofs_for_profile(profile)[:ME_PREVIEW_LIMIT])
-
+        support = me_projection.get("support") or {}
         support_links = []
-        recognition_account = account_for_profile(profile)
-        if recognition_account is not None or redemptions_requiring_beneficiary_response(profile).exists():
+        if (support.get("recognition") or {}).get("available"):
             support_links.append(
                 {
                     "label": "Reconnaissance",
-                    "detail": "Voir ce que vos contributions ont rendu disponible.",
                     "url": reverse("recognition:dashboard"),
                 }
             )
-        if get_accounts_visible_to(profile).filter(user=profile).exists() or get_subscriptions_visible_to(profile).filter(user=profile).exists():
+        if (support.get("loyalty") or {}).get("available"):
             support_links.append(
                 {
                     "label": "Mes avantages",
-                    "detail": "Retrouver vos relations de fidélité organisation par organisation.",
                     "url": reverse("loyalty:dashboard"),
                 }
             )
-        personal_partners = list(
-            Partner.objects.filter(user=profile, status=PartnerStatus.ACTIVE)
-            .select_related("organization")
-            .order_by("organization__name", "name")[:ME_PREVIEW_LIMIT]
-        )
-        for partner in personal_partners:
-            support_links.append(
-                {
-                    "label": partner.organization.name,
-                    "detail": "Ma relation partenaire",
-                    "url": reverse("partners:my-detail", kwargs={"pk": partner.pk}),
-                }
-            )
 
-        context.update(
-            {
-                "interests": interests,
-                "open_to": open_to,
-                "watches": watches,
-                "bookmarks": bookmarks,
-                "followed_spaces": followed_spaces,
-                "followed_profiles": followed_profiles,
-                "team_memberships": team_memberships,
-                "authorized_spaces": spaces,
-                "my_groups": groups,
-                "resources": resources,
-                "credentials": credentials,
-                "proofs": proofs,
-                "passport_url": reverse("sharing:passport-me"),
-                "support_links": support_links,
-            }
+        # Partner details remain an owner route, not an API link or a
+        # second copy of the partnership in the N1 projection.
+        if (support.get("partners") or {}).get("available"):
+            personal_partners = (
+                Partner.objects.filter(user=profile, status=PartnerStatus.ACTIVE)
+                .select_related("organization")
+                .order_by("organization__name", "name")[:ME_PREVIEW_LIMIT]
+            )
+            for partner in personal_partners:
+                support_links.append(
+                    {
+                        "label": partner.organization.name,
+                        "url": reverse("partners:my-detail", kwargs={"pk": partner.pk}),
+                    }
+                )
+
+        context["support_links"] = support_links
+        return context
+
+class MatureParticipantConsiderationsView(LoginRequiredMixin, TemplateView):
+    """Web entry to the same owner-managed personal choices as native Flutter."""
+
+    template_name = "core/participant_me_considerations.html"
+    login_url = "core:login"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["choices"] = build_personal_considerations_data(
+            self.request.user, limit=24,
         )
         return context
 

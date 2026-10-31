@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from commerce.models import CommerceOrder
+from commerce.native_checkout_api import _order_payload
 
 
 class PersonalCommerceOrderDetailAPIView(APIView):
@@ -35,6 +36,15 @@ class PersonalCommerceOrderDetailAPIView(APIView):
             },
             "cancelled_at": order.cancelled_at.isoformat()
                 if order.cancelled_at else None,
+            "checkout": _order_payload(order),
+            "items": [
+                {
+                    "label": line.label_snapshot,
+                    "quantity": line.quantity,
+                    "line_total": str(line.line_total),
+                }
+                for line in order.items.all()
+            ],
         })
         response["Cache-Control"] = "private, no-store"
         return response

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/now/now_screen.dart';
+import 'package:makolo_mobile/features/now/now_display_labels.dart';
 import 'package:makolo_mobile/features/now/now_selector.dart';
 import 'package:makolo_mobile/navigation/destination.dart';
 import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
@@ -64,6 +65,123 @@ NowSelection contentSelection({
 }
 
 void main() {
+  test(
+    'Now continuation is recovered only for the same Profile and root revision',
+    () {
+      final received = DateTime.utc(2026, 10, 30, 9);
+      StoredProjection root(String actor, DateTime timestamp) =>
+          StoredProjection(
+            kind: 'personal.now',
+            schemaVersion: 1,
+            payload: {
+              'actor': {'id': actor},
+              'items': <dynamic>[],
+            },
+            receivedAt: timestamp,
+          );
+      final saved = <String, dynamic>{
+        'actor_id': 'profile-a',
+        'base_received_at': received.toIso8601String(),
+        'items': [
+          {'id': 'seen-a'},
+        ],
+        'continuation': {'state': 'more', 'token': 'opaque'},
+      };
+
+      expect(
+        nowContinuationMatchesRoot(root('profile-a', received), saved),
+        isTrue,
+      );
+      expect(
+        nowContinuationMatchesRoot(root('profile-b', received), saved),
+        isFalse,
+      );
+      expect(
+        nowContinuationMatchesRoot(
+          root('profile-a', received.add(const Duration(seconds: 1))),
+          saved,
+        ),
+        isFalse,
+      );
+      expect(
+        nowContinuationMatchesRoot(root('profile-a', received), {
+          ...saved,
+          'continuation': 'invalid',
+        }),
+        isFalse,
+      );
+    },
+  );
+
+  test('N1 copy removes repeated context without changing intent', () {
+    expect(
+      nowDisplayHeadline(
+        'Vérifier la prochaine étape — Conférence cybersécurité',
+        'Conférence cybersécurité',
+      ),
+      'Vérifier la prochaine étape',
+    );
+    expect(
+      nowDisplayActionLabel(
+        'Confirmer : Louer un véhicule à Kolwezi',
+        'Louer un véhicule à Kolwezi',
+      ),
+      'Confirmer',
+    );
+    expect(
+      nowDisplayActionLabel('Accepter le transfert', 'Billet de concert'),
+      'Accepter le transfert',
+    );
+    expect(
+      nowDisplayHandoffLabel(
+        'Vérifier la prochaine étape — Conférence cybersécurité',
+        'Vérifier la prochaine étape — Conférence cybersécurité',
+        'Conférence cybersécurité',
+      ),
+      'Voir les détails',
+    );
+  });
+
+  testWidgets('N1 uses flat Discover units, not padded cards', (tester) async {
+    await PresentationHarness.pump(
+      tester,
+      child: NowView(selection: contentSelection()),
+    );
+    expect(find.byType(Card), findsNothing);
+    expect(find.byKey(const Key('now-unit-now:trip')), findsOneWidget);
+    expect(find.text('Aussi maintenant'), findsOneWidget);
+    expect(find.text('Vous avez tout exploré'), findsNothing);
+  });
+
+  testWidgets('N1 separates the context from a repeated heading', (
+    tester,
+  ) async {
+    final item = NowSituationPresentation(
+      identity: 'now:conference',
+      reference: const StructuredDestination(kind: 'now', id: 'conference'),
+      humanContext: 'Conférence cybersécurité',
+      meaning: 'Vérifier la prochaine étape — Conférence cybersécurité',
+      emphasis: NowPresentationEmphasis.primary,
+    );
+    await PresentationHarness.pump(
+      tester,
+      child: NowView(
+        selection: NowSelection(
+          situations: [item],
+          state: const MakoloSurfacePresentation(
+            availability: MakoloAvailabilityCue.content,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Conférence cybersécurité'), findsOneWidget);
+    expect(find.text('Vérifier la prochaine étape'), findsOneWidget);
+    expect(
+      find.text('Vérifier la prochaine étape — Conférence cybersécurité'),
+      findsNothing,
+    );
+  });
+
   test('S5 requires consequence and a coherent owner response', () {
     final base = NowSituationPresentation(
       identity: 'now:conflict',
@@ -456,7 +574,7 @@ void main() {
     expect(find.text('Pourquoi maintenant'), findsOneWidget);
     expect(find.text('Aussi maintenant'), findsNothing);
 
-    await tester.tap(find.text('Now'));
+    await tester.tap(find.text('Maintenant'));
     await tester.pump();
 
     expect(find.text('Aussi maintenant'), findsOneWidget);

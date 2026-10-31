@@ -1,0 +1,102 @@
+{% extends 'base/app.html' %}
+{% load static %}
+{% block title %}Ce qui compte pour moi | Makolo{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/me-n1.css' %}">
+<main class="mk-me-n1 mk-me-choices" style="--me-saved-orbit: url('{% static 'icons/discovery-orbit-saved.svg' %}')">
+  <header class="mk-me-n1-identity">
+    <div class="mk-me-n1-person">
+      <a class="mk-me-n1-heading-link" href="{% url 'core:participant-me' %}">‹ Moi</a>
+      <h1>Ce qui compte pour moi</h1>
+    </div>
+  </header>
+  <div class="mk-me-n1-grid">
+    <section class="mk-me-n1-section">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">◇</span>
+        <h2>Mes intérêts</h2>
+        <a class="mk-me-n1-heading-link" href="{% url 'account:interests' %}">Modifier</a>
+      </div>
+      <div class="mk-me-n1-panel">
+        {% if choices.interests.items %}
+          <div class="mk-me-n1-chips">
+            {% for row in choices.interests.items %}
+              <span>{{ row.topic.label }}</span>
+            {% endfor %}
+          </div>
+        {% else %}<p class="mk-me-n1-empty">Aucun intérêt pour le moment.</p>{% endif %}
+        <a class="mk-me-n1-see-all" href="{% url 'account:interests' %}">Ajouter ou retirer des intérêts ›</a>
+      </div>
+    </section>
+    <section class="mk-me-n1-section">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">✦</span>
+        <h2>Ouvert à</h2>
+        <a class="mk-me-n1-heading-link" href="{% url 'account:open-to' %}">Modifier</a>
+      </div>
+      <div class="mk-me-n1-panel">
+        {% if choices.open_to.items %}
+          <div class="mk-me-n1-chips">
+            {% for row in choices.open_to.items %}<span>{{ row.label }}</span>{% endfor %}
+          </div>
+        {% else %}<p class="mk-me-n1-empty">Aucune ouverture déclarée.</p>{% endif %}
+        <a class="mk-me-n1-see-all" href="{% url 'account:open-to' %}">Ajouter ou retirer des ouvertures ›</a>
+      </div>
+    </section>
+    <section class="mk-me-n1-section">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">◎</span>
+        <h2>Mes veilles</h2>
+        <a class="mk-me-n1-heading-link" href="{% url 'discovery:watch-list' %}">Voir tout</a>
+      </div>
+      <div class="mk-me-n1-panel">
+        {% if choices.watches.items %}
+          {% for row in choices.watches.items %}
+            <a class="mk-me-n1-person-row" href="{% url 'discovery:watch-detail' row.id %}">
+              <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong></span><span aria-hidden="true">›</span>
+            </a>
+          {% endfor %}
+        {% else %}<p class="mk-me-n1-empty">Aucune veille pour le moment.</p>{% endif %}
+        <a class="mk-me-n1-see-all" href="{% url 'discovery:watch-list' %}">Gérer mes veilles ›</a>
+      </div>
+    </section>
+    <section class="mk-me-n1-section">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">◉</span>
+        <h2>Mes enregistrements</h2>
+        <a class="mk-me-n1-heading-link" href="{% url 'discovery:bookmarks' %}">Voir tout</a>
+      </div>
+      <div class="mk-me-n1-panel">
+        {% if choices.bookmarks.items %}
+          <div class="mk-me-n1-stacks">
+            {% for row in choices.bookmarks.items|slice:":3" %}
+              <a href="{% url 'discovery:bookmarks' %}">
+                <span class="mk-me-saved-orbit" role="img" aria-label="Enregistré"></span>
+                <span class="mk-me-n1-saved-title">{{ row.activity.title }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}<p class="mk-me-n1-empty">Rien d'enregistré.</p>{% endif %}
+        <a class="mk-me-n1-see-all" href="{% url 'discovery:bookmarks' %}">Voir les {{ choices.bookmarks.count }} enregistrements ›</a>
+      </div>
+    </section>
+    <section class="mk-me-n1-section">
+      <div class="mk-me-n1-heading">
+        <span class="mk-me-n1-icon" aria-hidden="true">◎</span>
+        <h2>Mes suivis</h2>
+      </div>
+      <div class="mk-me-n1-panel">
+        {% for row in choices.followed_spaces.items %}
+          <div class="mk-me-n1-person-row"><span class="mk-me-n1-row-copy"><strong>{{ row.space.name }}</strong></span></div>
+        {% endfor %}
+        {% for row in choices.followed_profiles.items %}
+          <div class="mk-me-n1-person-row"><span class="mk-me-n1-row-copy"><strong>{{ row.profile.display_name }}</strong></span></div>
+        {% endfor %}
+        {% if not choices.followed_spaces.items and not choices.followed_profiles.items %}
+          <p class="mk-me-n1-empty">Aucun suivi pour le moment.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}

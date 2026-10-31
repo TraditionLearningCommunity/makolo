@@ -147,6 +147,69 @@ def operational_footprint_for_space(space) -> SpaceOperationalFootprint:
     return SpaceOperationalFootprint(signals=tuple(dict.fromkeys(signals)))
 
 
+
+def visible_operational_footprint_for_space(space, profile) -> SpaceOperationalFootprint:
+    """Space-wide signals filtered by the viewer's direct Space permissions.
+
+    An actual operational footprint is not automatically public or visible to
+    every Mandate. In particular, Activity access must not disclose CRM,
+    payment, loyalty or partner usage. Activity-only Mandates never grant a
+    collective, Space-wide footprint.
+    """
+    from authorization.constants import PermissionCode
+    from authorization.selectors import has_direct_space_permission
+
+    def permitted(*codes):
+        return any(
+            has_direct_space_permission(profile, space, code) for code in codes
+        )
+
+    activity_portfolio = permitted(
+        PermissionCode.SPACE_ACTIVITIES_VIEW,
+        PermissionCode.SPACE_ACTIVITIES_MANAGE,
+    )
+    visible = {
+        "activities": activity_portfolio,
+        "event": activity_portfolio,
+        "service": activity_portfolio,
+        "transport": activity_portfolio,
+        "funding": activity_portfolio,
+        "obtention": activity_portfolio,
+        "commerce": permitted(PermissionCode.ORDERS_VIEW),
+        "crm": permitted(PermissionCode.CRM_VIEW, PermissionCode.CRM_MANAGE),
+        "groups": permitted(
+            PermissionCode.SPACE_GROUPS_VIEW,
+            PermissionCode.SPACE_GROUPS_MANAGE,
+        ),
+        "partners": permitted(
+            PermissionCode.PARTNERS_MANAGE, PermissionCode.PARTNERS_FINANCE,
+        ),
+        "payments": permitted(
+            PermissionCode.FINANCE_VIEW, PermissionCode.FINANCE_MANAGE,
+        ),
+        "access": permitted(
+            PermissionCode.TICKETS_VIEW, PermissionCode.ACCESS_MANAGE,
+            PermissionCode.SPACE_ACTIVITIES_VIEW,
+        ),
+        "automation": permitted(
+            PermissionCode.CRM_VIEW, PermissionCode.CRM_MANAGE,
+        ),
+        "loyalty": permitted(
+            PermissionCode.LOYALTY_VIEW, PermissionCode.LOYALTY_MANAGE,
+            PermissionCode.LOYALTY_FINANCE,
+        ),
+        "trust": permitted(
+            PermissionCode.SPACE_TRUST_VIEW, PermissionCode.SPACE_TRUST_MANAGE,
+        ),
+    }
+    return SpaceOperationalFootprint(
+        signals=tuple(
+            signal for signal in operational_footprint_for_space(space).signals
+            if visible.get(signal, False)
+        ),
+    )
+
+
 SPACE_RELATIONSHIP_LABELS = {
     SpaceArchetype.GENERIC: "Personnes & relations",
     SpaceArchetype.CREATIVE: "Publics & partenaires",

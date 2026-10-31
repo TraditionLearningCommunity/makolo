@@ -17,7 +17,7 @@ def replace_profile_interests(*, profile, topic_ids):
     interests.exclude(topic_id__in=retained_topic_ids).delete()
     existing_topic_ids = set(interests.values_list("topic_id", flat=True))
     ProfileInterest.objects.bulk_create([
-        ProfileInterest(profile=profile, topic=topic, is_public=False)
+        ProfileInterest(profile=profile, topic=topic, is_public=True)
         for topic in topics if topic.pk not in existing_topic_ids
     ])
     return ProfileInterest.objects.filter(profile=profile).select_related("topic").order_by("topic__label", "topic__code")
@@ -40,16 +40,18 @@ def public_profile_interests(*, profile):
 
 
 @transaction.atomic
-def replace_profile_open_to(*, profile, kinds, public_kinds=(), searchable_kinds=()):
+def replace_profile_open_to(*, profile, kinds, public_kinds=None, searchable_kinds=()):
     """Replace explicit Open To declarations for one Profile only.
 
     No history, follows, interests or other behavioral signal is converted into a
-    declaration. New rows are conservative unless visibility is explicitly sent.
+    declaration. New rows are public unless explicitly made private.
     """
     if not getattr(profile, "is_authenticated", False):
         raise PermissionDenied("Connectez-vous pour modifier vos préférences « Ouvert à ».")
     valid = {value for value, _label in OpenToKind.choices}
-    kinds, public_kinds, searchable_kinds = set(kinds), set(public_kinds), set(searchable_kinds)
+    kinds = set(kinds)
+    public_kinds = kinds if public_kinds is None else set(public_kinds)
+    searchable_kinds = set(searchable_kinds)
     if not kinds.issubset(valid) or not public_kinds.issubset(kinds) or not searchable_kinds.issubset(kinds):
         raise ValidationError({"open_to": "Une préférence « Ouvert à » est invalide."})
     rows = ProfileOpenTo.objects.select_for_update().filter(profile=profile, topic__isnull=True)

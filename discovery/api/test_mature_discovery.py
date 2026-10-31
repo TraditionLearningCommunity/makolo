@@ -11,11 +11,14 @@ from activities.models import (
     ActivityStatus,
     ActivityVisibility,
     Occurrence,
+    OccurrencePlace,
+    OccurrencePlaceRole,
     OccurrenceStatus,
 )
 from discovery.models import ActivityBookmark, DiscoveryWatch
 from events.models import Event
 from funding.models import FundingDetails
+from geography.models import Place, SpacePlace
 from groups.models import (
     ActivityGroupEligibility,
     ActivityGroupEligibilityStatus,
@@ -32,8 +35,10 @@ from opportunities.models import (
     OpportunitySave,
 )
 from organizations.models import Organization
+from preparation.models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility
 from services.models import OpportunityPolicy, ServiceDetails, ServiceKind
 from topics.models import ProfileInterest
+from transport.models import TransportRoute, TransportRouteStop, TransportService
 
 
 User = get_user_model()
@@ -172,6 +177,231 @@ class MatureDiscoveryAPITests(TestCase):
         )
         self.assertIsNone(opportunity["identity"]["occurrence"])
 
+    def test_collection_includes_existing_detail_description(self):
+        for profile in (None, self.participant):
+            if profile is None:
+                self.client.logout()
+            else:
+                self.client.force_login(profile)
+            results = self._items(q="Z3", page_size=20)["data"]["results"]
+            self.assertEqual(len(results), 4)
+            for row in results:
+                self.assertTrue(row["links"]["detail"].startswith("/api/v1/"))
+                detail_response = self.client.get(row["links"]["detail"])
+                self.assertEqual(detail_response.status_code, 200)
+                detailed_row = detail_response.json()["data"]["item"]
+                self.assertEqual(row.get("detail"), detailed_row.get("detail"))
+                self.assertEqual(row["identity"], detailed_row["identity"])
+                self.assertTrue(row["detail"]["description"])
+
+    def test_collection_exposes_native_api_references_without_web_authority(self):
+        from django.urls import resolve
+
+        for viewer in (None, self.participant):
+            if viewer is None:
+                self.client.logout()
+            else:
+                self.client.force_login(viewer)
+            rows = self._items(q="Z3", page_size=20)["data"]["results"]
+            for row in rows:
+                detail = row["links"]["detail"]
+                saved = row["links"]["saved"]
+                self.assertEqual(resolve(detail).url_name, "item-detail")
+                self.assertEqual(resolve(saved).url_name, "item-saved")
+                self.assertTrue(detail.startswith("/api/v1/"))
+                self.assertTrue(saved.startswith("/api/v1/"))
+                self.assertIn("view", row["capabilities"])
+                self.assertEqual("save" in row["capabilities"], viewer is not None)
+                engagement = row["engagement"]
+                if engagement["state"] == "owner_contract":
+                    self.assertEqual(engagement["links"], {})
+                    self.assertEqual(engagement["capabilities"], [])
+                    primary = engagement.get("presentation")
+                    if primary is not None:
+                        self.assertFalse(primary["enabled"])
+
+    def test_public_service_exposes_login_continuation_not_start_authority(self):
+        self.client.logout()
+        rows = self._items(q="Z3 accompagnement", page_size=20)["data"]["results"]
+        service = next(row for row in rows if row["identity"]["family"] == "service_activity")
+        engagement = service["engagement"]
+        self.assertEqual(engagement["owner"], "services")
+        self.assertEqual(engagement["state"], "owner_api")
+        self.assertEqual(engagement["capabilities"], ["start_after_auth"])
+        self.assertNotIn("start", engagement["capabilities"])
+        self.assertTrue(engagement["presentation"]["requires_auth"])
+        self.assertFalse(engagement["presentation"]["enabled"])
+        self.assertEqual(engagement["primary_action"]["code"], "start")
+        self.assertEqual(
+            engagement["primary_action"]["destination"],
+            {"kind": "native", "path": f"/services/{self.service.pk}/start"},
+        )
+        # No private personal relation or start authorization leaks to guests.
+        self.assertNotIn("journey", engagement)
+
+        self.client.force_login(self.participant)
+        personal_rows = self._items(
+            q="Z3 accompagnement", page_size=20
+        )["data"]["results"]
+        personal = next(
+            row for row in personal_rows
+            if row["identity"]["family"] == "service_activity"
+        )
+        self.assertIn("start", personal["engagement"]["capabilities"])
+        self.assertNotIn("start_after_auth", personal["engagement"]["capabilities"])
+
+    def test_wire_exposes_only_known_owner_facts_and_empty_collections(self):
+        rows = self._items(q="Z3", page_size=20)["data"]["results"]
+        by_family = {row["identity"]["family"]: row for row in rows}
+        self.assertEqual(
+            set(by_family), {"activity", "service_activity", "funding_activity", "opportunity"}
+        )
+        for row in rows:
+            for key in ("variants", "relations", "temporal_facts", "spatial_facts", "media_bindings"):
+                self.assertIsInstance(row[key], list)
+            self.assertEqual(row["relations"], [])
+            self.assertEqual(row["media_bindings"], [])
+        activity = by_family["activity"]
+        self.assertEqual(activity["variants"], [])
+        self.assertEqual(activity["spatial_facts"], [])
+        self.assertTrue(activity["temporal_facts"])
+        self.assertEqual(by_family["service_activity"]["temporal_facts"], [])
+        self.assertEqual(by_family["service_activity"]["spatial_facts"], [])
+        self.assertEqual(
+            {fact["kind"] for fact in by_family["funding_activity"]["temporal_facts"]},
+            {"opens_at", "closes_at"},
+        )
+        self.assertEqual(
+            {fact["kind"] for fact in by_family["opportunity"]["temporal_facts"]},
+            {"opens_at", "deadline_at"},
+        )
+
+    def test_multiple_occurrences_have_canonical_bounded_variant_references(self):
+        second = self._occurrence(
+            self.event_activity,
+            start=self.now + timedelta(days=3),
+        )
+        event = next(
+            row for row in self._items(q="Z3 concert")["data"]["results"]
+            if row["identity"]["family"] == "activity"
+        )
+        self.assertEqual(
+            {variant["occurrence"]["id"] for variant in event["variants"]},
+            {str(self.event_occurrence.pk), str(second.pk)},
+        )
+        self.assertEqual(
+            {variant["occurrence"]["kind"] for variant in event["variants"]},
+            {"occurrence"},
+        )
+        # The API may serialize UTC while fixtures retain their local offset.
+        # Compare instants, not their ISO-8601 textual representations.
+        from datetime import datetime
+
+        self.assertEqual(
+            {
+                datetime.fromisoformat(variant["timing"]["start_at"])
+                for variant in event["variants"]
+            },
+            {self.event_occurrence.start_at, second.start_at},
+        )
+        self.assertEqual(event["identity"]["resource"]["id"], str(self.event_activity.pk))
+
+    def test_spatial_facts_include_public_occurrence_place_roles(self):
+        first = Place.objects.create(name="Z3 lieu principal", locality="Lubumbashi")
+        second = Place.objects.create(name="Z3 point de rencontre", locality="Lubumbashi")
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence, place=first,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence, place=second,
+            role=OccurrencePlaceRole.MEETING_POINT,
+        )
+        event = next(
+            row for row in self._items(q="Z3 concert")["data"]["results"]
+            if row["identity"]["family"] == "activity"
+        )
+        self.assertEqual(
+            {fact["role"] for fact in event["spatial_facts"]},
+            {"primary", "meeting_point"},
+        )
+        self.assertEqual(
+            {fact["place"]["id"] for fact in event["spatial_facts"]},
+            {str(first.pk), str(second.pk)},
+        )
+        self.assertEqual(event["place"]["id"], str(first.pk))
+        self.assertTrue(all(
+            fact["occurrence"]["id"] == str(self.event_occurrence.pk)
+            for fact in event["spatial_facts"]
+        ))
+
+    def test_private_space_place_is_not_exposed_by_spatial_facts(self):
+        private_place = Place.objects.create(
+            name="Z3 lieu privé", locality="Lubumbashi"
+        )
+        public_place = Place.objects.create(
+            name="Z3 lieu public", locality="Lubumbashi"
+        )
+        SpacePlace.objects.create(
+            organization=self.space, place=private_place, is_public=False
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=private_place,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=public_place,
+            role=OccurrencePlaceRole.MEETING_POINT,
+        )
+        for profile in (None, self.participant):
+            if profile is None:
+                self.client.logout()
+            else:
+                self.client.force_login(profile)
+            event = next(
+                row for row in self._items(q="Z3 concert")["data"]["results"]
+                if row["identity"]["family"] == "activity"
+            )
+            self.assertIsNone(event["place"])
+            self.assertEqual(
+                [fact["place"]["id"] for fact in event["spatial_facts"]],
+                [str(public_place.pk)],
+            )
+
+    def test_transport_spatial_facts_preserve_route_roles_and_privacy(self):
+        activity = self._activity("Z3 trajet")
+        self._occurrence(activity)
+        route = TransportRoute.objects.create(space=self.space, name="Z3 route")
+        places = [
+            Place.objects.create(name=name, locality="Lubumbashi")
+            for name in (
+                "Z3 départ", "Z3 escale publique", "Z3 arrêt privé", "Z3 arrivée"
+            )
+        ]
+        for position, place in enumerate(places, start=1):
+            TransportRouteStop.objects.create(
+                route=route, place=place, position=position
+            )
+        SpacePlace.objects.create(
+            organization=self.space, place=places[2], is_public=False
+        )
+        TransportService.objects.create(activity=activity, route=route)
+        row = next(
+            row for row in self._items(q="Z3 trajet")["data"]["results"]
+            if row["identity"]["resource"]["id"] == str(activity.pk)
+        )
+        self.assertEqual(
+            [(fact["role"], fact["place"]["id"]) for fact in row["spatial_facts"]],
+            [
+                ("departure", str(places[0].pk)),
+                ("stopover", str(places[1].pk)),
+                ("arrival", str(places[3].pk)),
+            ],
+        )
+        self.assertEqual(row["identity"]["family"], "activity")
+
     def test_web_and_api_use_the_same_canonical_discovery_field(self):
         params = {"q": "Z3", "page_size": 20}
         api = self._items(**params)["data"]
@@ -208,6 +438,153 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertEqual(
             payload["data"]["terminal"],
             {"state": "empty", "message": None},
+        )
+
+    def test_out_of_range_page_is_end_of_field_not_no_match(self):
+        payload = self._items(q="Z3", page=999, page_size=1)["data"]
+        self.assertGreater(payload["count"], 0)
+        self.assertEqual(payload["results"], [])
+        self.assertEqual(payload["items"], [])
+        self.assertEqual(payload["selection"], {"state": "ready", "reason": None})
+        self.assertEqual(payload["terminal"]["state"], "end_of_field")
+        self.assertFalse(payload["has_next"])
+        self.assertEqual(payload["continuation"]["state"], "end")
+        self.assertIsNone(payload["continuation"]["token"])
+
+    def test_generation_timestamp_does_not_assert_owner_fact_freshness(self):
+        data = self._items(q="Z3")["data"]
+        self.assertEqual(
+            data["freshness"]["generated_at"],
+            data["freshness"]["observed_at"],
+        )
+        self.assertEqual(data["freshness"]["fact_freshness"], "not_asserted")
+
+    def test_public_resources_are_not_capped_at_six_and_web_discloses_all(self):
+        for index in range(1, 9):
+            ActivityResource.objects.create(
+                activity=self.event_activity,
+                key=f"document-{index:02d}",
+                title=f"Document {index:02d}",
+                kind=ResourceKind.TEXT,
+                text_content=f"Contenu public {index}",
+                visibility=ResourceVisibility.PUBLIC,
+                status=ResourceStatus.PUBLISHED,
+                created_by=self.owner,
+                published_at=self.now,
+            )
+        ActivityResource.objects.create(
+            activity=self.event_activity,
+            key="private-document",
+            title="Document privé",
+            kind=ResourceKind.TEXT,
+            text_content="Ne pas rendre public",
+            visibility=ResourceVisibility.RESTRICTED,
+            status=ResourceStatus.PUBLISHED,
+            created_by=self.owner,
+            published_at=self.now,
+        )
+
+        rows = self._items(q="Z3 concert")["data"]["results"]
+        item = next(
+            row for row in rows
+            if row["identity"]["resource"]["id"] == str(self.event_activity.pk)
+        )
+        self.assertEqual(
+            [entry["title"] for entry in item["resources"]],
+            [f"Document {index:02d}" for index in range(1, 9)],
+        )
+        self.assertNotIn("Document privé", str(item))
+
+        web = self.client.get(reverse("discovery:home"), {"q": "Z3 concert"})
+        self.assertEqual(web.status_code, 200)
+        self.assertContains(web, "Voir les 8 ressources")
+        self.assertContains(web, "Document 08")
+        self.assertNotContains(web, "Document privé")
+
+    def test_public_owner_object_comes_from_logical_activity_owner(self):
+        data = self._items(q="Z3 concert")["data"]
+        item = next(
+            row for row in data["results"]
+            if row["identity"]["family"] == "activity"
+        )
+        owner = item["owner"]
+        self.assertEqual(owner["identity"], {
+            "kind": "space",
+            "id": str(self.space.pk),
+        })
+        self.assertEqual(owner["representation"]["name"], self.space.name)
+        self.assertEqual(owner["links"]["native"], f"/spaces/{self.space.slug}")
+        self.assertEqual(owner["capabilities"], ["view_public"])
+        self.assertEqual(item["date"]["kind"], "added_at")
+        self.assertEqual(
+            item["date"]["value"],
+            self.event_activity.created_at.isoformat(),
+        )
+
+    def test_private_owner_is_not_promoted_to_public_navigation(self):
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile"])
+        item = next(
+            row for row in self._items(q="Z3 concert")["data"]["results"]
+            if row["identity"]["family"] == "activity"
+        )
+        self.assertIsNone(item["owner"])
+        self.assertNotIn("created_by", item)
+
+    def test_opportunity_issuer_is_external_without_makolo_identity(self):
+        item = next(
+            row for row in self._items(q="Z3 bourse")["data"]["results"]
+            if row["identity"]["family"] == "opportunity"
+        )
+        self.assertEqual(item["owner"]["display_name"], "Fondation Z3")
+        self.assertEqual(item["owner"]["identity"], {"kind": "external_issuer"})
+        self.assertFalse(item["owner"]["links"])
+        self.assertEqual(item["date"]["kind"], "published_at")
+        self.assertEqual(
+            item["date"]["value"], self.opportunity.published_at.isoformat()
+        )
+
+    def test_authenticated_service_start_refers_to_service_not_activity(self):
+        self.client.force_login(self.participant)
+        item = next(
+            row for row in self._items(q="Z3 accompagnement")["data"]["results"]
+            if row["identity"]["family"] == "service_activity"
+        )
+        handoff = item["engagement"]
+        self.assertEqual(handoff["state"], "owner_api")
+        self.assertEqual(
+            handoff["resource"], {"kind": "service", "id": str(self.service.pk)}
+        )
+        self.assertIn("start", handoff["capabilities"])
+        self.assertEqual(
+            handoff["links"]["start"],
+            reverse("services-api:start", kwargs={"pk": self.service.pk}),
+        )
+        self.assertTrue(handoff["presentation"]["enabled"])
+        self.assertEqual(handoff["primary_action"]["code"], "start")
+        self.assertEqual(
+            handoff["primary_action"]["destination"],
+            {"kind": "native", "path": f"/services/{self.service.pk}/start"},
+        )
+
+    def test_web_primary_action_is_not_an_unbacked_owner_capability(self):
+        data = self._items(q="Z3 accompagnement")["data"]
+        service = next(
+            item for item in data["results"]
+            if item["identity"]["family"] == "service_activity"
+        )
+        handoff = service["engagement"]
+        self.assertEqual(handoff["state"], "owner_contract")
+        self.assertEqual(handoff["capabilities"], [])
+        presentation = handoff["presentation"]
+        self.assertEqual(presentation["capability"], "start")
+        self.assertFalse(presentation["enabled"])
+        self.assertTrue(presentation["web_enabled"])
+        self.assertTrue(presentation["web"])
+        self.assertEqual(handoff["primary_action"]["code"], "detail")
+        self.assertEqual(
+            handoff["primary_action"]["destination"]["path"],
+            service["links"]["detail"],
         )
 
     def test_authenticated_collection_exposes_discover_me_contract_and_cursor(self):
@@ -547,6 +924,11 @@ class MatureDiscoveryAPITests(TestCase):
             handoff["links"]["orders"],
             reverse("ticket-orders-list"),
         )
+        self.assertEqual(handoff["primary_action"]["code"], "inspect_offers")
+        self.assertEqual(
+            handoff["primary_action"]["destination"],
+            {"kind": "native", "path": f"/events/{self.event.slug}/tickets"},
+        )
         self.assertEqual(Journey.objects.count(), before)
 
     def test_unknown_is_not_rewritten_as_impossible(self):
@@ -573,3 +955,175 @@ class MatureDiscoveryAPITests(TestCase):
             "secondary_label",
         ):
             self.assertNotIn(forbidden, serialized)
+
+    def test_service_and_funding_admission_reuse_owner_publication_rules(self):
+        from organizations.models import SpaceLifecycle
+
+        service_path = reverse(
+            "discovery_api:item-detail",
+            kwargs={"family": "service_activity", "item_id": self.service_activity.pk},
+        )
+        funding_path = reverse(
+            "discovery_api:item-detail",
+            kwargs={"family": "funding_activity", "item_id": self.funding_activity.pk},
+        )
+        for field, hidden in (
+            ("verification_status", "suspended"),
+            ("lifecycle", SpaceLifecycle.ARCHIVED),
+            ("public_profile", False),
+            ("searchable", False),
+        ):
+            with self.subTest(field=field):
+                original = getattr(self.space, field)
+                setattr(self.space, field, hidden)
+                self.space.save(update_fields=[field])
+                rows = self._items(q="Z3")["data"]["results"]
+                ids = {row["identity"]["resource"]["id"] for row in rows}
+                self.assertNotIn(str(self.service_activity.pk), ids)
+                self.assertNotIn(str(self.funding_activity.pk), ids)
+                self.assertEqual(self.client.get(service_path).status_code, 404)
+                self.assertEqual(self.client.get(funding_path).status_code, 404)
+                setattr(self.space, field, original)
+                self.space.save(update_fields=[field])
+                recovered = self._items(q="Z3")["data"]["results"]
+                recovered_ids = {
+                    row["identity"]["resource"]["id"] for row in recovered
+                }
+                self.assertIn(str(self.service_activity.pk), recovered_ids)
+                self.assertIn(str(self.funding_activity.pk), recovered_ids)
+
+    def test_public_resource_metadata_obeys_preparation_owner_gate(self):
+        resource = ActivityResource.objects.create(
+            activity=self.event_activity,
+            key="owner-sensitive-document",
+            title="Document publication conditionnelle",
+            kind=ResourceKind.TEXT,
+            text_content="Informations publiques seulement si le porteur publie",
+            visibility=ResourceVisibility.PUBLIC,
+            status=ResourceStatus.PUBLISHED,
+            created_by=self.owner,
+            published_at=self.now,
+        )
+        initial = self._items(q="Z3 concert")["data"]["results"]
+        event = next(row for row in initial if row["identity"]["family"] == "activity")
+        self.assertIn(str(resource.pk), str(event["resources"]))
+
+        # The Activity can remain in the older public Event field even if its
+        # owner's public profile was retracted. Preparation then denies the
+        # Resource reader, so Discovery must not embed either body or metadata.
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile"])
+        later = self._items(q="Z3 concert")["data"]["results"]
+        event = next(row for row in later if row["identity"]["family"] == "activity")
+        self.assertIsNone(event["owner"])
+        self.assertEqual(event["resources"], [])
+        self.assertNotIn("owner-sensitive-document", str(event))
+
+    def test_opportunity_resource_rejects_unsafe_legacy_external_url(self):
+        from opportunities.models import OpportunitySource, OpportunitySourceType
+
+        source = OpportunitySource.objects.create(
+            opportunity=self.opportunity,
+            source_type=OpportunitySourceType.OFFICIAL,
+            source_name="Source ancienne",
+            url="https://example.test/official",
+        )
+        OpportunitySource.objects.filter(pk=source.pk).update(
+            url="javascript:alert(1)"
+        )
+        rows = self._items(q="Z3 bourse")["data"]["results"]
+        opportunity = next(
+            item for item in rows
+            if item["identity"]["family"] == "opportunity"
+        )
+        resource = next(
+            item for item in opportunity["resources"]
+            if item["id"] == str(source.pk)
+        )
+        self.assertIsNone(resource["external_url"])
+        self.assertNotIn("javascript:alert", str(resource))
+
+    def test_invalid_cursor_and_exploration_return_api_validation_errors(self):
+        self.client.force_login(self.participant)
+        first = self._items(q="Z3", page_size=1)["data"]
+        cursor = first["continuation"]["token"]
+        self.assertIsNotNone(cursor)
+
+        endpoint = reverse("discovery_api:items")
+        for params in (
+            {"q": "Z3 changed", "page_size": 1, "continuation": cursor},
+            {"q": "Z3", "page_size": 2, "continuation": cursor},
+            {"q": "Z3", "page_size": 1, "continuation": cursor + "tampered"},
+            {"q": "Z3", "page_size": "not-an-int"},
+            {"q": "Z3", "when": "invalid-temporal-preset"},
+        ):
+            with self.subTest(params=params):
+                response = self.client.get(endpoint, params)
+                self.assertEqual(response.status_code, 400, response.content)
+
+        self.client.force_login(self.outsider)
+        rejected = self.client.get(
+            endpoint, {"q": "Z3", "page_size": 1, "continuation": cursor},
+        )
+        self.assertEqual(rejected.status_code, 400, rejected.content)
+
+        bad_map = self.client.get(
+            reverse("discovery_api:map"),
+            {"when": "invalid-temporal-preset"},
+        )
+        self.assertEqual(bad_map.status_code, 400, bad_map.content)
+
+    def test_collection_price_uses_commerce_unknown_and_exact_owner_truth(self):
+        from commerce.models import Offer, OfferStatus, PaymentMode
+
+        service = next(
+            row for row in self._items(q="Z3 accompagnement")["data"]["results"]
+            if row["identity"]["family"] == "service_activity"
+        )
+        self.assertEqual(service["price"]["state"], "unknown")
+        self.assertEqual(service["price"]["reason"], "no_applicable_offer")
+        self.assertIsNone(service["price"]["minimum"])
+
+        Offer.objects.create(
+            activity=self.service_activity, name="Accompagnement au dossier",
+            unit_price=Decimal("15.00"), currency="USD",
+            status=OfferStatus.ACTIVE, payment_mode=PaymentMode.UPFRONT,
+        )
+        updated = next(
+            row for row in self._items(q="Z3 accompagnement")["data"]["results"]
+            if row["identity"]["family"] == "service_activity"
+        )
+        self.assertEqual(updated["price"]["state"], "exact")
+        self.assertEqual(updated["price"]["minimum"], "15.00")
+        self.assertEqual(updated["price"]["currency"], "USD")
+
+        Offer.objects.create(
+            activity=self.service_activity, name="Autre devise",
+            unit_price=Decimal("1000.00"), currency="CDF",
+            status=OfferStatus.ACTIVE, payment_mode=PaymentMode.UPFRONT,
+        )
+        mixed = next(
+            row for row in self._items(q="Z3 accompagnement")["data"]["results"]
+            if row["identity"]["family"] == "service_activity"
+        )
+        self.assertEqual(mixed["price"]["state"], "unknown")
+        self.assertEqual(mixed["price"]["reason"], "mixed_currencies")
+        self.assertIsNone(mixed["price"]["minimum"])
+        self.assertIsNone(mixed["price"]["currency"])
+        self.assertEqual(mixed["price"]["offer_count"], 2)
+
+    def test_expired_continuation_is_rejected_as_validation_not_server_error(self):
+        from unittest.mock import patch
+        from django.core import signing
+
+        self.client.force_login(self.participant)
+        with patch(
+            "discovery.api.composition.signing.loads",
+            side_effect=signing.SignatureExpired("expired"),
+        ):
+            response = self.client.get(
+                reverse("discovery_api:items"),
+                {"q": "Z3", "page_size": 1, "continuation": "expired"},
+            )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("discovery", response.json())

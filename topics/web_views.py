@@ -26,8 +26,19 @@ class ProfileInterestSettingsView(LoginRequiredMixin, FormView):
         return initial
 
     def form_valid(self, form):
-        replace_profile_interests(profile=self.request.user, topic_ids=[topic.pk for topic in form.cleaned_data["topics"]])
-        set_profile_interest_visibility(profile=self.request.user, public_topic_ids=[topic.pk for topic in form.cleaned_data["public_topics"]])
+        # A newly selected Interest is public by default; the legacy form's
+        # public_topics picker lists only already saved Interests. Preserve
+        # explicit visibility choices for all retained rows.
+        existing = set(ProfileInterest.objects.filter(
+            profile=self.request.user,
+        ).values_list("topic_id", flat=True))
+        selected = {topic.pk for topic in form.cleaned_data["topics"]}
+        replace_profile_interests(profile=self.request.user, topic_ids=selected)
+        public = {topic.pk for topic in form.cleaned_data["public_topics"]}
+        public.update(selected - existing)
+        set_profile_interest_visibility(
+            profile=self.request.user, public_topic_ids=public,
+        )
         messages.success(self.request, "Centres d’intérêt mis à jour.")
         return super().form_valid(form)
 
@@ -49,7 +60,16 @@ class ProfileOpenToSettingsView(LoginRequiredMixin, FormView):
         return initial
 
     def form_valid(self, form):
-        replace_profile_open_to(profile=self.request.user, kinds=form.cleaned_data["kinds"], public_kinds=form.cleaned_data["public_kinds"], searchable_kinds=form.cleaned_data["searchable_kinds"])
+        retained = set(ProfileOpenTo.objects.filter(
+            profile=self.request.user, is_active=True, topic__isnull=True,
+        ).values_list("kind", flat=True))
+        kinds = set(form.cleaned_data["kinds"])
+        public = set(form.cleaned_data["public_kinds"])
+        public.update(kinds - retained)
+        replace_profile_open_to(
+            profile=self.request.user, kinds=kinds, public_kinds=public,
+            searchable_kinds=form.cleaned_data["searchable_kinds"],
+        )
         messages.success(self.request, "Préférences Ouvert à mises à jour.")
         return super().form_valid(form)
 

@@ -66,12 +66,42 @@ class _ResourcesScreenState extends State<ResourcesScreen> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshCollectionPage(query: _query, offset: 0);
+      final query = _query;
+      await widget.repository.refreshCollectionPage(query: query, offset: 0);
+      final status = await widget.repository.readCollectionSource(query: query);
+      if (status.lastSuccessAt != null &&
+          !status.invalidated &&
+          status.lastErrorCode == null &&
+          mounted &&
+          query == _query) {
+        // Only a few known, already listed details: no speculative document
+        // downloads and no change to presentation order.
+        unawaited(_warmDetails(query));
+      }
     } on Object {
       // Existing local metadata remains useful when the owner is unreachable.
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
+  }
+
+  Future<void> _warmDetails(String query) async {
+    final projection = await widget.repository.readCollectionPage(
+      query: query,
+      offset: 0,
+    );
+    if (projection == null || !mounted || query != _query) return;
+    final documents = projection.payload['documents'];
+    if (documents is! Map) return;
+    final items = documents['items'];
+    if (items is! List) return;
+    final ids = <String>[];
+    for (final item in items) {
+      if (item is! Map) continue;
+      final id = item['id']?.toString();
+      if (id != null && id.isNotEmpty) ids.add(id);
+    }
+    await widget.repository.warmKnownDetails(ids, limit: 8);
   }
 
   Future<void> _loadMore(_ResourcesView view) async {
@@ -341,6 +371,20 @@ class _ResourcesView {
             .toList()
           ..sort((a, b) => _offset(a).compareTo(_offset(b)));
 
+    // A never-seen search query cannot have a server-owned local page yet.
+    // Filter only the already received unfiltered list, without claiming
+    // new server results or changing the global presentation order.
+    final locallyFiltered = selected.isEmpty && query.trim().isNotEmpty;
+    if (locallyFiltered) {
+      selected.addAll(
+        pages.where(
+          (page) =>
+              page.kind == ResourceRepository.collectionProjectionKind &&
+              page.resourceKey.startsWith(':'),
+        ),
+      );
+      selected.sort((a, b) => _offset(a).compareTo(_offset(b)));
+    }
     if (selected.isEmpty) {
       return const _ResourcesView(
         documents: [],
@@ -399,12 +443,33 @@ class _ResourcesView {
         ? (page['limit'] as num).toInt()
         : ResourceRepository.defaultLimit;
 
+    final needle = query.trim().toLowerCase();
     return _ResourcesView(
-      documents: List.unmodifiable(documents),
-      proofs: List.unmodifiable(proofs),
-      credentials: List.unmodifiable(credentials),
-      hasMore: page['has_more'] == true || lastPage['has_more'] == true,
-      nextOffset: offset + limit,
+      documents: List.unmodifiable(
+        locallyFiltered
+            ? documents
+                  .where((item) => item.title.toLowerCase().contains(needle))
+                  .toList()
+            : documents,
+      ),
+      proofs: List.unmodifiable(
+        locallyFiltered
+            ? proofs
+                  .where((item) => item.title.toLowerCase().contains(needle))
+                  .toList()
+            : proofs,
+      ),
+      credentials: List.unmodifiable(
+        locallyFiltered
+            ? credentials
+                  .where((item) => item.title.toLowerCase().contains(needle))
+                  .toList()
+            : credentials,
+      ),
+      hasMore: locallyFiltered
+          ? false
+          : page['has_more'] == true || lastPage['has_more'] == true,
+      nextOffset: locallyFiltered ? 0 : offset + limit,
     );
   }
 

@@ -22,7 +22,24 @@ class OngoingContinuityPresentation {
     required this.capabilities,
     required this.links,
     required this.handoffs,
+    required this.temporalFacts,
+    required this.mediaBindings,
+    required this.resources,
+    required this.relations,
+    required this.knowledgeContext,
+    required this.continuityBasis,
+    required this.blockerDetails,
+    required this.horizon,
+    required this.outcome,
     required this.rawState,
+    this.cue,
+    this.cueTone = 'calm',
+    this.supporting,
+    this.whenLabel,
+    this.placeLabel,
+    this.mediaUrl,
+    this.mediaAlt,
+    this.possibility,
   });
 
   final String id;
@@ -46,7 +63,24 @@ class OngoingContinuityPresentation {
   final List<String> capabilities;
   final Map<String, String> links;
   final List<OngoingHandoffPresentation> handoffs;
+  final List<Map<String, dynamic>> temporalFacts;
+  final List<Map<String, dynamic>> mediaBindings;
+  final List<Map<String, dynamic>> resources;
+  final List<Map<String, dynamic>> relations;
+  final Map<String, dynamic> knowledgeContext;
+  final List<Map<String, dynamic>> continuityBasis;
+  final List<Map<String, dynamic>> blockerDetails;
+  final Map<String, dynamic> horizon;
+  final Map<String, dynamic> outcome;
   final String rawState;
+  final String? cue;
+  final String cueTone;
+  final String? supporting;
+  final String? whenLabel;
+  final String? placeLabel;
+  final String? mediaUrl;
+  final String? mediaAlt;
+  final OngoingPossibilityPresentation? possibility;
 
   bool get hasParallelMovement {
     var movingDimensions = 0;
@@ -77,6 +111,22 @@ class OngoingContinuityPresentation {
     final links = _map(item['links']);
     final c0Handoffs = _maps(item['handoffs']);
     final continuityIdentity = _map(item['continuity_identity']);
+    final n1 = _map(item['n1']);
+    String? mediaUrl;
+    String? mediaAlt;
+    // A media use is an owner-backed published reference, never a generic
+    // resource or a client-selected cover. Older cached projections omit it.
+    for (final binding in _maps(item['media_bindings'])) {
+      if (_text(binding['purpose']) != 'RECOGNIZE') continue;
+      final resource = _map(binding['resource']);
+      final mime = _text(resource['mime_type']);
+      if (mime != 'image/jpeg' && mime != 'image/png') continue;
+      final url = _text(resource['url']);
+      if (url == null) continue;
+      mediaUrl = url;
+      mediaAlt = _text(resource['alt_text']);
+      break;
+    }
 
     final continuityId =
         _text(item['id']) ??
@@ -179,8 +229,47 @@ class OngoingContinuityPresentation {
         for (final handoff in c0Handoffs)
           ?OngoingHandoffPresentation.fromMap(handoff),
       ]),
+      temporalFacts: List.unmodifiable(_maps(item['temporal_facts'])),
+      mediaBindings: List.unmodifiable(_maps(item['media_bindings'])),
+      resources: List.unmodifiable(_maps(item['resources'])),
+      relations: List.unmodifiable(_maps(item['relation_projections'])),
+      knowledgeContext: Map.unmodifiable(_map(item['knowledge_context'])),
+      continuityBasis: List.unmodifiable(_maps(item['continuity_basis'])),
+      blockerDetails: List.unmodifiable(_maps(item['blockers'])),
+      horizon: Map.unmodifiable(_map(item['horizon'])),
+      outcome: Map.unmodifiable(_map(item['outcome'])),
       rawState: rawState,
+      cue:
+          _text(n1['cue']) ??
+          _fallbackCue(
+            blocker: blockerText,
+            mySide: mySide,
+            waiting: waitingText,
+            state: rawState,
+          ),
+      cueTone: _text(n1['tone']) ?? 'calm',
+      supporting: _text(n1['supporting']),
+      whenLabel: _text(n1['when_label']),
+      placeLabel: _text(n1['place_label']),
+      mediaUrl: mediaUrl,
+      mediaAlt: mediaAlt,
+      possibility: OngoingPossibilityPresentation.fromMap(
+        _map(n1['possibility']),
+      ),
     );
+  }
+
+  static String? _fallbackCue({
+    required String? blocker,
+    required List<String> mySide,
+    required String? waiting,
+    required String state,
+  }) {
+    if (blocker != null) return 'Une étape bloquée';
+    if (mySide.isNotEmpty) return 'De votre côté';
+    if (waiting != null) return 'En attente';
+    if (state == 'available') return 'Accès disponible';
+    return null;
   }
 
   static String _synthesis({
@@ -266,5 +355,55 @@ class OngoingHandoffPresentation {
     final id = OngoingContinuityPresentation._text(value['id']);
     if (type == null || target == null || id == null) return null;
     return OngoingHandoffPresentation(type: type, target: target, id: id);
+  }
+}
+
+/// Server-admitted Discovery action on a public Activity; never Ongoing authority.
+class OngoingPossibilityPresentation {
+  const OngoingPossibilityPresentation({
+    required this.id,
+    required this.family,
+    required this.savedState,
+    required this.canSave,
+    required this.canShare,
+    required this.shareUrl,
+  });
+  final String id;
+  final String family;
+  final String savedState;
+  final bool canSave;
+  final bool canShare;
+  final String? shareUrl;
+
+  static OngoingPossibilityPresentation? fromMap(Map<String, dynamic> raw) {
+    final id = raw['id'];
+    final family = raw['family'];
+    if (!{
+          'activity',
+          'service_activity',
+          'funding_activity',
+        }.contains(family) ||
+        id is! String ||
+        !RegExp(r'^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$')
+            .hasMatch(id)) {
+      return null;
+    }
+    final caps = raw['capabilities'];
+    final allowed = caps is List
+        ? caps.whereType<String>().toSet()
+        : <String>{};
+    final links = raw['links'];
+    final share = links is Map ? links['share'] : null;
+    return OngoingPossibilityPresentation(
+      id: id,
+      family: family as String,
+      savedState: raw['saved_state'] == 'saved' ? 'saved' : 'not_saved',
+      canSave: allowed.contains('save') || allowed.contains('unsave'),
+      canShare:
+          allowed.contains('share') &&
+          share is String &&
+          share == '/api/v1/sharing/possibilities/$family/$id/',
+      shareUrl: share is String ? share : null,
+    );
   }
 }

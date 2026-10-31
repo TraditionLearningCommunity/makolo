@@ -58,7 +58,7 @@
       <ul class="mk-ws4-list">
         {% for responsibility in projection.responsibilities.items %}
           {% if not responsibility.combined %}
-          <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="activity"></i></span><div><strong>{{ responsibility.label }}</strong>{% if responsibility.activity %}<small>{{ responsibility.activity.title }}</small>{% else %}<small>Portée Space</small>{% endif %}</div></li>
+          <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="activity"></i></span><div><strong>{{ responsibility.label }}</strong>{% if responsibility.activity %}<small>{{ responsibility.activity.title }}</small>{% else %}<small>Portée Space</small>{% endif %}<a href="{{ us_work_base_url }}?responsibility={{ responsibility.key|urlencode }}">Voir ce que je porte dans Métier</a></div></li>
           {% endif %}
         {% empty %}
           <li><p class="mk-ws4-empty">Aucune responsabilité projetée dans ce contexte.</p></li>
@@ -67,18 +67,36 @@
       <p class="mk-ws4-note">Une responsabilité décrit ce que chacun porte. L’autorité reste décidée séparément par le serveur.</p>
     </section>
 
+    {% if projection.relationships.sections %}
+    <section class="mk-ws4-card" aria-labelledby="space-us-relations">
+      <div class="mk-ws4-card-head">
+        <div><span class="mk-ws4-eyebrow">Réseau collectif</span><h3 id="space-us-relations">Personnes & relations</h3></div>
+      </div>
+      <ul class="mk-ws4-list">
+        {% for relation_key, relation_section in projection.relationships.sections.items %}
+          <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="network"></i></span><div>
+            <strong>{% if relation_key == 'team' %}Équipe{% elif relation_key == 'groups' %}Groupes{% elif relation_key == 'crm_contacts' %}Contacts{% elif relation_key == 'audiences' %}Publics{% elif relation_key == 'partners' %}Partenaires{% else %}Relations{% endif %}</strong>
+            <small>{{ relation_section.items|length }} élément{{ relation_section.items|length|pluralize }} dans cet aperçu{% if relation_section.has_more %} · autres éléments disponibles{% endif %}</small>
+          </div></li>
+        {% endfor %}
+      </ul>
+      <p class="mk-ws4-note">Chaque relation reste sous la responsabilité de son domaine propriétaire et respecte ses propres règles d’accès.</p>
+      {% if us_owner_links.relationships %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.relationships }}">Explorer ces relations <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+    </section>
+    {% endif %}
+
     {% if projection.ownership.items %}
     <section class="mk-ws4-card" aria-labelledby="space-us-ownership">
       <div class="mk-ws4-card-head">
-        <div><span class="mk-ws4-eyebrow">Institution</span><h3 id="space-us-ownership">Ownership</h3></div>
+        <div><span class="mk-ws4-eyebrow">Institution</span><h3 id="space-us-ownership">Gouvernance</h3></div>
       </div>
       <ul class="mk-ws4-list">
         {% for owner in projection.ownership.items %}
         <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="key-round"></i></span><div><strong>{{ owner.profile.name }}</strong><small>{{ owner.responsibility.label }}</small></div></li>
         {% endfor %}
       </ul>
-      <p class="mk-ws4-note">L’ownership institutionnel n’est ni une appartenance d’équipe ni une hiérarchie générale des personnes.</p>
-      {% if us_owner_links.ownership %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.ownership }}">Gouvernance de l’équipe <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
+      <p class="mk-ws4-note">Le Mandate de propriétaire est une autorité institutionnelle, non une appartenance d’équipe.</p>
+      {% if us_owner_links.ownership %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.ownership }}">Voir la gouvernance <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
     {% endif %}
 
@@ -97,7 +115,6 @@
   </div>
 
   <nav class="mk-ws4-actions" aria-label="Approfondir Nous">
-    <a class="mk-ws4-action" href="{{ us_owner_links.relationships }}"><i data-lucide="users-round" aria-hidden="true"></i><span><strong>Personnes & relations</strong><small>Avec qui avançons-nous ?</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>
     {% if us_owner_links.pilot %}<a class="mk-ws4-action" href="{{ us_owner_links.pilot }}"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span><strong>Piloter</strong><small>Comprendre ce qui fonctionne et ce qui change.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
     {% if us_owner_links.connections %}<a class="mk-ws4-action mk-ws4-action--quiet" href="{{ us_owner_links.connections }}"><i data-lucide="workflow" aria-hidden="true"></i><span><strong>Connexions</strong><small>Systèmes externes reliés à ce Space.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}
     {% if us_owner_links.settings %}<a class="mk-ws4-action mk-ws4-action--quiet" href="{{ us_owner_links.settings }}"><i data-lucide="settings-2" aria-hidden="true"></i><span><strong>Paramètres de l’Espace</strong><small>Administration institutionnelle.</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></a>{% endif %}

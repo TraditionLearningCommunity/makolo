@@ -1,0 +1,29 @@
+<form method="post" data-passport-visibility class="mk-panel space-y-3 p-4">
+  {% csrf_token %}
+  <input type="hidden" name="target_kind" value="{{ item.kind }}">
+  <input type="hidden" name="target_id" value="{{ item.id }}">
+  <h3 class="font-bold">{{ item.label }}</h3>
+  <fieldset>
+    <legend class="text-sm opacity-70 mb-2">Visible par</legend>
+    <div class="grid gap-2 sm:grid-cols-2">
+      {% for option in item.options %}
+        <label class="flex items-start gap-2 rounded-xl border p-2 text-sm">
+          <input type="checkbox" name="audience" value="{{ option.value }}" {% if option.selected %}checked{% endif %}>
+          <span>{{ option.label }}</span>
+        </label>
+      {% endfor %}
+      {% for person in item.selected_people %}
+        <label class="flex items-start gap-2 rounded-xl border p-2 text-sm">
+          <input type="checkbox" name="audience" value="selected_profile:{{ person.id }}" checked>
+          <span>{{ person.label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <label class="block text-sm">Ajouter une personne Makolo par identifiant
+    <input type="text" name="person_username" maxlength="150" placeholder="@identifiant" class="mt-1 block w-full rounded-xl border px-3 py-2" autocomplete="off">
+  </label>
+  <div class="flex justify-end">
+    <button class="mk-btn mk-btn-primary" type="submit">Enregistrer</button>
+  </div>
+</form>

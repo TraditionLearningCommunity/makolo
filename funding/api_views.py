@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -20,8 +20,8 @@ from .api_serializers import (
     FundingCreateSerializer,
     FundingUpdateSerializer,
 )
-from .models import FundingDetails
-from .selectors import funding_accepts_contributions, funding_progress
+from .models import FundingDetails, FundingContribution
+from .selectors import funding_accepts_contributions, funding_progress, public_fundings
 from .services import (
     can_manage_funding,
     create_funding,
@@ -135,6 +135,38 @@ def _managed_funding(actor, pk):
     return funding
 
 
+class PublicFundingDetailAPIView(APIView):
+    """Public, minimal Funding facts for an admitted native contribution path."""
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        from groups.selectors import eligible_activity_ids_for_profile
+
+        funding = get_object_or_404(public_fundings(), pk=pk)
+        if funding.activity_id not in eligible_activity_ids_for_profile(
+            request.user, [funding.activity_id],
+        ):
+            raise NotFound()
+        progress = funding_progress(funding)
+        response = Response({
+            "id": str(funding.pk),
+            "title": funding.activity.title,
+            "description": funding.activity.short_description or "",
+            "currency": funding.currency,
+            "minimum_contribution": _decimal(funding.minimum_contribution),
+            "maximum_contribution": _decimal(funding.maximum_contribution),
+            "target_amount": _decimal(funding.target_amount),
+            "raised_amount": _decimal(progress.raised_amount),
+            "accepts_contributions": funding_accepts_contributions(funding),
+            "capabilities": ["view", "contribute"] if funding_accepts_contributions(funding) else ["view"],
+            "links": {
+                "contribute": reverse("funding_api:contribute", kwargs={"pk": funding.pk}),
+            },
+        })
+        response["Cache-Control"] = "no-store"
+        return response
+
+
 class FundingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -238,6 +270,44 @@ class FundingDetailAPIView(APIView):
 class FundingContributionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get(self, request, pk):
+        # Recovery lookup is strictly scoped to the authenticated contributor.
+        # Neither Funding progress nor another contributor reveals this key.
+        funding = get_object_or_404(
+            FundingDetails.objects.select_related("activity"),
+            pk=pk, activity__status=ActivityStatus.PUBLISHED,
+        )
+        if funding.activity.visibility == ActivityVisibility.PRIVATE:
+            raise NotFound()
+        from groups.selectors import eligible_activity_ids_for_profile
+
+        if funding.activity_id not in eligible_activity_ids_for_profile(
+            request.user, [funding.activity_id],
+        ):
+            raise NotFound()
+        reference = (request.query_params.get("client_reference") or "").strip()
+        if not reference or len(reference) > 120:
+            raise ValidationError({"client_reference": "Référence requise."})
+        contribution = (
+            FundingContribution.objects.filter(
+                funding=funding,
+                contributor_profile=request.user,
+                client_reference=reference,
+            ).select_related("payment_obligation").first()
+        )
+        response = Response({
+            "contribution": (
+                {
+                    "id": str(contribution.pk),
+                    "funding_id": str(funding.pk),
+                    "amount": str(contribution.amount),
+                    "payment_obligation_id": str(contribution.payment_obligation_id),
+                } if contribution is not None else None
+            ),
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     def post(self, request, pk):
         funding = get_object_or_404(
             FundingDetails.objects.select_related(
@@ -247,6 +317,12 @@ class FundingContributionAPIView(APIView):
             activity__status=ActivityStatus.PUBLISHED,
         )
         if funding.activity.visibility == ActivityVisibility.PRIVATE:
+            raise NotFound()
+        from groups.selectors import eligible_activity_ids_for_profile
+
+        if funding.activity_id not in eligible_activity_ids_for_profile(
+            request.user, [funding.activity_id],
+        ):
             raise NotFound()
 
         serializer = FundingContributionSerializer(data=request.data)

@@ -354,10 +354,18 @@ def build_personal_passport_depth_data(
         "presentation_web": reverse("sharing:passport-me"),
     }
     if public_enabled:
-        links["public_web"] = reverse(
-            "sharing:passport-profile",
-            kwargs={"profile_id": profile.pk},
+        from sharing.models import PublicIdentifier
+
+        identifier = (
+            PublicIdentifier.objects.filter(profile=profile)
+            .values_list("identifier", flat=True)
+            .first()
         )
+        if identifier:
+            links["public_web"] = reverse(
+                "public-passport",
+                kwargs={"identifier": identifier},
+            )
     data["projection"] = {
         "variant": data["variant"],
         "available_variants": list(PASSPORT_VARIANTS),
@@ -376,6 +384,16 @@ def build_personal_passport_depth_data(
         "select_projection",
         "present",
     ]
+    from sharing.passport import profile_passport_topic_options
+    data["topic_options"] = [
+        {"code": row.code, "label": row.label}
+        for row in profile_passport_topic_options(profile)
+    ]
+    # Owner-only personal detail. Do not put this into the canonical Passport
+    # identity: public/thematic/custom variants and shareable documents must
+    # never inherit private account coordinates by composition.
+    if variant == PASSPORT_COMPLETE:
+        data["private_details"] = data["identity"].pop("owner_details", {})
     data["links"] = links
     return data
 

@@ -2,9 +2,11 @@ from django.urls import path
 
 from interoperability.api_views import SpaceInteroperabilityAPIView
 from commerce.space_order_views import SpaceCommerceOrderDetailAPIView
+from payments.space_obligation_views import SpacePayerObligationAPIView
 
 from .public_space_views import PublicSpaceDetailAPIView, PublicSpacesAPIView
 from .space_attention_views import SpaceDiscoverAPIView, SpaceNowAPIView
+from .space_request_views import SpaceJourneyRequestAPIView
 from .space_history_views import SpaceHistoryAPIView
 from .space_search_views import SpaceSearchAPIView
 from .space_mark_views import SpaceMarkAPIView
@@ -30,10 +32,12 @@ urlpatterns = [
     path("workspaces/", SpaceWorkspaceListAPIView.as_view(), name="workspaces"),
     path("workspaces/<slug:slug>/", SpaceWorkspaceDetailAPIView.as_view(), name="workspace-detail"),
     path("workspaces/<slug:slug>/now/", SpaceNowAPIView.as_view(), name="workspace-now"),
+    path("workspaces/<slug:slug>/requests/<uuid:request_id>/", SpaceJourneyRequestAPIView.as_view(), name="workspace-request-detail"),
     path("workspaces/<slug:slug>/discover/", SpaceDiscoverAPIView.as_view(), name="workspace-discover"),
     path("workspaces/<slug:slug>/work/", SpaceWorkAPIView.as_view(), name="workspace-work"),
     path("workspaces/<slug:slug>/history/", SpaceHistoryAPIView.as_view(), name="workspace-history"),
     path("workspaces/<slug:slug>/commerce/orders/<uuid:order_id>/", SpaceCommerceOrderDetailAPIView.as_view(), name="workspace-commerce-order-detail"),
+    path("workspaces/<slug:slug>/payment-obligations/<uuid:obligation_id>/", SpacePayerObligationAPIView.as_view(), name="workspace-payment-obligation-detail"),
     path("workspaces/<slug:slug>/search/", SpaceSearchAPIView.as_view(), name="workspace-search"),
     path("workspaces/<slug:slug>/us/", SpaceUsAPIView.as_view(), name="workspace-us"),
     path("workspaces/<slug:slug>/relationships/", SpaceRelationshipsAPIView.as_view(), name="workspace-relationships"),

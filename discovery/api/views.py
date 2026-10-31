@@ -1,7 +1,7 @@
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -57,10 +57,13 @@ class DiscoveryItemsAPIView(APIView):
 
     def get(self, request):
         _reject_profile_override(request)
-        data = paginated_projection(
-            request.query_params,
-            profile=request.user,
-        )
+        try:
+            data = paginated_projection(
+                request.query_params,
+                profile=request.user,
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError({"discovery": exc.messages}) from exc
         return Response(
             projection_envelope(
                 projection="discovery.items",
@@ -136,10 +139,13 @@ class DiscoveryMapAPIView(APIView):
 
     def get(self, request):
         _reject_profile_override(request)
-        composition = compose_discovery(
-            request.query_params,
-            profile=request.user,
-        )
+        try:
+            composition = compose_discovery(
+                request.query_params,
+                profile=request.user,
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError({"discovery": exc.messages}) from exc
         points = []
         for family, _, candidate in composition.rows:
             if family != "activity":

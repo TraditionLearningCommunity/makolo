@@ -4,7 +4,7 @@
         <div class="max-w-2xl">
             <span class="mk-kicker">Discover personnalisé</span>
             <h2 id="g8-interest-prompt-title" class="mt-2 text-lg font-extrabold tracking-[-.025em]">Rendez Discover plus pertinent.</h2>
-            <p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">Quels sujets vous intéressent ? Ces choix sont explicites, privés par défaut et ne sont jamais déduits de votre historique.</p>
+            <p class="mt-2 text-sm leading-6" style="color:var(--mk-muted)">Quels sujets vous intéressent ? Ces choix sont explicites, publics par défaut et jamais déduits de votre historique. Vous pouvez limiter leur visibilité.</p>
         </div>
         <form method="post" action="{% url 'account:interest-prompt-dismiss' %}">
             {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">

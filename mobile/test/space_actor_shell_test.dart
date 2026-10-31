@@ -128,11 +128,21 @@ Future<_Harness> _harness({bool startInSpace = false}) async {
       },
       'responsibilities': {'items': []},
       'ownership': {'items': []},
-      'trust': {'verified': false},
+      'trust': {
+        'verified': true,
+        'claims': [
+          {
+            'claim_type': 'organization_identity',
+            'status': 'active',
+            'valid_until': '2027-01-01',
+          },
+        ],
+      },
       'capabilities': {'manage_team': true},
       'handoffs': {
         'team': '/space/space-x/us/team',
         'responsibilities': '/space/space-x/us/responsibilities',
+        'trust': '/space/space-x/us/trust',
       },
       'links': {'workspace': '/api/v1/organizations/workspaces/space-x/'},
     },
@@ -256,13 +266,26 @@ Future<void> _disposeUi(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _chooseActor(WidgetTester tester, String label) async {
-  await tester.tap(find.byTooltip('Avatar'));
-  await tester.pumpAndSettle();
-  expect(find.text('Amina'), findsOneWidget);
-  await tester.tap(find.text('Agir comme'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(label));
+/// The shell mapping is tested with actor-context transitions directly:
+/// the real picker requires a live inventory/workspace revalidation and
+/// intentionally refuses offline actors in this repository-only harness.
+Future<void> _switchShellActor(
+  WidgetTester tester,
+  _Harness harness,
+  String label,
+) async {
+  if (label == 'Moi') {
+    await harness.actorContext.selectPersonal();
+  } else {
+    final slug = switch (label) {
+      'Space X' => 'space-x',
+      'Space Y' => 'space-y',
+      _ => throw ArgumentError.value(label, 'label'),
+    };
+    await harness.actorContext.selectSpace(
+      SpaceActorIdentity(id: slug, slug: slug),
+    );
+  }
   await tester.pumpAndSettle();
 }
 
@@ -283,13 +306,62 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Équipe'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AppBar), matching: find.text('Équipe')),
+      findsOneWidget,
+    );
     expect(find.text('Amina'), findsOneWidget);
     expect(harness.actorContext.value, isA<SpaceActorContext>());
     expect(
       (harness.actorContext.value as SpaceActorContext).space.slug,
       'space-x',
     );
+    await _disposeUi(tester);
+  });
+
+  testWidgets('Nous shows actual trust claims instead of a generic score', (
+    tester,
+  ) async {
+    final harness = await _harness(startInSpace: true);
+    addTearDown(harness.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: SpaceNousDepthScreen(
+          runtime: harness.runtime,
+          slug: 'space-x',
+          depth: 'trust',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('organization_identity'), findsOneWidget);
+    expect(find.text('État : active'), findsOneWidget);
+    expect(find.textContaining('score global'), findsOneWidget);
+    await _disposeUi(tester);
+  });
+
+  testWidgets('Nous depth no longer exposes its team after an actor switch', (
+    tester,
+  ) async {
+    final harness = await _harness(startInSpace: true);
+    addTearDown(harness.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: SpaceNousDepthScreen(
+          runtime: harness.runtime,
+          slug: 'space-x',
+          depth: 'team',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsOneWidget);
+    await harness.actorContext.selectPersonal();
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsNothing);
+    expect(find.textContaining('n’est plus le contexte actif'), findsOneWidget);
     await _disposeUi(tester);
   });
 
@@ -319,29 +391,47 @@ void main() {
     await _disposeUi(tester);
   });
 
-  testWidgets('Agir comme switches the same shell from personal to Space', (
+  testWidgets('Agir comme cannot select a Space from unverified offline data', (
     tester,
   ) async {
     final harness = await _harness();
     addTearDown(harness.close);
     await _pump(tester, harness);
-
-    expect(find.text('En cours'), findsOneWidget);
-    expect(find.text('Moi'), findsOneWidget);
-    expect(find.text('Métier'), findsNothing);
-
-    await _chooseActor(tester, 'Space X');
-
-    expect(harness.actorContext.value, isA<SpaceActorContext>());
-    expect(find.text('Space Now'), findsOneWidget);
-    expect(find.text('Métier'), findsOneWidget);
-    expect(find.text('Nous'), findsOneWidget);
-    expect(find.text('En cours'), findsNothing);
-    expect(find.text('Space X'), findsOneWidget);
-    expect(find.text('Toutes mes responsabilités'), findsOneWidget);
+    await tester.tap(find.byTooltip('Avatar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Agir comme'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Space X'));
+    await tester.pumpAndSettle();
+    expect(harness.actorContext.value, const PersonalActorContext());
+    expect(find.textContaining('Une connexion est nécessaire'), findsOneWidget);
     await _disposeUi(tester);
-    await harness.close();
   });
+
+  testWidgets(
+    'validated actor transition switches the shell from personal to Space',
+    (tester) async {
+      final harness = await _harness();
+      addTearDown(harness.close);
+      await _pump(tester, harness);
+
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.text('Moi'), findsOneWidget);
+      expect(find.text('Métier'), findsNothing);
+
+      await _switchShellActor(tester, harness, 'Space X');
+
+      expect(harness.actorContext.value, isA<SpaceActorContext>());
+      expect(find.text('Space Now'), findsOneWidget);
+      expect(find.text('Métier'), findsOneWidget);
+      expect(find.text('Nous'), findsOneWidget);
+      expect(find.text('En cours'), findsNothing);
+      expect(find.text('Space X'), findsOneWidget);
+      expect(find.text('Toutes mes responsabilités'), findsOneWidget);
+      await _disposeUi(tester);
+      await harness.close();
+    },
+  );
 
   testWidgets('actor switch preserves the semantic door and branch state', (
     tester,
@@ -356,13 +446,13 @@ void main() {
     await tester.pump();
     expect(find.text('Personal Ongoing · 1'), findsOneWidget);
 
-    await _chooseActor(tester, 'Space X');
+    await _switchShellActor(tester, harness, 'Space X');
     expect(find.text('Space Work · 0'), findsOneWidget);
     await tester.tap(find.text('Incrémenter'));
     await tester.pump();
     expect(find.text('Space Work · 1'), findsOneWidget);
 
-    await _chooseActor(tester, 'Moi');
+    await _switchShellActor(tester, harness, 'Moi');
     expect(find.text('Personal Ongoing · 1'), findsOneWidget);
     expect(find.text('En cours'), findsWidgets);
     expect(find.text('Moi'), findsOneWidget);
@@ -419,7 +509,7 @@ void main() {
 
       expect(find.text('Personal Now'), findsOneWidget);
 
-      await _chooseActor(tester, 'Space X');
+      await _switchShellActor(tester, harness, 'Space X');
       expect(
         harness.actorContext.value,
         SpaceActorContext(
@@ -429,7 +519,7 @@ void main() {
       expect(find.text('Space Now'), findsOneWidget);
       expect(find.text('Space X'), findsOneWidget);
 
-      await _chooseActor(tester, 'Space Y');
+      await _switchShellActor(tester, harness, 'Space Y');
       expect(
         harness.actorContext.value,
         SpaceActorContext(
@@ -440,7 +530,7 @@ void main() {
       expect(find.text('Space Y'), findsOneWidget);
       expect(find.text('Space X'), findsNothing);
 
-      await _chooseActor(tester, 'Moi');
+      await _switchShellActor(tester, harness, 'Moi');
       expect(harness.actorContext.value, const PersonalActorContext());
       expect(find.text('Personal Now'), findsOneWidget);
       expect(find.text('En cours'), findsOneWidget);
@@ -465,7 +555,7 @@ void main() {
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      await _chooseActor(tester, 'Space X');
+      await _switchShellActor(tester, harness, 'Space X');
 
       await tester.tap(find.byTooltip('Makolo Mark'));
       await tester.pumpAndSettle();

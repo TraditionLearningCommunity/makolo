@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
@@ -5,7 +6,16 @@ import '../../navigation/refresh_boundary.dart';
 import '../../navigation/secondary_screen.dart';
 import '../personal/placeholder_screen.dart';
 import 'discovery_screens.dart';
+import 'discovery_repository.dart';
 import 'discovery_watch_screens.dart';
+
+DiscoveryQuery? _routeQuery(Map<String, String> params) {
+  try {
+    return DiscoveryQuery.fromRouteParameters(params);
+  } on FormatException {
+    return null;
+  }
+}
 
 StatefulShellBranch discoveryBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
@@ -39,6 +49,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
   GoRoute(
     path: '/discover/search',
     builder: (context, state) {
+      runtime.recovery.rememberLocation(state.uri.toString());
       final discovery = runtime.discovery;
       if (discovery == null) {
         return const MakoloSecondaryScreen(
@@ -46,9 +57,19 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           message: 'La recherche n’est pas disponible pour le moment.',
         );
       }
+      final query = _routeQuery(state.uri.queryParameters);
+      if (query == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Recherche',
+          message: 'Ces critères sont invalides. Revenez à Découvrir pour les modifier.',
+        );
+      }
       return DiscoverySearchScreen(
+        key: ValueKey(state.uri.toString()),
+        initialQuery: query,
         repository: discovery,
         location: runtime.location,
+        geoSearch: runtime.geoSearch,
         onOpenActivity: (id) => context.push('/activities/$id'),
         onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
       );
@@ -57,6 +78,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
   GoRoute(
     path: '/discover/map',
     builder: (context, state) {
+      runtime.recovery.rememberLocation(state.uri.toString());
       final discovery = runtime.discovery;
       if (discovery == null) {
         return const MakoloSecondaryScreen(
@@ -64,10 +86,21 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           message: 'La carte n’est pas disponible pour le moment.',
         );
       }
+      final query = _routeQuery(state.uri.queryParameters);
+      if (query == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Carte',
+          message: 'Ces critères ou ce curseur ne sont plus valides. Revenez aux résultats.',
+        );
+      }
       return DiscoveryMapScreen(
+        key: ValueKey(state.uri.toString()),
+        query: query,
+        initialSelectedCandidateKey: state.uri.queryParameters['selected'],
         repository: discovery,
         mapConfig: runtime.mapConfig,
         onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+        onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
       );
     },
   ),

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
 import '../discovery/discovery_selector.dart';
+import '../discovery/discovery_wire.dart';
+import '../../presentation/possibilities/discovery_possibility_unit.dart';
 import 'public_shell.dart';
 
 /// Read-only, server-authorized guest depth. A personal operation always
@@ -31,7 +33,6 @@ class _PublicPossibilityDetailScreenState
     extends State<PublicPossibilityDetailScreen> {
   static const _selector = DiscoverySelector();
   DiscoveryItemPresentation? _item;
-  Map<String, dynamic> _detail = const {};
   bool _loading = true;
   String? _error;
 
@@ -41,7 +42,18 @@ class _PublicPossibilityDetailScreenState
     unawaited(_load());
   }
 
+  @override
+  void didUpdateWidget(covariant PublicPossibilityDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.family != widget.family || oldWidget.id != widget.id) {
+      _item = null;
+      unawaited(_load());
+    }
+  }
+
   Future<void> _load() async {
+    final family = widget.family;
+    final id = widget.id;
     setState(() {
       _loading = true;
       _error = null;
@@ -53,21 +65,24 @@ class _PublicPossibilityDetailScreenState
         'api/v1/discovery/items/${Uri.encodeComponent(widget.family)}/'
         '${Uri.encodeComponent(widget.id)}/',
       );
-      final body = response.jsonObject()['data'];
-      if (body is! Map || body['item'] is! Map) {
-        throw const FormatException('Invalid item detail');
+      final raw = DiscoveryWire.receiveItem(
+        response.jsonObject(),
+        scope: 'public',
+      );
+      final identity = raw['identity'] as Map;
+      final resource = identity['resource'] as Map;
+      if (identity['family'] != family || resource['id'] != id) {
+        throw const FormatException('Unexpected Discovery detail identity');
       }
-      final raw = Map<String, dynamic>.from(body['item'] as Map);
       final item = _selector.publicItem(raw);
       if (item == null) throw const FormatException('Unknown possibility');
-      if (!mounted) return;
+      if (!mounted || widget.family != family || widget.id != id) return;
       setState(() {
         _item = item;
-        _detail = raw;
         _loading = false;
       });
     } on Object {
-      if (!mounted) return;
+      if (!mounted || widget.family != family || widget.id != id) return;
       setState(() {
         _loading = false;
         _error = 'Cette possibilité publique n’est pas disponible.';
@@ -83,115 +98,69 @@ class _PublicPossibilityDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final item = _item;
-    final detail = _detail['detail'];
-    final description = detail is Map
-        ? detail['description']?.toString()
-        : null;
-    final engagement = _detail['engagement'];
-    final engagementMap = engagement is Map
-        ? Map<String, dynamic>.from(engagement)
-        : const <String, dynamic>{};
-    final primary = engagementMap['presentation'];
-    final primaryMap = primary is Map
-        ? Map<String, dynamic>.from(primary)
-        : const <String, dynamic>{};
-
     return PublicExperienceShell(
       current: 1,
       child: ListView(
         key: const Key('guest-possibility-detail'),
-        padding: const EdgeInsets.all(MakoloSpacing.lg),
+        padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/discover');
-                }
-              },
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Retour à Découvrir'),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/discover');
+                  }
+                },
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Retour à Découvrir'),
+              ),
             ),
           ),
-          const SizedBox(height: MakoloSpacing.md),
           if (_loading && item == null)
             const Center(child: CircularProgressIndicator())
           else if (_error != null && item == null) ...[
-            Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+              ),
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
             TextButton(onPressed: _load, child: const Text('Réessayer')),
-          ] else if (item != null) ...[
-            if (item.eyebrow != null)
-              Text(
-                item.eyebrow!,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.primary,
+          ] else if (item != null)
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: DiscoveryPossibilityUnit(
+                  item: item,
+                  detailMode: true,
+                  onOpen: () {},
+                  allowSavePrompt: true,
+                  onSignIn: _requireAuthentication,
+                  onNativeAction: (nativePath) {
+                    if (discoveryOwnerDepthBrowsableByGuest(nativePath)) {
+                      context.push(nativePath);
+                    } else {
+                      // Re-enter the protected owner depth after session recovery.
+                      widget.runtime.recovery.requireAuthentication(nativePath);
+                      context.push('/login');
+                    }
+                  },
+                  shareApi: widget.runtime.api,
+                  baseUri: widget.runtime.api?.baseUri,
                 ),
               ),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(item.title, style: theme.textTheme.headlineSmall),
-            const SizedBox(height: MakoloSpacing.md),
-            if (item.summary.isNotEmpty) Text(item.summary),
-            if (description != null &&
-                description.isNotEmpty &&
-                description != item.summary) ...[
-              const SizedBox(height: MakoloSpacing.lg),
-              Text(description),
-            ],
-            const SizedBox(height: MakoloSpacing.lg),
-            if (item.owner != null)
-              ListTile(
-                leading: const Icon(Icons.business_outlined),
-                title: const Text('Proposé par'),
-                subtitle: Text(item.owner!),
-              ),
-            if (item.place != null)
-              ListTile(
-                leading: const Icon(Icons.place_outlined),
-                title: const Text('Lieu'),
-                subtitle: Text(item.place!),
-              ),
-            if (item.timing != null)
-              ListTile(
-                leading: const Icon(Icons.schedule_outlined),
-                title: const Text('Quand'),
-                subtitle: Text(item.timing!),
-              ),
-            if (item.price != null)
-              ListTile(
-                leading: const Icon(Icons.payments_outlined),
-                title: const Text('Prix'),
-                subtitle: Text(item.price!),
-              ),
-            if (item.availability != null)
-              ListTile(
-                leading: const Icon(Icons.event_available_outlined),
-                title: const Text('Disponibilité'),
-                subtitle: Text(item.availability!),
-              ),
-            const SizedBox(height: MakoloSpacing.lg),
-            // A server-owned web presentation is not a native mobile action.
-            // The public item is already displayed here. Never open Makolo's
-            // web pages as a hidden fallback for guest navigation.
-            if (primaryMap['enabled'] == true) ...[
-              Text(
-                'Pour poursuivre cette action avec votre compte, '
-                'connectez-vous à Makolo.',
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: MakoloSpacing.sm),
-            ],
-            OutlinedButton.icon(
-              key: const Key('guest-save-signin'),
-              onPressed: _requireAuthentication,
-              icon: const Icon(Icons.bookmark_border),
-              label: const Text('Se connecter pour enregistrer'),
             ),
-          ],
         ],
       ),
     );

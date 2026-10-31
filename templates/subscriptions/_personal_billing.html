@@ -1,0 +1,35 @@
+<section class="mk-panel p-5 sm:p-6" aria-labelledby="personal-billing-title">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <p class="mk-kicker">Mon compte</p>
+      <h2 id="personal-billing-title" class="mt-1 text-xl font-extrabold">Facturation liée à mon abonnement</h2>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">Obligations et échéances enregistrées pour mon Profil, issues de Payments.</p>
+    </div>
+    <a class="mk-btn mk-btn-secondary" href="{% url 'subscriptions:billing' %}">Voir la facturation</a>
+  </div>
+  {% if personal_billing.items %}
+  <ul class="mt-4 space-y-3">
+    {% for obligation in personal_billing.items %}
+    <li class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4" style="border-color:var(--mk-border)">
+      <div class="min-w-0">
+        <p class="font-bold">{{ obligation.label }}</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">
+          {{ obligation.amount }} {{ obligation.currency }} · {{ obligation.status }}
+          {% if obligation.due_at %} · Échéance {{ obligation.due_at|date:'d/m/Y' }}{% endif %}
+        </p>
+      </div>
+      {% if obligation.can_start_payment %}
+      <a class="mk-btn mk-btn-primary" href="{% url 'payments:obligation-start' obligation.id %}">Consulter ou régler</a>
+      {% else %}
+      <span class="mk-badge">{{ obligation.status }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="mt-4 text-sm" style="color:var(--mk-muted)">Aucune obligation financière liée à cet abonnement.</p>
+  {% endif %}
+  {% if personal_billing.next_offset is not None %}
+  <a class="mt-4 inline-flex min-h-11 items-center font-bold" href="{% url 'subscriptions:billing' %}?offset={{ personal_billing.next_offset }}">Voir les éléments suivants</a>
+  {% endif %}
+</section>

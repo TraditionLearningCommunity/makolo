@@ -18,9 +18,10 @@
 <main class="wrap">
   <section class="card">
     <div class="brand"><img src="{% static 'brand/makolo-mark-ink.svg' %}" alt=""><span>Makolo · Vérification de document</span></div>
-    {% if snapshot.is_revoked %}<div class="status bad">Ce Passeport Makolo a été révoqué.</div>{% else %}<div class="status">Document Makolo authentique ✓</div>{% endif %}
+    {% if snapshot.is_revoked %}<div class="status bad">Cette version du Passeport a été révoquée.</div>{% elif not snapshot_intact %}<div class="status bad">Le contenu archivé ne correspond pas à l’empreinte du document émis.</div>{% else %}<div class="status">Version émise par Makolo · {{ snapshot.generated_at|date:"d/m/Y H:i" }} ✓</div>{% endif %}
     <h1>{{ snapshot_name }}</h1>
-    <p class="muted">Cette page confirme l’émission du document. Elle ne transforme pas le Passeport Makolo en pièce d’identité légale.</p>
+    <p class="muted">Ce lien renvoie à une version précise du Passeport, telle qu’elle a été émise à cette date. Il ne certifie ni l’identité légale ni la véracité des déclarations.</p>
+    {% if is_explicit_share %}<p class="muted">Consultation autorisée par un partage volontaire, indépendant de la publication générale. Ce partage expire le {{ share_expires_at|date:"d/m/Y H:i" }}.</p>{% endif %}
     <dl>
       <dt>Document</dt><dd>{{ snapshot.document_id }}</dd>
       <dt>Type</dt><dd>{% if snapshot.subject_kind == 'profile' %}Passeport personnel{% else %}Passeport Space{% endif %}</dd>
@@ -31,6 +32,66 @@
       <dt>Passeport public actuel</dt><dd>{% if currently_public %}Disponible{% else %}Non disponible actuellement{% endif %}</dd>
     </dl>
   </section>
+  {% if can_view_dated_passport %}
+  <section class="card" aria-label="Passeport à la date d'émission">
+    <h2>Le Passeport à cette date</h2>
+    <p class="muted">Contenu textuel enregistré lors de l’émission, sans actualisation depuis le Profil ou l’Espace actuel. Les éventuels médias du PDF d’origine ne sont pas reconstruits ici.</p>
+    <h3>{{ dated_payload.identity.name }}</h3>
+    {% if dated_payload.identity.profession %}<p>{{ dated_payload.identity.profession }}</p>{% endif %}
+    {% if dated_payload.identity.location %}<p class="muted">{{ dated_payload.identity.location }}</p>{% endif %}
+    {% if dated_payload.identity.bio %}<p>{{ dated_payload.identity.bio|linebreaksbr }}</p>{% endif %}
+    {% if dated_payload.identity.links %}
+      <h3>Liens présentés</h3>
+      <ul>{% for link in dated_payload.identity.links %}<li>{{ link.0 }} · {{ link.1 }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.identity.owner_details %}
+      <h3>Informations personnelles de cette version</h3>
+      <dl>{% for key,value in dated_payload.identity.owner_details.items %}{% if value %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endif %}{% endfor %}</dl>
+    {% endif %}
+    {% if dated_payload.interests %}<h3>Centres d’intérêt</h3><ul>{% for name in dated_payload.interests %}<li>{{ name }}</li>{% endfor %}</ul>{% endif %}
+    {% if dated_payload.open_to %}<h3>Ouvert à</h3><ul>{% for item in dated_payload.open_to %}<li>{{ item.kind }}{% if item.topic %} · {{ item.topic }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+    {% if dated_payload.activities %}
+      <h3>Activités portées</h3>
+      <ul>{% for item in dated_payload.activities %}<li><strong>{{ item.title }}</strong>{% if item.status %} · {{ item.status }}{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.proofs %}
+      <h3>Faits établis</h3>
+      <ul>{% for item in dated_payload.proofs %}<li><strong>{{ item.label }}</strong>{% if item.activity %} · {{ item.activity }}{% endif %}{% if item.issued_at %} · {{ item.issued_at }}{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.credentials %}
+      <h3>Attestations reçues</h3>
+      <ul>{% for item in dated_payload.credentials %}<li><strong>{{ item.title }}</strong>{% if item.issuer %} · Délivrée par {{ item.issuer }}{% endif %}{% if item.status %} · {{ item.status }}{% endif %}{% if item.issued_at %} · {{ item.issued_at }}{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.trust_verifications %}
+      <h3>Vérifications de l’Espace</h3>
+      <ul>{% for item in dated_payload.trust_verifications %}<li>{{ item.label }}{% if item.valid_until %} · Valable jusqu’au {{ item.valid_until }}{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.credential_summary %}
+      <h3>Attestations émises</h3>
+      <ul>{% for item in dated_payload.credential_summary %}<li>{{ item.label }} · {{ item.count }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.team_affiliations %}
+      <h3>Équipes et Espaces</h3>
+      <ul>{% for item in dated_payload.team_affiliations %}<li>{{ item.team }} · {{ item.space }} (appartenance)</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.active_space_mandates %}
+      <h3>Mandats à la date d’émission</h3>
+      <ul>{% for item in dated_payload.active_space_mandates %}<li>{{ item.role }} · {{ item.space }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.space_teams %}
+      <h3>Équipes de l’Espace</h3>
+      <ul>{% for name in dated_payload.space_teams %}<li>{{ name }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if dated_payload.topics %}<p class="muted">Thèmes de cette version : {% for item in dated_payload.topics %}{{ item.label }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    <p class="muted">Cette version reste datée : une réalisation, un titre, une relation ou une autorisation peuvent avoir évolué depuis son émission.</p>
+  </section>
+  {% elif snapshot.is_revoked %}
+    <section class="card"><p>Le contenu de cette version révoquée n'est plus consultable.</p></section>
+  {% elif not snapshot_intact %}
+    <section class="card"><p>Le contenu de cette version ne peut pas être présenté tant que son intégrité n'est pas confirmée.</p></section>
+  {% else %}
+    <section class="card"><p>Le contenu historique de ce Passeport est privé. Son titulaire ou une personne actuellement autorisée peut le consulter après connexion.</p></section>
+  {% endif %}
 </main>
 </body>
 </html>

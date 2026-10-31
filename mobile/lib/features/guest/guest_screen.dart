@@ -1,12 +1,24 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../design/makolo_theme.dart';
+import '../../design/behavior_states.dart';
+import '../../network/api_error.dart';
+import '../../presentation/possibilities/public_possibility_card.dart';
+import '../../presentation/possibilities/discovery_possibility_unit.dart';
+import '../../presentation/search/load_more_on_scroll.dart';
 import '../discovery/discovery_repository.dart';
 import '../discovery/discovery_selector.dart';
+import '../discovery/discovery_wire.dart';
+import '../../platform/location/geo_search_gateway.dart';
+import '../../presentation/fields/discovery_filter_fields.dart';
+
+import '../../presentation/fields/search_filter_bar.dart';
+import '../../presentation/search/progressive_search_coordinator.dart';
 import 'public_shell.dart';
 
 /// Public Discovery consumes the same server projection and parser as personal
@@ -17,11 +29,13 @@ class GuestDiscoverScreen extends StatefulWidget {
     required this.runtime,
     this.initialQuery = '',
     this.initialVertical = '',
+    this.initialFilters,
   });
 
   final AppRuntime runtime;
   final String initialQuery;
   final String initialVertical;
+  final DiscoveryQuery? initialFilters;
 
   @override
   State<GuestDiscoverScreen> createState() => _GuestDiscoverScreenState();
@@ -30,6 +44,8 @@ class GuestDiscoverScreen extends StatefulWidget {
 class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   static const _interactionId = 'public-discover';
   static const _selector = DiscoverySelector();
+  static const _localTimeout = Duration(seconds: 3);
+  static const _requestTimeout = Duration(seconds: 25);
 
   final _search = TextEditingController();
   final _place = TextEditingController();
@@ -38,17 +54,32 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       DiscoveryCollectionPresentation.empty;
   String _vertical = '';
   String _when = '';
+  String _date = '';
+  GeoSuggestion? _selectedPlace;
   String _price = '';
+  String _period = '';
+  String _dateFrom = '';
+  String _dateTo = '';
+  double? _latitude;
+  double? _longitude;
+  double? _radiusKm;
+  int _pageSize = 12;
   int _page = 1;
-  int _generation = 0;
+  String? _continuationToken;
+  late final ProgressiveSearchCoordinator _searchCoordinator;
+  final _filterRevision = ValueNotifier<int>(0);
   bool _loading = true;
+  bool _updatingCriteria = false;
   String? _error;
+  String? _localWarning;
+  bool _continuationRejected = false;
+  bool _serviceUnavailable = false;
 
   @override
   void initState() {
     super.initState();
-    _search.text = widget.initialQuery;
-    _vertical = widget.initialVertical;
+    _searchCoordinator = ProgressiveSearchCoordinator(onSearch: _loadRevision);
+    _applyRouteCriteria();
     unawaited(_restoreAndLoad());
   }
 
@@ -56,36 +87,108 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   void didUpdateWidget(covariant GuestDiscoverScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialQuery != oldWidget.initialQuery ||
-        widget.initialVertical != oldWidget.initialVertical) {
-      _search.text = widget.initialQuery;
-      _vertical = widget.initialVertical;
-      _page = 1;
-      unawaited(_load());
+        widget.initialVertical != oldWidget.initialVertical ||
+        widget.initialFilters?.mapFingerprint !=
+            oldWidget.initialFilters?.mapFingerprint) {
+      _applyRouteCriteria();
+      _criteriaChanged(immediate: true);
     }
   }
 
   @override
   void dispose() {
-    _generation++;
+    _searchCoordinator.dispose();
     _search.dispose();
     _place.dispose();
+    _filterRevision.dispose();
     super.dispose();
+  }
+
+  void _applyRouteCriteria() {
+    final input = widget.initialFilters;
+    _search.text = input?.text ?? widget.initialQuery;
+    _place.text = input?.place ?? '';
+    _selectedPlace = null;
+    _when = input?.date.isNotEmpty == true ? 'custom' : (input?.when ?? '');
+    _date = input?.date ?? '';
+    _price = input?.price ?? '';
+    _vertical = input?.vertical ?? widget.initialVertical;
+    _period = input?.period ?? '';
+    _dateFrom = input?.dateFrom ?? '';
+    _dateTo = input?.dateTo ?? '';
+    _latitude = input?.latitude;
+    _longitude = input?.longitude;
+    _radiusKm = input?.radiusKm;
+    _pageSize = input?.pageSize ?? 12;
+    _page = input?.page ?? 1;
+    _continuationToken = input?.continuation;
   }
 
   DiscoveryQuery get _query => DiscoveryQuery(
     text: _search.text.trim(),
-    place: _place.text.trim(),
-    when: _when,
+    place: _selectedPlace == null
+        ? _place.text.trim()
+        : _selectedPlace!.label.split(',').first.trim(),
+    when: _when == 'custom' ? '' : _when,
+    date: _date,
+    dateFrom: _dateFrom,
+    dateTo: _dateTo,
+    period: _period,
+    latitude: _latitude,
+    longitude: _longitude,
+    radiusKm: _radiusKm,
     vertical: _vertical,
     price: _price,
     page: _page,
-    pageSize: 12,
+    pageSize: _pageSize,
+    continuation: _page > 1 ? _continuationToken : null,
   );
 
+  // Diagnostic phases deliberately avoid query text, coordinates and tokens.
+  void _trace(String phase, {int? revision, String? detail}) {
+    if (!kDebugMode) return;
+    debugPrint(
+      '[DISCOVERY_PUBLIC] $phase'
+      '${revision == null ? '' : ' revision=$revision'}'
+      '${detail == null ? '' : ' $detail'}',
+    );
+  }
+
+  void _reportFailure(
+    String phase,
+    Object error,
+    StackTrace stack, {
+    int? revision,
+  }) {
+    _trace(phase, revision: revision, detail: 'type=${error.runtimeType}');
+    if (kDebugMode) {
+      debugPrintStack(label: '[DISCOVERY_PUBLIC] $phase', stackTrace: stack);
+    }
+  }
+
   Future<void> _restoreAndLoad() async {
-    final saved = await widget.runtime.interactions?.read(_interactionId);
+    _trace('RESTORE_BEGIN');
+    Map<String, dynamic>? saved;
+    try {
+      saved = await widget.runtime.interactions
+          ?.read(_interactionId)
+          .timeout(_localTimeout);
+      _trace('RESTORE_DONE');
+    } on Object catch (error, stack) {
+      _reportFailure('RESTORE_ERROR', error, stack);
+      if (mounted) {
+        setState(() {
+          _localWarning =
+              'La dernière recherche locale n’a pas pu être restaurée. '
+              'Vous pouvez continuer à explorer.';
+        });
+      }
+    }
+
     if (!mounted) return;
-    if (widget.initialQuery.isEmpty && widget.initialVertical.isEmpty) {
+    if (widget.initialFilters?.hasCriteria != true &&
+        widget.initialQuery.isEmpty &&
+        widget.initialVertical.isEmpty) {
       final query = saved?['query'];
       if (query is String) _search.text = query;
       final place = saved?['place'];
@@ -93,63 +196,274 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       final vertical = saved?['vertical'];
       if (vertical is String) _vertical = vertical;
     }
+    _trace('SEARCH_SCHEDULED');
+    await _searchCoordinator.refresh();
+  }
+
+  // A failed local write must never block an otherwise valid server response.
+  Future<void> _persistQuery(DiscoveryQuery query, int revision) async {
+    try {
+      await widget.runtime.interactions
+          ?.save(_interactionId, {
+            'query': query.text,
+            'place': query.place,
+            'vertical': query.vertical,
+          })
+          .timeout(_localTimeout);
+    } on Object catch (error, stack) {
+      _reportFailure('PERSIST_ERROR', error, stack, revision: revision);
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      setState(() {
+        _localWarning =
+            'Les filtres n’ont pas pu être enregistrés sur cet appareil.';
+      });
+    }
+  }
+
+  Future<void> _load() => _searchCoordinator.refresh();
+
+  Future<void> _refresh() async {
+    setState(() {
+      _page = 1;
+      _continuationToken = null;
+      _updatingCriteria = true;
+    });
     await _load();
   }
 
-  Future<void> _load() async {
-    final generation = ++_generation;
+  Future<void> _loadRevision(int revision) async {
     final query = _query;
+    final publicStore = widget.runtime.publicStore;
+    const cacheKind = 'public.discovery.items';
+    final cacheKey = query.fingerprint;
+    _trace('SEARCH_START', revision: revision);
     if (mounted) {
       setState(() {
         _loading = true;
         _error = null;
+        _continuationRejected = false;
+        _serviceUnavailable = false;
       });
     }
     try {
-      await widget.runtime.interactions?.save(_interactionId, {
-        'query': query.text,
-        'place': query.place,
-        'vertical': query.vertical,
-      });
+      final cached = await publicStore?.readProjection(
+        cacheKind,
+        resourceKey: cacheKey,
+      );
+      if (cached != null && mounted && _searchCoordinator.isCurrent(revision)) {
+        final local = _selector.publicCollection(cached.payload);
+        setState(() {
+          _collection = local;
+          _loading = false;
+        });
+      }
+    } on Object {
+      // Missing or invalid local snapshots do not block remote refresh.
+    }
+    try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Public API unavailable');
-      final response = await api.publicGet(query.path);
-      final payload = response.jsonObject()['data'];
-      if (payload is! Map) throw const FormatException('Invalid projection');
-      final collection = _selector.publicCollection(
-        Map<String, dynamic>.from(payload),
+      _trace('API_REQUEST_START', revision: revision);
+      final response = await api.publicGet(query.path).timeout(_requestTimeout);
+      _trace(
+        'API_RESPONSE',
+        revision: revision,
+        detail: 'status=${response.statusCode} chars=${response.body.length}',
       );
-      if (!mounted || generation != _generation) return;
+      final wire = DiscoveryWire.receive(
+        response.jsonObject(),
+        scope: 'public',
+      );
+      _trace('WIRE_OK', revision: revision);
+      final collection = _selector.publicCollection(wire.snapshotPayload);
+      _trace(
+        'SELECT_OK',
+        revision: revision,
+        detail: 'items=${collection.items.length}',
+      );
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) {
+        _trace('REVISION_DISCARDED', revision: revision);
+        return;
+      }
       setState(() {
-        _collection = collection;
+        _collection = query.page == 1
+            ? collection
+            : _collection.reconcile(collection);
         _loading = false;
+        _updatingCriteria = false;
+        _serviceUnavailable = false;
       });
-    } on Object {
-      if (!mounted || generation != _generation) return;
+      _trace('REVISION_ACCEPTED', revision: revision);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _searchCoordinator.isCurrent(revision)) {
+          _trace('FRAME_BUILT', revision: revision);
+        }
+      });
+      _trace('LOAD_FINISHED', revision: revision, detail: 'state=content');
+      unawaited(_persistQuery(query, revision));
+      if (publicStore != null) {
+        unawaited(
+          publicStore
+              .putProjection(
+                kind: cacheKind,
+                resourceKey: cacheKey,
+                schemaVersion: 1,
+                payload: wire.snapshotPayload,
+              )
+              .catchError((Object _) {}),
+        );
+      }
+    } on MakoloApiError catch (error, stack) {
+      _reportFailure('API_ERROR', error, stack, revision: revision);
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      final rejected = query.continuation != null && error.statusCode == 400;
       setState(() {
         _loading = false;
-        _error = 'Impossible d’actualiser les possibilités publiques.';
+        _updatingCriteria = false;
+        _continuationRejected = rejected;
+        _serviceUnavailable = error.statusCode >= 500;
+        _error = rejected
+            ? 'Cette recherche doit être actualisée depuis le début.'
+            : 'Impossible d’actualiser les possibilités.';
       });
+      if (_collection.items.isNotEmpty && !rejected) {
+        _notifyRefreshIssue('Actualisation indisponible.');
+      }
+      _trace('LOAD_FINISHED', revision: revision, detail: 'state=http_error');
+    } on FormatException catch (error, stack) {
+      _reportFailure('WIRE_OR_SELECT_ERROR', error, stack, revision: revision);
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      setState(() {
+        _loading = false;
+        _updatingCriteria = false;
+        _error = 'Contrat Discovery incompatible : les informations reçues ne peuvent pas être affichées.';
+      });
+      if (_collection.items.isNotEmpty) {
+        _notifyRefreshIssue('Actualisation indisponible.');
+      }
+      _trace(
+        'LOAD_FINISHED',
+        revision: revision,
+        detail: 'state=contract_error',
+      );
+    } on TimeoutException catch (error, stack) {
+      _reportFailure('TIMEOUT', error, stack, revision: revision);
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      setState(() {
+        _loading = false;
+        _updatingCriteria = false;
+        _error = 'L’actualisation prend trop de temps.';
+      });
+      if (_collection.items.isNotEmpty) {
+        _notifyRefreshIssue('Connexion lente.');
+      }
+      _trace('LOAD_FINISHED', revision: revision, detail: 'state=timeout');
+    } on Object catch (error, stack) {
+      _reportFailure('LOAD_ERROR', error, stack, revision: revision);
+      if (!mounted || !_searchCoordinator.isCurrent(revision)) return;
+      setState(() {
+        _loading = false;
+        _updatingCriteria = false;
+        _serviceUnavailable = error is MakoloTransportError;
+        _error = error is MakoloTransportError
+            ? 'Connexion à Makolo indisponible.'
+            : 'Impossible d’actualiser les possibilités.';
+      });
+      if (_collection.items.isNotEmpty) {
+        _notifyRefreshIssue('Actualisation indisponible.');
+      }
+      _trace('LOAD_FINISHED', revision: revision, detail: 'state=error');
     }
   }
 
-  void _apply() {
-    setState(() => _page = 1);
-    unawaited(_load());
+  void _notifyRefreshIssue(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        content: Text(message),
+        action: SnackBarAction(label: 'Réessayer', onPressed: () => _retry()),
+      ),
+    );
+  }
+
+  Future<void> _retry() => _continuationRejected ? _refresh() : _load();
+
+  Future<void> _chooseDate() async {
+    final now = DateTime.now();
+    final initial = DateTime.tryParse(_date) ?? now;
+    final chosen = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Choisir une date',
+      confirmText: 'Valider',
+    );
+    if (!mounted) return;
+    if (chosen == null) return;
+    setState(() {
+      _when = 'custom';
+      _date =
+          '${chosen.year.toString().padLeft(4, '0')}-'
+          '${chosen.month.toString().padLeft(2, '0')}-'
+          '${chosen.day.toString().padLeft(2, '0')}';
+    });
+    _criteriaChanged(immediate: true);
+  }
+
+  void _apply() => _criteriaChanged(immediate: true);
+
+  void _criteriaChanged({bool immediate = false}) {
+    _filterRevision.value++;
+    setState(() {
+      _page = 1;
+      _continuationToken = null;
+      _updatingCriteria = true;
+      _loading = true;
+      _error = null;
+    });
+    _searchCoordinator.changed(immediate: immediate);
+  }
+
+  void _clearFilters() {
+    _place.clear();
+    setState(() {
+      _selectedPlace = null;
+      _when = '';
+      _date = '';
+      _price = '';
+      _vertical = '';
+      _period = '';
+      _dateFrom = '';
+      _dateTo = '';
+      _latitude = null;
+      _longitude = null;
+      _radiusKm = null;
+    });
+    _criteriaChanged(immediate: true);
   }
 
   void _selectVertical(String vertical) {
-    setState(() {
-      _vertical = vertical;
-      _page = 1;
-    });
-    unawaited(_load());
+    setState(() => _vertical = vertical);
+    _criteriaChanged(immediate: true);
   }
 
-  void _movePage(int page) {
-    if (page < 1) return;
-    setState(() => _page = page);
-    unawaited(_load());
+  void _loadNextPage() {
+    if (_loading ||
+        _updatingCriteria ||
+        _error != null ||
+        !_collection.hasNext) {
+      return;
+    }
+    setState(() {
+      _continuationToken = _collection.continuationToken;
+      _page++;
+    });
+    _searchCoordinator.changed(immediate: true);
   }
 
   @override
@@ -157,274 +471,257 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     final theme = Theme.of(context);
     return PublicExperienceShell(
       current: 1,
-      child: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          key: const Key('guest-public-landing'),
-          padding: const EdgeInsets.all(MakoloSpacing.lg),
-          children: [
-            Text(
-              'Découvrir',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              'Qu’avez-vous envie de vivre, faire ou obtenir ?',
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            const Text(
-              'Décrivez ce que vous cherchez, choisissez une piste ou explorez librement.',
-            ),
-            const SizedBox(height: MakoloSpacing.lg),
-            TextField(
-              controller: _search,
-              key: const Key('guest-search-query'),
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _apply(),
-              decoration: InputDecoration(
-                labelText: 'Rechercher',
-                hintText: 'Ex. Voyager à Kolwezi demain',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Effacer',
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _search.clear();
-                          _apply();
-                        },
-                      ),
-              ),
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            FilledButton(
-              onPressed: _loading ? null : _apply,
-              child: const Text('Découvrir'),
-            ),
-            const SizedBox(height: MakoloSpacing.md),
-            Wrap(
-              spacing: MakoloSpacing.sm,
-              runSpacing: MakoloSpacing.xs,
-              children: [
-                for (final value in const [
-                  ('', 'Tout'),
-                  ('transport', 'Voyager'),
-                  ('event', 'Événements'),
-                  ('service', 'Services'),
-                  ('other', 'Autres'),
-                ])
-                  ChoiceChip(
-                    label: Text(value.$2),
-                    selected: _vertical == value.$1,
-                    onSelected: (_) => _selectVertical(value.$1),
-                  ),
-              ],
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            ExpansionTile(
-              key: const Key('guest-filters'),
-              title: const Text('Filtres'),
-              leading: const Icon(Icons.tune),
-              childrenPadding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-              children: [
-                TextField(
-                  controller: _place,
-                  decoration: const InputDecoration(
-                    labelText: 'Lieu',
-                    hintText: 'Ville ou lieu',
-                    border: OutlineInputBorder(),
+      child: LoadMoreOnScroll(
+        hasMore: _collection.hasNext && _error == null && !_updatingCriteria,
+        loading: _loading,
+        loadMore: _loadNextPage,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            key: const Key('guest-public-landing'),
+            padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.lg),
+            children: [
+              if (_serviceUnavailable)
+                const OfflineBanner(message: 'Connexion à Makolo indisponible'),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.lg,
+                ),
+                child: Text(
+                  'Découvrir',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.primary,
                   ),
                 ),
-                const SizedBox(height: MakoloSpacing.md),
-                DropdownButtonFormField<String>(
-                  initialValue: _when,
-                  decoration: const InputDecoration(labelText: 'Quand'),
-                  items: const [
-                    DropdownMenuItem(value: '', child: Text('À venir')),
-                    DropdownMenuItem(
-                      value: 'today',
-                      child: Text('Aujourd’hui'),
-                    ),
-                    DropdownMenuItem(value: 'tomorrow', child: Text('Demain')),
-                    DropdownMenuItem(
-                      value: 'weekend',
-                      child: Text('Ce week-end'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'week',
-                      child: Text('Cette semaine'),
-                    ),
-                  ],
-                  onChanged: (value) => setState(() => _when = value ?? ''),
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: _price,
-                  decoration: const InputDecoration(labelText: 'Prix'),
-                  items: const [
-                    DropdownMenuItem(value: '', child: Text('Tous les prix')),
-                    DropdownMenuItem(value: 'free', child: Text('Gratuit')),
-                    DropdownMenuItem(value: 'paid', child: Text('Payant')),
-                  ],
-                  onChanged: (value) => setState(() => _price = value ?? ''),
-                ),
-                const SizedBox(height: MakoloSpacing.md),
-                OutlinedButton(
-                  onPressed: _apply,
-                  child: const Text('Appliquer les filtres'),
-                ),
-              ],
-            ),
-            const SizedBox(height: MakoloSpacing.lg),
-            if (_error != null) ...[
-              Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
-              TextButton(onPressed: _load, child: const Text('Réessayer')),
+              ),
               const SizedBox(height: MakoloSpacing.sm),
-            ],
-            if (_loading && _collection.items.isEmpty)
-              const Center(child: CircularProgressIndicator())
-            else ...[
-              Text(
-                '${_collection.count} résultats',
-                style: theme.textTheme.titleMedium,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.lg,
+                ),
+                child: Text(
+                  'Explorez les possibilités.',
+                  style: theme.textTheme.headlineSmall,
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.sm),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: MakoloSpacing.lg),
+                child: Text(
+                  'Activités, événements, services et opportunités à découvrir.',
+                ),
               ),
               const SizedBox(height: MakoloSpacing.md),
-              if (_collection.items.any((item) => item.isMappable))
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push(
-                      '/discover/map?${_query.mapCanonicalQuery}',
-                    ),
-                    icon: const Icon(Icons.map_outlined),
-                    label: const Text('Voir sur la carte'),
-                  ),
-                ),
-              if (_collection.items.isEmpty && !_loading)
-                const Padding(
-                  padding: EdgeInsets.all(MakoloSpacing.lg),
-                  child: Text(
-                    'Aucune possibilité publique à afficher pour cette recherche.',
-                  ),
-                ),
-              for (final item in _collection.items)
-                _PublicPossibilityCard(
-                  item: item,
-                  onTap: () => context.push(
-                    '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
-                  ),
-                ),
-              if (_collection.page > 1 || _collection.hasNext)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: _collection.page > 1 && !_loading
-                          ? () => _movePage(_collection.page - 1)
-                          : null,
-                      child: const Text('Précédent'),
-                    ),
-                    Text('Page ${_collection.page}'),
-                    TextButton(
-                      onPressed: _collection.hasNext && !_loading
-                          ? () => _movePage(_collection.page + 1)
-                          : null,
-                      child: const Text('Suivant'),
-                    ),
-                  ],
-                ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PublicPossibilityCard extends StatelessWidget {
-  const _PublicPossibilityCard({required this.item, required this.onTap});
-
-  final DiscoveryItemPresentation item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final media = item.imageUrl == null ? null : Uri.tryParse(item.imageUrl!);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (media != null &&
-                  (media.scheme == 'https' || media.scheme == 'http'))
-                AspectRatio(
-                  aspectRatio: 4 / 3,
-                  child: Image.network(
-                    item.imageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const SizedBox.shrink(),
-                  ),
-                ),
               Padding(
-                padding: const EdgeInsets.all(MakoloSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (item.eyebrow != null)
-                      Text(
-                        item.eyebrow!,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    const SizedBox(height: MakoloSpacing.xs),
-                    Text(item.title, style: theme.textTheme.titleMedium),
-                    if (item.summary.isNotEmpty) ...[
-                      const SizedBox(height: MakoloSpacing.sm),
-                      Text(
-                        item.summary,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    if (item.routeLabel != null)
-                      Text(
-                        item.routeLabel!,
-                        style: theme.textTheme.labelMedium,
-                      ),
-                    if (item.owner != null)
-                      Text(item.owner!, style: theme.textTheme.bodySmall),
-                    if (item.place != null)
-                      Text(item.place!, style: theme.textTheme.bodySmall),
-                    if (item.timing != null)
-                      Text(item.timing!, style: theme.textTheme.bodySmall),
-                    if (item.price != null)
-                      Text(item.price!, style: theme.textTheme.bodySmall),
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Voir le détail',
-                          style: TextStyle(color: theme.colorScheme.primary),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward, size: 18),
-                      ],
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.lg,
+                ),
+                child: SearchFilterBar(
+                  searchField: TextField(
+                    controller: _search,
+                    key: const Key('guest-search-query'),
+                    textInputAction: TextInputAction.search,
+                    onChanged: (_) => _criteriaChanged(),
+                    onSubmitted: (_) => _apply(),
+                    decoration: InputDecoration(
+                      labelText: 'Rechercher',
+                      hintText: 'Ex. Voyager à Kolwezi demain',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _search.text.isEmpty
+                          ? null
+                          : IconButton(
+                              key: const Key('guest-discover-search-clear'),
+                              tooltip: 'Effacer la recherche',
+                              onPressed: () {
+                                _search.clear();
+                                _criteriaChanged(immediate: true);
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                            ),
                     ),
-                  ],
+                  ),
+                  filterButtonKey: const Key('guest-filter-toggle'),
+                  filterPanelKey: const Key('guest-filters'),
+                  showResultsAction: true,
+                  onClearFilters: _clearFilters,
+                  hasActiveFilters:
+                      _when.isNotEmpty ||
+                      _date.isNotEmpty ||
+                      _price.isNotEmpty ||
+                      _place.text.trim().isNotEmpty ||
+                      _latitude != null ||
+                      _period.isNotEmpty ||
+                      _dateFrom.isNotEmpty ||
+                      _dateTo.isNotEmpty,
+                  filters: const SizedBox.shrink(),
+                  filtersRefresh: _filterRevision,
+                  filtersBuilder: (_) => DiscoveryFilterFields(
+                    keyPrefix: 'guest-filter',
+                    placeController: _place,
+                    geoSearch: widget.runtime.geoSearch,
+                    when: _when,
+                    date: _date,
+                    price: _price,
+                    onPlaceSelected: (suggestion) {
+                      setState(() {
+                        _selectedPlace = suggestion;
+                        _latitude = null;
+                        _longitude = null;
+                        _radiusKm = null;
+                      });
+                      _criteriaChanged(immediate: true);
+                    },
+                    onPlaceEdited: () {
+                      _selectedPlace = null;
+                      _latitude = null;
+                      _longitude = null;
+                      _radiusKm = null;
+                      _criteriaChanged();
+                    },
+                    onPlaceSubmitted: _apply,
+                    onWhenChanged: (value) {
+                      setState(() {
+                        _when = value;
+                        _date = '';
+                        _dateFrom = '';
+                        _dateTo = '';
+                        _period = '';
+                      });
+                      _criteriaChanged(immediate: true);
+                    },
+                    onChooseDate: () => unawaited(_chooseDate()),
+                    onPriceChanged: (value) {
+                      setState(() => _price = value);
+                      _criteriaChanged(immediate: true);
+                    },
+                  ),
                 ),
               ),
+              const SizedBox(height: MakoloSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MakoloSpacing.lg,
+                ),
+                child: DiscoveryCategoryChips(
+                  selected: _vertical,
+                  onSelected: _selectVertical,
+                  listKey: const Key('guest-discover-categories'),
+                ),
+              ),
+              const SizedBox(height: MakoloSpacing.sm),
+              if (_localWarning != null) ...[
+                Text(
+                  _localWarning!,
+                  key: const Key('guest-discover-local-warning'),
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
+              if (_error != null && _collection.items.isEmpty) ...[
+                if (!_serviceUnavailable)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: MakoloSpacing.lg,
+                    ),
+                    child: Text(
+                      _error!,
+                      key: const Key('guest-discover-load-error'),
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                  ),
+                TextButton(
+                  onPressed: _retry,
+                  child: Text(
+                    _continuationRejected
+                        ? 'Actualiser la recherche'
+                        : 'Réessayer',
+                  ),
+                ),
+                const SizedBox(height: MakoloSpacing.sm),
+              ],
+              if (_loading && _collection.items.isEmpty)
+                const Center(child: CircularProgressIndicator())
+              else ...[
+                if (_collection.items.isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: MakoloSpacing.lg,
+                    ),
+                    child: Text(
+                      _updatingCriteria
+                          ? (_error == null
+                                ? 'Actualisation… résultats précédents'
+                                : 'Résultats précédents')
+                          : '${_collection.count} ${_collection.count == 1 ? 'résultat' : 'résultats'}',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                  const Divider(height: 1),
+                  const SizedBox(height: MakoloSpacing.sm),
+                ],
+                if (!_updatingCriteria &&
+                    _selector
+                        .spatialAnchorsFromCollection(_collection)
+                        .isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          context.push(_query.routeLocation('/discover/map')),
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('Voir sur la carte'),
+                    ),
+                  ),
+                if (_collection.items.isEmpty && !_loading && _error == null)
+                  Padding(
+                    padding: EdgeInsets.all(MakoloSpacing.lg),
+                    child: Text(
+                      _query.place.isEmpty
+                          ? 'Aucune possibilité publique à afficher pour cette recherche.'
+                          : 'Aucun résultat à ${_query.place} pour le moment.',
+                    ),
+                  ),
+                for (final item in _collection.items)
+                  PublicPossibilityCard(
+                    item: item,
+                    baseUri: widget.runtime.api?.baseUri,
+                    shareApi: widget.runtime.api,
+                    onSignIn: () {
+                      widget.runtime.recovery.requireAuthentication(
+                        '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+                      );
+                      context.push('/login');
+                    },
+                    onNativeAction: (nativePath) {
+                      if (discoveryOwnerDepthBrowsableByGuest(nativePath)) {
+                        context.push(nativePath);
+                      } else {
+                        widget.runtime.recovery.requireAuthentication(
+                          nativePath,
+                        );
+                        context.push('/login');
+                      }
+                    },
+                    onTap: () => context.push(
+                      '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+                    ),
+                    onSave: () async {
+                      widget.runtime.recovery.requireAuthentication(
+                        '/discover/items/${Uri.encodeComponent(item.family)}/${Uri.encodeComponent(item.id)}',
+                      );
+                      if (context.mounted) context.push('/login');
+                    },
+                  ),
+                if (_loading && _collection.items.isNotEmpty)
+                  const Center(child: CircularProgressIndicator()),
+                if (!_updatingCriteria &&
+                    _error == null &&
+                    !_collection.hasNext &&
+                    _collection.items.isNotEmpty)
+                  const Center(child: Text('Vous avez tout exploré.')),
+              ],
             ],
           ),
         ),

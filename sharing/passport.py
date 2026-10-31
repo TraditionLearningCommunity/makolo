@@ -3,14 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from accounts.models import UserProfile
+from accounts.profile_visibility import ProfileVisibilityResolver
 from activities.models import Activity, ActivityStatus, ActivityVisibility
+from authorization.models import AuthorityScope, Mandate, MandateStatus
+from organizations.models import TeamMembership, TeamMembershipStatus
 from organizations.permissions import organization_has_public_profile
 from topics.models import ProfileInterest, ProfileOpenTo, Topic
-from topics.services import public_profile_interests, public_profile_open_to
 from trust.credential_models import CredentialStatus, CredentialType
 from trust.credential_selectors import credentials_for_profile, credentials_issued_by_space
 from trust.models import ProofStatus
@@ -59,6 +61,13 @@ class PassportProjection:
     credentials: tuple = ()
     trust_verifications: tuple = ()
     credential_summary: tuple = ()
+    # Owner-only context; membership never implies authority.
+    team_affiliations: tuple = ()
+    group_affiliations: tuple = ()
+    authorized_space_affiliations: tuple = ()
+    active_space_mandates: tuple = ()
+    # Internal Space teams require a separate team-management permission.
+    space_teams: tuple = ()
     topics: tuple = ()
 
     @property
@@ -69,7 +78,8 @@ class PassportProjection:
     def has_content(self):
         identity = self.identity or {}
         return bool(
-            identity.get("bio")
+            identity.get("name")
+            or identity.get("bio")
             or identity.get("headline")
             or identity.get("location")
             or identity.get("links")
@@ -80,6 +90,11 @@ class PassportProjection:
             or self.credentials
             or self.trust_verifications
             or self.credential_summary
+            or self.team_affiliations
+            or self.group_affiliations
+            or self.authorized_space_affiliations
+            or self.active_space_mandates
+            or self.space_teams
         )
 
 
@@ -91,12 +106,11 @@ def profile_has_public_passport(profile) -> bool:
     return UserProfile.objects.filter(
         user=profile,
         public_profile=True,
-        searchable=True,
     ).exists()
 
 
 def space_has_public_passport(space) -> bool:
-    return bool(organization_has_public_profile(space) and space.searchable)
+    return bool(organization_has_public_profile(space))
 
 
 def _avatar_url(profile):
@@ -110,6 +124,12 @@ def _avatar_url(profile):
 
 
 def _profile_identity(profile):
+    from sharing.models import PublicIdentifier
+
+    public_identifier = (
+        PublicIdentifier.objects.filter(profile=profile)
+        .values_list("identifier", flat=True).first()
+    ) or profile.username
     profile_row = UserProfile.objects.filter(user=profile).first()
     location_parts = []
     if profile_row:
@@ -129,10 +149,13 @@ def _profile_identity(profile):
     )
     return {
         "name": profile.full_name or profile.username,
+        "identifier": public_identifier,
         "avatar_url": _avatar_url(profile),
         "bio": profile.bio or "",
         "profession": profile_row.profession if profile_row and profile_row.profession else "",
         "headline": profile_row.profession if profile_row and profile_row.profession else "",
+        "company_name": profile_row.company_name or "" if profile_row else "",
+        "organization_name": profile_row.organization_name or "" if profile_row else "",
         "location": ", ".join(location_parts),
         "links": links,
     }
@@ -209,6 +232,82 @@ def _profile_credential_queryset(profile, *, public_only):
     return queryset
 
 
+
+def _profile_team_affiliations(profile):
+    """Owner-scoped existing memberships, not roles or public endorsements."""
+    memberships = (
+        TeamMembership.objects.filter(
+            user=profile,
+            status=TeamMembershipStatus.ACTIVE,
+            team__is_active=True,
+        )
+        .select_related("team__organization")
+        .order_by("team__organization__name", "team__name", "id")
+    )
+    return tuple(
+        {"team": row.team.name, "space": row.team.organization.name}
+        for row in memberships
+    )
+
+
+def _profile_group_affiliations(profile):
+    """Personal group relations; permissions alone never count as membership."""
+    from groups.models import GroupMembershipStatus
+    from groups.selectors import groups_for_profile
+
+    rows = groups_for_profile(profile).filter(
+        Q(owner_profile=profile)
+        | Q(memberships__profile=profile,
+            memberships__status=GroupMembershipStatus.ACTIVE)
+    ).distinct().order_by("name", "id")
+    return tuple({"name": row.name, "slug": row.slug} for row in rows)
+
+
+def _profile_authorized_space_affiliations(profile):
+    """Reuse Moi Spaces without folding in Platform's global superuser reach."""
+    from organizations.console_context import authorized_spaces
+
+    spaces = authorized_spaces(profile)
+    if profile.is_superuser:
+        from authorization.selectors import current_mandates
+
+        mandates = current_mandates().filter(profile=profile)
+        ids = set(mandates.filter(
+            scope_type=AuthorityScope.SPACE, space__isnull=False
+        ).values_list("space_id", flat=True))
+        ids.update(mandates.filter(
+            scope_type=AuthorityScope.ACTIVITY,
+            activity__space__isnull=False,
+        ).values_list("activity__space_id", flat=True))
+        spaces = spaces.filter(pk__in=ids)
+    return tuple(
+        {"name": row.name, "slug": row.slug}
+        for row in spaces.order_by("name", "id")
+    )
+
+
+def _profile_active_space_mandates(profile, *, at):
+    """Current space-scoped authority, distinct from team membership."""
+    mandates = (
+        Mandate.objects.filter(
+            profile=profile,
+            scope_type=AuthorityScope.SPACE,
+            status=MandateStatus.ACTIVE,
+            revoked_at__isnull=True,
+            role__is_active=True,
+            space__isnull=False,
+        )
+        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=at))
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gt=at))
+        .select_related("space", "role")
+        .order_by("space__name", "role__name", "id")
+    )
+    return tuple(
+        {"role": row.role.name, "space": row.space.name}
+        for row in mandates
+    )
+
+
 def build_profile_passport(
     profile,
     *,
@@ -218,6 +317,7 @@ def build_profile_passport(
     selected_proof_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    viewer=None,
 ):
     if variant not in PASSPORT_VARIANTS:
         raise ValueError("Variante Passeport inconnue.")
@@ -227,18 +327,21 @@ def build_profile_passport(
     custom = variant == PASSPORT_CUSTOM
     topics = _topics_from_codes(topic_codes) if thematic else ()
 
-    if public_only:
-        interests_qs = public_profile_interests(profile=profile)
-        open_to_qs = public_profile_open_to(profile=profile)
-    else:
-        interests_qs = ProfileInterest.objects.filter(
-            profile=profile,
-            topic__is_active=True,
-        ).select_related("topic").order_by("topic__label", "topic__code")
-        open_to_qs = ProfileOpenTo.objects.filter(
-            profile=profile,
-            is_active=True,
-        ).select_related("topic").order_by("kind", "topic__label")
+    interests_qs = ProfileInterest.objects.filter(
+        profile=profile, topic__is_active=True,
+    ).select_related("topic").order_by("topic__label", "topic__code")
+    open_to_qs = ProfileOpenTo.objects.filter(
+        profile=profile, is_active=True,
+    ).select_related("topic").order_by("kind", "topic__label")
+
+    # The public variant is always a bounded presentation, even when its
+    # owner previews it. A separate authenticated viewer may receive facts
+    # explicitly disclosed to their selected audiences.
+    effective_viewer = viewer if (
+        public_only and getattr(viewer, "is_authenticated", False)
+        and viewer.pk != profile.pk
+    ) else None
+    visibility = ProfileVisibilityResolver(owner=profile, viewer=effective_viewer) if public_only else None
 
     activities_qs = _profile_activity_queryset(profile, public_only=public_only)
     proofs_qs = _profile_proof_queryset(profile, public_only=public_only)
@@ -284,7 +387,60 @@ def build_profile_passport(
         sections = {"identity", "bio", "links", "interests", "open_to"}
 
     identity = _profile_identity(profile)
+    if public_only:
+        interests_qs = tuple(row for row in interests_qs if visibility.interest(row))
+        open_to_qs = tuple(row for row in open_to_qs if visibility.open_to(row))
+        if not visibility.field("name"):
+            identity["name"] = identity["identifier"]
+        if not visibility.field("avatar"):
+            identity["avatar_url"] = ""
+        if not visibility.field("bio"):
+            identity["bio"] = ""
+        if not visibility.field("profession"):
+            identity["profession"] = ""
+            identity["headline"] = ""
+        if not visibility.field("company_name"):
+            identity["company_name"] = ""
+        if not visibility.field("organization_name"):
+            identity["organization_name"] = ""
+        row = UserProfile.objects.filter(user=profile).first()
+        identity["location"] = ", ".join(
+            part for part, field in (
+                (row.city if row else "", "city"),
+                (row.country if row else "", "country"),
+            ) if part and visibility.field(field)
+        )
+        identity["links"] = tuple(
+            (label, url) for label, url, field in (
+                ("Site web", profile.website, "website"),
+                ("LinkedIn", profile.linkedin_url, "linkedin_url"),
+                ("Facebook", profile.facebook_url, "facebook_url"),
+                ("Instagram", profile.instagram_url, "instagram_url"),
+                ("TikTok", profile.tiktok_url, "tiktok_url"),
+                ("X / Twitter", profile.x_url, "x_url"),
+                ("YouTube", profile.youtube_url, "youtube_url"),
+            ) if url and visibility.field(field)
+        )
+    if variant == PASSPORT_COMPLETE:
+        # Full owner variant only. All other variants remain disclosure-bounded.
+        profile_row = UserProfile.objects.filter(user=profile).first()
+        identity["owner_details"] = {
+            "first_name": profile.first_name or "",
+            "last_name": profile.last_name or "",
+            "username": profile.username,
+            "company": profile_row.company_name or "" if profile_row else "",
+            "organization": profile_row.organization_name or "" if profile_row else "",
+            "city": profile_row.city or "" if profile_row else "",
+            "country": profile_row.country or "" if profile_row else "",
+            "phone": profile.phone or "",
+            "address": profile_row.address or "" if profile_row else "",
+            "language": profile.get_language_display(),
+            "birth_date": profile.birth_date.isoformat() if profile.birth_date else "",
+            "gender": profile.get_gender_display() if profile.gender else "",
+        }
     if custom:
+        if "avatar" not in sections:
+            identity["avatar_url"] = ""
         if "bio" not in sections:
             identity["bio"] = ""
         if "links" not in sections:
@@ -294,13 +450,22 @@ def build_profile_passport(
         if "profession" not in sections:
             identity["profession"] = ""
             identity["headline"] = ""
+        if "company_name" not in sections:
+            identity["company_name"] = ""
+        if "organization_name" not in sections:
+            identity["organization_name"] = ""
 
+    observed_at = timezone.now()
     return PassportProjection(
         subject_kind="profile",
         subject=profile,
         variant=variant,
-        generated_at=timezone.now(),
+        generated_at=observed_at,
         identity=identity,
+        team_affiliations=(_profile_team_affiliations(profile) if variant == PASSPORT_COMPLETE else ()),
+        group_affiliations=(_profile_group_affiliations(profile) if variant == PASSPORT_COMPLETE else ()),
+        authorized_space_affiliations=(_profile_authorized_space_affiliations(profile) if variant == PASSPORT_COMPLETE else ()),
+        active_space_mandates=(_profile_active_space_mandates(profile, at=observed_at) if variant == PASSPORT_COMPLETE else ()),
         interests=tuple(interests_qs),
         open_to=tuple(open_to_qs),
         activities=tuple(activities_qs),
@@ -341,6 +506,7 @@ def build_space_passport(
     selected_activity_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    include_private_teams=False,
 ):
     if variant not in PASSPORT_VARIANTS:
         raise ValueError("Variante Passeport inconnue.")
@@ -407,6 +573,8 @@ def build_space_passport(
         activities=tuple(activities_qs),
         trust_verifications=trust_verifications,
         credential_summary=credential_summary,
+        space_teams=(tuple(space.teams.filter(is_active=True).order_by("name").values_list("name", flat=True))
+                     if variant == PASSPORT_COMPLETE and include_private_teams else ()),
         topics=topics,
     )
 

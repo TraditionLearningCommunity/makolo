@@ -340,6 +340,23 @@ final class WorkspaceContextRepository {
     await _reconcileActorContextFromInventory();
   }
 
+  /// Creation belongs to Organizations; this does not grant actor authority.
+  Future<SpaceActorIdentity> createSpace({
+    required String name,
+    required bool publicProfile,
+  }) async {
+    final engine = _requireSync();
+    final response = await engine.api.post(
+      'api/v1/organizations/workspaces/',
+      body: {'name': name.trim(), 'public_profile': publicProfile},
+    );
+    final space = _requiredMap(response.jsonObject(), 'space');
+    return SpaceActorIdentity(
+      id: _requiredString(space, 'id'),
+      slug: _requiredString(space, 'slug'),
+    );
+  }
+
   Future<void> refreshWorkspace(SpaceActorIdentity space) async {
     final engine = _requireSync();
     await engine.pullSource(workspaceSource(space));

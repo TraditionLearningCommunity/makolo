@@ -1,4 +1,5 @@
 from django.urls import include, path
+from payments.space_obligation_views import SpacePayerObligationWebView
 
 from transport.console_views import (
     TransportConsoleCreateDepartureView,
@@ -16,6 +17,8 @@ from .console_subscription import (
     SpaceAddonRemovePreviewView,
     SpaceAddonRemoveView,
     SpaceConsoleSubscriptionView,
+    SpaceSubscriptionBillingView,
+    SpaceSubscriptionHistoryView,
     SpaceSubscriptionChangeView,
     SpaceSubscriptionPreviewView,
     SpaceTransitionCancelView,
@@ -59,6 +62,7 @@ from .space_web_views import (
     SpaceUsView,
 )
 from .space_work_web import SpaceWorkView
+from .space_work_g1_web import SpaceWorkG1DepthView
 from .space_retrieval_web import SpaceHistoryWebView, SpaceSearchWebView
 from .space_retrieval_detail_web import (
     SpaceRetrievalActivityDetailView,
@@ -92,12 +96,17 @@ urlpatterns = [
     path("new/", OrganizationCreateView.as_view(), name="create"),
     path("<slug:slug>/", SpaceNowView.as_view(), name="console-entry"),
     path("<slug:slug>/discover/", SpaceDiscoverView.as_view(), name="space-discover"),
+    path("<slug:slug>/payment-obligations/<uuid:obligation_id>/", SpacePayerObligationWebView.as_view(), name="space-payment-obligation"),
     path("<slug:slug>/mark/", SpaceMarkWS5View.as_view(), name="space-mark"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/day-of/", SpaceOccurrenceDayOfView.as_view(), name="space-occurrence-day-of"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/live/", SpaceOccurrenceLiveView.as_view(), name="space-occurrence-live"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/", SpaceOccurrenceScannerView.as_view(), name="space-occurrence-scanner"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/scan/", SpaceOccurrenceScannerActionView.as_view(), name="space-occurrence-scanner-action"),
     path("<slug:slug>/work/", SpaceWorkView.as_view(), name="space-work"),
+    path(
+        "<slug:slug>/work/<str:kind>/<uuid:owner_id>/",
+        SpaceWorkG1DepthView.as_view(), name="space-work-depth",
+    ),
     path("<slug:slug>/history/", SpaceHistoryWebView.as_view(), name="space-history"),
     path("<slug:slug>/search/", SpaceSearchWebView.as_view(), name="space-search"),
     path("<slug:slug>/retrieval/activities/<uuid:activity_id>/", SpaceRetrievalActivityDetailView.as_view(), name="space-retrieval-activity-detail"),
@@ -191,6 +200,8 @@ urlpatterns = [
     path("<slug:slug>/analytics/", SpaceConsoleAnalyticsView.as_view(), name="console-analytics"),
     path("<slug:slug>/automation/", SpaceConsoleAutomationView.as_view(), name="console-automation"),
     path("<slug:slug>/subscription/", SpaceConsoleSubscriptionView.as_view(), name="console-subscription"),
+    path("<slug:slug>/subscription/billing/", SpaceSubscriptionBillingView.as_view(), name="console-subscription-billing"),
+    path("<slug:slug>/subscription/history/", SpaceSubscriptionHistoryView.as_view(), name="console-subscription-history"),
     path("<slug:slug>/subscription/preview/<uuid:plan_version_id>/", SpaceSubscriptionPreviewView.as_view(), name="console-subscription-preview"),
     path("<slug:slug>/subscription/change/<uuid:plan_version_id>/", SpaceSubscriptionChangeView.as_view(), name="console-subscription-change"),
     path("<slug:slug>/subscription/addon/<uuid:item_id>/remove/preview/", SpaceAddonRemovePreviewView.as_view(), name="console-subscription-addon-remove-preview"),

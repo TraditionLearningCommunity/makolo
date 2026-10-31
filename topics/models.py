@@ -28,7 +28,7 @@ class ProfileInterest(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     profile = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile_interests")
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="profile_interests")
-    is_public = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -68,7 +68,7 @@ class ProfileOpenTo(models.Model):
     kind = models.CharField(max_length=32, choices=ActionMatchKind.choices)
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="open_to_declarations", null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    is_public = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=True)
     is_searchable = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

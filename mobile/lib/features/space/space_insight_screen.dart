@@ -7,6 +7,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
+import '../../network/api_error.dart';
 import '../../design/surface_states.dart';
 import '../../presentation/contracts/space_presentation.dart';
 import '../../presentation/projection_surface_adapter.dart';
@@ -20,10 +21,12 @@ class SpaceInsightScreen extends StatefulWidget {
     super.key,
     required this.runtime,
     required this.surface,
+    this.expectedSlug,
   });
 
   final AppRuntime runtime;
   final SpaceProjectionKind surface;
+  final String? expectedSlug;
 
   @override
   State<SpaceInsightScreen> createState() => _SpaceInsightScreenState();
@@ -38,7 +41,11 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
 
   SpaceActorContext? get actor {
     final current = widget.runtime.actorContext?.value;
-    return current is SpaceActorContext ? current : null;
+    return current is SpaceActorContext &&
+            (widget.expectedSlug == null ||
+                current.space.slug == widget.expectedSlug)
+        ? current
+        : null;
   }
 
   @override
@@ -63,7 +70,8 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
       widget.runtime.actorContext?.addListener(onActorChanged);
     }
     if (oldWidget.runtime != widget.runtime ||
-        oldWidget.surface != widget.surface) {
+        oldWidget.surface != widget.surface ||
+        oldWidget.expectedSlug != widget.expectedSlug) {
       searchVersion++;
       results = null;
       searchFailed = false;
@@ -89,6 +97,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     final space = actor?.space;
     final repository = widget.runtime.space;
     if (space == null || repository == null) return;
+    final expectedId = space.id;
     setState(() => refreshing = true);
     try {
       if (widget.surface == SpaceProjectionKind.relationships) {
@@ -99,7 +108,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     } on Object {
       // The source state decides whether cached data remains usable.
     } finally {
-      if (mounted) setState(() => refreshing = false);
+      if (mounted && actor?.space.id == expectedId) {
+        setState(() => refreshing = false);
+      }
     }
   }
 
@@ -130,8 +141,23 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             : null;
         searchFailed = false;
       });
+    } on MakoloApiError catch (error) {
+      if (!mounted || version != searchVersion || actor?.space.id != space.id) {
+        return;
+      }
+      setState(() {
+        results = null;
+        searchFailed = true;
+      });
+      if (error.statusCode == 401 ||
+          error.statusCode == 403 ||
+          error.statusCode == 404) {
+        await refresh();
+      }
     } on Object {
-      if (!mounted || version != searchVersion) return;
+      if (!mounted || version != searchVersion || actor?.space.id != space.id) {
+        return;
+      }
       setState(() {
         results = null;
         searchFailed = true;
@@ -233,8 +259,12 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
   Widget relationsBody(Map<String, dynamic> payload) {
     final sections = payload['sections'];
     if (sections is! Map || sections.isEmpty) {
-      return const MakoloEmptyState(
-        title: 'Relations non autorisées ou indisponibles dans ce contexte.',
+      final limited =
+          spaceMap(payload['authority'])?['scope'] == 'activity_limited';
+      return MakoloEmptyState(
+        title: limited
+            ? 'Relations globales réservées aux autorités du Space.'
+            : 'Aucune collection relationnelle visible dans ce contexte.',
         icon: Icons.lock_outline,
       );
     }
@@ -302,8 +332,10 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             'Aperçu local partiel. Lancez la recherche pour consulter toutes les relations autorisées.',
           ),
         if (groups.values.every((rows) => rows.isEmpty))
-          const Text(
-            'Aucune relation correspondante dans les données visibles.',
+          Text(
+            query.isEmpty
+                ? 'Aucune relation enregistrée dans les collections visibles.'
+                : 'Aucune relation correspondante dans les données visibles.',
           ),
         for (final entry in groups.entries) ...[
           if (entry.value.isNotEmpty)
@@ -319,7 +351,18 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
               row: row,
               onOpen: _relationRoute(row) == null
                   ? null
-                  : () => context.push(_relationRoute(row)!),
+                  : () async {
+                      final spaceId = actor?.space.id;
+                      await context.push(_relationRoute(row)!);
+                      if (!mounted || actor?.space.id != spaceId) return;
+                      searchVersion++;
+                      setState(() {
+                        results = null;
+                        searchFailed = false;
+                        searchController.clear();
+                      });
+                      await refresh();
+                    },
             ),
         ],
         if (query.isEmpty &&

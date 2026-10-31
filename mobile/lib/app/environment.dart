@@ -34,6 +34,13 @@ class MakoloApiConfig {
   final Uri? baseUri;
 }
 
+class MakoloGeocodingConfig {
+  const MakoloGeocodingConfig({required this.enabled, required this.apiKey});
+
+  final bool enabled;
+  final String? apiKey;
+}
+
 class MakoloFirebaseConfig {
   const MakoloFirebaseConfig({required this.enabled});
 
@@ -77,6 +84,7 @@ class MakoloRuntimeConfig {
     required this.environment,
     required this.api,
     required this.maps,
+    this.geocoding = const MakoloGeocodingConfig(enabled: false, apiKey: null),
     required this.firebase,
     required this.sentry,
     required this.appLinks,
@@ -93,6 +101,13 @@ class MakoloRuntimeConfig {
     defaultValue: 'false',
   );
   static const _mapStyle = String.fromEnvironment('MAKOLO_MAP_STYLE');
+  static const _geocodingEnabled = String.fromEnvironment(
+    'MAKOLO_GEOCODING_ENABLED',
+    defaultValue: 'false',
+  );
+  static const _geocodingKey = String.fromEnvironment(
+    'MAKOLO_GEOCODING_API_KEY',
+  );
   static const _firebaseEnabled = String.fromEnvironment(
     'MAKOLO_FIREBASE_ENABLED',
     defaultValue: 'false',
@@ -119,6 +134,7 @@ class MakoloRuntimeConfig {
   final MakoloRuntimeEnvironment environment;
   final MakoloApiConfig api;
   final MakoloMapsConfig maps;
+  final MakoloGeocodingConfig geocoding;
   final MakoloFirebaseConfig firebase;
   final MakoloSentryConfig sentry;
   final MakoloAppLinksConfig appLinks;
@@ -130,6 +146,8 @@ class MakoloRuntimeConfig {
       'MAKOLO_API_BASE_URL': _apiBaseUrl,
       'MAKOLO_MAPS_ENABLED': _mapsEnabled,
       'MAKOLO_MAP_STYLE': _mapStyle,
+      'MAKOLO_GEOCODING_ENABLED': _geocodingEnabled,
+      'MAKOLO_GEOCODING_API_KEY': _geocodingKey,
       'MAKOLO_FIREBASE_ENABLED': _firebaseEnabled,
       'MAKOLO_SENTRY_ENABLED': _sentryEnabled,
       'MAKOLO_SENTRY_DSN': _sentryDsn,
@@ -159,6 +177,17 @@ class MakoloRuntimeConfig {
     if (mapsEnabled && mapStyle == null) {
       throw const MakoloConfigurationException(
         'MAKOLO_MAPS_ENABLED=true requires MAKOLO_MAP_STYLE.',
+      );
+    }
+
+    final geocodingEnabled = _bool(
+      values['MAKOLO_GEOCODING_ENABLED'],
+      name: 'MAKOLO_GEOCODING_ENABLED',
+    );
+    final geocodingKey = _optional(values['MAKOLO_GEOCODING_API_KEY']);
+    if (geocodingEnabled && geocodingKey == null) {
+      throw const MakoloConfigurationException(
+        'MAKOLO_GEOCODING_ENABLED=true requires MAKOLO_GEOCODING_API_KEY.',
       );
     }
 
@@ -231,6 +260,10 @@ class MakoloRuntimeConfig {
       environment: environment,
       api: MakoloApiConfig(baseUri: apiBaseUri),
       maps: MakoloMapsConfig(enabled: mapsEnabled, style: mapStyle),
+      geocoding: MakoloGeocodingConfig(
+        enabled: geocodingEnabled,
+        apiKey: geocodingKey,
+      ),
       firebase: MakoloFirebaseConfig(enabled: firebaseEnabled),
       sentry: MakoloSentryConfig(
         enabled: sentryEnabled,

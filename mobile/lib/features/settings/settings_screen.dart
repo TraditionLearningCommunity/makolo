@@ -6,10 +6,20 @@ import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
 
 class AppSettingsScreen extends StatelessWidget {
-  const AppSettingsScreen({super.key, required this.runtime, this.packageInfo});
+  const AppSettingsScreen({
+    super.key,
+    required this.runtime,
+    this.packageInfo,
+    this.onNotifications,
+    this.onSecurity,
+    this.onPrivacy,
+  });
 
   final AppRuntime runtime;
   final Future<PackageInfo>? packageInfo;
+  final VoidCallback? onNotifications;
+  final VoidCallback? onSecurity;
+  final VoidCallback? onPrivacy;
 
   String _themeLabel(MakoloThemePreference preference) {
     return switch (preference) {
@@ -120,6 +130,58 @@ class AppSettingsScreen extends StatelessWidget {
                 ),
                 value: value.reduceMotion,
                 onChanged: preferences.setReduceMotion,
+              ),
+              const SizedBox(height: MakoloSpacing.lg),
+              const Divider(),
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                'Préférences',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              if (onNotifications != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.notifications_outlined),
+                  title: const Text('Notifications'),
+                  subtitle: const Text(
+                    'Canaux, types de messages et heures calmes',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: onNotifications,
+                ),
+              if (onPrivacy != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.lock_outline),
+                  title: const Text('Confidentialité du Profil'),
+                  subtitle: const Text(
+                    'Visibilité et présence dans les recherches',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: onPrivacy,
+                ),
+              if (onSecurity != null)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.shield_outlined),
+                  title: const Text('Sécurité et appareils'),
+                  subtitle: const Text('Mot de passe et comptes mémorisés'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: onSecurity,
+                ),
+              const SizedBox(height: MakoloSpacing.md),
+              Text(
+                'Données sur cet appareil',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.offline_bolt_outlined),
+                title: Text('Disponibilité hors ligne'),
+                subtitle: Text(
+                  'Les informations personnelles déjà synchronisées peuvent rester disponibles. '
+                  'Les droits et actions partagées sont vérifiés par le serveur.',
+                ),
               ),
               const SizedBox(height: MakoloSpacing.lg),
               const Divider(),
