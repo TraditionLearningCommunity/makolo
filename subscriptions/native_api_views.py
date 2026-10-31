@@ -8,7 +8,12 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .billing_models import PlanVersionBillingTerms, SubscriptionBillingObligation
+from .billing_models import PlanVersionBillingTerms
+from .billing_presentation import (
+    personal_billing_obligations,
+    terms_as_dict,
+    with_billing_terms,
+)
 from .contracts import AcquisitionMode, SubscriptionTransitionKind
 from .models import PlanVersion
 from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
@@ -20,7 +25,7 @@ from .security_services import (
     complete_subscription_transition_for_actor,
     request_subscription_transition_for_actor,
 )
-from .transition_models import SubscriptionTransition, SubscriptionTransitionPaymentObligation
+from .transition_models import SubscriptionTransition
 
 
 def _owned(request):
@@ -48,63 +53,59 @@ def _private(payload):
     return response
 
 
-def _obligations(subscription, offset=0, limit=20):
-    end = offset + limit + 1
-    regular = (
-        SubscriptionBillingObligation.objects.filter(subscription=subscription)
-        .select_related("obligation").order_by("-created_at", "-id")[:end]
+def _replayed_intent(subscription, *, key, target_plan_version_id=None, source_item_id=None):
+    """Return an already authorized self-service intent without re-acquiring its target.
+
+    A completed add-on is no longer active, and a completed BASE may become
+    current. In both cases the original idempotency key must still replay.
+    """
+    transition = SubscriptionTransition.objects.filter(
+        subscription=subscription, idempotency_key=key
+    ).first()
+    if transition is None:
+        return False
+    matching = (
+        transition.request_origin == "self_service"
+        and (
+            target_plan_version_id is not None
+            and transition.kind in {"base_switch", "addon_add"}
+            and transition.source_item_id is None
+            and str(transition.target_plan_version_id) == str(target_plan_version_id)
+            or source_item_id is not None
+            and transition.kind == "addon_remove"
+            and str(transition.source_item_id) == str(source_item_id)
+        )
     )
-    requirements = (
-        SubscriptionTransitionPaymentObligation.objects.filter(transition__subscription=subscription)
-        .select_related("obligation").order_by("-created_at", "-id")[:end]
-    )
-    by_id = {str(link.obligation_id): link.obligation for link in [*regular, *requirements]}
-    ordered = sorted(by_id.values(), key=lambda o: (o.created_at, str(o.pk)), reverse=True)
-    items = [
-        {"id": str(o.pk), "label": o.label, "amount": str(o.amount),
-         "currency": o.currency, "status": o.status, "due_at": o.due_at,
-         "created_at": o.created_at}
-        for o in ordered[offset:offset + limit]
-    ]
-    return {"items": items, "next_offset": offset + limit if len(ordered) > offset + limit else None}
+    if not matching:
+        raise ValidationError({"idempotency_key": "Cette référence appartient à une autre demande."})
+    return True
 
 
 def _snapshot(subscription):
-    product = build_subscription_product_view(subscription, can_manage=True)
-    entries = [product.current_base, *product.active_addons, *product.catalog]
-    terms = {
-        str(t.plan_version_id): {
-            "amount": str(t.amount), "currency": t.currency,
-            "period_unit": t.billing_period_unit, "period_count": t.billing_period_count,
-        }
-        for t in PlanVersionBillingTerms.objects.filter(
-            plan_version_id__in=[row["plan_version_id"] for row in entries if row is not None]
-        )
-    }
-
-    def decorate(row):
-        return {**row, "billing_terms": terms.get(row["plan_version_id"])} if row is not None else None
-
+    product = with_billing_terms(build_subscription_product_view(subscription, can_manage=True))
     self_service = {
         str(pk) for pk in PlanVersion.objects.filter(
-            pk__in=[r["plan_version_id"] for r in product.catalog],
+            pk__in=[row["plan_version_id"] for row in product.catalog],
             acquisition_mode=AcquisitionMode.SELF_SERVICE,
         ).values_list("pk", flat=True)
     }
-    catalog = [decorate(row) for row in product.catalog]
+    catalog = [dict(row) for row in product.catalog]
     for row in catalog:
         row["can_request"] = bool(row["can_request"]) and row["plan_version_id"] in self_service
     return {
         "subscription": {
-            "id": str(subscription.pk), "subject_label": product.subject_label,
-            "status": product.status, "current_base": decorate(product.current_base),
-            "active_addons": [decorate(row) for row in product.active_addons],
+            "id": str(subscription.pk),
+            "subject_label": product.subject_label,
+            "status": product.status,
+            "current_base": product.current_base,
+            "active_addons": product.active_addons,
         },
-        "capabilities": product.capabilities, "catalog": catalog,
-        "transition": product.transition, "ongoing_conditions": product.ongoing_conditions,
-        "billing": _obligations(subscription),
+        "capabilities": product.capabilities,
+        "catalog": catalog,
+        "transition": product.transition,
+        "ongoing_conditions": product.ongoing_conditions,
+        "billing": personal_billing_obligations(subscription),
     }
-
 
 class PersonalSubscriptionAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -124,7 +125,7 @@ class PersonalSubscriptionObligationsAPIView(APIView):
             raise ValidationError({"offset": "Pagination invalide."})
         if offset < 0 or offset > 500:
             raise ValidationError({"offset": "Pagination hors limites."})
-        return _private(_obligations(_owned(request), offset=offset))
+        return _private(personal_billing_obligations(_owned(request), offset=offset))
 
 
 class PersonalSubscriptionPlanAPIView(APIView):
@@ -141,17 +142,15 @@ class PersonalSubscriptionPlanAPIView(APIView):
         except DjangoValidationError as exc:
             _error(exc)
         terms = PlanVersionBillingTerms.objects.filter(plan_version=target).first()
-        preview["billing_terms"] = (
-            {"amount": str(terms.amount), "currency": terms.currency,
-             "period_unit": terms.billing_period_unit, "period_count": terms.billing_period_count}
-            if terms else None
-        )
+        preview["billing_terms"] = terms_as_dict(terms)
         return _private(preview)
 
     def post(self, request, plan_version_id):
         subscription = _owned(request)
-        target = get_self_service_target(subscription, plan_version_id)
         key = _key(request)
+        if _replayed_intent(subscription, key=key, target_plan_version_id=plan_version_id):
+            return _private(_snapshot(subscription))
+        target = get_self_service_target(subscription, plan_version_id)
         try:
             request_subscription_transition_for_actor(
                 actor=request.user, subscription_id=subscription.pk,
@@ -180,8 +179,10 @@ class PersonalSubscriptionAddonRemoveAPIView(APIView):
 
     def post(self, request, item_id):
         subscription = _owned(request)
-        item = get_active_addon(subscription, item_id)
         key = _key(request)
+        if _replayed_intent(subscription, key=key, source_item_id=item_id):
+            return _private(_snapshot(subscription))
+        item = get_active_addon(subscription, item_id)
         try:
             request_subscription_transition_for_actor(
                 actor=request.user, subscription_id=subscription.pk,
