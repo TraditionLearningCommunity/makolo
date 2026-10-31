@@ -1,4 +1,4 @@
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import resolve, reverse
 
 from accounts.models import User, UserProfile
@@ -199,3 +199,36 @@ class W8PersonalConnectionsWebTests(TestCase):
         for label in ("Maintenant", "Découvrir", "Makolo", "En cours", "Moi"):
             self.assertIn(f"<span>{label}</span>", mobile)
         self.assertNotIn(">Connexions<", mobile)
+
+
+class C2InteroperabilityPresentationContractTests(SimpleTestCase):
+    def test_connection_with_no_active_capability_is_not_described_as_usable(self):
+        from interoperability.presentation import connection_status_label
+
+        self.assertEqual(
+            connection_status_label(
+                {
+                    "enabled": True,
+                    "connected": True,
+                    "usable": False,
+                    "health": "healthy",
+                    "capabilities": [],
+                }
+            ),
+            "Relié · aucune capacité active",
+        )
+
+    def test_action_metadata_does_not_promise_an_execution_link(self):
+        from interoperability.presentation import present_action
+
+        row = present_action(
+            {
+                "code": "notifications.send",
+                "available": True,
+                "authorized": True,
+                "requires_connection": False,
+            }
+        )
+        self.assertEqual(row["status_label"], "Capacité disponible dans Makolo")
+        self.assertNotIn("execute_url", row)
+        self.assertNotIn("connect_url", row)
