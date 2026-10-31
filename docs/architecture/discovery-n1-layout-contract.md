@@ -34,3 +34,32 @@ Sources propriétaires : le backend et les domaines canoniques. Ce document déc
 - Galerie, ressources et lecteurs propriétaires non perturbés par le changement de composition.
 
 Ce contrat complète, sans remplacer, `docs/architecture/makolo-domain-blueprint.md` et les contrats UX Découvrir. Les domaines propriétaires et leurs permissions restent prioritaires.
+
+## Implémentation du chantier 04 — 31 octobre 2026
+
+Ce complément est un relevé du code sur #522 et **ne remplace pas**
+les huit zones ci-dessus.
+
+- Le temps « ajouté » reste un champ `date.kind=added_at` et se présente
+  à droite sous forme relative (à l'instant, il y a quelques minutes/heures,
+  hier, jours/semaines), avec date exacte accessible ; aucune date
+  d'Occurrence n'est déduite de ce libellé.
+- Les libellés de lieux et de temps restent sémantiques :
+  `Départ`, `Escale`, `Arrivée`, `Embarquement`, `Débarquement`,
+  `Ouverture`, `Clôture`, `Date limite`. Une disponibilité
+  **connue et indisponible** n'est pas une inconnue : elle reste affichable.
+- Les notes contextuelles sont celles projetées comme
+  `assessment.state=limiting` par l'owner ; les inconnues sans valeur
+  pratique ne remplissent pas la zone. Les variantes et relations ne
+  sont comptées que lorsqu'elles sont présentes.
+- Les images `PresentationMediaUse` gardent leur `mime_type` JPEG/PNG
+  et `alt_text` dans la galerie Flutter et le Reader.
+- L'existence d'un texte très long n'autorise pas à déplacer les faits
+  hors de leur zone. Les deux ressources initialement visibles
+  restent une règle d'affichage, pas de suppression des ressources.
+
+**Preuves de code :** [chantier 04](../implementation/discover-stage-04-presentation-n1-2026-10-31.md),
+`discovery/views.py`, `templates/discovery/_universal_card.html`,
+`mobile/lib/presentation/possibilities/discovery_possibility_unit.dart`.
+Les scénarios de test ont été ajoutés sans exécution de CI ni test
+sur appareil ; cette certification relève du chantier 09.
