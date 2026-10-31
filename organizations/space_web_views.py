@@ -222,7 +222,7 @@ class SpaceUsView(SpaceWebMixin):
             return context
         owner_links = {
             "relationships": context["space_relationships_url"]
-            if projection.get("authority", {}).get("scope") == "space"
+            if projection.get("handoffs", {}).get("relationships")
             else None,
         }
         capabilities = projection.get("capabilities", {})
