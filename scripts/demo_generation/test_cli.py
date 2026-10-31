@@ -191,5 +191,31 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertIn("--apply", aftercare.call_args.args[0])
 
 
+
+    def test_validate_routes_quick_to_isolated_runner(self):
+        args = build_parser().parse_args(["validate", "--quick", "--failfast"])
+        with patch("scripts.demo_generation.validate.main", return_value=0) as validator:
+            run(args)
+        self.assertEqual(
+            validator.call_args.args[0],
+            ["--verbosity", "1", "--quick", "--failfast"],
+        )
+
+    def test_validate_defaults_to_full_contract_suite(self):
+        args = build_parser().parse_args(["validate"])
+        with patch("scripts.demo_generation.validate.main", return_value=0) as validator:
+            run(args)
+        self.assertEqual(validator.call_args.args[0], ["--verbosity", "1"])
+
+    def test_validate_refuses_source_db_as_test_db(self):
+        from unittest.mock import MagicMock
+        from scripts.demo_generation.validate import main
+        fake = MagicMock()
+        fake.settings_dict = {"NAME": "db.sqlite3", "TEST": {"NAME": "db.sqlite3"}}
+        with patch("django.db.connections.__iter__", return_value=iter(["default"])), \
+             patch("django.db.connections.__getitem__", return_value=fake):
+            with self.assertRaises(SystemExit):
+                main(["--quick"])
+
 if __name__ == "__main__":
     unittest.main()
