@@ -16,6 +16,7 @@ from .contracts import SubscriptionTransitionKind, SubscriptionTransitionStatus
 from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
 from .product_preview import build_subscription_change_preview
 from .product_read import build_subscription_product_view
+from .personal_history import personal_transition_history
 from .runtime_models import Subscription
 from .security_services import (
     cancel_subscription_transition_for_actor,
@@ -49,6 +50,24 @@ class ProfileSubscriptionView(LoginRequiredMixin, TemplateView):
         subscription = _profile_subscription(self.request.user)
         context["product"] = with_billing_terms(build_subscription_product_view(subscription, can_manage=True))
         context["personal_billing"] = personal_billing_obligations(subscription)
+        context["personal_history"] = personal_transition_history(subscription)
+        return context
+
+
+class ProfileSubscriptionHistoryView(LoginRequiredMixin, TemplateView):
+    login_url = "core:login"
+    template_name = "subscriptions/profile_history.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            offset = int(self.request.GET.get("offset", "0"))
+        except (TypeError, ValueError):
+            offset = 0
+        offset = offset if 0 <= offset <= 100000 else 0
+        context["personal_history"] = personal_transition_history(
+            _profile_subscription(self.request.user), offset=offset,
+        )
         return context
 
 
