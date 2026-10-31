@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from authorization.constants import PermissionCode, SystemRoleCode
-from authorization.models import AuthorityScope
+from authorization.constants import PermissionCode, STANDARD_SPACE_ROLE_CODES, SystemRoleCode
+from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates, has_direct_space_permission
 from organizations.models import TeamMembershipStatus
 
@@ -37,12 +37,25 @@ def build_space_us_projection(*, profile, space):
     team = {
         "active_members": workspace.get("team_summary", {}).get("active_members"),
         "visibility": "restricted",
+        "role_options": [],
         "items": [],
         "has_more": False,
         "links": {},
     }
     if can_manage_team:
         team["visibility"] = "visible"
+        allowed_role_codes = set(STANDARD_SPACE_ROLE_CODES)
+        if not can_manage_ownership:
+            allowed_role_codes.discard(SystemRoleCode.SPACE_OWNER)
+        team["role_options"] = [
+            {"code": role.code, "label": role.name}
+            for role in Role.objects.filter(
+                scope_type=AuthorityScope.SPACE,
+                is_system=True,
+                is_active=True,
+                code__in=allowed_role_codes,
+            ).order_by("name", "code")
+        ]
         memberships = (
             space.teams.filter(is_default=True, memberships__status=TeamMembershipStatus.ACTIVE)
             .values("memberships__id", "memberships__user_id", "memberships__user__first_name", "memberships__user__last_name", "memberships__user__username")
