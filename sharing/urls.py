@@ -6,6 +6,7 @@ from .document_views import (
     InboundCaptureDetailView,
     InboundCaptureDiscardView,
 )
+from .passport_visibility_views import ProfilePassportVisibilityView
 from .passport_share_views import (
     PassportShareCreateView, PassportShareRevokeView, PassportSharedView,
 )
@@ -37,6 +38,7 @@ app_name = "sharing"
 
 urlpatterns = [
     path("passport/me/", MyPassportView.as_view(), name="passport-me"),
+    path("passport/me/visibility/", ProfilePassportVisibilityView.as_view(), name="passport-visibility"),
     path("passport/me/history/", MyPassportHistoryView.as_view(), name="passport-me-history"),
     path("passport/spaces/<slug:slug>/history/", SpacePassportHistoryView.as_view(), name="passport-space-history"),
     path("passport/profile/<uuid:profile_id>/", ProfilePassportView.as_view(), name="passport-profile"),
