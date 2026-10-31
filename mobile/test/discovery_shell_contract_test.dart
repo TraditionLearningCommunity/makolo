@@ -76,6 +76,8 @@ void main() {
         .readAsStringSync();
     final guest = File('lib/features/guest/guest_screen.dart')
         .readAsStringSync();
+    final publicMap = File('lib/features/guest/public_discovery_map_screen.dart')
+        .readAsStringSync();
     final shell = File('lib/app/app_shell.dart').readAsStringSync();
     final router = File('lib/app/router.dart').readAsStringSync();
 
@@ -93,6 +95,10 @@ void main() {
     expect(shell, contains('activeExploration'));
     expect(router, contains('publicDiscoveryQuery'));
     expect(guest, contains('initialFilters'));
+    expect(guest, contains('dateFrom: _dateFrom'));
+    expect(guest, contains('latitude: _latitude'));
+    expect(publicMap, contains(': widget.query;'));
+    expect(publicMap, isNot(contains('pageSize: 50')));
   });
 
 }
