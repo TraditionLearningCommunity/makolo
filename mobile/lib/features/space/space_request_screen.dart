@@ -210,6 +210,7 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
   Widget build(BuildContext context) {
     final request = _map(_owner?['request']);
     final activity = _map(request?['activity']);
+    final space = _map(_owner?['space']);
     final capabilities = _map(_owner?['capabilities']);
     final canDecide =
         _actorValid && !_loading && !_sending && capabilities?['decide'] == true;
@@ -246,6 +247,13 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
           : ListView(
               padding: const EdgeInsets.all(MakoloSpacing.lg),
               children: [
+                if (space?['name'] is String) ...[
+                  Text(
+                    space!['name'] as String,
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                ],
                 Semantics(
                   header: true,
                   child: Text(
