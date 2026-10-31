@@ -349,7 +349,13 @@ def _web_discovery_card(item):
         "boarding": "Embarquement",
         "dropoff": "Débarquement",
     }
-    for fact in item.get("spatial_facts") or []:
+    spatial_facts = item.get("spatial_facts") or []
+    role_counts = {}
+    for fact in spatial_facts:
+        role = str(fact.get("role") or "").lower()
+        role_counts[role] = role_counts.get(role, 0) + 1
+    role_positions = {}
+    for fact in spatial_facts:
         role = str(fact.get("role") or "").lower()
         place = fact.get("place") or {}
         if not isinstance(place, dict):
@@ -358,8 +364,17 @@ def _web_discovery_card(item):
         locality = str(place.get("locality") or "").strip()
         display = f"{name}, {locality}" if name and locality and name.casefold() != locality.casefold() else (name or locality)
         if display:
-            code = "place" if role in {"primary", "venue"} else f"place_{role}"
-            add_fact(code, spatial_labels.get(role, "Lieu"), display, "map-pin")
+            role_positions[role] = role_positions.get(role, 0) + 1
+            repeated = role_counts[role] > 1
+            ordinal = role_positions[role]
+            code = (
+                f"place_{role}_{ordinal}" if repeated
+                else "place" if role in {"primary", "venue"} else f"place_{role}"
+            )
+            label = spatial_labels.get(role, "Lieu")
+            if repeated:
+                label = f"{label} {ordinal}"
+            add_fact(code, label, display, "map-pin")
 
     save_action = None
     if links.get("web_saved"):
