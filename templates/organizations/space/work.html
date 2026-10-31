@@ -67,6 +67,13 @@
         {% for item in section.items %}
         <li class="py-4" data-work-item="{{ item.key }}">
           <article class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            {% if item.media_bindings %}
+            {% with media=item.media_bindings.0 %}
+            <figure class="shrink-0 overflow-hidden rounded-xl" style="width:112px;height:112px;background:var(--mk-surface,transparent)" data-work-recognition="{{ item.key }}">
+              <img src="{{ media.url }}" alt="{{ media.label }}" width="112" height="112" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover">
+            </figure>
+            {% endwith %}
+            {% endif %}
             <div class="min-w-0">
               <h4 class="font-extrabold">{{ item.title }}</h4>
               {% if item.context.work_label %}<p class="mt-1 text-xs font-semibold" style="color:var(--mk-subtle)">{{ item.context.work_label }}</p>{% endif %}
