@@ -414,7 +414,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   }
 
   void _onActorChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    // The full team response can include private contacts and must not
+    // outlive its actor. The owner-scoped preview is re-read separately.
+    setState(() {
+      _fullTeam = null;
+      _teamUnavailable = false;
+    });
   }
 
   @override
