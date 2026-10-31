@@ -9,7 +9,7 @@ from groups.models import (
     Group, GroupMembership, GroupMembershipStatus,
 )
 from journeys.models import Journey, WorkflowKind
-from organizations.models import Organization
+from organizations.models import Organization, SpaceLifecycle
 from opportunities.models import OpportunityKind, OpportunitySourceType
 from opportunities.services import (
     create_opportunity,
@@ -231,3 +231,61 @@ class NativeServiceStartAPITests(TestCase):
         self.assertEqual(Journey.objects.filter(
             initiated_by=self.participant, activity=self.activity,
         ).count(), 1)
+
+    def test_owner_retraction_hides_service_from_catalog_and_start(self):
+        """The public owner selector is shared by Web, Discovery and native."""
+        from .views import public_services
+
+        self.client.force_login(self.participant)
+        self.assertTrue(public_services().filter(pk=self.service.pk).exists())
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+        for field, rejected in (
+            ("verification_status", "suspended"),
+            ("lifecycle", SpaceLifecycle.ARCHIVED),
+            ("public_profile", False),
+            ("searchable", False),
+        ):
+            with self.subTest(field=field):
+                previous = getattr(self.space, field)
+                setattr(self.space, field, rejected)
+                self.space.save(update_fields=[field])
+                self.assertFalse(
+                    public_services().filter(pk=self.service.pk).exists()
+                )
+                self.assertEqual(self.client.get(self.url).status_code, 404)
+                self.assertEqual(self._start().status_code, 404)
+                self.assertFalse(
+                    Journey.objects.filter(
+                        activity=self.activity, initiated_by=self.participant,
+                    ).exists()
+                )
+                setattr(self.space, field, previous)
+                self.space.save(update_fields=[field])
+                self.assertTrue(
+                    public_services().filter(pk=self.service.pk).exists()
+                )
+                self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_inactive_personal_service_owner_does_not_publish_start(self):
+        from .views import public_services
+
+        personal_activity = Activity.objects.create(
+            owner_profile=self.owner,
+            created_by=self.owner,
+            title="Private owner service",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        personal_service = ServiceDetails.objects.create(
+            activity=personal_activity,
+            service_kind=ServiceKind.APPLICATION_SUPPORT,
+            opportunity_policy=OpportunityPolicy.NONE,
+        )
+        path = reverse("services-api:start", kwargs={"pk": personal_service.pk})
+        self.client.force_login(self.participant)
+        self.assertEqual(self.client.get(path).status_code, 200)
+        self.owner.is_active = False
+        self.owner.save(update_fields=["is_active"])
+        self.assertFalse(public_services().filter(pk=personal_service.pk).exists())
+        self.assertEqual(self.client.get(path).status_code, 404)
