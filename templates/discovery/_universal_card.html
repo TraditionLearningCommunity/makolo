@@ -45,6 +45,9 @@
       {% elif card.description %}
         <p class="mt-3 whitespace-pre-line text-sm leading-relaxed" style="color:var(--mk-muted)">{{ card.description }}</p>
       {% endif %}
+      {% if card.n2_url %}
+      <a href="{{ card.n2_url }}?from={{ request.get_full_path|urlencode }}" class="mt-3 inline-flex items-center gap-1 text-sm font-semibold underline" aria-label="Approfondir {{ card.title }}">Approfondir cette possibilité</a>
+      {% endif %}
       {% if card.facts or card.context_notes or card.variant_count or card.relation_count or card.participant_state and card.participant_state.label %}
       <section class="mt-4 rounded-xl p-3" style="background:var(--mk-surface-muted)" aria-label="Informations pratiques">
         <h4 class="mb-3 text-sm font-semibold">Informations pratiques</h4>
