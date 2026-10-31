@@ -118,3 +118,11 @@ Travaux **implémentés et poussés** sur la PR #522, sans modifier le domaine P
 - `mobile/test/space_us_surface_test.dart` : ouverture du handoff Confiance, en complément des contrôles de visibilité et de lien inter-Space existants.
 
 **À valider localement par l'utilisateur** : Django, Flutter analyzer, widgets, retour depuis une opération, permissions IDOR, révocation avec réseau et hors réseau. Aucune CI lancée, aucun merge effectué, aucun résultat de test revendiqué.
+
+
+## Retours d'exécution locale — réparation ciblée (31 octobre 2026)
+
+- Retour utilisateur : `flutter analyze` et `flutter test` ne compilaient pas `space_us_surface.dart`, à cause de deux conditions combinant `&&` avec `case final target?` dans les handoffs `settings` et `pilot`. Corrigé par des variables de destinations `String?` calculées après contrôle de `activity_limited`, puis des tests `!= null`. Assertions Flutter ajoutées pour l'affichage autorisé et l'absence des actions dans le contexte limité.
+- Avertissements Dart `prefer_interpolation_to_compose_strings`, `curly_braces_in_flow_control_structures` et `use_null_aware_elements` nettoyés dans les fichiers Nous concernés, sans modification de logique métier ni des autorisations.
+- Retour Django : 26/27 tests réussissaient ; une assertion cherchait le mot `permissions` dans tout le HTML de Nous. La trace indiquait que l'occurrence venait d'une phrase explicative de la surface relationnelle. La version courante du template dit désormais `respecte ses propres règles d’accès`, ce qui supprime la cause du conflit **sans modifier ni supprimer l'assertion de test**.
+- Les correctifs sont poussés dans la même PR #522. Aucun test ni CI exécuté depuis cet environnement ; **attendre les nouveaux résultats du poste local avant de déclarer vert**.
