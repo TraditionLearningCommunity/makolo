@@ -14,7 +14,8 @@ from django.utils import timezone
 from activities.models import Occurrence, OccurrenceStatus, OccurrenceTimingKind
 from authorization.constants import PermissionCode
 from authorization.selectors import activity_ids_with_direct_permission
-from journeys.models import Journey, JourneyRequest, JourneyStatus, RequestStatus
+from journeys.collaboration_models import JourneyAssignmentStatus
+from journeys.models import JourneyRequest, JourneyStatus, RequestStatus
 from services.selectors import service_journeys_visible_to
 
 from .space_work_projection import (
@@ -180,22 +181,31 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 action_label="Examiner la demande" if can_decide else "Voir l'activité",
             ))
 
-    service_ids = visible & (
-        set(activity_ids_with_direct_permission(
-            profile, PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL
-        ))
-        | set(activity_ids_with_direct_permission(
-            profile, PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED
-        ))
-    )
-    if service_ids:
+    all_case_ids = visible & set(activity_ids_with_direct_permission(
+        profile, PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL
+    ))
+    assigned_case_ids = visible & set(activity_ids_with_direct_permission(
+        profile, PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED
+    ))
+    if all_case_ids or assigned_case_ids:
+        # Service's broad visibility selector also admits beneficiary journeys.
+        # Space Now must select operator-visible cases, not turn a personal
+        # beneficiary journey into an institutional responsibility.
+        owner_scope = Q(activity_id__in=all_case_ids)
+        if assigned_case_ids:
+            owner_scope |= Q(
+                activity_id__in=assigned_case_ids,
+                assignments__profile=profile,
+                assignments__status=JourneyAssignmentStatus.ACTIVE,
+            )
         cases = (
             service_journeys_visible_to(profile)
             .filter(
-                activity_id__in=service_ids,
+                owner_scope,
                 status__in=[JourneyStatus.SUBMITTED, JourneyStatus.PENDING_APPROVAL],
             )
             .select_related("activity")
+            .distinct()
             .order_by("-created_at", "pk")
         )
         candidates = list(cases[: SOURCE_SCAN_LIMIT + 1])
