@@ -1,0 +1,115 @@
+{% extends "organizations/space/base.html" %}
+{% block workspace_layout %}focus{% endblock %}
+{% block space_content %}
+<main class="mx-auto max-w-5xl space-y-6" aria-labelledby="work-depth-title" data-mt3-depth="{{ work_depth.kind }}">
+  <nav aria-label="Fil de navigation" class="text-sm">
+    <a class="font-semibold underline underline-offset-4" href="{{ work_depth.back_url }}">{{ work_depth.back_label }}</a>
+    {% if work_depth.parent_url and work_depth.parent_url != work_depth.back_url %}
+      <span aria-hidden="true" class="mx-2">/</span>
+      <a class="font-semibold underline underline-offset-4" href="{{ work_depth.parent_url }}">{% if work_depth.is_initiative %}Initiative{% else %}Activité{% endif %} liée</a>
+    {% endif %}
+  </nav>
+
+  <header class="space-y-3">
+    <span class="mk-kicker">{% if work_depth.is_activity %}{% if work_depth.is_initiative %}Initiative{% else %}Activité{% endif %}{% elif work_depth.is_occurrence %}{% if work_depth.is_initiative %}Action et réalisation{% else %}Réalisation{% endif %}{% else %}Demande ou démarche{% endif %}</span>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div class="min-w-0">
+        <h2 id="work-depth-title" class="text-3xl font-extrabold tracking-[-.04em] break-words">{{ work_depth.title }}</h2>
+        {% if work_depth.summary %}<p class="mt-2 max-w-3xl" style="color:var(--mk-muted)">{{ work_depth.summary }}</p>{% endif %}
+      </div>
+      {% if work_depth.status %}<span class="mk-badge self-start">{{ work_depth.status }}</span>{% endif %}
+    </div>
+  </header>
+
+  {% if work_depth.is_occurrence %}
+  <section class="mk-panel p-5 sm:p-6 space-y-3" aria-labelledby="work-depth-time">
+    <h3 id="work-depth-time" class="text-lg font-extrabold">Cette réalisation</h3>
+    {% if work_depth.timing.start_date %}
+      <p class="text-sm" style="color:var(--mk-muted)">
+        {{ work_depth.timing.start_date|date:"DATE_FORMAT" }}
+        {% if work_depth.timing.start_time %} · {{ work_depth.timing.start_time|time:"H:i" }}{% endif %}
+        {% if work_depth.timing.timezone %} · {{ work_depth.timing.timezone }}{% endif %}
+      </p>
+    {% endif %}
+    {% if work_depth.context.place.name %}
+      <p class="text-sm"><strong>Lieu :</strong> {{ work_depth.context.place.name }}</p>
+    {% endif %}
+    {% if work_depth.context.activity.title %}
+      <p class="text-sm" style="color:var(--mk-muted)">Reliée à : {{ work_depth.context.activity.title }}</p>
+    {% endif %}
+    {% if not work_depth.timing.start_date and not work_depth.context.place.name %}
+      <p class="text-sm" style="color:var(--mk-muted)">Aucune date ni aucun lieu confirmé dans cette vue.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if work_depth.is_journey %}
+  <section class="mk-panel p-5 sm:p-6 space-y-3" aria-labelledby="work-depth-journey">
+    <h3 id="work-depth-journey" class="text-lg font-extrabold">Cette démarche</h3>
+    {% if work_depth.context.work_label %}<p class="font-semibold">{{ work_depth.context.work_label }}</p>{% endif %}
+    {% if work_depth.context.activity.title %}<p class="text-sm" style="color:var(--mk-muted)">Concerne : {{ work_depth.context.activity.title }}</p>{% endif %}
+    {% if work_depth.timing.started_at %}<p class="text-sm">Démarrée le {{ work_depth.timing.started_at|date:"SHORT_DATETIME_FORMAT" }}</p>{% endif %}
+    <p class="text-sm" style="color:var(--mk-muted)">Les décisions et justificatifs restent dans leurs espaces propriétaires et sous leurs permissions propres.</p>
+  </section>
+  {% endif %}
+
+  {% if work_depth.is_activity %}
+  <section class="space-y-3" aria-labelledby="work-depth-occurrences">
+    <div class="flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <span class="mk-kicker">{% if work_depth.is_initiative %}Actions concrètes{% else %}Dates et réalisations{% endif %}</span>
+        <h3 id="work-depth-occurrences" class="text-xl font-extrabold tracking-tight">
+          {% if work_depth.is_initiative %}Les actions de cette initiative{% else %}Les réalisations de cette activité{% endif %}
+        </h3>
+      </div>
+    </div>
+    {% if work_depth.related %}
+    <ol class="mk-panel divide-y px-5 sm:px-6" style="border-color:var(--mk-border)">
+      {% for occurrence in work_depth.related %}
+      <li class="py-4" data-mt3-related="{{ occurrence.identity }}">
+        <a class="group flex flex-wrap items-center justify-between gap-3" href="{{ occurrence.url }}">
+          <span class="min-w-0">
+            <span class="block font-extrabold group-hover:underline">{{ occurrence.title }}</span>
+            <span class="mt-1 block text-sm" style="color:var(--mk-muted)">
+              {% if occurrence.date %}{{ occurrence.date|date:"DATE_FORMAT" }}{% if occurrence.time %} · {{ occurrence.time|time:"H:i" }}{% endif %} · {% endif %}{{ occurrence.status }}
+            </span>
+          </span>
+          <span class="mk-btn mk-btn-secondary">Ouvrir</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ol>
+    <nav class="flex flex-wrap items-center justify-between gap-3" aria-label="Pages des réalisations">
+      <div>{% if work_depth.previous_page_url %}<a class="mk-btn mk-btn-secondary" href="{{ work_depth.previous_page_url }}">Précédentes</a>{% endif %}</div>
+      <div>{% if work_depth.next_page_url %}<a class="mk-btn mk-btn-secondary" href="{{ work_depth.next_page_url }}">Voir les suivantes</a>{% endif %}</div>
+    </nav>
+    {% else %}
+    <div class="mk-panel p-5 sm:p-6">
+      <p class="font-semibold">{% if work_depth.is_initiative %}Aucune action datée pour le moment.{% else %}Aucune réalisation datée pour le moment.{% endif %}</p>
+      <p class="mt-2 text-sm" style="color:var(--mk-muted)">
+        {% if work_depth.is_initiative %}L’initiative existe indépendamment de ses prochaines actions.{% else %}L’activité existe indépendamment d’une prochaine date.{% endif %}
+      </p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if work_depth.actions %}
+  <section class="mk-panel p-5 sm:p-6 space-y-4" aria-labelledby="work-depth-actions">
+    <div>
+      <span class="mk-kicker">Actions autorisées</span>
+      <h3 id="work-depth-actions" class="mt-1 text-lg font-extrabold">Pour aller plus loin</h3>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      {% for action in work_depth.actions %}
+      <a href="{{ action.url }}" class="mk-btn {% if forloop.first %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}">{{ action.label }}</a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <footer class="pb-4">
+    <a class="mk-btn mk-btn-secondary" href="{{ work_depth.back_url }}">{{ work_depth.back_label }}</a>
+  </footer>
+</main>
+{% endblock %}
