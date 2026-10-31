@@ -12,6 +12,7 @@ def main(argv=None):
     django.setup()
     from django.utils import timezone
     from django.db import connection
+    from django.apps import apps
     from django.db.models import Q
     from activities.models import Activity, Occurrence, ActivityStatus, OccurrenceStatus
     from journeys.models import Journey
@@ -97,9 +98,52 @@ def main(argv=None):
         form_requests=FormRequest.objects.filter(journey__activity__slug__startswith="demo-").count(),
         contributions=Contribution.objects.filter(activity__slug__startswith="demo-").count(),
     )
+    model_for_key = {
+        "activities":"activities.Activity",
+        "journey":"journeys.Journey", "access":"access.Access",
+        "access_use":"access.AccessUse",
+        "event":"events.Event", "scan_log":"scanner.ScanLog",
+        "scanner_assignment":"scanner.ScannerAssignment",
+        "media_assets":"presentations.PresentationAsset",
+        "media_published":"presentations.PresentationMediaUse",
+        "funding":"funding.FundingDetails",
+        "funding_contribution":"funding.FundingContribution",
+        "services":"services.ServiceDetails",
+        "service_journeys":"services.ServiceJourneyContext",
+        "obtention":"obtention.ObtentionDetails",
+        "obtention_journeys":"obtention.ObtentionJourneyContext",
+        "opportunities":"opportunities.Opportunity",
+        "opportunity_saves":"opportunities.OpportunitySave",
+        "groups":"groups.Group", "members":"groups.GroupMembership",
+        "dossiers":"objectives.Dossier","projects":"objectives.Project",
+        "feedback":"trust.Feedback",
+        "notifications":"notifications.Notification",
+        "crm_contacts":"crm.CRMContact",
+        "forms":"questionnaires.Form","form_requests":"questionnaires.FormRequest",
+        "contributions":"social.Contribution",
+        "placement_plans":"operations.PlacementPlan",
+        "placements":"operations.PlacementAssignment",
+        "incidents":"operations.OperationsIncident",
+        "checkpoint_live":"operations.OccurrenceCheckpoint",
+        "queue_live":"operations.OccurrenceQueue",
+        "queue_entries":"operations.QueueEntry",
+    }
+    totals = {key:apps.get_model(label).objects.count()
+              for key,label in model_for_key.items()}
+    totals["occurrences_live"] = Occurrence.objects.filter(
+        activity__status=ActivityStatus.PUBLISHED,
+        start_at__lte=instant,end_at__gt=instant,
+    ).exclude(status__in=[OccurrenceStatus.CANCELLED, OccurrenceStatus.COMPLETED]).count()
+    totals["occurrences_future"] = Occurrence.objects.filter(
+        start_at__gt=instant).exclude(status=OccurrenceStatus.CANCELLED).count()
     print("AUDIT AT", instant.isoformat())
+    print("COUNTS: demo-scope | entire SQLite (where applicable)")
     for key, count in demos.items():
-        print(f"{key:27s} {count}")
+        total = totals.get(key)
+        if total is None:
+            print(f"{key:27s} {count}")
+        else:
+            print(f"{key:27s} {count:8d} | {total:8d}")
     essential = {
         "Jour J / Live": ("occurrences_live", "checkpoint_live", "queue_live", "queue_entries"),
         "Placement / Incidents": ("placement_plans", "placements", "incidents"),
@@ -114,8 +158,18 @@ def main(argv=None):
     }
     for title, keys in essential.items():
         missing = [key for key in keys if demos[key] == 0]
-        print("READINESS", title, "INCOMPLETE:" + ",".join(missing) if missing else "HAS_DATA")
-    print("HAS_DATA does not certify functional test coverage or eligibility.")
+        outside = [key for key in missing if totals.get(key, 0) > 0]
+        absent = [key for key in missing if totals.get(key, 0) == 0]
+        if missing:
+            print("READINESS", title, "MISSING_DEMO:", ",".join(missing))
+            if outside:
+                print("  EXISTS_OUTSIDE_DEMO:", ",".join(outside))
+            if absent:
+                print("  EMPTY_GLOBALLY:", ",".join(absent))
+        else:
+            print("READINESS", title, "HAS_DEMO_DATA")
+    print("Scopes are distinct: a real existing Service/Funding/Obtention row is not automatically a demo row.")
+    print("HAS_DEMO_DATA does not certify functional tests or eligibility.")
     print("No changes were made.")
 
 
