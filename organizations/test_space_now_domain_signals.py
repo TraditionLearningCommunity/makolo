@@ -169,11 +169,11 @@ class SpaceNowDomainSignalTests(TestCase):
         )
         access = Access.objects.create(
             activity=self.activity, occurrence=occurrence,
-            beneficiary=self.owner, status=AccessStatus.VALID,
+            beneficiary=self.owner, status=AccessStatus.REVOKED,
         )
         denied = AccessUse.objects.create(
             access=access, occurrence=occurrence, actor=self.limited,
-            result=AccessUseResult.WRONG_OCCURRENCE,
+            result=AccessUseResult.REVOKED,
             used_at=current,
         )
         first = self._now(self.limited)
