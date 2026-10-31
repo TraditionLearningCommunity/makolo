@@ -18,7 +18,7 @@
           {% if card.owner.links.public %}</a>{% else %}</span>{% endif %}
         {% endif %}
         {% if card.date_display %}
-        <time datetime="{{ card.date.value }}" class="ml-auto shrink-0 text-right text-xs" style="color:var(--mk-subtle)" aria-label="Ajouté le {{ card.date_display|date:'j F Y' }}">{{ card.date_display|date:"j M Y" }}</time>
+        <time datetime="{{ card.date.value }}" class="ml-auto shrink-0 text-right text-xs" style="color:var(--mk-subtle)" title="Ajouté le {{ card.date_display|date:'j F Y' }}" aria-label="Ajouté le {{ card.date_display|date:'j F Y' }}">{{ card.added_label|default:card.date_display }}</time>
         {% endif %}
       </div>
       {% endif %}
