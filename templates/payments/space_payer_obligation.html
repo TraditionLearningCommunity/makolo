@@ -27,10 +27,12 @@
       Vérifiez le contexte de l'obligation avant toute opération. Aucun paiement n'est lancé depuis Maintenant.
     </p>
     <div class="flex flex-wrap gap-3">
-      <a class="mk-btn mk-btn-secondary" href="{% url 'organizations:console-payments' space.slug %}">
-        Consulter les finances de cet Espace
-      </a>
-      <a class="mk-btn mk-btn-secondary" href="{% url 'organizations:console-entry' space.slug %}">
+      {% if selected_responsibility.key == 'all' %}
+        <a class="mk-btn mk-btn-secondary" href="{% url 'organizations:console-payments' space.slug %}">
+          Consulter les finances de cet Espace
+        </a>
+      {% endif %}
+      <a class="mk-btn mk-btn-secondary" href="{{ space_root_url }}">
         Retour à Maintenant
       </a>
     </div>
