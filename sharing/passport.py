@@ -7,6 +7,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from accounts.models import UserProfile
+from accounts.profile_visibility import ProfileVisibilityResolver
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from authorization.models import AuthorityScope, Mandate, MandateStatus
 from organizations.models import TeamMembership, TeamMembershipStatus
@@ -139,6 +140,7 @@ def _profile_identity(profile):
     )
     return {
         "name": profile.full_name or profile.username,
+        "identifier": profile.username,
         "avatar_url": _avatar_url(profile),
         "bio": profile.bio or "",
         "profession": profile_row.profession if profile_row and profile_row.profession else "",
@@ -268,6 +270,7 @@ def build_profile_passport(
     selected_proof_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    viewer=None,
 ):
     if variant not in PASSPORT_VARIANTS:
         raise ValueError("Variante Passeport inconnue.")
@@ -277,18 +280,21 @@ def build_profile_passport(
     custom = variant == PASSPORT_CUSTOM
     topics = _topics_from_codes(topic_codes) if thematic else ()
 
-    if public_only:
-        interests_qs = public_profile_interests(profile=profile)
-        open_to_qs = public_profile_open_to(profile=profile)
-    else:
-        interests_qs = ProfileInterest.objects.filter(
-            profile=profile,
-            topic__is_active=True,
-        ).select_related("topic").order_by("topic__label", "topic__code")
-        open_to_qs = ProfileOpenTo.objects.filter(
-            profile=profile,
-            is_active=True,
-        ).select_related("topic").order_by("kind", "topic__label")
+    interests_qs = ProfileInterest.objects.filter(
+        profile=profile, topic__is_active=True,
+    ).select_related("topic").order_by("topic__label", "topic__code")
+    open_to_qs = ProfileOpenTo.objects.filter(
+        profile=profile, is_active=True,
+    ).select_related("topic").order_by("kind", "topic__label")
+
+    # The public variant is always a bounded presentation, even when its
+    # owner previews it. A separate authenticated viewer may receive facts
+    # explicitly disclosed to their selected audiences.
+    effective_viewer = viewer if (
+        public_only and getattr(viewer, "is_authenticated", False)
+        and viewer.pk != profile.pk
+    ) else None
+    visibility = ProfileVisibilityResolver(owner=profile, viewer=effective_viewer) if public_only else None
 
     activities_qs = _profile_activity_queryset(profile, public_only=public_only)
     proofs_qs = _profile_proof_queryset(profile, public_only=public_only)
@@ -334,6 +340,36 @@ def build_profile_passport(
         sections = {"identity", "bio", "links", "interests", "open_to"}
 
     identity = _profile_identity(profile)
+    if public_only:
+        interests_qs = tuple(row for row in interests_qs if visibility.interest(row))
+        open_to_qs = tuple(row for row in open_to_qs if visibility.open_to(row))
+        if not visibility.field("name"):
+            identity["name"] = identity["identifier"]
+        if not visibility.field("avatar"):
+            identity["avatar_url"] = ""
+        if not visibility.field("bio"):
+            identity["bio"] = ""
+        if not visibility.field("profession"):
+            identity["profession"] = ""
+            identity["headline"] = ""
+        row = UserProfile.objects.filter(user=profile).first()
+        identity["location"] = ", ".join(
+            part for part, field in (
+                (row.city if row else "", "city"),
+                (row.country if row else "", "country"),
+            ) if part and visibility.field(field)
+        )
+        identity["links"] = tuple(
+            (label, url) for label, url, field in (
+                ("Site web", profile.website, "website"),
+                ("LinkedIn", profile.linkedin_url, "linkedin_url"),
+                ("Facebook", profile.facebook_url, "facebook_url"),
+                ("Instagram", profile.instagram_url, "instagram_url"),
+                ("TikTok", profile.tiktok_url, "tiktok_url"),
+                ("X / Twitter", profile.x_url, "x_url"),
+                ("YouTube", profile.youtube_url, "youtube_url"),
+            ) if url and visibility.field(field)
+        )
     if variant == PASSPORT_COMPLETE:
         # Full owner variant only. All other variants remain disclosure-bounded.
         profile_row = UserProfile.objects.filter(user=profile).first()
