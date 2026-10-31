@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -10,6 +9,7 @@ import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
+import '../../platform/maps/discovery_map_controller.dart';
 import '../../network/makolo_api_client.dart';
 import '../../presentation/search/load_more_on_scroll.dart';
 import '../../presentation/media/retained_public_discovery_image.dart';
@@ -302,8 +302,8 @@ class DiscoverySpatialView extends StatefulWidget {
 class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   static const _selector = DiscoverySelector();
   String? _selectedCandidateKey;
-  MapLibreMapController? _mapController;
-  final Map<Circle, String> _circleKeys = {};
+  DiscoveryMapController? _mapController;
+  final Map<Object, String> _circleKeys = {};
   int _pinGeneration = 0;
 
   @override
@@ -331,22 +331,20 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   }
 
   Future<void> _moveCamera(
-    MapLibreMapController controller,
+    DiscoveryMapController controller,
     DiscoverySpatialAnchor anchor,
   ) async {
     try {
-      await controller.animateCamera(
-        CameraUpdate.newLatLng(LatLng(anchor.latitude, anchor.longitude)),
-      );
+      await controller.moveTo(anchor.latitude, anchor.longitude);
     } on Object {
       // The list selection remains usable while the map is unavailable.
     }
   }
 
-  void _mapCreated(MapLibreMapController controller) {
+  void _mapCreated(DiscoveryMapController controller) {
     _mapController = controller;
     _circleKeys.clear();
-    controller.onCircleTapped.add((circle) {
+    controller.onPinTapped((circle) {
       final key = _circleKeys[circle];
       if (mounted && key != null) _select(key);
     });
@@ -364,20 +362,14 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       if (seen.add(identity)) selected.add(anchor);
     }
     try {
-      await controller.clearCircles();
+      await controller.clearPins();
       if (!mounted ||
           _mapController != controller ||
           generation != _pinGeneration)
         return;
-      final pins = await controller.addCircles([
+      final pins = await controller.addPins([
         for (final anchor in selected)
-          CircleOptions(
-            geometry: LatLng(anchor.latitude, anchor.longitude),
-            circleRadius: 8,
-            circleColor: '#6741D9',
-            circleStrokeWidth: 2,
-            circleStrokeColor: '#FFFFFF',
-          ),
+          DiscoveryMapPin(anchor.latitude, anchor.longitude),
       ]);
       if (!mounted ||
           _mapController != controller ||
@@ -494,7 +486,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
               key: ValueKey(
                 'discover-map-${widget.fieldKey ?? anchor.candidateKey}',
               ),
-              onMapCreated: _mapCreated,
+              onMapCreated: (controller) => _mapCreated(DiscoveryMapController(controller)),
               onStyleReady: () => unawaited(_displayPins(points)),
               config: widget.mapConfig,
               initialViewport: MapViewport(
