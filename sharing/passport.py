@@ -251,22 +251,38 @@ def _profile_team_affiliations(profile):
 
 
 def _profile_group_affiliations(profile):
-    """Groups from the existing Moi selector; owner view only."""
+    """Personal group relations; permissions alone never count as membership."""
+    from groups.models import GroupMembershipStatus
     from groups.selectors import groups_for_profile
 
-    return tuple(
-        {"name": row.name, "slug": row.slug}
-        for row in groups_for_profile(profile).order_by("name", "id")
-    )
+    rows = groups_for_profile(profile).filter(
+        Q(owner_profile=profile)
+        | Q(memberships__profile=profile,
+            memberships__status=GroupMembershipStatus.ACTIVE)
+    ).distinct().order_by("name", "id")
+    return tuple({"name": row.name, "slug": row.slug} for row in rows)
 
 
 def _profile_authorized_space_affiliations(profile):
-    """Reachable Spaces from Moi, not an implied membership or endorsement."""
+    """Reuse Moi Spaces without folding in Platform's global superuser reach."""
     from organizations.console_context import authorized_spaces
 
+    spaces = authorized_spaces(profile)
+    if profile.is_superuser:
+        from authorization.selectors import current_mandates
+
+        mandates = current_mandates().filter(profile=profile)
+        ids = set(mandates.filter(
+            scope_type=AuthorityScope.SPACE, space__isnull=False
+        ).values_list("space_id", flat=True))
+        ids.update(mandates.filter(
+            scope_type=AuthorityScope.ACTIVITY,
+            activity__space__isnull=False,
+        ).values_list("activity__space_id", flat=True))
+        spaces = spaces.filter(pk__in=ids)
     return tuple(
         {"name": row.name, "slug": row.slug}
-        for row in authorized_spaces(profile).order_by("name", "id")
+        for row in spaces.order_by("name", "id")
     )
 
 
