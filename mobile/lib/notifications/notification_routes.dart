@@ -1,11 +1,34 @@
 import 'package:go_router/go_router.dart';
 
 import '../app/runtime/app_runtime.dart';
+import '../features/settings/notification_preferences_screen.dart';
 import '../navigation/secondary_screen.dart';
 import 'notification_repository.dart';
 import 'notification_screens.dart';
 
 List<RouteBase> notificationRoutes(AppRuntime runtime) => [
+  GoRoute(
+    path: '/settings/notifications',
+    builder: (context, state) {
+      final database = runtime.database;
+      final store = runtime.store;
+      final profileId = runtime.session?.profileId;
+      if (database == null || store == null || profileId == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Notifications',
+          message: 'Les préférences ne sont pas disponibles dans ce contexte.',
+        );
+      }
+      return NotificationPreferencesScreen(
+        repository: NotificationRepository(
+          database: database,
+          store: store,
+          profileId: profileId,
+          sync: runtime.sync,
+        ),
+      );
+    },
+  ),
   GoRoute(
     path: '/notifications',
     builder: (context, state) {
