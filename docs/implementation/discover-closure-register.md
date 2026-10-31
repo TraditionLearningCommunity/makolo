@@ -165,7 +165,7 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | Date | Étape | Décision / preuve | Effet |
 | --- | --- | --- | --- |
 | 2026-10-31 | 00 | Relevé `discover-stage-00-reconciliation-2026-10-31.md` ; main `d0f0ec4`, branche observée `7fc2418`, 381 fichiers, six migrations ; contrats joints examinés | Inventaire et frontières fixés |
-| 2026-10-31 | 00 | Différences document historique ↔ runtime déclarées, transferts #523/#525/#526/#527 reconnus ; #524/#528 non présumées intégrées | Risques de double intégration explicités |
+| 2026-10-31 | 00 | Différences document historique ↔ runtime déclarées ; transferts #523/#525/#526/#527 reconnus ; **ascendance #524 vérifiée**, **divergence #528 vérifiée** | Pas de re-cherry-pick #524, pas de merge aveugle #528 |
 | 2026-10-31 | 00 | **Chantier 00 fermé.** Aucun test, CI, changement fonctionnel ou merge. | **Prochain chantier autorisé : 01 exclusivement** |
 
 Pour chaque nouvelle clôture : ajouter une ligne `date | étape | HEAD de fin | fichiers | tests exécutés + résultats | anomalies restantes | décision de passage`. Ne jamais écrire `FERMÉ` pour un chantier dont les preuves n'existent pas.
