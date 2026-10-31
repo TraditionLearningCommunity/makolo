@@ -143,6 +143,7 @@ void main() {
         'spatial_facts': [
           {'role': 'departure', 'place': {'name': 'Lubumbashi'}},
           {'role': 'stopover', 'place': {'name': 'Likasi'}},
+          {'role': 'stopover', 'place': {'name': 'Fungurume'}},
           {'role': 'arrival', 'place': {'name': 'Kolwezi'}},
         ],
       },
@@ -159,8 +160,10 @@ void main() {
     expect(find.text('Indisponible'), findsOneWidget);
     expect(find.text('Départ'), findsOneWidget);
     expect(find.text('Lubumbashi'), findsOneWidget);
-    expect(find.text('Escale'), findsOneWidget);
+    expect(find.text('Escale 1'), findsOneWidget);
     expect(find.text('Likasi'), findsOneWidget);
+    expect(find.text('Escale 2'), findsOneWidget);
+    expect(find.text('Fungurume'), findsOneWidget);
     expect(find.text('Arrivée'), findsOneWidget);
     expect(find.text('Kolwezi'), findsOneWidget);
     expect(tester.takeException(), isNull);
