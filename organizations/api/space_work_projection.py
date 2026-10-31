@@ -588,7 +588,7 @@ def build_space_work_projection(
         journeys = (
             service_journeys_visible_to(profile)
             .filter(activity_id__in=service_ids)
-            .select_related("activity")
+            .select_related("activity", "service_context")
             .prefetch_related("blockers")
         )
         for journey in _selected(journeys, "journey", source_kind, source_id):
@@ -606,7 +606,10 @@ def build_space_work_projection(
                 case_scope = service_case_scope(profile, journey)
                 operator_case_url = (
                     reverse("services:operator-case", kwargs={"pk": journey.pk})
-                    if case_scope in {CASE_SCOPE_VIEW_ALL, CASE_SCOPE_VIEW_ASSIGNED}
+                    if (
+                        case_scope in {CASE_SCOPE_VIEW_ALL, CASE_SCOPE_VIEW_ASSIGNED}
+                        and hasattr(journey, "service_context")
+                    )
                     else None
                 )
                 _append(
