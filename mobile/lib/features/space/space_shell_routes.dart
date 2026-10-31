@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_states.dart';
+import '../../network/api_error.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
 import '../../navigation/secondary_screen.dart';
@@ -388,6 +390,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   SpaceActorIdentity? _space;
   bool _denied = false;
   bool _loading = true;
+  List<Map<String, dynamic>>? _fullTeam;
+  bool _teamUnavailable = false;
 
   @override
   void initState() {
@@ -442,6 +446,42 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     } on Object {
       // The source state below turns a revoked or unavailable depth into a
       // safe local message; it never promotes cached authority.
+    }
+    if (widget.depth == 'team') {
+      await _loadTeam(summary.identity);
+    }
+  }
+
+  Future<void> _loadTeam(SpaceActorIdentity space) async {
+    final api = widget.runtime.api;
+    if (api == null) return; // Offline preview remains usable until expiry.
+    try {
+      final response = await api.get(
+        'api/v1/organizations/workspaces/' +
+        Uri.encodeComponent(space.slug) + '/team/',
+      );
+      final decoded = jsonDecode(response.body);
+      if (decoded is! List) throw const FormatException('Expected team list');
+      final rows = <Map<String, dynamic>>[
+        for (final item in decoded)
+          if (item is Map)
+            {for (final entry in item.entries)
+              if (entry.key is String) entry.key as String: entry.value},
+      ];
+      final actor = widget.runtime.actorContext?.value;
+      if (!mounted || actor is! SpaceActorContext ||
+          actor.space.id != space.id) return;
+      setState(() { _fullTeam = rows; _teamUnavailable = false; });
+    } on MakoloApiError catch (error) {
+      if (!mounted) return;
+      if (error.statusCode == 401 || error.statusCode == 403 ||
+          error.statusCode == 404) {
+        setState(() { _denied = true; _fullTeam = null; });
+      } else {
+        setState(() => _teamUnavailable = true);
+      }
+    } on Object {
+      if (mounted) setState(() => _teamUnavailable = true);
     }
   }
 
@@ -515,7 +555,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         : widget.depth == 'ownership'
         ? _map(payload['ownership'])
         : null;
-    final rows = section?['items'];
+    final rows = widget.depth == 'team' && _fullTeam != null
+        ? _fullTeam
+        : section?['items'];
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: ListView(
@@ -542,6 +584,17 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               )
           else
             const Text('Aucun élément visible dans ce contexte.'),
+          if (widget.depth == 'team' && _fullTeam == null &&
+              section?['has_more'] == true)
+            const Text('Aperçu partiel : tous les membres ne sont pas chargés.'),
+          if (widget.depth == 'team' && _teamUnavailable)
+            TextButton.icon(
+              onPressed: () => _loadTeam(_space!),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Réessayer de charger l’équipe'),
+            ),
+          if (widget.depth == 'ownership' && section?['has_more'] == true)
+            const Text('Aperçu partiel de la gouvernance institutionnelle.'),
         ],
       ),
     );
@@ -573,7 +626,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final activity = _map(row?['activity']);
     return _text(responsibility?['label']) ??
         _text(activity?['title']) ??
-        'Fait projeté par le serveur';
+        (widget.depth == 'team' ? 'Membre de l’équipe' :
+          'Fait projeté par le serveur');
   }
 
   Map<String, dynamic>? _map(Object? value) => value is Map
