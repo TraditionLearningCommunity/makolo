@@ -39,6 +39,9 @@ def main(argv=None):
     from services.services import create_service_journey
     from funding.models import FundingDetails, FundingContribution
     from funding.services import create_funding_contribution
+    from django.conf import settings
+    from payments.models import Payment, PaymentProvider, PaymentMethod, PaymentStatus
+    from payments.services import initiate_obligation_payment, complete_sandbox_payment
     if connection.vendor != "sqlite":
         p.error("SQLite de demonstration obligatoire")
     profiles = list(get_user_model().objects.filter(username__startswith="world_",
@@ -121,6 +124,43 @@ def main(argv=None):
                 counts["obtention_created"] += 1
             except (ValidationError,PermissionDenied):
                 counts["obtention_ineligible"] += 1
+
+    # Funding payment is a *real sandbox service transition* from its
+    # existing PaymentObligation. Never produce fake settled ledger rows.
+    if "funding" in selected:
+        sandbox_enabled = bool(getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False))
+        contributions = (FundingContribution.objects.filter(
+            funding__activity__slug__startswith="demo-generation-funding-",
+            contributor_profile__username__startswith="world_",
+            payment_obligation__isnull=False,
+        ).select_related("payment_obligation", "contributor_profile")
+         .order_by("id")[:a.per_domain])
+        for contribution in contributions:
+            obligation = contribution.payment_obligation
+            if Payment.objects.filter(
+                obligation=obligation, status=PaymentStatus.SUCCEEDED
+            ).exists():
+                counts["funding_payments_existing"] += 1
+                continue
+            if not sandbox_enabled:
+                counts["funding_payments_sandbox_disabled"] += 1
+                continue
+            if not a.apply:
+                counts["funding_payments_planned"] += 1
+                continue
+            try:
+                with transaction.atomic():
+                    payment = initiate_obligation_payment(
+                        obligation=obligation, actor=contribution.contributor_profile,
+                        provider=PaymentProvider.SANDBOX,
+                        method=PaymentMethod.MOBILE_MONEY,
+                        idempotency_key="makolo-demo-funding:" + str(contribution.pk))
+                    if payment.status != PaymentStatus.SUCCEEDED:
+                        complete_sandbox_payment(
+                            payment=payment, actor=contribution.contributor_profile)
+                counts["funding_payments_completed"] += 1
+            except (ValidationError, PermissionDenied):
+                counts["funding_payments_rejected"] += 1
 
     print("MODE:", "APPLY" if a.apply else "APERCU")
     print("RESULTATS:",dict(sorted(counts.items())))
