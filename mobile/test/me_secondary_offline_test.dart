@@ -15,6 +15,9 @@ import 'package:makolo_mobile/sync/outbox/outbox_repository.dart';
 
 class _OfflineApi implements MakoloApiClient {
   @override
+  Uri get baseUri => Uri.parse('https://makolo.test/');
+
+  @override
   Future<ApiResponse> get(
     String path, {
     Map<String, String>? headers,
@@ -236,6 +239,10 @@ void main() {
     expect(find.text('Possibilité connue'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.textContaining('Mise à jour'), findsNothing);
+    // Drift schedules stream closure on a zero-duration timer during unmount.
+    // Drain it before the widget-test invariant check, not in addTearDown.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
   });
 
   testWidgets('saved opportunities remain readable offline', (tester) async {
