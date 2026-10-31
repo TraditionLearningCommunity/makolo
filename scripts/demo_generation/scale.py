@@ -15,6 +15,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
+def distributed_pairs(occurrences, profiles, limit):
+    """Pure bounded scheduler: cover distinct Occurrences before repeating one."""
+    if not occurrences or not profiles or limit <= 0:
+        return
+    for index in range(limit):
+        offset = index % len(occurrences)
+        cycle = index // len(occurrences)
+        yield occurrences[offset], profiles[(offset + cycle) % len(profiles)]
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
@@ -116,41 +125,32 @@ def main(argv=None):
     counts = Counter()
 
     # 1. Journey : reutiliser le service et ses validations d'eligibilite.
-    # Spread first among distinct Occurrences, especially those live now.
-    # The old nested loop spent the entire budget on one Occurrence and left
-    # Jour J/Live with no eligible beneficiaries on other Activities.
-    considered = 0
+    # Spread first among distinct Occurrences, especially Live ones.
+    # Do not exhaust the budget on the first Occurrence.
     if args.journeys and not profiles:
         parser.error("Aucun profil world_ pour preparer les Journeys")
-    for batch in range((args.journeys + max(len(occurrences),1) - 1) // max(len(occurrences),1)):
-        if considered >= args.journeys:
-            break
-        for offset, occurrence in enumerate(occurrences):
-            if considered >= args.journeys:
-                break
-            profile = profiles[(batch + offset) % len(profiles)]
-            considered += 1
-            exists = Journey.objects.filter(occurrence=occurrence, beneficiary=profile,
-                workflow=WorkflowKind.REGISTRATION).exclude(
-                status__in=["rejected", "cancelled", "expired"]).exists()
-            if exists:
-                counts["journey_existing"] += 1
-                continue
-            if not args.apply:
-                counts["journey_planned"] += 1
-                continue
-            try:
-                with transaction.atomic():
-                    journey = create_journey(initiated_by=profile, beneficiary=profile,
-                        activity=occurrence.activity, occurrence=occurrence,
-                        workflow=WorkflowKind.REGISTRATION)
-                    submit_journey(journey=journey, actor=profile, reason="demo_volume")
-                    confirm_journey(journey=journey, actor=profile, reason="demo_volume")
-                counts["journey_created"] += 1
-            except (ValidationError, PermissionDenied):
-                counts["journey_ineligible"] += 1
-            if counts["journey_created"] and counts["journey_created"] % 200 == 0:
-                check_space()
+    for occurrence, profile in distributed_pairs(occurrences, profiles, args.journeys):
+        exists = Journey.objects.filter(occurrence=occurrence, beneficiary=profile,
+            workflow=WorkflowKind.REGISTRATION).exclude(
+            status__in=["rejected", "cancelled", "expired"]).exists()
+        if exists:
+            counts["journey_existing"] += 1
+            continue
+        if not args.apply:
+            counts["journey_planned"] += 1
+            continue
+        try:
+            with transaction.atomic():
+                journey = create_journey(initiated_by=profile, beneficiary=profile,
+                    activity=occurrence.activity, occurrence=occurrence,
+                    workflow=WorkflowKind.REGISTRATION)
+                submit_journey(journey=journey, actor=profile, reason="demo_volume")
+                confirm_journey(journey=journey, actor=profile, reason="demo_volume")
+            counts["journey_created"] += 1
+        except (ValidationError, PermissionDenied):
+            counts["journey_ineligible"] += 1
+        if counts["journey_created"] and counts["journey_created"] % 200 == 0:
+            check_space()
 
     # 2. Access + credentials : 1 droit demo par Journey.
     if args.accesses:
