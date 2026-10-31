@@ -45,7 +45,7 @@ les huit zones ci-dessus.
   hier, jours/semaines), avec date exacte accessible ; aucune date
   d'Occurrence n'est déduite de ce libellé.
 - Les libellés de lieux et de temps restent sémantiques :
-  `Départ`, `Escale`, `Arrivée`, `Embarquement`, `Débarquement`,
+  `Départ`, `Escale`, `Arrivée`, `Embarquement`, `Débarquement`, (les escales répétées sont toutes présentées dans leur ordre, avec un numéro de libellé),
   `Ouverture`, `Clôture`, `Date limite`. Une disponibilité
   **connue et indisponible** n'est pas une inconnue : elle reste affichable.
 - Les notes contextuelles sont celles projetées comme
