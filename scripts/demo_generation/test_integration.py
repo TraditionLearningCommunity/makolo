@@ -121,3 +121,56 @@ class DemoIntegrationTests(TestCase):
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(ProjectDossierLink.objects.filter(
             project=project, dossier=dossier, is_active=True).count(), 1)
+
+    def test_service_manager_creates_service_and_journey_bound_form(self):
+        from activities.services import create_activity
+        from authorization.constants import SystemRoleCode
+        from authorization.services import grant_activity_role
+        from services.models import ServiceKind, ServiceDetails
+        from services.services import create_service_details, create_service_journey
+        from questionnaires.models import Form, FormRequest, FormVersionStatus, QuestionType
+        from questionnaires.services import (
+            create_form, create_form_version, add_question,
+            publish_form_version, request_form,
+        )
+        activity = create_activity(
+            created_by=self.owner, owner_profile=self.owner,
+            title="[DEMO] Accompagnement",
+            status=ActivityStatus.PUBLISHED,
+        )
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner, source="demo-validation",
+        )
+        service = create_service_details(
+            activity=activity, actor=self.owner,
+            service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
+        )
+        self.assertIsInstance(service, ServiceDetails)
+        journey_context = create_service_journey(
+            service=service, initiated_by=self.beneficiary,
+            beneficiary=self.beneficiary, objective="Préparer mon dossier",
+        )
+        journey = journey_context.journey
+        form = create_form(
+            activity=activity, actor=self.owner,
+            key="demo-preparation", title="Préparation",
+        )
+        version = create_form_version(form=form, actor=self.owner)
+        add_question(
+            form_version=version, actor=self.owner,
+            key="notes", label="Notes utiles",
+            question_type=QuestionType.LONG_TEXT,
+            position=1, required=False,
+        )
+        publish_form_version(form_version=version, actor=self.owner)
+        self.assertEqual(version.status, FormVersionStatus.PUBLISHED)
+        request = request_form(
+            form_version=version, journey=journey,
+            actor=self.owner, required=False,
+        )
+        self.assertEqual(request.journey_id, journey.pk)
+        self.assertEqual(Form.objects.filter(activity=activity).count(), 1)
+        self.assertEqual(FormRequest.objects.filter(journey=journey).count(), 1)
+
