@@ -545,7 +545,7 @@ def build_space_work_projection(
         if (
             space.archetype in {"generic", "community"}
             and target == "upcoming"
-            and occurrence.activity_id not in next_occurrence_by_activity
+            and str(occurrence.activity_id) not in next_occurrence_by_activity
         ):
             # Source order is chronological. This is a real, permitted
             # Occurrence, not a synthetic Activity lifecycle or readiness.
