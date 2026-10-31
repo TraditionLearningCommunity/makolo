@@ -10,6 +10,8 @@ from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
 from groups.models import Group, GroupMembership
+from funding.models import FundingDetails
+from funding.services import can_manage_funding
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, SpaceArchetype
 
@@ -112,6 +114,21 @@ class SpaceWorkG1DepthTests(TestCase):
         self.assertEqual(response.context["work_depth"]["related"], [])
         self.assertNotIn("funding", str(response.context["work_depth"]))
         self.assertTrue(group.pk)
+
+    def test_funding_n3_only_for_existing_authorized_initiative(self):
+        initiative = self.activity("Soutien au quartier")
+        before = self.client.get(self.depth_url("activity", initiative.pk))
+        self.assertEqual(before.status_code, 200)
+        self.assertNotContains(before, "Gérer le financement")
+        funding = FundingDetails.objects.create(activity=initiative)
+        allowed = can_manage_funding(self.owner, funding)
+        after = self.client.get(self.depth_url("activity", initiative.pk))
+        self.assertEqual(after.status_code, 200)
+        if allowed:
+            self.assertContains(after, "Gérer le financement")
+            self.assertContains(after, reverse("funding:manage", kwargs={"pk": funding.pk}))
+        else:
+            self.assertNotContains(after, "Gérer le financement")
 
     def test_occurrence_n2_shows_parent_and_only_phase_authorized_day_of(self):
         initiative = self.activity()
