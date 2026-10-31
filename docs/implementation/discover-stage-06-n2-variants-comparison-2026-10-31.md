@@ -62,6 +62,10 @@ Les familles non `activity` continuent d'afficher N2 (description, faits, assess
 - non-comparabilité de Funding, Service et Opportunity avec une suite de variantes non contractuelle ;
 - complément ≠ alternative ; route N2 existante et stable.
 
+`discovery/test_m8b_mature_discover.py` :
+- intégration N1 → N2 d'une Opportunity réellement publiée, avec réponse Web 200 et aucun tableau fictif ;
+- refus 404 d'une famille non admise ; retour Web refusant une URL externe.
+
 **Ces tests sont enregistrés, mais non exécutés.** L'intégration Web, les appareils Android, l'accessibilité réelle des tableaux horizontaux et les transitions owner restent à éprouver à la certification 09.
 
 ## 6. Matrice de familles
