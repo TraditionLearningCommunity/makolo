@@ -199,7 +199,7 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 why_now="Une demande est actuellement en attente d'une décision.",
                 reason="journey_request_pending",
                 turn="collective" if can_decide else "none",
-                response_type="decide" if can_decide else "understand",
+                response_type="decide" if can_decide else "wait",
                 destination="space_request", web_url=url,
                 observed_at=observed_at,
                 action_label="Examiner la demande" if can_decide else "Consulter la demande",
