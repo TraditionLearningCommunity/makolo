@@ -7,7 +7,7 @@
     <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div class="min-w-0">
         <h2 id="space-work-heading" class="text-3xl font-extrabold tracking-[-.04em]">{{ projection.primary_business_label }}</h2>
-        <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?</p>
+        <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">{{ projection.presentation.question|default:"Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?" }}</p>
       </div>
       {% if projection.authority.limited_to_activities %}
       <span class="mk-badge">Vue limitée à vos activités autorisées</span>
@@ -30,8 +30,15 @@
   </section>
   {% endif %}
 
+  {% if projection.presentation.calm_message and work_has_items %}
+  <p role="status" class="text-sm" style="color:var(--mk-muted)">{{ projection.presentation.calm_message }}</p>
+  {% endif %}
+
   <div class="grid gap-5">
     {% for section in work_sections %}
+    {% if section.chapter_title %}
+    <h3 class="text-lg font-extrabold tracking-tight" data-work-chapter="{{ section.key }}">{{ section.chapter_title }}</h3>
+    {% endif %}
     <section id="work-{{ section.key }}" class="mk-panel p-5 sm:p-6" aria-labelledby="work-{{ section.key }}-title">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
