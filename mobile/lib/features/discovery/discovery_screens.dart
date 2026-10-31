@@ -397,6 +397,7 @@ class DiscoverySearchScreen extends StatefulWidget {
     required this.repository,
     required this.onOpenActivity,
     required this.onOpenItem,
+    this.initialQuery = const DiscoveryQuery(),
     this.location,
     this.geoSearch,
   });
@@ -406,6 +407,7 @@ class DiscoverySearchScreen extends StatefulWidget {
   final void Function(String family, String id) onOpenItem;
   final LocationCapability? location;
   final GeoSearchGateway? geoSearch;
+  final DiscoveryQuery initialQuery;
 
   @override
   State<DiscoverySearchScreen> createState() => _DiscoverySearchScreenState();
@@ -429,7 +431,18 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   @override
   void initState() {
     super.initState();
+    _query = widget.initialQuery;
+    _search.text = _query.text;
+    _place.text = _query.place;
+    _when = _query.when;
+    _date = _query.date;
+    _price = _query.price;
+    _vertical = _query.vertical;
     _searchCoordinator = ProgressiveSearchCoordinator(onSearch: _loadRevision);
+    if (_query.hasCriteria) {
+      _refreshing = true;
+      _searchCoordinator.changed(immediate: true);
+    }
   }
 
   @override
@@ -759,7 +772,19 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Rechercher')),
+      appBar: AppBar(
+        title: const Text('Rechercher'),
+        actions: [
+          IconButton(
+            key: const Key('discover-search-open-map'),
+            tooltip: 'Voir ces critères sur la carte',
+            onPressed: _query.hasCriteria
+                ? () => context.push(_query.routeLocation('/discover/map'))
+                : null,
+            icon: const Icon(Icons.map_outlined),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           _searchControls(),
@@ -847,11 +872,17 @@ class DiscoveryMapScreen extends StatefulWidget {
     required this.repository,
     required this.mapConfig,
     required this.onOpenOccurrence,
+    this.onOpenItem,
+    this.query = const DiscoveryQuery(),
+    this.initialSelectedCandidateKey,
   });
 
   final DiscoveryRepository repository;
   final MakoloMapsConfig mapConfig;
   final ValueChanged<String> onOpenOccurrence;
+  final void Function(String family, String id)? onOpenItem;
+  final DiscoveryQuery query;
+  final String? initialSelectedCandidateKey;
 
   @override
   State<DiscoveryMapScreen> createState() => _DiscoveryMapScreenState();
@@ -859,37 +890,91 @@ class DiscoveryMapScreen extends StatefulWidget {
 
 class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   static const _selector = DiscoverySelector();
-  static const _query = DiscoveryQuery();
+  late DiscoveryQuery _query;
   bool _refreshing = false;
+  bool _loadMoreFailed = false;
 
   @override
   void initState() {
     super.initState();
+    _query = widget.query;
     unawaited(_acquire());
   }
 
-  Future<void> _acquire() async {
-    final local = await widget.repository.readItems(_query);
-    if (local == null || local.schemaVersion != 1) {
-      await _refresh();
-      return;
+  @override
+  void didUpdateWidget(covariant DiscoveryMapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.query.fingerprint != widget.query.fingerprint) {
+      _query = widget.query;
+      _loadMoreFailed = false;
+      unawaited(_acquire());
     }
+  }
+
+  Future<void> _acquire() async {
+    final current = _query;
     try {
-      DiscoveryWire.validateData(local.payload);
-    } on FormatException {
-      await _refresh();
+      final local = await widget.repository.readItems(current);
+      if (local == null || local.schemaVersion != 1) {
+        await _refresh();
+        return;
+      }
+      try {
+        DiscoveryWire.validateData(local.payload);
+      } on FormatException {
+        await _refresh();
+      }
+    } on Object {
+      // A missing field is a recoverable source failure, not an empty map.
+      if (mounted && identical(current, _query)) await _refresh();
     }
   }
 
   Future<void> _refresh() async {
-    if (_refreshing) return;
+    if (_refreshing || !mounted) return;
+    final current = _query;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshItems(_query);
+      await widget.repository.refreshItems(current);
     } on Object {
-      // Existing Discovery field remains available.
+      // Keep the exact criteria and any already acquired field.
     } finally {
       if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _advance() async {
+    if (_refreshing || !mounted) return;
+    final current = _query;
+    try {
+      final stored = await widget.repository.readItems(current);
+      if (stored == null) return;
+      final collection = _selector.collection(stored);
+      final token = collection.continuationToken;
+      if (!collection.hasNext || token == null || token.isEmpty) return;
+      final next = current.copyWith(
+        page: current.page + 1,
+        continuation: token,
+      );
+      var acquired = await widget.repository.readItems(next);
+      if (acquired == null) {
+        await widget.repository.refreshItems(next);
+        acquired = await widget.repository.readItems(next);
+      }
+      if (!mounted || !identical(current, _query)) return;
+      if (acquired == null || _selector.collection(acquired).page != next.page) {
+        throw const FormatException('Continuation de la carte indisponible');
+      }
+      await widget.repository.retainPresentedWindow(next);
+      if (!mounted || !identical(current, _query)) return;
+      setState(() {
+        _query = next;
+        _loadMoreFailed = false;
+      });
+    } on Object {
+      if (mounted && identical(current, _query)) {
+        setState(() => _loadMoreFailed = true);
+      }
     }
   }
 
@@ -899,6 +984,14 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       appBar: AppBar(
         title: const Text('Carte'),
         actions: [
+          IconButton(
+            key: const Key('discover-map-open-search'),
+            tooltip: 'Rechercher avec les mêmes critères',
+            onPressed: () => context.push(
+              _query.routeLocation('/discover/search'),
+            ),
+            icon: const Icon(Icons.search_rounded),
+          ),
           IconButton(
             tooltip: 'Actualiser',
             onPressed: _refreshing ? null : _refresh,
@@ -913,19 +1006,28 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             projection: snapshot.data,
             hasCriteria: _query.hasCriteria,
             refreshing: _refreshing,
+            failure: _loadMoreFailed
+                ? MakoloFailureCue.recoverable
+                : MakoloFailureCue.none,
           );
           return DiscoverySpatialView(
+            key: ValueKey('discover-map-field-${_query.mapFingerprint}'),
             selection: selection,
             mapConfig: widget.mapConfig,
+            showMapOnCompact: true,
+            initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
+            onPage: (_) => unawaited(_advance()),
+            loadMoreFailed: _loadMoreFailed,
             onSave: (item) =>
                 _saveDiscoveryPossibility(widget.repository, item, _query),
             baseUri: widget.repository.api.baseUri,
             shareApi: widget.repository.api,
             onRetry: () => unawaited(_refresh()),
             onOpen: (item) {
-              final occurrenceId = item.occurrenceId;
-              if (occurrenceId != null) {
-                widget.onOpenOccurrence(occurrenceId);
+              if (widget.onOpenItem != null) {
+                widget.onOpenItem!(item.family, item.id);
+              } else if (item.occurrenceId != null) {
+                widget.onOpenOccurrence(item.occurrenceId!);
               }
             },
           );
