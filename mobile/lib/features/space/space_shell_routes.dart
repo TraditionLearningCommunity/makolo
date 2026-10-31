@@ -575,7 +575,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final roles = _teamRoleOptions(payload);
     if (api == null || roles.isEmpty) return;
     final email = TextEditingController();
-    var selected = roles.first['code']!;
+    String? selected;
     try {
       final result = await showDialog<Map<String, String>>(
         context: context,
@@ -596,6 +596,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: selected,
                   isExpanded: true,
+                  hint: const Text('Choisir une responsabilité'),
                   decoration: const InputDecoration(labelText: 'Responsabilité'),
                   items: [
                     for (final role in roles)
@@ -615,13 +616,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                 child: const Text('Annuler')),
               FilledButton(
                 onPressed: () {
-                  if (email.text.trim().isEmpty) return;
+                  if (email.text.trim().isEmpty || selected == null) return;
                   Navigator.pop(context, {
                     'email': email.text.trim(),
-                    'role': selected,
+                    'role': selected!,
                   });
                 },
-                child: const Text('Ajouter'),
+                child: const Text('Confirmer l’ajout'),
               ),
             ],
           ),
