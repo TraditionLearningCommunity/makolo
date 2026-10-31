@@ -341,39 +341,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     return notes;
   }
 
-  /// Only observed Occurrence variants are displayed; the server owns timing.
-  List<String> get _variantTimingLabels {
-    final labels = <String>[];
-    for (final variant in item.variants) {
-      final timing = variant['timing'];
-      if (timing is! Map) continue;
-      final instant = timing['start_at'];
-      final date = instant is String && instant.length >= 16
-          ? instant.substring(0, 10)
-          : timing['start_date'];
-      final time = instant is String && instant.length >= 16
-          ? instant.substring(11, 16)
-          : timing['start_time'];
-      if (date is! String || date.trim().isEmpty) continue;
-      final dateLabel = date.length == 10 && date[4] == '-' && date[7] == '-'
-          ? '${date.substring(8, 10)}/${date.substring(5, 7)}/${date.substring(0, 4)}'
-          : date;
-      final timeLabel = time is String && time.isNotEmpty
-          ? time.substring(0, time.length < 5 ? time.length : 5)
-          : null;
-      final timezone = timing['timezone'];
-      // UTC-serialized instants are not already in the event timezone.
-      final zone = instant is String && instant.endsWith('Z')
-          ? 'UTC'
-          : timezone is String && timezone.trim().isNotEmpty
-          ? timezone.trim()
-          : null;
-      final label = [dateLabel, ?timeLabel, ?zone].join(' · ');
-      if (!labels.contains(label)) labels.add(label);
-    }
-    return labels.length > 1 ? labels : const [];
-  }
-
   List<Map<String, String?>> get _resourceEntries {
     final entries = <Map<String, String?>>[];
     final resources = item.wire['resources'];
