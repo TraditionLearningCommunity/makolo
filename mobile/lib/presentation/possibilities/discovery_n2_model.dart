@@ -99,6 +99,7 @@ class DiscoveryN2Depth {
   }
 
   static List<DiscoveryN2Variant> _variants(DiscoveryItemPresentation item) {
+    if (item.family != 'activity') return const [];
     // An Occurrence may appear under several spatial roles; its stable key
     // comes only from a server-published Occurrence reference.
     final byOccurrence = <String, List<String>>{};
