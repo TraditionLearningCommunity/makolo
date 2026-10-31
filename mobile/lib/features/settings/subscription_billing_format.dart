@@ -21,3 +21,47 @@ String subscriptionPriceLabel(Object? raw) {
       unit + (count > 1 && unit != 'mois' ? 's' : '');
   return currency + ' ' + amount + ' / ' + cadence;
 }
+
+String subscriptionDateLabel(Object? raw) {
+  if (raw == null) return '';
+  final instant = DateTime.tryParse(raw.toString());
+  if (instant == null) return '';
+  final local = instant.toLocal();
+  return '${local.day.toString().padLeft(2, '0')}/'
+      '${local.month.toString().padLeft(2, '0')}/${local.year}';
+}
+
+String subscriptionObligationStatusLabel(Object? raw) {
+  switch (raw?.toString()) {
+    case 'pending':
+      return 'À régler';
+    case 'processing':
+      return 'En cours de traitement';
+    case 'satisfied':
+      return 'Réglée';
+    case 'waived':
+      return 'Dispensée';
+    case 'expired':
+      return 'Expirée';
+    case 'cancelled':
+      return 'Annulée';
+    case 'refunded':
+      return 'Remboursée';
+    default:
+      return 'État à vérifier';
+  }
+}
+
+String subscriptionConditionStatusLabel(Object? raw) {
+  switch (raw?.toString()) {
+    case 'satisfied':
+    case 'not_applicable':
+      return 'Remplie';
+    case 'unsatisfied':
+      return 'À corriger';
+    case 'pending':
+      return 'En attente';
+    default:
+      return 'À vérifier';
+  }
+}
