@@ -20,6 +20,9 @@ class ProfileConnectionsScreen extends StatefulWidget {
 
 class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   bool _requestedInitialRefresh = false;
+  bool _initialLoadComplete = false;
+  bool _refreshing = false;
+  bool _refreshFailed = false;
 
   @override
   void didChangeDependencies() {
@@ -30,16 +33,37 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   }
 
   Future<void> _ensureProjection() async {
-    final repository = widget.runtime.interoperability;
-    final sync = widget.runtime.sync;
-    if (repository == null || sync == null) return;
-    final current = await repository.read();
-    if (current == null) {
-      try {
-        await sync.pullInteroperability();
-      } on Object {
-        // Existing cached data is never discarded by a failed refresh.
+    try {
+      final current = await widget.runtime.interoperability?.read();
+      if (current == null && mounted) {
+        await _refresh();
       }
+    } on Object {
+      if (mounted) setState(() => _refreshFailed = true);
+    } finally {
+      if (mounted) setState(() => _initialLoadComplete = true);
+    }
+  }
+
+  Future<void> _refresh() async {
+    if (_refreshing || !mounted) return;
+    final sync = widget.runtime.sync;
+    if (sync == null) {
+      setState(() => _refreshFailed = true);
+      return;
+    }
+    setState(() {
+      _refreshing = true;
+      _refreshFailed = false;
+    });
+    try {
+      // Z16 remains server-owned. Do not change the cached projection until
+      // the owner response has been validated and applied by SyncEngine.
+      await sync.pullInteroperability();
+    } on Object {
+      if (mounted) setState(() => _refreshFailed = true);
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
     }
   }
 
@@ -83,6 +107,9 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           : 'État à vérifier';
     }
     if (connection.usable) return 'Connecté et disponible';
+    if (connection.connected && connection.capabilities.isEmpty) {
+      return 'Relié · aucune capacité active';
+    }
     if (connection.connected) return 'Connecté';
     return connection.available ? 'Disponible' : 'État à vérifier';
   }
@@ -140,32 +167,33 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         title: Text(_humanize(action.code)),
         subtitle: Text(
           available
-              ? 'Disponible'
+              ? 'Capacité disponible dans Makolo'
               : action.requiresConnection
               ? 'Connexion requise'
               : 'Indisponible pour le moment',
         ),
-        enabled: available,
       ),
     );
   }
 
   Widget _freshnessNotice(BuildContext context, SyncStatus? syncStatus) {
-    if (syncStatus == null) return const SizedBox.shrink();
-    if (syncStatus.state == SyncVisualState.syncing) {
+    if (_refreshing || syncStatus?.state == SyncVisualState.syncing) {
       return const LinearProgressIndicator(
         key: Key('profile-connections-refreshing'),
         minHeight: 2,
       );
     }
-    if (syncStatus.state == SyncVisualState.offline ||
-        syncStatus.state == SyncVisualState.stale ||
-        syncStatus.state == SyncVisualState.failed) {
+    if (_refreshFailed ||
+        syncStatus?.state == SyncVisualState.offline ||
+        syncStatus?.state == SyncVisualState.stale ||
+        syncStatus?.state == SyncVisualState.failed) {
       return Padding(
         key: const Key('profile-connections-last-known'),
         padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
         child: Text(
-          'Dernier état connu. La disponibilité actuelle peut avoir changé.',
+          _refreshFailed
+              ? 'Actualisation impossible. Le dernier état connu est conservé.'
+              : 'Dernier état connu. La disponibilité actuelle peut avoir changé.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       );
@@ -262,7 +290,17 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Connexions')),
+      appBar: AppBar(
+        title: const Text('Connexions'),
+        actions: [
+          if (widget.runtime.sync != null)
+            IconButton(
+              tooltip: 'Actualiser les connexions',
+              onPressed: _refreshing ? null : () => unawaited(_refresh()),
+              icon: const Icon(Icons.refresh),
+            ),
+        ],
+      ),
       body: StreamBuilder<ProfileInteroperabilityProjection?>(
         stream: repository.watch(),
         builder: (context, snapshot) {
@@ -277,7 +315,10 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           final syncStatus = SyncStatusScope.maybeOf(context);
           final projection = snapshot.data;
           if (projection != null) {
-            return _content(context, projection, syncStatus);
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: _content(context, projection, syncStatus),
+            );
           }
 
           if (syncStatus?.state == SyncVisualState.offline) {
@@ -296,7 +337,18 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             );
           }
 
-          return const Center(child: CircularProgressIndicator());
+          if (_initialLoadComplete && !_refreshing) {
+            return MakoloErrorState(
+              message: 'Impossible de vérifier vos connexions pour le moment.',
+              preservedMessage:
+                  'Aucune connexion n’a été modifiée. Réessayez lorsque le serveur est joignable.',
+              onRetry: widget.runtime.sync == null
+                  ? null
+                  : () => unawaited(_refresh()),
+            );
+          }
+
+          return const MakoloLoadingState(label: 'Vérification des connexions…');
         },
       ),
     );
