@@ -188,12 +188,64 @@ def _occurrence_item(occurrence, caps):
     }
 
 
-def _source_selection_url(space_slug, kind, identity):
-    """Existing read-only selection; the Space Work API revalidates the scope."""
+def _source_selection_url(space_slug, kind, identity, *, responsibility="all"):
+    """Owner-scoped read, never a capability or a navigation permission."""
     return (
         reverse("organizations_api:workspace-work", kwargs={"slug": space_slug})
-        + "?" + urlencode({"kind": kind, "id": str(identity)})
+        + "?" + urlencode({
+            "kind": kind, "id": str(identity), "responsibility": responsibility,
+        })
     )
+
+
+def _attach_work_handoffs(*, sections, space_slug, responsibility, offset=0,
+                          section_key=None):
+    """Attach owner openings only after filtering by permission and scope.
+
+    An entry can offer several N3 handoffs, never an inferred mutation. Every
+    target rechecks its own current authorization on opening or execution.
+    """
+    work_url = reverse("organizations_api:workspace-work", kwargs={"slug": space_slug})
+    for key, section in sections.items():
+        if section["has_more"]:
+            section["links"]["continuation"] = (
+                work_url + "?" + urlencode({
+                    "section": key,
+                    "offset": offset + PREVIEW_LIMIT if section_key else PREVIEW_LIMIT,
+                    "responsibility": responsibility,
+                })
+            )
+        for item in section["items"]:
+            source = item["source"]
+            item["entry_identity"] = item["key"]
+            item["owner_reference"] = dict(source)
+            links = item["links"]
+            capabilities = set(item.get("capabilities") or ())
+            handoffs = list(item.get("owner_handoffs") or ())
+            if "view" in capabilities:
+                selected = _source_selection_url(
+                    space_slug, source["kind"], source["id"],
+                    responsibility=responsibility,
+                )
+                links["selection"] = selected
+                handoffs.insert(0, {
+                    "intent": "inspect", "label": "Consulter",
+                    "owner": dict(source), "channel": "space_work",
+                    "url": selected,
+                })
+            if "open_service_case" in capabilities and links.get("detail"):
+                handoffs.append({
+                    "intent": "open_service_case", "label": "Ouvrir le dossier",
+                    "owner": dict(source), "channel": "web",
+                    "url": links["detail"],
+                })
+            if "open_day_of" in capabilities and links.get("day_of"):
+                handoffs.append({
+                    "intent": "open_day_of", "label": "Ouvrir Jour J",
+                    "owner": dict(source), "channel": "api",
+                    "url": links["day_of"],
+                })
+            item["owner_handoffs"] = handoffs
 
 
 def _offer_item(offer, caps, *, space_slug):
@@ -724,6 +776,11 @@ def build_space_work_projection(
                     })
                 )
                 row["capabilities"].append("open_request")
+                row.setdefault("owner_handoffs", []).append({
+                    "intent": "open_request", "label": "Examiner la demande",
+                    "owner": {"kind": "journey_request", "id": str(request_id)},
+                    "channel": "api", "url": row["links"]["request_detail"],
+                })
 
     if service_ids:
         journeys = (
@@ -869,12 +926,22 @@ def build_space_work_projection(
         if direct_portfolio
         else []
     )
+    limited_coverage = not direct_portfolio or lens_ids is not None
     for section in sections.values():
+        section["coverage_state"] = (
+            "partial" if limited_coverage else "established"
+        )
         section.pop("_enabled", None)
         section.pop("_offset", None)
         section.pop("_seen", None)
     if section_key:
         sections = {section_key: sections[section_key]}
+
+    _attach_work_handoffs(
+        sections=sections, space_slug=space.slug,
+        responsibility=responsibility_key or "all", offset=offset,
+        section_key=section_key,
+    )
 
     # Published recognition only: the public delivery owner must authorize
     # the very same media use. No asset or private storage URL is exposed.
@@ -936,8 +1003,8 @@ def build_space_work_projection(
         },
         "responsibility": responsibility_key or "all",
         "operational_footprint": {"signals": footprint},
-        "composition_state": "established",
-        "coverage_state": "established" if direct_portfolio else "partial",
+        "composition_state": "partial" if limited_coverage else "established",
+        "coverage_state": "partial" if limited_coverage else "established",
         "sections": sections,
         "page": {"offset": offset if section_key else 0, "limit": PREVIEW_LIMIT},
         "selection": next(
