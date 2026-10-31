@@ -30,10 +30,14 @@ def main(argv=None):
         p.error("Demo media generation is limited to SQLite")
 
     counts = Counter()
+    counts["assets_total"] = PresentationAsset.objects.count()
     candidates = PresentationAsset.objects.filter(
         Q(owner_profile__isnull=False) | Q(owner_space__isnull=False),
         mime_type__in=("image/jpeg", "image/png"),
     ).select_related("owner_profile", "owner_space", "uploaded_by").order_by("id")
+    counts["assets_eligible_owner_type"] = candidates.count()
+    counts["assets_without_eligible_owner_type"] = max(0,
+        counts["assets_total"] - counts["assets_eligible_owner_type"])
     for asset in candidates:
         if counts["new"] + counts["planned"] >= a.count:
             break
@@ -63,6 +67,9 @@ def main(argv=None):
             )
         else:
             activities = activities.filter(space_id=asset.owner_space_id)
+        if not activities.exists():
+            counts["no_matching_demo_activity_owner"] += 1
+            continue
         uses_for_asset = 0
         for activity in activities.order_by("id")[: max(a.per_asset * 8, 12)]:
             if uses_for_asset >= a.per_asset or counts["new"] + counts["planned"] >= a.count:
