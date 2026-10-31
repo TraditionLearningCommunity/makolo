@@ -27,6 +27,7 @@ from journeys.service_authorization import (
 from organizations.space_product import (
     operating_preset_for_space, visible_operational_footprint_for_space,
 )
+from organizations.space_work_composition import compose_space_work_business_world
 from organizations.space_work_presentation import (
     ordered_work_section_keys,
     work_presentation_for_space,
@@ -662,6 +663,24 @@ def build_space_work_projection(
         section.pop("_seen", None)
     if section_key:
         sections = {section_key: sections[section_key]}
+
+    # An additive, non-persistent Business World for the first two archetypes.
+    # It only references items already filtered by the owner selectors.
+    business_world = compose_space_work_business_world(
+        archetype=space.archetype,
+        label=preset.primary_business_label,
+        sections=sections,
+        limited=not direct_portfolio or lens_ids is not None,
+    )
+    reading_order = (
+        [
+            key
+            for group in business_world["reading_groups"]
+            for key in group["section_keys"]
+        ]
+        if business_world else list(sections)
+    )
+
     return {
         "space": {
             "id": str(space.pk),
@@ -672,8 +691,14 @@ def build_space_work_projection(
         "primary_business_label": preset.primary_business_label,
         "presentation": {
             "empty_message": work_presentation_for_space(space).surface_empty_message,
-            "section_order": list(sections.keys()),
+            "section_order": reading_order,
+            **({
+                "question": business_world["question"],
+                "calm_message": business_world["calm_message"],
+                "reading_groups": business_world["reading_groups"],
+            } if business_world else {}),
         },
+        **({"business_world": business_world} if business_world else {}),
         "authority": {
             "scope": "space" if direct_portfolio else "activity_limited",
             "limited_to_activities": not direct_portfolio,
