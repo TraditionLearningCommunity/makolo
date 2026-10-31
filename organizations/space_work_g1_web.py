@@ -137,9 +137,14 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                 source_kind="activity", source_id=str(activity.pk),
             )
             if (parent_projection or {}).get("selection"):
+                origin_page = self.request.GET.get("page")
+                if not (origin_page and origin_page.isdecimal()
+                        and 1 <= int(origin_page) <= 10000):
+                    origin_page = None
                 parent_url = _work_depth_url(
                     self.space, "activity", activity.pk,
                     responsibility=responsibility, origin_section=origin_section,
+                    page=origin_page,
                 )
                 if self.request.GET.get("origin") == "activity":
                     back_url = parent_url
@@ -154,7 +159,7 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                     "url": reverse(
                         "organizations:space-occurrence-day-of",
                         kwargs={"slug": self.space.slug, "occurrence_id": identity},
-                    ),
+                    ) + "?" + urlencode({"responsibility": responsibility}),
                 })
 
         if kind == "activity":
@@ -190,7 +195,7 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                 "url": _work_depth_url(
                     self.space, "occurrence", occurrence.pk,
                     responsibility=responsibility, origin_section=origin_section,
-                    origin="activity",
+                    origin="activity", page=page.number,
                 ),
             } for occurrence in page.object_list]
         else:
