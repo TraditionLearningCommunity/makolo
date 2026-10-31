@@ -80,32 +80,35 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
 
     def test_now_and_discover_are_honest_bounded_contracts(self):
         self.client.force_authenticate(self.owner)
-        for suffix in ("now", "discover"):
-            response = self.client.get(self._url(suffix))
-            self.assertEqual(response.status_code, 200, response.data)
-            self.assertEqual(response.data["items"], [])
-            self.assertFalse(response.data["has_more"])
-            self.assertEqual(response.data["selection"]["state"], "unavailable")
-            self.assertEqual(
-                response.data["selection"]["reason"],
-                "no_safe_selection_contract",
-            )
+        now = self.client.get(self._url("now"))
+        self.assertEqual(now.status_code, 200, now.data)
+        self.assertEqual(now.data["items"], [])
+        self.assertFalse(now.data["has_more"])
+        # Now can select owner-backed facts, but not yet claim full coverage.
+        self.assertEqual(now.data["selection"]["state"], "partial")
+        self.assertEqual(now.data["selection"]["reason"], "owner_coverage_incomplete")
+        self.assertEqual(now.data["actor_attention_state"], "unknown")
+        self.assertEqual(now.data["actor"]["type"], "space")
+        self.assertEqual(now.data["viewer"]["id"], str(self.owner.pk))
+        self.assertEqual(now.data["freshness"]["state"], "unknown")
+
+        discover = self.client.get(self._url("discover"))
+        self.assertEqual(discover.status_code, 200, discover.data)
+        self.assertEqual(discover.data["items"], [])
+        self.assertFalse(discover.data["has_more"])
+        self.assertEqual(discover.data["selection"]["state"], "unavailable")
+        self.assertEqual(
+            discover.data["selection"]["reason"],
+            "no_safe_selection_contract",
+        )
+        for response in (now, discover):
             serialized = str(response.data).lower()
             for forbidden in (
-                "score",
-                "rank",
-                "relevance",
-                "probability",
-                "accesscredential",
-                "private_key",
-                "api_token",
-                "qr_token",
+                "score", "rank", "relevance", "probability",
+                "accesscredential", "private_key", "api_token", "qr_token",
             ):
                 self.assertNotIn(forbidden, serialized)
-            self.assertEqual(
-                response["Cache-Control"],
-                "private, no-store",
-            )
+            self.assertEqual(response["Cache-Control"], "private, no-store")
 
     def test_now_and_discover_authority_matrix(self):
         for suffix in ("now", "discover"):
