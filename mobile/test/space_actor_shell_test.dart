@@ -128,11 +128,21 @@ Future<_Harness> _harness({bool startInSpace = false}) async {
       },
       'responsibilities': {'items': []},
       'ownership': {'items': []},
-      'trust': {'verified': false},
+      'trust': {
+        'verified': true,
+        'claims': [
+          {
+            'claim_type': 'organization_identity',
+            'status': 'active',
+            'valid_until': '2027-01-01',
+          },
+        ],
+      },
       'capabilities': {'manage_team': true},
       'handoffs': {
         'team': '/space/space-x/us/team',
         'responsibilities': '/space/space-x/us/responsibilities',
+        'trust': '/space/space-x/us/trust',
       },
       'links': {'workspace': '/api/v1/organizations/workspaces/space-x/'},
     },
@@ -290,6 +300,28 @@ void main() {
       (harness.actorContext.value as SpaceActorContext).space.slug,
       'space-x',
     );
+    await _disposeUi(tester);
+  });
+
+  testWidgets('Nous shows actual trust claims instead of a generic score', (
+    tester,
+  ) async {
+    final harness = await _harness(startInSpace: true);
+    addTearDown(harness.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: SpaceNousDepthScreen(
+          runtime: harness.runtime,
+          slug: 'space-x',
+          depth: 'trust',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('organization_identity'), findsOneWidget);
+    expect(find.text('État : active'), findsOneWidget);
+    expect(find.textContaining('score global'), findsOneWidget);
     await _disposeUi(tester);
   });
 
