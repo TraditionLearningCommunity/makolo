@@ -34,7 +34,7 @@ Le chantier réutilise :
 
 - Fonction pure `discoveryAddedAtLabel(addedAt, now, french)` : différence temporelle locale **du champ `date.kind=added_at` seulement**, date entière dans Tooltip/Semantics. Aucune conversion du `timing` owner.
 - `_reliableFacts` continue de filtrer les inconnues, mais n'élimine plus la valeur `indisponible` lorsqu'elle est confirmée par le wire.
-- Rôles spatiaux traduits avec fidélité aux attributs owner et à la localité ; pas de coordonnées déduites.
+- Rôles spatiaux traduits avec fidélité aux attributs owner et à la localité ; des rôles répétés (plusieurs escales) sont numérotés uniquement pour l'affichage, sans omettre les lieux canoniques ; pas de coordonnées déduites.
 - `_contextNotes` : notes `limiting` seules, nombre réel de variantes (> 1) et de relations ; aucun verdict local.
 - Section « Informations pratiques » présente seulement quand un fait ou contexte reconnu existe.
 - Galerie : rapprochement par URL, déduplication sans perdre `mime_type` ni `alt_text` explicites du `PresentationMediaUse` ; Reader reçoit son type MIME réel pour JPEG/PNG.
