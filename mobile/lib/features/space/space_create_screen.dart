@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../../app/runtime/actor_context.dart';
 import '../../design/makolo_theme.dart';
 
 /// Native creation through the canonical Organizations owner contract.
@@ -20,6 +21,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
   bool _publicProfile = false;
   bool _saving = false;
   bool _created = false;
+  SpaceActorIdentity? _createdIdentity;
   String? _error;
 
   @override
@@ -41,9 +43,27 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       final identity = await repository!.createSpace(
         name: _name.text, publicProfile: _publicProfile,
       );
-      _created = true;
+      _createdIdentity = identity;
+      if (mounted) setState(() => _created = true);
       // A POST response does not substitute for a current authority inventory.
-      await repository.refreshInventory();
+      await _verifyCreatedSpace(identity);
+      if (mounted) context.go('/space/now');
+    } on Object {
+      if (mounted) {
+        setState(() => _error = _created
+            ? 'Espace créé. La vérification de votre accès est indisponible. '
+              'Revenez à Agir comme après actualisation.'
+            : 'La création n’a pas été confirmée. Vérifiez votre connexion avant de réessayer.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _verifyCreatedSpace(SpaceActorIdentity identity) async {
+    final repository = widget.runtime.space!;
+    final actor = widget.runtime.actorContext!;
+    await repository.refreshInventory();
       final state = await repository.readSource(repository.inventorySource());
       if (state.lastSuccessAt == null || state.invalidated ||
           state.lastErrorCode != null) {
@@ -63,14 +83,19 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
         throw StateError('Autorité non vérifiée.');
       }
       await actor.selectSpace(identity);
+  }
+
+  Future<void> _retryVerification() async {
+    if (_saving) return;
+    final identity = _createdIdentity;
+    if (identity == null) return;
+    setState(() { _saving = true; _error = null; });
+    try {
+      await _verifyCreatedSpace(identity);
       if (mounted) context.go('/space/now');
     } on Object {
-      if (mounted) {
-        setState(() => _error = _created
-            ? 'Espace créé. La vérification de votre accès est indisponible. '
-              'Revenez à Agir comme après actualisation.'
-            : 'La création n’a pas été confirmée. Vérifiez votre connexion avant de réessayer.');
-      }
+      if (mounted) setState(() => _error =
+          'La vérification reste indisponible. Aucun accès n’a été accordé.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -122,11 +147,16 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                 onPressed: _saving || _created ? null : _create,
                 child: Text(_saving ? 'Création…' : 'Créer cet Espace'),
               ),
-              if (_created)
+              if (_created) ...[
+                OutlinedButton(
+                  onPressed: _saving ? null : _retryVerification,
+                  child: const Text('Vérifier mon accès'),
+                ),
                 TextButton(
                   onPressed: () => context.go('/me'),
                   child: const Text('Revenir à Moi'),
                 ),
+              ],
             ],
           ),
         ),
