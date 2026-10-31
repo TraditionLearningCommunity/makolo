@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from accounts.models import User
 from activities.models import Activity, Occurrence, OccurrenceStatus
+from journeys.models import Journey, JourneyRequest, JourneyStatus, WorkflowKind
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role
@@ -108,6 +109,36 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
             ),
         )
         self.assertNotContains(response, "Tout est en ordre. ✓")
+
+    def test_web_request_controls_require_owner_decision_permission(self):
+        activity = Activity.objects.create(
+            title="Inscription de Space", slug="ws2-request",
+            space=self.space, created_by=self.owner,
+        )
+        applicant = User.objects.create_user(
+            username="ws2-applicant",
+            email="ws2-applicant@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=applicant, beneficiary=applicant,
+            activity=activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        JourneyRequest.objects.create(journey=journey, requester=applicant)
+        self.client.force_login(self.owner)
+        url = reverse("organizations:console-requests", kwargs={"slug": self.space.slug})
+        authorized = self.client.get(url)
+        self.assertEqual(authorized.status_code, 200)
+        self.assertContains(authorized, "Approuver")
+        with patch(
+            "organizations.console_views.activity_ids_with_direct_permission",
+            return_value=[],
+        ):
+            no_decision = self.client.get(url)
+        self.assertEqual(no_decision.status_code, 200)
+        self.assertNotContains(no_decision, "Approuver")
+        self.assertNotContains(no_decision, "Refuser")
 
     def test_projection_state_mapping_keeps_empty_unavailable_partial_and_error_distinct(self):
         self.assertEqual(
