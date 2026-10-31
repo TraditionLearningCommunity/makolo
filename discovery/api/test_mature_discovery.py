@@ -1111,3 +1111,19 @@ class MatureDiscoveryAPITests(TestCase):
         self.assertIsNone(mixed["price"]["minimum"])
         self.assertIsNone(mixed["price"]["currency"])
         self.assertEqual(mixed["price"]["offer_count"], 2)
+
+    def test_expired_continuation_is_rejected_as_validation_not_server_error(self):
+        from unittest.mock import patch
+        from django.core import signing
+
+        self.client.force_login(self.participant)
+        with patch(
+            "discovery.api.composition.signing.loads",
+            side_effect=signing.SignatureExpired("expired"),
+        ):
+            response = self.client.get(
+                reverse("discovery_api:items"),
+                {"q": "Z3", "page_size": 1, "continuation": "expired"},
+            )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("discovery", response.json())
