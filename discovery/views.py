@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView, TemplateView
@@ -29,7 +30,8 @@ from .models import ActivityBookmark
 from .presentation import build_discovery_item, presenter_for
 from .search import get_public_occurrence, public_occurrences_for_activities, search_occurrences
 from .services import build_recommendations, public_discovery_events
-from .api.composition import paginated_projection
+from .api.composition import detail_projection, paginated_projection
+from .n2_presentation import build_n2_presentation
 from .telemetry import record_search
 from .unified import public_opportunity_discovery_items, public_service_discovery_items
 
@@ -503,6 +505,10 @@ def _web_discovery_card(item):
             secondary=(),
         ),
         url=links.get("web") or links.get("detail") or "#",
+        n2_url=reverse("discovery:possibility-detail", kwargs={
+            "family": identity["family"],
+            "item_id": identity["resource"]["id"],
+        }),
     )
 
 
@@ -699,6 +705,35 @@ class DiscoveryHomeView(TemplateView):
                 },
             }
         )
+        return context
+
+
+class DiscoveryPossibilityDetailView(TemplateView):
+    """The same authorized canonical detail as the mobile N2 owner projection."""
+
+    template_name = "discovery/possibility_detail.html"
+    allowed_families = frozenset({
+        "activity", "service_activity", "funding_activity", "opportunity",
+    })
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        family, item_id = kwargs["family"], kwargs["item_id"]
+        if family not in self.allowed_families:
+            raise Http404
+        try:
+            projection = detail_projection(family, item_id, profile=self.request.user)
+        except (ObjectDoesNotExist, ValidationError, ValueError, TypeError) as exc:
+            raise Http404 from exc
+        if projection is None:
+            raise Http404
+        context["discovery_base_template"] = (
+            "base/app.html" if self.request.user.is_authenticated
+            else "base/public.html"
+        )
+        context["n2_item"] = projection
+        context["card"] = _web_discovery_card(projection)
+        context["n2"] = build_n2_presentation(projection)
         return context
 
 
