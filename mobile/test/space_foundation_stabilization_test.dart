@@ -283,9 +283,15 @@ void main() {
           responsibility: 'all',
           marker: 'A',
         ),
-        'selection': {'state': 'available'},
+        'selection': {'state': 'partial'},
         'items': [
-          {'id': 'a-1'},
+          {
+            'id': 'a-1',
+            'human_context': 'Départ A',
+            'state_meaning': 'Départ en cours',
+            'why_now': {'reason': 'occurrence_ongoing', 'meaning': 'Le départ se déroule.'},
+            'response': {'type': 'understand'},
+          },
         ],
       },
     );
@@ -300,10 +306,22 @@ void main() {
           responsibility: 'all',
           marker: 'B',
         ),
-        'selection': {'state': 'available'},
+        'selection': {'state': 'partial'},
         'items': [
-          {'id': 'b-1'},
-          {'id': 'b-2'},
+          {
+            'id': 'b-1',
+            'human_context': 'Départ B',
+            'state_meaning': 'Départ en cours',
+            'why_now': {'reason': 'occurrence_ongoing', 'meaning': 'Le départ se déroule.'},
+            'response': {'type': 'understand'},
+          },
+          {
+            'id': 'b-2',
+            'human_context': 'Dossier B',
+            'state_meaning': 'Dossier soumis',
+            'why_now': {'reason': 'service_case_pending', 'meaning': 'Le dossier attend une suite.'},
+            'response': {'type': 'wait'},
+          },
         ],
       },
     );
@@ -333,13 +351,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('1 élément à consulter.'), findsOneWidget);
+    expect(find.text('Départ A'), findsOneWidget);
 
     await actorContext.selectSpace(spaceB);
     await tester.pumpAndSettle();
 
-    expect(find.text('2 éléments à consulter.'), findsOneWidget);
-    expect(find.text('1 élément à consulter.'), findsNothing);
+    expect(find.text('Départ B'), findsOneWidget);
+    expect(find.text('Dossier B'), findsOneWidget);
+    expect(find.text('Départ A'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
