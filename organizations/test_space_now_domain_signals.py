@@ -28,7 +28,10 @@ from operations.models import (
     IncidentCategory, IncidentSeverity, IncidentStatus, OperationsIncident,
 )
 from organizations.models import Organization
-from payments.models import Payment, PaymentStatus
+from payments.models import (
+    Payment, PaymentObligation, PaymentObligationProcessingMode,
+    PaymentObligationReason, PaymentObligationStatus, PaymentStatus,
+)
 
 
 class SpaceNowDomainSignalTests(TestCase):
@@ -247,6 +250,108 @@ class SpaceNowDomainSignalTests(TestCase):
             commerce[0]["timing"]["deadline_at"], due.expires_at.isoformat(),
         )
         self.assertEqual(result.data["selection"]["state"], "partial")
+
+    def test_overdue_space_debtor_obligation_is_visible_only_to_finance_authority(self):
+        past = timezone.now() - timedelta(hours=3)
+        obligation = PaymentObligation.objects.create(
+            journey=self._journey(),
+            payer_space=self.space,
+            payee_platform=True,
+            reason=PaymentObligationReason.SERVICE_PROCESS,
+            label="Frais à régler pour cet Espace",
+            amount=Decimal("11.00"),
+            currency="USD",
+            processing_mode=PaymentObligationProcessingMode.EXTERNAL,
+            status=PaymentObligationStatus.PENDING,
+            due_at=past,
+        )
+        # Merely outstanding without a passed due date is not attention.
+        PaymentObligation.objects.create(
+            journey=self._journey(),
+            payer_space=self.space, payee_platform=True,
+            reason=PaymentObligationReason.SERVICE_PROCESS,
+            label="Obligation future non urgente",
+            amount=Decimal("8.00"), currency="USD",
+            processing_mode=PaymentObligationProcessingMode.EXTERNAL,
+            status=PaymentObligationStatus.PENDING,
+            due_at=timezone.now() + timedelta(days=8),
+        )
+        confirmed = PaymentObligation.objects.create(
+            journey=self._journey(), payer_space=self.space, payee_platform=True,
+            reason=PaymentObligationReason.SERVICE_PROCESS,
+            label="Obligation déjà réglée",
+            amount=Decimal("8.00"), currency="USD",
+            processing_mode=PaymentObligationProcessingMode.EXTERNAL,
+            status=PaymentObligationStatus.SATISFIED,
+            satisfied_at=timezone.now(),
+            due_at=past,
+        )
+        response = self._now()
+        self.assertEqual(response.status_code, 200, response.data)
+        results = [
+            row for row in response.data["items"]
+            if row["source"]["kind"] == "payment_obligation"
+        ]
+        self.assertEqual(len(results), 1, response.data)
+        self.assertEqual(results[0]["source"]["id"], str(obligation.pk))
+        self.assertEqual(
+            results[0]["why_now"]["reason"],
+            "space_payment_obligation_overdue",
+        )
+        self.assertEqual(results[0]["consequence"]["state"], "unknown")
+        self.assertEqual(
+            results[0]["handoffs"][0]["target"], "space_payment_obligation",
+        )
+        self.assertNotIn(str(confirmed.pk), str(results))
+        self.assertNotIn("payer_profile", str(response.data))
+
+        path = (
+            f"/api/v1/organizations/workspaces/{self.space.slug}/"
+            f"payment-obligations/{obligation.pk}/"
+        )
+        self.client.force_authenticate(self.owner)
+        read = self.client.get(path)
+        self.assertEqual(read.status_code, 200, read.data)
+        self.assertEqual(read.data["id"], str(obligation.pk))
+        self.assertEqual(read.data["amount"], "11.00")
+        self.assertEqual(read["Cache-Control"], "private, no-store")
+        self.assertNotIn("payer_profile", str(read.data))
+
+        limited = self._now(self.limited)
+        self.assertFalse(any(
+            item["source"]["kind"] == "payment_obligation"
+            for item in limited.data["items"]
+        ))
+        self.client.force_authenticate(self.limited)
+        self.assertEqual(self.client.get(path).status_code, 404)
+
+    def test_obligation_owner_rejects_other_space_even_for_finance_owner(self):
+        outsider_space = Organization.objects.create(
+            name="Espace tiers", slug="space-now-debtor-foreign",
+            created_by=self.owner,
+        )
+        foreign_activity = Activity.objects.create(
+            title="Activité tierce", slug="space-now-third-activity",
+            created_by=self.owner, space=outsider_space,
+        )
+        foreign = PaymentObligation.objects.create(
+            journey=self._journey(activity=foreign_activity),
+            payer_space=outsider_space,
+            payee_platform=True,
+            reason=PaymentObligationReason.SERVICE_PROCESS,
+            label="Obligation non partageable",
+            amount=Decimal("3.00"),
+            processing_mode=PaymentObligationProcessingMode.EXTERNAL,
+            status=PaymentObligationStatus.PENDING,
+            due_at=timezone.now() - timedelta(days=1),
+        )
+        self.client.force_authenticate(self.owner)
+        url = (
+            f"/api/v1/organizations/workspaces/{self.space.slug}/"
+            f"payment-obligations/{foreign.pk}/"
+        )
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertNotIn(str(foreign.pk), str(self._now().data["items"]))
 
     def test_recent_failed_automation_is_scoped_to_activity_manage(self):
         rule = AutomationRule.objects.create(
