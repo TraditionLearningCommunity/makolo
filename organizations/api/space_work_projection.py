@@ -436,9 +436,11 @@ def build_space_work_projection(
     )
     commerce_visible = bool(visible_ids & caps["commerce"])
     education_ids = visible_ids & caps["requests"]
-    education_visible = space.archetype == "education" and bool(education_ids)
+    # Archetype changes presentation, never the availability of an authorized
+    # domain. A mixed Space may handle registrations and service cases alike.
+    education_visible = bool(education_ids)
     service_ids = visible_ids & caps["service_cases"]
-    service_visible = space.archetype == "service_provider" and bool(service_ids)
+    service_visible = bool(service_ids)
     sections = _empty_sections(
         space=space,
         include_offers=commerce_visible,
