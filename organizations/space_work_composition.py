@@ -122,7 +122,7 @@ _CALM = {
 }
 
 
-def compose_space_work_business_world(*, archetype, label, sections, limited, is_root=True):
+def compose_space_work_business_world(*, archetype, label, sections, limited, is_root=True, today=None):
     """Organize only real and authorized entries; no rankings or state copies.
 
     A reading group exists when its underlying owner section has real rows or
@@ -178,9 +178,28 @@ def compose_space_work_business_world(*, archetype, label, sections, limited, is
         ))
 
     order = [k for g in chapters for k in g["section_keys"]]
+    # The contextual Today lens is a reference to visible real departures,
+    # never a duplicate entry, an urgency score or a newly stored lifecycle.
+    today_departures = []
+    if archetype == SpaceArchetype.TRANSPORT_OPERATOR and is_root and today:
+        for section_key in ("active", "upcoming"):
+            for item in sections.get(section_key, {}).get("items", ()):
+                if (
+                    item.get("kind") == "departure"
+                    and item.get("timing", {}).get("start_date") == today
+                ):
+                    today_departures.append({
+                        "source": item["source"],
+                        "title": item["title"],
+                        "section": section_key,
+                        "start_time": item["timing"].get("start_time"),
+                    })
+        today_departures = today_departures[:5]
     return {
         "preferred_language": label,
         "question": _QUESTIONS[archetype],
+        **({"today_departures": today_departures}
+           if archetype == SpaceArchetype.TRANSPORT_OPERATOR else {}),
         "calm_message": (
             _CALM[archetype]
             if is_root and has_portfolio and not has_continuity else None
