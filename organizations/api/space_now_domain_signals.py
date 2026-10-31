@@ -256,6 +256,7 @@ def select_additional_space_now(
                 journey__activity_id__in=commerce_ids,
                 journey__activity__space=space,
                 status=CommerceOrderStatus.PENDING,
+                total__gt=0,
                 expires_at__gt=observed_at,
                 expires_at__lte=observed_at + timedelta(hours=24),
             )
@@ -271,13 +272,14 @@ def select_additional_space_now(
                 activity_id=order.journey.activity_id,
                 human_context=f"Commande {order.reference}",
                 subject="Échéance de confirmation",
-                state="Commande en attente avant son échéance",
+                state="Commande payante non confirmée avant échéance",
                 why_now=(
-                    "Commerce établit une échéance dans les prochaines 24 heures. "
-                    "La décision du payeur reste extérieure à l'Espace."
+                    "Commerce établit une commande payante encore en attente "
+                    "et une échéance dans les prochaines 24 heures. "
+                    "Aucune décision Space n'est déduite."
                 ),
                 reason="commerce_order_expiring",
-                turn="external", response_type="wait",
+                turn="none", response_type="wait",
                 destination="space_commerce_order", native_id=order.pk,
                 native_link=(
                     f"/space/{space.slug}/retrieval/commerce_order/{order.pk}"
