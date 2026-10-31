@@ -31,8 +31,8 @@ def main(argv=None):
     from django.contrib.auth import get_user_model
     from django.core.exceptions import ValidationError, PermissionDenied
     from django.db import connection, transaction
-    from opportunities.models import Opportunity, OpportunitySave, OpportunitySubmission
-    from opportunities.services import save_opportunity, submit_opportunity
+    from opportunities.models import Opportunity, OpportunitySave, OpportunitySubmission, OpportunitySource, OpportunitySubmissionStatus
+    from opportunities.services import save_opportunity, submit_opportunity, start_submission_review, decide_opportunity_submission
     from obtention.models import ObtentionDetails, ObtentionConfiguration, ObtentionMode, ObtentionJourneyContext
     from obtention.services import create_obtention_journey
     from services.models import ServiceDetails, ServiceJourneyContext
@@ -71,6 +71,52 @@ def main(argv=None):
                 counts["opportunity_saved"] += 1
             except (ValidationError, PermissionDenied):
                 counts["opportunity_skipped"] += 1
+
+    # Simulated profiles recommend actual published Opportunity source URLs;
+    # the proposal and curator review are canonical, with no external submit.
+    if "opportunities" in selected:
+        sources = (OpportunitySource.objects.filter(
+            opportunity__publication_status="published", status="active"
+        ).select_related("opportunity", "opportunity__current_revision")
+         .order_by("-is_primary", "id")[:a.per_domain])
+        staff = get_user_model().objects.filter(
+            username="beta_staff", is_active=True).first()
+        for index, source in enumerate(sources):
+            user = profiles[index % len(profiles)]
+            note = "[DEMO] Source suggeree depuis une veille fictive"
+            submission = OpportunitySubmission.objects.filter(
+                submitted_by=user, url=source.url, comment=note).order_by("id").first()
+            if submission:
+                counts["opportunity_submissions_existing"] += 1
+            elif not a.apply:
+                counts["opportunity_submissions_planned"] += 1
+                continue
+            else:
+                try:
+                    with transaction.atomic():
+                        submission = submit_opportunity(
+                            submitted_by=user, url=source.url,
+                            title="[DEMO] Proposition " + str(index + 1),
+                            comment=note)
+                    counts["opportunity_submissions_created"] += 1
+                except (ValidationError, PermissionDenied):
+                    counts["opportunity_submissions_ineligible"] += 1
+                    continue
+            if staff and submission.status == OpportunitySubmissionStatus.PENDING:
+                if a.apply:
+                    try:
+                        with transaction.atomic():
+                            start_submission_review(submission=submission, actor=staff)
+                            decide_opportunity_submission(
+                                submission=submission, actor=staff,
+                                decision=OpportunitySubmissionStatus.DUPLICATE,
+                                resolved_opportunity=source.opportunity,
+                                review_note="Demo : source deja connue, proposition dedupliquee.")
+                        counts["opportunity_submissions_reviewed"] += 1
+                    except (ValidationError, PermissionDenied):
+                        counts["opportunity_submissions_pending_review"] += 1
+                else:
+                    counts["opportunity_submissions_review_planned"] += 1
 
     # Contribution financiere : intention seulement. Payment reste la verite d'execution.
     for funding, user in pairs(FundingDetails.objects.select_related("activity").filter(activity__slug__startswith="demo-").order_by("id")[:a.per_domain] if "funding" in selected else []):
