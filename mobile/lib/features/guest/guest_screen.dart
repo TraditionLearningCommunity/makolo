@@ -29,11 +29,13 @@ class GuestDiscoverScreen extends StatefulWidget {
     required this.runtime,
     this.initialQuery = '',
     this.initialVertical = '',
+    this.initialFilters,
   });
 
   final AppRuntime runtime;
   final String initialQuery;
   final String initialVertical;
+  final DiscoveryQuery? initialFilters;
 
   @override
   State<GuestDiscoverScreen> createState() => _GuestDiscoverScreenState();
@@ -70,8 +72,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   void initState() {
     super.initState();
     _searchCoordinator = ProgressiveSearchCoordinator(onSearch: _loadRevision);
-    _search.text = widget.initialQuery;
-    _vertical = widget.initialVertical;
+    _applyRouteCriteria();
     unawaited(_restoreAndLoad());
   }
 
@@ -79,9 +80,10 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   void didUpdateWidget(covariant GuestDiscoverScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.initialQuery != oldWidget.initialQuery ||
-        widget.initialVertical != oldWidget.initialVertical) {
-      _search.text = widget.initialQuery;
-      _vertical = widget.initialVertical;
+        widget.initialVertical != oldWidget.initialVertical ||
+        widget.initialFilters?.mapFingerprint !=
+            oldWidget.initialFilters?.mapFingerprint) {
+      _applyRouteCriteria();
       _criteriaChanged(immediate: true);
     }
   }
@@ -93,6 +95,19 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _place.dispose();
     _filterRevision.dispose();
     super.dispose();
+  }
+
+  void _applyRouteCriteria() {
+    final input = widget.initialFilters;
+    _search.text = input?.text ?? widget.initialQuery;
+    _place.text = input?.place ?? '';
+    _selectedPlace = null;
+    _when = input?.date.isNotEmpty == true ? 'custom' : (input?.when ?? '');
+    _date = input?.date ?? '';
+    _price = input?.price ?? '';
+    _vertical = input?.vertical ?? widget.initialVertical;
+    _page = 1;
+    _continuationToken = null;
   }
 
   DiscoveryQuery get _query => DiscoveryQuery(
@@ -151,7 +166,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     }
 
     if (!mounted) return;
-    if (widget.initialQuery.isEmpty && widget.initialVertical.isEmpty) {
+    if (widget.initialFilters?.hasCriteria != true &&
+        widget.initialQuery.isEmpty && widget.initialVertical.isEmpty) {
       final query = saved?['query'];
       if (query is String) _search.text = query;
       final place = saved?['place'];
@@ -611,7 +627,7 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     alignment: Alignment.centerLeft,
                     child: OutlinedButton.icon(
                       onPressed: () => context.push(
-                        '/discover/map?${_query.mapCanonicalQuery}',
+                        _query.routeLocation('/discover/map'),
                       ),
                       icon: const Icon(Icons.map_outlined),
                       label: const Text('Voir sur la carte'),
