@@ -156,9 +156,15 @@ class DiscoveryOfflineStore {
     }
   }
 
-  Future<void> removeRecognitionImage(Uri url) async {
-    final target = await _recognitionFile(url);
-    if (await target.exists()) await target.delete();
+  Future<void> removeRecognitionImage(Uri url) {
+    // Revocation must follow pending writes, or an in-flight download could
+    // put the image back after the owner returned 403/404.
+    final work = _pendingWrites.then((_) async {
+      final target = await _recognitionFile(url);
+      if (await target.exists()) await target.delete();
+    });
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
   }
 
   Future<File> location(Uri url) async {
@@ -171,7 +177,13 @@ class DiscoveryOfflineStore {
     return await file.exists() && await file.length() > 0 ? file : null;
   }
 
-  Future<File> save(Uri url, File source) async {
+  Future<File> save(Uri url, File source) {
+    final work = _pendingWrites.then((_) => _saveDirect(url, source));
+    _pendingWrites = work.then<void>((_) {}).catchError((Object _) {});
+    return work;
+  }
+
+  Future<File> _saveDirect(Uri url, File source) async {
     final size = await source.length();
     if (size <= 0 || size > maxItemBytes) {
       throw const FileSystemException(
@@ -207,8 +219,12 @@ class DiscoveryOfflineStore {
     }
   }
 
-  Future<void> remove(Uri url) async {
-    final file = await location(url);
-    if (await file.exists()) await file.delete();
+  Future<void> remove(Uri url) {
+    final work = _pendingWrites.then((_) async {
+      final file = await location(url);
+      if (await file.exists()) await file.delete();
+    });
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
   }
 }
