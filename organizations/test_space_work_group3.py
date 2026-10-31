@@ -245,6 +245,81 @@ class SpaceWorkGroup3Tests(TestCase):
         self.assertContains(response, "Disponibilité" if False else "Ce que nous rendons disponible")
         self.assertNotContains(response, self.client_user.email)
 
+    def test_transport_web_routes_to_real_departure_and_route_depth(self):
+        self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
+        self.space.save(update_fields=["archetype", "updated_at"])
+        route = TransportRoute.objects.create(
+            space=self.space, name="Route Matadi"
+        )
+        vehicle = Vehicle.objects.create(
+            space=self.space, label="Bus Matadi", passenger_capacity=25
+        )
+        activity = self.activity("Service Matadi")
+        TransportService.objects.create(activity=activity, route=route)
+        now = timezone.now()
+        occurrence = Occurrence.objects.create(
+            activity=activity, label="Départ Matadi",
+            start_at=now - timedelta(seconds=2),
+            end_at=now + timedelta(hours=1),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        pool = CapacityPool.objects.create(
+            activity=activity, occurrence=occurrence, total_quantity=20
+        )
+        departure = TransportDeparture.objects.create(
+            occurrence=occurrence, passenger_capacity_pool=pool, vehicle=vehicle
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.web_url)
+        self.assertEqual(response.status_code, 200)
+        sections = {
+            section["key"]: section for section in response.context["work_sections"]
+        }
+        active = next(
+            row for row in sections["active"]["items"]
+            if row["source"]["id"] == str(occurrence.pk)
+        )
+        self.assertEqual(
+            active["owner_url"], reverse(
+                "organizations:console-transport-departure-detail",
+                kwargs={"slug": self.space.slug, "departure_id": departure.pk},
+            ),
+        )
+        route_row = sections["routes"]["items"][0]
+        self.assertEqual(
+            route_row["owner_url"], reverse(
+                "organizations:console-transport-route-detail",
+                kwargs={"slug": self.space.slug, "route_id": route.pk},
+            ),
+        )
+        vehicle_row = sections["vehicles"]["items"][0]
+        self.assertEqual(
+            vehicle_row["owner_url"], reverse(
+                "organizations:console-transport", kwargs={"slug": self.space.slug},
+            ),
+        )
+        self.assertContains(response, "Départs et exploitation")
+        self.assertContains(response, "Aujourd’hui")
+        self.assertContains(response, "Bus Matadi")
+        self.assertContains(response, "Disponibilité : 20 sur 20")
+
+    def test_transport_owner_selection_is_denied_across_spaces(self):
+        self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
+        self.space.save(update_fields=["archetype", "updated_at"])
+        other = Organization.objects.create(
+            name="Foreign Group 3", slug="g3-foreign", created_by=self.owner
+        )
+        route = TransportRoute.objects.create(
+            space=other, name="Foreign route",
+        )
+        self.client.force_authenticate(self.owner)
+        result = self.client.get(
+            self.url, {"kind": "transport_route", "id": str(route.pk)}
+        )
+        self.assertEqual(result.status_code, 200, result.data)
+        self.assertIsNone(result.data["selection"])
+        self.assertNotIn("Foreign route", str(result.data))
+
     def test_other_archetypes_do_not_inherit_group_three(self):
         self.space.archetype = SpaceArchetype.MEDIA
         self.space.save(update_fields=["archetype", "updated_at"])
