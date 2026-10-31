@@ -84,6 +84,9 @@ class MakoloAvatarSheet extends StatelessWidget {
         stream: _identityStream,
         builder: (context, snapshot) {
           final identity = _identity(snapshot.data);
+          final activationValue = identity?['activation'];
+          final activation = activationValue is Map ? activationValue : null;
+          final completionPercentage = activation?['percentage'];
           final displayName = identity?['display_name'] as String?;
           final firstLetter =
               displayName != null && displayName.trim().isNotEmpty
@@ -142,16 +145,14 @@ class MakoloAvatarSheet extends StatelessWidget {
                               '@' + (identity['username'] as String),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
-                          if (identity?['activation'] is Map &&
-                              (identity!['activation'] as Map)['is_complete'] != true &&
-                              (identity['activation'] as Map)['percentage'] is int &&
-                              (identity['activation'] as Map)['percentage'] >= 0 &&
-                              (identity['activation'] as Map)['percentage'] < 100)
+                          if (completionPercentage is int &&
+                              completionPercentage >= 0 &&
+                              completionPercentage < 100 &&
+                              activation?['is_complete'] != true)
                             Padding(
                               padding: const EdgeInsets.only(top: MakoloSpacing.xs),
                               child: Text(
-                                (identity['activation'] as Map)['percentage'].toString() +
-                                    ' % renseigné',
+                                completionPercentage.toString() + ' % renseigné',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
