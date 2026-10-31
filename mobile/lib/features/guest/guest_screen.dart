@@ -57,6 +57,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
   String _date = '';
   GeoSuggestion? _selectedPlace;
   String _price = '';
+  String _period = '';
+  String _dateFrom = '';
+  String _dateTo = '';
+  double? _latitude;
+  double? _longitude;
+  double? _radiusKm;
+  int _pageSize = 12;
   int _page = 1;
   String? _continuationToken;
   late final ProgressiveSearchCoordinator _searchCoordinator;
@@ -106,6 +113,13 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _date = input?.date ?? '';
     _price = input?.price ?? '';
     _vertical = input?.vertical ?? widget.initialVertical;
+    _period = input?.period ?? '';
+    _dateFrom = input?.dateFrom ?? '';
+    _dateTo = input?.dateTo ?? '';
+    _latitude = input?.latitude;
+    _longitude = input?.longitude;
+    _radiusKm = input?.radiusKm;
+    _pageSize = input?.pageSize ?? 12;
     _page = input?.page ?? 1;
     _continuationToken = input?.continuation;
   }
@@ -117,10 +131,16 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
         : _selectedPlace!.label.split(',').first.trim(),
     when: _when == 'custom' ? '' : _when,
     date: _date,
+    dateFrom: _dateFrom,
+    dateTo: _dateTo,
+    period: _period,
+    latitude: _latitude,
+    longitude: _longitude,
+    radiusKm: _radiusKm,
     vertical: _vertical,
     price: _price,
     page: _page,
-    pageSize: 12,
+    pageSize: _pageSize,
     continuation: _page > 1 ? _continuationToken : null,
   );
 
@@ -416,6 +436,12 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
       _date = '';
       _price = '';
       _vertical = '';
+      _period = '';
+      _dateFrom = '';
+      _dateTo = '';
+      _latitude = null;
+      _longitude = null;
+      _radiusKm = null;
     });
     _criteriaChanged(immediate: true);
   }
@@ -522,7 +548,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       _when.isNotEmpty ||
                       _date.isNotEmpty ||
                       _price.isNotEmpty ||
-                      _place.text.trim().isNotEmpty,
+                      _place.text.trim().isNotEmpty ||
+                      _latitude != null || _period.isNotEmpty ||
+                      _dateFrom.isNotEmpty || _dateTo.isNotEmpty,
                   filters: const SizedBox.shrink(),
                   filtersRefresh: _filterRevision,
                   filtersBuilder: (_) => DiscoveryFilterFields(
@@ -533,11 +561,19 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                     date: _date,
                     price: _price,
                     onPlaceSelected: (suggestion) {
-                      setState(() => _selectedPlace = suggestion);
+                      setState(() {
+                        _selectedPlace = suggestion;
+                        _latitude = null;
+                        _longitude = null;
+                        _radiusKm = null;
+                      });
                       _criteriaChanged(immediate: true);
                     },
                     onPlaceEdited: () {
                       _selectedPlace = null;
+                      _latitude = null;
+                      _longitude = null;
+                      _radiusKm = null;
                       _criteriaChanged();
                     },
                     onPlaceSubmitted: _apply,
@@ -545,6 +581,9 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                       setState(() {
                         _when = value;
                         _date = '';
+                        _dateFrom = '';
+                        _dateTo = '';
+                        _period = '';
                       });
                       _criteriaChanged(immediate: true);
                     },
