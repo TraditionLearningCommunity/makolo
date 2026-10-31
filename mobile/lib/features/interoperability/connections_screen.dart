@@ -114,6 +114,28 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     return connection.available ? 'Disponible' : 'État à vérifier';
   }
 
+  String _experienceExplanation(InteroperabilityConnectionProjection connection) {
+    if (!connection.enabled || connection.status == 'disabled') {
+      return 'Cette connexion est désactivée.';
+    }
+    if (connection.health == 'unavailable') {
+      return 'Le service ne répond pas actuellement.';
+    }
+    if (connection.health == 'degraded') {
+      return 'Le service peut être temporairement limité.';
+    }
+    if (connection.health == 'unknown') {
+      return 'La disponibilité doit être vérifiée.';
+    }
+    if (connection.connected && connection.capabilities.isEmpty) {
+      return 'Aucune capacité active n’est exposée.';
+    }
+    if (connection.usable) {
+      return 'Cette connexion possède une capacité active.';
+    }
+    return 'Aucune action n’est disponible depuis cette connexion.';
+  }
+
   Widget _connectionCard(InteroperabilityConnectionProjection connection) {
     final capabilities = connection.capabilities
         .map(_capabilityLabel)
@@ -123,10 +145,14 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         key: Key('connection-${connection.id}'),
         leading: const Icon(Icons.link_outlined),
         title: Text(connection.displayName),
-        subtitle: capabilities.isEmpty
-            ? Text(_connectionState(connection))
-            : Text('${_connectionState(connection)}\n$capabilities'),
-        isThreeLine: capabilities.isNotEmpty,
+        subtitle: Text(
+          [
+            _connectionState(connection),
+            _experienceExplanation(connection),
+            if (capabilities.isNotEmpty) capabilities,
+          ].join('\n'),
+        ),
+        isThreeLine: true,
       ),
     );
   }
