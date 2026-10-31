@@ -74,8 +74,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
     return null;
   }
 
-  String get usPath => 'api/v1/organizations/workspaces/' +
-      Uri.encodeComponent(widget.slug) + '/us/';
+  String get usPath =>
+      'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/us/';
 
   Future<void> load() async {
     final version = ++loadVersion;
@@ -98,7 +98,9 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
         throw const FormatException('Settings not available for this actor');
       }
       if (!mounted || version != loadVersion ||
-          actor?.space.id != expectedId) return;
+          actor?.space.id != expectedId) {
+        return;
+      }
       name.text = identity['name']?.toString() ?? '';
       description.text = identity['description']?.toString() ?? '';
       website.text = identity['website']?.toString() ?? '';
@@ -112,7 +114,9 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       });
     } on Object {
       if (!mounted || version != loadVersion ||
-          actor?.space.id != expectedId) return;
+          actor?.space.id != expectedId) {
+        return;
+      }
       setState(() {
         loading = false;
         authorized = false;
@@ -127,14 +131,15 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
     final api = widget.runtime.api;
     if (!authorized || saving || current == null || api == null ||
         current.space.id != loadedSpaceId ||
-        form.currentState?.validate() != true) return;
+        form.currentState?.validate() != true) {
+      return;
+    }
     final expectedId = current.space.id;
     setState(() { saving = true; error = null; });
     try {
       // No local mutation: the server checks SPACE_MANAGE at PATCH time.
       await api.patch(
-        'api/v1/organizations/workspaces/' +
-          Uri.encodeComponent(widget.slug) + '/',
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/',
         body: {
           'name': name.text.trim(),
           'description': description.text.trim(),
