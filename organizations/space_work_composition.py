@@ -67,6 +67,30 @@ _GRAMMARS = {
          ("offers", "requests")),
         ("history", "Départs et activités passés", ("completed",)),
     ),
+    # Creation is a contextual Activity identity, not another stored model.
+    # Never make a commerce Offer the leading artistic identity.
+    SpaceArchetype.CREATIVE: (
+        ("creation_work", "Créations à faire avancer",
+         ("active", "preparation", "blocked")),
+        ("presentations", "Présentations et dates",
+         ("upcoming",)),
+        ("creations", "Créations durables", ("activities",)),
+        ("related", "Autres réalités opérées",
+         ("requests", "offers", "routes", "vehicles")),
+        ("history", "Créations et réalisations passées", ("completed",)),
+    ),
+    # An editorial Production is durable. An edition or recording is an
+    # Occurrence; a file or media use alone is never promoted to a Production.
+    SpaceArchetype.MEDIA: (
+        ("production_work", "Productions à faire avancer",
+         ("active", "preparation", "blocked")),
+        ("realizations", "Éditions et réalisations à venir",
+         ("upcoming",)),
+        ("productions", "Productions durables", ("activities",)),
+        ("related", "Autres réalités opérées",
+         ("requests", "offers", "routes", "vehicles")),
+        ("history", "Productions et réalisations passées", ("completed",)),
+    ),
 }
 _QUESTIONS = {
     SpaceArchetype.GENERIC: (
@@ -93,6 +117,14 @@ _QUESTIONS = {
         "Quels départs préparons-nous et opérons-nous, sur quelles routes "
         "et avec quels véhicules réellement affectés ?"
     ),
+    SpaceArchetype.CREATIVE: (
+        "Quelles œuvres créons-nous, que faut-il préparer et "
+        "quelles présentations réelles arrivent ?"
+    ),
+    SpaceArchetype.MEDIA: (
+        "Quelles productions réalisons-nous, quelles éditions préparons-nous "
+        "et qu’est-ce qui doit être diffusé ou présenté ?"
+    ),
 }
 _CALM = {
     SpaceArchetype.GENERIC: (
@@ -118,6 +150,14 @@ _CALM = {
     SpaceArchetype.TRANSPORT_OPERATOR: (
         "Aucun départ ne demande d’intervention dans cette vue. "
         "Les routes et véhicules restent accessibles."
+    ),
+    SpaceArchetype.CREATIVE: (
+        "Aucune préparation ou présentation n’appelle d’intervention dans cette "
+        "vue. Les créations durables restent accessibles."
+    ),
+    SpaceArchetype.MEDIA: (
+        "Aucune édition ni réalisation n’appelle d’intervention dans cette "
+        "vue. Les productions durables restent accessibles."
     ),
 }
 
@@ -162,11 +202,17 @@ def compose_space_work_business_world(*, archetype, label, sections, limited, is
         else {"requests", "cases", "occurrences"}
         if archetype == SpaceArchetype.SERVICE_PROVIDER
         else {"orders", "realizations"} if archetype == SpaceArchetype.COMMERCE
-        else {"departures"}
+        else {"departures"} if archetype == SpaceArchetype.TRANSPORT_OPERATOR
+        else {"creation_work", "presentations"}
+        if archetype == SpaceArchetype.CREATIVE
+        else {"production_work", "realizations"}
     )
     has_continuity = any(g["identity"] in operational_groups for g in chapters)
     has_portfolio = any(
-        g["identity"] in {"portfolio", "availability", "structure", "services"}
+        g["identity"] in {
+            "portfolio", "availability", "structure", "services",
+            "creations", "productions",
+        }
         for g in chapters
     )
     if (
@@ -174,7 +220,9 @@ def compose_space_work_business_world(*, archetype, label, sections, limited, is
         and archetype != SpaceArchetype.EDUCATION
     ):
         chapters.sort(key=lambda g: (
-            0 if g["identity"] in {"portfolio", "availability", "structure"} else 1
+            0 if g["identity"] in {
+                "portfolio", "availability", "structure", "creations", "productions",
+            } else 1
         ))
 
     order = [k for g in chapters for k in g["section_keys"]]
