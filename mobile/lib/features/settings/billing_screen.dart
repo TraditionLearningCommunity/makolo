@@ -22,6 +22,7 @@ class _BillingScreenState extends State<BillingScreen> {
   Map<String, dynamic>? _data;
   bool _loading = true;
   String? _error;
+  int _requestRevision = 0;
 
   @override
   void initState() {
@@ -29,10 +30,27 @@ class _BillingScreenState extends State<BillingScreen> {
     unawaited(_load());
   }
 
+  @override
+  void didUpdateWidget(covariant BillingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.runtime != widget.runtime ||
+        oldWidget.runtime.session?.profileId != widget.runtime.session?.profileId) {
+      _requestRevision++;
+      _data = null;
+      _error = null;
+      _loading = true;
+      unawaited(_load());
+    }
+  }
+
   Future<void> _load() async {
     final api = widget.runtime.api;
+    final requestRevision = ++_requestRevision;
+    bool isCurrent() => mounted &&
+        requestRevision == _requestRevision &&
+        identical(widget.runtime.api, api);
     if (api == null) {
-      if (mounted) {
+      if (isCurrent()) {
         setState(() {
           _loading = false;
           _error = 'La consultation de votre abonnement nécessite une connexion.';
@@ -40,17 +58,17 @@ class _BillingScreenState extends State<BillingScreen> {
       }
       return;
     }
-    if (mounted) setState(() { _loading = true; _error = null; });
+    if (isCurrent()) setState(() { _loading = true; _error = null; });
     try {
       final response = await api.get('api/v1/subscriptions/me/');
-      if (mounted) setState(() => _data = response.jsonObject());
+      if (isCurrent()) setState(() => _data = response.jsonObject());
     } on Object {
-      if (mounted) {
+      if (isCurrent()) {
         setState(() => _error = 'Impossible de vérifier votre abonnement. '
             'Les dernières informations affichées peuvent avoir changé.');
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (isCurrent()) setState(() => _loading = false);
     }
   }
 
