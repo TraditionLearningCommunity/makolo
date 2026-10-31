@@ -33,7 +33,7 @@ Les groupes ne sont affichés que si une section déjà autorisée contient des 
 - Lorsqu'une vraie `JourneyRequest` pending existe et que sa Journey se trouve dans une section d'inscription autorisée, la projection fournit `links.request_detail` vers `organizations_api:workspace-request-detail` et `open_request`. L'endpoint propriétaire revérifie viewer, Space, scope d'Activity, responsabilité et décision au moment de l'appel. Le lien n'autorise pas à lui seul une décision.
 - Les démarches `REGISTRATION` et `SERVICE` ont respectivement les étiquettes de présentation « Inscription » et « Dossier de prestation ». Aucun bénéficiaire, credential, message ou pièce privé n'est inclus.
 - Un dossier Service avec scope opérateur et contexte valide conserve son lien `services:operator-case` et peut exposer `service_outcome` actuel **provenant de ServiceJourneyContext**.
-- Pour les dossiers opérateur effectivement visibles dans les pages N1, une agrégation unique des **ServiceRequirementAssessment réels** indique `total/satisfied/awaiting/unsatisfied` ; elle n'inclut ni intitulés de pièces, ni notes, ni Evidence ni verdict synthétique `ready`. Aucun compteur n'est inventé quand le propriétaire ne possède pas d'assessment.
+- Pour les dossiers opérateur effectivement visibles dans les pages N1, une agrégation unique des **ServiceRequirementAssessment réels** indique `total/satisfied/awaiting/unsatisfied/not_applicable` ; elle n'inclut ni intitulés de pièces, ni notes, ni Evidence ni verdict synthétique `ready`. Aucun compteur n'est inventé quand le propriétaire ne possède pas d'assessment.
 - Les permissions/ Mandates ne sont pas transférés par la composition, et les sections existantes restent disponibles pour les consommateurs historiques.
 
 ### Web
