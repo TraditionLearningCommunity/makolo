@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from .billing_models import PlanVersionBillingTerms
 from .billing_presentation import (
     personal_billing_obligations,
+    subscription_billing_obligations,
     terms_as_dict,
     with_billing_terms,
 )
@@ -19,7 +20,7 @@ from .models import PlanVersion
 from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
 from .product_preview import build_subscription_change_preview
 from .product_read import build_subscription_product_view
-from .personal_history import personal_transition_history
+from .personal_history import personal_transition_history, subscription_transition_history
 from .runtime_models import Subscription
 from .security_services import (
     cancel_subscription_transition_for_actor,
@@ -82,8 +83,8 @@ def _replayed_intent(subscription, *, key, target_plan_version_id=None, source_i
     return True
 
 
-def _snapshot(subscription):
-    product = with_billing_terms(build_subscription_product_view(subscription, can_manage=True))
+def _snapshot(subscription, *, can_manage=True):
+    product = with_billing_terms(build_subscription_product_view(subscription, can_manage=can_manage))
     self_service = {
         str(pk) for pk in PlanVersion.objects.filter(
             pk__in=[row["plan_version_id"] for row in product.catalog],
@@ -92,10 +93,12 @@ def _snapshot(subscription):
     }
     catalog = [dict(row) for row in product.catalog]
     for row in catalog:
-        row["can_request"] = bool(row["can_request"]) and row["plan_version_id"] in self_service
+        row["can_request"] = can_manage and bool(row["can_request"]) and row["plan_version_id"] in self_service
     return {
         "subscription": {
             "id": str(subscription.pk),
+            "subject_type": subscription.subject_type,
+            "can_manage": can_manage,
             "subject_label": product.subject_label,
             "status": product.status,
             "current_base": product.current_base,
@@ -105,8 +108,13 @@ def _snapshot(subscription):
         "catalog": catalog,
         "transition": product.transition,
         "ongoing_conditions": product.ongoing_conditions,
-        "billing": personal_billing_obligations(subscription),
-        "history": personal_transition_history(subscription),
+        "billing": subscription_billing_obligations(subscription),
+        "history": subscription_transition_history(subscription),
+        "space": (
+            {"id": str(subscription.space_id), "slug": subscription.space.slug,
+             "name": subscription.space.name}
+            if subscription.space_id else None
+        ),
     }
 
 class PersonalSubscriptionAPIView(APIView):
