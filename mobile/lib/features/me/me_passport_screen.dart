@@ -13,6 +13,7 @@ import '../../network/api_error.dart';
 import '../../sync/projection_contract.dart';
 import '../../repositories/personal_repository.dart';
 import 'me_local_preview.dart';
+import 'me_passport_visibility_screen.dart';
 
 /// Native presentation of the same server-owned Passport variants as Web.
 class MePassportScreen extends StatefulWidget {
@@ -202,7 +203,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final epoch = ++_loadEpoch;
     final requestedVariant = _variant;
     final resourceKey = _passportStorageKey();
-    if (preferLocal) {
+    if (preferLocal && requestedVariant != 'public') {
       try {
         final stored = await widget.personal?.store.readProjection(
           'personal.me.passport', resourceKey: resourceKey,
@@ -762,6 +763,20 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
+  Future<void> _configureVisibility() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => MePassportVisibilityScreen(api: widget.api),
+    ));
+    if (!mounted) return;
+    setState(() {
+      _onlineReady = false;
+      _cachedPassport = null;
+      _cachedVariantKey = null;
+      _full = null;
+      _future = _load(preferLocal: false);
+    });
+  }
+
   void _toggle(Set<String> values, String id, bool enabled) {
     setState(() {
       if (enabled) { values.add(id); } else { values.remove(id); }
@@ -870,6 +885,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
     appBar: AppBar(
       title: const Text('Passeport Makolo'),
       actions: [
+        IconButton(
+          tooltip: 'Confidentialité',
+          onPressed: _configureVisibility,
+          icon: const Icon(Icons.shield_outlined),
+        ),
         IconButton(
           tooltip: 'Versions datées',
           onPressed: !_onlineReady ? null : _showDatedHistory,
