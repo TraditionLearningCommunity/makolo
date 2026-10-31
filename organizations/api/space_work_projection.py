@@ -17,6 +17,7 @@ from authorization.selectors import (
     has_direct_space_permission,
 )
 from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
+from capacity.selectors import capacity_availability_many
 from journeys.collaboration_models import JourneyBlockerStatus
 from journeys.models import (
     Journey, JourneyRequest, JourneyStatus, RequestStatus, WorkflowKind,
@@ -530,9 +531,15 @@ def build_space_work_projection(
         _append(sections[target], _activity_item(activity, caps))
 
     next_occurrence_by_activity = {}
+    capacity_pools_for_preview = {}
+    capacity_preview_rows = []
     occurrences = (
         Occurrence.objects.filter(activity__space=space, activity_id__in=visible_ids)
-        .select_related("activity", "transport_departure")
+        .select_related(
+            "activity", "transport_departure__vehicle",
+            "transport_departure__passenger_capacity_pool",
+            "activity__transport_service__route",
+        )
         .prefetch_related("place_links__place")
         .order_by("start_date", "start_time", "pk")
     )
@@ -569,12 +576,34 @@ def build_space_work_projection(
                 "start_time": occurrence.start_time,
                 "timezone": occurrence.timezone,
             }
-        _append(sections[target], _occurrence_item(occurrence, caps))
+        item = _occurrence_item(occurrence, caps)
+        if (
+            hasattr(occurrence, "transport_departure")
+            and occurrence.activity_id in caps["operations"]
+        ):
+            departure = occurrence.transport_departure
+            route = occurrence.activity.transport_service.route
+            item["context"]["transport"] = {
+                "departure_id": str(departure.pk),
+                "route": {"id": str(route.pk), "name": route.name},
+                "vehicle": (
+                    {"id": str(departure.vehicle_id), "label": departure.vehicle.label}
+                    if departure.vehicle_id else None
+                ),
+            }
+            if section_key is None or target == section_key:
+                capacity_pools_for_preview[
+                    departure.passenger_capacity_pool_id
+                ] = departure.passenger_capacity_pool
+                capacity_preview_rows.append(
+                    (item, departure.passenger_capacity_pool_id)
+                )
+        _append(sections[target], item)
 
     commerce_activity_ids = visible_ids & caps["commerce"]
     offers = (
         Offer.objects.filter(activity_id__in=commerce_activity_ids)
-        .select_related("activity")
+        .select_related("activity", "capacity_pool")
         .order_by("activity_id", "name", "pk")
     )
     for offer in _selected(offers, "offer", source_kind, source_id):
@@ -586,7 +615,11 @@ def build_space_work_projection(
             target = "completed"
         else:
             continue
-        _append(sections[target], _offer_item(offer, caps, space_slug=space.slug))
+        item = _offer_item(offer, caps, space_slug=space.slug)
+        if offer.capacity_pool_id:
+            capacity_pools_for_preview[offer.capacity_pool_id] = offer.capacity_pool
+            capacity_preview_rows.append((item, offer.capacity_pool_id))
+        _append(sections[target], item)
 
     if has_direct_space_permission(profile, space, PermissionCode.ORDERS_VIEW):
         orders = (
@@ -724,6 +757,33 @@ def build_space_work_projection(
         vehicles = Vehicle.objects.filter(space=space).order_by("label", "pk")
         for vehicle in _selected(vehicles, "vehicle", source_kind, source_id):
             _append(sections["vehicles"], _vehicle_item(vehicle, space_slug=space.slug))
+
+    # One owner-selector read for the displayed CapacityPool facts; never
+    # infer actual vehicle occupancy or payment fulfilment from availability.
+    displayed_keys = {
+        item["key"] for section in sections.values()
+        for item in section["items"]
+    }
+    if capacity_preview_rows:
+        relevant = [
+            (item, pool_id) for item, pool_id in capacity_preview_rows
+            if item["key"] in displayed_keys
+        ]
+        if relevant:
+            pool_ids = {pool_id for _item, pool_id in relevant}
+            snapshots = capacity_availability_many(
+                [capacity_pools_for_preview[pk] for pk in pool_ids], now=now
+            )
+            for item, pool_id in relevant:
+                snapshot = snapshots[pool_id]
+                item["context"]["capacity"] = {
+                    "total": snapshot.total,
+                    "available": snapshot.available,
+                    "unlimited": snapshot.unlimited,
+                    "sold_out": snapshot.sold_out,
+                    "pool_active": capacity_pools_for_preview[pool_id].is_active,
+                    "basis": "capacity_pool",
+                }
 
     # Only authorized operator case previews receive owner assessment counts.
     # Never serialize evidence, notes, beneficiary or inferred Readiness here.
