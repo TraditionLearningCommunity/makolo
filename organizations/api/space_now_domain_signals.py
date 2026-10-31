@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Exists, F, OuterRef, Q
 from django.urls import reverse
 
 from access.models import AccessUse, AccessUseResult
@@ -91,12 +91,9 @@ def select_additional_space_now(
         access_ids = _granted(profile, visible, PermissionCode.ACTIVITY_ACCESS_VIEW)
         accessible = access_ids & operations
         if accessible:
-            rejected = [
-                AccessUseResult.WRONG_ACTIVITY,
-                AccessUseResult.WRONG_OCCURRENCE,
-                AccessUseResult.EXPIRED,
-                AccessUseResult.REVOKED,
-            ]
+            # Other wrong-Activity/Occurrence results need the actual
+            # scanner target authority; Access ownership alone is insufficient.
+            rejected = [AccessUseResult.EXPIRED, AccessUseResult.REVOKED]
             settled_passage = AccessUse.objects.filter(
                 access_id=OuterRef("access_id"),
                 result=AccessUseResult.ACCEPTED,
@@ -107,6 +104,7 @@ def select_additional_space_now(
                     access__activity_id__in=accessible,
                     access__occurrence__isnull=False,
                     access__activity__space=space,
+                    occurrence_id=F("access__occurrence_id"),
                     used_at__gte=observed_at - timedelta(hours=6),
                     result__in=rejected,
                 )
