@@ -57,11 +57,41 @@ def connection_status_label(connection: dict[str, Any]) -> str:
     return "État à vérifier"
 
 
+def connection_experience(connection: dict[str, Any]) -> dict[str, Any]:
+    """Presentation-only interpretation of owner-projected Z16 facts.
+
+    The returned values never grant authority or suggest a mutation URL.
+    """
+    enabled = bool(connection.get("enabled")) and connection.get("status") != "disabled"
+    health = connection.get("health")
+    usable = bool(connection.get("usable"))
+    connected = bool(connection.get("connected"))
+    has_capability = bool(connection.get("capabilities"))
+
+    if not enabled:
+        key, message = "disabled", "Cette connexion est désactivée."
+    elif health == "unavailable":
+        key, message = "unavailable", "Le service ne répond pas actuellement."
+    elif health == "degraded":
+        key, message = "degraded", "Le service peut être temporairement limité."
+    elif health == "unknown":
+        key, message = "unverified", "La disponibilité doit être vérifiée."
+    elif connected and not has_capability:
+        key, message = "no_capability", "Aucune capacité active n'est exposée."
+    elif usable:
+        key, message = "usable", "Cette connexion possède une capacité active."
+    else:
+        key, message = "not_usable", "Aucune action n'est disponible depuis cette connexion."
+
+    return {"experience_state": key, "experience_message": message}
+
+
 def present_connection(connection: dict[str, Any]) -> dict[str, Any]:
     return {
         **connection,
         "display_name": connection.get("display_name") or "Service",
         "status_label": connection_status_label(connection),
+        **connection_experience(connection),
         "capability_labels": [
             capability_label(code) for code in connection.get("capabilities", ())
         ],
