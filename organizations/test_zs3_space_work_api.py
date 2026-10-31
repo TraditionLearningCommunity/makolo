@@ -379,6 +379,43 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         )
         self.assertNotIn(beneficiary.email, str(row))
 
+    def test_mixed_space_requests_are_not_hidden_by_archetype(self):
+        # The archetype only controls labels and order, not owner-domain access.
+        activity = self._activity("Programme et service mixte")
+        beneficiary = User.objects.create_user(
+            username="zs3-mixed-beneficiary",
+            email="mixed-private@test.local",
+            password="x",
+        )
+        registration = Journey.objects.create(
+            initiated_by=beneficiary,
+            beneficiary=beneficiary,
+            activity=activity,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.PENDING_APPROVAL,
+        )
+        ServiceDetails.objects.create(
+            activity=activity, service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT
+        )
+        service_case = Journey.objects.create(
+            initiated_by=beneficiary,
+            beneficiary=beneficiary,
+            activity=activity,
+            workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.SUBMITTED,
+        )
+        self.client.force_authenticate(self.owner)
+        for archetype in (SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY):
+            self.space.archetype = archetype
+            self.space.save(update_fields=["archetype", "updated_at"])
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, 200, response.data)
+            requests = response.data["sections"]["requests"]["items"]
+            identities = {item["source"]["id"] for item in requests}
+            self.assertIn(str(registration.pk), identities)
+            self.assertIn(str(service_case.pk), identities)
+            self.assertNotIn(beneficiary.email, str(response.data))
+
     def test_education_journey_is_visible_without_beneficiary_leak(self):
         self.space.archetype = SpaceArchetype.EDUCATION
         self.space.save(update_fields=["archetype", "updated_at"])
