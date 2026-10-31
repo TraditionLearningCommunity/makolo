@@ -122,6 +122,9 @@ class SpaceWorkGroup3Tests(TestCase):
             response.data["sections"]["offers"]["items"][0]["state"],
             OfferStatus.INACTIVE,
         )
+        self.assertNotIn(
+            "capacity", response.data["sections"]["offers"]["items"][0]["context"]
+        )
 
     def test_transport_route_vehicle_and_real_departure_keep_distinct_owners(self):
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
@@ -178,6 +181,38 @@ class SpaceWorkGroup3Tests(TestCase):
         self.assertEqual(vehicles[0]["source"]["id"], str(vehicle.pk))
         self.assertEqual(vehicles[0]["state"], "active")
         self.assertNotIn("transport_route:", str(response.data["sections"]["active"]))
+
+    def test_departure_without_assigned_vehicle_is_not_invented_blocked(self):
+        self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
+        self.space.save(update_fields=["archetype", "updated_at"])
+        route = TransportRoute.objects.create(
+            space=self.space, name="Route ouverte"
+        )
+        activity = self.activity("Service en préparation")
+        TransportService.objects.create(activity=activity, route=route)
+        occurrence = Occurrence.objects.create(
+            activity=activity, label="Départ sans affectation",
+            start_at=timezone.now() + timedelta(days=2),
+            end_at=timezone.now() + timedelta(days=2, hours=3),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        pool = CapacityPool.objects.create(
+            activity=activity, occurrence=occurrence, total_quantity=8,
+        )
+        TransportDeparture.objects.create(
+            occurrence=occurrence, passenger_capacity_pool=pool
+        )
+        self.client.force_authenticate(self.owner)
+        result = self.client.get(self.url)
+        self.assertEqual(result.status_code, 200, result.data)
+        departure = next(
+            row for row in result.data["sections"]["upcoming"]["items"]
+            if row["source"]["id"] == str(occurrence.pk)
+        )
+        self.assertIsNone(departure["context"]["transport"]["vehicle"])
+        self.assertEqual(departure["context"]["capacity"]["available"], 8)
+        self.assertNotIn("readiness", str(departure).lower())
+        self.assertFalse(result.data["sections"]["blocked"]["items"])
 
     def test_transport_activity_mandate_does_not_reveal_space_wide_fleet(self):
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
