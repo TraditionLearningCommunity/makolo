@@ -127,6 +127,54 @@ class M8BMatureDiscoverTests(TestCase):
         self.assertEqual(response.context["map_items"], [])
         self.assertEqual(response.context["mappable_result_count"], 0)
 
+    def test_discover_n1_opens_owner_admitted_n2_for_public_opportunity(self):
+        opportunity, _ = self.published_opportunity(
+            "Bourse profondeur N2",
+            opens_at=self.now - timedelta(days=1),
+            deadline_at=self.now + timedelta(days=10),
+        )
+        n2_url = reverse("discovery:possibility-detail", kwargs={
+            "family": "opportunity",
+            "item_id": str(opportunity.pk),
+        })
+        homepage = self.client.get(
+            reverse("discovery:home"), {"q": "Bourse profondeur N2"},
+        )
+        self.assertEqual(homepage.status_code, 200)
+        self.assertContains(homepage, "Approfondir cette possibilité")
+        self.assertContains(homepage, n2_url)
+
+        detail = self.client.get(n2_url, {
+            "from": reverse("discovery:home") + "?q=Bourse",
+        })
+        self.assertEqual(detail.status_code, 200)
+        self.assertEqual(detail.context["n2_item"]["identity"]["family"], "opportunity")
+        self.assertContains(detail, "Bourse profondeur N2")
+        self.assertContains(detail, "Informations pratiques")
+        self.assertNotContains(detail, "Comparer les variantes connues")
+        self.assertEqual(
+            detail.context["return_url"], reverse("discovery:home") + "?q=Bourse",
+        )
+
+    def test_n2_rejects_unsupported_family_and_external_return_url(self):
+        invalid = self.client.get(
+            reverse("discovery:possibility-detail", kwargs={
+                "family": "invented", "item_id": "not-real",
+            }),
+        )
+        self.assertEqual(invalid.status_code, 404)
+        opportunity, _ = self.published_opportunity(
+            "Bourse anti redirection",
+            opens_at=self.now - timedelta(days=1),
+            deadline_at=self.now + timedelta(days=10),
+        )
+        n2_url = reverse("discovery:possibility-detail", kwargs={
+            "family": "opportunity", "item_id": str(opportunity.pk),
+        })
+        response = self.client.get(n2_url, {"from": "//evil.example/path"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["return_url"], reverse("discovery:home"))
+
     def test_authenticated_opportunity_save_state_uses_canonical_opportunity_save(self):
         opportunity, _ = self.published_opportunity(
             "Bourse enregistrée M8-B",
