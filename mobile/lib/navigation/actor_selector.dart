@@ -159,7 +159,9 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
   void _openCreateSpace() {
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
-    router.push('/space/create');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      router.push('/space/create');
+    });
   }
 
   @override
