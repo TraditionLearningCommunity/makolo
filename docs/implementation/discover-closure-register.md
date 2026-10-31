@@ -1,7 +1,7 @@
 # Makolo — registre de fermeture de Découvrir
 **Document vivant — responsable : branche [#522](https://github.com/TraditionLearningCommunity/makolo/pull/522)**  
 **Initialisé le :** 2026-10-31  
-**Chantier courant :** **01 — Vérités et capacités propriétaires** (*non commencé par ce commit ; prochain travail autorisé*).  
+**Chantier courant :** **01 — Vérités et capacités propriétaires**, **IMPLÉMENTÉ / VALIDATION CIBLÉE EN ATTENTE**. Compte rendu : [chantier 01](discover-stage-01-owner-facts-2026-10-31.md).  
 **Chantier 00 :** **FERMÉ — réconciliation documentaire**.  
 **Relevé de référence :** [chantier 00 — réconciliation](discover-stage-00-reconciliation-2026-10-31.md).
 
@@ -35,7 +35,7 @@ Pas de modèle persistant générique `Possibility`, de scoring client, de deuxi
 | Étape | Nom | État d'exécution | Sortie vérifiable |
 | --- | --- | --- | --- |
 | **00** | Réconciliation et gel des contrats | **FERMÉ** | [Inventaire daté](discover-stage-00-reconciliation-2026-10-31.md), sources et frontières, registre unique |
-| **01** | Vérités et capacités propriétaires | **À OUVRIR** | Matrice de faits par verticale, selectors propriétaire vérifiés et tests ciblés ; aucune vérité inventée par Discovery |
+| **01** | Vérités et capacités propriétaires | **IMPLÉMENTÉ — TESTS NON EXÉCUTÉS** | [Relevé owner 01](discover-stage-01-owner-facts-2026-10-31.md), correctifs Funding/Services, 4 tests ajoutés ; clôture suspendue à validation ciblée |
 | **02** | Projection canonique Discovery | **VERROUILLÉ** | API collection/détail, admission, identité, sécurité, frais de connaissance et pagination contractuels |
 | **03** | Médias, ressources et stockage | **VERROUILLÉ** | Publication/retrait, accès, URL first-party, viewers, volumes et compatibilité legacy contrôlés |
 | **04** | Presentation N1 | **VERROUILLÉ** | N1 compact/wide et Web adaptés, faits utiles et actions sans CTA fictif |
@@ -75,8 +75,8 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | R05 | Horaires/Occurrences/variantes sans inférence | `PARTIEL` | `discovery/api/composition.py`, modèles Activity | 01 puis 02 |
 | R06 | Lieux multiples, public/privé et rôles transports | `PARTIEL` | `discovery/api/composition.py`, tests API | 01 puis 02/05 |
 | R07 | Conditions et fraîcheur des Opportunities | `OWNER_EXTERNE`, mécanisme identifié | `opportunities/knowledge.py` | 01 |
-| R08 | Conditions de Funding sans éligibilité fictive | `À_VÉRIFIER` | `funding/test_discovery.py` | 01 |
-| R09 | Handoff Service owner et Journey idempotente | `EXISTANT_SOURCE`, couverture à prouver | `services/native_start.py` | 01 puis 07 |
+| R08 | Conditions de Funding sans éligibilité fictive | `ÉCART_CODE` corrigé côté owner : Space suspendu/archivé/retiré refuse désormais publication/contribution ; tests ajoutés, non exécutés | `funding/selectors.py`, `funding/services.py`, `funding/test_z15_api.py` | 01 |
+| R09 | Handoff Service owner et Journey idempotente | Selector Web/natif owner harmonisé, tests de retrait ajoutés non exécutés ; Discovery doit réutiliser ce gate en étape 02 | `services/views.py`, `services/api_views.py`, `services/native_start.py`, `services/test_native_start_api.py` | 01 puis 07 |
 | R10 | Ressources publiques, sans données restreintes | `PARTIEL` — volume inline à borner sans cacher les items | `discovery/api/composition.py` | 02 puis 03 |
 | R11 | Cohérence collection/détail/médias | `PARTIEL` | `discovery/api/media_bindings.py`, `test_media_bindings.py` | 02 puis 03 |
 | R12 | Media-use owner, statut publié, retrait | `EXISTANT_SOURCE`, déploiement legacy à contrôler | `presentations/media_delivery.py`, `test_media_use.py` | 03 |
@@ -114,8 +114,8 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 **Sorties vérifiées :** relevé daté, 381 chemins / six migrations, héritage de PR, propriétaires et tests, registre R01–R28, frontières de responsabilité et séquence obligatoire.  
 **Non réalisé volontairement :** tests, CI, correction de code des étapes suivantes, déploiement et merge.
 
-### 01 — Faits et capacités propriétaires **À OUVRIR**
-**Entrée :** R04–R09, frontières R10/R12, `docs/architecture/owner-facts-native-actions.md`.  
+### 01 — Faits et capacités propriétaires **IMPLÉMENTÉ / TESTS CIBLÉS EN ATTENTE**
+**Entrée :** R04–R09, frontières R10/R12, `docs/architecture/owner-facts-native-actions.md`. **Résultat technique :** [relevé de réalisation 01](discover-stage-01-owner-facts-2026-10-31.md).  
 **Travail :** inspecter pour chaque owner les modèles, selectors/services, API et tests ; partir de fixtures concrètes (Activity/Occurrence, Commerce, Geography/Transport, Opportunity, Funding, Service, Preparation). Corriger uniquement les faits réellement absents ou faux chez leur propriétaire, en réutilisant les fonctions existantes ; prouver la publication/visibilité, temporalité, variations et inconnues.  
 **Sortie exigée :** une matrice par owner avec statut `CONFORME_PROUVÉ` ou un écart corrigé, chemin réel, résultat de tests ciblés, contrat de consommation pour 02 ; aucune nouvelle vérité Discovery.  
 **Bloquant pour 02 :** un fait propriétaire encore indéfini, une autorisation floue, ou un champ ambigu dont Discovery devrait deviner le sens.
@@ -167,12 +167,13 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | 2026-10-31 | 00 | Relevé `discover-stage-00-reconciliation-2026-10-31.md` ; main `d0f0ec4`, branche observée `7fc2418`, 381 fichiers, six migrations ; contrats joints examinés | Inventaire et frontières fixés |
 | 2026-10-31 | 00 | Différences document historique ↔ runtime déclarées ; transferts #523/#525/#526/#527 reconnus ; **ascendance #524 vérifiée**, **divergence #528 vérifiée** | Pas de re-cherry-pick #524, pas de merge aveugle #528 |
 | 2026-10-31 | 00 | **Chantier 00 fermé.** Aucun test, CI, changement fonctionnel ou merge. | **Prochain chantier autorisé : 01 exclusivement** |
+| 2026-10-31 | 01 | Implémentation propriétaire Funding/Services sur #522 : visibilité du porteur, refus de nouvelle contribution et de démarrage après retrait ; quatre tests ajoutés, contrat des huit propriétaires consigné dans `discover-stage-01-owner-facts-2026-10-31.md`. | **Étape 01 non fermée : tests ciblés non exécutés. Étape 02 verrouillée.** |
 
 Pour chaque nouvelle clôture : ajouter une ligne `date | étape | HEAD de fin | fichiers | tests exécutés + résultats | anomalies restantes | décision de passage`. Ne jamais écrire `FERMÉ` pour un chantier dont les preuves n'existent pas.
 
 ## 6. Instruction impérative pour la suite
 
 1. Recharger le HEAD courant et le delta depuis l'état du chantier 00 ; vérifier les collisions sans refaire toute l'analyse.
-2. Travailler **uniquement le chantier 01** et le terminer intégralement (inventaire owners + corrections justifiées + tests ciblés + contrat de sortie).
-3. Mettre à jour ce registre dans **#522** avec la preuve exacte.
+2. **Terminer la validation ciblée du chantier 01** : le code et les cas de régression sont écrits ; exécuter les tests recensés dans `discover-stage-01-owner-facts-2026-10-31.md`, résoudre tout échec et inscrire les résultats.
+3. Mettre à jour ce registre dans **#522** avec les résultats exacts ; déclarer 01 `FERMÉ` seulement lorsque ses critères sont prouvés.
 4. Seulement ensuite ouvrir **02**. Ne pas pré-implémenter 02–09, même si des parties sont déjà présentes.
