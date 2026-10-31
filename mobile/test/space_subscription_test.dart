@@ -77,10 +77,7 @@ void main() {
       recovery: SessionRecoveryController(),
       actorContext: actors, api: api,
     );
-    addTearDown(() async {
-      actors.dispose();
-      await runtime.close();
-    });
+    addTearDown(runtime.close);
     await tester.pumpWidget(MaterialApp(
       home: BillingScreen(
         runtime: runtime, spaceSlug: 'space-a', expectedSpaceId: 'space-a',
@@ -155,10 +152,7 @@ void main() {
       tokens: tokens, session: null, recovery: SessionRecoveryController(),
       actorContext: actors, api: api,
     );
-    addTearDown(() async {
-      actors.dispose();
-      await runtime.close();
-    });
+    addTearDown(runtime.close);
     await tester.pumpWidget(MaterialApp(
       home: BillingScreen(
         runtime: runtime, spaceSlug: 'space-a', expectedSpaceId: 'space-a',
