@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
+import '../../network/api_error.dart';
 import 'subscription_actions_panel.dart';
 import 'subscription_billing_format.dart';
 
@@ -138,6 +139,21 @@ class _BillingScreenState extends State<BillingScreen> {
         }
       }
       if (isCurrent()) setState(() => _data = payload);
+    } on MakoloApiError catch (error) {
+      if (isCurrent()) {
+        setState(() {
+          if (_spaceMode &&
+              (error.statusCode == 401 ||
+               error.statusCode == 403 ||
+               error.statusCode == 404)) {
+            _data = null;
+            _error = 'Vous n’avez plus accès à l’abonnement de cet Espace. '
+                'Vérifiez votre Mandate ou sélectionnez un autre Espace.';
+          } else {
+            _error = 'Impossible d’actualiser cet abonnement. Réessayez.';
+          }
+        });
+      }
     } on Object {
       if (isCurrent()) {
         setState(
@@ -294,6 +310,23 @@ class _BillingScreenState extends State<BillingScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _heading(_spaceMode ? 'Abonnement de cet Espace' : 'Mon abonnement'),
+        if (_spaceMode) ...[
+          Text(
+            _text(_object(_data?['space'])?['name'], fallback: 'Espace sélectionné'),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subscription['can_manage'] == true
+                ? 'Consultation et gestion autorisées pour cet Espace.'
+                : 'Consultation uniquement : votre Mandate ne permet pas de modifier cet abonnement.',
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Les capacités de cet Espace ne deviennent pas des capacités personnelles.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.verified_outlined),
@@ -448,6 +481,15 @@ class _BillingScreenState extends State<BillingScreen> {
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.error,
                         ),
+                      ),
+                    ),
+                  if (_error != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _loading ? null : _load,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Réessayer'),
                       ),
                     ),
                   if (_data == null)
