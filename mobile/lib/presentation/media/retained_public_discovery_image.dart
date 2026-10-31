@@ -14,11 +14,13 @@ class RetainedPublicDiscoveryImage extends StatefulWidget {
   const RetainedPublicDiscoveryImage({
     super.key,
     required this.url,
+    required this.trustedOrigin,
     required this.placeholder,
     this.storeOverride,
   });
 
   final Uri url;
+  final Uri trustedOrigin;
   final Widget placeholder;
   final DiscoveryOfflineStore? storeOverride;
 
@@ -33,7 +35,7 @@ class _RetainedPublicDiscoveryImageState
   int _generation = 0;
 
   DiscoveryOfflineStore get _store =>
-      widget.storeOverride ?? const DiscoveryOfflineStore();
+      widget.storeOverride ?? DiscoveryOfflineStore(trustedOrigin: widget.trustedOrigin);
 
   @override
   void initState() {
@@ -45,6 +47,7 @@ class _RetainedPublicDiscoveryImageState
   void didUpdateWidget(covariant RetainedPublicDiscoveryImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url ||
+        oldWidget.trustedOrigin != widget.trustedOrigin ||
         oldWidget.storeOverride != widget.storeOverride) {
       _bytes = null;
       unawaited(_restore());
@@ -55,9 +58,9 @@ class _RetainedPublicDiscoveryImageState
     final generation = ++_generation;
     final url = widget.url;
     final store = _store;
-    if ((url.scheme != 'https' && url.scheme != 'http') ||
-        url.host.isEmpty ||
-        url.userInfo.isNotEmpty) {
+    if (!DiscoveryOfflineStore.isPublishedRecognitionUri(
+      url, trustedOrigin: widget.trustedOrigin,
+    )) {
       return;
     }
     try {
