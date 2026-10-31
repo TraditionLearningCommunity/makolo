@@ -284,6 +284,7 @@ class M8BMatureDiscoverTests(TestCase):
             "spatial_facts": [
                 {"role": "departure", "place": {"name": "Lubumbashi"}},
                 {"role": "stopover", "place": {"name": "Likasi"}},
+                {"role": "stopover", "place": {"name": "Fungurume"}},
                 {"role": "arrival", "place": {"name": "Kolwezi"}},
             ],
             "temporal_facts": [
@@ -298,7 +299,8 @@ class M8BMatureDiscoverTests(TestCase):
         by_label = {fact.label: fact.value for fact in card.facts}
         self.assertEqual(by_label["Disponibilité"], "Complet")
         self.assertEqual(by_label["Départ"], "Lubumbashi")
-        self.assertEqual(by_label["Escale"], "Likasi")
+        self.assertEqual(by_label["Escale 1"], "Likasi")
+        self.assertEqual(by_label["Escale 2"], "Fungurume")
         self.assertEqual(by_label["Arrivée"], "Kolwezi")
         self.assertIn("Date limite", by_label)
         self.assertTrue(card.added_label)
