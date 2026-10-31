@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import FormView, TemplateView
 
 from activities.models import ActivityStatus, ActivityVisibility
+from organizations.models import SpaceLifecycle
 from opportunities.selectors import published_opportunities
 from journeys.models import JourneyStatus
 
@@ -16,7 +17,33 @@ from .services import answer_intake_question, create_service_journey, submit_ser
 
 
 def public_services():
-    return ServiceDetails.objects.filter(activity__status=ActivityStatus.PUBLISHED, activity__visibility=ActivityVisibility.PUBLIC).select_related("activity", "activity__space", "activity__owner_profile").order_by("activity__title", "id")
+    """Only owner-published, publicly discoverable Services.
+
+    The Activity's publication alone does not override Space lifecycle,
+    public identity or its verification suspension. The separate Group gate
+    remains the caller's responsibility.
+    """
+    return (
+        ServiceDetails.objects.filter(
+            activity__status=ActivityStatus.PUBLISHED,
+            activity__visibility=ActivityVisibility.PUBLIC,
+        )
+        .filter(
+            Q(
+                activity__space__isnull=False,
+                activity__space__public_profile=True,
+                activity__space__searchable=True,
+                activity__space__lifecycle=SpaceLifecycle.ACTIVE,
+            )
+            | Q(
+                activity__space__isnull=True,
+                activity__owner_profile__is_active=True,
+            )
+        )
+        .exclude(activity__space__verification_status="suspended")
+        .select_related("activity", "activity__space", "activity__owner_profile")
+        .order_by("activity__title", "id")
+    )
 
 
 def _published_template(service):
