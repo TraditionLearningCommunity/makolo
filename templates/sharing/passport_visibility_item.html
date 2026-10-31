@@ -1,4 +1,4 @@
-<form method="post" class="mk-panel space-y-3 p-4">
+<form method="post" data-passport-visibility class="mk-panel space-y-3 p-4">
   {% csrf_token %}
   <input type="hidden" name="target_kind" value="{{ item.kind }}">
   <input type="hidden" name="target_id" value="{{ item.id }}">
