@@ -127,7 +127,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
             selectedCandidateKey: _focusedCandidateKey,
-            onMap: widget.onMap == null ? null : () => widget.onMap!(_focusedCandidateKey),
+            onMap: widget.onMap == null ? null : () => widget.onMap!(focused?.isMappable == true ? _focusedCandidateKey : null),
             fieldKey: widget.fieldKey,
             scrollController: widget.scrollController,
           );
@@ -145,7 +145,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           loadMoreFailed: widget.loadMoreFailed,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
-            onMap: widget.onMap == null ? null : () => widget.onMap!(_focusedCandidateKey),
+            onMap: widget.onMap == null ? null : () => widget.onMap!(focused?.isMappable == true ? _focusedCandidateKey : null),
             fieldKey: widget.fieldKey,
             scrollController: widget.scrollController,
           selectedCandidateKey: _focusedCandidateKey,
