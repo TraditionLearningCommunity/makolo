@@ -36,6 +36,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
   bool authorized = false;
   String? error;
   String? loadedSpaceId;
+  int loadVersion = 0;
 
   @override
   void initState() {
@@ -45,7 +46,13 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
   }
 
   void onActorChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    loadVersion++;
+    setState(() {
+      authorized = false;
+      loadedSpaceId = null;
+    });
+    if (actor != null) unawaited(load());
   }
 
   @override
@@ -71,6 +78,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       Uri.encodeComponent(widget.slug) + '/us/';
 
   Future<void> load() async {
+    final version = ++loadVersion;
     final current = actor;
     final api = widget.runtime.api;
     if (current == null || api == null) {
@@ -89,7 +97,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
           caps['update_space'] != true) {
         throw const FormatException('Settings not available for this actor');
       }
-      if (!mounted || actor?.space.id != expectedId) return;
+      if (!mounted || version != loadVersion ||
+          actor?.space.id != expectedId) return;
       name.text = identity['name']?.toString() ?? '';
       description.text = identity['description']?.toString() ?? '';
       website.text = identity['website']?.toString() ?? '';
@@ -102,7 +111,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
         loadedSpaceId = expectedId;
       });
     } on Object {
-      if (!mounted || actor?.space.id != expectedId) return;
+      if (!mounted || version != loadVersion ||
+          actor?.space.id != expectedId) return;
       setState(() {
         loading = false;
         authorized = false;
