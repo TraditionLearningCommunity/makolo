@@ -63,7 +63,10 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
   bool _loadingMore = false;
   String? _error;
   final List<Map<String, dynamic>> _extraBills = [];
+  final List<Map<String, dynamic>> _extraHistory = [];
   int? _offset;
+  int? _historyOffset;
+  bool _loadingHistory = false;
 
   bool _sameSubject(AppRuntime runtime, String? profileId) =>
       mounted && identical(widget.runtime, runtime) &&
@@ -73,6 +76,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
   void initState() {
     super.initState();
     _offset = _object(widget.snapshot['billing'])?['next_offset'] as int?;
+    _historyOffset = _object(widget.snapshot['history'])?['next_offset'] as int?;
   }
 
   @override
@@ -81,7 +85,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     if (widget.runtime != oldWidget.runtime ||
         widget.snapshot != oldWidget.snapshot) {
       _extraBills.clear();
+      _extraHistory.clear();
       _offset = _object(widget.snapshot['billing'])?['next_offset'] as int?;
+      _historyOffset = _object(widget.snapshot['history'])?['next_offset'] as int?;
       _error = null;
     }
   }
@@ -330,6 +336,38 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     }
   }
 
+  Future<void> _moreHistory() async {
+    final api = widget.runtime.api;
+    final offset = _historyOffset;
+    final runtime = widget.runtime;
+    final profileId = runtime.session?.profileId;
+    final snapshot = widget.snapshot;
+    if (api == null || offset == null || _loadingHistory) return;
+    setState(() => _loadingHistory = true);
+    try {
+      final result = (await api.get(
+        'api/v1/subscriptions/me/transitions/?offset=' + offset.toString(),
+      )).jsonObject();
+      if (!_sameSubject(runtime, profileId) ||
+          widget.runtime.api != api || widget.snapshot != snapshot) return;
+      final seen = {
+        ..._objects(_object(widget.snapshot['history'])?['items']),
+        ..._extraHistory,
+      }.map((item) => _value(item['id'])).toSet();
+      setState(() {
+        _extraHistory.addAll(_objects(result['items'])
+          .where((item) => seen.add(_value(item['id']))));
+        _historyOffset = result['next_offset'] as int?;
+      });
+    } on Object catch (error) {
+      if (_sameSubject(runtime, profileId)) {
+        setState(() => _error = _actionError(error));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final subscription = _object(widget.snapshot['subscription']);
@@ -340,6 +378,10 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     final bills = [
       ..._objects(_object(widget.snapshot['billing'])?['items']),
       ..._extraBills,
+    ];
+    final history = [
+      ..._objects(_object(widget.snapshot['history'])?['items']),
+      ..._extraHistory,
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -376,6 +418,28 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             child: const Text('Annuler la demande'),
           ),
         ],
+        const SizedBox(height: 18),
+        Text('Mes changements', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        if (history.isEmpty)
+          const Text('Aucune demande de changement enregistrée.'),
+        for (final event in history)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.history_rounded),
+            title: Text(_value(event['target_name'], 'Changement')),
+            subtitle: Text(
+              _value(event['kind_label']) + ' · ' +
+              _value(event['status_label'], 'À vérifier') +
+              (subscriptionDateLabel(event['requested_at']).isEmpty
+                ? '' : ' · ' + subscriptionDateLabel(event['requested_at'])),
+            ),
+          ),
+        if (_historyOffset != null)
+          TextButton(
+            onPressed: _loadingHistory ? null : _moreHistory,
+            child: Text(_loadingHistory ? 'Chargement…' : 'Voir les demandes précédentes'),
+          ),
         const SizedBox(height: 16),
         Text('Formules disponibles', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
