@@ -52,7 +52,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       if (mounted) {
         setState(() => _error = _created
             ? 'Espace créé. La vérification de votre accès est indisponible. '
-              'Revenez à Agir comme après actualisation.'
+              'Utilisez « Vérifier mon accès » pour reprendre sans recréer cet Espace.'
             : 'La création n’a pas été confirmée. Vérifiez votre connexion avant de réessayer.');
       }
     } finally {
@@ -64,25 +64,30 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
     final repository = widget.runtime.space!;
     final actor = widget.runtime.actorContext!;
     await repository.refreshInventory();
-      final state = await repository.readSource(repository.inventorySource());
-      if (state.lastSuccessAt == null || state.invalidated ||
-          state.lastErrorCode != null) {
-        throw StateError('Inventaire non vérifié.');
-      }
-      final authorized = (await repository.readInventory()).any(
-        (space) => space.identity.id == identity.id &&
-            space.identity.slug == identity.slug,
-      );
-      if (!authorized) {
-        throw StateError('L’accès à cet Espace doit être vérifié.');
-      }
-      await repository.refreshWorkspace(identity);
-      final verified = await repository.readSource(repository.workspaceSource(identity));
-      if (verified.lastSuccessAt == null || verified.invalidated ||
-          verified.lastErrorCode != null) {
-        throw StateError('Autorité non vérifiée.');
-      }
-      await actor.selectSpace(identity);
+    final state = await repository.readSource(repository.inventorySource());
+    if (state.lastSuccessAt == null ||
+        state.invalidated ||
+        state.lastErrorCode != null) {
+      throw StateError('Inventaire non vérifié.');
+    }
+    final authorized = (await repository.readInventory()).any(
+      (space) =>
+          space.identity.id == identity.id &&
+          space.identity.slug == identity.slug,
+    );
+    if (!authorized) {
+      throw StateError('L’accès à cet Espace doit être vérifié.');
+    }
+    await repository.refreshWorkspace(identity);
+    final verified = await repository.readSource(
+      repository.workspaceSource(identity),
+    );
+    if (verified.lastSuccessAt == null ||
+        verified.invalidated ||
+        verified.lastErrorCode != null) {
+      throw StateError('Autorité non vérifiée.');
+    }
+    await actor.selectSpace(identity);
   }
 
   Future<void> _retryVerification() async {
