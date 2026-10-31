@@ -183,13 +183,12 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
         for request in candidates[:SOURCE_SCAN_LIMIT]:
             activity_id = request.journey.activity_id
             can_decide = activity_id in decision_ids
-            if can_decide:
-                url = (
-                    reverse("organizations:console-requests", kwargs={"slug": space.slug})
-                    + f"?status=pending&activity={activity_id}"
-                )
-            else:
-                url = _space_work_url(space, responsibility_key)
+            # Reading remains possible for a viewer without decision power.
+            # Console's owner selector revalidates request visibility.
+            url = (
+                reverse("organizations:console-requests", kwargs={"slug": space.slug})
+                + f"?status=pending&activity={activity_id}"
+            )
             items.append(_situation(
                 space=space, source_kind="journey_request", source_id=request.pk,
                 activity_id=activity_id,
@@ -244,7 +243,11 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
         candidates = list(cases[: SOURCE_SCAN_LIMIT + 1])
         scan_incomplete |= len(candidates) > SOURCE_SCAN_LIMIT
         for journey in candidates[:SOURCE_SCAN_LIMIT]:
-            url = _space_work_url(space, responsibility_key)
+            url = (
+                reverse("services:operator-case", kwargs={"pk": journey.pk})
+                if hasattr(journey, "service_context")
+                else _space_work_url(space, responsibility_key)
+            )
             items.append(_situation(
                 space=space, source_kind="journey", source_id=journey.pk,
                 activity_id=journey.activity_id, human_context=journey.activity.title,
