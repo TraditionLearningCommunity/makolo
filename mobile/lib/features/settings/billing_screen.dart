@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_theme.dart';
+import 'subscription_actions_panel.dart';
 
 /// Private subscription read model supplied by the canonical Subscriptions API.
 /// No absent or stale local record is interpreted as "no subscription".
@@ -138,6 +139,12 @@ class _BillingScreenState extends State<BillingScreen> {
                 _text(_object(row)?['status'], fallback: 'État à vérifier'),
               ),
             ),
+        _heading('Gérer mon abonnement'),
+        SubscriptionActionsPanel(
+          runtime: widget.runtime,
+          snapshot: _data!,
+          onUpdated: _load,
+        ),
         if (billing?['next_offset'] != null)
           const Padding(
             padding: EdgeInsets.only(top: MakoloSpacing.md),
