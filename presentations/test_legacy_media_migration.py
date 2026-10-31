@@ -6,6 +6,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.core.management import call_command
+from django.urls import reverse
 from django.test import TestCase, override_settings
 
 from activities.models import Activity, ActivityStatus, ActivityVisibility
@@ -15,6 +16,8 @@ from presentations.management.commands.harden_presentation_media_assets import (
     _contains_reference,
 )
 from presentations.media_models import PresentationMediaPurpose, PresentationMediaUse
+from presentations.media_services import publish_presentation_media
+from accounts.models import UserProfile
 
 
 class LegacyPresentationMediaMigrationTests(TestCase):
@@ -27,6 +30,7 @@ class LegacyPresentationMediaMigrationTests(TestCase):
         owner = get_user_model().objects.create_user(
             username="presentation-migration-owner", password="test-strong",
         )
+        UserProfile.objects.create(user=owner, public_profile=True, searchable=True)
         activity = Activity.objects.create(
             owner_profile=owner, created_by=owner,
             title="Legacy presentation", status=ActivityStatus.PUBLISHED,
@@ -38,7 +42,7 @@ class LegacyPresentationMediaMigrationTests(TestCase):
         )
         self.asset.file.save("legacy.png", ContentFile(b"legacy"), save=False)
         self.asset.save()
-        PresentationMediaUse.objects.create(
+        self.use = PresentationMediaUse.objects.create(
             activity=activity, asset=self.asset, created_by=owner,
             purpose=PresentationMediaPurpose.RECOGNIZE,
             alt_text="Image existante",
@@ -71,6 +75,13 @@ class LegacyPresentationMediaMigrationTests(TestCase):
         self.asset.refresh_from_db()
         self.assertFalse(bool(self.asset.file))
         self.assertTrue(self.asset.private_file.storage.exists(self.asset.private_file.name))
+        publish_presentation_media(actor=self.use.created_by, media_use=self.use)
+        response = self.client.get(
+            reverse("presentations:published-media-file", kwargs={"use_id": self.use.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"legacy")
+        response.close()
 
     def test_legacy_editorial_reference_blocks_public_deletion(self):
         # Model-level legacy URL references can outlive the media-use relation.
