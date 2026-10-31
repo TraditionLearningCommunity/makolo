@@ -94,7 +94,10 @@
       <p class="max-w-3xl border-l-2 pl-4 text-sm leading-6" role="status"
          style="border-color:#5232DB;color:var(--mk-muted)">
         Certaines situations sont connues, mais tous les domaines de cet Espace ne sont pas encore couverts.
-        {% if projection.has_more %}Des situations supplémentaires peuvent exister dans le métier.{% endif %}
+        {% if projection.has_more %}
+          Des situations supplémentaires existent au-delà de cet aperçu.
+          <a href="{{ space_work_url }}" class="font-semibold underline underline-offset-4">Poursuivre dans Métier</a>.
+        {% endif %}
       </p>
     {% endif %}
   {% elif projection_state == 'empty' %}
