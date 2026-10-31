@@ -16,6 +16,13 @@ def _activity_owner_url(space, item):
     context = item.get("context") or {}
     capabilities = set(item.get("capabilities") or ())
 
+    # An operator Service case is a real owner depth; the generic Activity
+    # Console may be inaccessible to an assigned case operator.
+    if item.get("kind") == "service_case":
+        if "open_service_case" in capabilities and links.get("detail"):
+            return links["detail"]
+        return None
+
     activity_id = None
     if source.get("kind") == "activity" and links.get("detail"):
         activity_id = source.get("id")
@@ -54,6 +61,13 @@ def _compose_sections(space, projection):
         for raw_item in raw_items:
             item = dict(raw_item)
             item["owner_url"] = _activity_owner_url(space, item)
+            item["owner_label"] = (
+                "Ouvrir le dossier"
+                if item.get("kind") == "service_case" and item["owner_url"]
+                else "Voir le programme"
+                if item.get("kind") == "journey" and item["owner_url"]
+                else "Ouvrir"
+            )
             items.append(item)
         composed.append(
             {
