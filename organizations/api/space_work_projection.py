@@ -926,7 +926,11 @@ def build_space_work_projection(
         if direct_portfolio
         else []
     )
-    limited_coverage = not direct_portfolio or lens_ids is not None
+    # A selected owner or paged section is not the complete Space world.
+    limited_coverage = (
+        not direct_portfolio or lens_ids is not None
+        or bool(source_kind or source_id or section_key or offset)
+    )
     for section in sections.values():
         section["coverage_state"] = (
             "partial" if limited_coverage else "established"
