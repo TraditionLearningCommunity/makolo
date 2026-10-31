@@ -32,8 +32,7 @@ class SpaceUsSurface extends StatelessWidget {
     final location = _map(identity?['location']);
     final city = _value(location?['city']);
     final country = _value(location?['country']);
-    final place = [if (city != null) city, if (country != null) country]
-        .join(', ');
+    final place = [?city, ?country].join(', ');
     final team = _map(payload['team']);
     final ownership = _map(payload['ownership']);
     final relations = _map(payload['relationships']);
@@ -54,7 +53,7 @@ class SpaceUsSurface extends StatelessWidget {
     String? route(String depth) {
       if (slug == null) return null;
       final link = _value(handoffs?[depth]);
-      final expected = '/space/' + slug + '/us/' + depth;
+      final expected = '/space/$slug/us/$depth';
       // Old/offline server-provided links cannot cross actor or Space.
       return link == expected ? link : null;
     }
@@ -270,8 +269,7 @@ class SpaceUsSurface extends StatelessWidget {
 
   static List<Map<String, dynamic>> _rows(Object? value) {
     if (value is! List) return const [];
-    return [for (final row in value)
-      if (_map(row) case final item?) item];
+    return value.map(_map).whereType<Map<String, dynamic>>().toList(growable: false);
   }
 
   static String? _value(Object? value) =>
@@ -297,11 +295,13 @@ class SpaceUsSurface extends StatelessWidget {
 
   static String _relationSummary(Map<String, dynamic>? section) {
     final items = _rows(section?['items']);
-    if (items.isEmpty) return 'Aucune relation visible';
+    if (items.isEmpty) {
+      return 'Aucune relation visible';
+    }
     final count = items.length;
     return section?['has_more'] == true
-        ? 'Au moins ' + count.toString() + ' relations dans cet aperçu'
-        : count.toString() + (count == 1 ? ' relation visible' : ' relations visibles');
+        ? 'Au moins $count relations dans cet aperçu'
+        : '$count' + (count == 1 ? ' relation visible' : ' relations visibles');
   }
 
   static Widget _sectionTitle(
