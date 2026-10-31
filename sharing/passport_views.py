@@ -22,6 +22,7 @@ from .passport_documents import (
     passport_verification_token,
     resolve_passport_verification_token,
     snapshot_payload_is_intact,
+    profile_public_snapshot_still_disclosable,
 )
 
 from .passport import (
@@ -374,6 +375,8 @@ def _snapshot_content_allowed(snapshot, viewer, *, currently_public):
     # general access, and revocation prevents public document access.
     if (not snapshot.is_revoked and snapshot.variant == PASSPORT_PUBLIC
             and snapshot.public_at_issue and currently_public):
+        if snapshot.subject_kind == PublicSubjectKind.PROFILE:
+            return profile_public_snapshot_still_disclosable(snapshot)
         return True
     if not viewer.is_authenticated:
         return False
