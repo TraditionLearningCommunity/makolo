@@ -120,6 +120,12 @@ def _avatar_url(profile):
 
 
 def _profile_identity(profile):
+    from sharing.models import PublicIdentifier
+
+    public_identifier = (
+        PublicIdentifier.objects.filter(profile=profile)
+        .values_list("identifier", flat=True).first()
+    ) or profile.username
     profile_row = UserProfile.objects.filter(user=profile).first()
     location_parts = []
     if profile_row:
@@ -139,7 +145,7 @@ def _profile_identity(profile):
     )
     return {
         "name": profile.full_name or profile.username,
-        "identifier": profile.username,
+        "identifier": public_identifier,
         "avatar_url": _avatar_url(profile),
         "bio": profile.bio or "",
         "profession": profile_row.profession if profile_row and profile_row.profession else "",
