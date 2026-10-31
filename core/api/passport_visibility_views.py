@@ -40,7 +40,9 @@ class PersonalPassportVisibilityAPIView(PersonalProjectionAPIView):
                 "configured": True,
                 "audiences": [
                     {"kind": row.kind, **(
-                        {"id": str(row.selected_profile_id)} if row.selected_profile_id else
+                        {"id": str(row.selected_profile_id),
+                         "label": row.selected_profile.full_name or row.selected_profile.username}
+                        if row.selected_profile_id else
                         {"id": str(row.selected_space_id)} if row.selected_space_id else
                         {"id": str(row.selected_team_id)} if row.selected_team_id else
                         {"id": str(row.selected_group_id)} if row.selected_group_id else {}
