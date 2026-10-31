@@ -96,9 +96,11 @@ class WS4SpaceWebTests(TestCase):
             row for row in response.context["projection"]["responsibilities"]["items"]
             if not row.get("combined")
         )
+        from urllib.parse import quote
+
         self.assertContains(
             response,
-            f"?responsibility={mandate['key']}",
+            f"?responsibility={quote(mandate['key'], safe='')}",
         )
         self.assertContains(response, "Faits de vérification")
         self.assertContains(response, "Personnes & relations")
