@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import '../../platform/files/passport_pdf_saver.dart';
+
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -760,7 +761,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final file = await _downloadPassport();
     if (file == null || !mounted) return;
     try {
-      final saved = await savePassportPdf(file, 'passeport-makolo-$_variant.pdf');
+      final saved = await savePassportPdf(
+        file,
+        'passeport-makolo-$_variant.pdf',
+      );
       if (!mounted || saved == null) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Passeport PDF enregistré.')),
