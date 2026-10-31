@@ -14,7 +14,8 @@ ENGAGEMENT=("forms","crm")
 LIVE=("placement","incidents")
 PERSONAL=("discovery","goals","space")
 ECOSYSTEM=("spaces","loyalty","automation")
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,"content")
+AFTERCARE=("outcomes",)
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,*AFTERCARE,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain!="content")
 
 
@@ -50,7 +51,7 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare
     if a.action=="inventory":
         catalog.main([])
         return
@@ -128,6 +129,10 @@ def run(a):
         if a.grant_roles: argv.append("--grant-demo-roles")
         if apply: argv.append("--apply")
         scale.main(argv)
+    if "outcomes" in domains:
+        argv=["--count",str(min(a.count,10000))]
+        if apply: argv.append("--apply")
+        aftercare.main(argv)
     live_selected=set(LIVE)&domains
     if live_selected:
         argv=["--domains",",".join(sorted(live_selected)),
