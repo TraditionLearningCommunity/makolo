@@ -176,6 +176,27 @@ class NativeSpaceSubscriptionTests(TestCase):
             self.assertFalse(visible.filter(pk=self.other_subscription.pk).exists())
             self.assertFalse(manageable.filter(pk=self.other_subscription.pk).exists())
 
+    def test_subscription_view_does_not_expose_payments_without_finance_view(self):
+        from unittest.mock import patch
+        from .space_billing_view import space_billing_for_actor
+
+        terms = PlanVersionBillingTerms.objects.create(
+            plan_version=self.version, amount="27.00",
+            currency="USD", billing_period_unit="month",
+        )
+        create_subscription_billing_obligation(
+            subscription=self.subscription, billing_terms=terms,
+            billing_key="restricted-space-bill", actor=None,
+        )
+        with patch(
+            "subscriptions.space_billing_view.space_ids_with_permission",
+            return_value=[],
+        ):
+            restricted = space_billing_for_actor(self.viewer, self.subscription)
+        self.assertEqual(restricted["visibility"], "restricted")
+        self.assertEqual(restricted["items"], [])
+        self.assertIsNone(restricted["next_offset"])
+
     def test_nous_handoff_respects_subscription_mandate(self):
         owner = build_space_us_projection(profile=self.owner, space=self.space)
         self.assertEqual(owner["handoffs"]["subscription"], f"/space/{self.space.slug}/subscription")
