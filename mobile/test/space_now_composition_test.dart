@@ -143,6 +143,30 @@ void main() {
         NowInteractionDepth.domainDepth);
   });
 
+  test('Space payer obligations use a strictly scoped native owner link', () {
+    const owned = StructuredDestination(
+      kind: 'space_payment_obligation',
+      id: 'obligation-1',
+      link: '/space/space-a/retrieval/payment_obligation/obligation-1',
+    );
+    const wrongOwner = StructuredDestination(
+      kind: 'space_payment_obligation',
+      id: 'obligation-1',
+      link: '/space/space-a/retrieval/commerce_order/obligation-1',
+    );
+    const external = StructuredDestination(
+      kind: 'space_payment_obligation',
+      id: 'obligation-1',
+      link: 'https://untrusted.example/space/space-a/retrieval/payment_obligation/obligation-1',
+    );
+    expect(
+      NowScreen.ownerPathFor(owned),
+      '/space/space-a/retrieval/payment_obligation/obligation-1',
+    );
+    expect(NowScreen.ownerPathFor(wrongOwner), isNull);
+    expect(NowScreen.ownerPathFor(external), isNull);
+  });
+
   test('Space owner situation uses common Now semantics without direct POST', () {
     final result = selector.select(
       projection: _spaceNowProjection([
