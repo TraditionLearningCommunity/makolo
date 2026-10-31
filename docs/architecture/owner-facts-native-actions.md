@@ -163,7 +163,10 @@ Service porté par un Espace qui a retiré son profil public/recherchable,
 qui est archivé ou suspendu. Le selector propriétaire doit contrôler
 `Organization.public_profile`, `searchable`, `lifecycle=active`
 et `verification_status != suspended`. Une Activity personnelle
-avec un propriétaire `User.is_active=False` n'est pas une offre publique.
+avec un propriétaire `User.is_active=False` ou un choix explicite de
+`UserProfile.public_profile=False` / `searchable=False` n'est pas une offre
+publique. En l'absence de ligne UserProfile héritée, le statut public explicite
+de l'Activity reste compatible et ne crée pas une permission nouvelle.
 
 - **Funding** : `public_fundings` applique ces conditions à la découverte et
   à la lecture publique. `funding_accepts_contributions` interdit également
@@ -179,8 +182,8 @@ avec un propriétaire `User.is_active=False` n'est pas une offre publique.
   filtre local Service historiquement plus large ; sa réconciliation est une
   obligation explicite de l'étape 02, non une raison de démultiplier le selector.
 
-Quatre tests de non-régression ont été ajoutés dans
+Six tests de non-régression ont été ajoutés dans
 `funding/test_z15_api.py` et `services/test_native_start_api.py` :
 retrait du profil public, fin de recherchabilité, archive, suspension,
-inactivation de propriétaire personnel, absence de nouvelle contribution ou
-Journey. **Écriture vérifiée sur la branche, exécution non attestée.**
+inactivation de propriétaire personnel, confidentialité explicite
+UserProfile, absence de nouvelle contribution ou Journey. **Écriture vérifiée sur la branche, exécution non attestée.**
