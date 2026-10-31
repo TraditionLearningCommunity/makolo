@@ -73,19 +73,19 @@ class G2TopicsInterestsTests(TestCase):
         )
         existing.refresh_from_db()
         self.assertTrue(existing.is_public)
-        self.assertFalse(ProfileInterest.objects.get(profile=self.user, topic=self.culture).is_public)
+        self.assertTrue(ProfileInterest.objects.get(profile=self.user, topic=self.culture).is_public)
 
         replace_profile_interests(profile=self.user, topic_ids=[self.culture.pk])
         self.assertFalse(ProfileInterest.objects.filter(profile=self.user, topic=self.tech).exists())
         self.assertTrue(ProfileInterest.objects.filter(profile=self.user, topic=self.culture).exists())
 
-    def test_interest_is_private_by_default_and_public_selector_does_not_leak_it(self):
+    def test_new_interest_is_public_by_default_and_explicit_private_stays_private(self):
         interest = ProfileInterest.objects.create(profile=self.user, topic=self.tech)
-        self.assertFalse(interest.is_public)
-        self.assertEqual(list(public_profile_interests(profile=self.user)), [])
-        interest.is_public = True
-        interest.save(update_fields=["is_public", "updated_at"])
+        self.assertTrue(interest.is_public)
         self.assertEqual(list(public_profile_interests(profile=self.user)), [interest])
+        interest.is_public = False
+        interest.save(update_fields=["is_public", "updated_at"])
+        self.assertEqual(list(public_profile_interests(profile=self.user)), [])
 
     def test_inactive_topic_cannot_be_added(self):
         inactive = Topic.objects.create(code="archive-g2", label="Archive G2", is_active=False)
@@ -110,7 +110,7 @@ class G2TopicsInterestsTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("account:interests"))
         self.assertContains(response, "Centres d’intérêt")
-        self.assertContains(response, "privés par défaut")
+        self.assertContains(response, "publics par défaut")
         self.assertContains(response, "ne sont jamais déduits automatiquement")
 
     def test_bookmark_and_follow_do_not_create_profile_interests(self):
