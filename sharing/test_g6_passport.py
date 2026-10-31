@@ -438,12 +438,13 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertIn("attachment;", response["Content-Disposition"])
         self.assertContains(response, 'data-passport-print-ready="true"')
         self.assertNotContains(response, "Imprimer / Enregistrer en PDF")
-        from django.templatetags.static import static
-
-        # Manifest storage fingerprints assets in real exports. Require the
-        # exact resolved logo URL instead of assuming an unhashed filename.
-        logo_url = static("brand/makolo-logo-light.svg")
-        self.assertContains(response, f'src="{logo_url}"')
+        # The template's static asset may be fingerprinted by Manifest storage.
+        # Assert the real logo image (not just a filename substring), accepting
+        # both ordinary and content-hashed static URLs.
+        self.assertRegex(
+            response.content.decode("utf-8"),
+            r'<img class="brand-logo" src="/static/brand/makolo-logo-light(?:\.[0-9a-f]{12})?\.svg" alt="Makolo">',
+        )
         self.assertContains(response, "QR de vérification")
         self.assertNotContains(response, "Ownership Activity")
         self.assertNotContains(response, "Credential Trust")
