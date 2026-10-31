@@ -756,6 +756,9 @@ def build_space_work_projection(
                 unsatisfied=Count(
                     "pk", filter=Q(status=RequirementAssessmentState.UNSATISFIED)
                 ),
+                not_applicable=Count(
+                    "pk", filter=Q(status=RequirementAssessmentState.NOT_APPLICABLE)
+                ),
             )
         )
         by_case = {
@@ -769,6 +772,7 @@ def build_space_work_projection(
                     "satisfied": summary["satisfied"],
                     "awaiting": summary["awaiting"],
                     "unsatisfied": summary["unsatisfied"],
+                    "not_applicable": summary["not_applicable"],
                     # Owner assessments are facts, not a global ready/block flag.
                     "basis": "service_requirement_assessment",
                 }
