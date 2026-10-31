@@ -31,6 +31,8 @@ def main(argv=None):
     from funding.models import FundingDetails
     from funding.services import create_funding
     from services.models import ServiceDetails, ServiceKind
+    from authorization.constants import SystemRoleCode
+    from authorization.services import grant_activity_role
     from services.services import create_service_details
     from obtention.models import ObtentionDetails, ObtentionModeCode
     from obtention.services import create_obtention
@@ -90,6 +92,11 @@ def main(argv=None):
                             status=ActivityStatus.PUBLISHED,
                             short_description="Service fictif de préparation administrative.",
                         )
+                        grant_activity_role(
+                            profile=owner, activity=activity,
+                            role=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+                            granted_by=owner, source="demo-generation-services",
+                        )
                         create_service_details(
                             activity=activity, actor=owner,
                             service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
@@ -111,8 +118,9 @@ def main(argv=None):
                     activity.full_clean()
                     activity.save(update_fields=["slug", "updated_at"])
                 counters[domain + "_created"] += 1
-            except (ValidationError, PermissionDenied):
+            except (ValidationError, PermissionDenied) as exc:
                 counters[domain + "_rejected"] += 1
+                print("REJECTED", domain, slug, type(exc).__name__, str(exc)[:300])
     print("DOMAIN FOUNDATIONS", "APPLY" if a.apply else "PREVIEW",
           dict(sorted(counters.items())))
     print("Aucune donnée extérieure ni paiement réel n'a été inventé.")
