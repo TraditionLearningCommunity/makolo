@@ -1,7 +1,15 @@
-"""Privacy-scoped, URL-free media projection candidates for P3."""
+"""Owner-scoped, URL-free media-use references for Discovery and Presentation.
+
+The selector never grants media authority from a URL or an asset alone.
+Delivery repeats the owner/group checks at request time.
+"""
 from dataclasses import dataclass
 
-from activities.models import ActivityStatus, ActivityVisibility
+from django.db.models import Q
+
+from activities.models import Activity, ActivityStatus, ActivityVisibility, OccurrenceStatus
+from groups.selectors import eligible_activity_ids_for_profile
+from organizations.models import SpaceLifecycle
 
 from .media_models import PresentationMediaPurpose, PresentationMediaState, PresentationMediaUse
 
@@ -18,28 +26,96 @@ class ResolvedPresentationMedia:
     position: int
 
 
-def public_presentation_media_for_activities(activities, *, occurrences=(), purpose=PresentationMediaPurpose.RECOGNIZE):
-    """Return authorized uses grouped by Activity ID without N+1 queries.
+def public_media_activities(*, activity_ids):
+    """Query the logical owners, not an uploader or an asset's provenance.
 
-    This selector returns asset identity, never a raw storage URL. Asset delivery
-    is subject to its own permission-checked transport in the consumer phase.
+    Unlike general Activity search, publishing a media file is also subject to
+    the Space/Personal Profile's explicit public identity choice.
+    """
+    return (
+        Activity.objects.filter(
+            pk__in=activity_ids,
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        .filter(
+            Q(
+                space__isnull=False,
+                space__public_profile=True,
+                space__searchable=True,
+                space__lifecycle=SpaceLifecycle.ACTIVE,
+            )
+            | Q(
+                space__isnull=True,
+                owner_profile__is_active=True,
+                owner_profile__profile__public_profile=True,
+                owner_profile__profile__searchable=True,
+            )
+        )
+        .exclude(space__verification_status="suspended")
+    )
+
+
+def public_presentation_media_for_activities(
+    activities, *, occurrences=(), purpose=PresentationMediaPurpose.RECOGNIZE, profile=None,
+):
+    """Return authorized, published, deliverable uses grouped by Activity ID.
+
+    This returns neither storage locations nor raw asset URLs. An Activity
+    owner can publish an association without making its underlying file
+    publicly deliverable unless the Activity and Profile/Space are public.
     """
     activities = list(activities)
     occurrences = list(occurrences)
-    ids = {a.pk for a in activities if a.visibility == ActivityVisibility.PUBLIC and a.status == ActivityStatus.PUBLISHED}
-    allowed_occurrence_ids = {o.pk for o in occurrences if o.activity_id in ids}
-    result = {str(pk): [] for pk in ids}
-    if not ids:
+    proposed = {
+        activity.pk for activity in activities
+        if activity.visibility == ActivityVisibility.PUBLIC
+        and activity.status == ActivityStatus.PUBLISHED
+    }
+    if not proposed:
+        return {}
+    admitted = set(
+        public_media_activities(activity_ids=proposed).values_list("pk", flat=True)
+    )
+    admitted &= eligible_activity_ids_for_profile(profile, admitted)
+    allowed_occurrences = {
+        occurrence.pk for occurrence in occurrences
+        if occurrence.activity_id in admitted
+        and occurrence.status == OccurrenceStatus.SCHEDULED
+    }
+    result = {str(pk): [] for pk in admitted}
+    if not admitted:
         return result
-    qs = (
+
+    uses = (
         PresentationMediaUse.objects.filter(
-            activity_id__in=ids, state=PresentationMediaState.PUBLISHED, purpose=purpose,
+            activity_id__in=admitted,
+            state=PresentationMediaState.PUBLISHED,
+            purpose=purpose,
+            asset__mime_type__in=("image/jpeg", "image/png"),
         )
+        .filter(Q(asset__private_file__isnull=False) | ~Q(asset__file=""))
         .select_related("asset")
         .order_by("position", "created_at", "pk")
     )
-    for use in qs:
-        if use.occurrence_id is not None and use.occurrence_id not in allowed_occurrence_ids:
+    for use in uses:
+        if use.occurrence_id is not None and use.occurrence_id not in allowed_occurrences:
+            continue
+        if use.asset.owner_space_id:
+            if use.asset.owner_space_id not in {
+                activity.space_id for activity in activities
+                if activity.pk == use.activity_id
+            }:
+                continue
+        elif use.asset.owner_profile_id:
+            if use.asset.owner_profile_id not in {
+                activity.owner_profile_id for activity in activities
+                if activity.pk == use.activity_id and activity.space_id is None
+            }:
+                continue
+        else:
+            continue
+        if not (use.asset.private_file or use.asset.file):
             continue
         result[str(use.activity_id)].append(
             ResolvedPresentationMedia(
