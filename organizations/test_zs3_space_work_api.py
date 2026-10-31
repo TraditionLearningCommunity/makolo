@@ -260,6 +260,12 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             start_at=timezone.now() + timedelta(days=4),
             status=OccurrenceStatus.SCHEDULED,
         )
+        Occurrence.objects.create(
+            activity=published,
+            label="Atelier plus tard",
+            start_at=timezone.now() + timedelta(days=8),
+            status=OccurrenceStatus.SCHEDULED,
+        )
         self.client.force_authenticate(self.owner)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200, response.data)
