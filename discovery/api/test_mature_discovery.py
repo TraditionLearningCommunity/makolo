@@ -1072,3 +1072,43 @@ class MatureDiscoveryAPITests(TestCase):
             {"when": "invalid-temporal-preset"},
         )
         self.assertEqual(bad_map.status_code, 400, bad_map.content)
+
+    def test_collection_price_uses_commerce_unknown_and_exact_owner_truth(self):
+        from commerce.models import Offer, OfferStatus, PaymentMode
+
+        service = next(
+            row for row in self._items(q="Z3 accompagnement")["data"]["results"]
+            if row["identity"]["family"] == "service_activity"
+        )
+        self.assertEqual(service["price"]["state"], "unknown")
+        self.assertEqual(service["price"]["reason"], "no_applicable_offer")
+        self.assertIsNone(service["price"]["minimum"])
+
+        offer = Offer.objects.create(
+            activity=self.service_activity, name="Accompagnement au dossier",
+            unit_price=Decimal("15.00"), currency="USD",
+            status=OfferStatus.ACTIVE, payment_mode=PaymentMode.UPFRONT,
+        )
+        updated = next(
+            row for row in self._items(q="Z3 accompagnement")["data"]["results"]
+            if row["identity"]["family"] == "service_activity"
+        )
+        self.assertEqual(updated["price"]["state"], "exact")
+        self.assertEqual(updated["price"]["minimum"], "15.00")
+        self.assertEqual(updated["price"]["currency"], "USD")
+
+        Offer.objects.create(
+            activity=self.service_activity, name="Autre devise",
+            unit_price=Decimal("1000.00"), currency="CDF",
+            status=OfferStatus.ACTIVE, payment_mode=PaymentMode.UPFRONT,
+        )
+        mixed = next(
+            row for row in self._items(q="Z3 accompagnement")["data"]["results"]
+            if row["identity"]["family"] == "service_activity"
+        )
+        self.assertEqual(mixed["price"]["state"], "unknown")
+        self.assertEqual(mixed["price"]["reason"], "mixed_currencies")
+        self.assertIsNone(mixed["price"]["minimum"])
+        self.assertIsNone(mixed["price"]["currency"])
+        self.assertEqual(mixed["price"]["offer_count"], 2)
+        self.assertEqual(offer.pk is not None, True)
