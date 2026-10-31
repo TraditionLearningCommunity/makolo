@@ -1,7 +1,7 @@
 # Makolo — registre de fermeture de Découvrir
 **Document vivant — responsable : branche [#522](https://github.com/TraditionLearningCommunity/makolo/pull/522)**  
 **Initialisé le :** 2026-10-31  
-**Chantier courant :** **04 — Presentation N1, CODE LIVRÉ**. Compte rendu : [chantier 04](discover-stage-04-presentation-n1-2026-10-31.md). **Prochain : 05**, sans commencer la navigation par ce document.  
+**Chantier courant :** **05 — Recherche, carte et navigation, CODE LIVRÉ**. Compte rendu : [chantier 05](discover-stage-05-search-map-navigation-2026-10-31.md). **Prochain : 06**, sans le commencer ici.  
 **Chantier 00 :** **FERMÉ — réconciliation documentaire**.  
 **Relevé de référence :** [chantier 00 — réconciliation](discover-stage-00-reconciliation-2026-10-31.md).
 
@@ -39,8 +39,8 @@ Pas de modèle persistant générique `Possibility`, de scoring client, de deuxi
 | **02** | Projection canonique Discovery | **LIVRÉ EN CODE — validation différée à 09** | [Relevé projection 02](discover-stage-02-canonical-projection-2026-10-31.md), admission Services, ressources, prix, pagination et tests |
 | **03** | Médias, ressources et stockage | **CODE LIVRÉ — migration physique et validation différées** | [Relevé média 03](discover-stage-03-media-resources-2026-10-31.md) : gate owner commun, fichiers, Flutter, imports éditoriaux MPS privés, commande de migration conservatrice ; déploiement non réalisé |
 | **04** | Presentation N1 | **LIVRÉ EN CODE — validation différée à 09** | [Relevé N1 04](discover-stage-04-presentation-n1-2026-10-31.md) : huit zones, ajout relatif, sens des faits et des contextes, média MIME/alt ; tests enregistrés |
-| **05** | Recherche, carte et navigation | **PROCHAIN CHANTIER** | Une query/selection à travers liste, carte, détail et retour, continuation et état spatial préservés |
-| **06** | N2, variantes et comparaison conditionnelle | **VERROUILLÉ** | Profondeur owner-backed, inconnues et variantes sans comparaison universelle inventée |
+| **05** | Recherche, carte et navigation | **LIVRÉ EN CODE — validation différée à 09** | [Relevé exploration 05](discover-stage-05-search-map-navigation-2026-10-31.md) : routes filtrées, carte compacte et repères, pagination signée, scroll/focus et public invité |
+| **06** | N2, variantes et comparaison conditionnelle | **PROCHAIN CHANTIER** | Profondeur owner-backed, inconnues et variantes sans comparaison universelle inventée |
 | **07** | Save, Watch, Sharing, engagements N3 | **VERROUILLÉ** | Transitions autorisées, idempotence si nécessaire, retour owner confirmé |
 | **08** | Local-first et confidentialité | **VERROUILLÉ** | Snapshots, reprise, offline, profils, cache/révocation et cold-start contrôlés |
 | **09** | Certification et intégration | **VERROUILLÉ** | Tests et validation réels attestés, CI requise, rapport de fermeture final, décision explicite de merge |
@@ -83,10 +83,10 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | R13 | Rétention automatique de médias réellement first-party | `ÉCART_CODE` corrigé : origine de confiance obligatoire, remplacement non destructeur, retrait sérialisé ; tests écrits non exécutés | `mobile/lib/presentation/possibilities/discovery_offline_store.dart`, `mobile/lib/presentation/media/retained_public_discovery_image.dart` | 03 ; états offline 08 |
 | R14 | N1 contextualisé et adaptatif | `ÉCART_CODE` corrigé : rôles géographiques, notes limitantes et variantes owner, section pratique adaptative, MIME/alt galerie ; tests N1 écrits, non exécutés | `discovery_possibility_unit.dart`, `discovery/views.py`, `templates/discovery/_universal_card.html` | 04 |
 | R15 | N1 dates à droite, faits stables, ressources dépliables | Date ajout humanisée à droite et accessible exactement, description dépliable, deux ressources puis toutes et trois interactions réutilisées ; tests écrits non exécutés | `discovery_possibility_unit.dart`, `templates/discovery/_universal_card.html`, tests Flutter/Web | 04 |
-| R16 | Recherche/filtres/continuation sur mêmes critères | `PARTIEL` — root et Search utilisent des chemins distincts | `discovery_screens.dart`, `discovery_repository.dart` | 05 |
-| R17 | Carte liée au même champ et aux mêmes critères | `ÉCART_CODE` — route autonome utilise la query par défaut | `discovery_routes.dart`, `discovery_screens.dart` | 05 |
-| R18 | Retour, sélection, scroll et contexte après redémarrage | `ÉCART_CODE` — sauvegarde page/curseur seulement dans le mécanisme relevé | `discovery.presentation-position` | 05 puis 08 |
-| R19 | États NO_MATCH/END_OF_FIELD/OFFLINE distincts | `PARTIEL` — code de sélection disponible, scénarios à éprouver | `discovery_selector.dart`, `discovery_wire.dart` | 05 puis 08 |
+| R16 | Recherche/filtres/continuation sur mêmes critères | `ÉCART_CODE` corrigé : routes conservent mêmes filtres, pages signées et historique local des curseurs réels, sans inventer de token ; tests ajoutés non exécutés | `discovery_repository.dart`, `discovery_screens.dart`, `discovery_routes.dart` | 05 |
+| R17 | Carte liée au même champ et aux mêmes critères | `ÉCART_CODE` corrigé : query passée par URL, même watchItems, MapLibre avec repères owner, véritable carte compacte et sélection ; tests non exécutés | `discovery_routes.dart`, `discovery_screens.dart`, `discovery_mature_view.dart` | 05 |
+| R18 | Retour, sélection, scroll et contexte après redémarrage | `ÉCART_CODE` corrigé au niveau navigation : scroll et candidat sélectionné stockés avec la page/continuation root, critères transportés par route ; profil et révocation complets relèvent de 08 | `discovery_screens.dart`, `discovery_offline_position_test.dart` | 05 puis 08 |
+| R19 | États NO_MATCH/END_OF_FIELD/OFFLINE distincts | Présentation Map raccordée au state de source, échecs/continuation traités sans créer de résultats ; tests réels et local-first de 08/09 restent non attestés | `discovery_screens.dart`, `discovery_selector.dart`, `discovery_wire.dart` | 05 puis 08 |
 | R20 | N2 sens, profondeur, variantes et inconnues | `À_VÉRIFIER` | `discovery_mature_view.dart`, `discovery_reader.dart` | 06 |
 | R21 | Comparaison conditionnelle sur faits comparables | `À_VÉRIFIER`; pas d'obligation de comparaison universelle | Contrats UX joints | 06 |
 | R22 | Save distinct de Watch distinct de Engage | `EXISTANT_SOURCE`, scénarios nécessaires | `discovery/api/views.py`, `discovery_watch_screens.dart` | 07 |
@@ -135,12 +135,12 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 **Travail :** huit zones, description expandable, faits fixes, contexte, date ajout à droite, galerie, ressources et actions, responsive Web/Flutter.  
 **Sortie de code livrée :** [relevé 04](discover-stage-04-presentation-n1-2026-10-31.md), huit zones préservées, date ajout relative, faits contextualisés, médias owner et tests ciblés écrits. Compatibilité réelle Flutter/Web non attestée sans exécution.
 
-### 05 — Exploration / Carte / Navigation **PROCHAIN CHANTIER**
+### 05 — Exploration / Carte / Navigation **LIVRÉ EN CODE / VALIDATION À 09**
 **Entrée :** sorties 04 ; R16–R19.  
 **Travail :** query transférée dans la route Map, sélection, retour, état/pagination, géographie, Scroll/camera, recherche, filtres, curseur invalide.  
-**Sortie :** tests de traversée complète des mêmes critères, sans deuxième champ ou changement silencieux.
+**Sortie livrée :** [relevé 05](discover-stage-05-search-map-navigation-2026-10-31.md), query canonique Liste/Carte/Search, scroll/focus, pin et caméra owner, curseurs signés, public invité et tests écrits. Tests d'exécution non réalisés.
 
-### 06 — N2 / Variantes / Comparaison **VERROUILLÉ**
+### 06 — N2 / Variantes / Comparaison **PROCHAIN CHANTIER**
 **Entrée :** sorties 05 ; R20–R21.  
 **Travail :** profondeur réelle des propriétaires, descriptions et ressources, variantes, relations justifiées, inconnues, comparaison conditionnelle.  
 **Sortie :** chaque verticale active présente N2 sans inventer des faits ou comparer des dimensions incompatibles.
@@ -170,13 +170,14 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | 2026-10-31 | 01 | Implémentation propriétaire Funding/Services sur #522 : visibilité du porteur, refus de nouvelle contribution et de démarrage après retrait ; six tests ajoutés, contrat des huit propriétaires consigné dans `discover-stage-01-owner-facts-2026-10-31.md`. | **Livrée en code ; certification différée à 09 sur demande utilisateur.** |
 | 2026-10-31 | 02 | Projection multi-famille Discovery réconciliée avec Services, droits Preparation et scope Occurrence, texte inline borné, URLs publiques validées, prix Commerce prioritaires, curseur validé avant composition, erreurs HTTP 400 ; tests et document `discover-stage-02-canonical-projection-2026-10-31.md`. | **Livrée en code, tests non exécutés.** |
 | 2026-10-31 | 03 | Gate Publication/Delivery owner+Group+Occurrence, trusted API origin Flutter, sauvegarde atomique/retrait sérialisé, nouveaux MPS hero en privé, commande migration legacy optionnelle et tests, dossier `discover-stage-03-media-resources-2026-10-31.md`. | **Code livré ; migration physique, CDN, anciens `hero_image` et tests non exécutés.** |
-| 2026-10-31 | 04 | N1 Web/Flutter : date d'ajout relative à droite, signification des faits temporaux/spatiaux, absence d'inférence, notes limitantes et variantes réelles, galerie MIME/alt et sections conditionnelles ; tests dédiés dans `discovery_mature_screen_test.dart` et `test_m8b_mature_discover.py`, relevé `discover-stage-04-presentation-n1-2026-10-31.md`. | **Code livré, tests non exécutés ; prochain chantier 05 exclusivement.** |
+| 2026-10-31 | 04 | N1 Web/Flutter : date d'ajout relative à droite, signification des faits temporaux/spatiaux, absence d'inférence, notes limitantes et variantes réelles, galerie MIME/alt et sections conditionnelles ; tests dédiés dans `discovery_mature_screen_test.dart` et `test_m8b_mature_discover.py`, relevé `discover-stage-04-presentation-n1-2026-10-31.md`. | **Code livré, tests non exécutés.** |
+| 2026-10-31 | 05 | Query Search/Carte, filtres et focus transités par URL et navigation globale/guest, vraie carte compacte et repères MapLibre, scroll root sauvegardé par profil, curseurs historiques, erreur continuation et sources ; tests et dossier `discover-stage-05-search-map-navigation-2026-10-31.md`. | **Code livré ; tests, intégration MapLibre appareil/Web et CI non exécutés ; prochain 06 seulement.** |
 
 Pour chaque livraison : ajouter une ligne `date | étape | commit de fin | fichiers | tests ajoutés | résultats exécutés (ou « non exécutés ») | anomalies restantes`. Le mot **certifié** reste réservé à l'exécution du chantier 09.
 
 ## 6. Instruction impérative pour la suite
 
 1. Recharger le HEAD courant et le delta depuis l'état du chantier 00 ; vérifier les collisions sans refaire toute l'analyse.
-2. La validation exécutée de 01–04 est différée à la certification 09, selon l'instruction explicite de l'utilisateur. Ne jamais prétendre que les tests ont réussi.
-3. Conserver dans **#522** la traçabilité des livraisons 01–04 ; toute régression ultérieure se corrige à l'étape active avec un test ciblé.
-4. **Ouvrir uniquement le chantier 05** à la prochaine instruction, sans anticiper 06–09. Les opérations physiques de stockage et la certification restent distinctes des livraisons de code.
+2. La validation exécutée de 01–05 est différée à la certification 09, selon l'instruction explicite de l'utilisateur. Ne jamais prétendre que les tests ont réussi.
+3. Conserver dans **#522** la traçabilité des livraisons 01–05 ; toute régression ultérieure se corrige à l'étape active avec un test ciblé.
+4. **Ouvrir uniquement le chantier 06** à la prochaine instruction, sans anticiper 07–09. Les opérations physiques de stockage et la certification restent distinctes des livraisons de code.
