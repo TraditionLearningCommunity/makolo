@@ -106,13 +106,13 @@ def main(argv=None):
     if args.grant_demo_roles and not has_platform_authority(grantor):
         parser.error("Le grantor doit deja disposer d une autorite plateforme explicite")
     if args.orders:
-        from django.conf import settings
+        from django.test.utils import override_settings
         from tickets.models import TicketType, TicketOrder
         from tickets.services import create_order, configure_ticket_type
         from payments.models import PaymentProvider, PaymentMethod, PaymentStatus, Payment
         from payments.services import initiate_payment, complete_sandbox_payment
         from events.permissions import user_can_manage_event
-        sandbox = bool(getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False))
+        sandbox = connection.vendor == "sqlite"
     now = timezone.now()
     future = now + timedelta(days=args.days)
     occurrences = list(Occurrence.objects.select_related("activity").filter(
@@ -376,16 +376,17 @@ def main(argv=None):
                             selections=[(tt,1)], auto_confirm_free=True)
                         counts["orders_created"] += 1
                     if order.total_amount > 0 and sandbox:
-                        key = "makolo-demo-order:" + str(order.pk)
-                        payment = Payment.objects.filter(idempotency_key=key).first()
-                        if payment is None:
-                            payment = initiate_payment(order=order, actor=buyer,
-                                provider=PaymentProvider.SANDBOX,
-                                method=PaymentMethod.MOBILE_MONEY,
-                                idempotency_key=key)
-                        if payment.status != PaymentStatus.SUCCEEDED:
-                            complete_sandbox_payment(payment=payment, actor=buyer)
-                            counts["sandbox_payments_completed"] += 1
+                        with override_settings(PAYMENTS_SANDBOX_ENABLED=True):
+                            key = "makolo-demo-order:" + str(order.pk)
+                            payment = Payment.objects.filter(idempotency_key=key).first()
+                            if payment is None:
+                                payment = initiate_payment(order=order, actor=buyer,
+                                    provider=PaymentProvider.SANDBOX,
+                                    method=PaymentMethod.MOBILE_MONEY,
+                                    idempotency_key=key)
+                            if payment.status != PaymentStatus.SUCCEEDED:
+                                complete_sandbox_payment(payment=payment, actor=buyer)
+                                counts["sandbox_payments_completed"] += 1
                     elif order.total_amount > 0:
                         counts["paid_orders_pending_sandbox_disabled"] += 1
                 except (ValidationError, PermissionDenied):
