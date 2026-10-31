@@ -477,6 +477,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     final addons = _objects(subscription['active_addons']);
     final transition = _object(widget.snapshot['transition']);
     final hasOpenTransition = transition?['open'] == true;
+    final billingRestricted =
+        _object(widget.snapshot['billing'])?['visibility'] == 'restricted';
     final bills = [
       ..._objects(_object(widget.snapshot['billing'])?['items']),
       ..._extraBills,
@@ -636,7 +638,10 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
-        if (bills.isEmpty)
+        if (billingRestricted)
+          const Text('Les obligations financières sont réservées aux personnes '
+              'autorisées à consulter les finances de cet Espace.')
+        else if (bills.isEmpty)
           const Text('Aucune obligation financière liée à cet abonnement.'),
         for (final obligation in bills)
           Card(
