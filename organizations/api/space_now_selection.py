@@ -16,7 +16,7 @@ from activities.models import Occurrence, OccurrenceStatus, OccurrenceTimingKind
 from authorization.constants import PermissionCode
 from authorization.selectors import activity_ids_with_direct_permission
 from journeys.collaboration_models import JourneyAssignmentStatus
-from journeys.models import JourneyRequest, JourneyStatus, RequestStatus
+from journeys.models import JourneyRequest, RequestStatus
 from services.attention_selectors import facilitator_attention_journeys, manager_attention_journeys
 from services.selectors import service_journeys_visible_to
 
@@ -249,12 +249,12 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 space=space, source_kind="journey", source_id=journey.pk,
                 activity_id=journey.activity_id, human_context=journey.activity.title,
                 subject="Dossier de prestation",
-                state="Dossier en attente d'examen" if journey.status == JourneyStatus.PENDING_APPROVAL else "Dossier soumis",
-                why_now="Un dossier de prestation attend une suite dans cette activité.",
-                reason="service_case_pending",
-                turn="none", response_type="monitor",
-                destination="activity", web_url=url,
-                observed_at=observed_at, action_label="Consulter dans Métier",
+                state="Suivi opérateur nécessaire",
+                why_now="Une situation nécessitant un suivi est établie par Services.",
+                reason="service_operator_attention",
+                turn="collective", response_type="understand",
+                destination="space_work_journey", web_url=url,
+                observed_at=observed_at, action_label="Consulter le dossier",
             ))
 
     # Deterministic priority across owner sources; not a generic relevance score.
