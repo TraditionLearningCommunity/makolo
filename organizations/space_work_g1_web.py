@@ -13,6 +13,7 @@ from django.urls import reverse
 
 from funding.models import FundingDetails
 from funding.services import can_manage_funding
+from journeys.models import Journey
 
 from activities.models import Activity, Occurrence
 from authorization.constants import PermissionCode
@@ -212,6 +213,11 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
             if occurrence is None:
                 raise Http404
             owner_status = occurrence.get_status_display()
+        elif kind == "journey":
+            journey = Journey.objects.filter(pk=identity, activity=activity).first()
+            if journey is None:
+                raise Http404
+            owner_status = journey.get_status_display()
 
         context.update({
             "work_depth": {
