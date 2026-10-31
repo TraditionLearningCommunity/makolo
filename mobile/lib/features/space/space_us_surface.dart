@@ -25,6 +25,10 @@ class SpaceUsSurface extends StatelessWidget {
         authority?['limited_to_activities'] == true;
     final name = _value(identity?['name']) ?? fallbackSpaceName;
     final description = _value(identity?['description']);
+    final institutionalLabel = _value(
+      _map(_map(payload['organization'])?['operating_preset'])?['label'],
+    );
+    final lifecycle = _value(identity?['lifecycle']);
     final location = _map(identity?['location']);
     final city = _value(location?['city']);
     final country = _value(location?['country']);
@@ -109,6 +113,12 @@ class SpaceUsSurface extends StatelessWidget {
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (institutionalLabel != null) ...[
+                                Text(institutionalLabel, style: text.labelMedium?.copyWith(
+                                  color: scheme.primary, fontWeight: FontWeight.w700,
+                                )),
+                                const SizedBox(height: 4),
+                              ],
                               Text(name, style: text.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
                               )),
@@ -130,6 +140,11 @@ class SpaceUsSurface extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (lifecycle == 'suspended' || lifecycle == 'archived') ...[
+                      const SizedBox(height: MakoloSpacing.md),
+                      _notice(context, lifecycle == 'archived'
+                        ? 'Cet Espace est archivé.' : 'Cet Espace est suspendu.'),
+                    ],
                     if (limited) ...[
                       const SizedBox(height: MakoloSpacing.md),
                       _notice(context,
