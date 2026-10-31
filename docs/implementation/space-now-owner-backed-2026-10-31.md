@@ -16,7 +16,7 @@ Auparavant, `build_space_now_projection` renvoyait toujours `no_safe_selection_c
 - Les Activities admissibles sont l'intersection des Activities effectivement visibles, de la perspective choisie et des permissions owners pour le fait considéré.
 - Les Occurrences **actuellement en cours** sont retenues uniquement sous `ACTIVITY_OPERATIONS_VIEW`, en s'appuyant sur `Occurrence.is_ongoing`.
 - Les inscriptions `SUBMITTED/PENDING_APPROVAL` sont retenues sous `ACTIVITY_REQUESTS_VIEW` ; `ACTIVITY_REQUESTS_DECIDE` distingue un passage vers décision du simple examen.
-- Les cas de prestation soumis/en attente sont retenus uniquement via `service_journeys_visible_to` et les permissions Activity de lecture appropriées.
+- Les cas de prestation soumis/en attente sont retenus uniquement via `service_journeys_visible_to` et les permissions Activity de lecture appropriées ; lorsque la permission est limitée aux cas assignés, seuls les Assignments actifs du viewer sont admis. Un Journey personnel du viewer ne devient pas automatiquement une situation collective.
 - Les conséquences non fournies par l'owner restent explicitement `unknown`. Les actions proposées sont des **handoffs owner** vers Jour J ou Métier, jamais un POST fictif.
 - Aucune photo ni pièce privée n'est ajoutée par inférence. `media_bindings=[]` est légitime tant qu'aucun usage média owner autorisé n'est établi.
 - La sélection globale reste `partial / owner_coverage_incomplete`, même avec zéro item. **Aucun faux « Tout est en ordre »**.
@@ -58,7 +58,7 @@ flutter test test/space_foundation_stabilization_test.dart
 flutter run
 ```
 
-Contrôler physiquement : passage Moi ↔ Space, acteur et perspective, Occurrence en cours, demande en attente, refus d'une source non autorisée, navigation vers Jour J/Métier et retour, perte réseau, cold start, révocation, absence de fuite entre Espaces.
+Contrôler physiquement : passage Moi ↔ Space, acteur et perspective, Occurrence en cours, demande en attente, refus d'une source non autorisée, navigation vers Jour J/Métier et retour, perte réseau, cold start, révocation, absence de fuite entre Espaces, et absence de promotion d'un dossier personnel de prestation vers une attention collective.
 
 ## Limites et critères de fermeture restant ouverts
 
