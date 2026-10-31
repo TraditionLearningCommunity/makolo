@@ -106,8 +106,8 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     _date = input?.date ?? '';
     _price = input?.price ?? '';
     _vertical = input?.vertical ?? widget.initialVertical;
-    _page = 1;
-    _continuationToken = null;
+    _page = input?.page ?? 1;
+    _continuationToken = input?.continuation;
   }
 
   DiscoveryQuery get _query => DiscoveryQuery(
