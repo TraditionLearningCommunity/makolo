@@ -151,8 +151,16 @@ class DemoGenerationCLITests(unittest.TestCase):
             run(args)
         self.assertNotIn("--apply", ecosystem.call_args.args[0])
         self.assertNotIn("--apply", personal.call_args.args[0])
-        self.assertIn("spaces", ecosystem.call_args.args[0])
-        self.assertIn("goals", personal.call_args.args[0])
+        ecosystem_argv = ecosystem.call_args.args[0]
+        personal_argv = personal.call_args.args[0]
+        self.assertEqual(
+            set(ecosystem_argv[ecosystem_argv.index("--domains") + 1].split(",")),
+            {"spaces", "loyalty", "automation"},
+        )
+        self.assertEqual(
+            set(personal_argv[personal_argv.index("--domains") + 1].split(",")),
+            {"discovery", "goals", "space"},
+        )
 
     def test_personal_domain_can_be_generated_without_global_mandates(self):
         args = build_parser().parse_args(["generate", "--domains", "goals"])
