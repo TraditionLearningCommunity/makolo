@@ -85,6 +85,10 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertEqual(response.data["authority"]["scope"], "space")
         self.assertEqual(response.data["team"]["active_members"], 2)
         self.assertEqual(response.data["team"]["visibility"], "visible")
+        self.assertIn(
+            SystemRoleCode.SPACE_OWNER,
+            {item["code"] for item in response.data["team"]["role_options"]},
+        )
         self.assertEqual(response.data["ownership"]["visibility"], "visible")
         self.assertIn("team", response.data["relationships"]["sections"])
         self.assertTrue(response.data["handoffs"].get("relationships"))
@@ -127,6 +131,7 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertEqual(us.data["authority"]["scope"], "activity_limited")
         self.assertEqual(us.data["team"]["items"], [])
         self.assertEqual(us.data["team"]["visibility"], "restricted")
+        self.assertEqual(us.data["team"]["role_options"], [])
         self.assertEqual(us.data["relationships"]["sections"], {})
         self.assertNotIn("relationships", us.data["handoffs"])
         self.assertEqual(us.data["ownership"]["items"], [])
