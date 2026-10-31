@@ -120,6 +120,7 @@ class SpaceNowDomainSignalTests(TestCase):
         self.assertEqual(incidents[0]["consequence"]["state"], "unknown")
 
         incident.status = IncidentStatus.RESOLVED
+        incident.resolution = "Incident clôturé"
         incident.save()
         resolved = self._now(self.limited)
         self.assertFalse(any(
