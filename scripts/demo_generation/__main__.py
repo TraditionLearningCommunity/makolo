@@ -13,7 +13,8 @@ COMMUNITY=("groups","objectives","notifications","trust","contributions","sharin
 ENGAGEMENT=("forms","crm")
 LIVE=("placement","incidents")
 PERSONAL=("discovery","goals","space")
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,"content")
+ECOSYSTEM=("spaces","loyalty","automation")
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain!="content")
 
 
@@ -49,7 +50,7 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem
     if a.action=="inventory":
         catalog.main([])
         return
@@ -80,6 +81,12 @@ def run(a):
     print("MODE:","GENERATE" if apply else "PLAN","DOMAINES:",",".join(sorted(domains)))
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
+    ecosystem_selected=set(ECOSYSTEM)&domains
+    if ecosystem_selected:
+        argv=["--domains",",".join(sorted(ecosystem_selected)),
+              "--count",str(min(a.count,100)), "--profiles",str(a.profiles)]
+        if apply: argv.append("--apply")
+        ecosystem.main(argv)
     personal_selected=set(PERSONAL)&domains
     if personal_selected:
         argv=["--domains",",".join(sorted(personal_selected)),
