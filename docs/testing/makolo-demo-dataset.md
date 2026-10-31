@@ -211,3 +211,20 @@ python -m scripts.demo_generation plan --domains all --count 10 --profiles 10 --
 ```
 
 `inventory` donnait **339** modeles installes dans le journal du 31 octobre 2026 : ne pas figer ce nombre dans le code. La ventilation et les totaux changent quand de nouveaux modeles/migrations arrivent.
+
+## Validation automatisée (commande unique)
+
+La CLI transversale possède `validate`, sans écriture dans la SQLite de démonstration :
+
+```powershell
+python -m scripts.demo_generation validate --quick
+python -m scripts.demo_generation validate
+```
+
+- `--quick` teste l'interface et l'intégration isolée, y compris Funding, contribution, idempotence et satisfaction de PaymentObligation par services canoniques.
+- Sans `--quick`, le lanceur ajoute les suites Django existantes des domaines Funding, Payments, Journey, Access, Scanner, Operations, Services, Obtention, Tickets, Présentation et Organizations.
+- Django prépare une base de test distincte, applique les migrations, puis détruit cette base. `TEST.NAME` ne peut pas pointer vers la base ordinaire.
+- `--failfast` interrompt au premier échec; `--verbosity 2` affiche les détails. Échec = code retour non nul.
+- Le résultat ne certifie pas automatiquement les projections web/mobile ; après validation, vérifier un petit `generate` puis `audit` avant toute charge de 1000/10000.
+
+L'interface conserve une seule entrée : `inventory`, `audit`, `validate`, `plan` et `generate` passent par `python -m scripts.demo_generation`.
