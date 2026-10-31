@@ -150,6 +150,8 @@ def _profile_identity(profile):
         "bio": profile.bio or "",
         "profession": profile_row.profession if profile_row and profile_row.profession else "",
         "headline": profile_row.profession if profile_row and profile_row.profession else "",
+        "company_name": profile_row.company_name or "" if profile_row else "",
+        "organization_name": profile_row.organization_name or "" if profile_row else "",
         "location": ", ".join(location_parts),
         "links": links,
     }
@@ -357,6 +359,10 @@ def build_profile_passport(
         if not visibility.field("profession"):
             identity["profession"] = ""
             identity["headline"] = ""
+        if not visibility.field("company_name"):
+            identity["company_name"] = ""
+        if not visibility.field("organization_name"):
+            identity["organization_name"] = ""
         row = UserProfile.objects.filter(user=profile).first()
         identity["location"] = ", ".join(
             part for part, field in (
@@ -404,6 +410,10 @@ def build_profile_passport(
         if "profession" not in sections:
             identity["profession"] = ""
             identity["headline"] = ""
+        if "company_name" not in sections:
+            identity["company_name"] = ""
+        if "organization_name" not in sections:
+            identity["organization_name"] = ""
 
     observed_at = timezone.now()
     return PassportProjection(
