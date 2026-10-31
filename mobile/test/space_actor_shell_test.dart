@@ -325,6 +325,30 @@ void main() {
     await _disposeUi(tester);
   });
 
+  testWidgets('Nous depth no longer exposes its team after an actor switch', (
+    tester,
+  ) async {
+    final harness = await _harness(startInSpace: true);
+    addTearDown(harness.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: SpaceNousDepthScreen(
+          runtime: harness.runtime,
+          slug: 'space-x',
+          depth: 'team',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsOneWidget);
+    await harness.actorContext.selectPersonal();
+    await tester.pumpAndSettle();
+    expect(find.text('Amina'), findsNothing);
+    expect(find.textContaining('n’est plus le contexte actif'), findsOneWidget);
+    await _disposeUi(tester);
+  });
+
   testWidgets('Nous depth refuses a Space outside the authorized inventory', (
     tester,
   ) async {
