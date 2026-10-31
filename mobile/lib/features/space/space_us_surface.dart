@@ -64,6 +64,10 @@ class SpaceUsSurface extends StatelessWidget {
 
     final settingsTarget = limited ? null : route('settings');
     final pilotTarget = limited ? null : route('pilot');
+    final subscriptionTarget = !limited && slug != null &&
+            _value(handoffs?['subscription']) == '/space/$slug/subscription'
+        ? '/space/$slug/subscription'
+        : null;
 
     void open(String target) {
       if (onOpen != null) {
@@ -326,6 +330,15 @@ class SpaceUsSurface extends StatelessWidget {
                         context,
                         'Consulter les faits de confiance',
                         target,
+                        open,
+                      ),
+                    ],
+                    if (subscriptionTarget != null) ...[
+                      const SizedBox(height: MakoloSpacing.lg),
+                      _action(
+                        context,
+                        'Abonnement de cet Espace',
+                        subscriptionTarget,
                         open,
                       ),
                     ],
