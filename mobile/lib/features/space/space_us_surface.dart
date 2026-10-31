@@ -218,6 +218,11 @@ class SpaceUsSurface extends StatelessWidget {
                         'Des faits publics de vérification sont établis '
                         'pour cet Espace. Il ne s’agit pas d’une note globale.'),
                     ],
+                    if (!limited && route('settings') case final target?) ...[
+                      const SizedBox(height: MakoloSpacing.lg),
+                      _action(context, 'Modifier les informations collectives',
+                        target, open),
+                    ],
                     if (!limited && route('pilot') case final target?) ...[
                       const SizedBox(height: MakoloSpacing.lg),
                       _action(context, 'Comprendre notre activité',
