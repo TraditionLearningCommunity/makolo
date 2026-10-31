@@ -16,6 +16,8 @@ Un seul Profil, plusieurs projections selon le lecteur. La variante Complete est
 - Espace, Equipe ou Groupe choisi : relation effective des deux profils au collectif selectionne.
 - Personne choisie : profil Makolo designe.
 - Une politique sans audience est privee.
+- Public est exclusif des audiences restreintes pour eviter toute
+  divulgation involontaire. Plusieurs audiences restreintes peuvent se cumuler.
 - L'identifiant public du porteur reste accessible.
 
 Aucun collectif aujourd'hui signifie aucun membre autorise. Une adhesion future ouvre automatiquement la visibilite a ses membres. Un depart la ferme. L'appartenance n'accorde aucune autorite metier.
