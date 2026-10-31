@@ -614,6 +614,8 @@ def build_personal_passport_data(
         },
         "collectives": {
             "team_affiliations": list(projection.team_affiliations),
+            "group_affiliations": list(projection.group_affiliations),
+            "authorized_space_affiliations": list(projection.authorized_space_affiliations),
             "active_space_mandates": list(projection.active_space_mandates),
         },
         "activities": [_passport_activity(row) for row in projection.activities],
