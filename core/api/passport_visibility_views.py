@@ -1,4 +1,6 @@
 """Private, owner-scoped configuration for Passport presentation audiences."""
+import uuid
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -29,6 +31,11 @@ class PersonalPassportVisibilityAPIView(PersonalProjectionAPIView):
         audiences = request.data.get("audiences")
         if kind not in Target.values or not isinstance(audiences, list):
             raise ValidationError({"target_kind": "Cible ou audiences invalides."})
+        if kind != Target.FIELD:
+            try:
+                target_id = uuid.UUID(str(target_id))
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise ValidationError({"target_id": "Identifiant invalide."}) from exc
         if kind == Target.FIELD:
             if target_id is not None or field_key not in PROFILE_VISIBILITY_FIELDS:
                 raise ValidationError({"field_key": "Information non publiable."})
