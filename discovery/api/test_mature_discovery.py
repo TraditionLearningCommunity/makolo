@@ -955,3 +955,120 @@ class MatureDiscoveryAPITests(TestCase):
             "secondary_label",
         ):
             self.assertNotIn(forbidden, serialized)
+
+    def test_service_and_funding_admission_reuse_owner_publication_rules(self):
+        from organizations.models import SpaceLifecycle
+
+        service_path = reverse(
+            "discovery_api:item-detail",
+            kwargs={"family": "service_activity", "item_id": self.service_activity.pk},
+        )
+        funding_path = reverse(
+            "discovery_api:item-detail",
+            kwargs={"family": "funding_activity", "item_id": self.funding_activity.pk},
+        )
+        for field, hidden in (
+            ("verification_status", "suspended"),
+            ("lifecycle", SpaceLifecycle.ARCHIVED),
+            ("public_profile", False),
+            ("searchable", False),
+        ):
+            with self.subTest(field=field):
+                original = getattr(self.space, field)
+                setattr(self.space, field, hidden)
+                self.space.save(update_fields=[field])
+                rows = self._items(q="Z3")["data"]["results"]
+                ids = {row["identity"]["resource"]["id"] for row in rows}
+                self.assertNotIn(str(self.service_activity.pk), ids)
+                self.assertNotIn(str(self.funding_activity.pk), ids)
+                self.assertEqual(self.client.get(service_path).status_code, 404)
+                self.assertEqual(self.client.get(funding_path).status_code, 404)
+                setattr(self.space, field, original)
+                self.space.save(update_fields=[field])
+                recovered = self._items(q="Z3")["data"]["results"]
+                recovered_ids = {
+                    row["identity"]["resource"]["id"] for row in recovered
+                }
+                self.assertIn(str(self.service_activity.pk), recovered_ids)
+                self.assertIn(str(self.funding_activity.pk), recovered_ids)
+
+    def test_public_resource_metadata_obeys_preparation_owner_gate(self):
+        resource = ActivityResource.objects.create(
+            activity=self.event_activity,
+            key="owner-sensitive-document",
+            title="Document publication conditionnelle",
+            kind=ResourceKind.TEXT,
+            text_content="Informations publiques seulement si le porteur publie",
+            visibility=ResourceVisibility.PUBLIC,
+            status=ResourceStatus.PUBLISHED,
+            created_by=self.owner,
+            published_at=self.now,
+        )
+        initial = self._items(q="Z3 concert")["data"]["results"]
+        event = next(row for row in initial if row["identity"]["family"] == "activity")
+        self.assertIn(str(resource.pk), str(event["resources"]))
+
+        # The Activity can remain in the older public Event field even if its
+        # owner's public profile was retracted. Preparation then denies the
+        # Resource reader, so Discovery must not embed either body or metadata.
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile"])
+        later = self._items(q="Z3 concert")["data"]["results"]
+        event = next(row for row in later if row["identity"]["family"] == "activity")
+        self.assertIsNone(event["owner"])
+        self.assertEqual(event["resources"], [])
+        self.assertNotIn("owner-sensitive-document", str(event))
+
+    def test_opportunity_resource_rejects_unsafe_legacy_external_url(self):
+        from opportunities.models import OpportunitySource, OpportunitySourceType
+
+        source = OpportunitySource.objects.create(
+            opportunity=self.opportunity,
+            source_type=OpportunitySourceType.OFFICIAL,
+            source_name="Source ancienne",
+            url="https://example.test/official",
+        )
+        OpportunitySource.objects.filter(pk=source.pk).update(
+            url="javascript:alert(1)"
+        )
+        rows = self._items(q="Z3 bourse")["data"]["results"]
+        opportunity = next(
+            item for item in rows
+            if item["identity"]["family"] == "opportunity"
+        )
+        resource = next(
+            item for item in opportunity["resources"]
+            if item["id"] == str(source.pk)
+        )
+        self.assertIsNone(resource["external_url"])
+        self.assertNotIn("javascript:alert", str(resource))
+
+    def test_invalid_cursor_and_exploration_return_api_validation_errors(self):
+        self.client.force_login(self.participant)
+        first = self._items(q="Z3", page_size=1)["data"]
+        cursor = first["continuation"]["token"]
+        self.assertIsNotNone(cursor)
+
+        endpoint = reverse("discovery_api:items")
+        for params in (
+            {"q": "Z3 changed", "page_size": 1, "continuation": cursor},
+            {"q": "Z3", "page_size": 2, "continuation": cursor},
+            {"q": "Z3", "page_size": 1, "continuation": cursor + "tampered"},
+            {"q": "Z3", "page_size": "not-an-int"},
+            {"q": "Z3", "when": "invalid-temporal-preset"},
+        ):
+            with self.subTest(params=params):
+                response = self.client.get(endpoint, params)
+                self.assertEqual(response.status_code, 400, response.content)
+
+        self.client.force_login(self.outsider)
+        rejected = self.client.get(
+            endpoint, {"q": "Z3", "page_size": 1, "continuation": cursor},
+        )
+        self.assertEqual(rejected.status_code, 400, rejected.content)
+
+        bad_map = self.client.get(
+            reverse("discovery_api:map"),
+            {"when": "invalid-temporal-preset"},
+        )
+        self.assertEqual(bad_map.status_code, 400, bad_map.content)
