@@ -57,7 +57,7 @@
                 <p class="font-bold">{{ addon.name }}</p>
                 {% if addon.billing_terms %}{% include 'subscriptions/_billing_terms.html' with terms=addon.billing_terms %}{% endif %}
                 {% if addon.description %}<p class="mt-1 text-xs leading-5" style="color:var(--mk-muted)">{{ addon.description }}</p>{% endif %}
-                {% if product.can_manage %}
+                {% if product.can_manage and not product.transition.open %}
                     {% if space_slug %}<a href="{% url 'organizations:console-subscription-addon-remove-preview' space_slug addon.item_id %}" class="mt-3 inline-flex min-h-11 items-center text-sm font-bold" style="color:var(--mk-danger)">Voir l’impact du retrait</a>{% else %}<a href="{% url 'subscriptions:addon-remove-preview' addon.item_id %}" class="mt-3 inline-flex min-h-11 items-center text-sm font-bold" style="color:var(--mk-danger)">Voir l’impact du retrait</a>{% endif %}
                 {% endif %}
             </div>
@@ -114,7 +114,7 @@
             {% if option.description %}<p class="mt-3 text-sm leading-6" style="color:var(--mk-muted)">{{ option.description }}</p>{% endif %}
             {% if option.benefits %}<ul class="mt-4 space-y-2">{% for benefit in option.benefits %}<li class="flex items-start gap-2 text-sm"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true"></i><span>{{ benefit.title }}</span></li>{% endfor %}</ul>{% endif %}
             {% if option.requirements %}<div class="mt-4 rounded-2xl p-3" style="background:var(--mk-surface-soft)"><p class="text-xs font-bold">Conditions</p><ul class="mt-2 space-y-1">{% for requirement in option.requirements %}<li class="text-xs" style="color:var(--mk-muted)">{{ requirement.label }}{% if requirement.detail %} · {{ requirement.detail }}{% endif %}</li>{% endfor %}</ul></div>{% endif %}
-            <div class="mt-auto pt-5"><p class="mb-3 text-xs leading-5" style="color:var(--mk-muted)">{{ option.eligibility_explanation }}</p>{% if option.can_request %}{% if space_slug %}<a href="{% url 'organizations:console-subscription-preview' space_slug option.plan_version_id %}" class="mk-btn mk-btn-primary w-full justify-center">Voir ce qui changerait</a>{% else %}<a href="{% url 'subscriptions:preview' option.plan_version_id %}" class="mk-btn mk-btn-primary w-full justify-center">Voir ce qui changerait</a>{% endif %}{% endif %}</div>
+            <div class="mt-auto pt-5"><p class="mb-3 text-xs leading-5" style="color:var(--mk-muted)">{{ option.eligibility_explanation }}</p>{% if option.can_request and not product.transition.open %}{% if space_slug %}<a href="{% url 'organizations:console-subscription-preview' space_slug option.plan_version_id %}" class="mk-btn mk-btn-primary w-full justify-center">Voir ce qui changerait</a>{% else %}<a href="{% url 'subscriptions:preview' option.plan_version_id %}" class="mk-btn mk-btn-primary w-full justify-center">Voir ce qui changerait</a>{% endif %}{% endif %}</div>
         </article>
         {% endfor %}
     </div>
