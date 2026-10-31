@@ -103,6 +103,8 @@ class ProfilePassportVisibilityView(LoginRequiredMixin, TemplateView):
                     row["kind"] == "selected_profile" and row.get("id") == str(person.pk)
                     for row in audiences
                 ):
+                    # An explicit person choice replaces the public default.
+                    audiences = [row for row in audiences if row["kind"] != "public"]
                     audiences.append({"kind": "selected_profile", "id": str(person.pk)})
             else:
                 messages.error(request, "Cette personne Makolo est introuvable.")
