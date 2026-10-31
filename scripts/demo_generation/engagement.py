@@ -25,6 +25,7 @@ def main(argv=None):
     django.setup()
     from django.core.exceptions import PermissionDenied, ValidationError
     from django.db import connection, transaction
+    from django.db.models import Case, When, Value, IntegerField
     from activities.models import Activity, ActivityStatus
     from authorization.constants import PermissionCode
     from authorization.services import can
@@ -76,7 +77,13 @@ def main(argv=None):
         activities = Activity.objects.filter(
             slug__startswith="demo-", status=ActivityStatus.PUBLISHED,
             journeys__beneficiary__username__startswith="world_",
-        ).distinct().select_related("owner_profile", "created_by").order_by("id")[:max(a.count * 30, 300)]
+        ).distinct().annotate(
+            demo_priority=Case(
+                When(slug__startswith="demo-generation-services-", then=Value(0)),
+                When(slug__startswith="demo-space-activity-", then=Value(1)),
+                default=Value(2), output_field=IntegerField(),
+            )
+        ).select_related("owner_profile", "created_by").order_by("demo_priority", "id")[:max(a.count * 30, 300)]
         attempted = 0
         for activity in activities:
             if attempted >= a.count:
