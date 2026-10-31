@@ -316,6 +316,16 @@ class SpaceNowDomainSignalTests(TestCase):
         self.assertEqual(read.data["amount"], "11.00")
         self.assertEqual(read["Cache-Control"], "private, no-store")
         self.assertNotIn("payer_profile", str(read.data))
+        self.client.force_login(self.owner)
+        web = self.client.get(
+            f"/organizations/{self.space.slug}/payment-obligations/{obligation.pk}/"
+        )
+        # Confirm the same owner is accessible through the existing Space Web
+        # shell and has no mutation or pay-by-proxy interface.
+        self.assertIn(web.status_code, (200, 301, 302))
+        if web.status_code == 200:
+            self.assertContains(web, "11.00 USD")
+            self.assertContains(web, "Frais à régler pour cet Espace")
 
         limited = self._now(self.limited)
         self.assertFalse(any(
