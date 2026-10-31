@@ -282,6 +282,14 @@ class DiscoveryRepository {
   final MakoloApiClient api;
   final SyncEngine? sync;
 
+  // Ephemeral navigation context owned by this Profile-specific repository.
+  // No candidate list, permission or server continuation is invented here.
+  DiscoveryQuery activeExploration = const DiscoveryQuery();
+
+  void rememberExploration(DiscoveryQuery query) {
+    activeExploration = query;
+  }
+
   SyncSourceDefinition itemsSource(DiscoveryQuery query) {
     return SyncSourceDefinition(
       sourceKey: 'discovery:${query.fingerprint}',
