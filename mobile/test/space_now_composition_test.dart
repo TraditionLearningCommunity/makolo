@@ -3,6 +3,8 @@ import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/design/surface_states.dart';
 import 'package:makolo_mobile/features/now/now_action_controller.dart';
 import 'package:makolo_mobile/features/now/now_selector.dart';
+import 'package:makolo_mobile/features/now/now_screen.dart';
+import 'package:makolo_mobile/navigation/destination.dart';
 import 'package:makolo_mobile/presentation/contracts/now_presentation.dart';
 
 StoredProjection _spaceNowProjection(List<Object?> items) => StoredProjection(
@@ -35,6 +37,24 @@ void main() {
     expect(result.state.failure, MakoloFailureCue.recoverable);
   });
 
+  test('Space Journey depth only accepts a relative owner path', () {
+    const authorized = StructuredDestination(
+      kind: 'space_work_journey',
+      id: 'journey-a',
+      link: '/space/space-a/retrieval/journey/journey-a',
+    );
+    const foreignLink = StructuredDestination(
+      kind: 'space_work_journey',
+      id: 'journey-a',
+      link: 'https://external.invalid/space/space-a/retrieval/journey/journey-a',
+    );
+    expect(
+      NowScreen.ownerPathFor(authorized),
+      '/space/space-a/retrieval/journey/journey-a',
+    );
+    expect(NowScreen.ownerPathFor(foreignLink), isNull);
+  });
+
   test('Space owner situation uses common Now semantics without direct POST', () {
     final result = selector.select(
       projection: _spaceNowProjection([
@@ -51,7 +71,7 @@ void main() {
           'consequence': {'state': 'unknown', 'effect': null},
           'response': {'type': 'decide', 'label': 'Examiner la demande'},
           'handoffs': [
-            {'type': 'owner', 'target': 'activity', 'id': 'activity-a'},
+            {'type': 'owner', 'target': 'space_request', 'id': 'req-a'},
           ],
           'business_actions': [
             {
@@ -71,7 +91,8 @@ void main() {
     expect(situation.whyNowReason, 'journey_request_pending');
     expect(situation.consequence, isNull);
     expect(situation.consequenceState, 'unknown');
-    expect(situation.ownerDestination?.kind, 'activity');
+    expect(situation.ownerDestination?.kind, 'space_request');
+    expect(NowScreen.ownerPathFor(situation.ownerDestination!), '/space/requests/req-a');
     expect(situation.businessActions, hasLength(1));
     final action = situation.businessActions.single;
     expect(action.interactionDepth, NowInteractionDepth.domainDepth);
