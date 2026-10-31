@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
@@ -6,13 +7,16 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from activities.models import Activity, Occurrence, OccurrenceStatus
-from authorization.constants import SystemRoleCode
+from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role
 from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
 from groups.models import Group, GroupMembership
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, SpaceArchetype, Team, TeamMembership, TeamMembershipStatus
+from organizations.space_product import (
+    SpaceOperationalFootprint, visible_operational_footprint_for_space,
+)
 from scanner.models import ScannerAssignment
 from services.models import ServiceDetails, ServiceJourneyContext, ServiceKind
 from transport.models import TransportRoute, Vehicle
@@ -118,6 +122,23 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         for kind, identity in (("transport_route", route.pk), ("activity", hidden.pk)):
             selected = self.client.get(self.url, {**params, "kind": kind, "id": str(identity)})
             self.assertIsNone(selected.data["selection"])
+
+    def test_operational_footprint_does_not_reveal_other_domains(self):
+        actual = SpaceOperationalFootprint(
+            signals=("activities", "crm", "payments", "partners",
+                     "automation", "loyalty", "trust")
+        )
+        with patch(
+            "organizations.space_product.operational_footprint_for_space",
+            return_value=actual,
+        ), patch(
+            "authorization.selectors.has_direct_space_permission",
+            side_effect=lambda profile, space, code: code == PermissionCode.CRM_VIEW,
+        ):
+            projection = visible_operational_footprint_for_space(
+                self.space, self.member
+            )
+        self.assertEqual(projection.signals, ("crm", "automation"))
 
     def test_auth_and_minimal_disclosure_boundaries(self):
         self.assertEqual(self.client.get(self.url).status_code, 401)
