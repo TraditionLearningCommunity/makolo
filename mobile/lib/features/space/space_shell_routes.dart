@@ -876,6 +876,29 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     );
   }
 
+  Future<void> _openResponsibility(String key) async {
+    final controller = widget.runtime.actorContext;
+    final current = controller?.value;
+    if (current is! SpaceActorContext || _space == null ||
+        current.space.id != _space!.id || !key.startsWith('mandate:')) {
+      return;
+    }
+    try {
+      // This changes only the selected perspective. Authorization is always
+      // recomputed by the owner endpoint, never granted by this UI.
+      await controller!.selectPerspective(ActorPerspective.opaque(key));
+      if (mounted) context.go('/space/work');
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'Impossible de sélectionner cette responsabilité pour le moment.',
+          )),
+        );
+      }
+    }
+  }
+
   Widget _depthBody(
     BuildContext context,
     Map<String, dynamic> payload, {
@@ -964,13 +987,39 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             const SizedBox(height: MakoloSpacing.md),
           ],
           if (_teamMutating) const LinearProgressIndicator(),
-          if (widget.depth == 'trust')
-            Text(
-              _map(payload['trust'])?['verified'] == true
-                  ? 'Des faits publics de vérification sont établis.'
-                  : 'Aucun fait public de vérification établi.',
-            )
-          else if (rows.isEmpty)
+          if (widget.depth == 'trust') ...[
+            if (_map(payload['trust'])?['claims'] case final List claims)
+              if (claims.isNotEmpty)
+                for (final claim in claims)
+                  if (_map(claim) case final fact?)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+                      child: MakoloCard(
+                        padding: const EdgeInsets.all(MakoloSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_text(fact['claim_type']) ??
+                                'Fait de vérification',
+                                style: Theme.of(context).textTheme.titleSmall),
+                            if (_text(fact['status']) case final status?)
+                              Text('État : $status'),
+                            if (fact['valid_until'] != null)
+                              Text('Validité annoncée : ${fact['valid_until']}'),
+                          ],
+                        ),
+                      ),
+                    )
+              else
+                const MakoloEmptyState(
+                  title: 'Aucun fait public de vérification actif.',
+                )
+            else
+              const MakoloEmptyState(
+                title: 'Faits de vérification indisponibles.',
+              ),
+            const Text('Ces faits ne constituent pas un score global de confiance.'),
+          ] else if (rows.isEmpty)
             const MakoloEmptyState(title: 'Aucun élément visible ici.')
           else
             for (final row in rows)
@@ -996,6 +1045,18 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                         const SizedBox(height: 4),
                         Text(_depthRowDetail(row),
                           style: Theme.of(context).textTheme.bodySmall),
+                        if (widget.depth == 'responsibilities' &&
+                            _text(_map(row)?['key'])?.startsWith('mandate:') == true) ...[
+                          const SizedBox(height: MakoloSpacing.sm),
+                          TextButton.icon(
+                            onPressed: observationOnly
+                                ? null
+                                : () => _openResponsibility(
+                                    _text(_map(row)?['key'])!),
+                            icon: const Icon(Icons.arrow_forward_rounded),
+                            label: const Text('Voir ce que je porte'),
+                          ),
+                        ],
                         if (canManageTeam && _fullTeam != null &&
                             _map(row) != null &&
                             (_map(row)?['responsibility'] != 'space_owner' ||
