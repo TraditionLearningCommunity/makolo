@@ -24,6 +24,47 @@ FIELDS = {
     'journeys_journey': ('expires_at','submitted_at','confirmed_at','fulfilled_at','cancelled_at','started_at'),
 }
 
+# Audit-safe, closed SQL vocabulary. Identifiers are fixed in source and never
+# assembled from external input; all row identifiers and values are parameters.
+FIELD_QUERIES = {
+    ('activities_occurrence', 'start_at'): ('SELECT "start_at" FROM "activities_occurrence" WHERE id=?', 'UPDATE "activities_occurrence" SET "start_at"=? WHERE id=?'),
+    ('activities_occurrence', 'end_at'): ('SELECT "end_at" FROM "activities_occurrence" WHERE id=?', 'UPDATE "activities_occurrence" SET "end_at"=? WHERE id=?'),
+    ('activities_occurrence', 'start_date'): ('SELECT "start_date" FROM "activities_occurrence" WHERE id=?', 'UPDATE "activities_occurrence" SET "start_date"=? WHERE id=?'),
+    ('activities_occurrence', 'end_date'): ('SELECT "end_date" FROM "activities_occurrence" WHERE id=?', 'UPDATE "activities_occurrence" SET "end_date"=? WHERE id=?'),
+    ('activities_occurrence', 'schedule_local_date'): ('SELECT "schedule_local_date" FROM "activities_occurrence" WHERE id=?', 'UPDATE "activities_occurrence" SET "schedule_local_date"=? WHERE id=?'),
+    ('access_access', 'valid_from'): ('SELECT "valid_from" FROM "access_access" WHERE id=?', 'UPDATE "access_access" SET "valid_from"=? WHERE id=?'),
+    ('access_access', 'valid_until'): ('SELECT "valid_until" FROM "access_access" WHERE id=?', 'UPDATE "access_access" SET "valid_until"=? WHERE id=?'),
+    ('access_accesscredential', 'issued_at'): ('SELECT "issued_at" FROM "access_accesscredential" WHERE id=?', 'UPDATE "access_accesscredential" SET "issued_at"=? WHERE id=?'),
+    ('access_accesscredential', 'revoked_at'): ('SELECT "revoked_at" FROM "access_accesscredential" WHERE id=?', 'UPDATE "access_accesscredential" SET "revoked_at"=? WHERE id=?'),
+    ('access_accesscredential', 'expired_at'): ('SELECT "expired_at" FROM "access_accesscredential" WHERE id=?', 'UPDATE "access_accesscredential" SET "expired_at"=? WHERE id=?'),
+    ('access_accessuse', 'used_at'): ('SELECT "used_at" FROM "access_accessuse" WHERE id=?', 'UPDATE "access_accessuse" SET "used_at"=? WHERE id=?'),
+    ('journeys_journey', 'expires_at'): ('SELECT "expires_at" FROM "journeys_journey" WHERE id=?', 'UPDATE "journeys_journey" SET "expires_at"=? WHERE id=?'),
+    ('journeys_journey', 'submitted_at'): ('SELECT "submitted_at" FROM "journeys_journey" WHERE id=?', 'UPDATE "journeys_journey" SET "submitted_at"=? WHERE id=?'),
+    ('journeys_journey', 'confirmed_at'): ('SELECT "confirmed_at" FROM "journeys_journey" WHERE id=?', 'UPDATE "journeys_journey" SET "confirmed_at"=? WHERE id=?'),
+    ('journeys_journey', 'fulfilled_at'): ('SELECT "fulfilled_at" FROM "journeys_journey" WHERE id=?', 'UPDATE "journeys_journey" SET "fulfilled_at"=? WHERE id=?'),
+    ('journeys_journey', 'cancelled_at'): ('SELECT "cancelled_at" FROM "journeys_journey" WHERE id=?', 'UPDATE "journeys_journey" SET "cancelled_at"=? WHERE id=?'),
+    ('journeys_journey', 'started_at'): ('SELECT "started_at" FROM "journeys_journey" WHERE id=?', 'UPDATE "journeys_journey" SET "started_at"=? WHERE id=?'),
+}
+RELATION_QUERIES = {
+    ('access_access', 'occurrence_id'): 'SELECT id FROM "access_access" WHERE "occurrence_id"=?',
+    ('access_accesscredential', 'access_id'): 'SELECT id FROM "access_accesscredential" WHERE "access_id"=?',
+    ('access_accessuse', 'occurrence_id'): 'SELECT id FROM "access_accessuse" WHERE "occurrence_id"=?',
+    ('access_accessuse', 'access_id'): 'SELECT id FROM "access_accessuse" WHERE "access_id"=?',
+    ('journeys_journey', 'occurrence_id'): 'SELECT id FROM "journeys_journey" WHERE "occurrence_id"=?',
+}
+OPERATION_COUNT_QUERIES = {
+    'operations_occurrencecheckpoint': 'SELECT COUNT(DISTINCT occurrence_id) FROM "operations_occurrencecheckpoint" WHERE occurrence_id IS NOT NULL',
+    'operations_occurrencequeue': 'SELECT COUNT(DISTINCT occurrence_id) FROM "operations_occurrencequeue" WHERE occurrence_id IS NOT NULL',
+    'scanner_scannerassignment': 'SELECT COUNT(DISTINCT occurrence_id) FROM "scanner_scannerassignment" WHERE occurrence_id IS NOT NULL',
+    'access_access': 'SELECT COUNT(DISTINCT occurrence_id) FROM "access_access" WHERE occurrence_id IS NOT NULL',
+}
+OPERATION_ACTIVE_QUERIES = {
+    'operations_occurrencecheckpoint': 'SELECT 1 FROM "operations_occurrencecheckpoint" WHERE occurrence_id=? LIMIT 1',
+    'operations_occurrencequeue': 'SELECT 1 FROM "operations_occurrencequeue" WHERE occurrence_id=? LIMIT 1',
+    'scanner_scannerassignment': 'SELECT 1 FROM "scanner_scannerassignment" WHERE occurrence_id=? LIMIT 1',
+    'access_access': 'SELECT 1 FROM "access_access" WHERE occurrence_id=? LIMIT 1',
+}
+
 def parsed(value):
     if not value:
         return None
@@ -48,24 +89,31 @@ def shift_text(value, delta, kind):
     return moved.isoformat(sep=' ')
 
 def table_columns(db, table):
-    exists=db.execute('SELECT 1 FROM sqlite_master WHERE type="table" AND name=?',(table,)).fetchone()
-    return {r[1] for r in db.execute('PRAGMA table_info("'+table+'")')} if exists else set()
+    # SQLite's table-valued pragma accepts the table name as a bound value.
+    return {row[0] for row in db.execute('SELECT name FROM pragma_table_info(?)', (table,))}
 
 def update_by_id(db, table, identifier, fields, delta):
-    cols=table_columns(db,table)
-    available=[f for f in fields if f in cols]
-    if not available: return 0
-    row=db.execute('SELECT '+','.join('"'+f+'"' for f in available)+' FROM "'+table+'" WHERE id=?',(identifier,)).fetchone()
-    if row is None: return 0
-    changes=[(f, shift_text(v,delta,'date' if f.endswith('_date') or f=='schedule_local_date' else 'datetime')) for f,v in zip(available,row)]
-    changes=[(f,v) for (f,v),old in zip(changes,row) if old!=v]
-    if not changes: return 0
-    db.execute('UPDATE "'+table+'" SET '+','.join('"'+f+'"=?' for f,_ in changes)+' WHERE id=?',[v for _,v in changes]+[identifier])
-    return 1
+    cols = table_columns(db, table)
+    changed = False
+    for field in fields:
+        if field not in cols:
+            continue
+        select_sql, update_sql = FIELD_QUERIES[(table, field)]
+        row = db.execute(select_sql, (identifier,)).fetchone()
+        if row is None:
+            return int(changed)
+        previous = row[0]
+        kind = 'date' if field.endswith('_date') or field == 'schedule_local_date' else 'datetime'
+        next_value = shift_text(previous, delta, kind)
+        if previous != next_value:
+            db.execute(update_sql, (next_value, identifier))
+            changed = True
+    return int(changed)
 
 def ids(db, table, foreign_key, identifier):
-    if foreign_key not in table_columns(db,table): return []
-    return [r[0] for r in db.execute('SELECT id FROM "'+table+'" WHERE "'+foreign_key+'"=?',(identifier,))]
+    if foreign_key not in table_columns(db, table):
+        return []
+    return [row[0] for row in db.execute(RELATION_QUERIES[(table, foreign_key)], (identifier,))]
 
 def move_occurrence(db, occ_id, delta):
     counts={t:0 for t in FIELDS}
@@ -145,15 +193,13 @@ def live_coverage(db, now, timezone):
     operational={}
     for table in ('operations_occurrencecheckpoint','operations_occurrencequeue','scanner_scannerassignment','access_access'):
         if 'occurrence_id' in table_columns(db,table):
-            operational[table]=db.execute('SELECT COUNT(DISTINCT occurrence_id) FROM "'+table+'" WHERE occurrence_id IS NOT NULL').fetchone()[0]
+            operational[table]=db.execute(OPERATION_COUNT_QUERIES[table]).fetchone()[0]
     if active_ids:
         for table in ('operations_occurrencecheckpoint','operations_occurrencequeue','scanner_scannerassignment','access_access'):
             if 'occurrence_id' in table_columns(db,table):
-                total=0
-                for i in range(0,len(active_ids),400):
-                    batch=active_ids[i:i+400]
-                    marks=','.join('?' for _ in batch)
-                    total+=db.execute('SELECT COUNT(DISTINCT occurrence_id) FROM "'+table+'" WHERE occurrence_id IN ('+marks+')',batch).fetchone()[0]
+                # Each occurrence ID is unique; count those present via a bound query.
+                sql = OPERATION_ACTIVE_QUERIES[table]
+                total = sum(db.execute(sql, (ident,)).fetchone() is not None for ident in active_ids)
                 operational[table+'_active']=total
     return {'temporal':windows,'operational':operational}
 
@@ -197,11 +243,14 @@ def main(argv=None):
         # Les donnees ajoutees dans le premier lot sont identifiees par Activity.slug demo-2026-q4-.
         # En l'absence de cette signature, selection volontairement vide par defaut.
         acols=table_columns(db,'activities_activity')
-        if not a.include_existing:
-            if not {'slug','id'}<=acols: p.error('Activity.slug introuvable; utiliser --include-existing seulement si voulu')
-            filter_sql="AND a.slug LIKE 'demo-2026-q4-%'"
-        else: filter_sql=''
-        rows=db.execute('SELECT o.id,o.start_at,o.end_at FROM activities_occurrence o JOIN activities_activity a ON a.id=o.activity_id WHERE o.start_at IS NOT NULL '+filter_sql+' ORDER BY o.id'+(' LIMIT '+str(a.limit) if a.limit>0 else '')).fetchall()
+        if not a.include_existing and not {'slug','id'}<=acols:
+            p.error('Activity.slug introuvable; utiliser --include-existing seulement si voulu')
+        rows=db.execute(
+            'SELECT o.id,o.start_at,o.end_at FROM activities_occurrence o '
+            'JOIN activities_activity a ON a.id=o.activity_id '
+            'WHERE o.start_at IS NOT NULL AND (? OR a.slug LIKE ?) ORDER BY o.id LIMIT ?',
+            (int(a.include_existing), 'demo-2026-q4-%', a.limit if a.limit>0 else -1),
+        ).fetchall()
         # Autres lots synthetiques peuvent utiliser un prefixe different : voir --include-existing.
         print('Occurrences selectionnees:',len(rows),'| mode:', 'MODIFICATION' if a.apply else 'APERCU')
         print('Reference UTC:',now.isoformat(),'| base:',source)
