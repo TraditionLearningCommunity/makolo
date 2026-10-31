@@ -289,3 +289,40 @@ class NativeServiceStartAPITests(TestCase):
         self.owner.save(update_fields=["is_active"])
         self.assertFalse(public_services().filter(pk=personal_service.pk).exists())
         self.assertEqual(self.client.get(path).status_code, 404)
+
+    def test_explicit_profile_privacy_hides_personal_service_start(self):
+        from accounts.models import UserProfile
+        from .views import public_services
+
+        personal_activity = Activity.objects.create(
+            owner_profile=self.owner,
+            created_by=self.owner,
+            title="Personal private-profile service",
+            status=ActivityStatus.PUBLISHED,
+            visibility=ActivityVisibility.PUBLIC,
+        )
+        personal_service = ServiceDetails.objects.create(
+            activity=personal_activity,
+            service_kind=ServiceKind.APPLICATION_SUPPORT,
+            opportunity_policy=OpportunityPolicy.NONE,
+        )
+        path = reverse("services-api:start", kwargs={"pk": personal_service.pk})
+        self.client.force_login(self.participant)
+        self.assertEqual(self.client.get(path).status_code, 200)
+
+        privacy, _ = UserProfile.objects.get_or_create(user=self.owner)
+        privacy.public_profile = False
+        privacy.save(update_fields=["public_profile"])
+        self.assertFalse(public_services().filter(pk=personal_service.pk).exists())
+        self.assertEqual(self.client.get(path).status_code, 404)
+
+        privacy.public_profile = True
+        privacy.searchable = False
+        privacy.save(update_fields=["public_profile", "searchable"])
+        self.assertFalse(public_services().filter(pk=personal_service.pk).exists())
+        self.assertEqual(self.client.get(path).status_code, 404)
+
+        privacy.searchable = True
+        privacy.save(update_fields=["searchable"])
+        self.assertTrue(public_services().filter(pk=personal_service.pk).exists())
+        self.assertEqual(self.client.get(path).status_code, 200)
