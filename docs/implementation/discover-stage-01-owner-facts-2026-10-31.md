@@ -84,3 +84,14 @@ Les tests Discovery dans cette liste sont **des gardes d'intégration des propri
 - [ ] **Les tests ciblés n'ont pas été exécutés et leurs résultats ne sont pas attestés.**
 
 **Statut d'ingénierie : IMPLÉMENTÉ, EN ATTENTE DE VALIDATION CIBLÉE.** Conformément à la règle séquentielle du registre, **ne pas commencer le chantier 02** tant que les tests ciblés n'ont pas confirmé la sortie et que le statut 01 n'a pas été changé en `FERMÉ`. Ne pas présenter le chantier 01 comme certifié par une CI inexistante.
+
+## 7. Mise à jour de la séquence — 31 octobre 2026
+
+Sur instruction expresse de l'utilisateur, la livraison des chantiers est centrée
+sur **l'implémentation complète de leur périmètre** ; l'exécution des tests
+et de la CI est reportée au chantier 09. La condition de blocage de la
+section 6 concernant les tests ciblés est donc remplacée, pour le passage
+de l'implémentation, par cette décision. **Aucun résultat de test ne doit
+être inventé.** La livraison de code 01 a été suivie par l'implémentation
+du [chantier 02](discover-stage-02-canonical-projection-2026-10-31.md),
+sans que les corrections propriétaire aient été re-créées ou modifiées.
