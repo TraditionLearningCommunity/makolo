@@ -25,6 +25,7 @@
         <div>
           <strong>{{ connection.display_name }}</strong>
           <span>{{ connection.status_label }}</span>
+          <p>{{ connection.experience_message }}</p>
           {% if connection.capability_labels %}
           <span>
             {% for capability in connection.capability_labels %}
