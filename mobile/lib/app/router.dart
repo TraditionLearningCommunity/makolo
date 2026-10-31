@@ -386,7 +386,7 @@ GoRouter createMakoloRouter(
       ),
       GoRoute(
         path: '/billing',
-        builder: (context, state) => const BillingScreen(),
+        builder: (context, state) => BillingScreen(runtime: runtime),
       ),
       GoRoute(
         path: '/account',
