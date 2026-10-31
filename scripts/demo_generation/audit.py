@@ -30,7 +30,8 @@ def main(argv=None):
     from opportunities.models import Opportunity, OpportunitySave
     from groups.models import Group, GroupMembership
     from objectives.models import Dossier, Project
-    from trust.models import Feedback
+    from trust.models import Feedback, Proof, Report
+    from payments.models import Payment, PaymentStatus
     from notifications.models import Notification
     from crm.models import CRMContact
     from questionnaires.models import Form, FormRequest
@@ -97,6 +98,21 @@ def main(argv=None):
         forms=Form.objects.filter(activity__slug__startswith="demo-").count(),
         form_requests=FormRequest.objects.filter(journey__activity__slug__startswith="demo-").count(),
         contributions=Contribution.objects.filter(activity__slug__startswith="demo-").count(),
+        sandbox_payments=Payment.objects.filter(provider="sandbox",status=PaymentStatus.SUCCEEDED).filter(
+            Q(order__event__activity__slug__startswith="demo-") |
+            Q(obligation_id__in=FundingContribution.objects.filter(
+                funding__activity__slug__startswith="demo-").values("payment_obligation_id"))
+        ).count(),
+        spaces=apps.get_model("organizations.Organization").objects.filter(name__startswith="[DEMO] Espace ").count(),
+        loyalty_programs=apps.get_model("loyalty.LoyaltyProgram").objects.filter(organization__name__startswith="[DEMO] Espace ").count(),
+        memberships=apps.get_model("loyalty.MembershipSubscription").objects.filter(program__organization__name__startswith="[DEMO] Espace ").count(),
+        automation_policies=apps.get_model("automation.EventAutomationPolicy").objects.filter(event__activity__slug__startswith="demo-").count(),
+        discovery_watches=apps.get_model("discovery.DiscoveryWatch").objects.filter(owner__username__startswith="world_").count(),
+        bookmarks=apps.get_model("discovery.ActivityBookmark").objects.filter(user__username__startswith="world_", activity__slug__startswith="demo-").count(),
+        personal_goals=apps.get_model("goals.PersonalGoal").objects.filter(profile__username__startswith="world_").count(),
+        shares=apps.get_model("sharing.ActivityShareSubject").objects.filter(activity__slug__startswith="demo-").count(),
+        proofs=Proof.objects.filter(journey__activity__slug__startswith="demo-").count(),
+        reports=Report.objects.filter(journey__activity__slug__startswith="demo-").count(),
     )
     model_for_key = {
         "activities":"activities.Activity",
@@ -124,6 +140,16 @@ def main(argv=None):
         "placement_plans":"operations.PlacementPlan",
         "placements":"operations.PlacementAssignment",
         "incidents":"operations.OperationsIncident",
+        "sandbox_payments":"payments.Payment",
+        "spaces":"organizations.Organization",
+        "loyalty_programs":"loyalty.LoyaltyProgram",
+        "memberships":"loyalty.MembershipSubscription",
+        "automation_policies":"automation.EventAutomationPolicy",
+        "discovery_watches":"discovery.DiscoveryWatch",
+        "bookmarks":"discovery.ActivityBookmark",
+        "personal_goals":"goals.PersonalGoal",
+        "shares":"sharing.ActivityShareSubject",
+        "proofs":"trust.Proof", "reports":"trust.Report",
         "checkpoint_live":"operations.OccurrenceCheckpoint",
         "queue_live":"operations.OccurrenceQueue",
         "queue_entries":"operations.QueueEntry",
@@ -156,6 +182,7 @@ def main(argv=None):
         state="published").count()
     totals["opportunities"] = Opportunity.objects.filter(
         publication_status="published").count()
+    totals["sandbox_payments"] = Payment.objects.filter(provider="sandbox",status=PaymentStatus.SUCCEEDED).count()
     print("AUDIT AT", instant.isoformat())
     print("COUNTS: demo-scope | entire SQLite (where applicable)")
     for key, count in demos.items():
@@ -169,10 +196,13 @@ def main(argv=None):
         "Placement / Incidents": ("placement_plans", "placements", "incidents"),
         "Access / Scanner": ("access", "access_use", "scanner_assignment", "scan_log"),
         "Images": ("media_assets", "media_published"),
-        "Funding": ("funding", "funding_contribution"),
+        "Funding": ("funding", "funding_contribution", "sandbox_payments"),
         "Services": ("services", "service_journeys"),
         "Obtention": ("obtention", "obtention_journeys"),
-        "Relations": ("groups", "dossiers", "projects"),
+        "Relations": ("groups", "dossiers", "projects", "spaces"),
+        "Actions personnelles": ("discovery_watches", "bookmarks", "personal_goals"),
+        "Fidelite / Automation": ("loyalty_programs", "memberships", "automation_policies"),
+        "Trust / Sharing": ("proofs", "reports", "shares"),
         "Forms / CRM": ("forms", "form_requests", "crm_contacts"),
         "Contextual content": ("contributions", "media_published"),
     }
