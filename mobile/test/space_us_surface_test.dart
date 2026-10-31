@@ -47,6 +47,7 @@ Map<String, dynamic> _projection({bool limited = false}) => {
       'ownership': '/space/atelier/us/ownership',
     },
     'settings': '/space/atelier/us/settings',
+    'pilot': '/space/atelier/us/pilot',
     'trust': '/space/atelier/us/trust',
   },
 };
@@ -81,6 +82,12 @@ void main() {
       await tester.ensureVisible(find.text('Consulter les faits de confiance'));
       await tester.tap(find.text('Consulter les faits de confiance'));
       expect(routes.last, '/space/atelier/us/trust');
+      await tester.ensureVisible(find.text('Modifier les informations collectives'));
+      await tester.tap(find.text('Modifier les informations collectives'));
+      expect(routes.last, '/space/atelier/us/settings');
+      await tester.ensureVisible(find.text('Comprendre notre activité'));
+      await tester.tap(find.text('Comprendre notre activité'));
+      expect(routes.last, '/space/atelier/us/pilot');
     });
   }
 
@@ -100,6 +107,8 @@ void main() {
     expect(find.text('Partenaires'), findsNothing);
     expect(find.text('Ouvrir l’équipe'), findsNothing);
     expect(find.text('Explorer les relations'), findsNothing);
+    expect(find.text('Modifier les informations collectives'), findsNothing);
+    expect(find.text('Comprendre notre activité'), findsNothing);
     expect(find.textContaining('Contexte limité'), findsOneWidget);
   });
 
