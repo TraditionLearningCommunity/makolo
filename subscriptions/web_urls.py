@@ -6,6 +6,7 @@ from .web_views import (
     ProfileSubscriptionChangeView,
     ProfileSubscriptionPreviewView,
     ProfileSubscriptionView,
+    ProfileSubscriptionBillingView,
     ProfileTransitionCancelView,
     ProfileTransitionCompleteView,
 )
@@ -15,6 +16,7 @@ app_name = "subscriptions"
 
 urlpatterns = [
     path("", ProfileSubscriptionView.as_view(), name="home"),
+    path("billing/", ProfileSubscriptionBillingView.as_view(), name="billing"),
     path("preview/<uuid:plan_version_id>/", ProfileSubscriptionPreviewView.as_view(), name="preview"),
     path("change/<uuid:plan_version_id>/", ProfileSubscriptionChangeView.as_view(), name="change"),
     path("addon/<uuid:item_id>/remove/preview/", ProfileAddonRemovePreviewView.as_view(), name="addon-remove-preview"),
