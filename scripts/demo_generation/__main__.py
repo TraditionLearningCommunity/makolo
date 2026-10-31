@@ -9,7 +9,7 @@ import argparse
 
 VERTICALS=("opportunities","services","obtention","funding")
 CROSS=("journeys","access","operations","scanner","commerce")
-COMMUNITY=("groups","objectives","notifications","trust","contributions")
+COMMUNITY=("groups","objectives","notifications","trust","contributions","sharing")
 ENGAGEMENT=("forms","crm")
 LIVE=("placement","incidents")
 DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,"content")
