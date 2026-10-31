@@ -375,6 +375,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     final catalog = _objects(widget.snapshot['catalog']);
     final addons = _objects(subscription['active_addons']);
     final transition = _object(widget.snapshot['transition']);
+    final hasOpenTransition = transition?['open'] == true;
     final bills = [
       ..._objects(_object(widget.snapshot['billing'])?['items']),
       ..._extraBills,
@@ -395,7 +396,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           ),
         for (final row in addons)
           OutlinedButton(
-            onPressed: _busy ? null : () => _preview(
+            onPressed: _busy || hasOpenTransition ? null : () => _preview(
               'api/v1/subscriptions/me/addons/' +
               Uri.encodeComponent(_value(row['item_id'])) + '/remove/',
               'Retirer ' + _value(row['name'], 'cette option'),
@@ -443,6 +444,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         const SizedBox(height: 16),
         Text('Formules disponibles', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
+        if (hasOpenTransition)
+          const Text('Terminez ou annulez la demande en cours avant de lancer un autre changement.'),
+
         if (catalog.isEmpty) const Text('Aucune autre formule proposée actuellement.'),
         for (final option in catalog) ...[
           Card(
@@ -473,7 +477,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                       ),
                     ),
                   _list('Conditions à satisfaire', option['requirements']),
-                  if (option['can_request'] == true)
+                  if (option['can_request'] == true && !hasOpenTransition)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: FilledButton(
