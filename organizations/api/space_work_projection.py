@@ -18,7 +18,9 @@ from authorization.selectors import (
 )
 from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
 from journeys.collaboration_models import JourneyBlockerStatus
-from journeys.models import Journey, JourneyStatus, WorkflowKind
+from journeys.models import (
+    Journey, JourneyRequest, JourneyStatus, RequestStatus, WorkflowKind,
+)
 from journeys.service_authorization import (
     CASE_SCOPE_VIEW_ALL,
     CASE_SCOPE_VIEW_ASSIGNED,
@@ -636,6 +638,46 @@ def build_space_work_projection(
                 _append(sections[target], _journey_item(
                     journey, caps, space_slug=space.slug,
                 ))
+
+    # A Journey awaiting approval is not proof that a decision Request exists.
+    # Link to the canonical JourneyRequest owner only when that exact owner is
+    # currently present. The owner endpoint rechecks permission and expiry.
+    registration_rows = [
+        item for section in sections.values() for item in section["items"]
+        if (
+            item["source"]["kind"] == "journey"
+            and item["context"].get("workflow") == WorkflowKind.REGISTRATION
+        )
+    ]
+    if registration_rows:
+        registration_ids = [row["source"]["id"] for row in registration_rows]
+        owner_requests = (
+            JourneyRequest.objects.filter(
+                journey_id__in=registration_ids,
+                journey__activity_id__in=education_ids,
+                journey__workflow=WorkflowKind.REGISTRATION,
+                status=RequestStatus.PENDING,
+            )
+            .order_by("-created_at", "pk")
+            .values("journey_id", "pk")
+        )
+        request_by_journey = {}
+        for request in owner_requests:
+            request_by_journey.setdefault(
+                str(request["journey_id"]), request["pk"]
+            )
+        for row in registration_rows:
+            request_id = request_by_journey.get(row["source"]["id"])
+            if request_id:
+                row["links"]["request_detail"] = (
+                    reverse(
+                        "organizations_api:workspace-request-detail",
+                        kwargs={"slug": space.slug, "request_id": request_id},
+                    ) + "?" + urlencode({
+                        "responsibility": responsibility_key or "all",
+                    })
+                )
+                row["capabilities"].append("open_request")
 
     if service_ids:
         journeys = (
