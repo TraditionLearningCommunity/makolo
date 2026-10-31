@@ -105,6 +105,7 @@ GoRouter createMakoloRouter(
       '/account',
       '/account/password',
       '/settings',
+      '/settings/notifications',
       '/space/create',
     }.contains(path)) {
       return true;
@@ -393,8 +394,6 @@ GoRouter createMakoloRouter(
           runtime: runtime,
           onChangePassword: () => context.push('/account/password'),
           onRememberedAccounts: () => context.push('/accounts'),
-          onConnections: () => context.push('/connections'),
-          onBilling: () => context.push('/billing'),
         ),
       ),
       GoRoute(
@@ -406,7 +405,12 @@ GoRouter createMakoloRouter(
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => AppSettingsScreen(runtime: runtime),
+        builder: (context, state) => AppSettingsScreen(
+          runtime: runtime,
+          onNotifications: () => context.push('/settings/notifications'),
+          onSecurity: () => context.push('/account'),
+          onPrivacy: () => context.push('/me/profile'),
+        ),
       ),
       GoRoute(
         path: '/space/create',
