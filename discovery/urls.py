@@ -5,6 +5,7 @@ from .views import (
     BookmarkToggleView,
     DiscoveryActivityDetailView,
     DiscoveryHomeView,
+    DiscoveryPossibilityDetailView,
     ForYouView,
     MyEventsView,
 )
@@ -21,6 +22,7 @@ app_name = "discovery"
 
 urlpatterns = [
     path("", DiscoveryHomeView.as_view(), name="home"),
+    path("possibilities/<str:family>/<str:item_id>/", DiscoveryPossibilityDetailView.as_view(), name="possibility-detail"),
     path("activities/<uuid:occurrence_id>/", DiscoveryActivityDetailView.as_view(), name="activity-detail"),
     path("for-you/", ForYouView.as_view(), name="for-you"),
     path("watches/", WatchListView.as_view(), name="watch-list"),
