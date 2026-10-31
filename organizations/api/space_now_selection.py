@@ -131,7 +131,7 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 state="Occurrence en cours",
                 why_now="L'occurrence se déroule actuellement.",
                 reason="occurrence_ongoing",
-                turn="space", response_type="monitor",
+                turn="space", response_type="understand",
                 destination="space_occurrence_day_of", web_url=url,
                 observed_at=observed_at, action_label="Suivre le déroulement",
             ))
