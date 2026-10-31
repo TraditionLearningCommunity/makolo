@@ -136,3 +136,46 @@ class PassportVisibilityIntegrationTests(TestCase):
         complete = build_profile_passport(self.owner, variant=PASSPORT_COMPLETE)
         self.assertEqual(complete.identity["bio"], "Texte confidentiel")
         self.assertEqual(len(complete.interests), 1)
+
+    def test_authenticated_collective_view_only_expands_live_html_not_export(self):
+        group = Group.objects.create(name="Forum professionnel", owner_profile=self.owner)
+        GroupMembership.objects.create(group=group, profile=self.viewer)
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field", field_key="bio",
+            audiences=[{"kind": "my_collectives"}],
+        )
+        public_url = reverse(
+            "sharing:passport-profile", kwargs={"profile_id": self.owner.pk},
+        )
+        anon = self.client.get(public_url)
+        self.assertEqual(anon.status_code, 200)
+        self.assertNotContains(anon, "Texte confidentiel")
+        self.client.force_login(self.viewer)
+        visible = self.client.get(public_url)
+        self.assertEqual(visible.status_code, 200)
+        self.assertContains(visible, "Texte confidentiel")
+        exported = self.client.get(public_url, {"download": "1"})
+        self.assertEqual(exported.status_code, 200)
+        self.assertNotContains(exported, "Texte confidentiel")
+
+    def test_web_visibility_editor_is_owner_scoped(self):
+        url = reverse("sharing:passport-visibility")
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        response = self.client.post(url, {
+            "target_kind": "field",
+            "target_id": "profession",
+            "audience": ["my_collectives"],
+        })
+        self.assertEqual(response.status_code, 302)
+        policy = ProfileVisibilityPolicy.objects.get(owner=self.owner, field_key="profession")
+        self.assertEqual(list(policy.audiences.values_list("kind", flat=True)), ["my_collectives"])
+        self.client.force_login(self.viewer)
+        self.client.post(url, {
+            "target_kind": "field",
+            "target_id": "profession",
+            "audience": ["public"],
+        })
+        policy.refresh_from_db()
+        self.assertEqual(list(policy.audiences.values_list("kind", flat=True)), ["my_collectives"])
