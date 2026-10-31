@@ -93,7 +93,9 @@ def _snapshot(subscription, *, can_manage=True):
     }
     catalog = [dict(row) for row in product.catalog]
     for row in catalog:
-        row["can_request"] = can_manage and bool(row["can_request"]) and row["plan_version_id"] in self_service
+        available = bool(row["can_request"]) and row["plan_version_id"] in self_service
+        row["can_preview"] = available
+        row["can_request"] = can_manage and available
     return {
         "subscription": {
             "id": str(subscription.pk),
