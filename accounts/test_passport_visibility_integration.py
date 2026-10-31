@@ -225,3 +225,25 @@ class PassportVisibilityIntegrationTests(TestCase):
             }, content_type="application/json",
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_public_verification_hides_old_personal_content_after_privacy_revocation(self):
+        from sharing.passport_documents import (
+            issue_passport_snapshot, passport_verification_token,
+        )
+        snapshot = issue_passport_snapshot(self._public())
+        verification = reverse("sharing:passport-verify", kwargs={
+            "token": passport_verification_token(snapshot),
+        })
+        before = self.client.get(verification)
+        self.assertEqual(before.status_code, 200)
+        self.assertTrue(before.context["can_view_dated_passport"])
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field", field_key="bio",
+            audiences=[],
+        )
+        after = self.client.get(verification)
+        self.assertEqual(after.status_code, 200)
+        self.assertTrue(after.context["snapshot_intact"])
+        self.assertFalse(after.context["can_view_dated_passport"])
+        self.assertEqual(after.context["dated_payload"], {})
+        self.assertNotContains(after, "Texte confidentiel")
