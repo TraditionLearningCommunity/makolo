@@ -9,6 +9,14 @@ import 'discovery_screens.dart';
 import 'discovery_repository.dart';
 import 'discovery_watch_screens.dart';
 
+DiscoveryQuery? _routeQuery(Map<String, String> params) {
+  try {
+    return DiscoveryQuery.fromRouteParameters(params);
+  } on FormatException {
+    return null;
+  }
+}
+
 StatefulShellBranch discoveryBranch(AppRuntime runtime) => StatefulShellBranch(
   routes: [
     GoRoute(
@@ -49,9 +57,16 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           message: 'La recherche n’est pas disponible pour le moment.',
         );
       }
+      final query = _routeQuery(state.uri.queryParameters);
+      if (query == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Recherche',
+          message: 'Ces critères sont invalides. Revenez à Découvrir pour les modifier.',
+        );
+      }
       return DiscoverySearchScreen(
         key: ValueKey(state.uri.toString()),
-        initialQuery: DiscoveryQuery.fromRouteParameters(state.uri.queryParameters),
+        initialQuery: query,
         repository: discovery,
         location: runtime.location,
         geoSearch: runtime.geoSearch,
@@ -71,9 +86,16 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
           message: 'La carte n’est pas disponible pour le moment.',
         );
       }
+      final query = _routeQuery(state.uri.queryParameters);
+      if (query == null) {
+        return const MakoloSecondaryScreen(
+          title: 'Carte',
+          message: 'Ces critères ou ce curseur ne sont plus valides. Revenez aux résultats.',
+        );
+      }
       return DiscoveryMapScreen(
         key: ValueKey(state.uri.toString()),
-        query: DiscoveryQuery.fromRouteParameters(state.uri.queryParameters),
+        query: query,
         initialSelectedCandidateKey: state.uri.queryParameters['selected'],
         repository: discovery,
         mapConfig: runtime.mapConfig,
