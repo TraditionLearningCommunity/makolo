@@ -5,6 +5,12 @@
         <p class="mk-page-copy mt-3 text-[15px]">Cet aperçu ne modifie pas l’abonnement. Une demande n’est créée qu’après confirmation par un acteur autorisé.</p>
     </div>
 
+    {% if product_preview.kind != 'addon_remove' and product_preview.billing_terms %}
+    <div class="mk-panel p-5 sm:p-6">
+      <p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Conditions de la formule cible</p>
+      {% include 'subscriptions/_billing_terms.html' with terms=product_preview.billing_terms %}
+    </div>
+    {% endif %}
     <div class="mk-panel p-5 sm:p-6">
         <div class="grid gap-4 sm:grid-cols-2">
             <div class="rounded-2xl border p-4" style="border-color:var(--mk-border)"><p class="text-xs font-bold uppercase tracking-[.08em]" style="color:var(--mk-subtle)">Aujourd’hui</p><p class="mt-2 text-lg font-extrabold">{% if product_preview.current_name %}{{ product_preview.current_name }}{% else %}Aucune formule correspondante{% endif %}</p></div>
