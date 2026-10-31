@@ -5,6 +5,7 @@ from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from accounts.models import UserProfile
 from activities.models import ActivityStatus, ActivityVisibility
 from organizations.models import SpaceLifecycle
 from payments.models import PaymentObligationStatus
@@ -107,6 +108,17 @@ def funding_accepts_contributions(funding: FundingDetails, *, at=None) -> bool:
             return False
     elif activity.owner_profile_id is None or not activity.owner_profile.is_active:
         return False
+    else:
+        # A Profile can explicitly withdraw its public visibility even when
+        # a legacy published Activity still exists. Missing extension rows
+        # retain the previous Activity-public behavior until onboarding.
+        privacy = UserProfile.objects.filter(
+            user_id=activity.owner_profile_id,
+        ).values("public_profile", "searchable").first()
+        if privacy is not None and (
+            not privacy["public_profile"] or not privacy["searchable"]
+        ):
+            return False
     if funding.opens_at and at < funding.opens_at:
         return False
     if funding.closes_at and at >= funding.closes_at:
@@ -132,9 +144,18 @@ def public_fundings(*, at=None):
                 activity__space__searchable=True,
                 activity__space__lifecycle=SpaceLifecycle.ACTIVE,
             )
-            | Q(
-                activity__space__isnull=True,
-                activity__owner_profile__is_active=True,
+            | (
+                Q(
+                    activity__space__isnull=True,
+                    activity__owner_profile__is_active=True,
+                )
+                & (
+                    Q(activity__owner_profile__profile__isnull=True)
+                    | Q(
+                        activity__owner_profile__profile__public_profile=True,
+                        activity__owner_profile__profile__searchable=True,
+                    )
+                )
             )
         )
         .exclude(activity__space__verification_status="suspended")
