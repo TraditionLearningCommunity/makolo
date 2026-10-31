@@ -127,9 +127,9 @@ class ProfileVisibilityPolicyTests(TestCase):
         )
 
     def test_unrelated_legacy_visibility_flags_are_unchanged(self):
-        interest = ProfileInterest.objects.create(profile=self.owner, topic=self.topic)
+        interest = ProfileInterest.objects.create(profile=self.owner, topic=self.topic, is_public=False)
         open_to = ProfileOpenTo.objects.create(
-            profile=self.owner, kind="mentor", topic=self.topic
+            profile=self.owner, kind="mentor", topic=self.topic, is_public=False
         )
         self.assertFalse(interest.is_public)
         self.assertFalse(open_to.is_public)
