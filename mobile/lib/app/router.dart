@@ -637,6 +637,24 @@ GoRouter createMakoloRouter(
         ),
       ),
       GoRoute(
+        path: '/space/:slug/subscription',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          final slug = state.pathParameters['slug']!;
+          if (actor is! SpaceActorContext || actor.space.slug != slug) {
+            return const MakoloSecondaryScreen(
+              title: 'Abonnement de l’Espace',
+              message: 'Choisissez cet Espace dans « Agir comme » pour consulter son abonnement.',
+            );
+          }
+          return BillingScreen(
+            runtime: runtime,
+            spaceSlug: slug,
+            expectedSpaceId: actor.space.id,
+          );
+        },
+      ),
+      GoRoute(
         path: '/space/:slug/us/settings',
         builder: (context, state) => SpaceUsSettingsScreen(
           runtime: runtime,
