@@ -16,6 +16,13 @@ class DeepLinkResolver {
       case 'space_request':
         return '/space/requests/${target.id}';
       case 'space_work_journey':
+      case 'space_work_activity':
+      case 'space_commerce_order':
+        final expectedOwner = switch (target.kind.toLowerCase()) {
+          'space_work_journey' => 'journey',
+          'space_work_activity' => 'activity',
+          _ => 'commerce_order',
+        };
         final link = target.link;
         final uri = link == null ? null : Uri.tryParse(link);
         if (uri == null ||
@@ -27,7 +34,7 @@ class DeepLinkResolver {
             uri.pathSegments[0] != 'space' ||
             uri.pathSegments[1].isEmpty ||
             uri.pathSegments[2] != 'retrieval' ||
-            uri.pathSegments[3] != 'journey' ||
+            uri.pathSegments[3] != expectedOwner ||
             uri.pathSegments[4] != target.id) {
           return null;
         }
