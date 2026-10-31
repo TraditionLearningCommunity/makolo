@@ -132,3 +132,11 @@ Intelligence Admin a une frontière technique spécifique. Ne pas transformer Pl
 5. Ne pas prétendre que C2 rend les services externes OAuth libre-service disponibles.
 
 **Verdict :** les parcours de consultation et de continuité sont prêts dans leur frontière canonique ; les parcours de connexion, de révocation et d'exécution utilisateur nécessitent des contrats propriétaires absents, et ne sont pas « implémentables » honnêtement par la seule couche Web/Flutter.
+
+## 9. Fermeture C2 et passage à C3 — 31 octobre 2026
+
+**C2 fermé pour les parcours réellement servis par Z16** : consultation Profile/Space/Platform, autorité par portée, continuité personnelle, lecture contextualisée des capacités et statuts. Les preuves d'autorité restent exclusivement serveur ; aucun contrôle de gestion ne découle du seul booléen `manageable`. Le checkpoint C3 associé est `c3-interoperability-web-flutter-presentation-contract-2026-10-31.md`.
+
+**Hors fermeture, intentionnellement** : établissement/consentement/révocation d'une relation externe libre-service, exécution générique d'Actions et gestion mobile Space. Ce sont des parcours à livrer ultérieurement depuis des contrats propriétaires concrets. Les qualifier de « terminés » contredirait le runtime M7/Z16 courant.
+
+**Implémentation C2/C3 dans #522 :** alignement des libellés Web/Flutter et explications sur les états de Connexions ; tests de présentation ciblés. Pas de nouvelle API ni migration. Ne pas utiliser la documentation comme attestation de tests exécutés ou de CI verte.
