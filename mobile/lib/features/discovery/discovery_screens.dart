@@ -976,12 +976,16 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   bool _refreshing = false;
   bool _loadMoreFailed = false;
   String? _selectedCandidateKey;
+  final Map<int, String> _pageTokens = {};
 
   @override
   void initState() {
     super.initState();
     _query = widget.query;
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
+    if (_query.page > 1 && _query.continuation != null) {
+      _pageTokens[_query.page] = _query.continuation!;
+    }
     unawaited(_acquire());
   }
 
@@ -991,6 +995,10 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     if (oldWidget.query.fingerprint != widget.query.fingerprint) {
       _query = widget.query;
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
+      _pageTokens.clear();
+      if (_query.page > 1 && _query.continuation != null) {
+        _pageTokens[_query.page] = _query.continuation!;
+      }
       _loadMoreFailed = false;
       unawaited(_acquire());
     }
@@ -1019,38 +1027,85 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     if (_refreshing || !mounted) return;
     final current = _query;
     setState(() => _refreshing = true);
+    var rejected = false;
     try {
       await widget.repository.refreshItems(current);
+      final source = await widget.repository.readSource(
+        widget.repository.itemsSource(current),
+      );
+      rejected = source.lastErrorCode == 'continuation_rejected';
     } on Object {
-      // Keep the exact criteria and any already acquired field.
+      // The same field and any acquired items remain visible on failure.
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
+    if (rejected && current.page > 1 &&
+        mounted && identical(current, _query)) {
+      final first = current.copyWith(page: 1, clearContinuation: true);
+      setState(() {
+        _query = first;
+        _pageTokens.clear();
+        _loadMoreFailed = false;
+      });
+      await _refresh();
+    }
   }
 
-  Future<void> _advance() async {
-    if (_refreshing || !mounted) return;
+  Future<void> _navigateToPage(int target) async {
+    if (_refreshing || !mounted || target < 1) return;
     final current = _query;
+    if (target == current.page) return;
     try {
-      final stored = await widget.repository.readItems(current);
-      if (stored == null) return;
-      final collection = _selector.collection(stored);
-      final token = collection.continuationToken;
-      if (!collection.hasNext || token == null || token.isEmpty) return;
+      String? token;
+      if (target == 1) {
+        token = null;
+      } else if (target == current.page + 1) {
+        final stored = await widget.repository.readItems(current);
+        if (stored == null) return;
+        final collection = _selector.collection(stored);
+        if (!collection.hasNext) return;
+        token = collection.continuationToken;
+        if (token == null || token.isEmpty) return;
+      } else {
+        token = _pageTokens[target];
+        if (token == null) {
+          // No invented signed token for a page not previously visited.
+          await _navigateToPage(1);
+          return;
+        }
+      }
+      if (!mounted || !identical(current, _query)) return;
       final next = current.copyWith(
-        page: current.page + 1,
-        continuation: token,
+        page: target, continuation: token, clearContinuation: target == 1,
       );
+      if (token != null) _pageTokens[target] = token;
       var acquired = await widget.repository.readItems(next);
       if (acquired == null) {
         await widget.repository.refreshItems(next);
+        final source = await widget.repository.readSource(
+          widget.repository.itemsSource(next),
+        );
+        if (source.lastErrorCode != null) {
+          if (source.lastErrorCode == 'continuation_rejected') {
+            final first = current.copyWith(page: 1, clearContinuation: true);
+            if (mounted && identical(current, _query)) {
+              setState(() {
+                _query = first;
+                _pageTokens.clear();
+              });
+              unawaited(_refresh());
+            }
+            return;
+          }
+          throw StateError('Continuation de carte indisponible');
+        }
         acquired = await widget.repository.readItems(next);
       }
       if (!mounted || !identical(current, _query)) return;
       if (acquired == null || _selector.collection(acquired).page != next.page) {
-        throw const FormatException('Continuation de la carte indisponible');
+        throw const FormatException('Page de carte incompatible');
       }
-      await widget.repository.retainPresentedWindow(next);
+      if (next.page > 1) await widget.repository.retainPresentedWindow(next);
       if (!mounted || !identical(current, _query)) return;
       setState(() {
         _query = next;
@@ -1104,7 +1159,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             fieldKey: _query.mapFingerprint,
             initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
             onSelectionChanged: (key) => _selectedCandidateKey = key,
-            onPage: (_) => unawaited(_advance()),
+            onPage: (page) => unawaited(_navigateToPage(page)),
             loadMoreFailed: _loadMoreFailed,
             onSave: (item) =>
                 _saveDiscoveryPossibility(widget.repository, item, _query),
