@@ -233,7 +233,7 @@ class NativeServiceStartAPITests(TestCase):
         ).count(), 1)
 
     def test_owner_retraction_hides_service_from_catalog_and_start(self):
-        """The public owner selector is shared by Web, Discovery and native."""
+        """The public owner selector is shared by Web and native Services."""
         from .views import public_services
 
         self.client.force_login(self.participant)
