@@ -514,7 +514,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     }
     _search.text = _query.text;
     _place.text = _query.place;
-    _when = _query.when;
+    _when = _query.date.isNotEmpty ? 'custom' : _query.when;
     _date = _query.date;
     _price = _query.price;
     _vertical = _query.vertical;
@@ -1168,15 +1168,32 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       body: StreamBuilder<StoredProjection?>(
         stream: widget.repository.watchItems(_query),
         builder: (context, snapshot) {
-          final selection = _selector.select(
-            projection: snapshot.data,
-            hasCriteria: _query.hasCriteria,
-            refreshing: _refreshing,
-            failure: _loadMoreFailed
-                ? MakoloFailureCue.recoverable
-                : MakoloFailureCue.none,
-          );
-          return DiscoverySpatialView(
+          return StreamBuilder<DiscoverySourceState>(
+            stream: widget.repository.watchSource(
+              widget.repository.itemsSource(_query),
+            ),
+            initialData: DiscoverySourceState.unknown,
+            builder: (context, sourceSnapshot) {
+              final source = sourceSnapshot.data ?? DiscoverySourceState.unknown;
+              final selection = _selector.select(
+                projection: snapshot.data,
+                hasCriteria: _query.hasCriteria,
+                refreshing: _refreshing,
+                reachability: source.reachability ==
+                        ReachabilityState.unreachable
+                    ? MakoloReachabilityCue.temporarilyUnavailable
+                    : source.lastSuccessAt != null
+                        ? MakoloReachabilityCue.reachable
+                        : MakoloReachabilityCue.unknown,
+                failure: _loadMoreFailed ||
+                        source.lastErrorCode != null ||
+                        snapshot.hasError ||
+                        sourceSnapshot.hasError
+                    ? MakoloFailureCue.recoverable
+                    : MakoloFailureCue.none,
+                sourceErrorCode: source.lastErrorCode,
+              );
+              return DiscoverySpatialView(
             key: ValueKey('discover-map-field-${_query.mapFingerprint}'),
             selection: selection,
             mapConfig: widget.mapConfig,
@@ -1197,6 +1214,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
               } else if (item.occurrenceId != null) {
                 widget.onOpenOccurrence(item.occurrenceId!);
               }
+            },
+              );
             },
           );
         },
