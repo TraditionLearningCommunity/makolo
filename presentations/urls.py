@@ -1,5 +1,5 @@
 from django.urls import path
-from .media_delivery import published_media_file
+from .media_delivery import editorial_media_file, published_media_file
 from .media_management import ActivityMediaUploadView, ActivityMediaRetireView
 
 from .library_views import ActivateTemplateVersionView, DuplicateTemplateView, ModerateTemplateView, PresentationLibraryView, SetSpaceDefaultView, SpacePresentationLibraryView, SubmitTemplateView, TemplateVersionPreviewView
@@ -11,6 +11,7 @@ urlpatterns = [
     path("activity/<uuid:activity_id>/media/upload/", ActivityMediaUploadView.as_view(), name="media-upload"),
     path("activity/<uuid:activity_id>/media/<uuid:use_id>/retire/", ActivityMediaRetireView.as_view(), name="media-retire"),
     path("media/uses/<uuid:use_id>/file/", published_media_file, name="published-media-file"),
+    path("media/editorial/assets/<uuid:asset_id>/file/", editorial_media_file, name="editorial-media-file"),
     path("activity/<uuid:activity_id>/studio/", ActivityPresentationStudioView.as_view(), name="studio"),
     path("activity/<uuid:activity_id>/preview/", ActivityPresentationPreviewView.as_view(), name="preview"),
     path("activity/<uuid:activity_id>/artifact/<str:purpose>/", ActivityArtifactPresentationView.as_view(), name="activity-artifact"),
