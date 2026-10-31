@@ -79,13 +79,28 @@ void main() {
       await tester.ensureVisible(find.text('Explorer les relations'));
       await tester.tap(find.text('Explorer les relations'));
       expect(routes, ['/space/atelier/us/relationships']);
-      await tester.ensureVisible(find.text('Consulter les faits de confiance'));
+      await tester.scrollUntilVisible(
+        find.text('Consulter les faits de confiance'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Consulter les faits de confiance'));
       expect(routes.last, '/space/atelier/us/trust');
-      await tester.ensureVisible(find.text('Modifier les informations collectives'));
+      await tester.scrollUntilVisible(
+        find.text('Modifier les informations collectives'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Modifier les informations collectives'));
       expect(routes.last, '/space/atelier/us/settings');
-      await tester.ensureVisible(find.text('Comprendre notre activité'));
+      await tester.scrollUntilVisible(
+        find.text('Comprendre notre activité'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Comprendre notre activité'));
       expect(routes.last, '/space/atelier/us/pilot');
     });
