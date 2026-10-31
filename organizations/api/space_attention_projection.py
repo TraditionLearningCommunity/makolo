@@ -72,14 +72,19 @@ def build_space_now_projection(*, profile, space, responsibility_key=None):
     )
     if context is None:
         return None
+    from .space_now_selection import select_space_now
+
+    selection = select_space_now(
+        profile=profile, space=space, responsibility_key=responsibility_key,
+    )
+    if selection is None:
+        return None
     return {
         **context,
-        "selection": {
-            "state": "unavailable",
-            "reason": "no_safe_selection_contract",
-        },
-        "items": [],
-        "has_more": False,
+        "surface": "now_space",
+        "actor": {"type": "space", "id": str(space.pk)},
+        "viewer": {"type": "profile", "id": str(profile.pk)},
+        **selection,
         "links": _links(space),
         "capabilities": {},
     }
