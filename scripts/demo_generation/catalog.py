@@ -81,16 +81,21 @@ def main(argv=None):
     import django
     django.setup()
     from django.apps import apps
-    from django.db import connection
+    from django.db import connection, DatabaseError
     if connection.vendor != "sqlite":
         p.error("Demo model coverage inventory requires SQLite")
     counters = Counter()
     by_policy = Counter()
     models = sorted(apps.get_models(), key=lambda m: m._meta.label_lower)
+    counters["total"] = len(models)
     for model in models:
-        count = model.objects.count()
+        try:
+            count = model.objects.count()
+        except DatabaseError:
+            counters["unavailable"] += 1
+            print("MODEL",model._meta.label, "UNAVAILABLE", "schema_not_accessible")
+            continue
         policy, reason = policy_for(model)
-        counters["total"] += 1
         counters["populated" if count else "empty"] += 1
         by_policy[(policy, "populated" if count else "empty")] += 1
         if a.app and model._meta.app_label != a.app:
@@ -100,7 +105,8 @@ def main(argv=None):
         print("MODEL", model._meta.label, count, policy,
               "domain=" + reason.replace(" ", "_"))
     print("MODELS_TOTAL", counters["total"],
-          "POPULATED", counters["populated"], "EMPTY", counters["empty"])
+          "POPULATED", counters["populated"], "EMPTY", counters["empty"],
+          "UNAVAILABLE", counters["unavailable"])
     for (category, state), count in sorted(by_policy.items()):
         print("POLICY", category, state, count)
     print("Model inventory covers the installed registry, not a promise of 338 "
