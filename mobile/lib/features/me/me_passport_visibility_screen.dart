@@ -124,10 +124,16 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                     title: Text(option['label']?.toString() ?? ''),
                     value: selected.contains(token(option)),
                     onChanged: working ? null : (value) => redraw(() {
+                      final key = token(option);
                       if (value == true) {
-                        selected.add(token(option));
+                        if (option['kind'] == 'public') {
+                          selected.clear();
+                        } else {
+                          selected.remove('public:');
+                        }
+                        selected.add(key);
                       } else {
-                        selected.remove(token(option));
+                        selected.remove(key);
                       }
                     }),
                   ),
@@ -156,6 +162,7 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                       if (!choices.any((row) => token(row) == token(item))) {
                         choices.add(item);
                       }
+                      selected.remove('public:');
                       selected.add(token(item));
                       candidates = [];
                     }),
