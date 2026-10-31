@@ -213,6 +213,10 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
     final capabilities = _map(_owner?['capabilities']);
     final canDecide =
         _actorValid && !_loading && !_sending && capabilities?['decide'] == true;
+    final submittedRaw = request?['submitted_at'];
+    final submittedAt = submittedRaw is String
+        ? DateTime.tryParse(submittedRaw)?.toLocal()
+        : null;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Demande de cet Espace'),
@@ -266,10 +270,19 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
                               : 'Statut modifié dans le métier',
                         ),
                         const SizedBox(height: MakoloSpacing.md),
-                        const Text(
-                          'La demande appartient au domaine Démarche. '
-                          'Les autorisations sont revérifiées par le serveur.',
-                        ),
+                        if (request['purpose_label'] is String)
+                          Text(request['purpose_label'] as String),
+                        if (submittedAt != null) ...[
+                          const SizedBox(height: MakoloSpacing.xs),
+                          Text(
+                            'Reçue le ${MaterialLocalizations.of(context).formatMediumDate(submittedAt)}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                        if (canDecide) ...[
+                          const SizedBox(height: MakoloSpacing.md),
+                          const Text('Cette demande attend votre décision.'),
+                        ],
                       ],
                     ),
                   ),
