@@ -242,7 +242,15 @@ class ProfilePassportView(PassportViewMixin):
             selected_proof_ids=self.request.GET.getlist("proof") if variant == PASSPORT_CUSTOM else None,
             selected_credential_ids=self.request.GET.getlist("credential") if variant == PASSPORT_CUSTOM else None,
             selected_sections=self.request.GET.getlist("include") if variant == PASSPORT_CUSTOM else None,
-            viewer=self.request.user,
+            # Collective visibility is not a permission to export a
+            # non-public fact as a publicly verifiable document.
+            viewer=(
+                None if (
+                    not self.private_authorized
+                    and any(self.request.GET.get(mode) == "1"
+                            for mode in ("download", "document", "pdf"))
+                ) else self.request.user
+            ),
         )
 
     def get_selection_catalog(self):
