@@ -169,15 +169,26 @@ def issue_passport_snapshot(projection):
 
 
 def passport_verification_token(snapshot):
-    return signing.dumps(
+    """Stable signed link for one immutable document across QR and history.
+
+    TimestampSigner embeds the *time the URL was generated*, making the QR
+    URL and later history URL differ for the same snapshot. Issued document
+    tokens do not expire; the snapshot's revocation, hash and disclosure gates
+    remain authoritative.
+    """
+    return signing.Signer(salt=PASSPORT_VERIFY_SALT).sign_object(
         {"passport_id": str(snapshot.pk), "payload_hash": snapshot.payload_hash},
-        salt=PASSPORT_VERIFY_SALT,
         compress=True,
     )
 
 
 def resolve_passport_verification_token(token):
-    data = signing.loads(token, salt=PASSPORT_VERIFY_SALT)
+    # Prior URLs used django.core.signing.dumps (TimestampSigner, three
+    # segments). Keep all already shared and printed verification links valid.
+    if token.count(":") == 2:
+        data = signing.loads(token, salt=PASSPORT_VERIFY_SALT)
+    else:
+        data = signing.Signer(salt=PASSPORT_VERIFY_SALT).unsign_object(token)
     snapshot = PassportSnapshot.objects.select_related("profile", "space").get(
         pk=data["passport_id"],
     )
