@@ -52,6 +52,24 @@ class ProfileSubscriptionView(LoginRequiredMixin, TemplateView):
         return context
 
 
+class ProfileSubscriptionBillingView(LoginRequiredMixin, TemplateView):
+    login_url = "core:login"
+    template_name = "subscriptions/profile_billing.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            offset = int(self.request.GET.get("offset", "0"))
+        except (TypeError, ValueError):
+            offset = 0
+        offset = offset if 0 <= offset <= 500 else 0
+        context["personal_billing"] = personal_billing_obligations(
+            _profile_subscription(self.request.user), offset=offset,
+        )
+        context["billing_offset"] = offset
+        return context
+
+
 class ProfileSubscriptionPreviewView(LoginRequiredMixin, TemplateView):
     login_url = "core:login"
     template_name = "subscriptions/profile_preview.html"
