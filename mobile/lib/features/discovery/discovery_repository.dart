@@ -32,6 +32,62 @@ class DiscoveryQuery {
     this.continuation,
   });
 
+  /// Recreate an exploration context from a deep-link or map route, never
+  /// from the map's own independent search model.
+  factory DiscoveryQuery.fromRouteParameters(Map<String, String> params) {
+    double? coordinate(String name, double minimum, double maximum) {
+      final raw = params[name];
+      if (raw == null) return null;
+      final parsed = double.tryParse(raw);
+      if (parsed == null || !parsed.isFinite ||
+          parsed < minimum || parsed > maximum) return null;
+      return parsed;
+    }
+
+    int positive(String name, int fallback, int maximum) {
+      final value = int.tryParse(params[name] ?? '');
+      return value != null && value >= 1 && value <= maximum
+          ? value : fallback;
+    }
+
+    final lat = coordinate('lat', -90, 90);
+    final lon = coordinate('lon', -180, 180);
+    final radius = coordinate('radius_km', 0, 100000);
+    final validLocation = lat != null && lon != null;
+    final page = positive('page', 1, 1000000);
+    final continuation = params['continuation'];
+    return DiscoveryQuery(
+      text: params['q'] ?? '',
+      place: params['place'] ?? '',
+      when: params['when'] ?? '',
+      period: params['period'] ?? '',
+      vertical: params['vertical'] ?? '',
+      price: params['price'] ?? '',
+      date: params['date'] ?? '',
+      dateFrom: params['date_from'] ?? '',
+      dateTo: params['date_to'] ?? '',
+      latitude: validLocation ? lat : null,
+      longitude: validLocation ? lon : null,
+      radiusKm: validLocation ? radius : null,
+      page: page > 1 && continuation != null && continuation.isNotEmpty
+          ? page : 1,
+      pageSize: positive('page_size', 24, 100),
+      continuation: page > 1 && continuation != null &&
+              continuation.isNotEmpty ? continuation : null,
+    );
+  }
+
+  /// All criteria, current page and opaque server continuation are transported
+  /// unchanged to Map; UI-only selection is not sent to the API.
+  String routeLocation(String screen, {String? selectedCandidateKey}) {
+    final params = <String, String>{
+      ...parameters,
+      if (selectedCandidateKey != null && selectedCandidateKey.isNotEmpty)
+        'selected': selectedCandidateKey,
+    }..remove('timezone');
+    return Uri(path: screen, queryParameters: params).toString();
+  }
+
   final String text;
   final String place;
   final String when;
