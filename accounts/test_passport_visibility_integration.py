@@ -69,7 +69,7 @@ class PassportVisibilityIntegrationTests(TestCase):
             audiences=[{"kind": "my_collectives"}],
         )
         self.assertEqual(self._public(self.viewer).identity["bio"], "")
-        group = Group.objects.create(name="Club Études", owner_profile=self.owner)
+        group = Group.objects.create(name="Club Études", owner_profile=self.outsider)
         GroupMembership.objects.create(group=group, profile=self.viewer)
         self.assertEqual(self._public(self.viewer).identity["bio"], "")
         GroupMembership.objects.create(group=group, profile=self.owner)
