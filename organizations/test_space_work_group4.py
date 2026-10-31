@@ -16,6 +16,7 @@ from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
 from commerce.models import Offer, OfferStatus
 from organizations.models import Organization, SpaceArchetype
+from preparation.models import ActivityResource, ResourceKind, ResourceStatus, ResourceVisibility
 from presentations.asset_models import PresentationAsset
 from presentations.enums import Provenance
 from presentations.media_models import PresentationMediaPurpose
@@ -248,6 +249,25 @@ class SpaceWorkGroup4Tests(TestCase):
             f"presentation_media_use:{use.pk}",
         )
         self.assertNotIn("media_bindings", entries[str(sibling.pk)])
+
+    def test_plain_resource_file_is_not_promoted_without_published_media_use(self):
+        creation = self.activity("Création avec ressource de travail")
+        resource = ActivityResource(
+            activity=creation, key="maquette", title="Maquette interne",
+            kind=ResourceKind.FILE,
+            visibility=ResourceVisibility.RESTRICTED,
+            status=ResourceStatus.DRAFT,
+            mime_type="image/png", created_by=self.owner,
+        )
+        resource.file.save("maquette.png", ContentFile(b"test"), save=False)
+        resource.save()
+        self.client.force_authenticate(self.owner)
+        result = self.client.get(self.url)
+        self.assertEqual(result.status_code, 200, result.data)
+        row = result.data["sections"]["activities"]["items"][0]
+        self.assertNotIn("media_bindings", row)
+        self.assertNotIn("Maquette interne", str(row))
+        self.assertNotIn(resource.file.name, str(result.data))
 
     def test_private_space_keeps_media_delivery_private_in_work(self):
         creation = self.activity("Œuvre interne")
