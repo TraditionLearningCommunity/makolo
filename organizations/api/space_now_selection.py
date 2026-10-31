@@ -122,7 +122,9 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
     ))
     if operation_ids:
         # Date-only unknown timing cannot be promoted to "currently running".
-        near_date = timezone.localdate(observed_at) + timedelta(days=1)
+        today = timezone.localdate(observed_at)
+        nearby_start = today - timedelta(days=1)
+        nearby_end = today + timedelta(days=1)
         occurrences = (
             Occurrence.objects.filter(
                 activity_id__in=operation_ids,
@@ -130,7 +132,14 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
             )
             .filter(
                 Q(start_at__lte=observed_at)
-                | Q(timing_kind=OccurrenceTimingKind.ALL_DAY, start_date__lte=near_date)
+                & (Q(end_at__gt=observed_at) | Q(end_at__isnull=True))
+                | Q(
+                    timing_kind=OccurrenceTimingKind.ALL_DAY,
+                    start_date__lte=nearby_end,
+                ) & (
+                    Q(end_date__gte=nearby_start)
+                    | Q(end_date__isnull=True, start_date__gte=nearby_start)
+                )
             )
             .select_related("activity")
             .order_by("-start_date", "-start_time", "pk")
