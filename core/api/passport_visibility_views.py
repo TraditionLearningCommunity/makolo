@@ -62,4 +62,4 @@ class PersonalPassportVisibilityAPIView(PersonalProjectionAPIView):
                 exc.messages if hasattr(exc, "messages") else [str(exc)]
             )
             raise ValidationError({"audiences": detail}) from exc
-        return self._response(self._payload(request.user), observed_at=timezone.now())
+        return self._response(build_profile_visibility_settings(request.user), observed_at=timezone.now())
