@@ -20,6 +20,7 @@ from .me_views import (
     PersonalPassportShareAPIView,
     PersonalResourcesAPIView,
 )
+from .passport_visibility_views import PersonalPassportVisibilityAPIView
 from .personal_views import PersonalNowAPIView, PersonalOngoingAPIView
 from .now_media_views import PersonalNowJourneyArtifactMediaAPIView
 from .z9_views import PersonalPartnerDetailAPIView
@@ -74,6 +75,7 @@ urlpatterns = [
         PersonalCollectivesAPIView.as_view(),
         name="collectives",
     ),
+    path("passport/visibility/", PersonalPassportVisibilityAPIView.as_view(), name="passport-visibility"),
     path("passport/pdf/", PersonalPassportPdfAPIView.as_view(), name="passport-pdf"),
     path("passport/history/", PersonalPassportHistoryAPIView.as_view(), name="passport-history"),
     path("passport/history/<uuid:snapshot_id>/", PersonalPassportVersionAPIView.as_view(), name="passport-version"),
