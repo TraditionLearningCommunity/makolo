@@ -31,6 +31,7 @@ urlpatterns = [
     path("api/v1/events/", include("events.api.urls")),
     path("api/v1/tickets/", include("tickets.api.urls")),
     path("api/v1/payments/", include("payments.api.urls")),
+    path("api/v1/subscriptions/", include("subscriptions.native_api_urls")),
     path("api/v1/notifications/", include("notifications.api.urls")),
     path("api/v1/conversations/", include("conversations.api_urls")),
     path("api/v1/questionnaires/", include("questionnaires.api_urls")),
