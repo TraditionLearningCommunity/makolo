@@ -1,10 +1,12 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 
 from accounts.models import User
-from activities.models import Activity
+from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role
@@ -66,6 +68,35 @@ class WS2SpaceNowDiscoverWebTests(TestCase):
         self.assertContains(discover, "La sélection n’est pas encore disponible.")
         self.assertNotContains(discover, "no_safe_selection_contract")
         self.assertContains(discover, "Aucun candidat personnel, populaire ou récent n’est injecté")
+
+    def test_now_renders_actual_occurrence_with_owner_handoff(self):
+        instant = timezone.now()
+        occurrence = Occurrence.objects.create(
+            activity=Activity.objects.create(
+                title="Atelier opérationnel",
+                slug="ws2-atelier",
+                created_by=self.owner,
+                space=self.space,
+            ),
+            label="Atelier en cours",
+            start_at=instant - timedelta(minutes=15),
+            end_at=instant + timedelta(minutes=45),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.web_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["projection_state"], "partial")
+        self.assertContains(response, "Atelier en cours")
+        self.assertContains(response, "L&#x27;occurrence se déroule actuellement.")
+        self.assertContains(
+            response,
+            reverse(
+                "organizations:space-occurrence-day-of",
+                kwargs={"slug": self.space.slug, "occurrence_id": occurrence.pk},
+            ),
+        )
+        self.assertNotContains(response, "Tout est en ordre. ✓")
 
     def test_projection_state_mapping_keeps_empty_unavailable_partial_and_error_distinct(self):
         self.assertEqual(
