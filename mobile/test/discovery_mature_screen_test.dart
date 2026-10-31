@@ -166,6 +166,44 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('N1 shows owner limitations and multiple variants as context', (
+    tester,
+  ) async {
+    final possibility = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'contextual-n1',
+      candidateKey: 'activity:contextual-n1',
+      title: 'Formation avec deux sessions',
+      summary: 'Des modalités établies.',
+      savedState: 'unknown',
+      capabilities: const {'view'},
+      links: const {},
+      wire: const {
+        'assessment': [
+          {'state': 'limiting', 'label': 'Inscription avant le départ'},
+          {'state': 'unknown', 'label': 'Disponibilité à confirmer'},
+        ],
+        'variants': [
+          {'occurrence': {'id': 'first'}},
+          {'occurrence': {'id': 'second'}},
+        ],
+      },
+    );
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [possibility]),
+        onOpen: (_) {},
+      ),
+    );
+    expect(find.text('Informations pratiques'), findsOneWidget);
+    expect(find.text('Inscription avant le départ'), findsOneWidget);
+    expect(find.text('2 variantes'), findsOneWidget);
+    expect(find.text('Disponibilité à confirmer'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 public Service start enters the same N3 login handoff', (
     tester,
   ) async {
