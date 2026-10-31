@@ -13,6 +13,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import ListView, TemplateView
 
@@ -734,6 +735,18 @@ class DiscoveryPossibilityDetailView(TemplateView):
         context["n2_item"] = projection
         context["card"] = _web_discovery_card(projection)
         context["n2"] = build_n2_presentation(projection)
+        requested_return = self.request.GET.get("from", "")
+        context["return_url"] = (
+            requested_return
+            if requested_return.startswith("/discover/")
+            and not requested_return.startswith("//")
+            and url_has_allowed_host_and_scheme(
+                requested_return,
+                allowed_hosts={self.request.get_host()},
+                require_https=self.request.is_secure(),
+            )
+            else reverse("discovery:home")
+        )
         return context
 
 
