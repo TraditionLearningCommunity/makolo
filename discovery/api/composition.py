@@ -1267,6 +1267,7 @@ def project_rows(rows, *, profile=None) -> list[dict]:
         presentation_activities,
         occurrences=presentation_occurrences,
         purpose=PresentationMediaPurpose.RECOGNIZE,
+        profile=profile,
     )
     descriptions_by_activity = {
         str(activity_id): description
