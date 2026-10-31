@@ -33,6 +33,8 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.loadMoreFailed = false,
     this.onRetry,
     this.onResetCriteria,
+    this.onMap,
+    this.fieldKey,
   });
 
   final DiscoveryFieldSelection selection;
@@ -46,6 +48,8 @@ class DiscoveryExplorationView extends StatefulWidget {
   final bool loadMoreFailed;
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
+  final VoidCallback? onMap;
+  final String? fieldKey;
 
   @override
   State<DiscoveryExplorationView> createState() =>
@@ -98,6 +102,8 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             loadMoreFailed: widget.loadMoreFailed,
             onRetry: widget.onRetry,
             onResetCriteria: widget.onResetCriteria,
+            onMap: widget.onMap,
+            fieldKey: widget.fieldKey,
           );
         }
 
@@ -113,6 +119,8 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           loadMoreFailed: widget.loadMoreFailed,
           onRetry: widget.onRetry,
           onResetCriteria: widget.onResetCriteria,
+            onMap: widget.onMap,
+            fieldKey: widget.fieldKey,
           selectedCandidateKey: _focusedCandidateKey,
           onSelect: (item) => setState(() {
             _focusedCandidateKey = item.candidateKey;
@@ -155,6 +163,8 @@ class DiscoveryFieldView extends StatelessWidget {
     this.onSelect,
     this.selectionActionLabel,
     this.selectOnCardTap = false,
+    this.onMap,
+    this.fieldKey,
   });
 
   final DiscoveryFieldSelection selection;
@@ -172,6 +182,8 @@ class DiscoveryFieldView extends StatelessWidget {
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
   final String? selectionActionLabel;
   final bool selectOnCardTap;
+  final VoidCallback? onMap;
+  final String? fieldKey;
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +214,8 @@ class DiscoveryFieldView extends StatelessWidget {
         onSelect: onSelect,
         selectionActionLabel: selectionActionLabel,
         selectOnCardTap: selectOnCardTap,
+        onMap: onMap,
+        fieldKey: fieldKey,
       ),
     );
   }
@@ -221,6 +235,8 @@ class DiscoverySpatialView extends StatefulWidget {
     this.loadingMore = false,
     this.loadMoreFailed = false,
     this.onRetry,
+    this.initialSelectedCandidateKey,
+    this.showMapOnCompact = false,
   });
 
   final DiscoveryFieldSelection selection;
@@ -234,6 +250,8 @@ class DiscoverySpatialView extends StatefulWidget {
   final bool loadingMore;
   final bool loadMoreFailed;
   final VoidCallback? onRetry;
+  final String? initialSelectedCandidateKey;
+  final bool showMapOnCompact;
 
   @override
   State<DiscoverySpatialView> createState() => _DiscoverySpatialViewState();
@@ -244,8 +262,17 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   String? _selectedCandidateKey;
 
   @override
+  void initState() {
+    super.initState();
+    _selectedCandidateKey = widget.initialSelectedCandidateKey;
+  }
+
+  @override
   void didUpdateWidget(covariant DiscoverySpatialView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSelectedCandidateKey != widget.initialSelectedCandidateKey) {
+      _selectedCandidateKey = widget.initialSelectedCandidateKey;
+    }
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
         .toSet();
@@ -363,7 +390,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         height: 620,
         child: spatial,
       ),
-      narrow: field,
+      narrow: widget.showMapOnCompact
+          ? Column(
+              children: [
+                SizedBox(
+                  key: const Key('discover-compact-map'),
+                  height: 290,
+                  child: spatial,
+                ),
+                Expanded(child: field),
+              ],
+            )
+          : field,
       focusMin: MakoloLayout.mapMinWidth,
       focusPreferred: 560,
       focusMax: 720,
@@ -386,6 +424,8 @@ class _DiscoveryScrollableField extends StatelessWidget {
     this.onSelect,
     this.selectionActionLabel,
     this.selectOnCardTap = false,
+    this.onMap,
+    this.fieldKey,
   });
 
   final DiscoveryFieldSelection selection;
@@ -401,6 +441,8 @@ class _DiscoveryScrollableField extends StatelessWidget {
   final ValueChanged<DiscoveryItemPresentation>? onSelect;
   final String? selectionActionLabel;
   final bool selectOnCardTap;
+  final VoidCallback? onMap;
+  final String? fieldKey;
 
   @override
   Widget build(BuildContext context) {
@@ -443,7 +485,9 @@ class _DiscoveryScrollableField extends StatelessWidget {
 
         final list = ListView(
           key: PageStorageKey<String>(
-            autoLoadMore ? 'discover-continuous-field' : 'discover-page-${selection.collection.page}',
+            fieldKey == null
+                ? (autoLoadMore ? 'discover-continuous-field' : 'discover-page-${selection.collection.page}')
+                : 'discover-$fieldKey-${selection.collection.page}',
           ),
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.only(
@@ -455,9 +499,20 @@ class _DiscoveryScrollableField extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Opportunités à découvrir',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  Row(
+                    children: [
+                      Expanded(child: Text(
+                        'Opportunités à découvrir',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      )),
+                      if (onMap != null)
+                        IconButton(
+                          key: const Key('discover-field-open-map'),
+                          tooltip: 'Voir ces possibilités sur la carte',
+                          icon: const Icon(Icons.map_outlined),
+                          onPressed: onMap,
+                        ),
+                    ],
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
                 ],
