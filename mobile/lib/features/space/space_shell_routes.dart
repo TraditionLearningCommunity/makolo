@@ -797,6 +797,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             widget.depth != 'responsibilities' ||
             _map(row)?['combined'] != true).toList()
         : const <dynamic>[];
+    final canManageTeam = widget.depth == 'team' &&
+        _map(payload['capabilities'])?['manage_team'] == true &&
+        _teamRoleOptions(payload).isNotEmpty;
     final intro = switch (widget.depth) {
       'team' => 'Les collaborateurs actuellement visibles dans cette équipe.',
       'responsibilities' =>
@@ -815,6 +818,15 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           const SizedBox(height: MakoloSpacing.sm),
           Text(intro, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: MakoloSpacing.lg),
+          if (canManageTeam) ...[
+            FilledButton.icon(
+              onPressed: _teamMutating ? null : () => _addTeamMember(payload),
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              label: const Text('Ajouter un collaborateur'),
+            ),
+            const SizedBox(height: MakoloSpacing.md),
+          ],
+          if (_teamMutating) const LinearProgressIndicator(),
           if (widget.depth == 'trust')
             Text(
               _map(payload['trust'])?['verified'] == true
@@ -847,6 +859,26 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                         const SizedBox(height: 4),
                         Text(_depthRowDetail(row),
                           style: Theme.of(context).textTheme.bodySmall),
+                        if (canManageTeam && _fullTeam != null &&
+                            _map(row) != null) ...[
+                          const SizedBox(height: MakoloSpacing.sm),
+                          Wrap(
+                            spacing: MakoloSpacing.sm,
+                            children: [
+                              TextButton(
+                                onPressed: _teamMutating
+                                    ? null : () => _changeTeamRole(
+                                        _map(row)!, payload),
+                                child: const Text('Responsabilité'),
+                              ),
+                              TextButton(
+                                onPressed: _teamMutating
+                                    ? null : () => _removeTeamMember(_map(row)!),
+                                child: const Text('Retirer'),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     )),
                   ]),
