@@ -581,6 +581,7 @@ GoRouter createMakoloRouter(
           return SpaceInsightScreen(
             runtime: runtime,
             surface: SpaceProjectionKind.relationships,
+            expectedSlug: state.pathParameters['slug'],
           );
         },
       ),
@@ -598,6 +599,7 @@ GoRouter createMakoloRouter(
           return SpaceInsightScreen(
             runtime: runtime,
             surface: SpaceProjectionKind.pilot,
+            expectedSlug: state.pathParameters['slug'],
           );
         },
       ),
