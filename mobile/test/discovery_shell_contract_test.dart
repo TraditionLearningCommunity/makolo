@@ -67,4 +67,32 @@ void main() {
     expect(routes, contains('geoSearch: runtime.geoSearch'));
     expect(routes, contains('location: runtime.location'));
   });
+  test('Map and Search share criteria, selection and the public route context', () {
+    final screens = File('lib/features/discovery/discovery_screens.dart')
+        .readAsStringSync();
+    final routes = File('lib/features/discovery/discovery_routes.dart')
+        .readAsStringSync();
+    final presentation = File('lib/features/discovery/discovery_mature_view.dart')
+        .readAsStringSync();
+    final guest = File('lib/features/guest/guest_screen.dart')
+        .readAsStringSync();
+    final shell = File('lib/app/app_shell.dart').readAsStringSync();
+    final router = File('lib/app/router.dart').readAsStringSync();
+
+    expect(routes, contains('DiscoveryQuery.fromRouteParameters'));
+    expect(routes, contains("state.uri.queryParameters['selected']"));
+    expect(screens, contains("routeLocation('/discover/map'"));
+    expect(screens, contains("routeLocation('/discover/search'"));
+    expect(screens, contains('retainedDiscoveryScrollOffset'));
+    expect(screens, contains('retainedDiscoveryFocusedCandidate'));
+    expect(screens, contains('_pageTokens[page]'));
+    expect(presentation, contains('showMapOnCompact'));
+    expect(presentation, contains('onCircleTapped'));
+    expect(presentation, contains("key: const Key('discover-compact-map')"));
+    expect(presentation, contains('onFocusedCandidateChanged'));
+    expect(shell, contains('activeExploration'));
+    expect(router, contains('publicDiscoveryQuery'));
+    expect(guest, contains('initialFilters'));
+  });
+
 }
