@@ -301,7 +301,7 @@ class SpaceUsSurface extends StatelessWidget {
     final count = items.length;
     return section?['has_more'] == true
         ? 'Au moins $count relations dans cet aperçu'
-        : '$count' + (count == 1 ? ' relation visible' : ' relations visibles');
+        : '$count relation${count == 1 ? '' : 's'} visible${count == 1 ? '' : 's'}';
   }
 
   static Widget _sectionTitle(
