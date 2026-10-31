@@ -261,6 +261,55 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         self.client.force_authenticate(self.team_only)
         self.assertEqual(self.client.get(self._url("now")).status_code, 404)
 
+    def test_assigned_service_scope_does_not_promote_personal_journey(self):
+        from journeys.collaboration_models import (
+            JourneyAssignment, JourneyAssignmentResponsibility,
+            JourneyAssignmentStatus,
+        )
+
+        facilitator = User.objects.create_user(
+            username="zs6-facilitator",
+            email="zs6-facilitator@test.local",
+            password="x",
+        )
+        grant_activity_role(
+            profile=facilitator, activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_SERVICE_FACILITATOR,
+            granted_by=self.owner,
+        )
+        own_case = Journey.objects.create(
+            initiated_by=facilitator,
+            beneficiary=facilitator,
+            activity=self.activity,
+            workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.SUBMITTED,
+        )
+        beneficiary = User.objects.create_user(
+            username="zs6-service-beneficiary",
+            email="zs6-service-beneficiary@test.local",
+            password="x",
+        )
+        assigned_case = Journey.objects.create(
+            initiated_by=beneficiary, beneficiary=beneficiary,
+            activity=self.activity, workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.SUBMITTED,
+        )
+        JourneyAssignment.objects.create(
+            journey=assigned_case,
+            profile=facilitator,
+            responsibility=JourneyAssignmentResponsibility.LEAD,
+            status=JourneyAssignmentStatus.ACTIVE,
+        )
+        self.client.force_authenticate(facilitator)
+        response = self.client.get(self._url("now"))
+        self.assertEqual(response.status_code, 200, response.data)
+        case_ids = {
+            row["source"]["id"] for row in response.data["items"]
+            if row["source"]["kind"] == "journey"
+        }
+        self.assertIn(str(assigned_case.pk), case_ids)
+        self.assertNotIn(str(own_case.pk), case_ids)
+
     def test_now_partial_empty_never_claims_collective_calm(self):
         self.client.force_authenticate(self.activity_actor)
         response = self.client.get(self._url("now"))
