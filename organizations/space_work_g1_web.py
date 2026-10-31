@@ -153,6 +153,16 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                         self.space.archetype == SpaceArchetype.COMMUNITY
                     ) else "Retour à l’activité"
 
+        if kind == "journey" and "open_service_case" in selection.get("capabilities", ()):
+            # This is the Service owner URL supplied after operator-scope checks.
+            # Never invent a generic mutation or turn an API URL into a Web view.
+            owner_url = (selection.get("links") or {}).get("detail")
+            if owner_url:
+                actions.append({
+                    "label": "Ouvrir le dossier de prestation",
+                    "url": owner_url,
+                })
+
         if kind == "occurrence" and "open_day_of" in selection.get("capabilities", ()):
             if (selection.get("links") or {}).get("day_of"):
                 actions.append({
