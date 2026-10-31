@@ -672,7 +672,12 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       if (token == null || token.isEmpty) return;
     } else {
       token = _pageTokens[page];
-      if (token == null) return;
+      if (token == null) {
+        // A deep-linked older page has no known signed predecessor cursor.
+        // Offer the first page with the same criteria instead of guessing.
+        unawaited(_navigateToPage(1));
+        return;
+      }
     }
     if (!mounted || !identical(current, _query)) return;
     if (page > 1 && token != null) _pageTokens[page] = token;
