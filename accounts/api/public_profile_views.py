@@ -42,5 +42,5 @@ class PublicProfileAPIView(APIView):
                 },
             },
         ))
-        response["Cache-Control"] = "public, max-age=60"
+        response["Cache-Control"] = "private, no-store"
         return response
