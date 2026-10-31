@@ -301,9 +301,11 @@ class _SpaceProjectionBody extends StatelessWidget {
       ),
       selection: selection,
       onRetry: onRefresh,
-      onOpenOwner: (destination) {
+      onOpenOwner: (destination) async {
         final path = NowScreen.ownerPathFor(destination);
-        if (path != null) context.push(path);
+        if (path == null) return;
+        await context.push(path);
+        if (context.mounted) await onRefresh();
       },
     );
     if (_map(projection?.payload['selection'])?['state'] != 'partial') {
