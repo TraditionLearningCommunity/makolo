@@ -474,12 +474,22 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
 
   Widget _media(BuildContext context) {
     final images = <Map<String, String>>[];
-    final seen = <String>{};
-    void add(String? source, String label) {
+    final byUrl = <String, int>{};
+    void add(String? source, String label, {String? mimeType}) {
       final url = _publicImage(source);
-      if (url != null && seen.add(url)) {
-        images.add({'url': url, 'label': label});
+      if (url == null) return;
+      final mime = mimeType == 'image/jpeg' ? 'image/jpeg' : 'image/png';
+      final existing = byUrl[url];
+      if (existing != null) {
+        // The explicit Presentation media-use owns the actual MIME and alt.
+        if (mimeType != null) {
+          images[existing]['mime'] = mime;
+          images[existing]['label'] = label;
+        }
+        return;
       }
+      byUrl[url] = images.length;
+      images.add({'url': url, 'label': label, 'mime': mime});
     }
 
     add(item.imageUrl, 'Visuel de ${item.title}');
@@ -487,10 +497,11 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
       final resource = binding['resource'];
       if (resource is! Map) continue;
       final mime = (resource['mime_type'] ?? '').toString().toLowerCase();
-      if (!mime.startsWith('image/')) continue;
+      if (mime != 'image/png' && mime != 'image/jpeg') continue;
       add(
         resource['url']?.toString(),
         (resource['alt_text'] ?? 'Visuel de ${item.title}').toString(),
+        mimeType: mime,
       );
     }
     if (images.isEmpty) return const SizedBox.shrink();
@@ -502,7 +513,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
           DiscoveryReaderItem(
             title: image['label']!,
             uri: Uri.parse(image['url']!),
-            mimeType: 'image/png',
+            mimeType: image['mime']!,
           ),
         ]),
         child: Image.network(
@@ -531,7 +542,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     DiscoveryReaderItem(
                       title: image['label']!,
                       uri: Uri.parse(image['url']!),
-                      mimeType: 'image/png',
+                      mimeType: image['mime']!,
                     ),
                 ], index: index),
                 child: Image.network(
@@ -1200,7 +1211,14 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                     padding: const EdgeInsets.symmetric(
                       vertical: MakoloSpacing.xs,
                     ),
-                    child: _facts(context),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Informations pratiques', style: theme.textTheme.titleSmall),
+                        const SizedBox(height: MakoloSpacing.sm),
+                        _facts(context),
+                      ],
+                    ),
                   ),
                 ],
               ],
