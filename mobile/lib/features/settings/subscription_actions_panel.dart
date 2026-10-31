@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../network/api_error.dart';
 import 'subscription_billing_format.dart';
@@ -49,11 +50,15 @@ class SubscriptionActionsPanel extends StatefulWidget {
     required this.runtime,
     required this.snapshot,
     required this.onUpdated,
+    this.spaceSlug,
+    this.expectedSpaceId,
   });
 
   final AppRuntime runtime;
   final Map<String, dynamic> snapshot;
   final Future<void> Function() onUpdated;
+  final String? spaceSlug;
+  final String? expectedSpaceId;
 
   @override
   State<SubscriptionActionsPanel> createState() =>
@@ -70,10 +75,24 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
   int? _historyOffset;
   bool _loadingHistory = false;
 
-  bool _sameSubject(AppRuntime runtime, String? profileId) =>
-      mounted &&
-      identical(widget.runtime, runtime) &&
-      runtime.session?.profileId == profileId;
+  String get subscriptionPath => widget.spaceSlug == null
+      ? 'api/v1/subscriptions/me/'
+      : 'api/v1/subscriptions/spaces/${Uri.encodeComponent(widget.spaceSlug!)}/';
+
+  bool get canManage =>
+      _object(widget.snapshot['subscription'])?['can_manage'] != false;
+
+  bool _sameSubject(AppRuntime runtime, String? profileId) {
+    if (!mounted || !identical(widget.runtime, runtime) ||
+        runtime.session?.profileId != profileId) return false;
+    if (widget.spaceSlug == null) return true;
+    final actor = runtime.actorContext?.value;
+    return actor is SpaceActorContext &&
+        actor.space.slug == widget.spaceSlug &&
+        actor.space.id == widget.expectedSpaceId &&
+        _object(widget.snapshot['space'])?['id']?.toString() ==
+            widget.expectedSpaceId;
+  }
 
   @override
   void initState() {
@@ -87,7 +106,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
   void didUpdateWidget(covariant SubscriptionActionsPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.runtime != oldWidget.runtime ||
-        widget.snapshot != oldWidget.snapshot) {
+        widget.snapshot != oldWidget.snapshot ||
+        widget.spaceSlug != oldWidget.spaceSlug ||
+        widget.expectedSpaceId != oldWidget.expectedSpaceId) {
       _extraBills.clear();
       _extraHistory.clear();
       _offset = _object(widget.snapshot['billing'])?['next_offset'] as int?;
@@ -264,7 +285,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: FilledButton(
-                          onPressed: confirming
+                          onPressed: confirming || !canManage ||
+                                  preview['can_confirm'] == false
                               ? null
                               : () async {
                                   setSheet(() {
@@ -303,7 +325,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                   }
                                 },
                           child: Text(
-                            confirming ? 'Confirmation…' : 'Confirmer',
+                            canManage && preview['can_confirm'] != false
+                                ? (confirming ? 'Confirmation…' : 'Confirmer')
+                                : 'Consultation uniquement',
                           ),
                         ),
                       ),
@@ -356,7 +380,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     });
     try {
       await api.post(
-        'api/v1/subscriptions/me/transitions/' +
+        subscriptionPath + 'transitions/' +
             Uri.encodeComponent(id) +
             '/' +
             action +
@@ -385,7 +409,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     setState(() => _loadingMore = true);
     try {
       final result = (await api.get(
-        'api/v1/subscriptions/me/obligations/?offset=' + offset.toString(),
+        subscriptionPath + 'obligations/?offset=' + offset.toString(),
       )).jsonObject();
       if (!_sameSubject(sourceRuntime, profileId) ||
           widget.runtime.api != api ||
@@ -419,7 +443,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     setState(() => _loadingHistory = true);
     try {
       final result = (await api.get(
-        'api/v1/subscriptions/me/transitions/?offset=' + offset.toString(),
+        subscriptionPath + 'transitions/?offset=' + offset.toString(),
       )).jsonObject();
       if (!_sameSubject(runtime, profileId) ||
           widget.runtime.api != api ||
@@ -472,12 +496,12 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
-        for (final row in addons)
+        if (canManage) for (final row in addons)
           OutlinedButton(
             onPressed: _busy || hasOpenTransition
                 ? null
                 : () => _preview(
-                    'api/v1/subscriptions/me/addons/' +
+                    subscriptionPath + 'addons/' +
                         Uri.encodeComponent(_value(row['item_id'])) +
                         '/remove/',
                     'Retirer ' + _value(row['name'], 'cette option'),
@@ -486,7 +510,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               'Examiner le retrait de ' + _value(row['name'], 'l’option'),
             ),
           ),
-        if (transition != null && transition['open'] == true) ...[
+        if (canManage && transition != null && transition['open'] == true) ...[
           const SizedBox(height: 8),
           if (transition['status'] == 'ready')
             FilledButton(
@@ -503,7 +527,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           ),
         ],
         const SizedBox(height: 18),
-        Text('Mes changements', style: Theme.of(context).textTheme.titleMedium),
+        Text(widget.spaceSlug == null ? 'Mes changements' : 'Changements de l’Espace',
+          style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (history.isEmpty)
           const Text('Aucune demande de changement enregistrée.'),
@@ -580,14 +605,15 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                       ),
                     ),
                   _list('Conditions à satisfaire', option['requirements']),
-                  if (option['can_request'] == true && !hasOpenTransition)
+                  if ((option['can_request'] == true || option['can_preview'] == true) &&
+                      !hasOpenTransition)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
                       child: FilledButton(
                         onPressed: _busy
                             ? null
                             : () => _preview(
-                                'api/v1/subscriptions/me/plans/' +
+                                subscriptionPath + 'plans/' +
                                     Uri.encodeComponent(
                                       _value(option['plan_version_id']),
                                     ) +
@@ -604,7 +630,9 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         ],
         const SizedBox(height: 18),
         Text(
-          'Facturation de mon abonnement',
+          widget.spaceSlug == null
+              ? 'Facturation de mon abonnement'
+              : 'Facturation de l’Espace',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
@@ -626,7 +654,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                               subscriptionDateLabel(obligation['due_at'])),
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: _value(obligation['id']).isEmpty
+              onTap: _value(obligation['id']).isEmpty ||
+                      (widget.spaceSlug != null && obligation['can_open_detail'] != true)
                   ? null
                   : () async {
                       final sourceRuntime = widget.runtime;
