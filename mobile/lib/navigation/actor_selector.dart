@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../app/providers.dart';
 import '../app/runtime/actor_context.dart';
@@ -77,6 +78,8 @@ class _MakoloActorPicker extends StatefulWidget {
 }
 
 class _MakoloActorPickerState extends State<_MakoloActorPicker> {
+  bool _switching = false;
+  String? _error;
   @override
   void initState() {
     super.initState();
@@ -102,33 +105,48 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
   }
 
   Future<void> _selectSpace(SpaceSummary summary) async {
+    if (_switching) return;
     final controller = widget.runtime.actorContext;
-    if (controller == null) return;
-
-    final current = controller.value;
-    if (current is SpaceActorContext &&
-        current.space.id == summary.identity.id) {
+    final repository = widget.runtime.space;
+    if (controller == null || repository?.sync == null) {
+      setState(() => _error =
+          'Une connexion est nécessaire pour vérifier cet Espace.');
+      return;
+    }
+    setState(() { _switching = true; _error = null; });
+    try {
+      await repository!.refreshInventory();
+      final authorized = (await repository.readInventory()).any(
+        (space) => space.identity.id == summary.identity.id &&
+            space.identity.slug == summary.identity.slug,
+      );
+      if (!authorized) {
+        throw StateError('Cet Espace ne figure plus parmi vos accès autorisés.');
+      }
+      await repository.refreshWorkspace(summary.identity);
+      final current = controller.value;
       await controller.selectSpace(
         summary.identity,
-        perspective: current.perspective,
+        perspective: current is SpaceActorContext &&
+                current.space.id == summary.identity.id
+            ? current.perspective
+            : const ActorPerspective.all(),
       );
-    } else {
-      await controller.selectSpace(summary.identity);
+      if (mounted) Navigator.of(context).pop();
+    } on Object {
+      if (mounted) {
+        setState(() => _error =
+            'Impossible de vérifier cet Espace. Votre contexte n’a pas changé.');
+      }
+    } finally {
+      if (mounted) setState(() => _switching = false);
     }
-
-    final repository = widget.runtime.space;
-    if (repository?.sync != null) {
-      unawaited(_refreshWorkspace(summary.identity));
-    }
-    if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _refreshWorkspace(SpaceActorIdentity space) async {
-    try {
-      await widget.runtime.space?.refreshWorkspace(space);
-    } on Object {
-      // The shell keeps local context; server revalidation remains authoritative.
-    }
+  void _openCreateSpace() {
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    router.push('/space/create');
   }
 
   @override
@@ -198,7 +216,27 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                         selected:
                             actor is SpaceActorContext &&
                             actor.space.id == space.identity.id,
-                        onTap: () => _selectSpace(space),
+                        onTap: _switching ? null : () => _selectSpace(space),
+                      ),
+                    if (spaces.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: MakoloSpacing.md),
+                        child: Text('Aucun Espace autorisé connu pour le moment.'),
+                      ),
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: MakoloSpacing.sm),
+                        child: Text(_error!,
+                          style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                      ),
+                    if (_switching)
+                      const LinearProgressIndicator(),
+                    const SizedBox(height: MakoloSpacing.md),
+                    if (widget.runtime.api != null && repository.sync != null)
+                      OutlinedButton.icon(
+                        onPressed: _switching ? null : _openCreateSpace,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Créer un Espace'),
                       ),
                   ],
                 ),
