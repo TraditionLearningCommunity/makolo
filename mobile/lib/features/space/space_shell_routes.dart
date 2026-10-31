@@ -16,6 +16,8 @@ import '../../presentation/projection_surface_adapter.dart';
 import '../../sync/freshness.dart';
 import 'space_repository.dart';
 import 'space_work_surface.dart';
+import '../now/now_screen.dart';
+import '../now/now_selector.dart';
 
 enum SpaceShellSurface { now, discover, work, us }
 
@@ -254,10 +256,7 @@ class _SpaceProjectionBody extends StatelessWidget {
     }
 
     return switch (surface) {
-      SpaceShellSurface.now => _attentionBody(
-        payload,
-        emptyMessage: 'Rien ne demande votre attention pour le moment.',
-      ),
+      SpaceShellSurface.now => _spaceNowBody(context),
       SpaceShellSurface.discover => _attentionBody(
         payload,
         emptyMessage: 'Rien à découvrir pour le moment.',
@@ -265,6 +264,24 @@ class _SpaceProjectionBody extends StatelessWidget {
       SpaceShellSurface.work => SpaceWorkSurface(payload: payload),
       SpaceShellSurface.us => _usBody(context, payload),
     };
+  }
+
+  Widget _spaceNowBody(BuildContext context) {
+    final selection = const NowSelector().select(
+      projection: projection,
+      now: DateTime.now(),
+    );
+    final space = _map(projection?.payload['space']);
+    return NowView(
+      key: ValueKey(
+        'space-now:${_text(space?['id'])}:${_text(projection?.payload['responsibility'])}',
+      ),
+      selection: selection,
+      onOpenOwner: (destination) {
+        final path = NowScreen.ownerPathFor(destination);
+        if (path != null) context.push(path);
+      },
+    );
   }
 
   Widget _attentionBody(
