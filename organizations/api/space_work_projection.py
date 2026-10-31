@@ -62,13 +62,18 @@ def _mandated_activity_ids(profile, space):
         PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ALL,
         PermissionCode.ACTIVITY_SERVICES_CASES_VIEW_ASSIGNED,
     )
-    permitted = set()
-    for code in work_permissions:
-        permitted.update(activity_ids_with_direct_permission(profile, code))
-    if not permitted:
-        return set()
     return set(
-        space.activities.filter(pk__in=permitted).values_list("pk", flat=True)
+        current_mandates()
+        .filter(
+            profile=profile,
+            scope_type=AuthorityScope.ACTIVITY,
+            activity__space=space,
+            role__role_permissions__permission__code__in=work_permissions,
+            role__role_permissions__permission__is_active=True,
+        )
+        .exclude(activity_id=None)
+        .values_list("activity_id", flat=True)
+        .distinct()
     )
 
 
