@@ -831,7 +831,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       initialData: OwnerSourceState.unknown,
       builder: (context, sourceSnapshot) {
         final state = sourceSnapshot.data ?? OwnerSourceState.unknown;
-        if (state.invalidated || state.lastErrorCode != null) {
+        if (state.invalidated) {
           return MakoloSecondaryScreen(
             title: _depthTitle(widget.depth),
             message: 'Cette profondeur n’est plus disponible avec l’autorité actuelle. Le contexte public de l’Espace reste protégé.',
@@ -857,14 +857,30 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                     'Cette profondeur n’est pas autorisée dans ce contexte.',
               );
             }
-            return _depthBody(context, payload);
+            final freshness = WorkspaceContextRepository.surfaceFreshness
+                .evaluate(snapshot.data!, now: DateTime.now());
+            if (freshness == FreshnessState.expired) {
+              return MakoloSecondaryScreen(
+                title: _depthTitle(widget.depth),
+                message: 'Cette observation n’est plus assez récente pour être utilisée.',
+              );
+            }
+            return _depthBody(
+              context,
+              payload,
+              observationOnly: state.lastErrorCode != null,
+            );
           },
         );
       },
     );
   }
 
-  Widget _depthBody(BuildContext context, Map<String, dynamic> payload) {
+  Widget _depthBody(
+    BuildContext context,
+    Map<String, dynamic> payload, {
+    bool observationOnly = false,
+  }) {
     final title = _depthTitle(widget.depth);
     final section = widget.depth == 'team'
         ? _map(payload['team'])
@@ -881,10 +897,10 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             widget.depth != 'responsibilities' ||
             _map(row)?['combined'] != true).toList()
         : const <dynamic>[];
-    final canManageTeam = widget.depth == 'team' &&
+    final canManageTeam = !observationOnly && widget.depth == 'team' &&
         _map(payload['capabilities'])?['manage_team'] == true &&
         _teamRoleOptions(payload).isNotEmpty;
-    final canTransferOwnership = widget.depth == 'ownership' &&
+    final canTransferOwnership = !observationOnly && widget.depth == 'ownership' &&
         _map(payload['capabilities'])?['manage_team'] == true &&
         _map(payload['capabilities'])?['manage_ownership'] == true;
     final intro = switch (widget.depth) {
@@ -904,6 +920,14 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           Text(title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: MakoloSpacing.sm),
           Text(intro, style: Theme.of(context).textTheme.bodyMedium),
+          if (observationOnly) ...[
+            const SizedBox(height: MakoloSpacing.md),
+            const MakoloStatus(
+              label: 'Observation conservée hors réseau. Actions indisponibles.',
+              tone: MakoloStatusTone.info,
+              icon: Icons.cloud_off_outlined,
+            ),
+          ],
           const SizedBox(height: MakoloSpacing.lg),
           if (canManageTeam) ...[
             FilledButton.icon(
