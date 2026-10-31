@@ -111,7 +111,13 @@ def _compose_sections(space, projection, *, profile=None):
                 responsibility=projection.get("responsibility", "all"),
             )
             item["owner_label"] = (
-                "Ouvrir le dossier"
+                "Voir la création"
+                if item["owner_url"] and space.archetype == "creative"
+                and item["source"]["kind"] == "activity"
+                else "Voir la production"
+                if item["owner_url"] and space.archetype == "media"
+                and item["source"]["kind"] == "activity"
+                else "Ouvrir le dossier"
                 if item.get("kind") == "service_case" and item["owner_url"]
                 else "Voir le programme"
                 if item.get("kind") == "journey" and item["owner_url"]
