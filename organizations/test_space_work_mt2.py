@@ -73,6 +73,8 @@ class SpaceWorkMT2ContractTests(TestCase):
                 item = self.row(response, "activity", work.pk)
                 self.assertEqual(item["entry_identity"], f"activity:{work.pk}")
                 self.assertEqual(item["owner_reference"], item["source"])
+                self.assertEqual(item["knowledge_context"]["provenance"], [item["source"]])
+                self.assertEqual(item["knowledge_context"]["knowledge_state"], "known")
                 handoffs = item["owner_handoffs"]
                 self.assertEqual([h["intent"] for h in handoffs], ["inspect"])
                 self.assertEqual(handoffs[0]["owner"], item["source"])
@@ -165,7 +167,8 @@ class SpaceWorkMT2ContractTests(TestCase):
             service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
         )
         beneficiary = User.objects.create_user(
-            username="mt2-service-beneficiary", password="x",
+            username="mt2-service-beneficiary",
+            email="mt2-service-private@test.local", password="x",
         )
         case = Journey.objects.create(
             initiated_by=beneficiary, beneficiary=beneficiary,
@@ -196,7 +199,7 @@ class SpaceWorkMT2ContractTests(TestCase):
         self.assertEqual(item["owner_handoffs"][1]["channel"], "web")
         self.assertEqual(item["owner_handoffs"][1]["url"], item["links"]["detail"])
         self.assertEqual(response.data["composition_state"], "partial")
-        self.assertNotIn(beneficiary.email if beneficiary.email else "private-unknown", str(response.data))
+        self.assertNotIn(beneficiary.email, str(response.data))
 
     def test_day_of_is_separate_from_owner_inspection_only_when_authorized(self):
         activity = self.activity("Réalisation")
