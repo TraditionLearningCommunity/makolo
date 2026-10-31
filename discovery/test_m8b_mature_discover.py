@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -16,7 +16,7 @@ from opportunities.models import (
 from .card_contract import present_opportunity_card
 from .candidate_identity import opportunity_candidate_key
 from .unified import public_opportunity_discovery_items
-from .views import _discovery_first_person_action_label, _web_discovery_card
+from .views import _added_date_label, _discovery_first_person_action_label, _web_discovery_card
 
 
 User = get_user_model()
@@ -240,3 +240,66 @@ class M8BMatureDiscoverTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["discovery_cards"], [])
         self.assertContains(response, "Aucune possibilité ne correspond à cette recherche.")
+
+    def test_n1_human_added_at_is_distinct_from_owner_event_timing(self):
+        local_zone = timezone.get_current_timezone()
+        now = timezone.make_aware(datetime(2026, 10, 31, 14, 0), local_zone)
+        self.assertEqual(
+            _added_date_label((now - timedelta(hours=2)).isoformat(), now=now),
+            "il y a 2 h",
+        )
+        self.assertEqual(
+            _added_date_label((now - timedelta(days=1)).isoformat(), now=now),
+            "Hier",
+        )
+        self.assertEqual(
+            _added_date_label((now - timedelta(days=14)).isoformat(), now=now),
+            "il y a 2 sem.",
+        )
+        self.assertEqual(_added_date_label("not-a-date", now=now), "")
+        self.assertEqual(
+            _added_date_label((now + timedelta(days=1)).isoformat(), now=now),
+            "01/11/2026",
+        )
+
+    def test_n1_web_practical_roles_classification_and_known_unavailability(self):
+        projection = {
+            "identity": {
+                "family": "activity",
+                "candidate_key": "activity:transport",
+                "resource": {"kind": "activity", "id": "transport"},
+                "occurrence": None,
+            },
+            "representation": {
+                "title": "Transport Lubumbashi – Kolwezi",
+                "summary": "Un départ connu.",
+                "kind": "route",
+                "vertical_label": "Transport",
+                "eyebrow": "Transport",
+            },
+            "presentation_facts": [
+                {"code": "type", "label": "Type", "value": "Transport"},
+            ],
+            "availability": {"state": "sold_out"},
+            "spatial_facts": [
+                {"role": "departure", "place": {"name": "Lubumbashi"}},
+                {"role": "stopover", "place": {"name": "Likasi"}},
+                {"role": "arrival", "place": {"name": "Kolwezi"}},
+            ],
+            "temporal_facts": [
+                {"kind": "deadline_at", "value": "2026-11-01T12:00:00+02:00"},
+            ],
+            "date": {"kind": "added_at", "value": "2026-10-30T12:00:00+02:00"},
+            "links": {"web": "/transport/"},
+        }
+        card = _web_discovery_card(projection)
+        self.assertEqual(card.type_labels, ("Transport",))
+        self.assertFalse(any(fact.label == "Type" for fact in card.facts))
+        by_label = {fact.label: fact.value for fact in card.facts}
+        self.assertEqual(by_label["Disponibilité"], "Complet")
+        self.assertEqual(by_label["Départ"], "Lubumbashi")
+        self.assertEqual(by_label["Escale"], "Likasi")
+        self.assertEqual(by_label["Arrivée"], "Kolwezi")
+        self.assertIn("Date limite", by_label)
+        self.assertTrue(card.added_label)
+        self.assertNotEqual(card.added_label, by_label["Date limite"])
