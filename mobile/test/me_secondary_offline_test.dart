@@ -205,10 +205,16 @@ void main() {
     expect(find.text('Collaborer'), findsOneWidget);
     expect(find.textContaining('Aperçu local de Moi'), findsNothing);
     expect(tester.widget<IconButton>(
-      find.byTooltip('Exporter le Passeport en PDF'),
+      find.ancestor(
+        of: find.byTooltip('Exporter le Passeport en PDF'),
+        matching: find.byType(IconButton),
+      ),
     ).onPressed, isNull);
     expect(tester.widget<IconButton>(
-      find.byTooltip('Versions datées'),
+      find.ancestor(
+        of: find.byTooltip('Versions datées'),
+        matching: find.byType(IconButton),
+      ),
     ).onPressed, isNull);
   });
 
@@ -327,11 +333,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Profil hors ligne'), findsOneWidget);
     final share = tester.widget<IconButton>(
-      find.byTooltip('Partager le Passeport'),
+      find.ancestor(
+        of: find.byTooltip('Partager le Passeport'),
+        matching: find.byType(IconButton),
+      ),
     );
     expect(share.onPressed, isNull);
     final export = tester.widget<IconButton>(
-      find.byTooltip('Exporter le Passeport en PDF'),
+      find.ancestor(
+        of: find.byTooltip('Exporter le Passeport en PDF'),
+        matching: find.byType(IconButton),
+      ),
     );
     expect(export.onPressed, isNull);
   });
