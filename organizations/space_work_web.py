@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 from django.http import Http404
+from urllib.parse import urlencode
 from django.urls import reverse
 
 from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
+from organizations.models import SpaceArchetype
 
 from .api.space_work_projection import build_space_work_projection
 from .space_web_views import SpaceWebMixin
 
 
 
-def _activity_owner_url(space, item, *, profile=None, responsibility="all"):
+def _activity_owner_url(space, item, *, profile=None, responsibility="all", section_key="activities"):
     """Return an existing owner-backed Web handoff only when ZS3 exposes an Activity link."""
 
     links = item.get("links") or {}
@@ -27,6 +29,25 @@ def _activity_owner_url(space, item, *, profile=None, responsibility="all"):
         )
     )
     source_kind = source.get("kind")
+    # G1 now has a real N2, not a direct jump into the Console.
+    # The N2 owner read revalidates scope and selection on every visit.
+    if (
+        space.archetype in {SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY}
+        and source_kind in {"activity", "occurrence", "journey"}
+        and "view" in capabilities
+        and source.get("id")
+    ):
+        path = reverse(
+            "organizations:space-work-depth",
+            kwargs={
+                "slug": space.slug, "kind": source_kind,
+                "owner_id": source["id"],
+            },
+        )
+        return path + "?" + urlencode({
+            "responsibility": responsibility,
+            "from": section_key,
+        })
     if source_kind == "commerce_order":
         if responsibility == "all" and links.get("detail"):
             return reverse(
@@ -109,6 +130,7 @@ def _compose_sections(space, projection, *, profile=None):
             item["owner_url"] = _activity_owner_url(
                 space, item, profile=profile,
                 responsibility=projection.get("responsibility", "all"),
+                section_key=key,
             )
             item["owner_label"] = (
                 "Voir la création"
@@ -131,6 +153,20 @@ def _compose_sections(space, projection, *, profile=None):
                 if item.get("kind") == "vehicle" and item["owner_url"]
                 else "Ouvrir le départ"
                 if item.get("kind") == "departure" and item["owner_url"]
+                else "Voir l’initiative"
+                if item["owner_url"] and space.archetype == SpaceArchetype.COMMUNITY
+                and item["source"]["kind"] == "activity"
+                else "Voir l’activité"
+                if item["owner_url"] and space.archetype == SpaceArchetype.GENERIC
+                and item["source"]["kind"] == "activity"
+                else "Voir la réalisation"
+                if item["owner_url"] and space.archetype in {
+                    SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY,
+                } and item["source"]["kind"] == "occurrence"
+                else "Ouvrir la démarche"
+                if item["owner_url"] and space.archetype in {
+                    SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY,
+                } and item["source"]["kind"] == "journey"
                 else "Ouvrir"
             )
             items.append(item)
