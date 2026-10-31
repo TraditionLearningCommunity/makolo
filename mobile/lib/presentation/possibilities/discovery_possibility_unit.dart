@@ -7,6 +7,7 @@ import '../../network/makolo_api_client.dart';
 import '../../features/discovery/discovery_share_sheet.dart';
 import '../../features/discovery/discovery_selector.dart';
 import 'discovery_reader.dart';
+import 'discovery_n2_depth.dart';
 import 'discovery_save_icon.dart';
 
 export 'discovery_save_icon.dart' show DiscoveryOrbitIcon;
@@ -1224,23 +1225,9 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                   const SizedBox(height: MakoloSpacing.sm),
                   _descriptionBody(context),
                 ],
-                if (widget.detailMode && _variantTimingLabels.isNotEmpty) ...[
-                  const SizedBox(height: MakoloSpacing.md),
-                  Text(
-                    item.routeLabel == null
-                        ? 'Dates proposées'
-                        : 'Départs proposés',
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: MakoloSpacing.xs),
-                  for (final label in _variantTimingLabels)
-                    Padding(
-                      key: ValueKey('discover-n2-variant-date-$label'),
-                      padding: const EdgeInsets.only(bottom: MakoloSpacing.xs),
-                      child: Text(label, style: theme.textTheme.bodyMedium),
-                    ),
-                ],
-                if (_reliableFacts.isNotEmpty || _contextNotes.isNotEmpty) ...[
+
+                if (_reliableFacts.isNotEmpty ||
+                    (!widget.detailMode && _contextNotes.isNotEmpty)) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   Padding(
                     key: const Key('discover-facts-section'),
@@ -1253,7 +1240,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                         Text('Informations pratiques', style: theme.textTheme.titleSmall),
                         const SizedBox(height: MakoloSpacing.sm),
                         if (_reliableFacts.isNotEmpty) _facts(context),
-                        for (final note in _contextNotes)
+                        for (final note in widget.detailMode ? const <String>[] : _contextNotes)
                           Padding(
                             padding: const EdgeInsets.only(top: MakoloSpacing.xs),
                             child: Text(
@@ -1270,6 +1257,15 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               ],
             ),
           ),
+          if (widget.detailMode)
+            DiscoveryN2DepthSection(
+              item: item,
+              onOpenOccurrence: widget.onOwnerDepth == null
+                  ? null
+                  : (id) => widget.onOwnerDepth!(
+                      '/occurrences/${Uri.encodeComponent(id)}',
+                    ),
+            ),
           _media(context),
           if (resources.isNotEmpty) _resourceSection(context, resources),
           if (widget.detailMode && _primaryNativePath != null)
