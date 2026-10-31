@@ -29,6 +29,8 @@ def serialize_passport_projection(projection):
             "name": projection.identity.get("name", ""),
             "bio": projection.identity.get("bio", ""),
             "profession": projection.identity.get("profession", ""),
+            "company_name": projection.identity.get("company_name", ""),
+            "organization_name": projection.identity.get("organization_name", ""),
             "location": projection.identity.get("location", ""),
             "links": list(projection.identity.get("links", ())),
             "owner_details": (projection.identity.get("owner_details", {})
