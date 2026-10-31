@@ -85,6 +85,89 @@ class _BillingScreenState extends State<BillingScreen> {
     child: Text(title, style: Theme.of(context).textTheme.titleMedium),
   );
 
+  Widget _benefits(Object? source) {
+    if (source is! List || source.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final benefit in source)
+            if (_object(benefit) case final item?)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.check_circle_outline, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_text(item['title'], fallback: 'Avantage inclus')),
+                        if (item['description'] case final description?)
+                          Text(description.toString(),
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    )),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _capabilityTile(Map<String, dynamic> row) {
+    final value = num.tryParse(row['value']?.toString() ?? '');
+    final used = num.tryParse(row['usage']?.toString() ?? '');
+    final limitProgress = value != null && value > 0 && used != null
+        ? (used / value).clamp(0.0, 1.0).toDouble() : null;
+    final allowed = row['allowed'] == true;
+    final overLimit = row['over_limit'] == true;
+    return Card(
+      margin: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+      child: Padding(
+        padding: const EdgeInsets.all(MakoloSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text(_text(row['name']),
+                  style: Theme.of(context).textTheme.titleSmall)),
+                Text(_text(row['value_label'], fallback: 'À vérifier')),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _text(row['usage_label'], fallback: _text(row['description'],
+                fallback: allowed ? 'Disponible' : 'Capacité limitée')),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (limitProgress != null) ...[
+              const SizedBox(height: 9),
+              LinearProgressIndicator(value: limitProgress),
+            ],
+            if (overLimit)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Limite dépassée : l’existant est préservé, '
+                  'de nouvelles opérations peuvent être bloquées.',
+                ),
+              )
+            else if (!allowed)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Cette capacité n’est pas utilisable actuellement.'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _content() {
     final subscription = _object(_data?['subscription']);
     if (subscription == null) {
@@ -111,27 +194,57 @@ class _BillingScreenState extends State<BillingScreen> {
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.verified_outlined),
           title: Text(_text(status?['label'], fallback: 'État à vérifier')),
-          subtitle: Text(_text(status?['explanation'], fallback: 'État de l’abonnement')),
+          subtitle: Text(
+            _text(status?['explanation'], fallback: 'État de l’abonnement') +
+            (subscriptionDateLabel(status?['grace_until']).isNotEmpty
+              ? ' · Échéance ' + subscriptionDateLabel(status?['grace_until'])
+              : ''),
+          ),
         ),
         if (current != null)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(_text(current['name'])),
-            subtitle: Text(
-              _text(current['description'], fallback: 'Formule actuelle') +
-              ' · ' + subscriptionPriceLabel(current['billing_terms']),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(MakoloSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_text(current['name']),
+                    style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 6),
+                  Text(subscriptionPriceLabel(current['billing_terms'])),
+                  if (current['description'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(_text(current['description'])),
+                    ),
+                  _benefits(current['benefits']),
+                ],
+              ),
             ),
-          ),
+          )
+        else
+          const Text('Aucune formule de base active n’est associée à cet abonnement.'),
         if (addons.isNotEmpty) ...[
           _heading('Options actives'),
           for (final row in addons)
             if (_object(row) != null)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(_text(_object(row)?['name'])),
-                subtitle: Text(_text(_object(row)?['description'],
-                    fallback: 'Option supplémentaire') +
-                  ' · ' + subscriptionPriceLabel(_object(row)?['billing_terms'])),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(MakoloSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_text(_object(row)?['name']),
+                        style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 6),
+                      Text(subscriptionPriceLabel(_object(row)?['billing_terms'])),
+                      if (_object(row)?['description'] != null)
+                        Text(_text(_object(row)?['description'])),
+                      _benefits(_object(row)?['benefits']),
+                    ],
+                  ),
+                ),
               ),
         ],
         if (transition != null) ...[
@@ -142,6 +255,22 @@ class _BillingScreenState extends State<BillingScreen> {
             subtitle: Text(_text(transition['status_explanation'],
                 fallback: _text(transition['status_label']))),
           ),
+          if (transition['total_conditions'] is int &&
+              (transition['total_conditions'] as int) > 0)
+            Text('Conditions remplies : ${transition['completed_conditions']} '
+              '/ ${transition['total_conditions']}'),
+          if (transition['conditions'] is List)
+            for (final condition in transition['conditions'] as List)
+              if (_object(condition) case final item?)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.fact_check_outlined),
+                  title: Text(_text(item['label'])),
+                  subtitle: Text(
+                    subscriptionConditionStatusLabel(item['state']) +
+                    (item['detail'] == null ? '' : ' · ${item['detail']}'),
+                  ),
+                ),
         ],
         if (conditions.isNotEmpty) ...[
           _heading('Conditions à suivre'),
@@ -150,21 +279,17 @@ class _BillingScreenState extends State<BillingScreen> {
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(_text(_object(row)?['label'])),
-                subtitle: Text(_text(_object(row)?['detail'], fallback: 'Vérification en attente')),
+                subtitle: Text(
+                  subscriptionConditionStatusLabel(_object(row)?['state']) + ' · ' +
+                  _text(_object(row)?['detail'], fallback: 'Vérification en attente'),
+                ),
               ),
         ],
         if (capacities.isNotEmpty) ...[
           _heading('Capacités de ma formule'),
           for (final row in capacities)
             if (_object(row) != null)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(_text(_object(row)?['name'])),
-                subtitle: Text(_text(_object(row)?['usage_label'], fallback: _text(
-                  _object(row)?['description'], fallback: 'Capacité incluse',
-                ))),
-                trailing: Text(_text(_object(row)?['value_label'], fallback: '—')),
-              ),
+              _capabilityTile(_object(row)!),
         ],
         _heading('Gérer mon abonnement'),
         SubscriptionActionsPanel(
