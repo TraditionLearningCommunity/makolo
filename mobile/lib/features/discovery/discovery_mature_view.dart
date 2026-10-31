@@ -395,7 +395,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         }
       });
     }
-    if (_selectedCandidateKey != null &&
+    // Empty during network acquisition is not proof that the previously
+    // selected candidate was revoked. Reconcile once a real field arrives.
+    if (_selectedCandidateKey != null && keys.isNotEmpty &&
         !keys.contains(_selectedCandidateKey)) {
       _selectedCandidateKey = null;
     }
