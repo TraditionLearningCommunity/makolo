@@ -154,8 +154,9 @@ void main() {
         'unreachable',
       ),
     );
-    await tester.pumpWidget(
-      MaterialApp(
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        MaterialApp(
         home: RetainedRecognitionImage(
           api: api,
           profileId: 'profile-a',
@@ -165,11 +166,11 @@ void main() {
           placeholder: const Icon(Icons.image_not_supported_outlined),
         ),
       ),
-    );
-    await tester.runAsync(() async {
-      await Future<void>.delayed(const Duration(milliseconds: 30));
+      );
+      // Start filesystem-backed restoration in the real async zone.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
     });
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byType(Image), findsOneWidget);
     final retained = await tester.runAsync(() => store.read(imagePath));
     expect(retained, orderedEquals(imageBytes));
@@ -188,8 +189,9 @@ void main() {
         message: 'revoked',
       ),
     );
-    await tester.pumpWidget(
-      MaterialApp(
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        MaterialApp(
         home: RetainedRecognitionImage(
           api: api,
           profileId: 'profile-a',
@@ -199,11 +201,11 @@ void main() {
           placeholder: const Icon(Icons.image_not_supported_outlined),
         ),
       ),
-    );
-    await tester.runAsync(() async {
-      await Future<void>.delayed(const Duration(milliseconds: 30));
+      );
+      // Start filesystem-backed restoration in the real async zone.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
     });
-    await tester.pump();
+    await tester.pumpAndSettle();
     final retained = await tester.runAsync(() => store.read(imagePath));
     expect(retained, isNull);
     expect(find.byType(Image), findsNothing);
