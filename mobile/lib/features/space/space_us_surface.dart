@@ -59,6 +59,9 @@ class SpaceUsSurface extends StatelessWidget {
       return link == expected ? link : null;
     }
 
+    final settingsTarget = limited ? null : route('settings');
+    final pilotTarget = limited ? null : route('pilot');
+
     void open(String target) {
       if (onOpen != null) {
         onOpen!(target);
@@ -238,15 +241,15 @@ class SpaceUsSurface extends StatelessWidget {
                       _action(context, 'Consulter les faits de confiance',
                         target, open),
                     ],
-                    if (!limited && route('settings') case final target?) ...[
+                    if (settingsTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.lg),
                       _action(context, 'Modifier les informations collectives',
-                        target, open),
+                        settingsTarget, open),
                     ],
-                    if (!limited && route('pilot') case final target?) ...[
+                    if (pilotTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.lg),
                       _action(context, 'Comprendre notre activité',
-                        target, open),
+                        pilotTarget, open),
                     ],
                     const SizedBox(height: MakoloSpacing.xl),
                   ],
