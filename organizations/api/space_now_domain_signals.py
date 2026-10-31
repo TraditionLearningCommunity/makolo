@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.urls import reverse
 
 from access.models import AccessUse, AccessUseResult
@@ -97,6 +97,11 @@ def select_additional_space_now(
                 AccessUseResult.EXPIRED,
                 AccessUseResult.REVOKED,
             ]
+            settled_passage = AccessUse.objects.filter(
+                access_id=OuterRef("access_id"),
+                result=AccessUseResult.ACCEPTED,
+                used_at__gt=OuterRef("used_at"),
+            )
             qs = (
                 AccessUse.objects.filter(
                     access__activity_id__in=accessible,
@@ -105,6 +110,8 @@ def select_additional_space_now(
                     used_at__gte=observed_at - timedelta(hours=6),
                     result__in=rejected,
                 )
+                .annotate(accepted_later=Exists(settled_passage))
+                .filter(accepted_later=False)
                 .select_related("access__activity", "access__occurrence")
                 .order_by("-used_at", "-pk")
             )
@@ -117,13 +124,6 @@ def select_additional_space_now(
                 observed_accesses.add(use.access_id)
                 occurrence = use.access.occurrence
                 if not occurrence or not occurrence.is_ongoing:
-                    continue
-                # A subsequent valid passage retires this warning.
-                if AccessUse.objects.filter(
-                    access_id=use.access_id,
-                    result=AccessUseResult.ACCEPTED,
-                    used_at__gt=use.used_at,
-                ).exists():
                     continue
                 items.append(make_situation(
                     space=space, source_kind="access_use", source_id=use.pk,
@@ -182,7 +182,7 @@ def select_additional_space_now(
                 subject=pool.label or "Capacité",
                 state="Capacité engagée au-delà du total",
                 why_now=(
-                    f"Capacity établit {fact.held + fact.committed} places retenues "
+                    f"Capacity établit {fact.held + fact.committed} unités retenues "
                     f"ou engagées pour {fact.total} disponibles au total."
                 ),
                 reason="capacity_overallocated",
@@ -206,6 +206,12 @@ def select_additional_space_now(
         if finance_scope:
             # Failures only matter while Commerce still has a pending order;
             # a later successful/processing attempt supersedes the older failure.
+            superseding = Payment.objects.filter(
+                commerce_order_id=OuterRef("commerce_order_id"),
+            ).filter(
+                Q(created_at__gt=OuterRef("created_at"))
+                | Q(status=PaymentStatus.SUCCEEDED)
+            )
             qs = (
                 Payment.objects.filter(
                     commerce_order__payee_space=space,
@@ -215,6 +221,8 @@ def select_additional_space_now(
                     status=PaymentStatus.FAILED,
                     created_at__gte=observed_at - timedelta(days=3),
                 )
+                .annotate(superseded=Exists(superseding))
+                .filter(superseded=False)
                 .select_related("commerce_order", "commerce_order__journey__activity")
                 .order_by("-created_at", "-pk")
             )
@@ -223,13 +231,6 @@ def select_additional_space_now(
             for payment in candidates[:SCAN_LIMIT]:
                 order = payment.commerce_order
                 if order.pk in failed_orders:
-                    continue
-                if Payment.objects.filter(
-                    commerce_order=order,
-                    created_at__gt=payment.created_at,
-                ).exists() or Payment.objects.filter(
-                    commerce_order=order, status=PaymentStatus.SUCCEEDED,
-                ).exists():
                     continue
                 failed_orders.add(order.pk)
                 items.append(make_situation(
