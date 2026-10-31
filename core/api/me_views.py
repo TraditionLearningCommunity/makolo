@@ -195,7 +195,7 @@ class PersonalConsiderationSettingsAPIView(PersonalProjectionAPIView):
                 )
                 public_kinds = list(
                     retained.filter(is_public=True).values_list("kind", flat=True)
-                )
+                ) + list(set(values) - set(retained.values_list("kind", flat=True)))
                 searchable_kinds = list(
                     retained.filter(is_searchable=True).values_list("kind", flat=True)
                 )
