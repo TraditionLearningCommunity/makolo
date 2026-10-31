@@ -392,12 +392,26 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   @override
   void initState() {
     super.initState();
+    widget.runtime.actorContext?.addListener(_onActorChanged);
     _resolveSpace();
+  }
+
+  void _onActorChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.runtime.actorContext?.removeListener(_onActorChanged);
+    super.dispose();
   }
 
   Future<void> _resolveSpace() async {
     final repository = widget.runtime.space;
-    if (repository == null) return;
+    if (repository == null) {
+      if (mounted) setState(() { _denied = true; _loading = false; });
+      return;
+    }
     final inventory = await repository.readInventory();
     SpaceSummary? summary;
     for (final candidate in inventory) {
@@ -445,6 +459,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         message: 'Ce contexte Space n’est pas disponible pour votre Profil.',
       );
     }
+    final current = widget.runtime.actorContext?.value;
+    if (current is! SpaceActorContext || current.space.id != _space!.id) {
+      return const MakoloSecondaryScreen(
+        title: 'Nous',
+        message: 'Ce Space n’est plus le contexte actif. Revenez à Nous pour continuer.',
+      );
+    }
     final repository = widget.runtime.space!;
     final source = repository.usSource(_space!);
     return StreamBuilder<OwnerSourceState>(
@@ -470,7 +491,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             }
             final handoffs = payload['handoffs'];
             final link = handoffs is Map ? handoffs[widget.depth] : null;
-            final allowed = link is String;
+            final allowed = link == '/space/${widget.slug}/us/${widget.depth}';
             if (!allowed) {
               return MakoloSecondaryScreen(
                 title: _depthTitle(widget.depth),
