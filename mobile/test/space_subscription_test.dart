@@ -85,6 +85,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.text('Formule de l’Espace A'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Équipe de l’Espace'), 180);
     expect(find.text('Équipe de l’Espace'), findsOneWidget);
     expect(find.text('Mon abonnement'), findsNothing);
 
@@ -159,7 +160,7 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Examiner le changement'));
+    await tester.scrollUntilVisible(find.text('Examiner le changement'), 180);
     await tester.tap(find.text('Examiner le changement'));
     await tester.pumpAndSettle();
     expect(find.text('Consultation uniquement'), findsOneWidget);
