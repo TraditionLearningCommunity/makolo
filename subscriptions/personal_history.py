@@ -6,9 +6,9 @@ progress; this bounded history retains older outcomes without duplicating state.
 from .transition_models import SubscriptionTransition
 
 
-def personal_transition_history(subscription, *, offset=0, limit=20):
-    if subscription.profile_id is None:
-        raise ValueError("personal_transition_history requires a Profile subscription")
+def subscription_transition_history(subscription, *, offset=0, limit=20):
+    if subscription.profile_id is None and subscription.space_id is None:
+        raise ValueError("Subscription subject is missing")
     rows = list(
         SubscriptionTransition.objects.filter(subscription=subscription)
         .select_related("target_plan_version")
@@ -31,3 +31,9 @@ def personal_transition_history(subscription, *, offset=0, limit=20):
         ],
         "next_offset": offset + limit if len(rows) > limit else None,
     }
+
+
+def personal_transition_history(subscription, *, offset=0, limit=20):
+    if subscription.profile_id is None:
+        raise ValueError("personal_transition_history requires a Profile subscription")
+    return subscription_transition_history(subscription, offset=offset, limit=limit)
