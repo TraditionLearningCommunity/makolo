@@ -178,7 +178,7 @@ class SpaceNowDomainSignalTests(TestCase):
         denied = AccessUse.objects.create(
             access=access, occurrence=occurrence, actor=self.limited,
             result=AccessUseResult.REVOKED,
-            used_at=current,
+            used_at=current - timedelta(seconds=10),
         )
         first = self._now(self.limited)
         refusals = [
@@ -195,7 +195,7 @@ class SpaceNowDomainSignalTests(TestCase):
         AccessUse.objects.create(
             access=access, occurrence=occurrence, actor=self.limited,
             result=AccessUseResult.ACCEPTED,
-            used_at=current + timedelta(seconds=1),
+            used_at=current - timedelta(seconds=1),
         )
         after = self._now(self.limited)
         self.assertFalse(any(
