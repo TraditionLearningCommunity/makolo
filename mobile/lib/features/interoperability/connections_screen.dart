@@ -305,10 +305,13 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         stream: repository.watch(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const MakoloErrorState(
+            return MakoloErrorState(
               message: 'Impossible de lire vos connexions pour le moment.',
               preservedMessage:
                   'Aucun secret ni aucune donnée de connexion n’a été modifié.',
+              onRetry: widget.runtime.sync == null
+                  ? null
+                  : () => unawaited(_refresh()),
             );
           }
 
