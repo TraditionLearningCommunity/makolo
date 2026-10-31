@@ -90,13 +90,29 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   bool _loadingMore = false;
   bool _loadMoreFailed = false;
   final Map<String, Future<void>> _pageRequests = {};
+  final ScrollController _fieldScroll = ScrollController();
+  Timer? _positionDebounce;
+  double? _pendingScrollRestore;
 
   static const _positionProjection = 'discovery.presentation-position';
 
   @override
   void initState() {
     super.initState();
+    _fieldScroll.addListener(() {
+      _positionDebounce?.cancel();
+      _positionDebounce = Timer(const Duration(milliseconds: 650), () {
+        if (mounted) unawaited(_rememberPosition(_query));
+      });
+    });
     unawaited(_restorePositionThenAcquire());
+  }
+
+  @override
+  void dispose() {
+    _positionDebounce?.cancel();
+    _fieldScroll.dispose();
+    super.dispose();
   }
 
   Future<void> _restorePositionThenAcquire() async {
@@ -106,6 +122,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         _positionProjection,
         resourceKey: initial.mapFingerprint,
       );
+      final offset = marker?.payload['scroll_offset'];
+      if (offset is num && offset.isFinite && offset >= 0) {
+        _pendingScrollRestore = offset.toDouble();
+      }
       final restored = retainedDiscoveryPosition(marker);
       if (restored != null) {
         final known = await widget.repository.readItems(restored);
@@ -135,6 +155,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         payload: {
           'page': current.page,
           'continuation': current.continuation,
+          'scroll_offset': _fieldScroll.hasClients
+              ? _fieldScroll.offset : (_pendingScrollRestore ?? 0.0),
         },
       );
     } on Object {
@@ -368,6 +390,16 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               serverUnavailable: serverUnavailable,
               sourceErrorCode: sourceState.lastErrorCode,
             );
+            if (_pendingScrollRestore != null && projection != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted || !_fieldScroll.hasClients || _pendingScrollRestore == null) return;
+                final restored = _pendingScrollRestore!;
+                _pendingScrollRestore = null;
+                _fieldScroll.jumpTo(restored.clamp(
+                  0.0, _fieldScroll.position.maxScrollExtent,
+                ));
+              });
+            }
             return RefreshIndicator(
               onRefresh: _refreshItems,
               child: DiscoveryExplorationView(
@@ -377,6 +409,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
+                fieldKey: _query.mapFingerprint,
+                scrollController: _fieldScroll,
+                onMap: (selected) => context.push(
+                  _query.routeLocation('/discover/map', selectedCandidateKey: selected),
+                ),
                 onPage: (_) => unawaited(_loadNextPage()),
                 autoLoadMore: true,
                 loadingMore: _loadingMore,
@@ -427,11 +464,15 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
+  final Map<int, String> _pageTokens = {};
 
   @override
   void initState() {
     super.initState();
     _query = widget.initialQuery;
+    if (_query.page > 1 && _query.continuation != null) {
+      _pageTokens[_query.page] = _query.continuation!;
+    }
     _search.text = _query.text;
     _place.text = _query.place;
     _when = _query.when;
@@ -528,6 +569,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   // Guest and personal search use the same debounced request scheduler.
   // A newer intent cannot overwrite results or loading state from an older one.
   void _searchChanged(String value, {bool immediate = false}) {
+    _pageTokens.clear();
     final query = _query.copyWith(
       text: value.trim(),
       place: _selectedPlace == null
@@ -575,21 +617,28 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (page < 1) return;
     final current = _query;
     String? token;
-    var targetPage = page;
-    if (page == current.page + 1) {
+    if (page == 1) {
+      token = null;
+    } else if (page == current.page + 1) {
       final projection = await widget.repository.readItems(current);
+      if (projection == null) return;
       try {
-        if (projection == null) {
-          targetPage = 1;
-        } else {
-          token = _selector.collection(projection).continuationToken;
-        }
+        final collection = _selector.collection(projection);
+        if (!collection.hasNext) return;
+        token = collection.continuationToken;
       } on FormatException {
-        targetPage = 1;
+        return;
       }
+      if (token == null || token.isEmpty) return;
+    } else {
+      token = _pageTokens[page];
+      if (token == null) return;
     }
     if (!mounted || !identical(current, _query)) return;
-    final query = current.copyWith(page: targetPage, continuation: token);
+    if (page > 1 && token != null) _pageTokens[page] = token;
+    final query = current.copyWith(
+      page: page, continuation: token, clearContinuation: page == 1,
+    );
     setState(() => _query = query);
     unawaited(_refreshPage(query));
   }
@@ -601,7 +650,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     } on Object {
       // Existing results remain visible.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && identical(query, _query)) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
@@ -615,6 +666,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     _place.clear();
     setState(() {
       _selectedPlace = null;
+      _pageTokens.clear();
       _when = '';
       _date = '';
       _price = '';
@@ -627,6 +679,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
 
   void _resetCriteria() {
     _searchCoordinator.invalidate();
+    _pageTokens.clear();
     _search.clear();
     _place.clear();
     _selectedPlace = null;
@@ -839,6 +892,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             ),
                             baseUri: widget.repository.api.baseUri,
                             shareApi: widget.repository.api,
+                            fieldKey: _query.mapFingerprint,
+                            onMap: (selected) => context.push(
+                              _query.routeLocation('/discover/map', selectedCandidateKey: selected),
+                            ),
                             onPage: _movePage,
                             onRetry: () {
                               if (sourceState.lastErrorCode ==
@@ -1015,6 +1072,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             selection: selection,
             mapConfig: widget.mapConfig,
             showMapOnCompact: true,
+            fieldKey: _query.mapFingerprint,
             initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
             onPage: (_) => unawaited(_advance()),
             loadMoreFailed: _loadMoreFailed,
