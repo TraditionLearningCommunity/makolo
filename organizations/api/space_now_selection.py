@@ -17,6 +17,7 @@ from authorization.constants import PermissionCode
 from authorization.selectors import activity_ids_with_direct_permission
 from journeys.collaboration_models import JourneyAssignmentStatus
 from journeys.models import JourneyRequest, JourneyStatus, RequestStatus
+from services.attention_selectors import facilitator_attention_journeys, manager_attention_journeys
 from services.selectors import service_journeys_visible_to
 
 from .space_work_projection import (
@@ -43,12 +44,14 @@ def _situation(
     observed_at, action_label=None,
 ):
     source = {"kind": source_kind, "id": str(source_id)}
-    owner = {"kind": "activity", "id": str(activity_id)}
+    owner = source
     # A handoff is never a mutation. The receiving owner must authorize anew.
     handoff = {
         "type": "owner",
         "target": destination,
         "id": str(source_id) if destination != "activity" else str(activity_id),
+        **({"link": f"/space/{space.slug}/retrieval/journey/{source_id}"}
+           if destination == "space_work_journey" else {}),
     }
     return {
         "id": f"space-now:{space.pk}:{source_kind}:{source_id}",
@@ -125,9 +128,21 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
         )
         candidates = list(occurrences[: SOURCE_SCAN_LIMIT + 1])
         scan_incomplete |= len(candidates) > SOURCE_SCAN_LIMIT
+        # Being live is not sufficient. Require a current Operations action.
+        from operations.occurrence_live import resolve_occurrence_live
         for occurrence in candidates[:SOURCE_SCAN_LIMIT]:
             if not occurrence.is_ongoing:
                 continue
+            owner_fact = resolve_occurrence_live(
+                occurrence=occurrence, actor=profile, observed_at=observed_at,
+            )
+            if not owner_fact or owner_fact.get("perspective") not in {"space", "operator"}:
+                continue
+            action = owner_fact.get("next_action") or {}
+            if not action.get("type") or action["type"] == "none":
+                continue
+            reason = action.get("reason") or "operations_action_required"
+            meaning = action.get("label") or "Une intervention opérationnelle est attendue."
             url = reverse(
                 "organizations:space-occurrence-day-of",
                 kwargs={"slug": space.slug, "occurrence_id": occurrence.pk},
@@ -136,13 +151,12 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 space=space, source_kind="occurrence", source_id=occurrence.pk,
                 activity_id=occurrence.activity_id,
                 human_context=occurrence.label or occurrence.activity.title,
-                subject="Déroulement de l'occurrence",
-                state="Occurrence en cours",
-                why_now="L'occurrence se déroule actuellement.",
-                reason="occurrence_ongoing",
-                turn="space", response_type="understand",
+                subject="Intervention opérationnelle",
+                state="Intervention signalée par Operations",
+                why_now=meaning, reason=reason,
+                turn="collective", response_type="act",
                 destination="space_occurrence_day_of", web_url=url,
-                observed_at=observed_at, action_label="Suivre le déroulement",
+                observed_at=observed_at, action_label="Examiner dans Jour J",
             ))
 
     review_ids = visible & set(activity_ids_with_direct_permission(
@@ -155,6 +169,8 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
             JourneyRequest.objects.filter(
                 journey__activity_id__in=review_ids,
                 status=RequestStatus.PENDING,
+            ).filter(
+                Q(expires_at__isnull=True) | Q(expires_at__gt=observed_at)
             )
             .select_related("journey__activity")
             .order_by("-submitted_at", "pk")
@@ -182,7 +198,7 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 state="Demande reçue, en attente de décision",
                 why_now="Une demande est actuellement en attente d'une décision.",
                 reason="journey_request_pending",
-                turn="space" if can_decide else "none",
+                turn="collective" if can_decide else "none",
                 response_type="decide" if can_decide else "understand",
                 destination="activity", web_url=url,
                 observed_at=observed_at,
@@ -206,11 +222,20 @@ def select_space_now(*, profile, space, responsibility_key=None, observed_at=Non
                 assignments__profile=profile,
                 assignments__status=JourneyAssignmentStatus.ACTIVE,
             )
+        # Use canonical operator-attention selectors, not a generic inventory.
+        attention_ids = facilitator_attention_journeys(
+            profile, now=observed_at,
+        ).values("pk")
+        manager_ids = manager_attention_journeys(
+            profile, now=observed_at,
+        ).values("pk")
         cases = (
             service_journeys_visible_to(profile)
             .filter(
                 owner_scope,
-                status__in=[JourneyStatus.SUBMITTED, JourneyStatus.PENDING_APPROVAL],
+            )
+            .filter(
+                Q(pk__in=attention_ids) | Q(pk__in=manager_ids),
             )
             .select_related("activity")
             .distinct()
