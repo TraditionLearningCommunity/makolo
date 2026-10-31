@@ -31,6 +31,10 @@ def build_parser():
     p=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawTextHelpFormatter)
     sub=p.add_subparsers(dest="action",required=True)
     sub.add_parser("inventory",help="Inventaire Django et couverture contenu (lecture seule)")
+    v=sub.add_parser("validate",help="Verifier les contrats sur une base de test Django isolee")
+    v.add_argument("--quick",action="store_true",help="Tests CLI et integration ciblée")
+    v.add_argument("--failfast",action="store_true")
+    v.add_argument("--verbosity",type=int,default=1,choices=(0,1,2))
     audit=sub.add_parser("audit",help="Lecture seule : verifier la couverture a une date donnee")
     audit.add_argument("--at",help="Date/heure ISO-8601 avec fuseau")
     for action in ("plan","generate"):
@@ -51,7 +55,12 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate
+    if a.action=="validate":
+        options=["--verbosity",str(a.verbosity)]
+        if a.quick: options.append("--quick")
+        if a.failfast: options.append("--failfast")
+        return validate.main(options)
     if a.action=="inventory":
         catalog.main([])
         return
