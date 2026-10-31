@@ -156,6 +156,26 @@ class NativeSpaceSubscriptionTests(TestCase):
             200,
         )
 
+    def test_manage_only_permission_also_allows_read_for_exact_space(self):
+        from unittest.mock import patch
+        from authorization.constants import PermissionCode
+        from .authorization import subscriptions_visible_to_actor
+
+        def scope(_actor, code):
+            if code == PermissionCode.SPACE_SUBSCRIPTION_MANAGE:
+                return [self.space.pk]
+            if code == PermissionCode.SPACE_SUBSCRIPTION_VIEW:
+                return []
+            return []
+
+        with patch("subscriptions.authorization.space_ids_with_permission", side_effect=scope):
+            visible = subscriptions_visible_to_actor(self.member)
+            manageable = subscriptions_visible_to_actor(self.member, manage=True)
+            self.assertTrue(visible.filter(pk=self.subscription.pk).exists())
+            self.assertTrue(manageable.filter(pk=self.subscription.pk).exists())
+            self.assertFalse(visible.filter(pk=self.other_subscription.pk).exists())
+            self.assertFalse(manageable.filter(pk=self.other_subscription.pk).exists())
+
     def test_nous_handoff_respects_subscription_mandate(self):
         owner = build_space_us_projection(profile=self.owner, space=self.space)
         self.assertEqual(owner["handoffs"]["subscription"], f"/space/{self.space.slug}/subscription")
