@@ -10,15 +10,11 @@ class AccountScreen extends StatelessWidget {
     required this.runtime,
     required this.onChangePassword,
     required this.onRememberedAccounts,
-    required this.onConnections,
-    required this.onBilling,
   });
 
   final AppRuntime runtime;
   final VoidCallback onChangePassword;
   final VoidCallback onRememberedAccounts;
-  final VoidCallback onConnections;
-  final VoidCallback onBilling;
 
   Future<DeviceAccount?> _currentAccount() async {
     final profileId = runtime.session?.profileId;
@@ -33,7 +29,7 @@ class AccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Compte')),
+      appBar: AppBar(title: const Text('Sécurité et appareils')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
           MakoloSpacing.inner,
@@ -81,25 +77,6 @@ class AccountScreen extends StatelessWidget {
             subtitle: const Text('Faciliter l’accès sur cet appareil.'),
             trailing: const Icon(Icons.chevron_right),
             onTap: onRememberedAccounts,
-          ),
-          const Divider(),
-          Text(
-            'Compte personnel',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.link_outlined),
-            title: const Text('Connexions'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: onConnections,
-          ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.credit_card_outlined),
-            title: const Text('Abonnement & facturation'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: onBilling,
           ),
         ],
       ),
