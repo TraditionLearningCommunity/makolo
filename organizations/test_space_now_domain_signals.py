@@ -64,6 +64,13 @@ class SpaceNowDomainSignalTests(TestCase):
             role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
             granted_by=self.owner,
         )
+        # Operations is a distinct explicit Activity authority; local Activity
+        # management/Access alone must not silently grant it.
+        grant_activity_role(
+            profile=self.limited, activity=self.activity,
+            role=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+            granted_by=self.owner,
+        )
         self.client = APIClient()
 
     def _now(self, viewer=None, **query):
