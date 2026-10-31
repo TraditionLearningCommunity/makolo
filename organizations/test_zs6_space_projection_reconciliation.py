@@ -12,7 +12,7 @@ from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
-from journeys.models import Journey, JourneyStatus, WorkflowKind
+from journeys.models import Journey, JourneyRequest, JourneyStatus, RequestStatus, WorkflowKind
 from organizations.models import (
     Organization,
     Team,
@@ -224,23 +224,34 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         applicant = User.objects.create_user(
             username="zs6-applicant", email="zs6-applicant@test.local", password="x"
         )
-        request = Journey.objects.create(
+        journey = Journey.objects.create(
             initiated_by=applicant,
             beneficiary=applicant,
             activity=self.activity,
             workflow=WorkflowKind.REGISTRATION,
             status=JourneyStatus.SUBMITTED,
         )
+        # A submitted Journey alone is not a canonical request to decide.
         self.client.force_authenticate(self.owner)
+        without_request = self.client.get(self._url("now"))
+        self.assertFalse(any(
+            row["source"]["kind"] == "journey_request"
+            for row in without_request.data["items"]
+        ))
+        pending_request = JourneyRequest.objects.create(
+            journey=journey,
+            requester=applicant,
+            status=RequestStatus.PENDING,
+        )
         response = self.client.get(self._url("now"))
         self.assertEqual(response.status_code, 200, response.data)
         items = [
             row for row in response.data["items"]
-            if row["source"]["id"] == str(request.pk)
+            if row["source"]["id"] == str(pending_request.pk)
         ]
         self.assertEqual(len(items), 1, response.data)
         item = items[0]
-        self.assertEqual(item["why_now"]["reason"], "registration_request_pending")
+        self.assertEqual(item["why_now"]["reason"], "journey_request_pending")
         self.assertEqual(item["consequence"]["state"], "unknown")
         self.assertFalse(any(
             action.get("interaction_depth") == "direct_now"
