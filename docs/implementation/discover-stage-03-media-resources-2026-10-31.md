@@ -23,6 +23,7 @@
 | M03-04 | Le stockage automatique Flutter ne validait que la forme de `/presentation/media/uses/<uuid>/file/` ; un domaine externe imitant cette forme pouvait être conservé. | `DiscoveryOfflineStore` exige désormais une origine explicitement fournie par la configuration API (`trustedOrigin`) et la correspondance exacte scheme/host/port, en plus du chemin, sans query/fragment/userinfo. `RetainedPublicDiscoveryImage` et l'écran Découvrir lui transmettent cette origine. | Test de faux domaine et de refus sans origine de confiance. |
 | M03-05 | Enregistrement mobile : suppression de la cible avant le rename et possibilité qu'une révocation 403/404 soit suivie par une écriture déjà en vol. | Remplacement via staging + backup/rollback pour images et documents explicitement conservés ; file d'opérations qui sérialise téléchargements, remplacement et suppression. Le retrait d'un média public passe **après** les écritures déjà en vol. | Tests de remplacement atomique en fonctionnement normal et de révocation gagnant sur une écriture concurrente. |
 | M03-06 | Les anciens `PresentationAsset.file` peuvent rester physiquement sous `MEDIA_ROOT`, parfois exposé directement par nginx/CDN, même si l'URL `published-media-file` est révoquée. | Commande additive `harden_presentation_media_assets` : audit par défaut, `--apply` copie les assets associés à des usages vers `private_file`, vérifie SHA-256 source/copie ; `--purge-public` après copie et contrôle des références JSON `ActivityPresentation.editorial_data`, sans purge silencieuse. | `presentations/test_legacy_media_migration.py` : audit, copie, lecture via media-use après retrait du fichier brut, blocage sur lien éditorial historique. |
+| M03-07 | Le Studio MPS générait encore de **nouveaux** liens `asset.file.url` vers la racine MEDIA publique pour `hero_image`. | `_editorial_from_post` importe maintenant avec `protected=True` et écrit une URL `presentations:editorial-media-file`. La nouvelle route exige un lien exact depuis une `ActivityPresentation` ; un brouillon n'est accessible qu'à son éditeur autorisé ; une présentation publiée doit satisfaire visibilité propriétaire/Groupe ou les droits personnels Invitation/Access. Le fichier reste privé et `no-store`. | `presentations/test_editorial_media_delivery.py` : aucun fichier public neuf, brouillon 404 pour tiers, prévisualisation owner, publication et retrait du Profile. |
 
 ## 3. Ressources Preparation (réutilisées, non réécrites)
 
@@ -56,13 +57,14 @@ La suppression refuse les assets dont une URL brute apparaît encore dans un `ed
 
 **Limite explicite :** même après suppression, un cache de proxy/CDN ou une copie publique externe peut toujours servir des octets antérieurement exposés. En déploiement, bloquer la distribution publique de `/media/presentations/assets/`, auditer les références MPS, migrer ou corriger les pages historiques et purger le CDN selon la politique d'hébergement. **Ces contrôles externes n'ont pas été effectués ici.** Ne pas confondre « commande ajoutée au dépôt » et « fichiers réellement migrés et non publics en production ».
 
-**Autre limite existante :** le Studio MPS historique `_editorial_from_post` stocke encore les URL `hero_image` issues de `asset.file.url` ; les nouveaux uploads N1 dédiés sont protégés, mais **cela ne rend pas tous les usages MPS historiques privés**. Ne pas utiliser cette voie historique pour des fichiers confidentiels avant la bascule complète.
+**Protection des nouveaux imports MPS :** depuis ce chantier, `_editorial_from_post` utilise `protected=True` et la route gardée `editorial-media-file`. Les valeurs `hero_image` historiquement enregistrées comme URL brute restent inchangées ; la commande d'audit signale et protège leur suppression. Les anciens liens déployés doivent être inventoriés et convertis par une migration éditoriale contrôlée avant d'exiger une purge complète.
 
 ## 5. Tests de régression
 
 Ajoutés ou étendus :
 - `presentations/test_media_use.py` : retrait de la visibilité propriétaire, Groupe, Occurrence, livraison ; nombre de requêtes borné malgré le gate additionnel.
 - `presentations/test_legacy_media_migration.py` : audit, copie vérifiée, purge conditionnelle et conservation du lien contrôlé `published-media-file`.
+- `presentations/test_editorial_media_delivery.py` : nouveau `hero_image` privé, route avec droits de brouillon/publication, révocation.
 - `mobile/test/discovery_recognition_offline_test.dart` : origine forgée, politique first-party, remplacement complet, file de retrait et Reader indépendant.
 - Tests déjà présents : `discovery/api/test_media_bindings.py`, `presentations/test_media_use.py`, `discovery/api/test_resource_previews.py`.
 
@@ -77,6 +79,7 @@ Ajoutés ou étendus :
 - [x] Retenue automatique conditionnée à la véritable origine API de confiance.
 - [x] Remplacements locaux non destructeurs en cas d'échec de rename ; retrait sérialisé après écriture en cours.
 - [x] Commande d'audit, copie privée et purge conditionnelle des fichiers hérités.
+- [x] Nouveaux imports éditoriaux MPS sécurisés avec stockage privé et route de livraison autorisée.
 - [x] Tests écrits et documentation d'exploitation ajoutés.
 - [ ] Migration réelle, host/CDN, anciennes pages `hero_image`, tests exécutés : **ne pas prétendre réalisés**.
 
