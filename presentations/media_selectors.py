@@ -78,6 +78,10 @@ def public_presentation_media_for_activities(
         public_media_activities(activity_ids=proposed).values_list("pk", flat=True)
     )
     admitted &= eligible_activity_ids_for_profile(profile, admitted)
+    owner_by_activity = {
+        activity.pk: (activity.space_id, activity.owner_profile_id)
+        for activity in activities if activity.pk in admitted
+    }
     allowed_occurrences = {
         occurrence.pk for occurrence in occurrences
         if occurrence.activity_id in admitted
@@ -101,17 +105,12 @@ def public_presentation_media_for_activities(
     for use in uses:
         if use.occurrence_id is not None and use.occurrence_id not in allowed_occurrences:
             continue
+        space_id, profile_id = owner_by_activity[use.activity_id]
         if use.asset.owner_space_id:
-            if use.asset.owner_space_id not in {
-                activity.space_id for activity in activities
-                if activity.pk == use.activity_id
-            }:
+            if use.asset.owner_space_id != space_id:
                 continue
         elif use.asset.owner_profile_id:
-            if use.asset.owner_profile_id not in {
-                activity.owner_profile_id for activity in activities
-                if activity.pk == use.activity_id and activity.space_id is None
-            }:
+            if space_id is not None or use.asset.owner_profile_id != profile_id:
                 continue
         else:
             continue
