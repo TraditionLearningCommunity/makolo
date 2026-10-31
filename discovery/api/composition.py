@@ -1421,7 +1421,10 @@ def project_rows(rows, *, profile=None) -> list[dict]:
                 str(candidate.occurrence_id) if family == "activity" else None,
             )
             owner_price = owner_prices.get(key)
-            if owner_price is not None and owner_price.state != "unknown":
+            # Commerce is authoritative even when there is *no* applicable
+            # Offer or multiple incompatible currencies. Never retain a
+            # presentation-derived minimum in an owner 'unknown' state.
+            if owner_price is not None:
                 finalized["price"] = owner_price.as_dict()
         resource = finalized["identity"]["resource"]
         if family == "activity":
