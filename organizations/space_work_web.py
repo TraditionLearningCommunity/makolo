@@ -37,6 +37,12 @@ def _compose_sections(space, projection):
         (projection.get("presentation") or {}).get("section_order")
         or tuple(sections)
     )
+    # Reading groups are already composed by the server's Presentation layer.
+    # Web only associates each group heading with its first visible section.
+    chapters = {}
+    for group in (projection.get("business_world") or {}).get("reading_groups", ()):
+        for index, key in enumerate(group.get("section_keys", ())):
+            chapters[key] = group.get("representation") if index == 0 else None
     composed = []
     for key in section_order:
         section = sections.get(key) or {}
@@ -53,6 +59,7 @@ def _compose_sections(space, projection):
             {
                 "key": key,
                 "label": label,
+                "chapter_title": chapters.get(key),
                 "role": section.get("role") or "continuity",
                 "items": items,
                 "has_more": bool(section.get("has_more")),
