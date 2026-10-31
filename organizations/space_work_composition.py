@@ -44,6 +44,29 @@ _GRAMMARS = {
          ("offers", "routes", "vehicles")),
         ("history", "Prestations passées", ("completed",)),
     ),
+    # Orders are not payments or proof of fulfilment; offers are durable
+    # availability, even when there are no current orders.
+    SpaceArchetype.COMMERCE: (
+        ("orders", "Commandes et traitement",
+         ("preparation", "active", "blocked")),
+        ("availability", "Ce que nous rendons disponible",
+         ("offers", "activities")),
+        ("realizations", "Réalisations à venir", ("upcoming",)),
+        ("specialized", "Autres réalités opérées",
+         ("requests", "routes", "vehicles")),
+        ("history", "Historique commercial", ("completed",)),
+    ),
+    # Departure = Occurrence + TransportDeparture. Routes and vehicles remain
+    # structural owners regardless of their active flag.
+    SpaceArchetype.TRANSPORT_OPERATOR: (
+        ("departures", "Départs et exploitation",
+         ("active", "upcoming", "preparation", "blocked")),
+        ("structure", "Routes et véhicules", ("routes", "vehicles")),
+        ("services", "Services de transport", ("activities",)),
+        ("specialized", "Autres réalités opérées",
+         ("offers", "requests")),
+        ("history", "Départs et activités passés", ("completed",)),
+    ),
 }
 _QUESTIONS = {
     SpaceArchetype.GENERIC: (
@@ -62,6 +85,14 @@ _QUESTIONS = {
         "Quelles prestations proposons-nous, quelles demandes traiter et "
         "quels dossiers accompagner jusqu’au résultat ?"
     ),
+    SpaceArchetype.COMMERCE: (
+        "Que rendons-nous disponible, quelles commandes traiter et "
+        "quelles réalisations devons-nous réellement accomplir ?"
+    ),
+    SpaceArchetype.TRANSPORT_OPERATOR: (
+        "Quels départs préparons-nous et opérons-nous, sur quelles routes "
+        "et avec quels véhicules réellement affectés ?"
+    ),
 }
 _CALM = {
     SpaceArchetype.GENERIC: (
@@ -79,6 +110,14 @@ _CALM = {
     SpaceArchetype.SERVICE_PROVIDER: (
         "Aucune demande ni dossier ne demande d’intervention dans cette vue. "
         "Les prestations proposées restent accessibles."
+    ),
+    SpaceArchetype.COMMERCE: (
+        "Aucune commande ne demande d’intervention dans cette vue. "
+        "L’offre disponible reste accessible."
+    ),
+    SpaceArchetype.TRANSPORT_OPERATOR: (
+        "Aucun départ ne demande d’intervention dans cette vue. "
+        "Les routes et véhicules restent accessibles."
     ),
 }
 
@@ -121,14 +160,22 @@ def compose_space_work_business_world(*, archetype, label, sections, limited, is
             SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY
         } else {"sessions", "registrations"} if archetype == SpaceArchetype.EDUCATION
         else {"requests", "cases", "occurrences"}
+        if archetype == SpaceArchetype.SERVICE_PROVIDER
+        else {"orders", "realizations"} if archetype == SpaceArchetype.COMMERCE
+        else {"departures"}
     )
     has_continuity = any(g["identity"] in operational_groups for g in chapters)
-    has_portfolio = any(g["identity"] == "portfolio" for g in chapters)
+    has_portfolio = any(
+        g["identity"] in {"portfolio", "availability", "structure", "services"}
+        for g in chapters
+    )
     if (
         is_root and has_portfolio and not has_continuity
         and archetype != SpaceArchetype.EDUCATION
     ):
-        chapters.sort(key=lambda g: 0 if g["identity"] == "portfolio" else 1)
+        chapters.sort(key=lambda g: (
+            0 if g["identity"] in {"portfolio", "availability", "structure"} else 1
+        ))
 
     order = [k for g in chapters for k in g["section_keys"]]
     return {
