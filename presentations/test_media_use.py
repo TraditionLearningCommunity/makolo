@@ -318,7 +318,9 @@ class PresentationMediaUseTests(TestCase):
 
         use = self._associate()
         publish_presentation_media(actor=self.owner, media_use=use)
-        group = Group.objects.create(name="Media readers", created_by=self.owner)
+        group = Group.objects.create(
+            name="Media readers", created_by=self.owner, owner_profile=self.owner,
+        )
         ActivityGroupEligibility.objects.create(
             group=group, activity=self.activity,
             status=ActivityGroupEligibilityStatus.APPROVED,
