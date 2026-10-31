@@ -8,8 +8,6 @@ from django.utils import timezone
 
 from accounts.models import UserProfile
 from accounts.profile_visibility import ProfileVisibilityResolver
-from groups.selectors import groups_for_profile
-from organizations.console_context import authorized_spaces
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from authorization.models import AuthorityScope, Mandate, MandateStatus
 from organizations.models import TeamMembership, TeamMembershipStatus
@@ -254,6 +252,8 @@ def _profile_team_affiliations(profile):
 
 def _profile_group_affiliations(profile):
     """Groups from the existing Moi selector; owner view only."""
+    from groups.selectors import groups_for_profile
+
     return tuple(
         {"name": row.name, "slug": row.slug}
         for row in groups_for_profile(profile).order_by("name", "id")
@@ -262,6 +262,8 @@ def _profile_group_affiliations(profile):
 
 def _profile_authorized_space_affiliations(profile):
     """Reachable Spaces from Moi, not an implied membership or endorsement."""
+    from organizations.console_context import authorized_spaces
+
     return tuple(
         {"name": row.name, "slug": row.slug}
         for row in authorized_spaces(profile).order_by("name", "id")
