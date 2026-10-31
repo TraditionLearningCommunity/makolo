@@ -1,14 +1,18 @@
+from datetime import timedelta
 from uuid import UUID
+
+from django.utils import timezone
 
 from django.test import TestCase
 from django.urls import resolve, reverse
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from activities.models import Activity
+from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
+from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import (
     Organization,
     Team,
@@ -169,6 +173,90 @@ class ZS6SpaceProjectionReconciliationTests(TestCase):
         revoke_mandate(mandate=self.activity_mandate, actor=self.owner)
         after = self.client.get(self._url("now"))
         self.assertEqual(after.status_code, 404)
+
+    def test_now_owner_occurrence_is_current_and_navigation_is_scoped(self):
+        now = timezone.now()
+        current = Occurrence.objects.create(
+            activity=self.activity,
+            label="Départ réel",
+            start_at=now - timedelta(minutes=20),
+            end_at=now + timedelta(minutes=40),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        cancelled = Occurrence.objects.create(
+            activity=self.activity,
+            label="Départ annulé",
+            start_at=now - timedelta(minutes=10),
+            end_at=now + timedelta(minutes=20),
+            status=OccurrenceStatus.CANCELLED,
+        )
+        other = Activity.objects.create(
+            title="Activité confidentielle",
+            slug="zs6-private",
+            created_by=self.owner,
+            space=self.space,
+        )
+        other_occurrence = Occurrence.objects.create(
+            activity=other,
+            start_at=now - timedelta(minutes=10),
+            end_at=now + timedelta(minutes=20),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client.force_authenticate(self.activity_actor)
+        response = self.client.get(self._url("now"))
+        self.assertEqual(response.status_code, 200, response.data)
+        items = response.data["items"]
+        self.assertEqual(len(items), 1, items)
+        item = items[0]
+        self.assertEqual(item["source"], {"kind": "occurrence", "id": str(current.pk)})
+        self.assertEqual(item["why_now"]["reason"], "occurrence_ongoing")
+        self.assertEqual(item["consequence"]["state"], "unknown")
+        self.assertFalse(item["media_bindings"])
+        self.assertTrue(item["links"]["web"].endswith(
+            f"/occurrences/{current.pk}/day-of/"
+        ))
+        self.assertEqual(item["handoffs"][0]["target"], "space_occurrence_day_of")
+        self.assertNotIn(str(cancelled.pk), str(items))
+        self.assertNotIn(str(other_occurrence.pk), str(items))
+        self.assertEqual(response.data["selection"]["state"], "partial")
+
+    def test_now_registration_request_is_owner_backed_not_a_mutation(self):
+        applicant = User.objects.create_user(
+            username="zs6-applicant", email="zs6-applicant@test.local", password="x"
+        )
+        request = Journey.objects.create(
+            initiated_by=applicant,
+            beneficiary=applicant,
+            activity=self.activity,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.SUBMITTED,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self._url("now"))
+        self.assertEqual(response.status_code, 200, response.data)
+        items = [
+            row for row in response.data["items"]
+            if row["source"]["id"] == str(request.pk)
+        ]
+        self.assertEqual(len(items), 1, response.data)
+        item = items[0]
+        self.assertEqual(item["why_now"]["reason"], "registration_request_pending")
+        self.assertEqual(item["consequence"]["state"], "unknown")
+        self.assertFalse(any(
+            action.get("interaction_depth") == "direct_now"
+            for action in item["business_actions"]
+        ))
+        self.assertFalse(any("beneficiary" in key for key in item))
+        self.client.force_authenticate(self.team_only)
+        self.assertEqual(self.client.get(self._url("now")).status_code, 404)
+
+    def test_now_partial_empty_never_claims_collective_calm(self):
+        self.client.force_authenticate(self.activity_actor)
+        response = self.client.get(self._url("now"))
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["selection"]["state"], "partial")
+        self.assertEqual(response.data["actor_attention_state"], "unknown")
+        self.assertEqual(response.data["items"], [])
 
     def test_final_zs_routes_are_mounted_without_shadowing(self):
         expected = {
