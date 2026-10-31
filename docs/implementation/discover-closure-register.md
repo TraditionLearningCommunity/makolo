@@ -35,7 +35,7 @@ Pas de modèle persistant générique `Possibility`, de scoring client, de deuxi
 | Étape | Nom | État d'exécution | Sortie vérifiable |
 | --- | --- | --- | --- |
 | **00** | Réconciliation et gel des contrats | **FERMÉ** | [Inventaire daté](discover-stage-00-reconciliation-2026-10-31.md), sources et frontières, registre unique |
-| **01** | Vérités et capacités propriétaires | **IMPLÉMENTÉ — TESTS NON EXÉCUTÉS** | [Relevé owner 01](discover-stage-01-owner-facts-2026-10-31.md), correctifs Funding/Services, 4 tests ajoutés ; clôture suspendue à validation ciblée |
+| **01** | Vérités et capacités propriétaires | **IMPLÉMENTÉ — TESTS NON EXÉCUTÉS** | [Relevé owner 01](discover-stage-01-owner-facts-2026-10-31.md), correctifs Funding/Services, 6 tests ajoutés ; clôture suspendue à validation ciblée |
 | **02** | Projection canonique Discovery | **VERROUILLÉ** | API collection/détail, admission, identité, sécurité, frais de connaissance et pagination contractuels |
 | **03** | Médias, ressources et stockage | **VERROUILLÉ** | Publication/retrait, accès, URL first-party, viewers, volumes et compatibilité legacy contrôlés |
 | **04** | Presentation N1 | **VERROUILLÉ** | N1 compact/wide et Web adaptés, faits utiles et actions sans CTA fictif |
@@ -167,7 +167,7 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | 2026-10-31 | 00 | Relevé `discover-stage-00-reconciliation-2026-10-31.md` ; main `d0f0ec4`, branche observée `7fc2418`, 381 fichiers, six migrations ; contrats joints examinés | Inventaire et frontières fixés |
 | 2026-10-31 | 00 | Différences document historique ↔ runtime déclarées ; transferts #523/#525/#526/#527 reconnus ; **ascendance #524 vérifiée**, **divergence #528 vérifiée** | Pas de re-cherry-pick #524, pas de merge aveugle #528 |
 | 2026-10-31 | 00 | **Chantier 00 fermé.** Aucun test, CI, changement fonctionnel ou merge. | **Prochain chantier autorisé : 01 exclusivement** |
-| 2026-10-31 | 01 | Implémentation propriétaire Funding/Services sur #522 : visibilité du porteur, refus de nouvelle contribution et de démarrage après retrait ; quatre tests ajoutés, contrat des huit propriétaires consigné dans `discover-stage-01-owner-facts-2026-10-31.md`. | **Étape 01 non fermée : tests ciblés non exécutés. Étape 02 verrouillée.** |
+| 2026-10-31 | 01 | Implémentation propriétaire Funding/Services sur #522 : visibilité du porteur, refus de nouvelle contribution et de démarrage après retrait ; six tests ajoutés, contrat des huit propriétaires consigné dans `discover-stage-01-owner-facts-2026-10-31.md`. | **Étape 01 non fermée : tests ciblés non exécutés. Étape 02 verrouillée.** |
 
 Pour chaque nouvelle clôture : ajouter une ligne `date | étape | HEAD de fin | fichiers | tests exécutés + résultats | anomalies restantes | décision de passage`. Ne jamais écrire `FERMÉ` pour un chantier dont les preuves n'existent pas.
 
