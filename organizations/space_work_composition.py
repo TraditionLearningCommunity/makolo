@@ -256,8 +256,14 @@ def compose_space_work_business_world(*, archetype, label, sections, limited, is
         "perspectives": (
             [{
                 "identity": "primary", "representation": label,
-                # Optional owners are not yet all covered by this first group.
-                "coverage_state": "partial",
+                # Coverage is scoped to sources known in this perspective;
+                # limited authority cannot prove the whole Space is empty.
+                "coverage_state": (
+                    "partial" if limited or any(
+                        sections[k]["coverage_state"] != "established"
+                        for k in order
+                    ) else "established"
+                ),
                 "sections": order,
                 "creation_actions": [], "owner_handoffs": [],
             }] if order else []
