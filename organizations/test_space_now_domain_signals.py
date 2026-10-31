@@ -9,6 +9,12 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from access.models import Access, AccessStatus, AccessUse, AccessUseResult
 from activities.models import Activity, Occurrence, OccurrenceStatus
+from automation.models import (
+    AutomationExecution, AutomationRule, DomainAutomationActionKind,
+    DomainAutomationExecutionStatus,
+)
+from core.models import DomainEventOutbox
+from domain_events.contracts import DomainEventType
 from authorization.constants import SystemRoleCode
 from authorization.services import grant_activity_role, grant_space_role
 from capacity.models import (
@@ -214,6 +220,47 @@ class SpaceNowDomainSignalTests(TestCase):
             commerce[0]["timing"]["deadline_at"], due.expires_at.isoformat(),
         )
         self.assertEqual(result.data["selection"]["state"], "partial")
+
+    def test_recent_failed_automation_is_scoped_to_activity_manage(self):
+        rule = AutomationRule.objects.create(
+            name="Règle d'activité",
+            space=self.space, activity=self.activity,
+            trigger_event_type=DomainEventType.JOURNEY_SUBMITTED,
+            action_config={
+                "recipient": "beneficiary",
+                "title": "Rappel de démarche",
+                "message": "Un suivi est disponible.",
+                "category": "system",
+            },
+            created_by=self.owner,
+        )
+        event = DomainEventOutbox.objects.create(
+            event_type=DomainEventType.JOURNEY_SUBMITTED,
+            source_type="journey", source_id=str(self._journey().pk),
+            idempotency_key="space-now-domain-automation-event",
+            space_id=self.space.pk,
+            activity_id=self.activity.pk,
+        )
+        execution = AutomationExecution.objects.create(
+            rule=rule, domain_event=event,
+            action=DomainAutomationActionKind.NOTIFICATION,
+            status=DomainAutomationExecutionStatus.FAILED,
+        )
+        response = self._now(self.limited)
+        failures = [
+            row for row in response.data["items"]
+            if row["source"]["kind"] == "automation_execution"
+        ]
+        self.assertEqual(len(failures), 1, response.data)
+        self.assertEqual(failures[0]["source"]["id"], str(execution.pk))
+        self.assertNotIn("Rappel de démarche", str(response.data))
+        execution.status = DomainAutomationExecutionStatus.COMPLETED
+        execution.save()
+        after = self._now(self.limited)
+        self.assertFalse(any(
+            row["source"]["kind"] == "automation_execution"
+            for row in after.data["items"]
+        ))
 
     def test_payment_failure_retires_after_new_attempt(self):
         order = self._order(
