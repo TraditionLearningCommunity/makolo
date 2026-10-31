@@ -326,6 +326,7 @@ class SpaceNowDomainSignalTests(TestCase):
         self.assertEqual(web.status_code, 200)
         self.assertContains(web, "11.00 USD")
         self.assertContains(web, "Frais à régler pour cet Espace")
+        self.assertEqual(web["Cache-Control"], "private, no-store")
 
         limited = self._now(self.limited)
         self.assertFalse(any(
