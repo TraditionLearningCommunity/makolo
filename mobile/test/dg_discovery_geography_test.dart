@@ -81,21 +81,36 @@ void main() {
     );
   });
 
-  test('invalid route coordinates and unsupported cursors cannot widen search', () {
-    final query = DiscoveryQuery.fromRouteParameters({
-      'q': 'formation', 'lat': '999', 'lon': '27.5',
-      'radius_km': '25', 'page': '5', 'continuation': '',
-      'page_size': '10000',
+  test('invalid geographic route filters are rejected, never relaxed', () {
+    expect(
+      () => DiscoveryQuery.fromRouteParameters({
+        'q': 'formation', 'lat': '999', 'lon': '27.5', 'radius_km': '25',
+      }),
+      throwsFormatException,
+    );
+    expect(
+      () => DiscoveryQuery.fromRouteParameters({
+        'q': 'formation', 'lat': '-11.66',
+      }),
+      throwsFormatException,
+    );
+    expect(
+      () => DiscoveryQuery.fromRouteParameters({
+        'lat': '-11.66', 'lon': '27.48', 'radius_km': 'invalid',
+      }),
+      throwsFormatException,
+    );
+    expect(
+      () => DiscoveryQuery.fromRouteParameters({
+        'q': 'formation', 'page': '5',
+      }),
+      throwsFormatException,
+    );
+    final valid = DiscoveryQuery.fromRouteParameters({
+      'q': 'formation', 'page_size': '10000',
     });
-    expect(query.text, 'formation');
-    expect(query.latitude, isNull);
-    expect(query.longitude, isNull);
-    expect(query.radiusKm, isNull);
-    expect(query.page, 1);
-    expect(query.continuation, isNull);
-    expect(query.pageSize, 24);
-    expect(query.parameters, isNot(containsPair('lat', '999')));
-    expect(query.hasCriteria, isTrue);
+    expect(valid.text, 'formation');
+    expect(valid.pageSize, 24);
   });
 
   test(
