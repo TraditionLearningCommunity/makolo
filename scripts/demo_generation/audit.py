@@ -136,6 +136,26 @@ def main(argv=None):
     ).exclude(status__in=[OccurrenceStatus.CANCELLED, OccurrenceStatus.COMPLETED]).count()
     totals["occurrences_future"] = Occurrence.objects.filter(
         start_at__gt=instant).exclude(status=OccurrenceStatus.CANCELLED).count()
+    # Counts in the 'entire SQLite' column use the SAME predicate as
+    # the demo column, except for the deliberate removal of demo scope.
+    all_live = Occurrence.objects.filter(
+        activity__status=ActivityStatus.PUBLISHED,
+        start_at__lte=instant, end_at__gt=instant,
+    ).exclude(status__in=[OccurrenceStatus.CANCELLED, OccurrenceStatus.COMPLETED])
+    totals["checkpoint_live"] = OccurrenceCheckpoint.objects.filter(
+        occurrence__in=all_live, active=True, status="open").count()
+    totals["queue_live"] = OccurrenceQueue.objects.filter(
+        occurrence__in=all_live, status="open").count()
+    totals["queue_entries"] = QueueEntry.objects.filter(
+        queue__occurrence__in=all_live).count()
+    totals["placement_plans"] = PlacementPlan.objects.filter(
+        occurrence__in=all_live).count()
+    totals["placements"] = PlacementAssignment.objects.filter(
+        plan__occurrence__in=all_live, ended_at__isnull=True).count()
+    totals["media_published"] = PresentationMediaUse.objects.filter(
+        state="published").count()
+    totals["opportunities"] = Opportunity.objects.filter(
+        publication_status="published").count()
     print("AUDIT AT", instant.isoformat())
     print("COUNTS: demo-scope | entire SQLite (where applicable)")
     for key, count in demos.items():
