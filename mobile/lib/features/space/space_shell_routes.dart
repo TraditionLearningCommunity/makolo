@@ -877,6 +877,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     final canManageTeam = widget.depth == 'team' &&
         _map(payload['capabilities'])?['manage_team'] == true &&
         _teamRoleOptions(payload).isNotEmpty;
+    final canTransferOwnership = widget.depth == 'ownership' &&
+        _map(payload['capabilities'])?['manage_team'] == true &&
+        _map(payload['capabilities'])?['manage_ownership'] == true;
     final intro = switch (widget.depth) {
       'team' => 'Les collaborateurs actuellement visibles dans cette équipe.',
       'responsibilities' =>
@@ -901,6 +904,32 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
               icon: const Icon(Icons.person_add_alt_1_outlined),
               label: const Text('Ajouter un collaborateur'),
             ),
+            const SizedBox(height: MakoloSpacing.md),
+          ],
+          if (canTransferOwnership) ...[
+            if (_fullTeam == null)
+              OutlinedButton.icon(
+                onPressed: _teamMutating
+                  ? null : () => _loadTeam(_space!),
+                icon: const Icon(Icons.group_add_outlined),
+                label: const Text('Choisir un nouveau propriétaire'),
+              )
+            else if (_fullTeam!.any((row) =>
+                _text(row['id']) != null &&
+                row['responsibility'] != 'space_owner'))
+              FilledButton.icon(
+                onPressed: _teamMutating
+                  ? null : () => _transferOwnership(payload),
+                icon: const Icon(Icons.verified_user_outlined),
+                label: const Text('Transférer la propriété'),
+              )
+            else
+              const Text('Aucun collaborateur éligible à ce transfert.'),
+            if (_teamUnavailable)
+              TextButton(
+                onPressed: () => _loadTeam(_space!),
+                child: const Text('Réessayer de charger les collaborateurs'),
+              ),
             const SizedBox(height: MakoloSpacing.md),
           ],
           if (_teamMutating) const LinearProgressIndicator(),
