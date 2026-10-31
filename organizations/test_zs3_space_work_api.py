@@ -9,12 +9,12 @@ from activities.models import Activity, Occurrence, OccurrenceStatus
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_activity_role, grant_space_role
-from commerce.models import Offer, OfferStatus
+from commerce.models import CommerceOrder, CommerceOrderStatus, Offer, OfferStatus
 from groups.models import Group, GroupMembership
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, SpaceArchetype, Team, TeamMembership, TeamMembershipStatus
 from scanner.models import ScannerAssignment
-from services.models import ServiceDetails, ServiceKind
+from services.models import ServiceDetails, ServiceJourneyContext, ServiceKind
 from transport.models import TransportRoute, Vehicle
 
 
@@ -242,6 +242,75 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(row["links"]["detail"], f"/api/v1/occurrences/{occurrence.pk}/")
         self.assertEqual(row["links"]["activity"], f"/api/v1/activities/{activity.pk}/")
 
+    def test_scanner_mandate_does_not_reveal_activity_work_or_selection(self):
+        sensitive = self._activity("Brouillon privé de l'organisateur")
+        scanner = User.objects.create_user(
+            username="zs3-scanner-mandate",
+            email="zs3-scanner-mandate@test.local",
+            password="x",
+        )
+        grant_activity_role(
+            profile=scanner,
+            activity=sensitive,
+            role_code=SystemRoleCode.ACTIVITY_SCANNER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(scanner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["authority"]["scope"], "activity_limited")
+        self.assertEqual(response.data["coverage_state"], "partial")
+        self.assertNotIn(sensitive.title, str(response.data))
+        self.assertFalse(any(section["items"] for section in response.data["sections"].values()))
+        selected = self.client.get(
+            self.url, {"kind": "activity", "id": str(sensitive.pk)}
+        )
+        self.assertEqual(selected.status_code, 200, selected.data)
+        self.assertIsNone(selected.data["selection"])
+        self.assertNotIn(sensitive.title, str(selected.data))
+
+    def test_order_detail_uses_existing_owner_api_and_current_permissions(self):
+        activity = self._activity("Commande dans l'Espace")
+        buyer = User.objects.create_user(
+            username="zs3-order-buyer",
+            email="private-order-buyer@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=buyer,
+            beneficiary=buyer,
+            activity=activity,
+            workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.CONFIRMED,
+        )
+        order = CommerceOrder.objects.create(
+            journey=journey,
+            buyer=buyer,
+            payee_space=self.space,
+            status=CommerceOrderStatus.CONFIRMED,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            self.url, {"kind": "commerce_order", "id": str(order.pk)}
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        row = response.data["selection"]
+        self.assertIsNotNone(row)
+        self.assertEqual(
+            row["links"]["detail"],
+            f"/api/v1/organizations/workspaces/{self.space.slug}/commerce/orders/{order.pk}/",
+        )
+        detail = self.client.get(row["links"]["detail"])
+        self.assertEqual(detail.status_code, 200, detail.data)
+        self.assertEqual(detail.data["reference"], order.reference)
+        self.assertNotIn(buyer.email, str(detail.data))
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(row["links"]["detail"]).status_code, 404)
+        self.assertEqual(
+            self.client.get(self.url, {"kind": "commerce_order", "id": str(order.pk)}).status_code,
+            404,
+        )
+
     def test_activity_only_authority_is_bounded_and_responsibility_cannot_expand_it(self):
         allowed = self._activity("Activity autorisée")
         hidden = self._activity("Activity cachée")
@@ -397,6 +466,11 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         ServiceDetails.objects.create(
             activity=activity, service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT
         )
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
         service_case = Journey.objects.create(
             initiated_by=beneficiary,
             beneficiary=beneficiary,
@@ -519,6 +593,55 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertEqual(row["kind"], "service_case")
         self.assertNotIn(beneficiary.email, str(row))
         self.assertNotIn("requirement", str(row).lower())
+
+    def test_service_case_link_requires_operator_scope_and_owner_context(self):
+        activity = self._activity("Prestation avec contexte")
+        ServiceDetails.objects.create(
+            activity=activity, service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT
+        )
+        beneficiary = User.objects.create_user(
+            username="zs3-operator-beneficiary",
+            email="zs3-operator-beneficiary@test.local",
+            password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=beneficiary, beneficiary=beneficiary,
+            activity=activity, workflow=WorkflowKind.SERVICE,
+            status=JourneyStatus.IN_PROGRESS,
+        )
+        operator = User.objects.create_user(
+            username="zs3-operator-case",
+            email="zs3-operator-case@test.local",
+            password="x",
+        )
+        grant_activity_role(
+            profile=operator, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(operator)
+        without_context = self.client.get(self.url)
+        row = next(
+            item for item in without_context.data["sections"]["active"]["items"]
+            if item["source"]["id"] == str(journey.pk)
+        )
+        self.assertNotIn("detail", row["links"])
+        self.assertEqual(row["continuity_facet"]["next"], [])
+
+        ServiceJourneyContext.objects.create(journey=journey)
+        with_context = self.client.get(self.url)
+        row = next(
+            item for item in with_context.data["sections"]["active"]["items"]
+            if item["source"]["id"] == str(journey.pk)
+        )
+        self.assertEqual(
+            row["links"]["detail"],
+            f"/api/v1/services/operator/journeys/{journey.pk}/",
+        )
+        self.assertIn("open_service_case", row["capabilities"])
+        self.assertNotIn(beneficiary.email, str(row))
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
 
     def test_transport_presentation_contextualizes_without_reclassifying_structure(self):
         self.space.archetype = SpaceArchetype.TRANSPORT_OPERATOR
