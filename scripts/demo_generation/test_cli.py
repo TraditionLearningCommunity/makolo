@@ -25,7 +25,8 @@ class DemoGenerationCLITests(unittest.TestCase):
         with patch("scripts.demo_generation.verticals.main") as verticals, \
              patch("scripts.demo_generation.scale.main") as scale, \
              patch("scripts.demo_generation.transport.main") as transport, \
-             patch("scripts.demo_generation.mandates.main") as mandates:
+             patch("scripts.demo_generation.mandates.main") as mandates, \
+             patch("scripts.demo_generation.foundations.main") as foundations:
             run(args)
         called = verticals.call_args.args[0]
         self.assertIn("funding", called)
@@ -34,6 +35,8 @@ class DemoGenerationCLITests(unittest.TestCase):
         scale.assert_not_called()
         transport.assert_not_called()
         mandates.assert_not_called()
+        self.assertIn("funding", foundations.call_args.args[0])
+        self.assertNotIn("--apply", foundations.call_args.args[0])
 
     def test_timeline_no_write_by_default(self):
         args = build_parser().parse_args(["timeline", "--demo-live"])
@@ -69,6 +72,12 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertNotIn("--apply", community.call_args.args[0])
         self.assertNotIn("--apply", engagement.call_args.args[0])
 
+    def test_model_inventory_uses_complete_catalog(self):
+        args = build_parser().parse_args(["inventory"])
+        with patch("scripts.demo_generation.catalog.main") as catalog:
+            run(args)
+        catalog.assert_called_once_with([])
+
     def test_audit_supports_explicit_reference_date(self):
         args = build_parser().parse_args([
             "audit", "--at", "2026-10-30T18:00:00+02:00",
@@ -78,6 +87,9 @@ class DemoGenerationCLITests(unittest.TestCase):
         audit.assert_called_once_with(["--at", "2026-10-30T18:00:00+02:00"])
 
 
+
+    def test_sharing_is_in_default_domain_coverage(self):
+        self.assertIn("sharing", parse_domains("all"))
 
     def test_live_placement_routes_without_generating_other_domains(self):
         args = build_parser().parse_args([
