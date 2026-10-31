@@ -160,6 +160,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Mon service'), findsOneWidget);
+      expect(find.text('Cette connexion possède une capacité active.'), findsOneWidget);
       expect(find.textContaining('Connecté et disponible'), findsOneWidget);
       expect(find.textContaining('Génération de texte'), findsOneWidget);
       expect(find.text('Service Espace'), findsNothing);
@@ -259,6 +260,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     expect(find.text('Désactivé'), findsOneWidget);
+    expect(find.text('Cette connexion est désactivée.'), findsOneWidget);
+    expect(find.text('Le service ne répond pas actuellement.'), findsOneWidget);
+    expect(find.text('La disponibilité doit être vérifiée.'), findsOneWidget);
     expect(find.text('Connecté · disponibilité réduite'), findsOneWidget);
     expect(find.text('Momentanément indisponible'), findsOneWidget);
     expect(find.text('Connecté · état à vérifier'), findsOneWidget);
