@@ -1457,6 +1457,76 @@ void main() {
     expect(find.text('Formation Data Science'), findsOneWidget);
   });
 
+  testWidgets('map route renders a real map pane on compact devices', (
+    tester,
+  ) async {
+    String? selected;
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoverySpatialView(
+        selection: selection(),
+        mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+        showMapOnCompact: true,
+        fieldKey: 'one-filtered-context',
+        initialSelectedCandidateKey: 'activity:route',
+        onSelectionChanged: (key) => selected = key,
+        onOpen: (_) {},
+      ),
+    );
+    // The disabled MapLibre runtime displays its honest fallback, NOT
+    // another duplicate field replacing the map on narrow layouts.
+    expect(find.byKey(const Key('discover-compact-map')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('discover-map-one-filtered-context')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('La carte n’est pas disponible'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
+    final mapAction = find.byKey(
+      const ValueKey('discover-map-action-activity:media'),
+    );
+    await tester.scrollUntilVisible(
+      mapAction, 160, scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(mapAction);
+    await tester.pump();
+    expect(selected, 'activity:media');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wide field forwards its exact focused candidate to map', (
+    tester,
+  ) async {
+    String? mapSelection;
+    var mapOpened = false;
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(1200, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(),
+        onOpen: (_) {},
+        fieldKey: 'criteria-a',
+        onMap: (key) {
+          mapOpened = true;
+          mapSelection = key;
+        },
+      ),
+    );
+    await tester.tap(find.text('Formation Data Science').first);
+    await tester.pump();
+    expect(find.byKey(const Key('discover-focus-depth')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('discover-field-open-map')));
+    await tester.pump();
+    expect(mapOpened, isTrue);
+    expect(mapSelection, 'activity:media');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('G05 uses the shared 1040 spatial threshold', (tester) async {
     for (final width in [1000.0, 1040.0, 1080.0]) {
       await PresentationHarness.pump(
