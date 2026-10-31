@@ -315,6 +315,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Identité'), findsOneWidget);
     expect(find.text('Gilbra'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Enregistrer'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+      maxScrolls: 40,
+    );
     expect(find.text('Enregistrer'), findsOneWidget);
     expect(find.text('Réessayer'), findsNothing);
     expect(find.textContaining('Dernières informations du profil connues'),
@@ -378,6 +384,12 @@ void main() {
     ));
     await tester.pumpAndSettle();
     expect(find.text('Brouillon conservé'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Enregistrer'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+      maxScrolls: 40,
+    );
     expect(find.text('Enregistrer'), findsOneWidget);
   });
 
