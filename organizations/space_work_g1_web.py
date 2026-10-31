@@ -11,6 +11,9 @@ from django.core.paginator import Paginator
 from django.http import Http404
 from django.urls import reverse
 
+from funding.models import FundingDetails
+from funding.services import can_manage_funding
+
 from activities.models import Activity, Occurrence
 from authorization.constants import PermissionCode
 from authorization.selectors import can
@@ -117,6 +120,15 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                         ),
                     },
                 ])
+            if self.space.archetype == SpaceArchetype.COMMUNITY:
+                # Funding is a real optional Activity vertical; it is never
+                # inferred from the Espace being a community.
+                funding = FundingDetails.objects.filter(activity=activity).first()
+                if funding is not None and can_manage_funding(self.request.user, funding):
+                    actions.append({
+                        "label": "Gérer le financement",
+                        "url": reverse("funding:manage", kwargs={"pk": funding.pk}),
+                    })
         else:
             # The parent is itself revalidated through the same owner selector.
             parent_projection = build_space_work_projection(
