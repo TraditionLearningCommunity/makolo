@@ -237,6 +237,18 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         self.assertIn("travail durable", world["calm_message"])
         self.assertEqual(world["perspectives"][0]["sections"], ["activities"])
 
+    def test_selection_is_not_mistaken_for_a_calm_global_space(self):
+        published = self._activity("Sélection partielle")
+        published.status = "published"
+        published.save(update_fields=["status", "updated_at"])
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(
+            self.url, {"kind": "activity", "id": str(published.pk)}
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["selection"]["source"]["id"], str(published.pk))
+        self.assertIsNone(response.data["presentation"]["calm_message"])
+
     def test_generic_work_groups_continuity_before_portfolio(self):
         draft = self._activity("À préparer")
         published = self._activity("Atelier du samedi")
@@ -266,6 +278,19 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         )
         self.assertIn(str(draft.pk), str(response.data["sections"]["preparation"]))
         self.assertIn(str(occurrence.pk), str(response.data["sections"]["upcoming"]))
+        portfolio = response.data["sections"]["activities"]["items"]
+        published_row = next(
+            row for row in portfolio if row["source"]["id"] == str(published.pk)
+        )
+        self.assertEqual(
+            published_row["context"]["next_occurrence"]["id"],
+            str(occurrence.pk),
+        )
+        self.assertEqual(
+            response.data["presentation"]["next_occurrence_label"],
+            "Prochaine date",
+        )
+
 
     def test_community_world_reuses_activity_owner_and_ignores_membership(self):
         self.space.archetype = SpaceArchetype.COMMUNITY
@@ -297,6 +322,17 @@ class ZS3SpaceWorkProjectionTests(TestCase):
         ]
         self.assertIn(str(activity.pk), source_ids)
         self.assertIn(str(occurrence.pk), source_ids)
+        self.assertEqual(
+            response.data["presentation"]["next_occurrence_label"],
+            "Prochaine action",
+        )
+        portfolio_row = next(
+            row for row in response.data["sections"]["activities"]["items"]
+            if row["source"]["id"] == str(activity.pk)
+        )
+        self.assertEqual(
+            portfolio_row["context"]["next_occurrence"]["id"], str(occurrence.pk)
+        )
         self.assertNotIn("group_member", str(world))
         self.client.force_authenticate(self.member)
         self.assertEqual(self.client.get(self.url).status_code, 404)
