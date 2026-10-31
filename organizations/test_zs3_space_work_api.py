@@ -311,6 +311,29 @@ class ZS3SpaceWorkProjectionTests(TestCase):
             404,
         )
 
+    def test_operator_day_of_link_exists_during_owner_arrival_window(self):
+        activity = self._activity("Départ bientôt ouvert")
+        now = timezone.now()
+        occurrence = Occurrence.objects.create(
+            activity=activity,
+            label="Départ à préparer",
+            start_at=now + timedelta(minutes=10),
+            end_at=now + timedelta(hours=2),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.data)
+        row = next(
+            item for item in response.data["sections"]["upcoming"]["items"]
+            if item["source"]["id"] == str(occurrence.pk)
+        )
+        self.assertIn("open_day_of", row["capabilities"])
+        self.assertEqual(
+            row["links"]["day_of"],
+            f"/api/v1/operations/occurrences/{occurrence.pk}/day-of/",
+        )
+
     def test_activity_only_authority_is_bounded_and_responsibility_cannot_expand_it(self):
         allowed = self._activity("Activity autorisée")
         hidden = self._activity("Activity cachée")
