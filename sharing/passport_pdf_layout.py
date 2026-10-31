@@ -576,6 +576,16 @@ def render_passport_layout(payload, metadata, verify_url, *,
         gap.keepWithNext = 1
         story.extend([heading, gap, _paragraph(bio, _style(10.1, 16)),
                       Spacer(1, 16)])
+    professional = [
+        ("Entreprise renseignée", _value(identity.get("company_name"))),
+        ("Organisation renseignée", _value(identity.get("organization_name"))),
+    ] if kind == "Profil personnel" else []
+    professional = [(label, value) for label, value in professional if value]
+    if professional:
+        story.extend([KeepTogether([
+            _heading("Contexte professionnel"), Spacer(1, 9),
+            _details_grid(professional),
+        ]), Spacer(1, 16)])
     owner = identity.get("owner_details") or {}
     if payload.get("variant") != "complete":
         owner = {}
@@ -589,6 +599,11 @@ def render_passport_layout(payload, metadata, verify_url, *,
     )
     details = []
     for field, label in labels:
+        # Already rendered above in the canonical presentation section.
+        if field == "company" and _value(identity.get("company_name")):
+            continue
+        if field == "organization" and _value(identity.get("organization_name")):
+            continue
         raw = _value(owner.get(field))
         value = _country(raw) if field == "country" else raw
         # Identity data already displayed in the hero should not be repeated.
