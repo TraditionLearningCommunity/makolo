@@ -17,6 +17,7 @@ def main(argv=None):
     import django
     django.setup()
     from django.core.exceptions import PermissionDenied, ValidationError
+    from django.contrib.auth import get_user_model
     from django.db import connection, transaction
     from access.models import AccessUseResult
     from journeys.models import Journey, JourneyStatus, WorkflowKind
@@ -56,8 +57,7 @@ def main(argv=None):
             counts["journeys_not_eligible"] += 1
     if a.apply:
         for pk in completed_profiles:
-            profile = Journey.objects.filter(beneficiary_id=pk).select_related(
-                "beneficiary").order_by("id").first().beneficiary
+            profile = get_user_model().objects.get(pk=pk)
             try:
                 with transaction.atomic():
                     outcomes = evaluate_goals(profile=profile)
