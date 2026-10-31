@@ -297,12 +297,17 @@ class SpaceWorkGroup2Tests(TestCase):
         self.assertNotContains(response, client.email)
         self.assertNotContains(response, "Contenu confidentiel")
 
-    def test_other_archetypes_keep_existing_contract(self):
+    def test_creative_composition_keeps_education_and_service_groups_out(self):
         self.space.archetype = SpaceArchetype.CREATIVE
         self.space.save(update_fields=["archetype", "updated_at"])
         self.activity("Création principale")
         self.client.force_authenticate(self.owner)
         result = self.client.get(self.url)
         self.assertEqual(result.status_code, 200, result.data)
-        self.assertNotIn("business_world", result.data)
-        self.assertNotIn("reading_groups", result.data["presentation"])
+        world = result.data["business_world"]
+        self.assertEqual(world["preferred_language"], "Créations")
+        identities = [group["identity"] for group in world["reading_groups"]]
+        self.assertEqual(identities, ["creations"])
+        self.assertNotIn("registrations", identities)
+        self.assertNotIn("cases", identities)
+        self.assertNotIn("portfolio", str(world).lower())
