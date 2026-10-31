@@ -92,6 +92,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       'transport_route' ||
       'vehicle' => await _readWorkOwner(api, kind),
       'commerce_order' => await _readOrderOwner(api, id),
+      'payment_obligation' => await _readPayerObligationOwner(api, id),
       'team_member' ||
       'group' ||
       'crm_contact' ||
@@ -207,6 +208,36 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       'status': payload['status'],
       'summary': activity is Map ? activity['title'] : null,
       'timing': payload['cancelled_at'],
+    };
+  }
+
+  Future<Map<String, dynamic>> _readPayerObligationOwner(
+    dynamic api,
+    String id,
+  ) async {
+    final perspective = widget.spaceActor.perspective;
+    final path = Uri(
+      path: '${_spacePath}payment-obligations/$id/',
+      queryParameters: perspective.isAll
+          ? null
+          : {'responsibility': perspective.id!},
+    ).toString();
+    final payload = (await api.get(path)).jsonObject();
+    final space = spaceMap(payload['space']);
+    if (space?['id'] != widget.spaceActor.space.id ||
+        payload['kind'] != 'payment_obligation' ||
+        payload['id'] != widget.id ||
+        payload['responsibility'] != (perspective.id ?? 'all')) {
+      throw const FormatException(
+        'Payment obligation owner is no longer available in this Space',
+      );
+    }
+    return {
+      'title': payload['label'],
+      'type': 'Obligation financière',
+      'status': payload['status'],
+      'summary': '${payload['amount']} ${payload['currency']}',
+      'timing': payload['due_at'],
     };
   }
 
