@@ -240,6 +240,10 @@ def _journey_item(journey, caps, *, operator_case_url=None, space_slug=None):
                 "title": journey.activity.title,
             },
             "workflow": journey.workflow,
+            "work_label": (
+                "Dossier de prestation"
+                if journey.workflow == WorkflowKind.SERVICE else "Inscription"
+            ),
         },
         "links": {
             "activity": f"/api/v1/activities/{journey.activity_id}/",
@@ -661,13 +665,15 @@ def build_space_work_projection(
                     )
                     else None
                 )
-                _append(
-                    sections[target],
-                    _journey_item(
-                        journey, caps, operator_case_url=operator_case_url,
-                        space_slug=space.slug,
-                    ),
+                item = _journey_item(
+                    journey, caps, operator_case_url=operator_case_url,
+                    space_slug=space.slug,
                 )
+                if operator_case_url:
+                    item["context"]["service_outcome"] = (
+                        journey.service_context.current_outcome
+                    )
+                _append(sections[target], item)
 
     if transport_visible:
         routes = TransportRoute.objects.filter(space=space).prefetch_related("stops__place").order_by("name", "pk")
