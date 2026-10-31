@@ -41,6 +41,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
   GoRoute(
     path: '/discover/search',
     builder: (context, state) {
+      runtime.recovery.rememberLocation(state.uri.toString());
       final discovery = runtime.discovery;
       if (discovery == null) {
         return const MakoloSecondaryScreen(
@@ -62,6 +63,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
   GoRoute(
     path: '/discover/map',
     builder: (context, state) {
+      runtime.recovery.rememberLocation(state.uri.toString());
       final discovery = runtime.discovery;
       if (discovery == null) {
         return const MakoloSecondaryScreen(
@@ -76,6 +78,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         repository: discovery,
         mapConfig: runtime.mapConfig,
         onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+        onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
       );
     },
   ),
