@@ -247,3 +247,14 @@ class PassportVisibilityIntegrationTests(TestCase):
         self.assertFalse(after.context["can_view_dated_passport"])
         self.assertEqual(after.context["dated_payload"], {})
         self.assertNotContains(after, "Texte confidentiel")
+
+    def test_platform_superuser_global_visibility_is_not_personal_collective_membership(self):
+        from django.contrib.auth import get_user_model
+        admin = get_user_model().objects.create_superuser(
+            username="passport-platform-superuser", password="OnlyForTests123!",
+        )
+        Group.objects.create(name="Association privée extérieure", owner_profile=self.owner)
+        from sharing.passport import PASSPORT_COMPLETE
+        projection = build_profile_passport(admin, variant=PASSPORT_COMPLETE)
+        self.assertEqual(projection.group_affiliations, ())
+        self.assertEqual(projection.authorized_space_affiliations, ())
