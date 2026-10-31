@@ -25,7 +25,7 @@ def _public_service_for_viewer(*, pk, viewer):
     # Use the Web owner selector, then enforce the same Group gate as public
     # Discovery. A restricted Service cannot be started by guessing its UUID.
     queryset = filter_queryset_by_activity_group_eligibility(
-        public_services().exclude(activity__space__verification_status="suspended"),
+        public_services(),
         viewer,
     )
     return get_object_or_404(queryset, pk=pk)
