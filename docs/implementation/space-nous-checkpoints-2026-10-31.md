@@ -1,55 +1,52 @@
-> Transféré depuis la PR #528 dans la branche unique #522 le 31 octobre 2026. Les mentions de la branche `feat/space-nous-mature-20261031` ci-dessous sont historiques ; la suite du travail se fait exclusivement sur #522. Ce document est un diagnostic et non une implémentation.
+# Space / Nous — S0 : réconciliation sur la PR #522
 
-# Space / Nous — checkpoint A, réconciliation du 31 octobre 2026
+**Périmètre** : Nous uniquement. Le Passeport (Sharing, émission, PDF, partage, variantes) appartient à un autre chantier et n'est pas modifié ni planifié ici.
 
-Base examinée : `main@d0f0ec421c94c255fa4c0acd3509938a70c6322f`. Branche de travail : `feat/space-nous-mature-20261031`.
+## Références vérifiées le 31 octobre 2026
 
-## Sources et règle
+- Dépôt : `TraditionLearningCommunity/makolo`
+- Base de la PR : `main@d0f0ec421c94c255fa4c0acd3509938a70c6322f`
+- HEAD examiné de la PR #522 : `085eb5b39cdf563da22b127bef40fb39678f46db` (susceptible d'évoluer après ce commit)
+- Branche unique : `fix/discover-a-continuation-context-20261014`
+- 359 chemins modifiés dans #522 à la réconciliation ; vérifier à nouveau avant une écriture future.
+- La PR #528 a été fermée sans merge. Son document de diagnostic a été transféré dans #522.
+- Travail S0 documentaire uniquement ; pas de migration, modification d'API, mutation de permissions, changement Flutter ni exécution de tests/CI.
 
-Code et tests du `main` prioritaires sur les contrats. Références : `docs/architecture/makolo-domain-blueprint.md`, `Makolo_Space_Specification_Consolidee.md`, `space-ux-experience-specification.md`, contrats Moi/Nous des 6 et 10 octobre 2026, Behavior, Mobile, Presentation et Golden. Ce checkpoint documente des écarts constatés, **pas des fonctionnalités livrées**.
+## Matrice de propriété et collisions
 
-## Inventaire court
+| Surface / fichiers | Situation vérifiée | Responsable | Statut pour Nous |
+| --- | --- | --- | --- |
+| `organizations/api/space_us_projection.py` | Projection existante dans main ; identité, team, responsibilities, ownership, trust, handoffs ; non listée parmi les chemins modifiés de #522 | Organizations / Nous | Propriétaire direct ; évolution possible après revue de contrats |
+| `organizations/api/space_zs4_views.py` | `SpaceUsAPIView` privé via `workspace_spaces` et `Cache-Control: private, no-store` | Organizations / Authorization | Propriétaire de l'API privée ; préserver le contrôle serveur |
+| `organizations/api/space_relationships_projection.py` | Projection existante avec Teams, Groups, CRM, Partners sous permissions | Organizations + propriétaires des relations | Propriétaire des read models Nous, pas des données métier |
+| `organizations/api/public_space_views.py`, `organizations/test_public_space_api.py` | Modifiés sur #522 ; projection publique déjà présente | Organizations / Guest | **Partagé en évolution** ; lire avant modification, ne pas confondre public et opérateur |
+| `organizations/api/space_work_projection.py`, `organizations/test_zs3_space_work_api.py` | Modifiés sur #522 ; checkpoint Métier distinct documenté | Space Métier | Hors propriété Nous ; seulement handoffs vers Métier |
+| `mobile/lib/features/space/space_shell_routes.dart` | Surface native Nous et racines Space existantes ; pas de modification listée dans #522 au moment du scan | Space UX Flutter | Propriétaire UI Nous, mais cohabite avec Now/Discover/Métier |
+| `mobile/lib/features/space/space_repository.dart` | Sources `space.us`, `space.relationships`, snapshots ; pas de modification listée dans #522 | Space mobile | À réutiliser ; inspecter source, révocation et profile isolation avant changement |
+| `mobile/lib/features/guest/public_space_screens.dart` | Modifié dans #522 | Guest / Public | Partagé ; ne pas détourner la surface publique pour l'opérateur |
+| `mobile/lib/data/local/profile_store.dart`, `mobile/lib/sync/sync_engine.dart`, `mobile/lib/sync/projection_contract.dart` | Modifiés dans #522 | Kernel local-first transverse | **Zone rouge de collision** ; aucune réécriture depuis Nous sans contrat explicite |
+| `mobile/lib/navigation/avatar_sheet.dart`, `shell_header.dart`, `deep_link_resolver.dart`, `incoming_intent.dart` | Modifiés dans #522 | Navigation globale | **Zone rouge de collision** ; privilégier routes propriétaires |
+| `sharing/**` et migrations Sharing de #522 | Nombreux fichiers modifiés | Chantier Passeport séparé | **Exclus** de Nous, aucune intervention |
+| `accounts/migrations/0009_profile_visibility_policies.py`, `services/migrations/0005_service_start_operation_fingerprint.py`, `presentations/migrations/0005_presentationmediause.py`, `0006_private_presentation_assets.py`, `sharing/migrations/0006_passport_issued_public_and_sharing.py`, `topics/migrations/0005_profile_publishable_defaults.py` | Migrations additives figurant parmi les changements de la PR #522 | Domaines respectifs | Aucune migration Nous justifiée en S0 |
+| `authorization/` | Selectors et Mandates canoniques existants ; aucun chemin modifié de ce répertoire dans le scan #522 | Authorization | Consommation des capacités, aucune autorité inférée par UX |
 
-| Surface | Existe | Fonctionne (preuve limitée) | Écart constaté | Propriétaire | Priorité |
-| --- | --- | --- | --- | --- | --- |
-| Projection Nous | Oui, `organizations/api/space_us_projection.py` | Génère identité, équipe bornée, responsabilités, ownership, trust et handoffs | Pas de Passeport collectif, relations ni ressources dans la racine ; identité limitée selon scope | Organizations / Sharing / owners | P1 |
-| API Nous | Oui, `SpaceUsAPIView` | Authentification, `workspace_spaces`, no-store | Cet endpoint privé n'est pas la projection de consultation publique ou de membre sans Mandate | Organizations / Authorization | P0 |
-| Navigation Flutter Nous | Oui, `mobile/lib/features/space/space_shell_routes.dart` | `space.us`, snapshots, refresh, navigation handoff | Racine de sections en liste ; des liens demandent vérification des routes réelles | Mobile / Presentation | P0 |
-| Projection relations | Oui, `space_relationships_projection.py` | Sources Teams, Groups, CRM et Partners sous permissions distinctes | Examiner les profondeurs natives et les états masqués vs vides | Owners / Organizations | P1 |
-| Shell et stockage Space | Oui, `space_repository.dart` | Source `space.us`, `StoredProjection`, fraîcheur | Contrôler révocation, séparation par Profile/Space et media local-first | Mobile / Sync | P0 |
-| Passeport collectif | Contrat blueprint | Non validé à ce checkpoint | Examiner les builders, formats, variantes, export et routes avant adaptation | Sharing / Trust | P1 |
-| Web Nous | Travaux historiques présents | Non validé à ce checkpoint | Comparer destinations Web et Flutter | Organizations / Web | P1 |
+La liste de fichiers est un inventaire GitHub de la PR, **pas** une validation fonctionnelle. Les tests n'ont pas été exécutés ici.
 
-Ne pas confondre absence de membre autorisé à être affiché et équipe vide. Ne pas élever une Membership ou Assignment en Permission.
+## Écarts structurants à examiner après S0
 
-## Collisions
+1. L'API `space.us` est une lecture opérateur privée ; elle n'est pas la même vue que la consultation publique existante. La présence dans Team/Group ne doit pas être interprétée comme Mandate.
+2. L'identité Nous et l'équipe peuvent être présentées avec une autorité limitée. Distinguer contenu absent, masqué et inconnu.
+3. Chaque handoff Nous doit être relié à une vraie route native Flutter et à une destination Web utilisable, sans renvoi interne vers le Web depuis Flutter.
+4. Le local-first propriétaire Space doit utiliser la persistance/synchronisation commune avec isolation et révocation ; aucun nouveau noyau.
+5. Aucun travail sur le Passeport : sa représentation et son export seront traités indépendamment.
 
-- PR #522 ouverte, HEAD observé `9001db777076811f06031639b6e431c28dee14f2` : modifications massives de `mobile/lib`, medias, local-first, Moi et navigation. Ne pas réécrire ces composants partagés en parallèle.
-- Branches historiques `ws4-space-us-relations-pilot-web`, `feat/space-relations-pilot-mature`, `mobile/space-local-first-sync` existent ; existence de branche ≠ chantier actif. Vérifier diff et PR avant réemploi.
-- Ce checkpoint ne change aucune API, migration ni permission.
+## Séquence décidée pour la suite (sans exécution dans ce commit)
 
-## Checkpoints d'exécution
+- **S1** : visibilité, autorité et projections Nous, avec tests serveur ciblés.
+- **S2** : racine Nous Web/Flutter, identité collective et hiérarchie de présentation.
+- **S3** : organisation, équipe, groupes, responsabilités et destinations propriétaires.
+- **S4** : relations et capital collectif owner-backed, sans doublons métier.
+- **S5** : routes, handoffs, comportement natif, local-first et révocation en coordination avec les composants communs déjà touchés par #522.
+- **S6** : validation fonctionnelle et visuelle ciblée ; l'utilisateur effectue les exécutions Django/Flutter locales. Pas de CI demandée pour avancer.
 
-### B — Contrat de consultation et sécurité
-1. Cartographier les routes publiques Space existantes et la représentation Passport collective ; **ne pas** ouvrir `SpaceUsAPIView` au public par simple suppression du filtre.
-2. Définir un handoff vers une projection publique déjà disponible, ou introduire un selector public strictement borné si réellement manquant, séparé du contexte opérateur.
-3. Tests serveur : visiteur, authentifié hors Space, membre sans autorité, Activity-only, Mandate Space, admin, révocation, IDOR et champs privés.
-
-### C — Racine Nous et profondeurs
-1. Tracer chaque handoff serveur vers route Web et GoRouter réellement enregistrées ; supprimer les CTA sans destination.
-2. Composer identité collective d'abord, organisation et responsabilités pertinentes ensuite, puis relations/ressources seulement si faits autorisés et destination owner.
-3. États vides locaux par section, aucune section artificielle. Tests Compact/Medium/Wide et retour arrière.
-
-### D — Passeport collectif
-1. Réutiliser le moteur Sharing/Passport et génération PDF existants.
-2. Vérifier variantes, preuve, titres émis, média autorisé, partage et export; pas de reconnaissance juridique implicite.
-3. Tests de divergence public/membre/admin, sortie documentaire et révocation.
-
-### E — Local-first et qualité
-1. Partir des snapshots existants (et de la réconciliation #522), ne pas créer un second kernel Space.
-2. Tester cold start, changement de Profile/Space, refus explicite, cache d'image, hors réseau, retrait et révalidation d'actions sensibles.
-3. Vérifier Web + Flutter sur les mêmes fixtures. Exécuter ciblés puis gates CI. Ne jamais merger avec CI rouge.
-
-## Décision d'intégration
-
-Ce checkpoint A est **documentaire seulement**. B, C, D et E ne sont pas déclarés réalisés. Avant code, vérifier le HEAD courant et réconcilier les fichiers communs contre #522. Branche dédiée, PR non fusionnée.
+**Critère de sortie S0** : matrice propriétaire/partagé consignée, collisions identifiées, périmètre Nous séparé du Passeport, aucune modification de comportement.
