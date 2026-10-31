@@ -242,6 +242,7 @@ class ProfilePassportView(PassportViewMixin):
             selected_proof_ids=self.request.GET.getlist("proof") if variant == PASSPORT_CUSTOM else None,
             selected_credential_ids=self.request.GET.getlist("credential") if variant == PASSPORT_CUSTOM else None,
             selected_sections=self.request.GET.getlist("include") if variant == PASSPORT_CUSTOM else None,
+            viewer=self.request.user,
         )
 
     def get_selection_catalog(self):
