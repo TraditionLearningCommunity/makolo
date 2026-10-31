@@ -271,6 +271,15 @@ class _SpaceProjectionBody extends StatelessWidget {
       projection: projection,
       now: DateTime.now(),
     );
+    if (selection.situations.isEmpty &&
+        _map(projection?.payload['selection'])?['state'] == 'partial') {
+      return const MakoloEmptyState(
+        title: 'Aucune situation établie dans cette perspective.',
+        body: 'La couverture actuelle reste partielle. Makolo ne peut pas '
+            'encore conclure que tout est en ordre pour cet Espace.',
+        icon: Icons.info_outline_rounded,
+      );
+    }
     final space = _map(projection?.payload['space']);
     return NowView(
       key: ValueKey(
