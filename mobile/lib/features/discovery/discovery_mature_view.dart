@@ -486,7 +486,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
               key: ValueKey(
                 'discover-map-${widget.fieldKey ?? anchor.candidateKey}',
               ),
-              onMapCreated: (controller) => _mapCreated(DiscoveryMapController(controller)),
+              onMapCreated: (controller) =>
+                  _mapCreated(DiscoveryMapController(controller)),
               onStyleReady: () => unawaited(_displayPins(points)),
               config: widget.mapConfig,
               initialViewport: MapViewport(
