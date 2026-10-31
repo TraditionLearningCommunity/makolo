@@ -1,3 +1,4 @@
+from datetime import datetime, time
 from types import SimpleNamespace
 
 from django.utils.dateparse import parse_date, parse_datetime
@@ -189,6 +190,46 @@ def _discovery_first_person_action_label(label):
     }.get(normalized, label)
 
 
+def _added_date_label(value, *, now=None):
+    """Friendly N1 added-at label; not an Occurrence date or guessed timestamp."""
+    if not value:
+        return ""
+    instant = parse_datetime(str(value))
+    if instant is None:
+        day = parse_date(str(value)[:10])
+        if day is None:
+            return ""
+        instant = timezone.make_aware(
+            datetime.combine(day, time.min),
+            timezone.get_current_timezone(),
+        )
+    if timezone.is_naive(instant):
+        instant = timezone.make_aware(instant, timezone.get_current_timezone())
+    current = now or timezone.now()
+    local = timezone.localtime(instant)
+    current = timezone.localtime(current)
+    delta = current - local
+    if delta.total_seconds() < 0:
+        return local.strftime("%d/%m/%Y")
+    days = (current.date() - local.date()).days
+    if days == 0:
+        minutes = int(delta.total_seconds() // 60)
+        if minutes < 1:
+            return "À l’instant"
+        if minutes < 60:
+            return f"il y a {minutes} min"
+        return f"il y a {int(delta.total_seconds() // 3600)} h"
+    if days == 1:
+        return "Hier"
+    if days == 2:
+        return "Avant-hier"
+    if days < 7:
+        return f"il y a {days} j"
+    if days < 30:
+        return f"il y a {days // 7} sem."
+    return local.strftime("%d/%m/%Y")
+
+
 def _web_discovery_card(item):
     identity = item["identity"]
     representation = item["representation"]
@@ -225,6 +266,7 @@ def _web_discovery_card(item):
         if (
             value is None
             or not str(value).strip()
+            or str(value).strip().casefold() in {"unknown", "inconnu", "inconnue", "n/a", "à confirmer"}
             or key in seen
             or normalized_label in seen_labels
         ):
@@ -282,13 +324,42 @@ def _web_discovery_card(item):
             _AVAILABILITY_LABELS.get(availability_state, availability_state),
             "users",
         )
+    temporal_labels = {
+        "start_at": "Début",
+        "start_date": "Début",
+        "end_at": "Fin",
+        "end_date": "Fin",
+        "opens_at": "Ouverture",
+        "closes_at": "Clôture",
+        "deadline_at": "Date limite",
+    }
     for fact in item.get("temporal_facts") or []:
         kind = fact.get("kind") or ""
         if kind in {"start_at", "start_date", "start_time"} and "when" in seen:
             continue
-        if fact.get("value") is not None:
-            add_fact(kind, kind.replace("_", " ").capitalize(), fact["value"], "calendar-clock")
+        if fact.get("value") is not None and kind in temporal_labels:
+            add_fact(kind, temporal_labels[kind], fact["value"], "calendar-clock")
 
+    spatial_labels = {
+        "primary": "Lieu",
+        "venue": "Lieu",
+        "departure": "Départ",
+        "arrival": "Arrivée",
+        "stopover": "Escale",
+        "boarding": "Embarquement",
+        "dropoff": "Débarquement",
+    }
+    for fact in item.get("spatial_facts") or []:
+        role = str(fact.get("role") or "").lower()
+        place = fact.get("place") or {}
+        if not isinstance(place, dict):
+            continue
+        name = str(place.get("name") or "").strip()
+        locality = str(place.get("locality") or "").strip()
+        display = f"{name}, {locality}" if name and locality and name.casefold() != locality.casefold() else (name or locality)
+        if display:
+            code = "place" if role in {"primary", "venue"} else f"place_{role}"
+            add_fact(code, spatial_labels.get(role, "Lieu"), display, "map-pin")
 
     save_action = None
     if links.get("web_saved"):
@@ -372,6 +443,7 @@ def _web_discovery_card(item):
         vertical_label=representation.get("vertical_label") or "Possibilité",
         type_labels=tuple(type_labels),
         date_display=added_date,
+        added_label=_added_date_label(date_info.get("value")) if added_date else "",
         title=representation["title"],
         summary=representation.get("summary") or "",
         description=(item.get("detail") or {}).get("description") or "",
