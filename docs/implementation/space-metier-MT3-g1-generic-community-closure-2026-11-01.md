@@ -15,6 +15,7 @@ La règle reste : **une application, deux clients, profondeur N2 contextuelle, 0
 
 - Route N2 protégée : `organizations:space-work-depth` / `<slug>/work/<kind>/<owner_id>/`, pour `activity`, `occurrence` et `journey` lorsque l'archétype est `generic` ou `community`. `SpaceWebMixin` contrôle l'acteur et la responsabilité active ; `build_space_work_projection(kind,id,responsibility)` valide l'identité/propriétaire avant de montrer le détail. Aucun accès cross-Space ou à un owner étranger.
 - N1 Generic/Community lie ses lignes vers ce N2, avec `responsibility` et `from=<section>`. Retour aux sections par ancre ; Occurrence ouverte depuis une Activity revient vers son parent, y compris la page de réalisations. Le Web utilise le même shell Makolo.
+- Création N1 conditionnelle : pour `generic/community` avec `SPACE_ACTIVITIES_MANAGE` et responsabilité `all`, lien « Nouvelle activité » / « Nouvelle initiative ». Le formulaire canonique `activities:create?space=<slug>` pré-sélectionne uniquement un Space effectivement autorisé, effectue sa propre vérification à l'envoi, appelle `create_activity` et revient à la vue Métier après succès. L'autorité Activity-only ne crée rien pour l'Espace. Aucune deuxième mutation de création, aucune forme métier fictive.
 - N2 Activity/Initiative : identité, description et état owner ; réalisations en pages de **12** avec nom, date, statut et navigation. Une Activity durable sans Occurrence reste valide. Une Occurrence qui n'est plus sélectionnable par Work (date passée encore `scheduled`) reste une relation visible, **sans lien mort**.
 - N2 Occurrence/action terrain : date/heure/lieu et Activity parente ; `Jour J` visible uniquement si le serveur fournit `open_day_of` et le lien owner. Les URL Jour J conservent la responsabilité.
 - N2 Journey/démarche : état owner, activité liée, aucune identité privée bénéficiaire ajoutée. Un vrai `JourneyRequest` lié ouvre **la demande précise** dans la Console existante, via `request=<UUID>&activity=<UUID>&status=all`. `SpaceConsoleRequestsView` filtre cette demande par le sélecteur owner autorisé ; ses décisions restent dans `approve_request/reject_request`. Il n'existe pas de nouvelle mutation générique.
@@ -39,6 +40,8 @@ Le N1 `SpaceWorkSurface` existant ouvre déjà `/space/:slug/retrieval/:kind/:id
 - `organizations/space_work_web.py` : N1 → N2 G1 avec origine/responsabilité.
 - `organizations/urls.py` : URL N2 dédiée.
 - `organizations/console_views.py` : filtrage exact du `JourneyRequest` owner déjà visible dans la Console.
+- `activities/views.py`, `templates/activities/activity_form.html` : contexte Space G1 sécurisé sur le formulaire Activity canonique.
+- `templates/organizations/space/work.html` : CTA de création G1 seulement lorsque l'autorité effective le permet.
 - `organizations/api/space_work_views.py` : validation de `related_offset`.
 - `organizations/api/space_work_projection.py` : relation d'Occurrences bornée, source/propriétaire, règle commune d'ouvrabilité.
 - `mobile/lib/features/continuity/space_retrieval_owner_screen.dart` : sélection, pagination, détail lié, demande owner.
@@ -65,7 +68,7 @@ flutter test test/space_work_g1_realizations_test.dart test/space_work_surface_t
 
 Le formatter Flutter canonique est obligatoire avant de déclarer une modification Dart prête à fusionner. Ce checkout distant ne dispose pas du SDK Dart local ; aucune validation de format, analyse Flutter ou capture visuelle n'a été prétendue dans cette session.
 
-Cas réels QA : acteur Space autorisé, Mandate limité, revoked, Group sans droit, Activity durable sans Occurrence, 13+ Occurrences, ancien scheduled, demande réelle et inexistante, case Service sous scope, Funding optionnel, jour J hors phase et en phase, retour au parent et au N1, passage Web↔Flutter, rotation/compact et état offline.
+Cas réels QA : création G1 en brouillon, sélection et retour Space, refus d'un POST forgé sans Permission, acteur Space autorisé, Mandate limité, revoked, Group sans droit, Activity durable sans Occurrence, 13+ Occurrences, ancien scheduled, demande réelle et inexistante, case Service sous scope, Funding optionnel, jour J hors phase et en phase, retour au parent et au N1, passage Web↔Flutter, rotation/compact et état offline.
 
 ## 6. Frontières et handoff
 
