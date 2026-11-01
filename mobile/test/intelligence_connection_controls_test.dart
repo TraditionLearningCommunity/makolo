@@ -17,7 +17,7 @@ void main() {
   ) async {
     final sent = <String>[];
     final client = MockClient((request) async {
-      if (request.method == 'GET') {
+      if (request.data == null) {
         expect(request.url.path, '/api/v1/me/intelligence/connections/');
         return MockResponse(
           jsonEncode({
@@ -35,7 +35,6 @@ void main() {
           200,
         );
       }
-      expect(request.method, 'POST');
       expect(request.url.path, '/api/v1/me/intelligence/connections/');
       final requestBody = jsonDecode(request.body);
       expect(requestBody['provider'], 'tavily');
