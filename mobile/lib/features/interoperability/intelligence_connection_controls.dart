@@ -105,6 +105,7 @@ class _IntelligenceConnectionControlsState
     final name = TextEditingController(text: offer['label'] as String? ?? '');
     final model = TextEditingController();
     final secret = TextEditingController();
+    final accepted = ValueNotifier<bool>(false);
     try {
       final proceed = await showDialog<bool>(
         context: context,
@@ -119,6 +120,16 @@ class _IntelligenceConnectionControlsState
                 const SizedBox(height: 12),
                 const Text('Votre clé reste chiffrée sur le serveur Makolo. '
                     'Les appels peuvent être facturés par le fournisseur.'),
+                ValueListenableBuilder<bool>(
+                  valueListenable: accepted,
+                  builder: (context, value, _) => CheckboxListTile(
+                    value: value,
+                    onChanged: (next) => accepted.value = next == true,
+                    title: const Text('J’autorise Makolo à utiliser cette clé '
+                        'pour les capacités indiquées.'),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ),
                 TextField(
                   controller: name,
                   decoration: const InputDecoration(labelText: 'Nom de la connexion'),
@@ -146,7 +157,7 @@ class _IntelligenceConnectionControlsState
               child: const Text('Annuler'),
             ),
             FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
+              onPressed: () => Navigator.of(dialogContext).pop(accepted.value),
               child: const Text('Relier'),
             ),
           ],
@@ -163,11 +174,13 @@ class _IntelligenceConnectionControlsState
         'name': name.text.trim(),
         'model': model.text.trim(),
         'api_key': secret.text.trim(),
+        'consent': true,
       });
     } finally {
       name.dispose();
       model.dispose();
       secret.dispose();
+      accepted.dispose();
     }
   }
 
