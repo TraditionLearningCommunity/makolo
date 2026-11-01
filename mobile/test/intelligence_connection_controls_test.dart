@@ -38,6 +38,7 @@ void main() {
       expect(request.url.path, '/api/v1/me/intelligence/connections/');
       final requestBody = jsonDecode(request.body);
       expect(requestBody['provider'], 'tavily');
+      expect(requestBody['consent'], isTrue);
       sent.add(requestBody['api_key'] as String);
       return MockResponse('{"id":"new-connection","scope":"profile"}', 201);
     });
@@ -89,6 +90,8 @@ void main() {
     await tester.enterText(fields.at(0), 'Ma recherche');
     await tester.enterText(fields.at(1), 'SENSITIVE-DO-NOT-RENDER');
     expect(find.text('SENSITIVE-DO-NOT-RENDER'), findsNothing);
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Relier'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
