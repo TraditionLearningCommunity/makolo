@@ -7,6 +7,7 @@ import '../../design/behavior_states.dart';
 import '../../design/makolo_theme.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../sync/sync_status.dart';
+import 'intelligence_connection_controls.dart';
 
 class ProfileConnectionsScreen extends StatefulWidget {
   const ProfileConnectionsScreen({super.key, required this.runtime});
@@ -238,12 +239,18 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           _freshnessNotice(context, syncStatus),
-          const SizedBox(
-            height: 520,
-            child: MakoloEmptyState(
+          SizedBox(
+            height: widget.runtime.api == null ? 520 : 270,
+            child: const MakoloEmptyState(
               title: 'Aucune connexion pour le moment',
-              body: 'Aucun service n’est encore disponible pour votre Profil.',
+              body: 'Aucune connexion personnelle n’est enregistrée. Les services réellement connectables apparaissent ci-dessous si disponibles.',
             ),
+          ),
+          IntelligenceConnectionControls(
+            runtime: widget.runtime,
+            path: 'api/v1/me/intelligence/connections/',
+            connections: projection.connections,
+            onChanged: _refresh,
           ),
         ],
       );
@@ -298,6 +305,12 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           for (final extension in projection.extensions)
             _extensionCard(extension),
         ],
+        IntelligenceConnectionControls(
+          runtime: widget.runtime,
+          path: 'api/v1/me/intelligence/connections/',
+          connections: projection.connections,
+          onChanged: _refresh,
+        ),
       ],
     );
   }
