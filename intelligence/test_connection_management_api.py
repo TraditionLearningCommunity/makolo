@@ -13,6 +13,7 @@ from authorization.services import grant_space_role
 from intelligence.credentials import get_provider_secret
 from intelligence.models import ProviderConnection, ProviderCredential, ProviderScope
 from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
+from operations.models import OperationsAuditLog
 
 
 @patch.dict("os.environ", {"INTELLIGENCE_CREDENTIAL_MASTER_KEY": "unit-only-c4-master-key"})
@@ -98,6 +99,17 @@ class ConnectionManagementAPITests(TestCase):
         self.assertFalse(ProviderConnection.objects.filter(pk=identity).exists())
         self.assertFalse(ProviderCredential.objects.filter(connection_id=identity).exists())
         self.assertEqual(self.client.get(detail).status_code, 404)
+        records = list(OperationsAuditLog.objects.filter(
+            target_type="provider_connection", target_id=identity,
+        ))
+        self.assertEqual({row.action for row in records}, {
+            "intelligence.connection_created",
+            "intelligence.connection_updated",
+            "intelligence.connection_removed",
+        })
+        self.assertNotIn("C4-PRIVATE-KEY", str(records))
+        self.assertNotIn("NEW-SECRET", str(records))
+
 
     def test_cross_profile_is_404_even_for_platform_operator(self):
         self._auth(self.owner)
