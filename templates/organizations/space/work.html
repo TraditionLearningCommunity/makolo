@@ -9,9 +9,14 @@
         <h2 id="space-work-heading" class="text-3xl font-extrabold tracking-[-.04em]">{{ projection.primary_business_label }}</h2>
         <p class="mt-2 max-w-3xl text-sm" style="color:var(--mk-muted)">{{ projection.presentation.question|default:"Qu’est-ce que nous faisons réellement exister, préparer, exécuter et délivrer ?" }}</p>
       </div>
-      {% if projection.authority.limited_to_activities %}
-      <span class="mk-badge">Vue limitée à vos activités autorisées</span>
-      {% endif %}
+      <div class="flex flex-wrap items-center gap-2">
+        {% if projection.authority.limited_to_activities %}
+        <span class="mk-badge">Vue limitée à vos activités autorisées</span>
+        {% endif %}
+        {% if work_create_url %}
+        <a class="mk-btn mk-btn-secondary" href="{{ work_create_url }}">{{ work_create_label }}</a>
+        {% endif %}
+      </div>
     </div>
   </header>
 
