@@ -6,7 +6,7 @@ from django.views.generic import FormView
 
 from authorization.constants import PermissionCode
 from authorization.services import can
-from organizations.models import Organization
+from organizations.models import Organization, SpaceArchetype
 
 from .forms import ActivityCreateForm
 from .models import ActivityStatus
@@ -22,6 +22,42 @@ class ActivityCreateView(LoginRequiredMixin, FormView):
         kwargs = super().get_form_kwargs()
         kwargs["user"] = self.request.user
         return kwargs
+
+    def _context_space(self):
+        """Contextual creation is a suggestion, never a Mandate."""
+        slug = (self.request.GET.get("space") or "").strip()
+        if not slug:
+            return None
+        space = Organization.objects.filter(slug=slug).first()
+        if space is None or not can(
+            self.request.user, PermissionCode.SPACE_ACTIVITIES_MANAGE, space
+        ):
+            return None
+        if space.archetype not in {
+            SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY,
+        }:
+            return None
+        return space
+
+    def get_initial(self):
+        initial = super().get_initial()
+        space = self._context_space()
+        if space is not None:
+            initial["organization"] = space.pk
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        space = self._context_space()
+        if space is not None:
+            context["create_space_context"] = space
+            context["create_space_label"] = (
+                "Nouvelle initiative"
+                if space.archetype == SpaceArchetype.COMMUNITY
+                else "Nouvelle activité"
+            )
+            context["create_space_return"] = True
+        return context
 
     def post(self, request, *args, **kwargs):
         # Reject a forged Space context before form validation turns it into a
@@ -60,4 +96,7 @@ class ActivityCreateView(LoginRequiredMixin, FormView):
             self.request,
             f"Activité « {activity.title} » créée en brouillon.",
         )
+        context_space = self._context_space()
+        if context_space is not None and space == context_space:
+            return redirect("organizations:space-work", slug=context_space.slug)
         return redirect("core:participant-home")
