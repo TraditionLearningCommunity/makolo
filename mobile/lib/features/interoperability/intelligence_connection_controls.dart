@@ -88,7 +88,14 @@ class _IntelligenceConnectionControlsState
           ? 'Connexion retirée de Makolo. Révoquez aussi la clé chez le fournisseur.'
           : 'Connexion enregistrée sur le serveur.');
     } on Object {
-      _notice('Opération impossible. La connexion actuelle est conservée.');
+      // A 401/403/404 may mean current authority was revoked. Ask the owner
+      // screen to revalidate; never leave an old Space permission actionable.
+      try {
+        await widget.onChanged();
+      } on Object {
+        // The owner screen keeps its own unavailable/recovery state.
+      }
+      _notice('Opération non confirmée par le serveur. Vérifiez votre autorité.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
