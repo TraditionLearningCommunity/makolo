@@ -8,10 +8,13 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
 from django.db import transaction
 
 from accounts.models import UserProfile
+from authorization.constants import PermissionCode
+from authorization.selectors import has_direct_space_permission
+from authorization.services import can
 from intelligence.capabilities import IntelligenceCapability
 from intelligence.credentials import set_provider_secret
 from intelligence.models import (
@@ -97,6 +100,22 @@ def _owner_filter(*, scope, profile=None, space=None):
     raise ValidationError("Portée de connexion invalide.")
 
 
+def _assert_management(*, actor, scope, profile=None, space=None):
+    if scope == ProviderScope.PROFILE:
+        if profile is None or profile.user_id != actor.pk:
+            raise PermissionDenied("Profil non autorisé.")
+        return
+    if scope == ProviderScope.SPACE:
+        if space is None or not has_direct_space_permission(
+            actor, space, PermissionCode.SPACE_MANAGE,
+        ):
+            raise PermissionDenied("Autorité Space requise.")
+        return
+    if scope == ProviderScope.PLATFORM and can(actor, PermissionCode.PLATFORM_MANAGE):
+        return
+    raise PermissionDenied("Autorité insuffisante.")
+
+
 @transaction.atomic
 def create_connection(*, actor, scope, payload, space=None):
     """Create one concrete provider connection, routes and encrypted credential atomically."""
@@ -120,16 +139,22 @@ def create_connection(*, actor, scope, payload, space=None):
 
     if scope == ProviderScope.PROFILE:
         # Lock the existing canonical Profile row to prevent duplicate concurrent submissions.
-        profile = UserProfile.objects.select_for_update().get(user=actor)
+        profile, _ = UserProfile.objects.get_or_create(user=actor)
+        profile = UserProfile.objects.select_for_update().get(pk=profile.pk)
+        _assert_management(actor=actor, scope=scope, profile=profile)
         owner = _owner_filter(scope=scope, profile=profile)
     elif scope == ProviderScope.SPACE:
         # The authorization gate belongs to the caller and is rechecked at API entry.
         from organizations.models import Organization
+        if space is None:
+            raise PermissionDenied("Espace requis.")
         locked_space = Organization.objects.select_for_update().get(pk=space.pk)
+        _assert_management(actor=actor, scope=scope, space=locked_space)
         owner = _owner_filter(scope=scope, space=locked_space)
     else:
         # Platform lifecycle is technical; serialize changes on the current operator.
         type(actor).objects.select_for_update().get(pk=actor.pk)
+        _assert_management(actor=actor, scope=scope)
         owner = _owner_filter(scope=scope)
 
     if ProviderConnection.objects.filter(**owner, protocol=offer.protocol, base_url=offer.base_url, name=name).exists():
@@ -148,7 +173,7 @@ def create_connection(*, actor, scope, payload, space=None):
 
 
 @transaction.atomic
-def update_connection(*, connection, payload):
+def update_connection(*, actor, connection, payload):
     if not isinstance(payload, dict) or not payload or set(payload) - {"enabled", "api_key"}:
         raise ValidationError("Champs non autorisés.")
     enabled = payload.get("enabled")
@@ -157,7 +182,11 @@ def update_connection(*, connection, payload):
     secret = None
     if "api_key" in payload:
         secret = _validate_string(payload["api_key"], field="api_key", max_length=4096, required=True)
-    connection = ProviderConnection.objects.select_for_update().get(pk=connection.pk)
+    connection = ProviderConnection.objects.select_related("profile", "space").select_for_update().get(pk=connection.pk)
+    _assert_management(
+        actor=actor, scope=connection.scope,
+        profile=connection.profile, space=connection.space,
+    )
     if secret is not None:
         set_provider_secret(connection=connection, secret=secret)
         connection.health_status = ProviderHealth.UNKNOWN
@@ -170,9 +199,13 @@ def update_connection(*, connection, payload):
 
 
 @transaction.atomic
-def disconnect_connection(*, connection):
+def disconnect_connection(*, actor, connection):
     """Remove the local channel AND encrypted credential; external key remains provider-owned."""
-    connection = ProviderConnection.objects.select_for_update().get(pk=connection.pk)
+    connection = ProviderConnection.objects.select_related("profile", "space").select_for_update().get(pk=connection.pk)
+    _assert_management(
+        actor=actor, scope=connection.scope,
+        profile=connection.profile, space=connection.space,
+    )
     connection.enabled = False
     connection.save(update_fields=["enabled", "updated_at"])
     connection.delete()
