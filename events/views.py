@@ -92,7 +92,11 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
                 key: values.pop(key, None)
                 for key in ("start_at", "end_at", "start_date", "start_time", "end_date", "end_time", "timing_kind", "timezone")
             }
-            self.object = create_event(actor=self.request.user, **values)
+            try:
+                self.object = create_event(actor=self.request.user, **values)
+            except ValidationError as exc:
+                form.add_error(None, "; ".join(exc.messages if hasattr(exc, "messages") else [str(exc)]))
+                return self.form_invalid(form)
             start_date = occurrence_values["start_date"]
             frequency = schedule_values["frequency"]
             month_day = start_date.day if frequency in {OccurrenceScheduleFrequency.MONTHLY, OccurrenceScheduleFrequency.YEARLY} else None
@@ -117,7 +121,11 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         else:
             values["start_at"] = values.get("start_at") or None
             values["end_at"] = values.get("end_at") or None
-            self.object = create_event(actor=self.request.user, **values)
+            try:
+                self.object = create_event(actor=self.request.user, **values)
+            except ValidationError as exc:
+                form.add_error(None, "; ".join(exc.messages if hasattr(exc, "messages") else [str(exc)]))
+                return self.form_invalid(form)
         ensure_policy(self.object)
         messages.success(self.request, "Événement créé en brouillon avec ses dates Makolo.")
         return redirect(self.get_success_url())
