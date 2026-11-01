@@ -1,0 +1,296 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../../app/providers.dart';
+import '../../repositories/interoperability_repository.dart';
+
+/// Owner-specific credential controls. Secrets are never written to ProfileStore
+/// and provider endpoints are never supplied by the client.
+class IntelligenceConnectionControls extends StatefulWidget {
+  const IntelligenceConnectionControls({
+    super.key,
+    required this.runtime,
+    required this.path,
+    required this.connections,
+    required this.onChanged,
+  });
+
+  final AppRuntime runtime;
+  final String path;
+  final List<InteroperabilityConnectionProjection> connections;
+  final Future<void> Function() onChanged;
+
+  @override
+  State<IntelligenceConnectionControls> createState() =>
+      _IntelligenceConnectionControlsState();
+}
+
+class _IntelligenceConnectionControlsState
+    extends State<IntelligenceConnectionControls> {
+  List<Map<String, dynamic>> _offers = const [];
+  bool _busy = false;
+  bool _catalogLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadCatalog());
+  }
+
+  Future<void> _loadCatalog() async {
+    final api = widget.runtime.api;
+    if (api == null) {
+      if (mounted) setState(() => _catalogLoading = false);
+      return;
+    }
+    try {
+      final result = (await api.get(widget.path)).jsonObject();
+      final offers = result['offers'];
+      if (!mounted) return;
+      setState(() {
+        _offers = offers is List
+            ? offers.whereType<Map<String, dynamic>>().toList(growable: false)
+            : const [];
+        _catalogLoading = false;
+      });
+    } on Object {
+      if (mounted) setState(() => _catalogLoading = false);
+    }
+  }
+
+  void _notice(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _submit({
+    String? id,
+    required String method,
+    required Map<String, dynamic> body,
+  }) async {
+    if (_busy || widget.runtime.api == null) return;
+    setState(() => _busy = true);
+    try {
+      final api = widget.runtime.api!;
+      final path = id == null ? widget.path : '${widget.path}$id/';
+      if (method == 'POST') {
+        await api.post(path, body: body);
+      } else if (method == 'PATCH') {
+        await api.patch(path, body: body);
+      } else {
+        await api.delete(path);
+      }
+      await widget.onChanged();
+      _notice(method == 'DELETE'
+          ? 'Connexion retirée de Makolo. Révoquez aussi la clé chez le fournisseur.'
+          : 'Connexion enregistrée sur le serveur.');
+    } on Object {
+      _notice('Opération impossible. La connexion actuelle est conservée.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _create(Map<String, dynamic> offer) async {
+    final name = TextEditingController(text: offer['label'] as String? ?? '');
+    final model = TextEditingController();
+    final secret = TextEditingController();
+    try {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Relier ${offer['label']}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(offer['description'] as String? ?? ''),
+                const SizedBox(height: 12),
+                const Text('Votre clé reste chiffrée sur le serveur Makolo. '
+                    'Les appels peuvent être facturés par le fournisseur.'),
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Nom de la connexion'),
+                  maxLength: 120,
+                ),
+                if (offer['requires_model'] == true)
+                  TextField(
+                    controller: model,
+                    decoration: const InputDecoration(labelText: 'Identifiant du modèle'),
+                    maxLength: 160,
+                  ),
+                TextField(
+                  controller: secret,
+                  obscureText: true,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  decoration: const InputDecoration(labelText: 'Clé API'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Relier'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
+      if (name.text.trim().isEmpty || secret.text.trim().isEmpty ||
+          (offer['requires_model'] == true && model.text.trim().isEmpty)) {
+        _notice('Renseignez le nom, la clé et le modèle si nécessaire.');
+        return;
+      }
+      await _submit(method: 'POST', body: {
+        'provider': offer['code'],
+        'name': name.text.trim(),
+        'model': model.text.trim(),
+        'api_key': secret.text.trim(),
+      });
+    } finally {
+      name.dispose();
+      model.dispose();
+      secret.dispose();
+    }
+  }
+
+  Future<void> _manage(InteroperabilityConnectionProjection connection, String action) async {
+    if (_busy) return;
+    if (action == 'rotate') {
+      final controller = TextEditingController();
+      try {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Remplacer la clé API'),
+            content: TextField(
+              controller: controller,
+              obscureText: true,
+              enableSuggestions: false,
+              autocorrect: false,
+              decoration: const InputDecoration(labelText: 'Nouvelle clé API'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Remplacer'),
+              ),
+            ],
+          ),
+        );
+        if (confirmed == true && controller.text.trim().isNotEmpty && mounted) {
+          await _submit(
+            id: connection.id, method: 'PATCH',
+            body: {'api_key': controller.text.trim()},
+          );
+        }
+      } finally {
+        controller.dispose();
+      }
+      return;
+    }
+    if (action == 'disconnect') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Retirer cette connexion ?'),
+          content: const Text('Les credentials conservés par Makolo seront '
+              'supprimés. Votre clé externe reste sous le contrôle du fournisseur.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Retirer'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && mounted) {
+        await _submit(id: connection.id, method: 'DELETE', body: const {});
+      }
+      return;
+    }
+    await _submit(
+      id: connection.id, method: 'PATCH',
+      body: {'enabled': action == 'enable'},
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.runtime.api == null) return const SizedBox.shrink();
+    final connectable = _offers.where((row) => row['can_connect'] == true).toList();
+    final manageable = widget.connections
+        .where((row) => row.manageable && row.owner == 'intelligence')
+        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_catalogLoading) const LinearProgressIndicator(minHeight: 2),
+        if (connectable.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text('Relier un service Intelligence',
+              style: Theme.of(context).textTheme.titleMedium),
+          const Text('Utilisez une clé API qui vous appartient. '
+              'Il ne s’agit pas d’un accès à votre compte social.'),
+          for (final offer in connectable)
+            ListTile(
+              leading: const Icon(Icons.add_link),
+              title: Text(offer['label'] as String? ?? 'Service'),
+              subtitle: Text(offer['description'] as String? ?? ''),
+              enabled: !_busy,
+              onTap: () => unawaited(_create(offer)),
+            ),
+        ],
+        if (_offers.isNotEmpty && connectable.isEmpty)
+          const Text('La configuration sécurisée des connexions '
+              'est indisponible sur ce serveur.'),
+        if (manageable.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text('Gérer les connexions',
+              style: Theme.of(context).textTheme.titleMedium),
+          for (final connection in manageable)
+            ListTile(
+              title: Text(connection.displayName),
+              trailing: PopupMenuButton<String>(
+                enabled: !_busy,
+                tooltip: 'Gérer la connexion',
+                onSelected: (action) => unawaited(_manage(connection, action)),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: connection.enabled ? 'disable' : 'enable',
+                    child: Text(connection.enabled ? 'Désactiver' : 'Réactiver'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'rotate',
+                    child: Text('Remplacer la clé'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'disconnect',
+                    child: Text('Retirer de Makolo'),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
