@@ -11,6 +11,9 @@ from django.views.generic import TemplateView
 from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
 from intelligence.interoperability import project_provider_connection, provider_connections_for_space
+from intelligence.connection_web import connection_form_context, handle_connection_form
+from intelligence.models import ProviderScope
+
 from interoperability.presentation import present_connection
 from interoperability.projections import build_interoperability_payload
 
@@ -284,8 +287,19 @@ class SpaceInteroperabilityView(SpaceWebMixin):
             actor=self.request.user,
             authority_context=self.space,
         )
+        context.update(connection_form_context())
         context["connections"] = [present_connection(row) for row in connections]
         return context
+    def post(self, request, *args, **kwargs):
+        if not has_direct_space_permission(
+            request.user, self.space, PermissionCode.SPACE_MANAGE,
+        ):
+            raise Http404
+        return handle_connection_form(
+            request, scope=ProviderScope.SPACE, space=self.space,
+        )
+
+
 
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)
