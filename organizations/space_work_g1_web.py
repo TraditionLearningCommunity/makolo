@@ -155,6 +155,29 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                         self.space.archetype == SpaceArchetype.COMMUNITY
                     ) else "Retour à l’activité"
 
+        if kind == "journey" and "open_request" in selection.get("capabilities", ()):
+            request_handoff = next(
+                (
+                    handoff for handoff in selection.get("owner_handoffs", ())
+                    if handoff.get("intent") == "open_request"
+                    and (handoff.get("owner") or {}).get("kind") == "journey_request"
+                ), None,
+            )
+            request_id = (request_handoff or {}).get("owner", {}).get("id")
+            if request_id:
+                # Existing JourneyRequest console rechecks permission and
+                # resolves this exact owner, not a Journey inferred as Request.
+                actions.append({
+                    "label": "Examiner la demande",
+                    "url": reverse(
+                        "organizations:console-requests",
+                        kwargs={"slug": self.space.slug},
+                    ) + "?" + urlencode({
+                        "request": request_id,
+                        "activity": str(activity.pk),
+                        "status": "all",
+                    }),
+                })
         if kind == "journey" and "open_service_case" in selection.get("capabilities", ()):
             # This is the Service owner URL supplied after operator-scope checks.
             # Never invent a generic mutation or turn an API URL into a Web view.
