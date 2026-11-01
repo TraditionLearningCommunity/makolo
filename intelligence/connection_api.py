@@ -99,7 +99,7 @@ class _ConnectionDetail(_ScopedIntelligenceConnections, APIView):
     def patch(self, request, connection_id, slug=None):
         connection = self._connection(request, connection_id, slug=slug)
         try:
-            connection = update_connection(connection=connection, payload=request.data)
+            connection = update_connection(actor=request.user, connection=connection, payload=request.data)
         except DjangoValidationError as exc:
             raise _validation_error(exc) from exc
         except (ImproperlyConfigured, ValueError):
@@ -112,7 +112,7 @@ class _ConnectionDetail(_ScopedIntelligenceConnections, APIView):
 
     def delete(self, request, connection_id, slug=None):
         connection = self._connection(request, connection_id, slug=slug)
-        disconnect_connection(connection=connection)
+        disconnect_connection(actor=request.user, connection=connection)
         return _response({}, status_code=status.HTTP_204_NO_CONTENT)
 
 
