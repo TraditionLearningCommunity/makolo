@@ -71,7 +71,7 @@ def handle_connection_form(request, *, scope, space=None):
         if request.POST.get("confirm") != "yes":
             messages.error(request, "Confirmez le retrait avant de poursuivre.")
         else:
-            disconnect_connection(connection=connection)
+            disconnect_connection(actor=request.user, connection=connection)
             messages.success(request, "Connexion retirée de Makolo. Révoquez séparément la clé chez le fournisseur si nécessaire.")
         return redirect(request.path)
 
@@ -79,7 +79,7 @@ def handle_connection_form(request, *, scope, space=None):
         "api_key": request.POST.get("api_key", ""),
     }
     try:
-        update_connection(connection=connection, payload=update)
+        update_connection(actor=request.user, connection=connection, payload=update)
         messages.success(request, "Connexion mise à jour.")
     except (ValidationError, ImproperlyConfigured, ValueError):
         messages.error(request, "Modification impossible ; vérifiez les informations et la configuration.")
