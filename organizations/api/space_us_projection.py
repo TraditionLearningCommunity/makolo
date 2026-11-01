@@ -174,6 +174,8 @@ def build_space_us_projection(*, profile, space):
         handoffs["pilot"] = f"/space/{space.slug}/us/pilot"
     if workspace["capabilities"].get("update_space"):
         handoffs["settings"] = f"/space/{space.slug}/us/settings"
+    if has_direct_space_permission(profile, space, PermissionCode.SPACE_MANAGE):
+        handoffs["connections"] = f"/space/{space.slug}/connections"
     can_view_subscription = direct_space and (
         has_direct_space_permission(profile, space, PermissionCode.SPACE_SUBSCRIPTION_VIEW)
         or has_direct_space_permission(profile, space, PermissionCode.SPACE_SUBSCRIPTION_MANAGE)
