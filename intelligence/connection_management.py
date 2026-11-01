@@ -226,6 +226,7 @@ def disconnect_connection(*, actor, connection):
         actor=actor, scope=connection.scope,
         profile=connection.profile, space=connection.space,
     )
+    previous_enabled = connection.enabled
     connection.enabled = False
     connection.save(update_fields=["enabled", "updated_at"])
     from operations.services import audit_action
@@ -233,7 +234,7 @@ def disconnect_connection(*, actor, connection):
         actor=actor, action="intelligence.connection_removed",
         target_type="provider_connection", target_id=connection.pk,
         summary="Connexion Intelligence retirée et credential local supprimé",
-        before={"scope": connection.scope, "enabled": True},
+        before={"scope": connection.scope, "enabled": previous_enabled},
         after={"removed": True},
     )
     connection.delete()
