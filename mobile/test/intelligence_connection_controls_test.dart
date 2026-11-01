@@ -73,7 +73,7 @@ void main() {
             runtime: runtime,
             path: 'api/v1/me/intelligence/connections/',
             connections: const [],
-            onChanged: () async => refreshed = true,
+            onChanged: () async { refreshed = true; },
           ),
         ),
       ),
