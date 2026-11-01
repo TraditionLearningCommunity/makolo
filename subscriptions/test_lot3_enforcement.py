@@ -84,7 +84,7 @@ class RuntimeFeatureEnforcementTests(TestCase):
             "organization": "",
         })
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "création d'Activity")
+        self.assertContains(response, "La création")
         self.assertFalse(Activity.objects.filter(
             title="Not permitted by Subscription",
         ).exists())
