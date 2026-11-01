@@ -5,6 +5,10 @@ from .access_views import PersonalAccessCredentialAPIView, PersonalAccessesAPIVi
 from .history_views import PersonalHistoryAPIView
 from .search_views import PersonalSearchAPIView
 from interoperability.api_views import PersonalInteroperabilityAPIView
+from intelligence.connection_api import (
+    ProfileIntelligenceConnectionsAPIView, ProfileIntelligenceConnectionAPIView,
+)
+
 from .day_of_views import PersonalOccurrenceDayOfAPIView, PersonalOccurrenceLiveAPIView
 from .me_views import (
     PersonalCollectivesAPIView,
@@ -49,6 +53,8 @@ urlpatterns = [
     path("search/", PersonalSearchAPIView.as_view(), name="search"),
     path("orders/<uuid:order_id>/", PersonalCommerceOrderDetailAPIView.as_view(), name="commerce-order-detail"),
     path("interoperability/", PersonalInteroperabilityAPIView.as_view(), name="interoperability"),
+    path("intelligence/connections/", ProfileIntelligenceConnectionsAPIView.as_view(), name="intelligence-connections"),
+    path("intelligence/connections/<uuid:connection_id>/", ProfileIntelligenceConnectionAPIView.as_view(), name="intelligence-connection"),
     path(
         "occurrences/<uuid:pk>/day-of/",
         PersonalOccurrenceDayOfAPIView.as_view(),
