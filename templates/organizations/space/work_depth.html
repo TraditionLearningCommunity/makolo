@@ -67,15 +67,23 @@
     <ol class="mk-panel divide-y px-5 sm:px-6" style="border-color:var(--mk-border)">
       {% for occurrence in work_depth.related %}
       <li class="py-4" data-mt3-related="{{ occurrence.identity }}">
+        {% if occurrence.openable %}
         <a class="group flex flex-wrap items-center justify-between gap-3" href="{{ occurrence.url }}">
+        {% else %}
+        <div class="flex flex-wrap items-center justify-between gap-3">
+        {% endif %}
           <span class="min-w-0">
-            <span class="block font-extrabold group-hover:underline">{{ occurrence.title }}</span>
+            <span class="block font-extrabold {% if occurrence.openable %}group-hover:underline{% endif %}">{{ occurrence.title }}</span>
             <span class="mt-1 block text-sm" style="color:var(--mk-muted)">
               {% if occurrence.date %}{{ occurrence.date|date:"DATE_FORMAT" }}{% if occurrence.time %} · {{ occurrence.time|time:"H:i" }}{% endif %} · {% endif %}{{ occurrence.status }}
             </span>
           </span>
+          {% if occurrence.openable %}
           <span class="mk-btn mk-btn-secondary">Ouvrir</span>
-        </a>
+          {% else %}
+          <span class="text-xs" style="color:var(--mk-muted)">Date passée · état à actualiser</span>
+          {% endif %}
+        {% if occurrence.openable %}</a>{% else %}</div>{% endif %}
       </li>
       {% endfor %}
     </ol>
