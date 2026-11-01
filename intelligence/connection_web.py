@@ -51,6 +51,7 @@ def handle_connection_form(request, *, scope, space=None):
                     "name": request.POST.get("name", ""),
                     "model": request.POST.get("model", ""),
                     "api_key": request.POST.get("api_key", ""),
+                    "consent": request.POST.get("consent") == "yes",
                 },
             )
             messages.success(request, "Connexion enregistrée. Sa disponibilité sera vérifiée lors de son utilisation.")
