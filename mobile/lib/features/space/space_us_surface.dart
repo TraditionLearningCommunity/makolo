@@ -63,6 +63,11 @@ class SpaceUsSurface extends StatelessWidget {
     }
 
     final settingsTarget = limited ? null : route('settings');
+    final connectionsTarget =
+        !limited && slug != null &&
+                _value(handoffs?['connections']) == '/space/$slug/connections'
+            ? '/space/$slug/connections'
+            : null;
     final pilotTarget = limited ? null : route('pilot');
     final subscriptionTarget = !limited && slug != null &&
             _value(handoffs?['subscription']) == '/space/$slug/subscription'
@@ -339,6 +344,15 @@ class SpaceUsSurface extends StatelessWidget {
                         context,
                         'Abonnement de cet Espace',
                         subscriptionTarget,
+                        open,
+                      ),
+                    ],
+                    if (connectionsTarget != null) ...[
+                      const SizedBox(height: MakoloSpacing.lg),
+                      _action(
+                        context,
+                        'Gérer les connexions de cet Espace',
+                        connectionsTarget,
                         open,
                       ),
                     ],
