@@ -76,6 +76,7 @@ def _g1_activity_realizations(activity_id, *, offset, now, today):
     """Bounded, owner-attached relation; no other Activity or person is read."""
     rows = list(
         Occurrence.objects.filter(activity_id=activity_id)
+        .select_related("activity")
         .order_by("start_date", "start_time", "pk")[offset:offset + G1_RELATED_LIMIT + 1]
     )
     return {
