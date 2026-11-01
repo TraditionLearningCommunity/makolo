@@ -6,6 +6,7 @@ No new plan, price, capability or persistent usage counter is required.
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
+from django.urls import reverse
 
 from activities.models import Activity
 from activities.services import create_activity, update_activity_common
@@ -68,6 +69,25 @@ class RuntimeFeatureEnforcementTests(TestCase):
         self.assertTrue(
             create_activity(space=self.other_space, created_by=self.owner, title="Other Space allowed")
         )
+
+    def test_activity_web_form_displays_denial_instead_of_server_error(self):
+        from subscriptions.runtime_models import Subscription
+        subscription = Subscription.objects.get(profile=self.owner)
+        subscription.status = "suspended"
+        subscription.save(update_fields=["status"])
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("activities:create"), {
+            "title": "Not permitted by Subscription",
+            "short_description": "",
+            "description": "",
+            "visibility": "private",
+            "organization": "",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "création d'Activity")
+        self.assertFalse(Activity.objects.filter(
+            title="Not permitted by Subscription",
+        ).exists())
 
     def test_unconfigured_team_quota_never_becomes_zero(self):
         entitlement = resolve_entitlement(self.space, "team.members")
@@ -185,7 +205,7 @@ class RuntimeFeatureEnforcementTests(TestCase):
         )
         self.assertEqual(mandate.role_id, role.pk)
         self.assertTrue(Role.objects.filter(pk=role.pk).exists())
-        grant = self.grant(self.space, "custom_roles", False)
+        self.grant(self.space, "custom_roles", False)
         # BOOLEAN_OR keeps the earlier true grant in place. Revoking it,
         # however, must prevent only future creation, never delete history.
         true_grant = next(
