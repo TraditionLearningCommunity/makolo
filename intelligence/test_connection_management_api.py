@@ -107,9 +107,22 @@ class ConnectionManagementAPITests(TestCase):
             "intelligence.connection_updated",
             "intelligence.connection_removed",
         })
-        self.assertNotIn("C4-PRIVATE-KEY", str(records))
-        self.assertNotIn("NEW-SECRET", str(records))
+        for row in records:
+            recorded = str((row.before, row.after, row.metadata, row.summary))
+            self.assertNotIn("C4-PRIVATE-KEY", recorded)
+            self.assertNotIn("NEW-SECRET", recorded)
+            self.assertNotIn("api.tavily.com", recorded)
 
+
+    def test_consent_cannot_be_inferred_from_a_submitted_api_key(self):
+        self._auth(self.owner)
+        response = self.client.post(self.profile_url, {
+            "provider": "tavily",
+            "name": "Sans consentement",
+            "api_key": "NOT-STORED",
+        }, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(ProviderConnection.objects.filter(name="Sans consentement").count(), 0)
 
     def test_cross_profile_is_404_even_for_platform_operator(self):
         self._auth(self.owner)
