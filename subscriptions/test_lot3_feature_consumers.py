@@ -6,7 +6,7 @@ from django.test import TestCase
 from activities.models import Activity
 from activities.services import create_activity
 from authorization.constants import SystemRoleCode
-from authorization.custom_role_services import create_custom_space_role
+from authorization.services import create_custom_space_role
 from authorization.models import Role
 from organizations.models import TeamMembership, TeamMembershipStatus
 from organizations.services import (
