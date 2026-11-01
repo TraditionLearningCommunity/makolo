@@ -171,6 +171,14 @@ def create_connection(*, actor, scope, payload, space=None):
     set_provider_secret(connection=connection, secret=key)
     for capability in offer.capabilities:
         IntelligenceRoute.objects.create(connection=connection, capability=capability)
+    from operations.services import audit_action
+    audit_action(
+        actor=actor, action="intelligence.connection_created",
+        target_type="provider_connection", target_id=connection.pk,
+        summary="Connexion Intelligence personnelle ou collective établie",
+        after={"scope":scope, "protocol":offer.protocol},
+        metadata={"credential_consent": True},
+    )
     return connection
 
 
@@ -189,6 +197,7 @@ def update_connection(*, actor, connection, payload):
         actor=actor, scope=connection.scope,
         profile=connection.profile, space=connection.space,
     )
+    previous_enabled = connection.enabled
     if secret is not None:
         set_provider_secret(connection=connection, secret=secret)
         connection.health_status = ProviderHealth.UNKNOWN
@@ -197,6 +206,15 @@ def update_connection(*, actor, connection, payload):
     if enabled is not None:
         connection.enabled = enabled
     connection.save(update_fields=["enabled", "health_status", "updated_at"])
+    from operations.services import audit_action
+    audit_action(
+        actor=actor, action="intelligence.connection_updated",
+        target_type="provider_connection", target_id=connection.pk,
+        summary="Paramètres d'activation ou clé Intelligence modifiés",
+        before={"enabled": previous_enabled},
+        after={"enabled": connection.enabled},
+        metadata={"scope": connection.scope, "credential_rotated": secret is not None},
+    )
     return connection
 
 
@@ -210,4 +228,12 @@ def disconnect_connection(*, actor, connection):
     )
     connection.enabled = False
     connection.save(update_fields=["enabled", "updated_at"])
+    from operations.services import audit_action
+    audit_action(
+        actor=actor, action="intelligence.connection_removed",
+        target_type="provider_connection", target_id=connection.pk,
+        summary="Connexion Intelligence retirée et credential local supprimé",
+        before={"scope": connection.scope, "enabled": True},
+        after={"removed": True},
+    )
     connection.delete()
