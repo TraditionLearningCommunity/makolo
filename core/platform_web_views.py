@@ -216,6 +216,8 @@ class PlatformInteroperabilityView(PlatformView):
     heading = "Interopérabilité"
 
     def get_context_data(self, **kwargs):
+        if not can(self.request.user, PermissionCode.PLATFORM_MANAGE):
+            raise PermissionDenied("Autorité Platform requise.")
         context = super().get_context_data(**kwargs)
         from intelligence.interoperability import (
             platform_provider_connections,
