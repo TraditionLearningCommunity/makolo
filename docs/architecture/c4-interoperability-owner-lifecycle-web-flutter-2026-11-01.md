@@ -52,7 +52,8 @@ La présence d'un offer signifie **adapter disponible dans Makolo et clé à app
 - **Space :** `space.manage` direct sur le Space courant, réévalué dans la vue et dans les services. `TeamMembership` ou autorité Platform isolée ne suffisent pas. Refus hors portée => 404.
 - **Platform :** `platform.manage` obligatoire en API et sur la vue Web. Connexions du seul scope Platform.
 - Aucun champ fourni par le client ne choisit la portée ou le propriétaire ; routes HTTP et acteur serveur le fixent.
-- Une clé n'est jamais sérialisée, loggée par ces nouveaux chemins ni copiée dans ProfileStore. La connexion est déclarée liée à Makolo et non au compte social.
+- Une clé n'est jamais sérialisée, loggée par ces nouveaux chemins ni copiée dans ProfileStore.
+- Chaque création, modification/rotation et retrait enregistre une trace OperationsAuditLog minimale : actor, portée, ID et type d'opération ; ni secret, ni endpoint, ni nom de modèle. La connexion est déclarée liée à Makolo et non au compte social.
 - L'état `manageable` dans Z16 ne confère jamais un endpoint générique M7 ; les mutations sont documentées exclusivement chez Intelligence.
 - Les `Actions` M7, `Extensions` et Webhooks ne deviennent pas une marketplace par cette livraison.
 
@@ -71,7 +72,7 @@ La présence d'un offer signifie **adapter disponible dans Makolo et clé à app
 
 ## Tests C4 ajoutés (écrits, non exécutés ici)
 
-- API : création atomique, lecture Z16, chiffrement/déchiffrement côté serveur, rotation, disable/enable, retrait, absence de secrets, no-store, refus cross-Profile, Membership ≠ Mandate, Platform ≠ Space, validation stricte, indisponibilité de la clé maître.
+- API : création atomique, lecture Z16, chiffrement/déchiffrement côté serveur, consentement explicite, rotation, disable/enable, retrait, absence de secrets dans les réponses et les audits, no-store, refus cross-Profile, Membership ≠ Mandate, Platform ≠ Space, validation stricte, indisponibilité de la clé maître.
 - Web : formulaires réels Profile/Space, contrôle de propriété, absence de secrets dans l'HTML et confirmation du retrait.
 - Flutter : catalogue vérifié côté serveur, consentement avant soumission, clé présente uniquement dans requête POST du propriétaire, non rendue dans l'écran.
 - Test plus vaste E2E avec véritables credentials fournisseur et vérification physique d'une action de recherche/génération : **non exécuté**, dépend d'un environnement explicitement configuré et d'une clé consentie.
