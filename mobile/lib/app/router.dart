@@ -46,6 +46,7 @@ import '../features/settings/billing_screen.dart';
 import '../features/settings/change_password_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
+import '../features/interoperability/space_connections_screen.dart';
 import '../features/space/space_create_screen.dart';
 import '../features/space/space_us_settings_screen.dart';
 import '../features/space/space_insight_screen.dart';
@@ -426,6 +427,23 @@ GoRouter createMakoloRouter(
         builder: (context, state) => SpaceCreateScreen(runtime: runtime),
       ),
       ...interoperabilityRoutes(runtime),
+      GoRoute(
+        path: '/space/:slug/connections',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Connexions du Space',
+              message: 'Choisissez un Espace autorisé.',
+            );
+          }
+          return SpaceConnectionsScreen(
+            runtime: runtime,
+            slug: actor.space.slug,
+          );
+        },
+      ),
       ...markRoutes(runtime),
       ...continuityRoutes(runtime),
       ...notificationRoutes(runtime),
