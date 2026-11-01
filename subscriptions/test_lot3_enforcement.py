@@ -21,7 +21,9 @@ from organizations.services import (
     create_team,
 )
 from subscriptions.entitlements import resolve_entitlement
-from subscriptions.models import FeatureDefinition
+from subscriptions.models import FeatureDefinition, PlanEntitlement, PlanVersion, SubscriptionPlan
+from subscriptions.runtime_services import add_subscription_item, end_subscription_item
+from subscriptions.services import publish_plan_version
 from subscriptions.runtime_services import create_entitlement_grant, revoke_entitlement_grant
 
 User = get_user_model()
@@ -68,6 +70,40 @@ class RuntimeFeatureEnforcementTests(TestCase):
         self.assertEqual(created.title, "Existing work preserved")
         self.assertTrue(
             create_activity(space=self.other_space, created_by=self.owner, title="Other Space allowed")
+        )
+
+    def test_explicit_false_base_blocks_only_its_profile(self):
+        from subscriptions.runtime_models import Subscription
+        from subscriptions.contracts import SubscriptionPlanType, SubscriptionSubjectType
+        alternate_plan = SubscriptionPlan.objects.create(
+            code="lot3.profile.disabled-create",
+            plan_type=SubscriptionPlanType.BASE,
+            subject_type=SubscriptionSubjectType.PROFILE,
+        )
+        alternate_version = PlanVersion.objects.create(
+            plan=alternate_plan, version=1, name="Profile without Activity create",
+        )
+        PlanEntitlement.objects.create(
+            plan_version=alternate_version,
+            feature=FeatureDefinition.objects.get(code="activities.create"),
+            value=False,
+        )
+        publish_plan_version(alternate_version)
+        subscription = Subscription.objects.get(profile=self.owner)
+        old_base = subscription.items.get(status="active", item_type="base")
+        end_subscription_item(item=old_base, reason="Test declared false capability")
+        add_subscription_item(subscription=subscription, plan_version=alternate_version)
+        self.assertFalse(resolve_entitlement(self.owner, "activities.create").allowed)
+        with self.assertRaises(ValidationError):
+            create_activity(
+                owner_profile=self.owner, created_by=self.owner,
+                title="False BASE blocks profile",
+            )
+        self.assertTrue(
+            create_activity(
+                space=self.space, created_by=self.owner,
+                title="Space BASE remains independent",
+            )
         )
 
     def test_activity_web_form_displays_denial_instead_of_server_error(self):
