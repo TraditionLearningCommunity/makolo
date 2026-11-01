@@ -12,7 +12,9 @@ from authorization.services import grant_activity_role, grant_space_role, revoke
 from groups.models import Group, GroupMembership
 from funding.models import FundingDetails
 from funding.services import can_manage_funding
-from journeys.models import Journey, JourneyStatus, WorkflowKind
+from journeys.models import (
+    Journey, JourneyRequest, JourneyStatus, RequestPurpose, WorkflowKind,
+)
 from organizations.models import Organization, SpaceArchetype
 from services.models import ServiceDetails, ServiceJourneyContext, ServiceKind
 
@@ -288,3 +290,121 @@ class SpaceWorkG1DepthTests(TestCase):
         self.assertContains(result, "Action citoyenne")
         self.assertNotContains(result, beneficiary.email)
         self.assertTrue(result.context["work_depth"]["parent_url"])
+
+    def test_native_g1_activity_selection_returns_bounded_owner_relations(self):
+        activity = self.activity("Activité à plusieurs dates")
+        occurrences = [
+            self.occurrence(activity, label=f"Date {i:02}", days=i + 1)
+            for i in range(16)
+        ]
+        url = "/api/v1/organizations/workspaces/mt3-actions/work/"
+        first = self.client.get(url, {
+            "kind": "activity", "id": str(activity.pk),
+        })
+        self.assertEqual(first.status_code, 200)
+        selected = first.json()["selection"]
+        related = selected["related_occurrences"]
+        self.assertEqual(related["limit"], 12)
+        self.assertEqual(related["offset"], 0)
+        self.assertEqual(len(related["items"]), 12)
+        self.assertTrue(related["has_more"])
+        self.assertEqual(
+            [row["source"]["id"] for row in related["items"]],
+            [str(o.pk) for o in occurrences[:12]],
+        )
+        self.assertTrue(all(row["openable"] for row in related["items"]))
+        second = self.client.get(url, {
+            "kind": "activity", "id": str(activity.pk),
+            "related_offset": "12",
+        })
+        self.assertEqual(second.status_code, 200)
+        page = second.json()["selection"]["related_occurrences"]
+        self.assertEqual(len(page["items"]), 4)
+        self.assertFalse(page["has_more"])
+        self.assertEqual(page["offset"], 12)
+        self.assertNotIn("related_occurrences", self.client.get(url).json())
+
+    def test_native_g1_owner_related_page_cannot_cross_actor_or_scope(self):
+        allowed = self.activity("Action autorisée")
+        foreign = self.activity("Action privée")
+        self.occurrence(allowed, label="Réalisation autorisée")
+        self.occurrence(foreign, label="Réalisation interdite")
+        actor = User.objects.create_user(username="mt3-native-mandate", password="x")
+        mandate = grant_activity_role(
+            profile=actor, activity=allowed,
+            role_code=SystemRoleCode.ACTIVITY_MANAGER,
+            granted_by=self.owner,
+        )
+        url = "/api/v1/organizations/workspaces/mt3-actions/work/"
+        self.client.force_login(actor)
+        params = {"kind": "activity", "id": str(allowed.pk),
+                  "responsibility": f"mandate:{mandate.pk}"}
+        yes = self.client.get(url, params)
+        self.assertEqual(yes.status_code, 200)
+        self.assertIn("Réalisation autorisée", str(yes.json()))
+        self.assertNotIn("Réalisation interdite", str(yes.json()))
+        no = self.client.get(url, {**params, "id": str(foreign.pk)})
+        self.assertEqual(no.status_code, 200)
+        self.assertIsNone(no.json()["selection"])
+        for invalid in ("-1", "not-a-number", "10001"):
+            self.assertEqual(
+                self.client.get(url, {**params, "related_offset": invalid}).status_code,
+                400,
+            )
+        self.assertEqual(
+            self.client.get(url, {"related_offset": "12"}).status_code,
+            400,
+        )
+        revoke_mandate(mandate=mandate, actor=self.owner)
+        self.assertEqual(self.client.get(url, params).status_code, 404)
+
+    def test_elapsed_scheduled_occurrence_is_relation_not_dead_n2_link(self):
+        activity = self.activity("Action ancienne")
+        elapsed = Occurrence.objects.create(
+            activity=activity, label="Séance non clôturée",
+            start_at=timezone.now() - timedelta(days=3),
+            end_at=timezone.now() - timedelta(days=2),
+            status=OccurrenceStatus.SCHEDULED,
+        )
+        response = self.client.get(self.depth_url("activity", activity.pk))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Séance non clôturée")
+        self.assertContains(response, "Date passée · état à actualiser")
+        self.assertFalse(response.context["work_depth"]["related"][0]["openable"])
+        owner = self.client.get("/api/v1/organizations/workspaces/mt3-actions/work/", {
+            "kind": "activity", "id": str(activity.pk),
+        })
+        item = owner.json()["selection"]["related_occurrences"]["items"][0]
+        self.assertEqual(item["source"]["id"], str(elapsed.pk))
+        self.assertFalse(item["openable"])
+
+    def test_real_registration_request_has_exact_web_owner_handoff(self):
+        activity = self.activity("Atelier citoyen")
+        beneficiary = User.objects.create_user(
+            username="mt3-requester", email="mt3-private@example.test", password="x",
+        )
+        journey = Journey.objects.create(
+            initiated_by=beneficiary, beneficiary=beneficiary,
+            activity=activity, workflow=WorkflowKind.REGISTRATION,
+            status=JourneyStatus.PENDING_APPROVAL,
+        )
+        before = self.client.get(self.depth_url("journey", journey.pk))
+        self.assertEqual(before.status_code, 200)
+        self.assertNotContains(before, "Examiner la demande")
+        request = JourneyRequest.objects.create(
+            journey=journey, requester=beneficiary,
+            purpose=RequestPurpose.REGISTRATION,
+        )
+        after = self.client.get(self.depth_url("journey", journey.pk))
+        self.assertEqual(after.status_code, 200)
+        self.assertContains(after, "Examiner la demande")
+        action = next(
+            a for a in after.context["work_depth"]["actions"]
+            if a["label"] == "Examiner la demande"
+        )
+        self.assertIn(f"request={request.pk}", action["url"])
+        queue = self.client.get(action["url"])
+        self.assertEqual(queue.status_code, 200)
+        self.assertEqual([row.pk for row in queue.context["page_obj"]], [request.pk])
+        self.client.force_login(self.outsider)
+        self.assertNotEqual(self.client.get(action["url"]).status_code, 200)
