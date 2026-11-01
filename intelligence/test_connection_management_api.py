@@ -55,7 +55,7 @@ class ConnectionManagementAPITests(TestCase):
 
     def _create(self, url, *, key="C4-PRIVATE-KEY", name="Mon moteur Web"):
         return self.client.post(url, {
-            "provider": "tavily", "name": name, "api_key": key,
+            "provider": "tavily", "name": name, "api_key": key, "consent": True,
         }, format="json")
 
     def test_catalog_and_profile_lifecycle_are_real_but_secret_free(self):
@@ -116,7 +116,7 @@ class ConnectionManagementAPITests(TestCase):
         self._auth(self.owner)
         rejected = self.client.post(self.profile_url, {
             "provider": "tavily", "name": "Malicious",
-            "api_key": "private-key", "base_url": "https://private.invalid",
+            "api_key": "private-key", "base_url": "https://private.invalid", "consent": True,
         }, format="json")
         self.assertEqual(rejected.status_code, 400)
         self.assertFalse(ProviderConnection.objects.filter(name="Malicious").exists())
