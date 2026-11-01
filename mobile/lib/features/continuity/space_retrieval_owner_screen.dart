@@ -156,6 +156,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       'presentation_unavailable': presentationUnavailable,
       'continuity_facet': item['continuity_facet'],
       'related_occurrences': item['related_occurrences'],
+      'space_archetype': payload['archetype'],
       'owner_handoffs': item['owner_handoffs'],
       'day_of':
           (item['capabilities'] is List &&
@@ -364,6 +365,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                       SpaceWorkG1Realizations(
                         payload: spaceMap(data['related_occurrences'])!,
                         slug: widget.spaceActor.space.slug,
+                        isCommunity: data['space_archetype'] == 'community',
                         onPageChange: (nextOffset) {
                           if (!_actorValid) return;
                           setState(() {
