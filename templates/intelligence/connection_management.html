@@ -24,6 +24,9 @@
     <label for="intelligence-key">Clé API personnelle</label>
     <input id="intelligence-key" type="password" name="api_key" maxlength="4096" required autocomplete="new-password">
     <p>La clé est chiffrée côté serveur et ne sera plus affichée. Le fournisseur peut facturer les appels selon son contrat.</p>
+    <label><input type="checkbox" name="consent" value="yes" required>
+      J’autorise Makolo à utiliser cette clé auprès de ce fournisseur pour les capacités indiquées. Je peux retirer cette connexion.
+    </label>
     <button type="submit">Relier ce service</button>
   </form>
   {% else %}
