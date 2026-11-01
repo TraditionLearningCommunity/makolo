@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -207,6 +209,15 @@ class SpaceConsoleRequestsView(SpaceConsoleMixin, TemplateView):
         status = (self.request.GET.get("status") or "pending").strip()
         activity_id = (self.request.GET.get("activity") or "").strip()
         q = (self.request.GET.get("q") or "").strip()
+        request_id = (self.request.GET.get("request") or "").strip()
+        if request_id:
+            # An exact JourneyRequest is always resolved through the existing
+            # console owner selector; a foreign ID cannot widen the scope.
+            try:
+                requested_uuid = UUID(request_id)
+            except (TypeError, ValueError):
+                raise PermissionDenied("Demande indisponible.")
+            queryset = queryset.filter(pk=requested_uuid)
         if status and status != "all":
             queryset = queryset.filter(status=status)
         if activity_id:
@@ -233,6 +244,7 @@ class SpaceConsoleRequestsView(SpaceConsoleMixin, TemplateView):
         context["status_filter"] = status
         context["activity_filter"] = activity_id
         context["query"] = q
+        context["request_filter"] = request_id
         return context
 
 
