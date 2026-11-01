@@ -11,11 +11,13 @@ class SpaceWorkG1Realizations extends StatelessWidget {
     required this.payload,
     required this.slug,
     required this.onPageChange,
+    this.isCommunity = false,
   });
 
   final Map<String, dynamic> payload;
   final String slug;
   final ValueChanged<int> onPageChange;
+  final bool isCommunity;
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +32,17 @@ class SpaceWorkG1Realizations extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Dates et réalisations',
+            isCommunity ? 'Actions et réalisations' : 'Dates et réalisations',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           if (rows.isEmpty && offset == 0)
-            const Text(
-              'Aucune réalisation datée pour le moment. '
-              'L’activité reste disponible.',
+            Text(
+              isCommunity
+                  ? 'Aucune action datée pour le moment. '
+                      'L’initiative reste disponible.'
+                  : 'Aucune réalisation datée pour le moment. '
+                      'L’activité reste disponible.',
             ),
           for (final raw in rows)
             if (spaceMap(raw) case final Map<String, dynamic> row)
