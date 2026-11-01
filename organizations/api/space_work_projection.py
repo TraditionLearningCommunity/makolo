@@ -44,6 +44,61 @@ from transport.models import TransportRoute, Vehicle
 
 
 PREVIEW_LIMIT = 20
+G1_RELATED_LIMIT = 12
+
+
+def g1_occurrence_is_selectable(occurrence, *, now=None, today=None):
+    """Keep Activity related links aligned with the Work owner selection.
+
+    An elapsed but still scheduled Occurrence can remain related without
+    inventing an active phase or returning a broken N2 link.
+    """
+    now = now or timezone.now()
+    today = today or timezone.localdate()
+    if occurrence.status in {
+        OccurrenceStatus.DRAFT, OccurrenceStatus.COMPLETED,
+        OccurrenceStatus.CANCELLED,
+    }:
+        return True
+    if occurrence.status != OccurrenceStatus.SCHEDULED:
+        return False
+    return (
+        occurrence.is_ongoing
+        or (occurrence.start_at is not None and occurrence.start_at > now)
+        or (
+            occurrence.start_at is None and occurrence.start_date
+            and occurrence.start_date > today
+        )
+    )
+
+
+def _g1_activity_realizations(activity_id, *, offset, now, today):
+    """Bounded, owner-attached relation; no other Activity or person is read."""
+    rows = list(
+        Occurrence.objects.filter(activity_id=activity_id)
+        .order_by("start_date", "start_time", "pk")[offset:offset + G1_RELATED_LIMIT + 1]
+    )
+    return {
+        "items": [
+            {
+                "source": {"kind": "occurrence", "id": str(occurrence.pk)},
+                "title": occurrence.label or occurrence.activity.title,
+                "state": occurrence.status,
+                "timing": {
+                    "start_date": occurrence.start_date,
+                    "start_time": occurrence.start_time,
+                    "timezone": occurrence.timezone,
+                },
+                "openable": g1_occurrence_is_selectable(
+                    occurrence, now=now, today=today,
+                ),
+            }
+            for occurrence in rows[:G1_RELATED_LIMIT]
+        ],
+        "has_more": len(rows) > G1_RELATED_LIMIT,
+        "offset": offset,
+        "limit": G1_RELATED_LIMIT,
+    }
 
 
 def _space_has_activity_portfolio_access(profile, space):
@@ -548,7 +603,7 @@ def _selected(queryset, kind, source_kind, source_id):
 
 def build_space_work_projection(
     *, profile, space, responsibility_key=None, source_kind=None, source_id=None,
-    section_key=None, offset=0
+    section_key=None, offset=0, related_offset=0
 ):
     visible_ids = _visible_activity_ids(profile, space)
     lens_ids = _activity_scope_from_responsibility(
@@ -979,6 +1034,24 @@ def build_space_work_projection(
         if business_world else list(sections)
     )
 
+    selection = (
+        next(
+            (item for section in sections.values() for item in section["items"]),
+            None,
+        ) if source_kind or source_id else None
+    )
+    if (
+        selection is not None
+        and space.archetype in {"generic", "community"}
+        and source_kind == "activity"
+        and selection["source"] == {"kind": "activity", "id": str(source_id)}
+    ):
+        # The selection was filtered by Space and Mandate above; its Activity
+        # is the only owner read here. This is not a global Occurrence list.
+        selection["related_occurrences"] = _g1_activity_realizations(
+            source_id, offset=related_offset, now=now, today=today,
+        )
+
     return {
         "space": {
             "id": str(space.pk),
@@ -1018,10 +1091,7 @@ def build_space_work_projection(
         "coverage_state": "partial" if limited_coverage else "established",
         "sections": sections,
         "page": {"offset": offset if section_key else 0, "limit": PREVIEW_LIMIT},
-        "selection": next(
-            (item for section in sections.values() for item in section["items"]),
-            None,
-        ) if source_kind or source_id else None,
+        "selection": selection,
         "links": {
             "workspace": f"/api/v1/organizations/workspaces/{space.slug}/",
         },
