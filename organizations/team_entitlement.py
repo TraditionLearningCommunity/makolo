@@ -7,6 +7,7 @@ quota reductions. A missing commercial quota is not a fabricated zero limit.
 from django.core.exceptions import ValidationError
 
 from subscriptions.entitlements import resolve_entitlement
+from subscriptions.selectors import get_subscription_for_subject
 
 from .models import TeamMembership, TeamMembershipStatus
 
@@ -21,6 +22,10 @@ def require_team_member_capacity(space, user):
     if already_counted:
         return
 
+    if get_subscription_for_subject(space) is None:
+        raise ValidationError({
+            "subscription": "Cet Espace ne dispose pas de Subscription canonique."
+        })
     entitlement = resolve_entitlement(space, "team.members")
     # The technical default BASE deliberately does not set a commercial quota.
     if entitlement.effective_value is None:
