@@ -408,3 +408,61 @@ class SpaceWorkG1DepthTests(TestCase):
         self.assertEqual([row.pk for row in queue.context["page_obj"]], [request.pk])
         self.client.force_login(self.outsider)
         self.assertNotEqual(self.client.get(action["url"]).status_code, 200)
+
+    def test_g1_creation_reuses_activity_owner_and_returns_to_space(self):
+        root_url = reverse(
+            "organizations:space-work", kwargs={"slug": self.space.slug},
+        )
+        root = self.client.get(root_url)
+        self.assertEqual(root.status_code, 200)
+        self.assertContains(root, "Nouvelle initiative")
+        create_link = root.context["work_create_url"]
+        self.assertIn("space=mt3-actions", create_link)
+        form = self.client.get(create_link)
+        self.assertEqual(form.status_code, 200)
+        self.assertContains(form, "Nouvelle initiative")
+        self.assertEqual(form.context["form"].initial["organization"], self.space.pk)
+        created = self.client.post(create_link, {
+            "organization": str(self.space.pk),
+            "title": "Nouvelle initiative réelle",
+            "short_description": "Action collective",
+            "description": "Une initiative réelle.",
+            "visibility": "private",
+        })
+        self.assertEqual(created.status_code, 302)
+        self.assertEqual(created.url, root_url)
+        activity = Activity.objects.get(title="Nouvelle initiative réelle")
+        self.assertEqual(activity.space_id, self.space.pk)
+        self.assertIsNone(activity.owner_profile_id)
+        self.assertEqual(activity.status, "draft")
+
+    def test_g1_context_does_not_transfer_create_authority(self):
+        activity = self.activity("Initiative portée")
+        actor = User.objects.create_user(username="mt3-no-space-create", password="x")
+        mandate = grant_activity_role(
+            profile=actor, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_login(actor)
+        response = self.client.get(
+            reverse("organizations:space-work", kwargs={"slug": self.space.slug}),
+            {"responsibility": f"mandate:{mandate.pk}"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.context["work_create_url"])
+        self.assertNotContains(response, "Nouvelle initiative")
+        owner_form = self.client.get(
+            reverse("activities:create") + "?space=mt3-actions",
+        )
+        self.assertEqual(owner_form.status_code, 200)
+        self.assertNotContains(owner_form, "Métier · Actions du quartier")
+        forged = self.client.post(reverse("activities:create"), {
+            "organization": str(self.space.pk),
+            "title": "Initiative sans autorité",
+            "visibility": "private",
+        })
+        self.assertEqual(forged.status_code, 403)
+        self.assertFalse(
+            Activity.objects.filter(title="Initiative sans autorité").exists(),
+        )
