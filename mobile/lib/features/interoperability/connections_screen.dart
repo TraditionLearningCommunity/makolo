@@ -243,7 +243,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             height: widget.runtime.api == null ? 520 : 270,
             child: const MakoloEmptyState(
               title: 'Aucune connexion pour le moment',
-              body: 'Aucune connexion personnelle n’est enregistrée. Les services réellement connectables apparaissent ci-dessous si disponibles.',
+              body: 'Aucun service n’est encore disponible pour votre Profil.',
             ),
           ),
           IntelligenceConnectionControls(
