@@ -130,6 +130,23 @@ class RuntimeFeatureEnforcementTests(TestCase):
             organization=self.space, user=self.second,
         ).exists())
 
+    def test_reactivated_legacy_member_respects_quota(self):
+        self.grant(self.space, "team.members", 1)
+        legacy = OrganizationMembership.objects.create(
+            organization=self.space, user=self.second,
+            role=OrganizationRole.EVENT_MANAGER, invited_by=self.owner,
+            is_active=False,
+        )
+        legacy.is_active = True
+        with self.assertRaises(ValidationError):
+            legacy.save()
+        legacy.refresh_from_db()
+        self.assertFalse(legacy.is_active)
+        self.assertFalse(TeamMembership.objects.filter(
+            team__organization=self.space, user=self.second,
+            status=TeamMembershipStatus.ACTIVE,
+        ).exists())
+
     def test_custom_role_creation_needs_both_authority_and_entitlement(self):
         with self.assertRaises(ValidationError):
             create_custom_space_role(
@@ -167,4 +184,19 @@ class RuntimeFeatureEnforcementTests(TestCase):
             granted_by=self.owner,
         )
         self.assertEqual(mandate.role_id, role.pk)
+        self.assertTrue(Role.objects.filter(pk=role.pk).exists())
+        grant = self.grant(self.space, "custom_roles", False)
+        # BOOLEAN_OR keeps the earlier true grant in place. Revoking it,
+        # however, must prevent only future creation, never delete history.
+        true_grant = next(
+            row for row in self.space.entitlement_grants.filter(
+                feature__code="custom_roles",
+            ) if row.value is True
+        )
+        revoke_entitlement_grant(grant=true_grant, actor=self.owner, reason="Test downgrade")
+        with self.assertRaises(ValidationError):
+            create_custom_space_role(
+                actor=self.owner, space=self.space,
+                code="after-downgrade", name="Nouveau rôle interdit",
+            )
         self.assertTrue(Role.objects.filter(pk=role.pk).exists())
