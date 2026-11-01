@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
+from intelligence.connection_web import connection_form_context, handle_connection_form
+from intelligence.models import ProviderScope
 
 from interoperability.presentation import (
     present_action,
@@ -20,6 +22,7 @@ class PersonalConnectionsView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         payload = build_profile_interoperability_payload(self.request.user)
 
+        context.update(connection_form_context())
         context.update(
             {
                 "interoperability": payload,
@@ -45,6 +48,9 @@ class PersonalConnectionsView(LoginRequiredMixin, TemplateView):
             }
         )
         return context
+
+    def post(self, request, *args, **kwargs):
+        return handle_connection_form(request, scope=ProviderScope.PROFILE)
 
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)
