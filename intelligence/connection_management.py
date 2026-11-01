@@ -121,8 +121,10 @@ def create_connection(*, actor, scope, payload, space=None):
     """Create one concrete provider connection, routes and encrypted credential atomically."""
     if not isinstance(payload, dict):
         raise ValidationError("Données invalides.")
-    if set(payload) - {"provider", "name", "api_key", "model"}:
+    if set(payload) - {"provider", "name", "api_key", "model", "consent"}:
         raise ValidationError("Champs non autorisés.")
+    if payload.get("consent") is not True:
+        raise ValidationError({"consent": "Confirmez l'usage de votre clé pour ce fournisseur."})
     provider = _validate_string(payload.get("provider"), field="provider", max_length=30, required=True)
     offer = OFFERS.get(provider)
     if offer is None:
