@@ -8,6 +8,7 @@ import '../../design/makolo_patterns.dart';
 import '../../presentation/contracts/space_presentation.dart';
 import '../../presentation/mps/mps_models.dart';
 import '../../presentation/mps/mps_native_renderer.dart';
+import '../space/space_work_g1_realizations.dart';
 
 /// Owner-backed Space N3. A search result is never an authorization grant:
 /// every opening re-reads the source using the current account and actor.
@@ -32,6 +33,7 @@ class SpaceRetrievalOwnerScreen extends StatefulWidget {
 
 class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
   late Future<Map<String, dynamic>> _result;
+  int _relatedOffset = 0;
 
   bool get _actorValid =>
       widget.runtime.actorContext?.value == widget.spaceActor;
@@ -46,6 +48,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
   void _onActorChanged() {
     if (!mounted) return;
     setState(() {
+      _relatedOffset = 0;
       // A return to this Space also forces owner revalidation.
       _result = _actorValid
           ? _readOwner()
@@ -70,6 +73,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
         oldWidget.spaceActor != widget.spaceActor ||
         oldWidget.kind != widget.kind ||
         oldWidget.id != widget.id) {
+      _relatedOffset = 0;
       _result = _readOwner();
     }
   }
@@ -111,6 +115,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       queryParameters: {
         'kind': kind,
         'id': widget.id,
+        if (kind == 'activity' && _relatedOffset > 0)
+          'related_offset': '$_relatedOffset',
         if (!perspective.isAll) 'responsibility': perspective.id!,
       },
     ).toString();
@@ -119,6 +125,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     final source = spaceMap(item?['source']);
     final space = spaceMap(payload['space']);
     if (space?['id'] != widget.spaceActor.space.id ||
+        payload['responsibility'] != (perspective.id ?? 'all') ||
         source?['kind'] != kind ||
         source?['id'] != widget.id) {
       throw const FormatException(
@@ -148,6 +155,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       'presentation': presentation,
       'presentation_unavailable': presentationUnavailable,
       'continuity_facet': item['continuity_facet'],
+      'related_occurrences': item['related_occurrences'],
+      'owner_handoffs': item['owner_handoffs'],
       'day_of':
           (item['capabilities'] is List &&
           (item['capabilities'] as List).contains('open_day_of')),
@@ -350,6 +359,36 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         body:
                             '${blockers.length} blocage(s) actif(s) dans cette démarche.',
                       ),
+                    if (widget.kind == 'activity' &&
+                        spaceMap(data['related_occurrences']) != null)
+                      SpaceWorkG1Realizations(
+                        payload: spaceMap(data['related_occurrences'])!,
+                        slug: widget.spaceActor.space.slug,
+                        onPageChange: (nextOffset) {
+                          if (!_actorValid) return;
+                          setState(() {
+                            _relatedOffset = nextOffset;
+                            _result = _readOwner();
+                          });
+                        },
+                      ),
+                    if (widget.kind == 'journey' &&
+                        data['owner_handoffs'] is List)
+                      for (final handoff in data['owner_handoffs'] as List)
+                        if (spaceText(spaceMap(handoff)?['intent']) ==
+                                'open_request' &&
+                            spaceText(spaceMap(spaceMap(handoff)?['owner'])?['kind']) ==
+                                'journey_request' &&
+                            spaceText(spaceMap(spaceMap(handoff)?['owner'])?['id'])
+                                case final String requestId)
+                          ListTile(
+                            leading: const Icon(Icons.fact_check_outlined),
+                            title: const Text('Examiner la demande'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => context.push(
+                              '/space/requests/${Uri.encodeComponent(requestId)}',
+                            ),
+                          ),
                     if (activityRoute != null)
                       ListTile(
                         title: Text(
