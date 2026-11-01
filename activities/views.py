@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import FormView
 
@@ -42,16 +42,20 @@ class ActivityCreateView(LoginRequiredMixin, FormView):
             space,
         ):
             raise PermissionDenied("Vous ne pouvez pas organiser une Activity au nom de cet Espace.")
-        activity = create_activity(
-            space=space,
-            owner_profile=self.request.user if space is None else None,
-            created_by=self.request.user,
-            title=form.cleaned_data["title"],
-            short_description=form.cleaned_data["short_description"],
-            description=form.cleaned_data["description"],
-            visibility=form.cleaned_data["visibility"],
-            status=ActivityStatus.DRAFT,
-        )
+        try:
+            activity = create_activity(
+                space=space,
+                owner_profile=self.request.user if space is None else None,
+                created_by=self.request.user,
+                title=form.cleaned_data["title"],
+                short_description=form.cleaned_data["short_description"],
+                description=form.cleaned_data["description"],
+                visibility=form.cleaned_data["visibility"],
+                status=ActivityStatus.DRAFT,
+            )
+        except ValidationError as exc:
+            form.add_error(None, "; ".join(exc.messages if hasattr(exc, "messages") else [str(exc)]))
+            return self.form_invalid(form)
         messages.success(
             self.request,
             f"Activité « {activity.title} » créée en brouillon.",
