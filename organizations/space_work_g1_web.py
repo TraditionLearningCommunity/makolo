@@ -20,7 +20,9 @@ from authorization.constants import PermissionCode
 from authorization.services import can
 from organizations.models import SpaceArchetype
 
-from .api.space_work_projection import build_space_work_projection
+from .api.space_work_projection import (
+    build_space_work_projection, g1_occurrence_is_selectable,
+)
 from .space_web_views import SpaceWebMixin
 
 
@@ -201,6 +203,7 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                 "identity": f"occurrence:{occurrence.pk}",
                 "title": occurrence.label or activity.title,
                 "status": occurrence.get_status_display(),
+                "openable": g1_occurrence_is_selectable(occurrence),
                 "date": occurrence.start_date,
                 "time": occurrence.start_time,
                 "url": _work_depth_url(
