@@ -38,7 +38,7 @@ class C4WebConnectionTests(TestCase):
         self.assertContains(page, "Relier ce service")
         self.assertContains(page, 'name="api_key"')
         response = self.client.post(url, {
-            "operation": "create", "provider": "tavily",
+            "operation": "create", "consent": "yes", "provider": "tavily",
             "name": "Recherche personnelle", "model": "",
             "api_key": "C4-WEB-SECRET",
         })
@@ -63,7 +63,7 @@ class C4WebConnectionTests(TestCase):
         self.client.force_login(self.actor)
         url = reverse("core:participant-connections")
         self.client.post(url, {
-            "operation": "create", "provider": "exa",
+            "operation": "create", "consent": "yes", "provider": "exa",
             "name": "Exa C4", "model": "", "api_key": "not-logged",
         })
         own = ProviderConnection.objects.get(name="Exa C4")
@@ -80,7 +80,7 @@ class C4WebConnectionTests(TestCase):
                       kwargs={"slug": self.space.slug})
         self.client.force_login(self.actor)
         response = self.client.post(url, {
-            "operation": "create", "provider": "tavily",
+            "operation": "create", "consent": "yes", "provider": "tavily",
             "name": "Service collectif C4", "model": "",
             "api_key": "space-secret",
         })
