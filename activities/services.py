@@ -9,6 +9,7 @@ from authorization.services import grant_activity_role
 from domain_events.contracts import DomainEventType
 from domain_events.services import emit_domain_event
 from organizations.services import require_space_operational
+from subscriptions.entitlements import resolve_entitlement
 
 from .models import (
     Activity,
@@ -82,6 +83,15 @@ def create_activity(*, created_by, title, space=None, owner_profile=None, **fiel
         raise ValidationError(
             {"owner_profile": "Une Activity personnelle doit être créée par son propriétaire."}
         )
+
+    # Permission/Mandate belongs to the caller's workflow. Product capability
+    # belongs solely to the logical Activity owner, never the acting Profile.
+    entitlement_subject = space if space is not None else owner_profile
+    capability = resolve_entitlement(entitlement_subject, "activities.create")
+    if not capability.allowed:
+        raise ValidationError({
+            "subscription": "La création d'Activity n'est pas disponible pour ce sujet."
+        })
 
     activity = Activity(
         space=space,
