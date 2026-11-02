@@ -56,7 +56,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     try {
       // Cached Z16 is an observation, not current permission to mutate.
       // Refresh even when a snapshot exists; a failure preserves it.
-      if (widget.runtime.api != null && widget.runtime.sync != null) {
+      if (widget.runtime.sync != null) {
         await _refresh();
       }
     } on Object {
