@@ -274,9 +274,13 @@ class SyncEngine {
     if (_isDiscoveryRelated(source)) {
       try {
         await const DiscoveryOfflineStore().purgeAutomaticRecognition();
+      } on Object {
+        // Recognition cache cleanup is best effort after SQLite withdrawal.
+      }
+      try {
         await DiscoveryOfflineStore(profileId: profileId).purgePrivateReader();
       } on Object {
-        // Projection withdrawal has already committed in SQLite.
+        // A failure in one filesystem surface must not skip the other.
       }
     }
     // A root owner denial revokes its derived continuation too. A network
