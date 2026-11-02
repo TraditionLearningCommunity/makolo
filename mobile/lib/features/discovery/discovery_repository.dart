@@ -259,6 +259,17 @@ class DiscoveryQuery {
   }
 }
 
+/// Non-persistent result of a user-invoked Discovery owner action.
+class DiscoveryClarification {
+  const DiscoveryClarification({
+    required this.status,
+    required this.criteria,
+  });
+
+  final String status;
+  final Map<String, String> criteria;
+}
+
 class DiscoverySourceState {
   const DiscoverySourceState({
     this.lastSuccessAt,
@@ -328,6 +339,45 @@ class DiscoveryRepository {
   final String profileId;
   final MakoloApiClient api;
   final SyncEngine? sync;
+
+  /// One explicit server-side Intelligence attempt; never stored in Drift,
+  /// an outbox, or the Profile's projection history.
+  Future<DiscoveryClarification> clarifySearch(DiscoveryQuery query) async {
+    const allowed = {
+      'q', 'place', 'when', 'period', 'vertical', 'price',
+      'date', 'date_from', 'date_to', 'timezone',
+    };
+    final input = <String, String>{
+      for (final entry in query.parameters.entries)
+        if (allowed.contains(entry.key)) entry.key: entry.value,
+    };
+    final response = (await api.post(
+      'api/v1/discovery/clarify/',
+      body: {'criteria': input},
+    )).jsonObject();
+    if (response['projection'] != 'discovery.clarification') {
+      throw const FormatException('Unexpected Discovery clarification owner');
+    }
+    final data = response['data'];
+    if (data is! Map) {
+      throw const FormatException('Invalid Discovery clarification');
+    }
+    final status = data['status'];
+    final criteria = data['query'];
+    if (status is! String || criteria is! Map) {
+      throw const FormatException('Invalid clarification payload');
+    }
+    final parsed = <String, String>{};
+    for (final entry in criteria.entries) {
+      if (entry.key is! String ||
+          !allowed.contains(entry.key) ||
+          entry.value is! String) {
+        throw const FormatException('Invalid clarification criteria');
+      }
+      parsed[entry.key as String] = entry.value as String;
+    }
+    return DiscoveryClarification(status: status, criteria: parsed);
+  }
 
   // Ephemeral navigation context owned by this Profile-specific repository.
   // No candidate list, permission or server continuation is invented here.
