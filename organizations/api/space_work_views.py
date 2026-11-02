@@ -51,6 +51,28 @@ class SpaceWorkAPIView(APIView):
             raise ValidationError({
                 "related_work_offset": "Une activité doit être sélectionnée.",
             })
+        g3_offsets = {}
+        for key in ("g3_offset", "g3_secondary_offset"):
+            try:
+                value = int(request.query_params.get(key, "0"))
+            except (ValueError, TypeError):
+                raise ValidationError({key: "Décalage invalide."})
+            if not 0 <= value <= 10000:
+                raise ValidationError({key: "Décalage hors limites."})
+            g3_offsets[key] = value
+        if any(g3_offsets.values()) and (
+            request.query_params.get("kind") not in {
+                "activity", "transport_route", "vehicle", "commerce_order"
+            }
+            or not request.query_params.get("id")
+        ):
+            raise ValidationError({"g3_offset": "Choisissez un propriétaire."})
+        if g3_offsets["g3_secondary_offset"] and (
+            request.query_params.get("kind") != "transport_route"
+        ):
+            raise ValidationError({
+                "g3_secondary_offset": "Réservé aux relations Route.",
+            })
         payload = build_space_work_projection(
             profile=request.user,
             space=space,
@@ -60,6 +82,7 @@ class SpaceWorkAPIView(APIView):
             section_key=(request.query_params.get("section") or "").strip()[:40] or None,
             offset=offset, related_offset=related_offset,
             related_work_offset=related_work_offset,
+            **g3_offsets,
         )
         if payload is None:
             raise NotFound()
