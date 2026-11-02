@@ -95,6 +95,7 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
 
 def research_discovery_sources(*, actor, text: str) -> dict:
     """Find bounded external leads tied to a Discovery query, not Makolo facts."""
+    import ipaddress
     from urllib.parse import urlsplit
 
     from django.utils import timezone
@@ -151,6 +152,16 @@ def research_discovery_sources(*, actor, text: str) -> dict:
         parts = urlsplit(source.locator)
         if parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
             continue
+        hostname = parts.hostname.lower().rstrip(".")
+        if hostname == "localhost" or hostname.endswith(".localhost"):
+            continue
+        try:
+            ip = ipaddress.ip_address(hostname)
+        except ValueError:
+            pass
+        else:
+            if not ip.is_global:
+                continue
         sources[source.source_ref] = {
             "title": (source.title or parts.hostname)[:160],
             "url": source.locator,
@@ -172,9 +183,16 @@ def research_discovery_sources(*, actor, text: str) -> dict:
         if len(candidates) >= 3:
             break
 
+    cited_urls = {
+        source["url"]
+        for candidate in candidates for source in candidate["sources"]
+    }
     return {
         "status": "completed" if candidates else "no_results",
         "reason": "",
-        "sources": list(sources.values())[:6],
+        "sources": [
+            source for source in sources.values()
+            if source["url"] in cited_urls
+        ][:6],
         "candidates": candidates,
     }
