@@ -36,6 +36,7 @@ import '../features/interoperability/interoperability_routes.dart';
 import '../features/journey/journey_routes.dart';
 import '../features/mark/mark_routes.dart';
 import '../features/me/me_routes.dart';
+import '../features/me/passport_document_reader_screen.dart';
 import '../features/me/me_group_screen.dart';
 import '../features/now/now_routes.dart';
 import '../features/ongoing/ongoing_routes.dart';
@@ -116,7 +117,9 @@ GoRouter createMakoloRouter(
         path.startsWith('/people/') ||
         path.startsWith('/events/') ||
         path.startsWith('/discover/items/') ||
-        path.startsWith('/s/')) {
+        path.startsWith('/s/') ||
+        path.startsWith('/passport/verify/') ||
+        path.startsWith('/passport/shared/')) {
       return false;
     }
     if (MakoloDestination.forPath(path) != null) return true;
@@ -209,6 +212,22 @@ GoRouter createMakoloRouter(
       message: 'Cette page n’est pas disponible.',
     ),
     routes: [
+      GoRoute(
+        path: '/passport/verify/:token',
+        builder: (context, state) => PassportDocumentReaderScreen(
+          runtime: runtime,
+          token: state.pathParameters['token']!,
+          explicitShare: false,
+        ),
+      ),
+      GoRoute(
+        path: '/passport/shared/:token',
+        builder: (context, state) => PassportDocumentReaderScreen(
+          runtime: runtime,
+          token: state.pathParameters['token']!,
+          explicitShare: true,
+        ),
+      ),
       GoRoute(
         path: '/s/:token',
         builder: (context, state) => DiscoverySharedLinkScreen(
