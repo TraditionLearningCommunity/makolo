@@ -130,8 +130,8 @@ class SpaceWorkG3Depth extends StatelessWidget {
       }
     } else if (kind == 'transport_departure') {
       widgets.add(_heading(context, 'Départ réel'));
-      if (facts['can_manage_operations'] == true &&
-          spaceText(facts['departure_id']) case final String departureId) {
+      final departureId = spaceText(facts['departure_id']);
+      if (facts['can_manage_operations'] == true && departureId != null) {
         widgets.add(
           FilledButton.icon(
             icon: const Icon(Icons.tune_outlined),
