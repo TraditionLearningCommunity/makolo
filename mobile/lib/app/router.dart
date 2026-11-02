@@ -58,6 +58,7 @@ import '../features/space/space_request_screen.dart';
 import '../features/space/space_service_case_screen.dart';
 import '../features/space/space_work_offer_editor_screen.dart';
 import '../features/space/space_transport_create_screen.dart';
+import '../features/space/space_transport_departure_operations_screen.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
@@ -472,6 +473,24 @@ GoRouter createMakoloRouter(
             runtime: runtime,
             actor: actor,
             requestId: state.pathParameters['id']!,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/work/g3/departures/:id/operate',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Exploiter le départ',
+              message: 'Choisissez le contexte autorisé de cet Espace.',
+            );
+          }
+          return SpaceTransportDepartureOperationsScreen(
+            runtime: runtime,
+            actor: actor,
+            departureId: state.pathParameters['id']!,
           );
         },
       ),
