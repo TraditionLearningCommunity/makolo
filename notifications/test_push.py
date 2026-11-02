@@ -60,6 +60,46 @@ class PushEndpointApiTests(TestCase):
         endpoint = PushEndpoint.objects.get()
         self.assertEqual(decrypt_runtime_secret(endpoint.encrypted_token), "fcm-token-b")
 
+    def test_c6_device_inventory_is_owner_only_and_secret_free(self):
+        self._register(token="C6-PUSH-SECRET", installation="private-device-a")
+        own = PushEndpoint.objects.get(user=self.user)
+        other = PushEndpoint.objects.create(
+            user=self.other, provider="fcm", platform="ios",
+            installation_id="private-other", token_hash="x" * 64,
+            encrypted_token="other-ciphertext", token_hint="sensitive-hint",
+            active=True,
+        )
+        listing = self.client.get("/api/v1/notifications/push/endpoints/")
+        self.assertEqual(listing.status_code, 200)
+        self.assertEqual(listing["Cache-Control"], "private, no-store")
+        self.assertEqual(len(listing.data["results"]), 1)
+        self.assertEqual(listing.data["results"][0]["id"], str(own.pk))
+        serialized = str(listing.data)
+        for private in ("C6-PUSH-SECRET", "private-device-a",
+                        "private-other", "sensitive-hint", "encrypted_token",
+                        "token_hash", str(other.pk)):
+            self.assertNotIn(private, serialized)
+
+    def test_c6_device_revoke_by_uuid_preserves_other_user_and_is_idempotent(self):
+        self._register(token="own-token", installation="my-device")
+        own = PushEndpoint.objects.get(user=self.user)
+        foreign = PushEndpoint.objects.create(
+            user=self.other, provider="fcm", platform="ios",
+            installation_id="foreign-device", token_hash="y" * 64,
+            encrypted_token="foreign-encrypted", token_hint="hidden",
+            active=True,
+        )
+        foreign_url = f"/api/v1/notifications/push/endpoints/{foreign.pk}/"
+        self.assertEqual(self.client.delete(foreign_url).status_code, 404)
+        foreign.refresh_from_db()
+        self.assertTrue(foreign.active)
+        own_url = f"/api/v1/notifications/push/endpoints/{own.pk}/"
+        self.assertEqual(self.client.delete(own_url).status_code, 204)
+        self.assertEqual(self.client.delete(own_url).status_code, 204)
+        own.refresh_from_db()
+        self.assertFalse(own.active)
+        self.assertEqual(self.client.get("/api/v1/notifications/push/endpoints/").data["results"], [])
+
     def test_revoke_is_scoped_to_authenticated_user(self):
         self._register()
         endpoint = PushEndpoint.objects.get()
