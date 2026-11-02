@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from activities.models import Activity, Occurrence
 from authorization.constants import PermissionCode
+from authorization.selectors import has_direct_space_permission
 from authorization.services import can
 from commerce.models import CommerceOrder, Offer
 from transport.models import TransportDeparture, TransportRoute, TransportService, Vehicle
@@ -223,7 +224,12 @@ def g3_owner_depth(*, space, selection, profile, visible_ids,
                 "passenger_capacity": vehicle.passenger_capacity,
                 "active": vehicle.active,
                 # Vehicle identification belongs to the Space operator.
-                "registration": vehicle.registration or None,
+                "registration": (
+                    vehicle.registration or None
+                    if has_direct_space_permission(
+                        profile, space, PermissionCode.SPACE_ACTIVITIES_MANAGE,
+                    ) else None
+                ),
             },
             "departures": _page(
                 _departure_qs(space, visible_ids).filter(
