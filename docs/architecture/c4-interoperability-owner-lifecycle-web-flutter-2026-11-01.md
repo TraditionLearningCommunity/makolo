@@ -86,3 +86,38 @@ La présence d'un offer signifie **adapter disponible dans Makolo et clé à app
 - La validation CI et les tests locaux n'ont pas été exécutés à la demande ; **aucune fusion** n'est autorisée à être considérée sûre sur cette seule base.
 
 **Critère de fermeture du lot livré :** un acteur peut, dans une portée autorisée, découvrir un provider compatible, accepter l'usage de sa clé, le relier, voir sa Connection projetée, désactiver/réactiver/rotater/retirer, et retrouver l'état cohérent sur Web et Flutter. L'état réel du fournisseur reste une dépendance externe.
+
+
+## C4.5 — Correctifs de fermeture du 2 novembre 2026
+
+### Bugs et incohérences corrigés dans #522
+
+1. **Santé non vérifiée ≠ disponibilité confirmée :** l'écran Flutter Space examine d'abord le health Z16, avant `usable`. Une connexion dont le health est `unknown` affiche « disponibilité à vérifier », jamais « connectée et disponible ». La propriété `usable` conserve sa signification Z16 (« autorisée et techniquement routable »), sans prétendre garantir un résultat fournisseur. Test de présentation : `mobile/test/space_connections_status_test.dart`.
+2. **Santé obsolète après réactivation ou rotation :** la mise à jour owner remet `health_status=unknown`, `last_checked_at=None` et `last_latency_ms=None` lorsque la connexion est réactivée après désactivation ou qu'une clé est remplacée. Test API de non-réutilisation d'une ancienne preuve de santé.
+3. **Continuité Flutter :** une projection personnelle en état `offline`, `failed`, `stale` ou `conflict` ne propose pas de mutation active ; les formulaires ne mettent jamais un secret en outbox. Un échec de mutation n'est pas traité comme un succès local.
+4. **Confirmation serveur distincte de la lecture :** après `POST/PATCH/DELETE`, un rafraîchissement de la projection qui échoue n'annule pas une mutation déjà confirmée. Message dédié à chaque issue.
+5. **Registry réellement consommable :** un test de contrat vérifie qu'une nouvelle Connection Profile Intelligence apparaît dans le `build_runtime_registry` du Profil propriétaire, pas celui d'un autre Profil, disparaît à la désactivation, réapparaît à la réactivation, puis disparaît au retrait.
+6. **Contrôles supplémentaires :** tests Web Platform sous `platform.manage` et vérification CSRF sur les formulaires de credential ; absence de secrets dans les audits.
+
+### Commandes de validation ciblée
+
+À exécuter dans un checkout de la PR #522, avec les dépendances du projet et le runtime de tests configuré :
+
+```bash
+python manage.py test intelligence.test_connection_management_api intelligence.test_connection_management_web interoperability.test_z16_api core.test_w8_personal_interoperability core.test_platform_web organizations.test_ws4_space_web
+python manage.py makemigrations --check --dry-run
+cd mobile
+flutter test test/intelligence_connection_controls_test.dart test/space_connections_status_test.dart test/interoperability_screen_test.dart
+flutter analyze lib/features/interoperability test/intelligence_connection_controls_test.dart test/space_connections_status_test.dart
+```
+
+La vérification fonctionnelle externe exige un fournisseur de test et une clé réellement autorisée (non consignée dans les tests/commits). Pour chaque scope : créer, inspecter Z16, vérifier une route réelle, désactiver/réactiver, tourner le credential, retirer, puis tester la perte de Mandate/le changement de compte et les erreurs réseau. Les appels réseau facturables exigent un consentement explicite ; aucun test E2E payant automatique n'est ajouté.
+
+### Statut de preuve et limites
+
+- **Livré dans le code :** chemins Profile, Space, Platform, Web, Flutter, correctifs et tests ciblés.
+- **Vérifié par inspection des sources GitHub :** existence et intégration des fichiers dans la PR #522.
+- **Non attesté dans cet environnement :** exécution de Django/Flutter, `makemigrations --check`, compilation, vérification de migrations sur PostgreSQL, test E2E avec un vrai fournisseur. Le conteneur de la session ne dispose pas du checkout GitHub, de Django ni de Flutter ; aucune CI n'est déclenchée.
+- **Reste à valider pour prononcer C4 fermé :** sortie verte des commandes ciblées, corrections d'éventuels échecs et démonstration d'un parcours d'intégration fournisseur autorisé. Si une de ces étapes échoue, ne pas marquer C4 `DONE`.
+
+L'objectif reste une fermeture **dans le périmètre Intelligence BYO API key** ; l'OAuth générique, les Actions universelles et les connexions de domaine non implémentées ne sont pas des conditions artificielles de ce C4.
