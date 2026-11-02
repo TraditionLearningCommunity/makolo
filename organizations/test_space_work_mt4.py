@@ -105,6 +105,8 @@ class MT4SpaceEducationServicesTests(TestCase):
         n2 = self.client.get(programme["owner_url"])
         self.assertEqual(n2.status_code, 200)
         self.assertContains(n2, "Sessions de ce programme")
+        self.assertContains(n2, "Gérer les ressources")
+        self.assertContains(n2, "Gérer les formulaires")
         self.assertContains(n2, "Session sur le terrain")
         self.assertContains(n2, "Inscriptions")
         self.assertNotContains(n2, self.learner.email)
