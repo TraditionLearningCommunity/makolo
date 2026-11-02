@@ -35,6 +35,7 @@ class _BillingScreenState extends State<BillingScreen> {
   bool _loading = true;
   String? _error;
   int _requestRevision = 0;
+  String _section = 'overview';
 
   bool get _spaceMode => widget.spaceSlug != null;
 
@@ -294,6 +295,15 @@ class _BillingScreenState extends State<BillingScreen> {
     );
   }
 
+  Widget _sectionLink(String label, String target, IconData icon) => Card(
+    child: ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      trailing: const Icon(Icons.chevron_right_rounded),
+      onTap: () => setState(() => _section = target),
+    ),
+  );
+
   Widget _content() {
     final subscription = _object(_data?['subscription']);
     if (subscription == null) {
@@ -320,6 +330,13 @@ class _BillingScreenState extends State<BillingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_section != 'overview')
+          TextButton.icon(
+            onPressed: () => setState(() => _section = 'overview'),
+            icon: const Icon(Icons.arrow_back_rounded),
+            label: const Text('Retour à mon abonnement'),
+          ),
+        if (_section == 'overview') ...[
         if (_spaceMode && widget.fromTeam && _currentSpace != null) ...[
           Card(
             child: Padding(
@@ -414,7 +431,7 @@ class _BillingScreenState extends State<BillingScreen> {
           const Text(
             'Aucune formule de base active n’est associée à cet abonnement.',
           ),
-        if (addons.isNotEmpty) ...[
+        if (addons.isNotEmpty && _section == 'overview') ...[
           _heading('Options actives'),
           for (final row in addons)
             if (_object(row) != null)
@@ -440,7 +457,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 ),
               ),
         ],
-        if (transition != null) ...[
+        if (transition != null && transition['open'] == true) ...[
           _heading('Changement en cours'),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -495,13 +512,17 @@ class _BillingScreenState extends State<BillingScreen> {
           for (final row in capacities)
             if (_object(row) != null) _capabilityTile(_object(row)!),
         ],
-        _heading(
-          _spaceMode ? 'Abonnement de l’Espace' : 'Gérer mon abonnement',
-        ),
+        _heading('Gérer mon abonnement'),
+        _sectionLink('Changer de formule', 'plans', Icons.swap_horiz_rounded),
+        _sectionLink('Gérer mes options', 'options', Icons.tune_rounded),
+        _sectionLink('Facturation', 'billing', Icons.receipt_long_outlined),
+        _sectionLink('Historique', 'history', Icons.history_rounded),
+        ],
         SubscriptionActionsPanel(
           runtime: widget.runtime,
           snapshot: _data!,
           onUpdated: _load,
+          section: _section,
           spaceSlug: widget.spaceSlug,
           expectedSpaceId: widget.expectedSpaceId,
         ),
@@ -514,7 +535,11 @@ class _BillingScreenState extends State<BillingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _spaceMode ? 'Abonnement de l’Espace' : 'Abonnement & facturation',
+          _section == 'overview'
+              ? (_spaceMode ? 'Abonnement de l’Espace' : 'Abonnement & facturation')
+              : ({'plans': 'Changer de formule', 'options': 'Mes options',
+                  'billing': 'Facturation', 'history': 'Historique'}[_section] ??
+                  'Abonnement & facturation'),
         ),
       ),
       body: _loading && _data == null
