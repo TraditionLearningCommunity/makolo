@@ -104,14 +104,16 @@ class G2TopicsInterestsTests(TestCase):
         self.assertRedirects(response, url)
         self.assertTrue(ProfileInterest.objects.filter(profile=self.user, topic=self.tech).exists())
         self.assertTrue(ProfileInterest.objects.filter(profile=self.other, topic=self.culture).exists())
-        self.assertTrue(ProfileInterest.objects.get(profile=self.other, topic=self.culture).is_public)
+        # The Web form honors an unchecked Public box on the first save;
+        # the service default remains public for clients that do not opt out.
+        self.assertFalse(ProfileInterest.objects.get(profile=self.other, topic=self.culture).is_public)
         self.assertFalse(ProfileInterest.objects.filter(profile=self.other, topic=self.tech).exists())
 
     def test_interest_settings_page_explains_explicit_and_private_behavior(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("account:interests"))
         self.assertContains(response, "Centres d’intérêt")
-        self.assertContains(response, "publics par défaut")
+        self.assertContains(response, "publication est proposée par défaut")
         self.assertContains(response, "ne sont jamais déduits automatiquement")
 
     def test_bookmark_and_follow_do_not_create_profile_interests(self):
