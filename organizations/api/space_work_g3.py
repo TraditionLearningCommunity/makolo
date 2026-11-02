@@ -276,6 +276,10 @@ def g3_owner_depth(*, space, selection, profile, visible_ids,
         departure = occurrence.transport_departure
         service = occurrence.activity.transport_service
         authorized_ops = occurrence.activity_id in operations_ids
+        authorized_manage = can(
+            profile, PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
+            activity=occurrence.activity,
+        )
         return {
             "kind": "transport_departure",
             "facts": {
@@ -306,6 +310,7 @@ def g3_owner_depth(*, space, selection, profile, visible_ids,
                 # the already authorized Work context availability snapshot.
                 "capacity_basis": "capacity_pool",
                 "operations_visible": authorized_ops,
+                "can_manage_operations": authorized_manage,
             },
         }
     return None
