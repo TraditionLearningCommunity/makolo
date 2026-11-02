@@ -53,6 +53,8 @@ class _SpaceWorkCreateActivityScreenState
     'community' => 'initiative',
     'education' => 'programme',
     'service_provider' => 'prestation',
+    'creative' => 'création',
+    'media' => 'production',
     _ => 'activité',
   };
 
