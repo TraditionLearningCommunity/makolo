@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}Centres d’intérêt | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
@@ -10,31 +11,5 @@
     <div class="mt-7 flex justify-end"><button type="submit" class="mk-btn mk-btn-primary">Enregistrer mes centres d’intérêt</button></div>
   </form>
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const choices = [...document.querySelectorAll('input[name="topics"]')];
-  const publicChoices = new Map(
-    [...document.querySelectorAll('input[name="public_topics"]')]
-      .map((choice) => [choice.value, choice])
-  );
-  const initiallySelected = new Set(
-    choices.filter((choice) => choice.checked).map((choice) => choice.value)
-  );
-  for (const choice of choices) {
-    choice.addEventListener('change', () => {
-      const publicChoice = publicChoices.get(choice.value);
-      if (!publicChoice) return;
-      if (!choice.checked) publicChoice.checked = false;
-      else if (!initiallySelected.has(choice.value)) publicChoice.checked = true;
-    });
-  }
-  for (const publicChoice of publicChoices.values()) {
-    publicChoice.addEventListener('change', () => {
-      if (!publicChoice.checked) return;
-      const selected = choices.find((choice) => choice.value === publicChoice.value);
-      if (selected) selected.checked = true;
-    });
-  }
-});
-</script>
+<script defer src="{% static 'js/topic-declaration-visibility.js' %}"></script>
 {% endblock %}
