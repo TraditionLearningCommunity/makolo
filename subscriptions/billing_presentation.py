@@ -61,6 +61,8 @@ def subscription_billing_obligations(subscription, *, offset=0, limit=20):
             Q(subscription_billing_link__subscription=subscription)
             | Q(subscription_transition_links__transition__subscription=subscription)
         )
+        .select_related("subscription_billing_link__transition",
+                        "subscription_billing_link__billing_terms__plan_version")
         .distinct()
         .order_by("-created_at", "-pk")
     )
@@ -68,7 +70,17 @@ def subscription_billing_obligations(subscription, *, offset=0, limit=20):
     rows = [
         {
             "id": str(obligation.pk),
-            "label": obligation.label,
+            "label": (
+                "Abonnement — " + obligation.subscription_billing_link.billing_terms.plan_version.name
+                if hasattr(obligation, "subscription_billing_link")
+                else obligation.label
+            ),
+            "transition_id": (
+                str(obligation.subscription_billing_link.transition_id)
+                if hasattr(obligation, "subscription_billing_link")
+                and obligation.subscription_billing_link.transition_id
+                else None
+            ),
             "amount": str(obligation.amount),
             "currency": obligation.currency,
             "status": obligation.status,
