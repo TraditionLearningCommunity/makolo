@@ -172,4 +172,36 @@ void main() {
     expect(localDataOpened, isTrue);
     expect(find.text('Compte'), findsNothing);
   });
+
+  testWidgets(
+    'account settings remain available without appearance preferences',
+    (tester) async {
+      var securityOpened = false;
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+      );
+      await tester.pumpWidget(MaterialApp(
+        home: AppSettingsScreen(
+          runtime: runtime,
+          onSecurity: () => securityOpened = true,
+          packageInfo: Future.value(PackageInfo(
+            appName: 'Makolo',
+            packageName: 'com.makolo.mobile',
+            version: '1.0.0',
+            buildNumber: '1',
+          )),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Apparence indisponible sur cet appareil'),
+          findsOneWidget);
+      expect(find.text('Réduire les animations'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Sécurité et appareils'), 200);
+      await tester.tap(find.text('Sécurité et appareils'));
+      expect(securityOpened, isTrue);
+    },
+  );
 }
