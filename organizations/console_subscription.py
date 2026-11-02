@@ -24,6 +24,7 @@ from subscriptions.security_services import (
     request_subscription_transition_for_actor,
 )
 from subscriptions.transition_models import SubscriptionTransition
+from subscriptions.ux_continuation import safe_action_return
 
 from .console_views import SpaceConsoleMixin
 
@@ -67,6 +68,7 @@ class SpaceConsoleSubscriptionView(SpaceSubscriptionMixin, TemplateView):
         ))
         context["space_billing"] = space_billing_for_actor(self.request.user, subscription)
         context["space_history"] = subscription_transition_history(subscription)
+        context["subscription_return_url"] = safe_action_return(self.request, space=self.space)
         return context
 
 
