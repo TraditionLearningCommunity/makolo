@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/makolo_components.dart';
@@ -9,17 +10,20 @@ import '../../design/makolo_theme.dart';
 import '../../presentation/humanization.dart';
 import 'discovery_repository.dart';
 import 'discovery_selector.dart';
+import 'discovery_watch_create.dart';
 
 class DiscoveryWatchSummary {
   const DiscoveryWatchSummary({
     required this.id,
     required this.name,
     this.status,
+    this.statusCode,
   });
 
   final String id;
   final String name;
   final String? status;
+  final String? statusCode;
 }
 
 class DiscoveryWatchSelector {
@@ -39,6 +43,7 @@ class DiscoveryWatchSelector {
           id: id,
           name: name,
           status: MakoloHumanization.presentationLabel(_text(row['status'])),
+          statusCode: _text(row['status']),
         ),
       );
     }
@@ -67,6 +72,7 @@ class DiscoveryWatchesScreen extends StatefulWidget {
 class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
   static const _selector = DiscoveryWatchSelector();
   bool _refreshing = false;
+  String? _mutating;
 
   @override
   void initState() {
@@ -86,11 +92,81 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
     }
   }
 
+  Future<void> _create() async {
+    final query = widget.repository.activeExploration;
+    if (query.watchCriteria.isEmpty) {
+      context.push('/discover/search');
+      return;
+    }
+    final id = await showDiscoveryWatchCreation(
+      context, repository: widget.repository, query: query,
+    );
+    if (mounted && id != null) {
+      context.push('/discover/watches/${Uri.encodeComponent(id)}');
+    }
+  }
+
+  Future<void> _change(DiscoveryWatchSummary watch, String action) async {
+    if (_mutating != null) return;
+    if (action == 'delete') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Supprimer cette veille ?'),
+          content: Text('La veille « ${watch.name} » sera supprimée. '
+              'Cela ne supprime aucune possibilité enregistrée.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Supprimer'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+    setState(() => _mutating = watch.id);
+    try {
+      if (action == 'delete') {
+        await widget.repository.deleteWatch(watch.id);
+      } else {
+        await widget.repository.updateWatchStatus(watch.id, action);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(action == 'delete'
+              ? 'Veille supprimée.' : 'État de la veille confirmé.')),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La modification de la veille '
+              'n’a pas été confirmée par le serveur.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _mutating = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Veilles'),
+        actions: [
+          IconButton(
+            key: const Key('discover-watch-create'),
+            tooltip: 'Créer une veille à partir des filtres actifs',
+            onPressed: () => _create(),
+            icon: const Icon(Icons.add_alert_outlined),
+          ),
+        ],
         actions: [
           IconButton(
             tooltip: 'Actualiser',
@@ -142,16 +218,39 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                   const SizedBox(height: MakoloSpacing.sm),
               itemBuilder: (context, index) {
                 final watch = watches[index];
-                return MakoloCard(
-                  onTap: () => widget.onOpenWatch(watch.id),
-                  semanticLabel: 'Veille. ${watch.name}',
-                  child: MakoloStatusMetadataAction(
-                    title: watch.name,
-                    status: watch.status == null
-                        ? null
-                        : MakoloStatus(label: watch.status!),
-                    action: const Icon(Icons.chevron_right_rounded),
-                  ),
+                return Row(
+                  children: [
+                    Expanded(
+                      child: MakoloCard(
+                        onTap: () => widget.onOpenWatch(watch.id),
+                        semanticLabel: 'Veille. ${watch.name}',
+                        child: MakoloStatusMetadataAction(
+                          title: watch.name,
+                          status: watch.status == null
+                              ? null
+                              : MakoloStatus(label: watch.status!),
+                          action: const Icon(Icons.chevron_right_rounded),
+                        ),
+                      ),
+                    ),
+                    PopupMenuButton<String>(
+                      key: ValueKey('discover-watch-manage-${watch.id}'),
+                      enabled: _mutating == null,
+                      tooltip: 'Gérer la veille',
+                      onSelected: (action) => unawaited(_change(watch, action)),
+                      itemBuilder: (_) => [
+                        PopupMenuItem(
+                          value: watch.statusCode == 'paused' ? 'active' : 'paused',
+                          child: Text(watch.statusCode == 'paused'
+                              ? 'Reprendre' : 'Mettre en pause'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Supprimer'),
+                        ),
+                      ],
+                    ),
+                  ],
                 );
               },
             ),
@@ -278,12 +377,9 @@ class _DiscoveryWatchResultsScreenState
                 for (final item in result.items) ...[
                   MakoloCard(
                     onTap: () {
-                      if (item.family == 'activity' ||
-                          item.family == 'service_activity') {
-                        widget.onOpenActivity(item.id);
-                      } else {
-                        widget.onOpenItem(item.family, item.id);
-                      }
+                      // Watch replays the canonical Discovery N2 identity,
+                      // not an Activity-only depth or an engagement action.
+                      widget.onOpenItem(item.family, item.id);
                     },
                     semanticLabel: 'Possibilité. ${item.title}',
                     child: MakoloStatusMetadataAction(
