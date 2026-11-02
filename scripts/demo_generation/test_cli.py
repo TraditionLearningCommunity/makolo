@@ -216,5 +216,33 @@ class DemoGenerationCLITests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 main(["--quick"])
 
+
+    def test_named_beneficiary_routes_without_world_distribution(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "discovery,goals,journeys,access",
+            "--profile-username", "beta_alain", "--profiles", "1",
+        ])
+        with patch("scripts.demo_generation.personal.main") as personal, \
+             patch("scripts.demo_generation.scale.main") as scale:
+            run(args)
+        self.assertEqual(
+            personal.call_args.args[0][personal.call_args.args[0].index("--profile-username") + 1],
+            "beta_alain",
+        )
+        self.assertEqual(
+            scale.call_args.args[0][scale.call_args.args[0].index("--profile-username") + 1],
+            "beta_alain",
+        )
+        self.assertNotIn("--apply", personal.call_args.args[0])
+        self.assertNotIn("--apply", scale.call_args.args[0])
+
+    def test_named_beneficiary_refuses_unscoped_domains(self):
+        args = build_parser().parse_args([
+            "generate", "--domains", "all",
+            "--profile-username", "beta_alain",
+        ])
+        with self.assertRaises(SystemExit):
+            run(args)
+
 if __name__ == "__main__":
     unittest.main()
