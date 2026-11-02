@@ -10,10 +10,12 @@ class PublicExperienceShell extends StatelessWidget {
     super.key,
     required this.current,
     required this.child,
+    this.headerActions = const [],
   });
 
   final int current;
   final Widget child;
+  final List<Widget> headerActions;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,7 @@ class PublicExperienceShell extends StatelessWidget {
           icon: const MakoloMark(size: 36),
         ),
         actions: [
+          ...headerActions,
           OutlinedButton(
             key: const Key('guest-login-action'),
             onPressed: () => context.push('/login'),
