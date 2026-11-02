@@ -252,10 +252,12 @@ def _profile_team_affiliations(profile):
 
 def _profile_group_affiliations(profile):
     """Personal group relations; permissions alone never count as membership."""
-    from groups.models import GroupMembershipStatus
+    from groups.models import GroupMembershipStatus, GroupStatus
     from groups.selectors import groups_for_profile
 
-    rows = groups_for_profile(profile).filter(
+    # The complete Passport represents current affiliations. Archived groups
+    # remain available to their owning domain, not as active membership.
+    rows = groups_for_profile(profile).filter(status=GroupStatus.ACTIVE).filter(
         Q(owner_profile=profile)
         | Q(memberships__profile=profile,
             memberships__status=GroupMembershipStatus.ACTIVE)
