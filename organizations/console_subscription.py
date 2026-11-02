@@ -11,7 +11,7 @@ from django.views.generic import TemplateView
 
 from subscriptions.authorization import subscriptions_visible_to_actor
 from subscriptions.billing_models import PlanVersionBillingTerms
-from subscriptions.billing_presentation import terms_as_dict, with_billing_terms
+from subscriptions.billing_presentation import next_payment_url_for_actor, terms_as_dict, with_billing_terms
 from subscriptions.space_billing_view import space_billing_for_actor
 from subscriptions.personal_history import subscription_transition_history
 from subscriptions.contracts import SubscriptionTransitionKind, SubscriptionTransitionStatus
@@ -156,9 +156,14 @@ class SpaceSubscriptionChangeView(SpaceSubscriptionMixin, View):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            messages.success(request, "La demande de changement de l’Espace a été enregistrée.")
             if transition.status == SubscriptionTransitionStatus.COMPLETED:
                 messages.success(request, "La nouvelle formule de l’Espace est active.")
+            else:
+                payment_url = next_payment_url_for_actor(transition, request.user)
+                if payment_url:
+                    messages.info(request, "Le changement est enregistré. Procédez au paiement pour l’activer.")
+                    return redirect(payment_url)
+                messages.info(request, "Changement à finaliser. Le règlement doit être effectué par un acteur autorisé ou des conditions restent à remplir.")
         return redirect(subscription_return_home(request, space=self.space))
 
 
@@ -193,7 +198,7 @@ class SpaceAddonRemoveView(SpaceSubscriptionMixin, View):
         subscription = self.get_subscription()
         item = get_active_addon(subscription, self.kwargs["item_id"])
         try:
-            request_subscription_transition_for_actor(
+            transition = request_subscription_transition_for_actor(
                 actor=request.user,
                 subscription_id=subscription.pk,
                 kind=SubscriptionTransitionKind.ADDON_REMOVE,
@@ -204,7 +209,7 @@ class SpaceAddonRemoveView(SpaceSubscriptionMixin, View):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            messages.success(request, "La demande de retrait de l’option a été enregistrée.")
+            messages.success(request, "Option retirée." if transition.status == SubscriptionTransitionStatus.COMPLETED else "Retrait de l’option à finaliser.")
         return redirect(subscription_return_home(request, space=self.space))
 
 
