@@ -66,3 +66,27 @@ Aucun collectif aujourd'hui signifie aucun membre autorise. Une adhesion future 
 - Les audiences restreintes sont resolues sur le viewer authentifie et les appartenances courantes a chaque consultation, jamais par simple role global ou cache public.
 - L'aperçu du lecteur peut exposer seulement les champs explicitement ouverts a ce lecteur ; la projection publique exportable conserve ses limites de publication.
 - Regression cible : `accounts.test_passport_visibility_integration` couvre Mandate seul, adhesion active et depart.
+
+## Fermeture fonctionnelle de l'étape 4 — consentement et lecture (PR #522)
+
+### Consentement initial
+- Le programme G conserve la proposition **Public par défaut** pour une nouvelle déclaration explicite Interest / Open To ; aucune déclaration n'est inférée d'une recherche, d'un Favori ou d'une veille.
+- Sur Web, choisir une nouvelle déclaration propose automatiquement sa publication, mais décocher **Afficher publiquement** avant le premier enregistrement doit être respecté par le serveur. Sans JavaScript, le formulaire se replie sur le choix effectivement coché (non coché = privé). Les options visibles sont servies par `static/js/topic-declaration-visibility.js`, sans contrôle de permission côté client.
+- L'API `/api/v1/me/considerations/settings/` accepte `new_visibility: "public" | "private"` pour les déclarations nouvellement créées. En cas d'omission, le comportement public de compatibilité est conservé ; un changement de sélection ne modifie jamais la visibilité des lignes retenues.
+- Flutter propose **Ajouter publiquement / Garder privé** *avant* toute mutation. Le choix `private` ne déclenche ni `searchable` ni conversion d'Interest en Open To.
+- L'ancien formulaire Topics et le réglage détaillé du Passeport ont une seule vérité de divulgation : les cases Public affichent la visibilité publique effectivement calculée. Une action explicite retire le cas échéant une ancienne règle PUBLIC persistée, sans effacer un partage ciblé toujours restreint.
+
+### Frontières du lecteur et des documents
+- `public_profile` ouvre la consultation d'une projection publique ; `searchable` est une décision indépendante. Ni Membership, ni Mandate, ni Permission ne deviennent automatiquement une audience ; une relation collective active est nécessaire des deux côtés.
+- Le mode de consultation par une personne autorisée (`audience=mine`) est **une vue Web dynamique**, pas un droit d'export ni un cinquième type de Passeport. Les téléchargements, PDF et documents publics restent filtrés pour un visiteur public.
+- Une ancienne version publique conserve son identité documentaire et son empreinte. Sa lecture publique est refusée si le Profil, un champ déclaré, un Interest/Open To, une Activity, une Proof ou un Credential qu'elle contient n'est plus publiquement admissible selon le domaine propriétaire. Les identifiants stables (Activity.id, Proof.public_id, Credential.public_id) sont comparés aux sources actuellement représentables ; une simple modification de titre ne révoque pas le contenu daté.
+- Un lien de vérification constate l'émission, il ne crée jamais un partage privé. Un partage explicite d'un snapshot privé non-complet relève de Sharing, avec expiration et révocation propres. Changer la visibilité du Passeport vivant ne rappelle pas les PDF déjà téléchargés ni ne révoque à lui seul un partage explicite : le titulaire doit pouvoir révoquer ce lien séparément.
+- Aucun nouveau domaine de données, variable de production ou audience Activity/Proof/Credential parallèle n'est introduit. Les trois familles gardent les droits de leurs propriétaires canoniques.
+
+### Vérifications ciblées ajoutées, sans bloquer le chantier sur CI
+- `topics.test_passport_initial_disclosure` : première sélection privée ou publique, audience antérieure PUBLIC retirée, audience ciblée préservée, mutation native privée et `searchable` indépendant.
+- `sharing.test_passport_stage4_withdrawal` : un ancien document public est masqué après retrait de l'Activity, de la Proof ou du Credential ; l'émission datée n'est pas effacée.
+- `accounts.test_passport_visibility_integration` : « Mes collectifs » et Space choisi ne s'ouvrent pas avec un Mandate seul.
+- Les migrations historiques ne sont pas destructivement réécrites ; les comportements de publication déjà consentis restent valides.
+
+**État :** règles de l'étape 4 implémentées dans #522. Validation automatique et intégration finale sont des opérations séparées.
