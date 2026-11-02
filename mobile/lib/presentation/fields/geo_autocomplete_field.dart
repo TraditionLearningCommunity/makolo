@@ -244,22 +244,11 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
             border: const OutlineInputBorder(),
           ),
         ),
-        if (widget.gateway == null && widget.controller.text.trim().isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              'Suggestions géographiques non configurées. La saisie libre reste possible.',
-              key: const Key('geo-suggestions-unconfigured'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-          ),
         if (_showSuggestions && _unavailable)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Suggestions indisponibles. Vous pouvez saisir le lieu.',
+              'Impossible de proposer des lieux.',
               key: const Key('geo-suggestions-error'),
               style: theme.textTheme.bodySmall?.copyWith(color: colors.error),
             ),
@@ -272,7 +261,7 @@ class _GeoAutocompleteFieldState extends State<GeoAutocompleteField> {
           const Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text(
-              'Aucun lieu trouvé. Vous pouvez saisir le lieu manuellement.',
+              'Aucun lieu trouvé.',
               key: Key('geo-suggestions-empty'),
             ),
           ),

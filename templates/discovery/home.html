@@ -30,7 +30,6 @@
         <div class="relative max-w-3xl">
             <span class="mk-kicker">Découvrir</span>
             <h1 class="mk-page-title max-w-3xl">Qu’avez-vous envie de vivre, faire ou obtenir ?</h1>
-            <p class="mk-page-copy mt-4 text-[15px] sm:text-base">Décrivez ce que vous cherchez, choisissez une piste ou explorez librement. Makolo vous montre des possibilités réelles et le prochain geste utile pour avancer.</p>
         </div>
 
         <form id="discovery-search-form" method="get" class="relative mt-7 space-y-3">
@@ -53,8 +52,8 @@
             </div>
 
             {% if applied_constraints %}
-            <div class="flex flex-wrap items-center gap-2" aria-label="Contraintes comprises par Makolo">
-                <span class="text-xs font-bold" style="color:var(--mk-muted)">Compris :</span>
+            <div class="flex flex-wrap items-center gap-2" aria-label="Filtres appliqués">
+                <span class="text-xs font-bold" style="color:var(--mk-muted)">Filtres :</span>
                 {% for constraint in applied_constraints %}
                     {% discovery_without discovery_intent constraint.key as remove_query %}
                     <a href="?{{ remove_query }}" class="mk-badge mk-badge-brand" aria-label="Retirer {{ constraint.label }}">{{ constraint.label }} <i data-lucide="x" class="h-4 w-4"></i></a>
@@ -64,7 +63,7 @@
 
             <input id="discover-lat" type="hidden" name="lat" value="{{ filters.lat|default:'' }}">
             <input id="discover-lon" type="hidden" name="lon" value="{{ filters.lon|default:'' }}">
-            <span id="discover-geolocation-status" class="text-xs" style="color:var(--mk-muted)" role="status" aria-live="polite">{% if nearby_active %}Proximité active pour cette recherche.{% endif %}</span>
+            <span id="discover-geolocation-status" class="text-xs" style="color:var(--mk-muted)" role="status" aria-live="polite">{% if nearby_active %}Résultats autour de vous.{% endif %}</span>
 
             <details class="mk-discovery-filters group rounded-2xl border" style="border-color:var(--mk-border);background:color-mix(in srgb,var(--mk-surface-solid) 82%,transparent)" {% if filters.place or filters.when or filters.period or filters.vertical or filters.price or filters.date or filters.date_from or filters.date_to %}open{% endif %}>
                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-bold" style="color:var(--mk-muted)"><span class="flex items-center gap-2"><i data-lucide="sliders-horizontal" class="h-4 w-4"></i>Filtres</span><i data-lucide="chevron-down" class="h-4 w-4 transition group-open:rotate-180"></i></summary>
@@ -99,7 +98,7 @@
                 Clarifier cette recherche
             </button>
             <span class="text-xs" style="color:var(--mk-muted)">
-                Action explicite avec un service Intelligence configuré ; des frais fournisseur peuvent s'appliquer.
+                Des frais peuvent s’appliquer selon votre service connecté.
             </span>
         </form>
         <form method="post" action="{% url 'discovery:research' %}" class="mt-2 flex flex-wrap items-center gap-3">
@@ -110,7 +109,7 @@
                 Chercher des sources externes
             </button>
             <span class="text-xs" style="color:var(--mk-muted)">
-                Recherche explicite avec votre service Web connecté ; sources non vérifiées par Makolo, frais fournisseur possibles.
+                Sources externes non vérifiées. Des frais peuvent s’appliquer selon votre service connecté.
             </span>
             <a href="{% url 'core:participant-connections' %}" class="text-xs underline" style="color:var(--mk-brand)">Gérer mes connexions</a>
         </form>
@@ -125,7 +124,7 @@
             <div><span class="mk-kicker">Autour de vous</span><p class="mt-2 text-sm font-semibold" style="color:var(--mk-muted)">Rayon {{ filters.radius_km|default:'10' }} km · {{ mappable_result_count }} résultat{{ mappable_result_count|pluralize }} sur la carte, sur {{ result_count }} au total</p></div>
             <div class="flex lg:hidden" role="group" aria-label="Mode d’affichage"><button id="discovery-show-list" type="button" class="mk-btn mk-btn-secondary" aria-pressed="true"><i data-lucide="list" class="h-4 w-4"></i>Liste</button><button id="discovery-show-map" type="button" class="mk-btn mk-btn-ghost" aria-pressed="false"><i data-lucide="map" class="h-4 w-4"></i>Carte</button></div>
         </div>
-        <section id="discovery-map-panel" class="hidden lg:block" aria-label="Carte des résultats"><div class="sticky top-24 overflow-hidden rounded-3xl border" style="position:static;border-color:var(--mk-border);background:var(--mk-surface-solid)"><div id="discovery-map" class="h-[62vh] min-h-[420px] w-full" style="height:clamp(220px,30vw,340px);min-height:0" aria-label="Carte des résultats localisés"></div><p id="discovery-map-fallback" class="hidden p-4 text-sm" style="color:var(--mk-muted)" role="status">La carte n’est pas disponible. La liste reste entièrement utilisable.</p></div></section>
+        <section id="discovery-map-panel" class="hidden lg:block" aria-label="Carte des résultats"><div class="sticky top-24 overflow-hidden rounded-3xl border" style="position:static;border-color:var(--mk-border);background:var(--mk-surface-solid)"><div id="discovery-map" class="h-[62vh] min-h-[420px] w-full" style="height:clamp(220px,30vw,340px);min-height:0" aria-label="Carte des résultats localisés"></div><p id="discovery-map-fallback" class="hidden p-4 text-sm" style="color:var(--mk-muted)" role="status">Impossible d’afficher la carte.</p></div></section>
     </section>
     {% endif %}
 
@@ -134,7 +133,7 @@
         <section id="discovery-list-panel" aria-label="Résultats de découverte" class="mk-discovery-results space-y-3"{% if nearby_active and map_items %} style="grid-column:1 / -1"{% endif %}>
             {% for card in discovery_cards %}{% include 'discovery/_universal_card.html' with card=card %}{% endfor %}
 
-            {% if not discovery_cards %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucune possibilité ne correspond à cette recherche.</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Élargissez le lieu ou la date, retirez une contrainte, ou essayez une autre recherche.</p><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary mt-4">Explorer sans filtre</a></div>{% elif not page_obj.has_next %}<div class="mk-panel p-5 text-center sm:p-6" role="status"><p class="font-extrabold">Vous avez vu ce qui est pertinent ici.</p><p class="mt-2 text-sm" style="color:var(--mk-muted)">Makolo ne relâche pas vos critères en silence. Modifiez votre recherche ou vos filtres si vous voulez élargir l’exploration.</p><a href="#discovery-search-form" class="mk-btn mk-btn-secondary mt-4">Modifier ma recherche</a></div>{% endif %}
+            {% if not discovery_cards %}<div class="mk-empty py-14 text-center"><div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl" style="background:var(--mk-surface-muted);color:var(--mk-subtle)"><i data-lucide="search-x" class="h-5 w-5"></i></div><h3 class="mt-4 text-sm font-bold">Aucune possibilité ne correspond à cette recherche.</h3><p class="mt-1 text-xs" style="color:var(--mk-muted)">Élargissez le lieu ou la date, retirez une contrainte, ou essayez une autre recherche.</p><a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary mt-4">Explorer sans filtre</a></div>{% elif not page_obj.has_next %}<div class="mk-panel p-5 text-center sm:p-6" role="status"><p class="font-extrabold">Fin des résultats</p><p class="mt-2 text-sm" style="color:var(--mk-muted)">Pour voir d’autres résultats, modifiez votre recherche ou vos filtres.</p><a href="#discovery-search-form" class="mk-btn mk-btn-secondary mt-4">Modifier ma recherche</a></div>{% endif %}
             {% if page_obj.has_next %}<nav class="flex justify-center pt-2" aria-label="Continuer l’exploration"><a class="mk-btn mk-btn-secondary" rel="next" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}"><i data-lucide="plus" class="h-4 w-4" aria-hidden="true"></i>Voir plus de possibilités</a></nav>{% endif %}
         </section>
     </div>
