@@ -411,13 +411,18 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                     if (widget.kind == 'journey' &&
                         data['owner_handoffs'] is List)
                       for (final handoff in data['owner_handoffs'] as List)
-                        if (spaceText(spaceMap(handoff)?['intent']) ==
-                                'open_request' &&
-                            spaceText(spaceMap(spaceMap(handoff)?['owner'])?['kind']) ==
-                                'journey_request' &&
-                            spaceText(spaceMap(spaceMap(handoff)?['owner'])?['id'])
-                                case final String requestId)
-                          ListTile(
+                        if (spaceText(
+                          spaceMap(spaceMap(handoff)?['owner'])?['id'],
+                        ) case final String requestId)
+                          if (spaceText(spaceMap(handoff)?['intent']) ==
+                                  'open_request' &&
+                              spaceText(
+                                    spaceMap(
+                                      spaceMap(handoff)?['owner'],
+                                    )?['kind'],
+                                  ) ==
+                                  'journey_request')
+                            ListTile(
                             leading: const Icon(Icons.fact_check_outlined),
                             title: const Text('Examiner la demande'),
                             trailing: const Icon(Icons.chevron_right),
