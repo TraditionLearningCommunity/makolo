@@ -20,6 +20,25 @@ _ALLOWED_CRITERIA = frozenset({
 })
 
 
+def _public_failure(reason: str) -> str:
+    if reason in {"invalid_credentials", "rate_limited", "network_unavailable"}:
+        return reason
+    return "provider_unavailable"
+
+
+class _ObservedGateway:
+    """Observe one explicit action, without storing its provider output."""
+    def __init__(self, gateway):
+        self.gateway = gateway
+        self.failure = ""
+
+    def execute(self, request):
+        result = self.gateway.execute(request)
+        if not result.available:
+            self.failure = _public_failure(result.reason)
+        return result
+
+
 def clarify_discovery_search(*, actor, criteria: dict) -> dict:
     """Explicit action, with no client-selected provider/owner or persistent effect."""
     if not getattr(actor, "is_authenticated", False):
@@ -33,6 +52,7 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
     params = {key: value.strip() for key, value in criteria.items()}
     intent = resolve_discovery_intent(params)
     status = "already_structured"
+    reason = ""
     if intent.raw_text and not intent.constraints:
         profile = UserProfile.objects.filter(user=actor).first()
         registry = build_runtime_registry(
@@ -41,21 +61,26 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
         )
         if not registry.providers_for(IntelligenceCapability.STRUCTURED_GENERATE):
             status = "unavailable"
+            reason = "provider_unavailable"
         else:
+            observer = _ObservedGateway(IntelligenceGateway(registry=registry))
             try:
                 enriched = interpret_with_intelligence(
-                    intent,
-                    gateway=IntelligenceGateway(registry=registry),
+                    intent, gateway=observer,
                 )
             except Exception:
                 # No provider exception or credential details reach the client.
                 enriched = intent
-            status = "applied" if enriched != intent else "unchanged"
+                observer.failure = "provider_unavailable"
+            status = ("unavailable" if observer.failure else
+                      "applied" if enriched != intent else "unchanged")
+            reason = observer.failure
             intent = enriched
     elif not intent.raw_text:
         status = "empty"
     return {
         "status": status,
+        "reason": reason,
         "query": intent.to_search_params(),
         "constraints": [
             {
@@ -91,7 +116,8 @@ def research_discovery_sources(*, actor, text: str) -> dict:
         profile=profile,
     )
     if not registry.providers_for(IntelligenceCapability.WEB_RESEARCH):
-        return {"status": "unavailable", "sources": [], "candidates": []}
+        return {"status": "unavailable", "reason": "provider_unavailable",
+                "sources": [], "candidates": []}
 
     mission = ResearchMission(
         primary_family=ResearchFamily.POSSIBILITY,
@@ -112,10 +138,13 @@ def research_discovery_sources(*, actor, text: str) -> dict:
             requested_at=timezone.now(),
         ))
     except Exception:
-        return {"status": "unavailable", "sources": [], "candidates": []}
+        return {"status": "unavailable", "reason": "provider_unavailable",
+                "sources": [], "candidates": []}
 
     if result.outcome.value == "failed":
-        return {"status": "unavailable", "sources": [], "candidates": []}
+        return {"status": "unavailable",
+                "reason": _public_failure(result.failure_code or ""),
+                "sources": [], "candidates": []}
 
     sources = {}
     for source in result.sources:
@@ -145,6 +174,7 @@ def research_discovery_sources(*, actor, text: str) -> dict:
 
     return {
         "status": "completed" if candidates else "no_results",
+        "reason": "",
         "sources": list(sources.values())[:6],
         "candidates": candidates,
     }
