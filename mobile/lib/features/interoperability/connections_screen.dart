@@ -221,7 +221,8 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     if (_refreshFailed ||
         syncStatus?.state == SyncVisualState.offline ||
         syncStatus?.state == SyncVisualState.stale ||
-        syncStatus?.state == SyncVisualState.failed) {
+        syncStatus?.state == SyncVisualState.failed ||
+        syncStatus?.state == SyncVisualState.conflict) {
       return Padding(
         key: const Key('profile-connections-last-known'),
         padding: const EdgeInsets.only(bottom: MakoloSpacing.md),
