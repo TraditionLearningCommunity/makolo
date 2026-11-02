@@ -4,23 +4,21 @@ from dataclasses import replace
 from time import monotonic
 
 from .contracts import IntelligenceRequest, IntelligenceResult
-from .exceptions import IntelligenceError, InvalidProviderResult
+from .exceptions import IntelligenceError, InvalidProviderResult, ProviderUnavailable
 from .registry import IntelligenceRegistry, get_intelligence_registry
 from .telemetry import record_invocation
 
 
 def _safe_failure_reason(exc: IntelligenceError) -> str:
     """Stable, public categories; never disclose provider response or credentials."""
-    if exc.__class__.__name__ == "ProviderUnavailable":
+    if isinstance(exc, ProviderUnavailable):
         technical_code = str(exc).strip().casefold()
         if technical_code == "invalid_credentials":
             return "invalid_credentials"
         if technical_code in {"rate_limited", "http_429", "quota_exceeded"}:
             return "rate_limited"
-        if technical_code in {"network_unavailable", "offline", "timeout"}:
-            # Preserve the historical gateway contract for network errors.
-            return "ProviderUnavailable"
-        return "provider_unavailable"
+    # Keep the historical contract for all other provider failures, including
+    # network errors. Only explicit safe codes become more precise.
     return exc.__class__.__name__
 
 
