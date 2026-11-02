@@ -50,7 +50,7 @@ class AuthEntryFrame extends StatelessWidget {
                   : MakoloSpacing.lg;
               final vertical = compact ? MakoloSpacing.sm : MakoloSpacing.lg;
 
-              return SingleChildScrollView(
+              final content = SingleChildScrollView(
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: EdgeInsets.symmetric(
@@ -63,13 +63,14 @@ class AuthEntryFrame extends StatelessWidget {
                         ? constraints.maxHeight - vertical * 2
                         : 0.0,
                   ),
-                  child: Center(
+                  child: Align(
+                    alignment: compactIdentity ? Alignment.topCenter : Alignment.center,
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 440),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (onBack != null || onClose != null)
+                          if (!compactIdentity && (onBack != null || onClose != null))
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -93,7 +94,7 @@ class AuthEntryFrame extends StatelessWidget {
                             ),
                           SizedBox(
                             height: compactIdentity
-                                ? MakoloSpacing.xs
+                                ? (compact ? MakoloSpacing.strong : 88.0)
                                 : compact
                                 ? MakoloSpacing.xs
                                 : MakoloSpacing.md,
@@ -156,6 +157,37 @@ class AuthEntryFrame extends StatelessWidget {
                       ),
                     ),
                   ),
+                ),
+              );
+              if (!compactIdentity) return content;
+              return DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [MakoloColors.indigo, Color(0xFF4727C4), MakoloColors.deep],
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned.fill(child: content),
+                    if (onClose != null)
+                      Positioned(
+                        top: MakoloSpacing.xs,
+                        right: MakoloSpacing.sm,
+                        child: IconButton.filledTonal(
+                          key: const Key('account-chooser-close'),
+                          tooltip: 'Fermer',
+                          onPressed: onClose,
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(alpha: 0.16),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(48, 48),
+                          ),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ),
+                  ],
                 ),
               );
             },
