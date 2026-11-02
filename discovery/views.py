@@ -551,7 +551,8 @@ class DiscoveryClarifyWebView(LoginRequiredMixin, View):
         criteria = {
             key: request.POST.get(key, "")
             for key in ("q", "place", "when", "period", "vertical", "price",
-                        "date", "date_from", "date_to", "timezone")
+                        "date", "date_from", "date_to", "timezone",
+                        "lat", "lon", "radius_km")
             if key in request.POST
         }
         try:
