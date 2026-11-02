@@ -51,6 +51,7 @@ void main() {
     final a = DiscoveryOfflineStore(rootOverride: root, profileId: 'profile-a');
     final guest = DiscoveryOfflineStore(rootOverride: root);
     expect(await a.retained(url), isNull);
+    expect(await legacy.exists(), isFalse);
     expect(await guest.retained(url), isNull);
     await expectLater(guest.location(url), throwsA(isA<FormatException>()));
   });
