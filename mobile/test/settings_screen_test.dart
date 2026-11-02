@@ -131,6 +131,7 @@ void main() {
     var privacyOpened = false;
     var notificationsOpened = false;
     var securityOpened = false;
+    var localDataOpened = false;
     final runtime = AppRuntime(
       tokens: MemoryTokenStore(),
       session: null,
@@ -145,6 +146,7 @@ void main() {
           onPrivacy: () => privacyOpened = true,
           onNotifications: () => notificationsOpened = true,
           onSecurity: () => securityOpened = true,
+          onLocalData: () => localDataOpened = true,
           packageInfo: Future.value(PackageInfo(
             appName: 'Makolo',
             packageName: 'com.makolo.mobile',
@@ -165,6 +167,9 @@ void main() {
     expect(notificationsOpened, isTrue);
     await tester.tap(find.text('Sécurité et appareils'));
     expect(securityOpened, isTrue);
+    await tester.scrollUntilVisible(find.text('Données hors ligne'), 200);
+    await tester.tap(find.text('Données hors ligne'));
+    expect(localDataOpened, isTrue);
     expect(find.text('Compte'), findsNothing);
   });
 }
