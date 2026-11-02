@@ -10,6 +10,7 @@ from core.web_throttling import allow_web_request, value_rate_identity
 
 from .models import PassportSnapshot, PassportShareSubject, ShareEnvelope, ShareSubjectType
 from .passport_views import PassportVerificationView
+from .passport_documents import revoke_passport_snapshot
 from .services import ShareUnavailable
 from .passport_sharing import create_passport_share, revoke_passport_share, resolve_passport_share
 
@@ -77,6 +78,26 @@ class PassportShareRevokeView(LoginRequiredMixin, View):
             revoke_passport_share(envelope=envelope, actor=request.user)
         except (PermissionDenied, PassportShareSubject.DoesNotExist) as exc:
             raise Http404("Partage indisponible.") from exc
+        if snapshot.profile_id:
+            destination = reverse("sharing:passport-me-history")
+        else:
+            destination = reverse(
+                "sharing:passport-space-history",
+                kwargs={"slug": snapshot.space.slug},
+            )
+        return redirect(destination)
+
+
+class PassportVersionRevokeView(LoginRequiredMixin, View):
+    """Revoke issuance, not just one link; keep the immutable owner archive."""
+    def post(self, request, snapshot_id):
+        snapshot = get_object_or_404(
+            PassportSnapshot.objects.select_related("space"), pk=snapshot_id,
+        )
+        try:
+            revoke_passport_snapshot(snapshot=snapshot, actor=request.user)
+        except PermissionDenied as exc:
+            raise Http404("Version indisponible.") from exc
         if snapshot.profile_id:
             destination = reverse("sharing:passport-me-history")
         else:
