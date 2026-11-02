@@ -33,6 +33,7 @@ def main(argv=None):
     parser.add_argument("--orders", type=int, default=0, help="Nombre de commandes Event de demo a tenter")
     parser.add_argument("--queues", type=int, default=0, help="Nombre d'Occurrences avec files Live a alimenter")
     parser.add_argument("--profiles", type=int, default=100, help="Nombre de profils world_ candidats")
+    parser.add_argument("--profile-username", help="Beneficiaire explicite pour les Journey et commandes de demonstration")
     parser.add_argument("--queue-advance", choices=["called", "served"], help="Simuler des transitions de file via les services")
     parser.add_argument("--days", type=int, default=60, help="Horizon des Occurrences futures")
     parser.add_argument("--actor", default="beta_event_manager", help="Operateur Operations non-admin")
@@ -88,8 +89,12 @@ def main(argv=None):
         parser.error("Choisir au moins un module (--journeys/--accesses/--scans/--orders/--queues/--inventory)")
 
     User = get_user_model()
-    profiles = list(User.objects.filter(username__startswith="world_", is_active=True,
-        is_staff=False, is_superuser=False).order_by("username")[:args.profiles])
+    candidate_profiles = User.objects.filter(is_active=True, is_staff=False, is_superuser=False)
+    if args.profile_username:
+        candidate_profiles = candidate_profiles.filter(username=args.profile_username)
+    else:
+        candidate_profiles = candidate_profiles.filter(username__startswith="world_")
+    profiles = list(candidate_profiles.order_by("username")[:args.profiles])
     actor = User.objects.filter(username=args.actor, is_active=True,
         is_staff=False, is_superuser=False).first()
     scanner = User.objects.filter(username=args.scanner, is_active=True,
