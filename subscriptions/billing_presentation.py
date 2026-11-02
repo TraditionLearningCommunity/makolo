@@ -133,3 +133,46 @@ def personal_billing_obligations(subscription, *, offset=0, limit=20):
     if subscription.profile_id is None:
         raise ValueError("personal_billing_obligations requires a Profile subscription")
     return subscription_billing_obligations(subscription, offset=offset, limit=limit)
+
+
+def transition_payment_action_for_actor(transition, *, actor):
+    """Resolve an open transition's payment action independently of billing pagination.
+
+    Both Subscription billing and legacy Requirement-payment links remain owned
+    by their respective domains. This read-only projection cannot grant payment
+    access, confirm an obligation or change a transition.
+    """
+    from payments.selectors import obligations_visible_to
+
+    billing_links = transition.billing_obligation_links.select_related("obligation").all()
+    requirement_links = transition.payment_obligation_links.select_related("obligation").all()
+    by_id = {
+        link.obligation_id: link.obligation
+        for link in [*billing_links, *requirement_links]
+    }
+    obligations = sorted(
+        by_id.values(),
+        key=lambda obligation: (obligation.created_at, str(obligation.pk)),
+        reverse=True,
+    )
+    released = {"cancelled", "expired", "refunded"}
+    can_cancel = all(obligation.status in released for obligation in obligations)
+    payable = next(
+        (
+            obligation for obligation in obligations
+            if obligation.status in {"pending", "processing"}
+            and obligation.processing_mode == "makolo_provider"
+        ),
+        None,
+    )
+    if payable is None:
+        return {"can_cancel": can_cancel, "payment": None, "payment_access_required": False}
+    accessible = obligations_visible_to(actor).filter(pk=payable.pk).exists()
+    return {
+        "can_cancel": can_cancel,
+        "payment": (
+            {"id": str(payable.pk), "amount": str(payable.amount), "currency": payable.currency}
+            if accessible else None
+        ),
+        "payment_access_required": not accessible,
+    }
