@@ -148,6 +148,29 @@ def profile_public_snapshot_still_disclosable(snapshot):
     for row in dated.get("open_to") or []:
         if (row.get("kind"), row.get("topic")) not in current_open_to:
             return False
+
+    # Disclosure of an issued public document is still bounded by current
+    # owners of Activity / Proof / Credential. Keep the historical wording,
+    # but never re-expose an item made private or withdrawn after issuance.
+    # IDs are stable across edits; comparing titles would incorrectly hide
+    # legitimate dated versions after a harmless rename.
+    for family, identifier in (
+        ("activities", "id"),
+        ("proofs", "public_id"),
+        ("credentials", "public_id"),
+    ):
+        visible = {
+            str(row[identifier])
+            for row in current.get(family) or []
+            if isinstance(row, dict) and row.get(identifier)
+        }
+        for row in dated.get(family) or []:
+            if (
+                not isinstance(row, dict)
+                or not row.get(identifier)
+                or str(row[identifier]) not in visible
+            ):
+                return False
     return True
 
 
