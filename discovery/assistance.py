@@ -5,6 +5,8 @@ contains bounded Discovery criteria; Discovery remains the search owner.
 """
 from __future__ import annotations
 
+import logging
+
 from accounts.models import UserProfile
 from intelligence.capabilities import IntelligenceCapability
 from intelligence.gateway import IntelligenceGateway
@@ -12,6 +14,28 @@ from intelligence.runtime import build_runtime_registry
 
 from .intent import resolve_discovery_intent
 from .intelligence import interpret_with_intelligence, _should_augment
+
+
+_logger = logging.getLogger("makolo.discovery")
+
+
+def _record_external_action(*, action: str, status: str, reason: str = "",
+                            candidates: int = 0) -> None:
+    """Safe operational event. Never include search text, user, key or URL."""
+    public_reason = reason if reason in {
+        "invalid_credentials", "rate_limited", "network_unavailable",
+        "provider_unavailable",
+    } else ""
+    _logger.info(
+        "discovery.external_action",
+        extra={
+            "makolo_event": "discovery.external_action",
+            "action": action,
+            "status": status,
+            "reason": public_reason,
+            "candidate_count": max(0, min(int(candidates), 3)),
+        },
+    )
 
 
 _ALLOWED_CRITERIA = frozenset({
@@ -81,6 +105,7 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
             intent = enriched
     elif not intent.raw_text:
         status = "empty"
+    _record_external_action(action="clarify", status=status, reason=reason)
     return {
         "status": status,
         "reason": reason,
@@ -120,6 +145,10 @@ def research_discovery_sources(*, actor, text: str) -> dict:
         profile=profile,
     )
     if not registry.providers_for(IntelligenceCapability.WEB_RESEARCH):
+        _record_external_action(
+            action="research", status="unavailable",
+            reason="provider_unavailable",
+        )
         return {"status": "unavailable", "reason": "provider_unavailable",
                 "sources": [], "candidates": []}
 
@@ -142,13 +171,20 @@ def research_discovery_sources(*, actor, text: str) -> dict:
             requested_at=timezone.now(),
         ))
     except Exception:
+        _record_external_action(
+            action="research", status="unavailable",
+            reason="provider_unavailable",
+        )
         return {"status": "unavailable", "reason": "provider_unavailable",
                 "sources": [], "candidates": []}
 
     if result.outcome.value == "failed":
+        reason = _public_failure(result.failure_code or "")
+        _record_external_action(
+            action="research", status="unavailable", reason=reason,
+        )
         return {"status": "unavailable",
-                "reason": _public_failure(result.failure_code or ""),
-                "sources": [], "candidates": []}
+                "reason": reason, "sources": [], "candidates": []}
 
     sources = {}
     for source in result.sources:
@@ -190,6 +226,11 @@ def research_discovery_sources(*, actor, text: str) -> dict:
         source["url"]
         for candidate in candidates for source in candidate["sources"]
     }
+    _record_external_action(
+        action="research",
+        status="completed" if candidates else "no_results",
+        candidates=len(candidates),
+    )
     return {
         "status": "completed" if candidates else "no_results",
         "reason": "",
