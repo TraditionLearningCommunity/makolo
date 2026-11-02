@@ -32,6 +32,8 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
   bool _mustVerify = false;
   String? _error;
   int _epoch = 0;
+  int _stepsOffset = 0;
+  int _blockersOffset = 0;
 
   bool get _actorValid => widget.runtime.actorContext?.value == widget.actor;
 
@@ -41,9 +43,11 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
       path: 'api/v1/organizations/workspaces/'
           '${Uri.encodeComponent(widget.actor.space.slug)}/work/'
           'service-cases/${Uri.encodeComponent(widget.journeyId)}/',
-      queryParameters: perspective.isAll
-          ? null
-          : {'responsibility': perspective.id!},
+      queryParameters: {
+        if (!perspective.isAll) 'responsibility': perspective.id!,
+        if (_stepsOffset > 0) 'steps_offset': '$_stepsOffset',
+        if (_blockersOffset > 0) 'blockers_offset': '$_blockersOffset',
+      },
     ).toString();
   }
 
@@ -83,6 +87,8 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
       _loading = _actorValid;
       _busy = false;
       _mustVerify = false;
+      _stepsOffset = 0;
+      _blockersOffset = 0;
       _error = null;
     });
     if (_actorValid) unawaited(_load());
@@ -93,6 +99,7 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
     final epoch = ++_epoch;
     setState(() {
       _loading = true;
+      _owner = null;
       _error = null;
     });
     try {
@@ -121,6 +128,20 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
     } finally {
       if (mounted && epoch == _epoch) setState(() => _loading = false);
     }
+  }
+
+  void _changePage({required bool steps, required int offset}) {
+    if (!_actorValid || _busy || _loading || offset < 0 || offset > 10000) {
+      return;
+    }
+    setState(() {
+      if (steps) {
+        _stepsOffset = offset;
+      } else {
+        _blockersOffset = offset;
+      }
+    });
+    unawaited(_load());
   }
 
   bool _matches(Map<String, dynamic> data) {
@@ -286,10 +307,26 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                                     )
                                   : null,
                         ),
-                    if (data['steps_has_more'] == true)
-                      const Text(
-                        'D’autres étapes existent. '
-                        'Cette lecture affiche les 50 premières.',
+                    if (_stepsOffset > 0 || data['steps_has_more'] == true)
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          if (_stepsOffset > 0)
+                            OutlinedButton(
+                              onPressed: () => _changePage(
+                                steps: true, offset: _stepsOffset > 50
+                                    ? _stepsOffset - 50 : 0,
+                              ),
+                              child: const Text('Étapes précédentes'),
+                            ),
+                          if (data['steps_has_more'] == true)
+                            OutlinedButton(
+                              onPressed: () => _changePage(
+                                steps: true, offset: _stepsOffset + 50,
+                              ),
+                              child: const Text('Étapes suivantes'),
+                            ),
+                        ],
                       ),
                     const SizedBox(height: 24),
                     Text('Blocages actifs',
@@ -314,10 +351,27 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                                 )
                               : null,
                         ),
-                    if (data['blockers_has_more'] == true)
-                      const Text(
-                        'D’autres blocages existent. '
-                        'Cette lecture affiche les 50 premiers.',
+                    if (_blockersOffset > 0 ||
+                        data['blockers_has_more'] == true)
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          if (_blockersOffset > 0)
+                            OutlinedButton(
+                              onPressed: () => _changePage(
+                                steps: false, offset: _blockersOffset > 50
+                                    ? _blockersOffset - 50 : 0,
+                              ),
+                              child: const Text('Blocages précédents'),
+                            ),
+                          if (data['blockers_has_more'] == true)
+                            OutlinedButton(
+                              onPressed: () => _changePage(
+                                steps: false, offset: _blockersOffset + 50,
+                              ),
+                              child: const Text('Blocages suivants'),
+                            ),
+                        ],
                       ),
                     const SizedBox(height: 20),
                     OutlinedButton(
