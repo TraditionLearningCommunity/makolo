@@ -17,6 +17,7 @@ from commerce.models import (
     CommerceOrder, CommerceOrderItem, CommerceOrderStatus,
     Offer, OfferStatus, PaymentMode,
 )
+from commerce.services import set_offer_payment_modes
 from geography.models import Place, SpacePlace
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, SpaceArchetype
@@ -250,6 +251,30 @@ class MT5CommerceTransportTests(TestCase):
         self.assertEqual(invalid_mode.status_code, 400)
         offer.refresh_from_db()
         self.assertEqual(offer.payment_mode, PaymentMode.UPFRONT)
+
+    def test_offer_default_edit_preserves_other_allowed_modes(self):
+        activity = self.activity()
+        offer = self.offer(activity)
+        set_offer_payment_modes(
+            offer=offer,
+            modes=[PaymentMode.UPFRONT, PaymentMode.ON_SITE],
+        )
+        url = reverse(
+            "organizations_api:workspace-work-g3-offer-edit",
+            kwargs={"slug": self.space.slug, "offer_id": offer.pk},
+        )
+        response = self.client.post(url, {
+            "name": "Kit ajusté", "description": "",
+            "unit_price": "15.50", "currency": "USD",
+            "payment_mode": PaymentMode.UPFRONT, "min_quantity": "1",
+            "max_quantity": "", "status": OfferStatus.ACTIVE,
+        }, content_type="application/json")
+        self.assertEqual(response.status_code, 200, response.content)
+        offer.refresh_from_db()
+        self.assertEqual(
+            set(offer.allowed_payment_modes),
+            {PaymentMode.UPFRONT, PaymentMode.ON_SITE},
+        )
 
     def test_offer_other_space_and_revoked_mandate_never_transfer_authority(self):
         activity = self.activity()
