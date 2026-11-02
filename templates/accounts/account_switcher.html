@@ -10,7 +10,7 @@
     background: linear-gradient(155deg, #5232DB 0%, #4123B9 58%, #2B176E 100%);
     color: #fff;
     padding: clamp(24px, 5vw, 48px) clamp(16px, 5vw, 44px);
-    min-height: min(690px, 80vh);
+    min-height: min(620px, 78vh);
     box-shadow: 0 16px 48px rgba(43, 23, 110, .12);
   }
   .mk-account-switcher::before {
@@ -26,8 +26,8 @@
     pointer-events: none;
   }
   .mk-account-switcher__inner { width: 100%; max-width: 460px; margin: 0 auto; }
-  .mk-account-switcher__top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-  .mk-account-switcher__back { color: rgba(255,255,255,.94); display: inline-flex; align-items: center; gap: 8px; padding: 9px 0; font-weight: 600; text-decoration: none; }
+  .mk-account-switcher__top { display: flex; justify-content: flex-end; align-items: center; }
+  .mk-account-switcher__back { color: #fff; width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.26); border-radius: 16px; background: rgba(255,255,255,.12); font-size: 24px; text-decoration: none; } .mk-account-switcher__back:hover { background: rgba(255,255,255,.22); }
   .mk-account-switcher__back:focus-visible, .mk-account-switcher button:focus-visible { outline: 3px solid #FFBEAC; outline-offset: 3px; }
   .mk-account-switcher__identity { text-align: center; padding: 26px 0 22px; }
   .mk-account-switcher__mark { width: fit-content; min-height: 44px; padding: 0 15px; display: grid; place-items: center; margin: 0 auto 20px; border: 1px solid rgba(255,255,255,.32); border-radius: 16px; font-size: 17px; font-weight: 800; letter-spacing: -.04em; }
@@ -59,7 +59,7 @@
   <section class="mk-account-switcher" aria-labelledby="mk-switcher-title">
     <div class="mk-account-switcher__inner">
       <div class="mk-account-switcher__top">
-        <a class="mk-account-switcher__back" href="{% url 'account:profile' %}" aria-label="Retour à Makolo">← Retour à Makolo</a>
+        <a class="mk-account-switcher__back" href="{% url 'account:profile' %}" aria-label="Fermer et revenir à Makolo" title="Fermer">×</a>
       </div>
       <header class="mk-account-switcher__identity">
         <div class="mk-account-switcher__mark" aria-hidden="true">Makolo</div>
