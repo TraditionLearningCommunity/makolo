@@ -86,6 +86,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
     this.onSelect,
     this.selectionActionLabel,
     this.baseUri,
+    this.profileId,
     this.compact = false,
     this.detailMode = false,
     this.onNativeAction,
@@ -102,6 +103,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
   final VoidCallback? onSelect;
   final String? selectionActionLabel;
   final Uri? baseUri;
+  final String? profileId;
   final bool compact;
 
   /// Renders the same server-owned facts at N2 without repeating N1 chrome.
@@ -378,7 +380,12 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     if (items.isEmpty) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => DiscoveryReader(items: items, initialIndex: index),
+        builder: (_) => DiscoveryReader(
+          items: items,
+          initialIndex: index,
+          profileId: widget.profileId,
+          trustedOrigin: widget.baseUri,
+        ),
       ),
     );
   }
