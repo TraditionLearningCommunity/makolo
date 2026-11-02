@@ -32,6 +32,7 @@
 8. Le retrait d'un PushEndpoint appartient à Notifications, et les notifications déjà en file sont ignorées si l'appareil est inactif.
 9. Une installation révoquée ne peut plus être réactivée silencieusement ni par token refresh, ni automatiquement après changement de Profil. Le propriétaire peut demander une réactivation explicite depuis l'appareil, avec la source FCM réelle. Aucun `installation_id`, `token_hash`, `token_hint` ni token chiffré n'est exposé dans les projections.
 10. Flutter garde les requêtes d'appareils online-only et ne présente pas le résultat d'un ancien Profil comme succès après changement de runtime.
+11. Une inscription automatique du même appareil sous un autre Profil ne peut pas réactiver un endpoint déjà révoqué : une intention explicite est nécessaire. Les projections en conflit ou obsolètes restent informatives et la mutation est désactivée.
 
 ## 3. Surfaces consommées, sans nouveau système
 
@@ -66,6 +67,7 @@ Aucun écran ne promet qu'une Action M7 sans endpoint propriétaire puisse être
 Tests ajoutés ou étendus C7 :
 - `interoperability/test_c7_live_authority.py` : révocations réelles et absence de transferts d'autorité ;
 - `mobile/test/c7_intelligence_owner_continuity_test.dart` : réponse de catalogue obsolète et ancien dialogue de clé ;
+- `mobile/test/c7_space_owner_continuity_test.dart` : réponse Space A après changement vers B, lecture seule sur Sync dégradée ;
 - `mobile/test/space_connections_status_test.dart` : état et langage communs ;
 - `notifications/test_push.py` : non-réactivation cross-Profil et non-livraison après révocation.
 
@@ -75,7 +77,7 @@ Régressions propriétaires C4–C6 à conserver :
 python manage.py test interoperability.test_z16_api interoperability.test_c7_live_authority intelligence.test_connection_management_api intelligence.test_connection_management_web notifications.test_push interoperability.test_c6_owner_integrations discovery.api.test_c5_owner_actions core.test_w8_personal_interoperability
 python manage.py makemigrations --check --dry-run
 cd mobile
-flutter test test/interoperability_screen_test.dart test/space_connections_status_test.dart test/c7_intelligence_owner_continuity_test.dart test/intelligence_connection_controls_test.dart test/c6_domain_integrations_projection_test.dart test/c6_push_device_controls_test.dart
+flutter test test/interoperability_screen_test.dart test/space_connections_status_test.dart test/c7_intelligence_owner_continuity_test.dart test/c7_space_owner_continuity_test.dart test/intelligence_connection_controls_test.dart test/c6_domain_integrations_projection_test.dart test/c6_push_device_controls_test.dart
 flutter analyze lib/features/interoperability lib/repositories/interoperability_repository.dart lib/platform/notifications/push_endpoint_registrar.dart
 ```
 
