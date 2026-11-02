@@ -162,7 +162,10 @@ def main(argv=None):
         qs = Journey.objects.filter(
             activity__slug__startswith="demo-", occurrence__end_at__gt=now,
             beneficiary__isnull=False,
-        ).exclude(status__in=["rejected", "cancelled", "expired"]).select_related(
+        ).exclude(status__in=["rejected", "cancelled", "expired"])
+        if args.profile_username:
+            qs = qs.filter(beneficiary__username=args.profile_username)
+        qs = qs.select_related(
             "activity", "occurrence", "beneficiary").order_by("occurrence__start_at", "id")
         for journey in qs[:args.accesses]:
             existing = Access.objects.filter(journey=journey, source_key="makolo-demo-volume").exists()
