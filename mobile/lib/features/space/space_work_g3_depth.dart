@@ -130,6 +130,19 @@ class SpaceWorkG3Depth extends StatelessWidget {
       }
     } else if (kind == 'transport_departure') {
       widgets.add(_heading(context, 'Départ réel'));
+      if (facts['can_manage_operations'] == true &&
+          spaceText(facts['departure_id']) case final String departureId) {
+        widgets.add(
+          FilledButton.icon(
+            icon: const Icon(Icons.tune_outlined),
+            label: const Text('Exploiter ce départ'),
+            onPressed: () => context.push(
+              '/space/${Uri.encodeComponent(slug)}/work/g3/'
+              'departures/${Uri.encodeComponent(departureId)}/operate',
+            ),
+          ),
+        );
+      }
       final route = spaceMap(facts['route']);
       if (spaceText(route?['name']) case final String name) {
         widgets.add(_fact('Itinéraire', name));
