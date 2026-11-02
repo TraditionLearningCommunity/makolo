@@ -31,6 +31,7 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.baseUri,
     this.shareApi,
     this.profileId,
+    this.allowOwnerActions = true,
     this.onPage,
     this.autoLoadMore = false,
     this.loadingMore = false,
@@ -51,6 +52,7 @@ class DiscoveryExplorationView extends StatefulWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final String? profileId;
+  final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
   final bool autoLoadMore;
   final bool loadingMore;
@@ -128,6 +130,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             baseUri: widget.baseUri,
             shareApi: widget.shareApi,
             profileId: widget.profileId,
+            allowOwnerActions: widget.allowOwnerActions,
             onPage: widget.onPage,
             autoLoadMore: widget.autoLoadMore,
             loadingMore: widget.loadingMore,
@@ -153,6 +156,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           baseUri: widget.baseUri,
           shareApi: widget.shareApi,
             profileId: widget.profileId,
+            allowOwnerActions: widget.allowOwnerActions,
           onPage: widget.onPage,
           autoLoadMore: widget.autoLoadMore,
           loadingMore: widget.loadingMore,
@@ -197,6 +201,7 @@ class DiscoveryFieldView extends StatelessWidget {
     this.baseUri,
     this.shareApi,
     this.profileId,
+    this.allowOwnerActions = true,
     this.onPage,
     this.autoLoadMore = false,
     this.loadingMore = false,
@@ -219,6 +224,7 @@ class DiscoveryFieldView extends StatelessWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final String? profileId;
+  final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
   final bool autoLoadMore;
   final bool loadingMore;
@@ -256,6 +262,7 @@ class DiscoveryFieldView extends StatelessWidget {
         baseUri: baseUri,
         shareApi: shareApi,
         profileId: profileId,
+        allowOwnerActions: allowOwnerActions,
         onPage: onPage,
         autoLoadMore: autoLoadMore,
         loadingMore: loadingMore,
@@ -283,6 +290,7 @@ class DiscoverySpatialView extends StatefulWidget {
     this.baseUri,
     this.shareApi,
     this.profileId,
+    this.allowOwnerActions = true,
     this.onPage,
     this.autoLoadMore = false,
     this.loadingMore = false,
@@ -301,6 +309,7 @@ class DiscoverySpatialView extends StatefulWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final String? profileId;
+  final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
   final bool autoLoadMore;
   final bool loadingMore;
@@ -481,6 +490,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       baseUri: widget.baseUri,
       shareApi: widget.shareApi,
             profileId: widget.profileId,
+            allowOwnerActions: widget.allowOwnerActions,
       onPage: widget.onPage,
       onRetry: widget.onRetry,
       selectedCandidateKey: _selectedCandidateKey,
@@ -580,6 +590,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
     this.baseUri,
     this.shareApi,
     this.profileId,
+    this.allowOwnerActions = true,
     this.onPage,
     this.autoLoadMore = false,
     this.loadingMore = false,
@@ -600,6 +611,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final String? profileId;
+  final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
   final bool autoLoadMore;
   final bool loadingMore;
@@ -635,6 +647,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
               baseUri: baseUri,
               shareApi: shareApi,
         profileId: profileId,
+        allowOwnerActions: allowOwnerActions,
               onSave: onSave == null ? null : () => onSave!(item),
               onTap: () {
                 if (selectOnCardTap && onSelect != null) {
@@ -769,6 +782,7 @@ class _DiscoveryUnit extends StatelessWidget {
     this.baseUri,
     this.shareApi,
     this.profileId,
+    this.allowOwnerActions = true,
     this.onSelect,
     this.selectionActionLabel,
   });
@@ -780,6 +794,7 @@ class _DiscoveryUnit extends StatelessWidget {
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
   final String? profileId;
+  final bool allowOwnerActions;
   final VoidCallback? onSelect;
   final String? selectionActionLabel;
 
@@ -802,6 +817,7 @@ class _DiscoveryUnit extends StatelessWidget {
         baseUri: baseUri,
         shareApi: shareApi,
         profileId: profileId,
+        allowOwnerActions: allowOwnerActions,
         shareAuthenticated: shareApi != null,
         onSelect: onSelect,
         selectionActionLabel: selectionActionLabel,
