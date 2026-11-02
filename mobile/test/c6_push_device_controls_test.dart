@@ -12,6 +12,30 @@ import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
+  test('FCM registration, inventory and Z16 have distinct confirmations', () {
+    expect(
+      pushActivationConfirmation(
+        devicesRefreshed: false,
+        projectionRefreshed: false,
+      ),
+      contains('liste des appareils n’a pas pu être actualisée'),
+    );
+    expect(
+      pushActivationConfirmation(
+        devicesRefreshed: true,
+        projectionRefreshed: false,
+      ),
+      contains('connexions restent à vérifier'),
+    );
+    expect(
+      pushActivationConfirmation(
+        devicesRefreshed: true,
+        projectionRefreshed: true,
+      ),
+      contains('connexions sont actualisées'),
+    );
+  });
+
   testWidgets('owned push device can be revoked only through owner DELETE', (
     tester,
   ) async {
