@@ -103,11 +103,27 @@ class SpaceWorkG3DepthView(SpaceWebMixin):
                 activity=activity,
             ):
                 actions.append({
-                    "label": "Gérer les offres",
+                    "label": "Modifier cette offre",
                     "url": reverse(
-                        "organizations:console-offers",
-                        kwargs={"slug": self.space.slug},
-                    ),
+                        "organizations:space-work-g3-offer-edit",
+                        kwargs={
+                            "slug": self.space.slug, "offer_id": owner_id,
+                        },
+                    ) + "?" + urlencode({"responsibility": responsibility}),
+                })
+        elif kind == "activity" and is_commerce and activity:
+            if can(
+                self.request.user, PermissionCode.ACTIVITY_COMMERCE_MANAGE,
+                activity=activity,
+            ):
+                actions.append({
+                    "label": "Créer une offre",
+                    "url": reverse(
+                        "organizations:space-work-g3-offer-create",
+                        kwargs={
+                            "slug": self.space.slug, "activity_id": activity.pk,
+                        },
+                    ) + "?" + urlencode({"responsibility": responsibility}),
                 })
         elif kind == "commerce_order":
             if (
@@ -209,6 +225,7 @@ class SpaceWorkG3DepthView(SpaceWebMixin):
 
         collections = []
         for key, label, is_second in (
+            ("offers", "Offres de cette activité", False),
             ("services", "Services de cette route", False),
             ("departures", "Départs liés", kind == "transport_route"),
             ("lines", "Lignes de commande", False),
