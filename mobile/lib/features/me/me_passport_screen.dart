@@ -868,7 +868,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Historique indisponible sans connexion.'),
+          content: Text('Historique indisponible. Vérifiez la connexion et vos droits.'),
         ),
       );
     }
@@ -1007,7 +1007,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
     } on Object {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Partage indisponible sans connexion.')),
+        const SnackBar(content: Text('Partage indisponible. Vérifiez la connexion et vos droits.')),
       );
     }
   }
