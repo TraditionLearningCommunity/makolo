@@ -1075,6 +1075,35 @@ class DiscoveryRepository {
     }
   }
 
+  /// Reconcile only a fully owner-confirmed Watch row. This is a local read
+  /// model update, never a fabricated Watch state or a new offline mutation.
+  Future<void> _applyConfirmedWatch(
+    Map? watch, {
+    String? deletedId,
+  }) async {
+    final existing = await store.readProjection(watchesProjectionKind);
+    final previous = existing?.payload['results'];
+    if (existing == null || previous is! List) return;
+    final id = deletedId ?? watch?['id'];
+    if (id is! String || id.isEmpty) return;
+    final rows = <Map<String, dynamic>>[
+      if (watch != null) Map<String, dynamic>.from(watch),
+      for (final raw in previous)
+        if (raw is Map && raw['id'] != id) Map<String, dynamic>.from(raw),
+    ];
+    await store.putProjection(
+      kind: watchesProjectionKind,
+      schemaVersion: existing.schemaVersion,
+      payload: {...existing.payload, 'results': rows.take(100).toList()},
+      receivedAt: existing.receivedAt,
+      sourceGeneratedAt: existing.sourceGeneratedAt,
+      lastVerifiedOnlineAt: existing.lastVerifiedOnlineAt,
+      freshUntil: existing.freshUntil,
+      expiresAt: existing.expiresAt,
+      freshnessPolicyId: existing.freshnessPolicyId,
+    );
+  }
+
   /// A Watch is not Save, Share or owner Engagement. The API owns creation
   /// and deduplication; only its confirmed response may open a Watch screen.
   Future<String> createWatch({
@@ -1100,6 +1129,7 @@ class DiscoveryRepository {
         watch['criteria'] is! Map) {
       throw const FormatException('Veille non confirmée par le serveur');
     }
+    await _applyConfirmedWatch(watch);
     try {
       await refreshWatches();
     } on Object {
@@ -1124,6 +1154,8 @@ class DiscoveryRepository {
     if (watch is! Map || watch['id'] != id || watch['status'] != status) {
       throw const FormatException('Transition de Veille non confirmée');
     }
+    await _applyConfirmedWatch(watch);
+    await _forgetWatchResults(id);
     try {
       await refreshWatches();
     } on Object {
@@ -1163,6 +1195,8 @@ class DiscoveryRepository {
         (replaceCriteria != null && watch['criteria'] is! Map)) {
       throw const FormatException('Édition de Veille non confirmée');
     }
+    await _applyConfirmedWatch(watch);
+    await _forgetWatchResults(id);
     try {
       await refreshWatches();
     } on Object {
@@ -1177,6 +1211,8 @@ class DiscoveryRepository {
     if (response.statusCode != 204) {
       throw const FormatException('Suppression de Veille non confirmée');
     }
+    await _applyConfirmedWatch(null, deletedId: id);
+    await _forgetWatchResults(id);
     try {
       await refreshWatches();
     } on Object {
