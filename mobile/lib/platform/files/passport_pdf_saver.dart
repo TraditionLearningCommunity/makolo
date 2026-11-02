@@ -16,7 +16,7 @@ Future<Uri?> savePassportPdf(String path, String filename, {bool chooseDestinati
           'mime_type': 'application/pdf',
         });
     if (savedName == null || savedName.isEmpty) {
-      throw const PlatformException(
+      throw PlatformException(
         code: 'download_failed',
         message: 'Le dossier Téléchargements est indisponible.',
       );
