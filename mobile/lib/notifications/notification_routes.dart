@@ -20,6 +20,7 @@ List<RouteBase> notificationRoutes(AppRuntime runtime) => [
         );
       }
       return settings.NotificationPreferencesScreen(
+        runtime: runtime,
         repository: NotificationRepository(
           database: database,
           store: store,
@@ -49,6 +50,7 @@ List<RouteBase> notificationRoutes(AppRuntime runtime) => [
         sync: runtime.sync,
       );
       return NotificationInboxScreen(
+        runtime: runtime,
         repository: repository,
         onOpenDestination: (path) async {
           await context.push<Object?>(path);
