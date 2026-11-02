@@ -23,7 +23,10 @@ class SpaceWorkSurface extends StatelessWidget {
     final archetype = _string(payload['archetype']);
     final spaceSlug = _string(_map(payload['space'])?['slug']);
     final canCreateG1 =
-        (archetype == 'generic' || archetype == 'community') &&
+        (archetype == 'generic' ||
+            archetype == 'community' ||
+            archetype == 'creative' ||
+            archetype == 'media') &&
         _string(payload['responsibility']) == 'all' &&
         _map(payload['capabilities'])?['create_activity'] == true &&
         spaceSlug != null;
@@ -92,6 +95,10 @@ class SpaceWorkSurface extends StatelessWidget {
                 label: Text(
                   archetype == 'community'
                       ? 'Nouvelle initiative'
+                      : archetype == 'creative'
+                      ? 'Nouvelle création'
+                      : archetype == 'media'
+                      ? 'Nouvelle production'
                       : 'Nouvelle activité',
                 ),
                 onPressed: () => context.push(
