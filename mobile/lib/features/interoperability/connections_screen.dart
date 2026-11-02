@@ -8,6 +8,7 @@ import '../../design/makolo_theme.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../sync/sync_status.dart';
 import 'intelligence_connection_controls.dart';
+import 'push_device_controls.dart';
 
 class ProfileConnectionsScreen extends StatefulWidget {
   const ProfileConnectionsScreen({super.key, required this.runtime});
@@ -205,6 +206,26 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     );
   }
 
+  Widget _domainIntegrationCard(DomainIntegrationProjection item) {
+    final status = item.status == 'sandbox_only'
+        ? 'Simulation uniquement, aucun prestataire externe connecté.'
+        : item.status == 'manual_available'
+        ? 'Traitement manuel selon les droits financiers du contexte.'
+        : item.available
+        ? '${item.activeCount} appareil(s) enregistré(s).'
+        : 'Appareils enregistrés, transport push indisponible.';
+    return Card(
+      child: ListTile(
+        key: Key('domain-integration-${item.code}'),
+        leading: Icon(item.kind == 'device_registration'
+            ? Icons.notifications_outlined : Icons.account_balance_outlined),
+        title: Text(item.displayName),
+        subtitle: Text('$status\n${item.description}'),
+        isThreeLine: true,
+      ),
+    );
+  }
+
   Widget _freshnessNotice(BuildContext context, SyncStatus? syncStatus) {
     if (_refreshing || syncStatus?.state == SyncVisualState.syncing) {
       return const LinearProgressIndicator(
@@ -311,6 +332,20 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           const SizedBox(height: MakoloSpacing.sm),
           for (final extension in projection.extensions)
             _extensionCard(extension),
+        ],
+        if (projection.domainIntegrations.isNotEmpty) ...[
+          const SizedBox(height: MakoloSpacing.lg),
+          Text('Services utilisés dans Makolo',
+              style: Theme.of(context).textTheme.titleMedium),
+          for (final integration in projection.domainIntegrations)
+            _domainIntegrationCard(integration),
+          if (projection.domainIntegrations.any(
+              (item) => item.code == 'notifications.push'))
+            PushDeviceControls(
+              runtime: widget.runtime,
+              mutationsEnabled: _mutationsAllowed(syncStatus),
+              onChanged: _refresh,
+            ),
         ],
         IntelligenceConnectionControls(
           runtime: widget.runtime,
