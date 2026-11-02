@@ -587,13 +587,6 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           ),
         ],
         if (widget.section == 'history') ...[
-        const SizedBox(height: 18),
-        Text(
-          widget.spaceSlug == null
-              ? 'Mes changements'
-              : 'Changements de l’Espace',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
         const SizedBox(height: 8),
         if (history.isEmpty)
           const Text('Aucune demande de changement enregistrée.'),
@@ -700,13 +693,6 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         ],
         ],
         if (widget.section == 'billing') ...[
-        const SizedBox(height: 18),
-        Text(
-          widget.spaceSlug == null
-              ? 'Facturation de mon abonnement'
-              : 'Facturation de l’Espace',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
         const SizedBox(height: 8),
         if (billingRestricted)
           const Text(
