@@ -1,6 +1,7 @@
 """C8 remainder: explicit Discovery failures preserve actionable, safe categories."""
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -18,6 +19,8 @@ class DiscoveryOwnerRecoveryTests(TestCase):
             username="c8-recovery-actor", password="test",
         )
         UserProfile.objects.create(user=self.actor)
+        for scope in ("discovery_research", "discovery_clarify"):
+            cache.delete(f"throttle_{scope}_{self.actor.pk}")
         self.client = APIClient()
         self.client.force_authenticate(self.actor)
 
