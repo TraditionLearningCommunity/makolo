@@ -37,8 +37,9 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
 
   Future<void> _ensureProjection() async {
     try {
-      final current = await widget.runtime.interoperability?.read();
-      if (current == null && mounted) {
+      // Cached Z16 is an observation, not current permission to mutate.
+      // Refresh even when a snapshot exists; a failure preserves it.
+      if (widget.runtime.api != null && widget.runtime.sync != null) {
         await _refresh();
       }
     } on Object {
@@ -67,6 +68,13 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       if (mounted) setState(() => _refreshFailed = true);
     } finally {
       if (mounted) setState(() => _refreshing = false);
+    }
+  }
+
+  Future<void> _refreshAndConfirm() async {
+    await _refresh();
+    if (_refreshFailed) {
+      throw StateError('Le serveur n’a pas confirmé cette projection.');
     }
   }
 
@@ -201,11 +209,14 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   }
 
   bool _mutationsAllowed(SyncStatus? status) {
-    if (_refreshFailed || widget.runtime.sync == null) return false;
+    if (!_initialLoadComplete || _refreshing || _refreshFailed ||
+        !widget.runtime.isAuthenticated || widget.runtime.api == null ||
+        widget.runtime.sync == null) return false;
     return status?.state != SyncVisualState.offline &&
         status?.state != SyncVisualState.failed &&
         status?.state != SyncVisualState.stale &&
-        status?.state != SyncVisualState.conflict;
+        status?.state != SyncVisualState.conflict &&
+        status?.state != SyncVisualState.syncing;
   }
 
   Widget _content(
@@ -230,7 +241,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             runtime: widget.runtime,
             path: 'api/v1/me/intelligence/connections/',
             connections: projection.connections,
-            onChanged: _refresh,
+            onChanged: _refreshAndConfirm,
             mutationsEnabled: _mutationsAllowed(syncStatus),
           ),
         ],
@@ -293,14 +304,14 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             PushDeviceControls(
               runtime: widget.runtime,
               mutationsEnabled: _mutationsAllowed(syncStatus),
-              onChanged: _refresh,
+              onChanged: _refreshAndConfirm,
             ),
         ],
         IntelligenceConnectionControls(
           runtime: widget.runtime,
           path: 'api/v1/me/intelligence/connections/',
           connections: projection.connections,
-          onChanged: _refresh,
+          onChanged: _refreshAndConfirm,
           mutationsEnabled: _mutationsAllowed(syncStatus),
         ),
       ],
