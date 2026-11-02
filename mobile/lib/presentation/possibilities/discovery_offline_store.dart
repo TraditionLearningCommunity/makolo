@@ -72,6 +72,16 @@ class DiscoveryOfflineStore {
         isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin);
   }
 
+  /// Legacy Reader copies were stored in one device-global directory before
+  /// stage 08. Their Profile ownership cannot be reconstructed safely.
+  /// Remove only this app-owned legacy directory; never touch Android's
+  /// Downloads or the new Profile-scoped Reader files.
+  Future<void> purgeLegacyUnscopedReader() async {
+    final root = rootOverride ?? await getApplicationSupportDirectory();
+    final legacy = Directory('${root.path}/discovery/public-offline');
+    if (await legacy.exists()) await legacy.delete(recursive: true);
+  }
+
   Future<Directory> _directory(Uri url) async {
     if (!_mayRetain(url)) {
       throw const FormatException(
@@ -79,9 +89,15 @@ class DiscoveryOfflineStore {
       );
     }
     final root = rootOverride ?? await getApplicationSupportDirectory();
+    try {
+      await purgeLegacyUnscopedReader();
+    } on FileSystemException {
+      // Legacy cleanup cannot revoke access to the newly scoped Reader.
+      // It remains unreadable even if the OS prevents physical deletion.
+    }
     final id = profileId;
-    // The old /discovery/public-offline directory is intentionally ignored:
-    // its contents were not scoped to a Profile. No unsafe migration.
+    // Old unscoped bytes are never imported: mixed Profile provenance
+    // cannot be repaired by a filename or URL inference.
     final subpath = id == null || id.isEmpty
         ? 'discovery/public-reader'
         : 'profiles/${ProfilePaths.safeProfileId(id)}/discovery/reader';
