@@ -35,6 +35,17 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   bool _busy = false;
   Map<String, dynamic>? _created;
 
+  @override
+  void didUpdateWidget(covariant DiscoveryShareControl oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.family != widget.item.family ||
+        oldWidget.item.id != widget.item.id ||
+        oldWidget.authenticated != widget.authenticated) {
+      // Opaque share tokens are bound to one owner identity and sender.
+      _created = null;
+    }
+  }
+
   String get _endpoint =>
       'api/v1/sharing/possibilities/'
       '${Uri.encodeComponent(widget.item.family)}/'
@@ -89,13 +100,17 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   Future<Uri> _link() async {
     if (_shareUrl != null) return _shareUrl!;
     final api = widget.api;
-    if (api == null ||
-        !widget.authenticated ||
-        widget.item.links['web_share'] == null) {
+    if (!widget.authenticated) {
+      // Guests may share an explicitly public link, never a private delivery.
       final publicUrl = _publicItemUrl;
       if (publicUrl == null) throw StateError('Public share URL unavailable');
       return publicUrl;
     }
+    if (api == null) {
+      throw StateError('Sharing authority unavailable');
+    }
+    // Authenticated shares are always owner-confirmed. Missing web_share does
+    // not authorize silently falling back to an unverified public URL.
     final result = await api.post(_endpoint, body: {'intent': 'view'});
     final data = result.jsonObject();
     if (data['state'] != 'link') {
@@ -316,8 +331,11 @@ class _ShareRecipientPickerState extends State<_ShareRecipientPicker> {
         widget.endpoint,
         body: {'recipient_id': id, 'intent': 'view'},
       );
-      if (response.jsonObject()['state'] != 'delivered') {
-        throw const FormatException('Unexpected share delivery response');
+      final payload = response.jsonObject();
+      if (payload['state'] != 'delivered' ||
+          payload['delivery_id'] is! String ||
+          (payload['delivery_id'] as String).trim().isEmpty) {
+        throw const FormatException('Sharing delivery not confirmed');
       }
       if (!mounted) return;
       Navigator.of(context).pop();
