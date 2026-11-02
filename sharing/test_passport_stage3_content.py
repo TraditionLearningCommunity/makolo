@@ -138,6 +138,19 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
         public = build_profile_passport(self.amina, variant="public")
         self.assertEqual(public.group_affiliations, ())
 
+    def test_public_variant_keeps_every_publicly_admissible_fact_family(self):
+        public = build_profile_passport(self.amina, variant="public")
+        complete = build_profile_passport(self.amina, variant="complete")
+        self.assertEqual(public.identity["name"], complete.identity["name"])
+        self.assertEqual(public.identity["bio"], complete.identity["bio"])
+        self.assertEqual(public.identity["links"], complete.identity["links"])
+        self.assertIn(self.owned_public, public.activities)
+        self.assertNotIn(self.owned_private, public.activities)
+        self.assertTrue(public.interests)
+        self.assertLessEqual(len(public.proofs), len(complete.proofs))
+        self.assertLessEqual(len(public.credentials), len(complete.credentials))
+        self.assertNotIn("owner_details", public.identity)
+
     def test_personalized_default_keeps_public_identity_and_links(self):
         from accounts.profile_visibility import replace_profile_visibility
 
