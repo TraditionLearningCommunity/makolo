@@ -594,7 +594,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
 
   void _selectSavedWatch(String? id, List<dynamic> rows) {
     if (id == null || id.isEmpty) {
-      setState(() => _selectedWatchId = null);
+      _resetCriteria();
       return;
     }
     Map? found;
@@ -656,7 +656,9 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       final selected = watches.any((row) => row['id'] == _selectedWatchId)
           ? _selectedWatchId
           : null;
-      return DropdownButtonFormField<String>(
+      return KeyedSubtree(
+        key: ValueKey('discover-watch-choice-$selected'),
+        child: DropdownButtonFormField<String>(
         key: const Key('discover-search-watch-filter'),
         initialValue: selected,
         decoration: const InputDecoration(
@@ -676,6 +678,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
             ),
         ],
         onChanged: (id) => _selectSavedWatch(id, watches),
+        ),
       );
     },
   );
@@ -1055,8 +1058,14 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
             controller: _search,
             autofocus: true,
             textInputAction: TextInputAction.search,
-            onChanged: _searchChanged,
-            onSubmitted: _submit,
+            onChanged: (value) {
+              _selectedWatchId = null;
+              _searchChanged(value);
+            },
+            onSubmitted: (value) {
+              _selectedWatchId = null;
+              _submit(value);
+            },
             decoration: InputDecoration(
               hintText: 'Rechercher une possibilité',
               prefixIcon: const Icon(Icons.search_rounded),
