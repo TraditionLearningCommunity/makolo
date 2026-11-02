@@ -258,6 +258,19 @@ class PassportIssuanceAndSharingTests(TestCase):
                 })
         self.assertEqual(PassportSnapshot.objects.count(), count_before)
 
+    def test_failed_html_export_does_not_leave_an_issued_version(self):
+        self.client.force_login(self.owner)
+        before = PassportSnapshot.objects.count()
+        with patch(
+            "sharing.passport_views.PassportViewMixin.render_to_response",
+            side_effect=RuntimeError("HTML template unavailable"),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.client.get(reverse("sharing:passport-me"), {
+                    "download": "1", "variant": "complete",
+                })
+        self.assertEqual(PassportSnapshot.objects.count(), before)
+
     def test_another_profile_cannot_revoke_document_or_link(self):
         from sharing.models import PassportShareSubject
 
