@@ -389,7 +389,9 @@ class _IntelligenceConnectionControlsState
               title: Text(offer['label'] as String? ?? 'Service'),
               subtitle: Text(offer['description'] as String? ?? ''),
               enabled: !_busy && widget.mutationsEnabled,
-              onTap: () => unawaited(_create(offer)),
+              onTap: !_busy && widget.mutationsEnabled
+                  ? () => unawaited(_create(offer))
+                  : null,
             ),
         ],
         if (_offers.isNotEmpty && connectable.isEmpty)
