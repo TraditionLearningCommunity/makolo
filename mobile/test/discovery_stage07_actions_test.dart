@@ -51,7 +51,7 @@ void main() {
         .readAsStringSync();
     final sharedLink = File('lib/features/discovery/discovery_shared_link_screen.dart')
         .readAsStringSync();
-    expect(repository, contains("api/v1/discovery/items/$family/$id/saved/"),
+    expect(repository, contains(r'api/v1/discovery/items/$family/$id/saved/'),
         reason: 'Save uses a possibility owner state, not a Watch.');
     expect(repository, contains('Future<String> createWatch('));
     expect(repository, contains('Future<void> updateWatchStatus('));
