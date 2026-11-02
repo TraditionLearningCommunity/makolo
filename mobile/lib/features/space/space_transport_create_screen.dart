@@ -304,15 +304,16 @@ class _SpaceTransportCreateScreenState
       final data = response.jsonObject();
       final space = spaceMap(data['space']);
       final created = spaceMap(data['created']);
+      final expectedKind = switch (_kind) {
+        'route' => 'transport_route',
+        'vehicle' => 'vehicle',
+        _ => 'occurrence',
+      };
       if (space?['id'] != widget.actor.space.id ||
           space?['slug'] != widget.actor.space.slug ||
           data['responsibility'] != 'all' ||
           created?['id'] is! String ||
-          created?['kind'] != switch (_kind) {
-            'route' => 'transport_route',
-            'vehicle' => 'vehicle',
-            _ => 'occurrence',
-          }) {
+          created?['kind'] != expectedKind) {
         throw const FormatException('Réponse propriétaire incohérente');
       }
       if (!mounted || !_actorValid || epoch != _epoch) return;
