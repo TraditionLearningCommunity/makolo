@@ -36,6 +36,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   static const _accountEditorProjection = 'personal.me.account_editor';
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
+  final _birthDate = TextEditingController();
+  String _gender = 'unspecified';
   final _profession = TextEditingController();
   final _city = TextEditingController();
   final _country = TextEditingController();
@@ -86,6 +88,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       for (final key in const [
         'first_name',
         'last_name',
+        'birth_date',
+        'gender',
         'bio',
         'phone',
         'website',
@@ -116,6 +120,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     String value(String key) => editor[key]?.toString() ?? '';
     _firstName.text = value('first_name');
     _lastName.text = value('last_name');
+    _birthDate.text = value('birth_date');
+    _gender = const {'male', 'female', 'unspecified'}.contains(value('gender'))
+        ? value('gender')
+        : 'unspecified';
     _bio.text = value('bio');
     _profession.text = value('profession');
     _city.text = value('city');
@@ -154,6 +162,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Map<String, dynamic> _currentEditor() => {
     'first_name': _firstName.text.trim(),
     'last_name': _lastName.text.trim(),
+    'birth_date': _birthDate.text.trim().isEmpty ? null : _birthDate.text.trim(),
+    'gender': _gender,
     'bio': _bio.text.trim(),
     'profession': _profession.text.trim(),
     'city': _city.text.trim(),
@@ -417,6 +427,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         body: {
           'first_name': _firstName.text.trim(),
           'last_name': _lastName.text.trim(),
+          'birth_date': _birthDate.text.trim().isEmpty ? null : _birthDate.text.trim(),
+          'gender': _gender,
           'profession': _profession.text.trim(),
           'city': _city.text.trim(),
           'country': _selectedCountry?.code ?? '',
@@ -485,6 +497,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     for (final controller in [
       _firstName,
       _lastName,
+      _birthDate,
       _profession,
       _city,
       _country,
@@ -568,6 +581,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 _sectionTitle('Identité'),
                 _field('Prénom', _firstName),
                 _field('Nom', _lastName),
+                _birthDatePicker(),
+                _genderSelector(),
                 _field('Profession', _profession),
                 _field('À propos', _bio, lines: 3),
                 OutlinedButton.icon(
@@ -755,6 +770,89 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           ),
     ),
   );
+
+  Widget _birthDatePicker() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: _birthDate,
+        readOnly: true,
+        decoration: InputDecoration(
+          labelText: 'Date de naissance',
+          hintText: 'Facultatif',
+          border: const OutlineInputBorder(),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_birthDate.text.isNotEmpty)
+                IconButton(
+                  tooltip: 'Effacer la date de naissance',
+                  onPressed: _saving
+                      ? null
+                      : () => setState(() {
+                          _birthDate.clear();
+                          _rememberEdits();
+                        }),
+                  icon: const Icon(Icons.close),
+                ),
+              const Icon(Icons.calendar_month_outlined),
+              const SizedBox(width: 10),
+            ],
+          ),
+        ),
+        onTap: _saving
+            ? null
+            : () async {
+                final today = DateTime.now();
+                final existing = DateTime.tryParse(_birthDate.text);
+                final selected = await showDatePicker(
+                  context: context,
+                  initialDate: existing != null && !existing.isAfter(today)
+                      ? existing
+                      : DateTime(today.year - 18, today.month, today.day),
+                  firstDate: DateTime(1900),
+                  lastDate: today,
+                );
+                if (selected == null || !mounted) return;
+                setState(() {
+                  _birthDate.text =
+                      '${selected.year.toString().padLeft(4, '0')}-'
+                      '${selected.month.toString().padLeft(2, '0')}-'
+                      '${selected.day.toString().padLeft(2, '0')}';
+                  _rememberEdits();
+                });
+              },
+      ),
+    );
+  }
+
+  Widget _genderSelector() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('gender-$_gender'),
+        initialValue: _gender,
+        decoration: const InputDecoration(
+          labelText: 'Genre',
+          border: OutlineInputBorder(),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'unspecified', child: Text('Non renseigné')),
+          DropdownMenuItem(value: 'female', child: Text('Femme')),
+          DropdownMenuItem(value: 'male', child: Text('Homme')),
+        ],
+        onChanged: _saving
+            ? null
+            : (value) {
+                if (value == null) return;
+                setState(() {
+                  _gender = value;
+                  _rememberEdits();
+                });
+              },
+      ),
+    );
+  }
 
   Widget _field(
     String label,
