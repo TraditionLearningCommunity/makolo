@@ -50,6 +50,7 @@ class SubscriptionActionsPanel extends StatefulWidget {
     required this.runtime,
     required this.snapshot,
     required this.onUpdated,
+    this.section = 'overview',
     this.spaceSlug,
     this.expectedSpaceId,
   });
@@ -57,6 +58,7 @@ class SubscriptionActionsPanel extends StatefulWidget {
   final AppRuntime runtime;
   final Map<String, dynamic> snapshot;
   final Future<void> Function() onUpdated;
+  final String section;
   final String? spaceSlug;
   final String? expectedSpaceId;
 
@@ -514,7 +516,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
-        if (canManage)
+        if (widget.section == 'options' && canManage)
           for (final row in addons)
             OutlinedButton(
               onPressed: _busy || hasOpenTransition
@@ -530,7 +532,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                 'Examiner le retrait de ' + _value(row['name'], 'l’option'),
               ),
             ),
-        if (canManage && transition != null && transition['open'] == true) ...[
+        if ((widget.section == 'overview' || widget.section == 'plans') &&
+            canManage && transition != null && transition['open'] == true) ...[
           const SizedBox(height: 8),
           if (transition['status'] == 'ready')
             FilledButton(
@@ -546,6 +549,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             child: const Text('Annuler la demande'),
           ),
         ],
+        if (widget.section == 'history') ...[
         const SizedBox(height: 18),
         Text(
           widget.spaceSlug == null
@@ -577,9 +581,11 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               _loadingHistory ? 'Chargement…' : 'Voir les demandes précédentes',
             ),
           ),
+        ],
+        if (widget.section == 'plans' || widget.section == 'options') ...[
         const SizedBox(height: 16),
         Text(
-          'Formules disponibles',
+          widget.section == 'options' ? 'Options disponibles' : 'Formules disponibles',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
@@ -590,7 +596,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
 
         if (catalog.isEmpty)
           const Text('Aucune autre formule proposée actuellement.'),
-        for (final option in catalog) ...[
+        for (final option in catalog)
+          if ((option['plan_type'] == 'addon') == (widget.section == 'options')) ...[
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -654,6 +661,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             ),
           ),
         ],
+        ],
+        if (widget.section == 'billing') ...[
         const SizedBox(height: 18),
         Text(
           widget.spaceSlug == null
@@ -718,6 +727,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           'Aucun paiement ou changement ne peut être confirmé hors ligne.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
+        ],
       ],
     );
   }
