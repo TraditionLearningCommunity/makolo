@@ -306,8 +306,11 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
               const Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                  'Ces choix concernent le Passeport vivant.'
-                  ' Les documents déjà exportés ne changent pas.',
+                  'Ces choix concernent le Passeport vivant. '
+                  'Les versions datées consultées publiquement sont filtrées '
+                  'si leurs informations ne sont plus publiables. '
+                  'Un PDF déjà téléchargé ne peut pas être rappelé. '
+                  'Révoquez séparément les liens de partage explicites.',
                 ),
               ),
               const ListTile(title: Text('Présentation')),
