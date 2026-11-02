@@ -141,7 +141,7 @@ class DiscoveryConnectedActionsTests(TestCase):
                        },
                        {
                            "title": "Local",
-                           "url": "http://127.0.0.1/internal",
+                           "url": "https://127.0.0.1/internal",
                            "content": "A rejeter.",
                        },
                    ]})):
@@ -218,3 +218,30 @@ class DiscoveryConnectedActionsTests(TestCase):
         self.assertEqual(response.data["data"]["query"]["q"],
                          "quelque chose de calme avec mes amis")
         self.assertNotIn("place", response.data["data"]["query"])
+
+    def test_clarify_throttle_bounds_repeated_user_initiated_calls(self):
+        # No provider needed: the budget applies before any external network.
+        for _ in range(12):
+            result = self.api.post("/api/v1/discovery/clarify/", {
+                "criteria": {"q": "quelque chose de calme avec mes amis"},
+            }, format="json")
+            self.assertEqual(result.status_code, 200, result.data)
+        blocked = self.api.post("/api/v1/discovery/clarify/", {
+            "criteria": {"q": "quelque chose de calme avec mes amis"},
+        }, format="json")
+        self.assertEqual(blocked.status_code, 429)
+
+    def test_spatial_search_does_not_reinterpret_coordinates(self):
+        self._connect("openai", model="test-model")
+        with patch("intelligence.providers.openai_compatible._open_url") as network:
+            result = self.api.post("/api/v1/discovery/clarify/", {
+                "criteria": {
+                    "q": "un lieu calme",
+                    "lat": "-11.66", "lon": "27.48", "radius_km": "25",
+                },
+            }, format="json")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.data["data"]["query"]["lat"], "-11.66")
+        self.assertEqual(result.data["data"]["query"]["radius_km"], "25")
+        self.assertEqual(result.data["data"]["status"], "already_structured")
+        network.assert_not_called()
