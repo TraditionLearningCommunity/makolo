@@ -239,3 +239,14 @@ python -m scripts.demo_generation generate --domains discovery,goals,space,journ
 ```
 
 Le domaine `media` continue de reutiliser les `PresentationAsset` deja associes a des Activity anciennes, si le fichier existe physiquement et si l'acteur dispose des droits. Il ne copie aucun fichier ni transfert de propriete. `MEDIA ... assets_files_available=0` signale un blocage reel du stockage sur l'environnement : les 314 enregistrements ne peuvent pas devenir des images fonctionnelles sans fichier sous-jacent.
+
+## Abonnements payants de demonstration (opt-in)
+
+Les domaines existants `subscriptions` et `payments` gerent le catalogue `SubscriptionPlan`/`PlanVersion`/`PlanEntitlement`, les subscriptions du Profile ou Space, les transitions, `PlanVersionBillingTerms` et `SubscriptionBillingObligation` liees a `PaymentObligation`. Le module `scripts/demo_generation/subscriptions.py` cible un Profile existant et **n'invente ni tarif ni entitlement** : il choisit exclusivement des ADDON Profile publies avec termes de facturation payants dans le catalogue courant. Il passe par `request_subscription_transition`, puis paiement `sandbox` avec les services canoniques et `complete_subscription_transition` quand l'obligation est satisfaite.
+
+```bash
+python -m scripts.demo_generation plan --domains subscriptions --profile-username beta_alain --count 3
+python -m scripts.demo_generation generate --domains subscriptions --profile-username beta_alain --count 3
+```
+
+Ce domaine est volontairement exclu de `--domains all` et exige un username explicite. Si aucun tarif payant n'existe dans le catalogue actif, le compteur indique `NO_PAID_CATALOG` : publier d'abord une vraie formule de demonstration et ses capacites, sans dupliquer de verites metier. Le sandbox ne correspond a aucun paiement bancaire reel.
