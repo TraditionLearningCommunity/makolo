@@ -33,7 +33,7 @@
             {% endfor %}
           </span>
           {% endif %}
-          {% if connection.owner == 'intelligence' and connection.enabled %}
+          {% if connection.owner == 'intelligence' and connection.enabled and connection.usable %}
             {% if 'web_research' in connection.capabilities or 'structured_generate' in connection.capabilities %}
               <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary">
                 Explorer dans Découvrir
