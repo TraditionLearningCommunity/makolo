@@ -13,11 +13,13 @@ class DeviceAccountsScreen extends ConsumerStatefulWidget {
     required this.runtime,
     required this.onUsePassword,
     required this.onAddAccount,
+    this.onClose,
   });
 
   final AppRuntime runtime;
   final ValueChanged<String> onUsePassword;
   final VoidCallback onAddAccount;
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<DeviceAccountsScreen> createState() =>
@@ -97,6 +99,7 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
       title: 'Choisir un compte',
       subtitle: 'Reprenez Makolo avec un compte déjà utilisé sur cet appareil.',
       footer: '',
+      onClose: widget.onClose,
       child: FutureBuilder<List<DeviceAccount>>(
         future: _accounts,
         builder: (context, snapshot) {
