@@ -60,6 +60,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   bool _avatarPickerScheduled = false;
   bool _visibilityJumpScheduled = false;
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _visibilityAnchor = GlobalKey();
   bool _loading = true;
   bool _loaded = false;
   bool _saving = false;
@@ -511,7 +512,15 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     if (widget.focusVisibility && _loaded && !_visibilityJumpScheduled) {
       _visibilityJumpScheduled = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _scrollController.hasClients) {
+        if (!mounted) return;
+        final anchor = _visibilityAnchor.currentContext;
+        if (anchor != null) {
+          Scrollable.ensureVisible(
+            anchor,
+            duration: const Duration(milliseconds: 220),
+            alignment: 0.12,
+          );
+        } else if (_scrollController.hasClients) {
           _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         }
       });
@@ -528,6 +537,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           ? _localSummary(context)
           : ListView(
               controller: _scrollController,
+              cacheExtent: widget.focusVisibility ? 4000 : null,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 44),
               children: [
                 if (_error != null) ...[
@@ -604,7 +614,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                     _field('YouTube', _youtube),
                   ],
                 ),
-                _sectionTitle('Visibilité'),
+                KeyedSubtree(
+                  key: _visibilityAnchor,
+                  child: _sectionTitle('Visibilité'),
+                ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Passeport public'),
