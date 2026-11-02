@@ -5,6 +5,7 @@ from .views import (
     BookmarkListCreateAPIView,
     DiscoveryForYouAPIView,
     DiscoveryClarifyAPIView,
+    DiscoveryResearchAPIView,
     DiscoveryItemDetailAPIView,
     DiscoveryItemSavedAPIView,
     DiscoveryItemsAPIView,
@@ -19,6 +20,7 @@ app_name = "discovery_api"
 
 urlpatterns = [
     path("clarify/", DiscoveryClarifyAPIView.as_view(), name="clarify"),
+    path("research/", DiscoveryResearchAPIView.as_view(), name="research"),
     path("items/", DiscoveryItemsAPIView.as_view(), name="items"),
     path(
         "items/<str:family>/<uuid:item_id>/",
