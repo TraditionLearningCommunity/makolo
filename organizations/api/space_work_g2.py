@@ -4,6 +4,8 @@ A Programme/Prestation is an Activity. A Session is an Occurrence. A
 registration or Services case is a Journey. No second source of truth.
 Only entries already scoped to a selected authorized Activity may reach here.
 """
+from uuid import UUID
+
 from django.urls import reverse
 from urllib.parse import urlencode
 
@@ -20,13 +22,17 @@ _OPERATOR_SCOPES = {CASE_SCOPE_VIEW_ALL, CASE_SCOPE_VIEW_ASSIGNED}
 def related_g2_work(*, profile, space, activity_id, responsibility, offset,
                     education_ids, service_ids):
     """Bounded, PII-free owner relationships after Work's Activity selection."""
+    try:
+        owner_id = UUID(str(activity_id))
+    except (ValueError, TypeError, AttributeError):
+        return None
     if space.archetype == "education":
-        if activity_id not in education_ids:
+        if owner_id not in education_ids:
             return {"items": [], "offset": offset, "limit": RELATED_LIMIT,
                     "has_more": False, "coverage_state": "partial"}
         rows = list(
             Journey.objects.filter(
-                activity_id=activity_id, workflow=WorkflowKind.REGISTRATION,
+                activity_id=owner_id, workflow=WorkflowKind.REGISTRATION,
             ).order_by("-created_at", "pk")[offset:offset + RELATED_LIMIT + 1]
         )
         request_by_journey = {}
@@ -50,13 +56,13 @@ def related_g2_work(*, profile, space, activity_id, responsibility, offset,
                 ),
             })
     elif space.archetype == "service_provider":
-        if activity_id not in service_ids:
+        if owner_id not in service_ids:
             return {"items": [], "offset": offset, "limit": RELATED_LIMIT,
                     "has_more": False, "coverage_state": "partial"}
         # This selector already applies active case assignments and the
         # CASES_VIEW_ALL scope; never use a generic Journey queryset.
         base = service_journeys_visible_to(profile).filter(
-            activity_id=activity_id
+            activity_id=owner_id
         ).exclude(beneficiary=profile)
         # An activity's case can be visible to a delegated operator only; the
         # scope must still be checked for each selected case.
