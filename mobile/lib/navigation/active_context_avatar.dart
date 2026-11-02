@@ -4,7 +4,6 @@ import '../app/runtime/actor_context.dart';
 import '../app/runtime/app_runtime.dart';
 import '../design/makolo_theme.dart';
 import '../features/space/space_repository.dart';
-import '../network/makolo_api_client.dart';
 import 'profile_avatar_image.dart';
 
 /// The header visual identifies the active working context, not the
@@ -87,7 +86,7 @@ String activeSpaceName(
 }
 
 String spaceMonogram(String name) {
-  final words = name.trim().split(RegExp(r'\\s+')).where((w) => w.isNotEmpty);
+  final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
   if (words.isEmpty) return 'E';
   final letters = words.take(2).map((w) => w.substring(0, 1)).join();
   return letters.toUpperCase();
