@@ -250,6 +250,33 @@ class SpaceWorkGroup4Tests(TestCase):
         )
         self.assertNotIn("media_bindings", entries[str(sibling.pk)])
 
+    def test_mt6_n2_web_uses_only_live_published_media(self):
+        creation = self.activity("Œuvre avec visuel")
+        use = self.media_use(creation, label="Affiche autorisée")
+        self.web.force_login(self.owner)
+        url = reverse(
+            "organizations:space-work-depth-g4",
+            kwargs={"slug": self.space.slug, "kind": "activity",
+                    "owner_id": creation.pk},
+        )
+        first = self.web.get(url)
+        self.assertEqual(first.status_code, 200)
+        self.assertContains(first, "data-mt6-recognition")
+        self.assertContains(first, "Affiche autorisée")
+        self.assertContains(first, "Présentations et médias")
+
+        retire_presentation_media(actor=self.owner, media_use=use)
+        second = self.web.get(url)
+        self.assertEqual(second.status_code, 200)
+        self.assertNotContains(second, "data-mt6-recognition")
+        self.assertNotContains(second, "Affiche autorisée")
+
+        self.space.public_profile = False
+        self.space.save(update_fields=["public_profile", "updated_at"])
+        private = self.web.get(url)
+        self.assertEqual(private.status_code, 200)
+        self.assertNotContains(private, "data-mt6-recognition")
+
     def test_plain_resource_file_is_not_promoted_without_published_media_use(self):
         creation = self.activity("Création avec ressource de travail")
         resource = ActivityResource(
