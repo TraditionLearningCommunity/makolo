@@ -167,6 +167,7 @@ class DiscoveryQuery {
     const allowed = {
       'q', 'place', 'when', 'period', 'vertical', 'price',
       'date', 'date_from', 'date_to', 'lat', 'lon', 'radius_km',
+      'timezone',
     };
     return Map<String, String>.unmodifiable({
       for (final entry in parameters.entries)
