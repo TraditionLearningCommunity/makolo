@@ -46,6 +46,33 @@ def _reject_profile_override(request):
         )
 
 
+class DiscoveryClarifyAPIView(APIView):
+    """Explicit, authenticated Discovery clarification. Never a billable GET."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from discovery.assistance import clarify_discovery_search
+
+        if not isinstance(request.data, dict) or set(request.data) != {"criteria"}:
+            raise ValidationError({"criteria": ["Contrat de recherche invalide."]})
+        try:
+            result = clarify_discovery_search(
+                actor=request.user, criteria=request.data["criteria"],
+            )
+        except ValueError as exc:
+            raise ValidationError({"criteria": [str(exc)]}) from exc
+        response = Response(
+            projection_envelope(
+                projection="discovery.clarification",
+                scope="personal",
+                data=result,
+            )
+        )
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
 class DiscoveryItemsAPIView(APIView):
     """Canonical mature Discovery collection.
 
