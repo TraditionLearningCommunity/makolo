@@ -152,4 +152,4 @@ jobs:
         run: python manage.py test subscriptions.test_s6_product_ux subscriptions.test_s6_performance subscriptions.test_space_native_api subscriptions.test_lot4_continuation analytics_app.test_subscription_analytics
       - name: Run Subscription PostgreSQL concurrency regressions
         if: ${{ matrix.shard == 'ux-concurrency' }}
-        run: python manage.py test subscriptions.test_s2_concurrency subscriptions.test_s4_concurrency
+        run: python manage.py test subscriptions.test_s2_concurrency subscriptions.test_s4_concurrency subscriptions.test_lot5_team_concurrency
