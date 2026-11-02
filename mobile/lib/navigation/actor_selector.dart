@@ -257,6 +257,9 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        subtitle: space.limitedToActivities
+                            ? const Text('Accès limité aux activités')
+                            : null,
                         trailing:
                             actor is SpaceActorContext &&
                                 actor.space.id == space.identity.id
