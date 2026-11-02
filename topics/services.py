@@ -5,7 +5,9 @@ from .models import OpenToKind, ProfileInterest, ProfileOpenTo, Topic
 
 
 @transaction.atomic
-def replace_profile_interests(*, profile, topic_ids):
+def replace_profile_interests(*, profile, topic_ids, new_visibility="public"):
+    if new_visibility not in ("public", "private"):
+        raise ValidationError({"new_visibility": "Visibilité initiale invalide."})
     if not getattr(profile, "is_authenticated", False):
         raise PermissionDenied("Connectez-vous pour modifier vos centres d’intérêt.")
     normalized_ids = {str(topic_id) for topic_id in topic_ids}
@@ -17,7 +19,9 @@ def replace_profile_interests(*, profile, topic_ids):
     interests.exclude(topic_id__in=retained_topic_ids).delete()
     existing_topic_ids = set(interests.values_list("topic_id", flat=True))
     ProfileInterest.objects.bulk_create([
-        ProfileInterest(profile=profile, topic=topic, is_public=True)
+        ProfileInterest(
+            profile=profile, topic=topic, is_public=new_visibility == "public",
+        )
         for topic in topics if topic.pk not in existing_topic_ids
     ])
     return ProfileInterest.objects.filter(profile=profile).select_related("topic").order_by("topic__label", "topic__code")
