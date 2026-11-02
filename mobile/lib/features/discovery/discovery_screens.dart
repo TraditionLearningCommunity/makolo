@@ -542,6 +542,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   String _date = '';
   String _price = '';
   String _vertical = '';
+  String? _selectedWatchId;
   String? _locationMessage;
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
@@ -555,6 +556,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   void initState() {
     super.initState();
     _query = widget.initialQuery;
+    unawaited(_refreshSavedWatches());
     widget.repository.rememberExploration(_query);
     _selectedCandidateKey = widget.initialSelectedCandidateKey;
     if (_query.page > 1 && _query.continuation != null) {
@@ -582,7 +584,104 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     super.dispose();
   }
 
+  Future<void> _refreshSavedWatches() async {
+    try {
+      await widget.repository.refreshWatches();
+    } on Object {
+      // Visitors have no private watches; keep public search available.
+    }
+  }
+
+  void _selectSavedWatch(String? id, List<dynamic> rows) {
+    if (id == null || id.isEmpty) {
+      setState(() => _selectedWatchId = null);
+      return;
+    }
+    Map? found;
+    for (final row in rows) {
+      if (row is Map && row['id'] == id) {
+        found = row;
+        break;
+      }
+    }
+    final criteria = found?['criteria'];
+    if (criteria is! Map) return;
+    const keys = {
+      'q', 'place', 'when', 'period', 'vertical', 'price',
+      'date', 'date_from', 'date_to', 'lat', 'lon', 'radius_km',
+    };
+    final params = <String, String>{};
+    for (final key in keys) {
+      final value = criteria[key];
+      if (value is String && value.trim().isNotEmpty) {
+        params[key] = value.trim();
+      }
+    }
+    DiscoveryQuery query;
+    try {
+      query = DiscoveryQuery.fromRouteParameters(params);
+    } on FormatException {
+      return;
+    }
+    _searchCoordinator.invalidate();
+    _pageTokens.clear();
+    _search.text = query.text;
+    _place.text = query.place;
+    _selectedPlace = null;
+    _when = query.date.isNotEmpty ? 'custom' : query.when;
+    _date = query.date;
+    _price = query.price;
+    _vertical = query.vertical;
+    _filterRevision.value++;
+    setState(() {
+      _selectedWatchId = id;
+      _query = query;
+      _refreshing = query.hasCriteria;
+    });
+    widget.repository.rememberExploration(query);
+    if (query.hasCriteria) _searchCoordinator.changed(immediate: true);
+  }
+
+  Widget _watchFilter() => StreamBuilder<StoredProjection?>(
+    stream: widget.repository.watchWatches(),
+    builder: (context, snapshot) {
+      final results = snapshot.data?.payload['results'];
+      if (results is! List) return const SizedBox.shrink();
+      final watches = results.whereType<Map>().where((row) =>
+          row['id'] is String &&
+          row['name'] is String &&
+          row['criteria'] is Map &&
+          row['status'] != 'paused').toList();
+      if (watches.isEmpty) return const SizedBox.shrink();
+      final selected = watches.any((row) => row['id'] == _selectedWatchId)
+          ? _selectedWatchId
+          : null;
+      return DropdownButtonFormField<String>(
+        key: const Key('discover-search-watch-filter'),
+        initialValue: selected,
+        decoration: const InputDecoration(
+          labelText: 'Veilles',
+          prefixIcon: Icon(Icons.radar_outlined),
+          border: OutlineInputBorder(),
+        ),
+        items: [
+          const DropdownMenuItem<String>(
+            value: '',
+            child: Text('Toutes les possibilités'),
+          ),
+          for (final watch in watches)
+            DropdownMenuItem<String>(
+              value: watch['id'] as String,
+              child: Text(watch['name'] as String),
+            ),
+        ],
+        onChanged: (id) => _selectSavedWatch(id, watches),
+      );
+    },
+  );
+
   void _applyCriteria({bool immediate = true}) {
+    _selectedWatchId = null;
     _filterRevision.value++;
     _searchChanged(_search.text, immediate: immediate);
   }
@@ -887,6 +986,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   void _clearFilters() {
+    _selectedWatchId = null;
     _place.clear();
     setState(() {
       _selectedPlace = null;
@@ -902,6 +1002,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   void _resetCriteria() {
+    _selectedWatchId = null;
     _searchCoordinator.invalidate();
     _pageTokens.clear();
     _search.clear();
@@ -1016,6 +1117,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
             extra: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _watchFilter(),
+                const SizedBox(height: MakoloSpacing.sm),
                 OutlinedButton.icon(
                   key: const Key('discover-search-nearby'),
                   onPressed: _toggleNearby,
