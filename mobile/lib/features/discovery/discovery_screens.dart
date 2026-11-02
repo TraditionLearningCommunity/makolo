@@ -24,6 +24,22 @@ import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
 import 'discovery_selector.dart';
 import 'discovery_wire.dart';
+import 'discovery_watch_create.dart';
+
+/// A newly created Watch is opened only after the Discovery owner returns
+/// its canonical identity. Cancel and refusal never navigate.
+Future<void> _startDiscoveryWatch(
+  BuildContext context,
+  DiscoveryRepository repository,
+  DiscoveryQuery query,
+) async {
+  final id = await showDiscoveryWatchCreation(
+    context, repository: repository, query: query,
+  );
+  if (id != null && context.mounted) {
+    context.push('/discover/watches/${Uri.encodeComponent(id)}');
+  }
+}
 
 /// A confirmed owner mutation updates the detail snapshot first. Refresh the
 /// existing field opportunistically; a failed refresh does not negate a save.
@@ -443,6 +459,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
+                onWatch: _query.watchCriteria.isEmpty
+                    ? null
+                    : () => unawaited(_startDiscoveryWatch(
+                          context, widget.repository, _query,
+                        )),
                 fieldKey: _query.mapFingerprint,
                 scrollController: _fieldScroll,
                 initialFocusedCandidateKey: _focusedCandidateKey,
@@ -952,6 +973,11 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             ),
                             baseUri: widget.repository.api.baseUri,
                             shareApi: widget.repository.api,
+                            onWatch: _query.watchCriteria.isEmpty
+                                ? null
+                                : () => unawaited(_startDiscoveryWatch(
+                                    context, widget.repository, _query,
+                                  )),
                             fieldKey: _query.mapFingerprint,
                             initialFocusedCandidateKey: _selectedCandidateKey,
                             onFocusedCandidateChanged: (key) =>
