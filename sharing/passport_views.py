@@ -93,7 +93,7 @@ class PassportViewMixin(TemplateView):
         # HTML issuance also writes a dated record during context building.
         # Force template rendering inside the transaction so a broken
         # export never appears as a successfully issued version.
-        if not (
+        if request.GET.get("pdf") == "1" or not (
             request.GET.get("download") == "1"
             or request.GET.get("document") == "1"
         ):
