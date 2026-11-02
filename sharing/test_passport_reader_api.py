@@ -102,6 +102,14 @@ class PassportReaderAPIContracts(TestCase):
         self.assertEqual(data["payload"]["identity"]["bio"], "Description datée privée.")
         self.assertIsNotNone(data["expires_at"])
         self.assertEqual(shared["Cache-Control"], "private, no-store")
+        # Native and HTML must resolve the very same frozen, active document.
+        link_token = url.rstrip("/").split("/")[-2]
+        web = self.client.get(reverse(
+            "sharing:passport-shared", kwargs={"token": link_token},
+        ))
+        self.assertEqual(web.status_code, 200)
+        self.assertTrue(web.context["can_view_dated_passport"])
+        self.assertEqual(web.context["dated_payload"], data["payload"])
 
         revoke_passport_share(envelope=envelope, actor=self.owner)
         self.assertEqual(self.client.get(url).status_code, 404)
