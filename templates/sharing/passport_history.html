@@ -42,6 +42,16 @@
           <button type="submit">Créer un lien</button>
         </form>
       {% endif %}
+      {% if can_share_issued_passport and not entry.snapshot.is_revoked %}
+        <details style="margin-top:12px">
+          <summary>Retirer l'accès à cette version</summary>
+          <p class="muted">La version restera dans votre historique, mais sa consultation publique et tous ses liens de partage seront révoqués. Les fichiers déjà téléchargés ne peuvent pas être rappelés.</p>
+          <form method="post" action="{{ entry.revoke_url }}">
+            {% csrf_token %}
+            <button type="submit">Révoquer cette version et ses partages</button>
+          </form>
+        </details>
+      {% endif %}
       {% if can_share_issued_passport %}{% for grant in entry.share_grants %}
         <form method="post" action="{{ grant.revoke_url }}" style="margin-top:10px">
           {% csrf_token %}
