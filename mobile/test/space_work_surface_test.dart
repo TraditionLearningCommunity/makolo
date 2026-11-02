@@ -3,6 +3,47 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/space/space_work_surface.dart';
 
 void main() {
+  testWidgets('MT3 G1 native creation follows owner capability and perspective', (
+    tester,
+  ) async {
+    Future<void> render({
+      required String archetype,
+      required bool allowed,
+      String responsibility = 'all',
+    }) => tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SpaceWorkSurface(
+            payload: {
+              'primary_business_label': 'Métier',
+              'archetype': archetype,
+              'responsibility': responsibility,
+              'space': {'slug': 'mt3-space'},
+              'capabilities': {'create_activity': allowed},
+              'presentation': {'empty_message': 'Aucun élément.'},
+              'sections': <String, dynamic>{},
+            },
+          ),
+        ),
+      ),
+    );
+
+    await render(archetype: 'community', allowed: true);
+    expect(find.text('Nouvelle initiative'), findsOneWidget);
+    await render(archetype: 'generic', allowed: true);
+    expect(find.text('Nouvelle activité'), findsOneWidget);
+    await render(archetype: 'generic', allowed: false);
+    expect(find.text('Nouvelle activité'), findsNothing);
+    await render(
+      archetype: 'community',
+      allowed: true,
+      responsibility: 'mandate:limited',
+    );
+    expect(find.text('Nouvelle initiative'), findsNothing);
+    await render(archetype: 'education', allowed: true);
+    expect(find.text('Nouvelle activité'), findsNothing);
+  });
+
   testWidgets('generic work empty state stays honest and calm', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
