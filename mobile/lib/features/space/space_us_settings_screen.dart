@@ -210,10 +210,10 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
   Widget build(BuildContext context) {
     final current = actor;
     return Scaffold(
-      appBar: AppBar(title: const Text('Identité du Space')),
+      appBar: AppBar(title: const Text('Identité de l’Espace')),
       body: current == null
           ? const Center(
-              child: Text('Sélectionnez le Space autorisé pour le modifier.'),
+              child: Text('Sélectionnez l’Espace que vous êtes autorisé à modifier.'),
             )
           : loading
           ? const Center(child: CircularProgressIndicator())
@@ -240,15 +240,15 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                   ),
                   const SizedBox(height: MakoloSpacing.sm),
                   const Text(
-                    'Ces changements engagent le Space. '
-                    'Le serveur vérifie votre autorité à chaque enregistrement.',
+                    'Ces changements concernent cet Espace. '
+                    'Votre autorisation est vérifiée à chaque enregistrement.',
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
                   TextFormField(
                     controller: name,
                     maxLength: 180,
                     decoration: const InputDecoration(
-                      labelText: 'Nom du Space',
+                      labelText: 'Nom de l’Espace',
                     ),
                     validator: (v) => (v?.trim().isEmpty ?? true)
                         ? 'Le nom est nécessaire.'
@@ -284,7 +284,7 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Profil public'),
                     subtitle: const Text(
-                      'Autoriser la présence publique prévue par le Space. '
+                      'Autoriser la visibilité publique de cet Espace. '
                       'Les règles de découverte restent distinctes.',
                     ),
                     value: publicProfile,
