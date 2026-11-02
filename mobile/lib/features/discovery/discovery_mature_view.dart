@@ -669,20 +669,6 @@ class _DiscoveryScrollableField extends StatelessWidget {
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                       ),
-                      if (onWatch != null)
-                        IconButton(
-                          key: const Key('discover-field-create-watch'),
-                          tooltip: 'Créer une veille sur ces critères',
-                          icon: const Icon(Icons.notifications_active_outlined),
-                          onPressed: onWatch,
-                        ),
-                      if (onMap != null)
-                        IconButton(
-                          key: const Key('discover-field-open-map'),
-                          tooltip: 'Voir ces possibilités sur la carte',
-                          icon: const Icon(Icons.map_outlined),
-                          onPressed: onMap,
-                        ),
                     ],
                   ),
                   const SizedBox(height: MakoloSpacing.lg),
