@@ -171,3 +171,103 @@ class PassportIssuanceAndSharingTests(TestCase):
             kwargs={"snapshot_id": complete.pk},
         ), {"days": "7"})
         self.assertEqual(rejected.status_code, 400)
+
+    def test_owner_withdraws_issued_document_and_all_its_active_links(self):
+        from sharing.models import PassportShareSubject, ShareStatus
+
+        snapshot = self._issue(variant="custom")
+        self.client.force_login(self.owner)
+        created = self.client.post(reverse(
+            "sharing:passport-share-create",
+            kwargs={"snapshot_id": snapshot.pk},
+        ), {"days": "7"})
+        self.assertEqual(created.status_code, 200)
+        link = urlsplit(created.context["share_url"]).path
+        grant = PassportShareSubject.objects.get(snapshot=snapshot)
+        self.assertEqual(self.client.get(link).status_code, 200)
+
+        withdrawn = self.client.post(reverse(
+            "sharing:passport-version-revoke",
+            kwargs={"snapshot_id": snapshot.pk},
+        ))
+        self.assertEqual(withdrawn.status_code, 302)
+        snapshot.refresh_from_db()
+        grant.envelope.refresh_from_db()
+        self.assertTrue(snapshot.is_revoked)
+        self.assertEqual(grant.envelope.status, ShareStatus.REVOKED)
+        self.assertEqual(self.client.get(link).status_code, 404)
+
+        # Revocation is idempotent and never deletes or changes the archive.
+        before = snapshot.payload_hash
+        again = self.client.post(reverse(
+            "sharing:passport-version-revoke",
+            kwargs={"snapshot_id": snapshot.pk},
+        ))
+        self.assertEqual(again.status_code, 302)
+        snapshot.refresh_from_db()
+        self.assertEqual(snapshot.payload_hash, before)
+        version = self.client.get(f"/api/v1/me/passport/history/{snapshot.pk}/")
+        self.assertEqual(version.status_code, 200)
+        self.assertTrue(version.json()["data"]["revoked"])
+
+    def test_native_share_listing_and_individual_revocation(self):
+        from sharing.models import PassportShareSubject, ShareStatus
+
+        snapshot = self._issue(variant="custom")
+        self.client.force_login(self.owner)
+        created = self.client.post(
+            f"/api/v1/me/passport/history/{snapshot.pk}/share/",
+            data='{"days": 30}',
+            content_type="application/json",
+        )
+        self.assertEqual(created.status_code, 200)
+        share_id = created.json()["data"]["share_id"]
+        grant = PassportShareSubject.objects.get(snapshot=snapshot)
+        self.assertEqual(str(grant.envelope_id), share_id)
+        listed = self.client.get("/api/v1/me/passport/history/")
+        item = listed.json()["data"]["items"][0]
+        self.assertEqual(item["active_shares"][0]["id"], share_id)
+        self.assertIsNotNone(item["active_shares"][0]["expires_at"])
+
+        revoked = self.client.post(
+            f"/api/v1/me/passport/shares/{share_id}/revoke/",
+            data="{}", content_type="application/json",
+        )
+        self.assertEqual(revoked.status_code, 200)
+        self.assertTrue(revoked.json()["data"]["revoked"])
+        grant.envelope.refresh_from_db()
+        self.assertEqual(grant.envelope.status, ShareStatus.REVOKED)
+        snapshot.refresh_from_db()
+        self.assertFalse(snapshot.is_revoked)
+        self.assertEqual(
+            self.client.get("/api/v1/me/passport/history/").json()
+            ["data"]["items"][0]["active_shares"], [],
+        )
+
+    def test_another_profile_cannot_revoke_document_or_link(self):
+        from sharing.models import PassportShareSubject
+
+        snapshot = self._issue(variant="custom")
+        self.client.force_login(self.owner)
+        self.client.post(reverse(
+            "sharing:passport-share-create",
+            kwargs={"snapshot_id": snapshot.pk},
+        ), {"days": "7"})
+        grant = PassportShareSubject.objects.get(snapshot=snapshot)
+        self.client.force_login(self.visitor)
+        self.assertEqual(self.client.post(reverse(
+            "sharing:passport-version-revoke",
+            kwargs={"snapshot_id": snapshot.pk},
+        )).status_code, 404)
+        self.assertEqual(self.client.post(
+            f"/api/v1/me/passport/history/{snapshot.pk}/revoke/",
+            data="{}", content_type="application/json",
+        ).status_code, 404)
+        self.assertEqual(self.client.post(
+            f"/api/v1/me/passport/shares/{grant.envelope_id}/revoke/",
+            data="{}", content_type="application/json",
+        ).status_code, 404)
+        snapshot.refresh_from_db()
+        grant.envelope.refresh_from_db()
+        self.assertFalse(snapshot.is_revoked)
+        self.assertTrue(grant.envelope.is_active_at())
