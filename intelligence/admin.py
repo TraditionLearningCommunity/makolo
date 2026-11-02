@@ -108,6 +108,14 @@ class ProviderConnectionAdmin(TechnicalConnectionAdminMixin, admin.ModelAdmin):
             if form.is_valid():
                 previous = connection.health_status
                 status = test_provider_connection(connection)
+                if status == ProviderHealth.UNKNOWN:
+                    self.message_user(
+                        request,
+                        "Ce contrôle a été dépassé par un changement de connexion ; "
+                        "aucune ancienne santé n'a été enregistrée.",
+                        level=messages.WARNING,
+                    )
+                    return
                 audit_action(
                     actor=request.user, action="intelligence.provider_checked",
                     target_type="provider_connection", target_id=connection.pk,
