@@ -114,7 +114,7 @@ void main() {
       baseUri: Uri.parse('https://makolo.invalid/'),
       tokenStore: tokens,
       dio: MockClient((request) async {
-        if (request.method == 'GET') {
+        if (request.data == null) {
           return MockResponse(jsonEncode({
             'target_name': 'Formule Max',
             'current_name': 'Formule Plus',
