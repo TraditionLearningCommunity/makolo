@@ -87,7 +87,7 @@ def run(a):
     if not 0<=scans<=100000 or not 0<=orders<=100000:
         raise SystemExit("--scans et --orders 0..100000")
     if a.profile_username:
-        supported={"discovery","goals","space","journeys","access","operations","scanner","commerce","outcomes"}
+        supported={"discovery","goals","space","journeys","access","commerce"}
         unsupported=domains-supported
         if unsupported:
             raise SystemExit("--profile-username n'est pas encore pris en charge pour: "+",".join(sorted(unsupported))+"; selectionner les domaines compatibles")
