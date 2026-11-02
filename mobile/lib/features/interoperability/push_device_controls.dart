@@ -184,22 +184,27 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
           !identical(ownerRuntime, widget.runtime))
         return;
       await _load();
+      final devicesRefreshed = _error == null;
+      var projectionRefreshed = false;
       try {
         await widget.onChanged();
+        projectionRefreshed = true;
       } on Object {
-        // A successful owner write is not undone by a subsequent stale read.
+        // Registration succeeded, but the parent Z16 view was not verified.
+        // Do not misrepresent that partial refresh as a full success.
       }
       if (mounted &&
           version == _ownerGeneration &&
           identical(ownerRuntime, widget.runtime)) {
+        final message = !devicesRefreshed
+            ? 'Inscription confirmée sur le serveur, mais la liste des '
+                'appareils n’a pas pu être actualisée.'
+            : !projectionRefreshed
+                ? 'Inscription confirmée, liste des appareils actualisée, '
+                    'mais les connexions restent à vérifier.'
+                : 'Cet appareil est inscrit et les connexions sont actualisées.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _error == null
-                  ? 'Cet appareil est de nouveau inscrit auprès de Makolo.'
-                  : 'Inscription confirmée, actualisation indisponible.',
-            ),
-          ),
+          SnackBar(content: Text(message)),
         );
       }
     } on Object {
