@@ -275,7 +275,13 @@ class DiscoveryFieldView extends StatelessWidget {
         onMap: onMap,
         onWatch: onWatch,
         fieldKey: fieldKey,
-        class DiscoverySpatialView extends StatefulWidget {
+        scrollController: scrollController,
+      ),
+    );
+  }
+}
+
+class DiscoverySpatialView extends StatefulWidget {
   const DiscoverySpatialView({
     super.key,
     required this.selection,
