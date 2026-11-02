@@ -45,7 +45,7 @@ Le Passeport Complet est exhaustif **dans ce périmètre**, pas un export de tou
 - **Thématique :** sélection explicite de Topics pertinents parmi les Interests, Open to actifs, Activities, Proofs actives et Credentials réellement représentables. La projection thématique reste privée tant qu'un partage autorisé distinct n'a pas été établi. Elle ne fabrique aucune nouvelle compétence.
 - **Personnalisé :** sélection bornée de sections et d'éléments appartenant au titulaire ; refus des IDs étrangers, aucun fait personnel privé présélectionné. L'identifiant minimal subsiste.
 
-Le choix d'un Topic ne signifie pas « je possède une compétence ». Un `Open to` n'est pas un `Interest`, et doit néanmoins proposer son thème dans le sélecteur, même lorsqu'il est le seul fait disponible sur ce thème.
+Le choix d'un Topic ne signifie pas « je possède une compétence ». Un `Open to` n'est pas un `Interest`, et doit néanmoins proposer son thème dans le sélecteur, même lorsqu'il est le seul fait disponible sur ce thème. **Web et Flutter affichent le libellé de l'ouverture ET son Topic facultatif**, pour distinguer « Mentorat · Géométrie » de « Mentorat · Recherche ».
 
 ## 4. Langage et provenance
 
@@ -69,8 +69,10 @@ Une section sans valeur est omise ou remplacée par une aide d'édition contextu
 - [x] Une Proof révoquée seule ne rend pas artificiellement son Topic disponible.
 - [x] Groupes archivés omis de la projection des affiliations actuelles, sans toucher à leur historique canonique.
 - [x] Quatre tests ciblés ajoutés dans `sharing/test_passport_stage3_content.py`.
+- [x] Le client Flutter conserve le contexte Topic d'Open To et dispose d'un test widget dédié dans `mobile/test/me_passport_stage3_content_test.dart`.
 - [ ] Exécuter `python manage.py test sharing.test_passport_stage3_content sharing.test_g6_passport`.
 - [ ] Exécuter `python manage.py check` et `python manage.py makemigrations --check --dry-run`.
+- [ ] Exécuter `flutter test test/me_passport_stage3_content_test.dart` et `flutter analyze` depuis `mobile/`.
 - [ ] Vérifier les autres tests de projection propriétaire, le rendu Web/Flutter/PDF et les CI sur le HEAD à intégrer.
 - [ ] Réconcilier avec la PR #522 puis vérifier `main` après fusion ; **aucune fusion avec CI rouge**.
 
