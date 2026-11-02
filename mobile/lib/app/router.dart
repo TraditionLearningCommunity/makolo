@@ -474,6 +474,26 @@ GoRouter createMakoloRouter(
         },
       ),
       GoRoute(
+        path: '/space/:slug/work/g2/new',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug'] ||
+              !actor.perspective.isAll) {
+            return const MakoloSecondaryScreen(
+              title: 'Créer dans Métier',
+              message: 'Choisissez votre Espace et sa responsabilité globale.',
+            );
+          }
+          return SpaceWorkCreateActivityScreen(
+            runtime: runtime,
+            actor: actor,
+            isCommunity: false,
+            archetype: state.uri.queryParameters['archetype'],
+          );
+        },
+      ),
+      GoRoute(
         path: '/space/:slug/work/activities/new',
         builder: (context, state) {
           final actor = runtime.actorContext?.value;
