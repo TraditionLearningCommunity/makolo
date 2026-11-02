@@ -184,6 +184,14 @@ GoRouter createMakoloRouter(
       }
 
       if (runtime.isAuthenticated) {
+        // Legacy global links must not silently open personal entitlements or
+        // connections while the user is acting for a different owner.
+        if (actor is SpaceActorContext && path == '/connections') {
+          return connectionsRouteForActor(actor);
+        }
+        if (actor is SpaceActorContext && path == '/billing') {
+          return subscriptionRouteForActor(actor);
+        }
         final shellDestination = MakoloDestination.forPath(path);
         if (shellDestination != null) {
           final actorDestination = MakoloDestination.forActor(
