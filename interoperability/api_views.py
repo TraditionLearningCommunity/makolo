@@ -16,6 +16,7 @@ from intelligence.interoperability import (
 from organizations.models import Organization
 
 from .profile_projection import build_profile_interoperability_payload
+from .domain_integrations import space_domain_integrations, platform_domain_integrations
 from .projections import build_interoperability_payload
 
 
@@ -53,6 +54,7 @@ class SpaceInteroperabilityAPIView(APIView):
                 self_link=f"/api/v1/organizations/workspaces/{space.slug}/interoperability/",
                 actor=request.user,
                 authority_context=space,
+                domain_integrations=space_domain_integrations(request.user, space),
             )
         )
 
@@ -74,6 +76,7 @@ class PlatformInteroperabilityAPIView(APIView):
             self_link="/api/v1/platform/interoperability/",
             actor=request.user,
             authority_context="platform",
+            domain_integrations=platform_domain_integrations(request.user),
         )
         payload["space_modules_included"] = False
         payload["personal_modules_included"] = False
