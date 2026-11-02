@@ -92,7 +92,9 @@ class SharePossibilityAPIView(APIView):
         if projection is None:
             raise NotFound("Possibilité indisponible.")
         recipient_id = request.data.get("recipient_id")
-        if recipient_id is not None and not isinstance(recipient_id, str):
+        if recipient_id is not None and (
+            not isinstance(recipient_id, str) or not recipient_id.strip()
+        ):
             raise ValidationError({"recipient_id": "Identifiant incorrect."})
         recipient = None
         if recipient_id:
