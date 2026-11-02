@@ -525,6 +525,13 @@ class DiscoverySearchScreen extends StatefulWidget {
   State<DiscoverySearchScreen> createState() => _DiscoverySearchScreenState();
 }
 
+String _providerFailureMessage(String reason) => switch (reason) {
+  'invalid_credentials' => 'La clé du fournisseur a été refusée.',
+  'rate_limited' => 'Le fournisseur a atteint sa limite d’usage.',
+  'network_unavailable' => 'Le fournisseur est momentanément injoignable.',
+  _ => 'Ce service n’est pas disponible actuellement.',
+};
+
 class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   static const _selector = DiscoverySelector();
   final _search = TextEditingController();
@@ -684,8 +691,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       final result = await widget.repository.researchSources(requestedText);
       if (!mounted || _search.text.trim() != requestedText) return;
       if (result.status == 'unavailable') {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Recherche de sources indisponible. '
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${_providerFailureMessage(result.reason)} '
               'Vous pouvez continuer dans Découvrir.'),
         ));
         return;
@@ -761,6 +768,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         _search.text = params['q'] ?? '';
         _place.text = params['place'] ?? '';
         _selectedPlace = null;
+        _filterRevision.value++;
         _when = params['when'] ?? '';
         _price = params['price'] ?? '';
         _vertical = params['vertical'] ?? '';
@@ -771,7 +779,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         ));
       } else {
         final message = result.status == 'unavailable'
-            ? 'Aucun service Intelligence utilisable. '
+            ? '${_providerFailureMessage(result.reason)} '
                 'Vous pouvez poursuivre la recherche normale.'
             : 'Aucun critère nouveau confirmé. '
                 'Votre recherche reste disponible.';
