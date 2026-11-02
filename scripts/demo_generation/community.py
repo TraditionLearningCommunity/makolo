@@ -46,8 +46,7 @@ def main(argv=None):
         p.error("SQLite demo database required")
     from .selection import demo_profiles
     users = demo_profiles(username=a.profile_username, limit=a.profiles)
-    if len(users) < 2:
-        p.error("Two active world_* profiles required")
+
 
     counts = Counter()
     if "groups" in selected:
@@ -68,7 +67,7 @@ def main(argv=None):
                     continue
             else:
                 counts["groups_existing"] += 1
-            member = users[(index + 1) % len(users)]
+            member = users[(index + 1) % len(users)] if len(users) > 1 else None
             if GroupMembership.objects.filter(group=group, profile=member,
                                               status="active").exists():
                 counts["members_existing"] += 1
