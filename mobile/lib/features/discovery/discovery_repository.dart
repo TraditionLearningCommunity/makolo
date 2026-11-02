@@ -270,6 +270,31 @@ class DiscoveryClarification {
   final Map<String, String> criteria;
 }
 
+/// Sources are transient external leads, never canonical Discovery objects.
+class DiscoverySourceLead {
+  const DiscoverySourceLead({
+    required this.label,
+    required this.summary,
+    required this.title,
+    required this.url,
+  });
+
+  final String label;
+  final String summary;
+  final String title;
+  final Uri url;
+}
+
+class DiscoverySourceResearch {
+  const DiscoverySourceResearch({
+    required this.status,
+    required this.leads,
+  });
+
+  final String status;
+  final List<DiscoverySourceLead> leads;
+}
+
 class DiscoverySourceState {
   const DiscoverySourceState({
     this.lastSuccessAt,
@@ -340,6 +365,53 @@ class DiscoveryRepository {
   final MakoloApiClient api;
   final SyncEngine? sync;
 
+  /// No offline queue or persistence: research is billed only by an explicit
+  /// owner call and its results stay contextual to this search.
+  Future<DiscoverySourceResearch> researchSources(String text) async {
+    final response = (await api.post(
+      'api/v1/discovery/research/',
+      body: {'q': text.trim()},
+    )).jsonObject();
+    final meta = response['meta'];
+    final data = response['data'];
+    if (meta is! Map ||
+        meta['projection'] != 'discovery.source-leads' ||
+        data is! Map ||
+        data['status'] is! String ||
+        data['candidates'] is! List) {
+      throw const FormatException('Invalid Discovery external source contract');
+    }
+    final leads = <DiscoverySourceLead>[];
+    for (final row in data['candidates'] as List) {
+      if (row is! Map || row['sources'] is! List) continue;
+      final label = row['label'];
+      final summary = row['summary'];
+      if (label is! String || summary is! String) continue;
+      for (final source in row['sources'] as List) {
+        if (source is! Map || source['url'] is! String) continue;
+        final url = Uri.tryParse(source['url'] as String);
+        if (url == null ||
+            url.scheme != 'https' ||
+            url.host.isEmpty ||
+            url.userInfo.isNotEmpty) continue;
+        leads.add(DiscoverySourceLead(
+          label: label,
+          summary: summary,
+          title: source['title'] is String
+              ? source['title'] as String
+              : url.host,
+          url: url,
+        ));
+        if (leads.length >= 6) break;
+      }
+      if (leads.length >= 6) break;
+    }
+    return DiscoverySourceResearch(
+      status: data['status'] as String,
+      leads: List.unmodifiable(leads),
+    );
+  }
+
   /// One explicit server-side Intelligence attempt; never stored in Drift,
   /// an outbox, or the Profile's projection history.
   Future<DiscoveryClarification> clarifySearch(DiscoveryQuery query) async {
@@ -355,7 +427,8 @@ class DiscoveryRepository {
       'api/v1/discovery/clarify/',
       body: {'criteria': input},
     )).jsonObject();
-    if (response['projection'] != 'discovery.clarification') {
+    if (response['meta'] is! Map ||
+        (response['meta'] as Map)['projection'] != 'discovery.clarification') {
       throw const FormatException('Unexpected Discovery clarification owner');
     }
     final data = response['data'];
