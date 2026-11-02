@@ -191,6 +191,10 @@ def sync_subscription_billing_obligation(*, obligation):
     )
     if not link or not link.transition_id:
         return None
-    from .transition_services import evaluate_transition_readiness
+    from .transition_services import (
+        evaluate_transition_readiness,
+        finalize_ready_self_service_transition,
+    )
 
-    return evaluate_transition_readiness(transition=link.transition)
+    evaluated = evaluate_transition_readiness(transition=link.transition)
+    return finalize_ready_self_service_transition(transition=evaluated)
