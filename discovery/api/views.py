@@ -46,10 +46,14 @@ def _reject_profile_override(request):
         )
 
 
+from .throttles import DiscoveryClarifyThrottle, DiscoveryResearchThrottle
+
+
 class DiscoveryResearchAPIView(APIView):
     """Optional external leads; never a canonical Discovery item or GET side effect."""
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [DiscoveryResearchThrottle]
 
     def post(self, request):
         from discovery.assistance import research_discovery_sources
@@ -74,6 +78,7 @@ class DiscoveryClarifyAPIView(APIView):
     """Explicit, authenticated Discovery clarification. Never a billable GET."""
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [DiscoveryClarifyThrottle]
 
     def post(self, request):
         from discovery.assistance import clarify_discovery_search
