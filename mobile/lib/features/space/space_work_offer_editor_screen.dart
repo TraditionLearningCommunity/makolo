@@ -200,6 +200,18 @@ class _SpaceWorkOfferEditorScreenState
         'max_quantity': _maximum.text.trim(),
         if (_editing) 'status': _status,
       });
+      if (response.statusCode == 400) {
+        // The owner rejected the command before committing. Allow the user
+        // to repair the form; this is not an ambiguous network outcome.
+        if (mounted && _actorValid && epoch == _epoch) {
+          setState(() {
+            _attempted = false;
+            _error = 'Le propriétaire a refusé ces valeurs. Vérifiez le prix, '
+                'le mode de paiement et les quantités.';
+          });
+        }
+        return;
+      }
       if (response.statusCode != (_editing ? 200 : 201)) {
         throw StateError('Enregistrement non confirmé');
       }
