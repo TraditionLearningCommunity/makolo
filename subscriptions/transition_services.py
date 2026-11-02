@@ -725,13 +725,17 @@ def cancel_subscription_transition(*, transition, actor=None, reason=""):
     # obligation owned by Payments. Never orphan a platform-payee claim.
     from .billing_models import SubscriptionBillingObligation
 
-    if SubscriptionBillingObligation.objects.filter(transition=transition).exclude(
-        obligation__status__in={
-            PaymentObligationStatus.CANCELLED,
-            PaymentObligationStatus.EXPIRED,
-            PaymentObligationStatus.REFUNDED,
-        }
-    ).exists():
+    terminally_released = {
+        PaymentObligationStatus.CANCELLED,
+        PaymentObligationStatus.EXPIRED,
+        PaymentObligationStatus.REFUNDED,
+    }
+    if (
+        SubscriptionBillingObligation.objects.filter(transition=transition)
+        .exclude(obligation__status__in=terminally_released).exists()
+        or SubscriptionTransitionPaymentObligation.objects.filter(transition=transition)
+        .exclude(obligation__status__in=terminally_released).exists()
+    ):
         raise SubscriptionTransitionError(
             "Ce changement possède une obligation financière active. "
             "Son annulation doit d'abord être régularisée dans Payments."
