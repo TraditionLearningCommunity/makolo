@@ -330,12 +330,6 @@ class _BillingScreenState extends State<BillingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_section != 'overview')
-          TextButton.icon(
-            onPressed: () => setState(() => _section = 'overview'),
-            icon: const Icon(Icons.arrow_back_rounded),
-            label: const Text('Retour à mon abonnement'),
-          ),
         if (_section == 'overview') ...[
         if (_spaceMode && widget.fromTeam && _currentSpace != null) ...[
           Card(
