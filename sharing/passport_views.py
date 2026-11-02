@@ -491,6 +491,10 @@ class PassportHistoryBase(LoginRequiredMixin, TemplateView):
                         "sharing:passport-verify",
                         kwargs={"token": passport_verification_token(row)},
                     ),
+                    "revoke_url": reverse(
+                        "sharing:passport-version-revoke",
+                        kwargs={"snapshot_id": row.pk},
+                    ),
                     "share_url": reverse(
                         "sharing:passport-share-create",
                         kwargs={"snapshot_id": row.pk},
