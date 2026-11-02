@@ -423,6 +423,7 @@ class DiscoveryRepository {
     const allowed = {
       'q', 'place', 'when', 'period', 'vertical', 'price',
       'date', 'date_from', 'date_to', 'timezone',
+      'lat', 'lon', 'radius_km',
     };
     final input = <String, String>{
       for (final entry in query.parameters.entries)
