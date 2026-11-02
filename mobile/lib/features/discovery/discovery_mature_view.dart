@@ -499,8 +499,11 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       fieldKey: widget.fieldKey,
     );
 
-    if (points.isEmpty) {
+    if (points.isEmpty && !widget.showMapOnCompact) {
       return field;
+    }
+    if (points.isEmpty) {
+      return const Center(child: Text('Aucun lieu à afficher sur la carte'));
     }
 
     final anchor = selectedPoint ?? points.first;
@@ -555,16 +558,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       minSpatialWidth: widget.showMapOnCompact ? 0 : MakoloLayout.mapMinWidth,
     );
 
-    return MakoloAdaptiveSplit(
-      splitAt: MakoloLayout.discoverSpatialMinWidth,
-      field: field,
-      focus: SizedBox(
-        key: const Key('discover-spatial-pane'),
-        height: 620,
-        child: spatial,
-      ),
-      narrow: widget.showMapOnCompact
-          ? Stack(
+    if (widget.showMapOnCompact) {
+      return Stack(
               key: const Key('discover-compact-map'),
               fit: StackFit.expand,
               children: [
@@ -619,8 +614,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                     ),
                   ),
               ],
-            )
-          : field,
+            );
+    }
+
+    return MakoloAdaptiveSplit(
+      splitAt: MakoloLayout.discoverSpatialMinWidth,
+      field: field,
+      focus: SizedBox(
+        key: const Key('discover-spatial-pane'),
+        height: 620,
+        child: spatial,
+      ),
+      narrow: field,
       focusMin: MakoloLayout.mapMinWidth,
       focusPreferred: 560,
       focusMax: 720,
