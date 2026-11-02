@@ -11,7 +11,7 @@ from intelligence.gateway import IntelligenceGateway
 from intelligence.runtime import build_runtime_registry
 
 from .intent import resolve_discovery_intent
-from .intelligence import interpret_with_intelligence
+from .intelligence import interpret_with_intelligence, _should_augment
 
 
 _ALLOWED_CRITERIA = frozenset({
@@ -53,7 +53,7 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
     intent = resolve_discovery_intent(params)
     status = "already_structured"
     reason = ""
-    if intent.raw_text and not intent.constraints:
+    if _should_augment(intent):
         profile = UserProfile.objects.filter(user=actor).first()
         registry = build_runtime_registry(
             capability=IntelligenceCapability.STRUCTURED_GENERATE,
