@@ -262,6 +262,6 @@ class DiscoveryConnectedActionsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Référence externe")
         self.assertContains(response, "https://example.org/reference")
-        self.assertContains(response, "non vérifiées")
+        self.assertContains(response, "pistes fournies par un service externe")
         self.assertNotContains(response, "TEST-C5-KEY")
         self.assertEqual(response["Cache-Control"], "private, no-store")
