@@ -210,7 +210,7 @@ class _AccessContent extends StatelessWidget {
             ),
             child: MakoloAttentionBlock(
               title: 'Action réelle',
-              body: 'Les informations utiles pour le moment venu sont disponibles.',
+              body: 'Consultez les informations nécessaires au contrôle.',
               action: FilledButton.icon(
                 onPressed: () => onOpenDayOf(presentation.dayOf!),
                 icon: const Icon(Icons.directions_walk_rounded),
