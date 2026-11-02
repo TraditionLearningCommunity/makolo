@@ -30,6 +30,23 @@ def _activity_owner_url(space, item, *, profile=None, responsibility="all", sect
     )
     source_kind = source.get("kind")
     if (
+        (space.archetype == SpaceArchetype.COMMERCE
+         and source_kind in {"offer", "commerce_order", "activity"})
+        or
+        (space.archetype == SpaceArchetype.TRANSPORT_OPERATOR
+         and source_kind in {"activity", "occurrence", "transport_route", "vehicle"})
+    ) and "view" in capabilities and source.get("id"):
+        return reverse(
+            "organizations:space-work-depth-g3",
+            kwargs={
+                "slug": space.slug, "kind": source_kind,
+                "owner_id": source["id"],
+            },
+        ) + "?" + urlencode({
+            "responsibility": responsibility,
+            "from": section_key,
+        })
+    if (
         space.archetype in {
             SpaceArchetype.EDUCATION, SpaceArchetype.SERVICE_PROVIDER,
         }
@@ -152,7 +169,25 @@ def _compose_sections(space, projection, *, profile=None):
                 section_key=key,
             )
             item["owner_label"] = (
-                "Voir le programme"
+                "Voir l’offre"
+                if item["owner_url"] and space.archetype == SpaceArchetype.COMMERCE
+                and item["source"]["kind"] == "offer"
+                else "Voir la commande"
+                if item["owner_url"] and space.archetype == SpaceArchetype.COMMERCE
+                and item["source"]["kind"] == "commerce_order"
+                else "Voir la route"
+                if item["owner_url"] and space.archetype == SpaceArchetype.TRANSPORT_OPERATOR
+                and item["source"]["kind"] == "transport_route"
+                else "Voir le véhicule"
+                if item["owner_url"] and space.archetype == SpaceArchetype.TRANSPORT_OPERATOR
+                and item["source"]["kind"] == "vehicle"
+                else "Voir le départ"
+                if item["owner_url"] and space.archetype == SpaceArchetype.TRANSPORT_OPERATOR
+                and item["source"]["kind"] == "occurrence" and item.get("kind") == "departure"
+                else "Voir le service"
+                if item["owner_url"] and space.archetype == SpaceArchetype.TRANSPORT_OPERATOR
+                and item["source"]["kind"] == "activity"
+                else "Voir le programme"
                 if item["owner_url"] and space.archetype == SpaceArchetype.EDUCATION
                 and item["source"]["kind"] == "activity"
                 else "Voir la session"
