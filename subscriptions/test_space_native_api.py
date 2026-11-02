@@ -197,6 +197,33 @@ class NativeSpaceSubscriptionTests(TestCase):
         self.assertEqual(restricted["items"], [])
         self.assertIsNone(restricted["next_offset"])
 
+    def test_payment_continuation_respects_space_finance_visibility(self):
+        from unittest.mock import patch
+
+        PlanVersionBillingTerms.objects.create(
+            plan_version=self.version, amount="18.00",
+            currency="USD", billing_period_unit="month",
+        )
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            self._url("space-plan", self.version.pk),
+            {"idempotency_key": "space-checkout-finance-scope"},
+        )
+        self.assertEqual(response.status_code, 200)
+        paid = response.json()["transition"]
+        self.assertEqual(paid["next_action"], "pay")
+        self.assertTrue(paid["payment_obligation_id"])
+
+        with patch(
+            "subscriptions.space_billing_view.space_ids_with_permission",
+            return_value=[],
+        ):
+            restricted = self.client.get(self._url("space")).json()
+        self.assertEqual(restricted["billing"]["visibility"], "restricted")
+        self.assertEqual(restricted["transition"]["next_action"], "finance_access_required")
+        self.assertNotIn("payment_obligation_id", restricted["transition"])
+        self.assertNotIn(str(paid["payment_obligation_id"]), str(restricted))
+
     def test_nous_handoff_respects_subscription_mandate(self):
         owner = build_space_us_projection(profile=self.owner, space=self.space)
         self.assertEqual(owner["handoffs"]["subscription"], f"/space/{self.space.slug}/subscription")
