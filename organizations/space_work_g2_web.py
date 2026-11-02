@@ -133,6 +133,15 @@ class SpaceWorkG2DepthView(SpaceWebMixin):
                         kwargs={"activity_id": activity.pk},
                     ),
                 })
+                if is_education:
+                    # Canonical Forms owner, no ProgrammeForm copy.
+                    actions.append({
+                        "label": "Gérer les formulaires",
+                        "url": reverse(
+                            "questionnaires:manage",
+                            kwargs={"activity_id": activity.pk},
+                        ),
+                    })
             if not is_education:
                 # Configuration belongs to Services, not this N2.
                 service = ServiceDetails.objects.filter(activity=activity).first()
