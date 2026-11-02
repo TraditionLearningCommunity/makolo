@@ -121,6 +121,7 @@ StatefulShellBranch meBranch(AppRuntime runtime) => StatefulShellBranch(
                   personal: runtime.personal!,
                   drafts: runtime.drafts,
                   openAvatarPicker: state.uri.queryParameters['avatar'] == '1',
+                  focusVisibility: state.uri.queryParameters['visibility'] == '1',
                 ),
         ),
         GoRoute(
