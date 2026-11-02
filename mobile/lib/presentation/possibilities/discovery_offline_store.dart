@@ -160,6 +160,22 @@ class DiscoveryOfflineStore {
     }
   }
 
+  /// A Discovery owner refusal withdraws the automatically retained public
+  /// *recognition* images. Explicitly retained Reader files are not part of
+  /// this cache and are never deleted by this action. Serialization ensures
+  /// an older in-flight image write cannot restore bytes after a refusal.
+  Future<void> purgeAutomaticRecognition() {
+    final work = _pendingWrites.then((_) async {
+      final root = rootOverride ?? await getApplicationSupportDirectory();
+      final directory = Directory('${root.path}/discovery/public-recognition');
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    });
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
+  }
+
   Future<void> removeRecognitionImage(Uri url) {
     // Revocation must follow pending writes, or an in-flight download could
     // put the image back after the owner returned 403/404.
