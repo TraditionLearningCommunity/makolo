@@ -1140,7 +1140,18 @@ class _MePassportScreenState extends State<MePassportScreen> {
                 ),
                 const SizedBox(height: 8),
                 TextButton.icon(
-                  onPressed: () => context.push('/me/considerations'),
+                  onPressed: () async {
+                    await context.push('/me/considerations');
+                    if (!mounted) return;
+                    setState(() {
+                      _full = null;
+                      _topic = null;
+                      _onlineReady = false;
+                      _cachedPassport = null;
+                      _cachedVariantKey = null;
+                      _future = _load(preferLocal: false);
+                    });
+                  },
                   icon: const Icon(Icons.add_circle_outline),
                   label: const Text('Choisir mes centres d’intérêt'),
                 ),
