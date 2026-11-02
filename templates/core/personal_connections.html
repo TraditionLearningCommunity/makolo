@@ -33,6 +33,13 @@
             {% endfor %}
           </span>
           {% endif %}
+          {% if connection.owner == 'intelligence' and connection.enabled %}
+            {% if 'web_research' in connection.capabilities or 'structured_generate' in connection.capabilities %}
+              <a href="{% url 'discovery:home' %}" class="mk-btn mk-btn-secondary">
+                Explorer dans Découvrir
+              </a>
+            {% endif %}
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -89,6 +96,7 @@
         <div>
           <strong>{{ action.display_name }}</strong>
           <span>{{ action.status_label }}</span>
+          <p>Action déclarée par son domaine propriétaire. Aucun lancement direct depuis Connexions.</p>
         </div>
         {% endfor %}
       </div>
@@ -107,7 +115,8 @@
         {% for extension in extensions %}
         <div>
           <strong>{{ extension.display_name }}</strong>
-          <span>Disponible</span>
+          <span>Extension déclarée</span>
+          <p>Aucun lancement direct depuis Connexions.</p>
         </div>
         {% endfor %}
       </div>
