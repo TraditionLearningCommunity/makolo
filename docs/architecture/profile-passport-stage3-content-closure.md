@@ -31,7 +31,7 @@ Aucune sélection ne transforme un droit de consultation en Mandate, Permission,
 | Activités portées | Activity | propriétaire Profile ; états `PUBLISHED`, `COMPLETED`, `ARCHIVED` ; jamais brouillon |
 | Faits établis | Trust / Proof | preuve `ACTIVE`, appartenance au Profil, protection de l'Activity source |
 | Attestations reçues | Trust / Credential | détenteur Profil, statut réel, contexte source autorisé ; une révocation n'est jamais présentée comme valide |
-| Équipes, Groupes | Membership et propriétaires correspondants | relation effective, seulement vue `complete` du titulaire |
+| Équipes, Groupes | Membership et propriétaires correspondants | relation actuelle et Groupe actif (`status=ACTIVE`), seulement vue `complete` du titulaire ; Groupe archivé = historique chez son propriétaire |
 | Espaces accessibles | Organizations / permissions existantes | accès effectif ; ne signifie pas Membership |
 | Mandats actifs | Authorization / Mandate | autorité actuelle dans une portée explicite ; ne signifie pas TeamMembership |
 | Coordonnées personnelles | Accounts | seulement `complete` propriétaire, jamais autres variantes par héritage |
@@ -67,7 +67,8 @@ Une section sans valeur est omise ou remplacée par une aide d'édition contextu
 - [x] Pas de nouveau modèle, migration ni source de vérité : composition par `sharing/passport.py`.
 - [x] Sélection des thèmes `Open to` actifs même sans Interest ou Activity associés.
 - [x] Une Proof révoquée seule ne rend pas artificiellement son Topic disponible.
-- [x] Tests ciblés ajoutés dans `sharing/test_passport_stage3_content.py`.
+- [x] Groupes archivés omis de la projection des affiliations actuelles, sans toucher à leur historique canonique.
+- [x] Quatre tests ciblés ajoutés dans `sharing/test_passport_stage3_content.py`.
 - [ ] Exécuter `python manage.py test sharing.test_passport_stage3_content sharing.test_g6_passport`.
 - [ ] Exécuter `python manage.py check` et `python manage.py makemigrations --check --dry-run`.
 - [ ] Vérifier les autres tests de projection propriétaire, le rendu Web/Flutter/PDF et les CI sur le HEAD à intégrer.
