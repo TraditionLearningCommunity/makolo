@@ -432,6 +432,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                             data['space_archetype'] == 'media'))
                       SpaceWorkG4Depth(
                         slug: widget.spaceActor.space.slug,
+                        sourceKind: widget.kind,
+                        sourceId: widget.id,
                         archetype: data['space_archetype'] as String,
                         isActivity: widget.kind == 'activity',
                         detail: spaceMap(data['g4_detail']) ??
