@@ -4,6 +4,7 @@ import 'dart:io';
 import '../../platform/files/passport_pdf_saver.dart';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/files/profile_paths.dart';
 
@@ -904,12 +905,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
-  // Export saves a user-chosen document, never opens the share sheet.
+  // Android exports directly to Downloads via its native MediaStore bridge.
   Future<void> _exportPdf() async {
     final file = await _downloadPassport();
     if (file == null) return;
     try {
-      // The user's chosen destination, not the staging cache, owns the PDF.
+      // Downloads on Android owns the PDF; the staging cache is temporary.
       if (!mounted) return;
       final saved = await savePassportPdf(
         file,
@@ -917,7 +918,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
       );
       if (!mounted || saved == null) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passeport PDF enregistré.')),
+        const SnackBar(content: Text('Passeport PDF enregistré dans Téléchargements.')),
       );
     } on Object {
       if (mounted) {
@@ -937,6 +938,50 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
+  Future<String?> _issueCurrentVersion() async {
+    if (!_onlineReady || _exporting) return null;
+    setState(() => _exporting = true);
+    try {
+      final url = Uri(
+        path: 'api/v1/me/passport/issue/',
+        queryParameters: _passportParams(),
+      ).toString();
+      final response = await widget.api.post(url, body: const {});
+      final issued = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport.issuance',
+      ).data;
+      final id = _text(issued['id']);
+      if (id == null) throw const FormatException('Issued document missing id');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(
+            'Version ${issued['document_id'] ?? 'datée'} émise. '
+            'Retrouvez-la dans l’historique.',
+          )),
+        );
+      }
+      return id;
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'Émission indisponible. Vérifiez votre connexion et la sélection.',
+          )),
+        );
+      }
+      return null;
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _issueAndShareCurrent() async {
+    if (_variant == 'complete') return;
+    final id = await _issueCurrentVersion();
+    if (id != null && mounted) await _shareDatedVersion(id);
+  }
+
   Future<void> _sharePassport(Map<String, dynamic> data) async {
     final publicPath = _text(_map(data['links'])['public_web']);
     final canShareLink =
@@ -951,12 +996,21 @@ class _MePassportScreenState extends State<MePassportScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_variant != 'complete')
+              ListTile(
+                leading: const Icon(Icons.verified_outlined),
+                title: const Text('Émettre et partager cette sélection'),
+                subtitle: const Text(
+                  'Créez une version datée sans télécharger de PDF, '
+                  'puis choisissez la durée du lien.',
+                ),
+                onTap: () => Navigator.pop(context, 'issue_share'),
+              ),
             ListTile(
               leading: const Icon(Icons.history_outlined),
-              title: const Text('Partager une version émise'),
+              title: const Text('Partager une version déjà émise'),
               subtitle: const Text(
-                'Émettez d’abord un PDF. Choisissez ensuite la version et '
-                'créez un lien de lecture expirant, sans rendre le Passeport public.',
+                'Retrouvez vos documents et gérez leurs liens expirants.',
               ),
               onTap: () => Navigator.pop(context, 'history'),
             ),
@@ -979,6 +1033,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
     if (action == null || !mounted) return;
     if (action == 'history') {
       await _showDatedHistory();
+      return;
+    }
+    if (action == 'issue_share') {
+      await _issueAndShareCurrent();
       return;
     }
     if (action == 'copy' || action == 'link') {
@@ -1071,7 +1129,23 @@ class _MePassportScreenState extends State<MePassportScreen> {
         if (_variant == 'thematic') ...[
           const SizedBox(height: 10),
           if (topics.isEmpty)
-            const Text('Aucun thème disponible.')
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Aucun thème disponible pour le moment. '
+                  'Votre identité reste présente ; les faits thématiques '
+                  'apparaîtront lorsque vous aurez choisi des sujets '
+                  'ou réalisé des activités qui leur sont liées.',
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () => context.push('/me/considerations'),
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Choisir mes centres d’intérêt'),
+                ),
+              ],
+            )
           else
             DropdownButtonFormField<String>(
               initialValue: _topic,
@@ -1095,7 +1169,23 @@ class _MePassportScreenState extends State<MePassportScreen> {
               }),
             ),
         ],
+        if (_variant == 'public')
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text(
+              'Cette version montre uniquement les informations renseignées '
+              'et publiquement autorisées. Téléphone, adresse privée et '
+              'date de naissance restent réservés à votre Passeport complet.',
+            ),
+          ),
         if (_variant == 'custom') ...[
+          const Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 8),
+            child: Text(
+              'Votre identité de base reste présente. '
+              'Choisissez les informations complémentaires à présenter.',
+            ),
+          ),
           const SizedBox(height: 14),
           Text('À présenter', style: theme.textTheme.titleMedium),
           Wrap(
@@ -1171,27 +1261,45 @@ class _MePassportScreenState extends State<MePassportScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Passeport Makolo'),
+      title: const Text('Passeport'),
       actions: [
         IconButton(
-          tooltip: 'Confidentialité',
-          onPressed: _configureVisibility,
-          icon: const Icon(Icons.shield_outlined),
-        ),
-        IconButton(
-          tooltip: 'Versions datées',
-          onPressed: !_onlineReady ? null : _showDatedHistory,
-          icon: const Icon(Icons.history_outlined),
-        ),
-        IconButton(
-          tooltip: 'Exporter le Passeport en PDF',
+          tooltip: 'Télécharger le PDF',
           onPressed: _exporting || !_onlineReady ? null : _exportPdf,
-          icon: const Icon(Icons.picture_as_pdf_outlined),
+          icon: const Icon(Icons.file_download_outlined),
         ),
         IconButton(
           tooltip: 'Partager le Passeport',
           onPressed: _exporting || !_onlineReady ? null : _shareCurrentPassport,
           icon: const Icon(Icons.share_outlined),
+        ),
+        PopupMenuButton<String>(
+          tooltip: 'Autres actions du Passeport',
+          onSelected: (action) {
+            if (action == 'visibility') {
+              _configureVisibility();
+            } else if (action == 'history') {
+              _showDatedHistory();
+            } else if (action == 'issue') {
+              _issueCurrentVersion();
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'visibility',
+              child: Text('Confidentialité'),
+            ),
+            PopupMenuItem(
+              value: 'history',
+              enabled: _onlineReady,
+              child: const Text('Versions datées'),
+            ),
+            PopupMenuItem(
+              value: 'issue',
+              enabled: _onlineReady && !_exporting,
+              child: const Text('Émettre une version sans PDF'),
+            ),
+          ],
         ),
       ],
     ),
