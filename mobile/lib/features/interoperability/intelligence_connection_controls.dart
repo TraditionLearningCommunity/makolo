@@ -34,6 +34,7 @@ class _IntelligenceConnectionControlsState
   bool _busy = false;
   bool _catalogLoading = true;
   int _catalogGeneration = 0;
+  int _mutationGeneration = 0;
   String? _catalogError;
 
   @override
@@ -49,6 +50,8 @@ class _IntelligenceConnectionControlsState
         !identical(oldWidget.runtime, widget.runtime)) {
       // New actor/scope: never carry a provider offer from another owner.
       _catalogGeneration++;
+      _mutationGeneration++;
+      _busy = false;
       _offers = const [];
       _catalogLoading = true;
       _catalogError = null;
@@ -115,10 +118,10 @@ class _IntelligenceConnectionControlsState
     if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
     final ownerPath = widget.path;
     final ownerRuntime = widget.runtime;
+    final mutationVersion = ++_mutationGeneration;
     setState(() => _busy = true);
     var committed = false;
     try {
-      if (!_sameOwner(ownerPath, ownerRuntime)) return;
       final api = ownerRuntime.api!;
       final path = id == null ? ownerPath : '${ownerPath}$id/';
       if (method == 'POST') {
@@ -142,10 +145,8 @@ class _IntelligenceConnectionControlsState
     } on Object {
       // Server commit and local projection refresh are separate outcomes.
     }
-    if (!_sameOwner(ownerPath, ownerRuntime)) {
-      if (mounted) setState(() => _busy = false);
-      return;
-    }
+    if (!_sameOwner(ownerPath, ownerRuntime) ||
+        mutationVersion != _mutationGeneration) return;
     if (!committed) {
       _notice(
         'Opération non confirmée par le serveur. Vérifiez votre autorité.',
@@ -162,7 +163,9 @@ class _IntelligenceConnectionControlsState
             : 'Connexion enregistrée sur le serveur.',
       );
     }
-    if (mounted) setState(() => _busy = false);
+    if (mounted && mutationVersion == _mutationGeneration) {
+      setState(() => _busy = false);
+    }
   }
 
   Future<void> _create(Map<String, dynamic> offer) async {
