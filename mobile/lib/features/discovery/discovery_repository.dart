@@ -161,6 +161,20 @@ class DiscoveryQuery {
     );
   }
 
+  /// Watch is a separate owner action. Never persist technical page/cursor,
+  /// freshness, viewer, or client map selection as Watch criteria.
+  Map<String, String> get watchCriteria {
+    const allowed = {
+      'q', 'place', 'when', 'period', 'vertical', 'price',
+      'date', 'date_from', 'date_to', 'lat', 'lon', 'radius_km',
+    };
+    return Map.unmodifiable({
+      for (final entry in parameters.entries)
+        if (allowed.contains(entry.key) && entry.value.trim().isNotEmpty)
+          entry.key: entry.value.trim(),
+    });
+  }
+
   Map<String, String> get parameters {
     return <String, String>{
       if (text.trim().isNotEmpty) 'q': text.trim(),
@@ -780,6 +794,66 @@ class DiscoveryRepository {
   }
 
   Future<void> refreshWatches() => _refresh(watchesSource());
+
+  /// A Watch is not Save, Share or owner Engagement. The API owns creation
+  /// and deduplication; only its confirmed response may open a Watch screen.
+  Future<String> createWatch({
+    required String name,
+    required DiscoveryQuery query,
+  }) async {
+    final criteria = query.watchCriteria;
+    if (name.trim().isEmpty || name.trim().length > 140 || criteria.isEmpty) {
+      throw const FormatException('Nom et critères de Veille requis');
+    }
+    final response = await api.post(
+      'api/v1/discovery/watches/',
+      body: {'name': name.trim(), 'criteria': criteria},
+    );
+    final envelope = ProjectionEnvelope.parse(
+      response.jsonObject(),
+      expectedProjection: 'discovery.watch',
+    );
+    final watch = envelope.data['watch'];
+    if (watch is! Map ||
+        watch['id'] is! String ||
+        (watch['id'] as String).isEmpty ||
+        watch['criteria'] is! Map) {
+      throw const FormatException('Veille non confirmée par le serveur');
+    }
+    await refreshWatches();
+    return watch['id'] as String;
+  }
+
+  Future<void> updateWatchStatus(String id, String status) async {
+    if (!const {'active', 'paused'}.contains(status)) {
+      throw const FormatException('État de Veille inconnu');
+    }
+    final response = await api.patch(
+      'api/v1/discovery/watches/${Uri.encodeComponent(id)}/',
+      body: {'status': status},
+    );
+    final envelope = ProjectionEnvelope.parse(
+      response.jsonObject(),
+      expectedProjection: 'discovery.watch',
+    );
+    final watch = envelope.data['watch'];
+    if (watch is! Map || watch['id'] != id || watch['status'] != status) {
+      throw const FormatException('Transition de Veille non confirmée');
+    }
+    await refreshWatches();
+  }
+
+  Future<void> deleteWatch(String id) async {
+    final response = await api.delete(
+      'api/v1/discovery/watches/${Uri.encodeComponent(id)}/',
+    );
+    if (response.statusCode != 204) {
+      throw const FormatException('Suppression de Veille non confirmée');
+    }
+    await refreshWatches();
+  }
+
+
 
   Future<void> refreshWatchResults(String watchId, {int page = 1}) =>
       _refresh(watchResultsSource(watchId, page: page));
