@@ -408,12 +408,12 @@ class DiscoveryMapScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.mapConfig,
-    required this.onOpenOccurrence,
+    required this.onOpenItem,
   });
 
   final DiscoveryRepository repository;
   final MakoloMapsConfig mapConfig;
-  final ValueChanged<String> onOpenOccurrence;
+  final void Function(String family, String id) onOpenItem;
 
   @override
   State<DiscoveryMapScreen> createState() => _DiscoveryMapScreenState();
@@ -472,12 +472,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             selection: selection,
             mapConfig: widget.mapConfig,
             onRetry: () => unawaited(_refresh()),
-            onOpen: (item) {
-              final occurrenceId = item.occurrenceId;
-              if (occurrenceId != null) {
-                widget.onOpenOccurrence(occurrenceId);
-              }
-            },
+            onOpen: (item) => widget.onOpenItem(item.family, item.id),
           );
         },
       ),
