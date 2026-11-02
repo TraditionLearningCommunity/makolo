@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:flutter/material.dart';
 
@@ -178,7 +177,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       registrar = PushEndpointRegistrar(
         api: ownerRuntime.api!,
         tokens: ownerRuntime.tokens,
-        source: FirebasePushTokenSource(FirebaseMessaging.instance),
+        source: FirebasePushTokenSource.system(),
       );
       await registrar.reactivateCurrent();
       if (!mounted ||

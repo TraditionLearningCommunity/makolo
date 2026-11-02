@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../../platform/sharing/share_gateway.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_primitives.dart';
@@ -864,10 +864,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                       ),
                       trailing: const Icon(Icons.open_in_new),
                       onTap: () => unawaited(
-                        launchUrl(
-                          lead.url,
-                          mode: LaunchMode.externalApplication,
-                        ),
+                        const SystemShareGateway().openExternal(lead.url),
                       ),
                     ),
                   ),
