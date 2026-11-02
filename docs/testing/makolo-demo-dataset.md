@@ -274,3 +274,9 @@ python -m scripts.demo_generation generate --domains subscription-catalog
 ```
 
 Les changements entre BASE (ex. gratuit vers Profil Plus ou Profil Max) exigent la transition canonique `BASE_SWITCH`, distincte de la commande de facturation add-on actuellement disponible. Ne pas employer `--domains subscriptions` pour attribuer les BASE tant que ce support n'est pas ajoute et valide. Toujours travailler dans la SQLite de demonstration.
+
+## Connexions / Intelligence — couverture sans connexion fictive
+
+`python -m scripts.demo_generation plan --domains connections` expose le catalogue des offres propriétaires Tavily, Exa, OpenAI API et OpenAI Web Research, puis les comptes réels de `ProviderConnection`, `IntelligenceRoute`, `ProviderCredential` et `PushEndpoint` selon leur portée. `generate --domains connections` exécute le même diagnostic sans mutation : une relation d'autorisation ne peut pas être créée par un générateur sans le consentement de son propriétaire et un véritable secret fourni par celui-ci. Le catalogue lui-même est défini dans `intelligence.connection_management.OFFERS` et n'a besoin d'aucune insertion en base. Les routes doivent provenir de `create_connection`, les clés du propriétaire chiffré, et les PushEndpoint des installations natives. Le champ `can_connect` indique la configuration serveur requise sans exposer de secret.
+
+Pour obtenir un état réellement connecté dans la bêta, le propriétaire effectue le POST propriétaire Intelligence depuis la future UX, avec `provider`, `name`, `api_key`, `model` si requis, et `consent: true`. La disponibilité réelle de la clé n'est pas déduite de sa création. Ce protocole ne simule aucun OAuth. Aucune donnée de clé ni jeton complet ne doit apparaître dans les journaux d'audit.
