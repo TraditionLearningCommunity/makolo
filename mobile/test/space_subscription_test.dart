@@ -171,7 +171,7 @@ void main() {
         }
         if (request.url.path ==
             '/api/v1/subscriptions/spaces/space-a/plans/plan-a/') {
-          if (request.method == 'POST') posted++;
+          if (request.data != null) posted++;
           return MockResponse(
             jsonEncode({
               'target_name': 'Alternative Espace',
