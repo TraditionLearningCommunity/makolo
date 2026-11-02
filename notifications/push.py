@@ -113,6 +113,20 @@ def revoke_push_endpoint(*, user, installation_id: str, provider: str = PushProv
     ).update(active=False, updated_at=timezone.now())
 
 
+@transaction.atomic
+def revoke_push_endpoint_by_id(*, user, endpoint_id) -> bool:
+    """Revoke one owned installation without revealing its transport identity."""
+    endpoint = PushEndpoint.objects.select_for_update().filter(
+        pk=endpoint_id, user=user,
+    ).first()
+    if endpoint is None:
+        return False
+    if endpoint.active:
+        endpoint.active = False
+        endpoint.save(update_fields=["active", "updated_at"])
+    return True
+
+
 def active_push_endpoints_for(user):
     return PushEndpoint.objects.filter(user=user, active=True).order_by("created_at", "pk")
 
