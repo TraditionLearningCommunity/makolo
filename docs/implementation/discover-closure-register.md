@@ -1,7 +1,7 @@
 # Makolo — registre de fermeture de Découvrir
 **Document vivant — responsable : branche [#522](https://github.com/TraditionLearningCommunity/makolo/pull/522)**  
 **Initialisé le :** 2026-10-31  
-**Chantier courant :** **08 — Local-first et confidentialité, CODE LIVRÉ**. Compte rendu : [chantier 08](discover-stage-08-local-first-confidentiality-2026-11-02.md). **Prochain : 09**, non commencé ; exécution et certification différées.  
+**Chantier courant :** **09 — Certification finale OUVERTE, GATES ROUGES / NON FERMÉE**. Rapport et preuves : [chantier 09](discover-stage-09-certification-2026-11-02.md). Un checkpoint de contrôle #532 est figé à partir de #522 ; **aucune fusion autorisée** avant réconciliation et validation réelle.  
 **Chantier 00 :** **FERMÉ — réconciliation documentaire**.  
 **Relevé de référence :** [chantier 00 — réconciliation](discover-stage-00-reconciliation-2026-10-31.md).
 
@@ -43,7 +43,7 @@ Pas de modèle persistant générique `Possibility`, de scoring client, de deuxi
 | **06** | N2, variantes et comparaison conditionnelle | **LIVRÉ EN CODE — validation différée à 09** | [Relevé 06](discover-stage-06-n2-variants-comparison-2026-10-31.md) : profondeur Web/Flutter, trois assessment states, variantes occurrence, comparaison strictement conditionnelle, aucun classement fictif, tests écrits |
 | **07** | Save, Watch, Sharing, engagements N3 | **LIVRÉ EN CODE — validation différée à 09** | [Relevé 07](discover-stage-07-save-watch-sharing-engagement-2026-11-02.md) : Save identité confirmée, Watch CRUD Web/Flutter idempotent, Sharing interne/externe et reprise, routes owner N3 attestées par tests écrits |
 | **08** | Local-first et confidentialité | **LIVRÉ EN CODE — validation différée à 09** | [Relevé 08](discover-stage-08-local-first-confidentiality-2026-11-02.md) : cache borné, tombstones, isolations Profil/Reader, retour offline, cold start, cache HTTP et tests écrits |
-| **09** | Certification et intégration | **PROCHAIN CHANTIER** | Tests et validation réels attestés, CI requise, rapport de fermeture final, décision explicite de merge |
+| **09** | Certification et intégration | **EN COURS — NON CERTIFIÉ / NO MERGE** | [Rapport 09](discover-stage-09-certification-2026-11-02.md) : CI sur checkpoint #532 ; correction des 36 fichiers Dart et des bundles Web, golden Now non approuvés, Android réel non testé |
 
 **Règle de retour :** si un chantier clos révèle une régression lors du suivant, créer une anomalie avec preuve et la corriger dans l'étape active comme dépendance bloquante ; ne pas relancer tout le périmètre ancien. Mise à jour du présent registre obligatoire.
 
@@ -155,10 +155,10 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 **Travail :** snapshots, rotation, reprise, Profile isolation, media caches, refus/révocation, erreur réseau, démarrage à froid.  
 **Sortie livrée :** [rapport 08](discover-stage-08-local-first-confidentiality-2026-11-02.md). Garde-fous de lecture, synchro, cache, médias et reprise implémentés ; tests de scénario écrits ; exécution sur Android et certification non attestées avant 09.
 
-### 09 — Certification finale **PROCHAIN CHANTIER**
+### 09 — Certification finale **EN COURS / NON FERMÉE**
 **Entrée :** sorties 08 ; R27–R28.  
 **Travail :** tests Django/PostgreSQL, Flutter/Web/E2E, migration, formatage/analyse, compatibilité, vrai Android, CI, contrôle de la branche et décision d'intégration.  
-**Sortie :** rapport de fermeture et preuve des gates pertinentes, aucun défaut bloquant ou non justifié.
+**Sortie à atteindre :** rapports de runs CI verts sur SHA final, goldens réellement approuvés, vérification vraie Android et migration/stockage, contrôles de collision et décision explicite d'intégration. Aujourd'hui gates rouges : voir [rapport 09](discover-stage-09-certification-2026-11-02.md).
 
 ## 5. Journal des décisions et des preuves
 
@@ -174,7 +174,8 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | 2026-10-31 | 05 | Query Search/Carte, filtres et focus transités par URL et navigation globale/guest, vraie carte compacte et repères MapLibre, scroll root sauvegardé par profil, curseurs historiques, erreur continuation et sources ; tests et dossier `discover-stage-05-search-map-navigation-2026-10-31.md`. | **Code livré ; tests et carte réelle non certifiés.** |
 | 2026-10-31 | 06 | N2 Flutter & Web sur `detail_projection` owner-admis, trois états d'assessment, variants Occurrence, relations explicites, ressources complètes, comparaison bornée aux dimensions réellement communes et tests `discovery_n2_depth_test.dart`/`test_n2_presentation.py`. | **Code livré ; tests/CI/appareil/Web non exécutés.** |
 | 2026-11-02 | 07 | Save identité+état confirmés ; Watch CRUD owner et Web/Flutter idempotent, critères autonomes, pause/reprise, renommer, modifier et supprimer ; Sharing lien, livraison et reprise autorisés ; parcours N3 stricts + tests Python/Flutter ; dossier `discover-stage-07-save-watch-sharing-engagement-2026-11-02.md`. | **Code livré ; tests/CI non exécutés.** |
-| 2026-11-02 | 08 | Lecture locale owner/Profil, cascade 403/404, courses réseau, rotation et continuation, Reader privé, médias publics, Cache-Control no-store, actions N3 à revalider, Watch confirmé, scénarios de régression Flutter/Django ; rapport `discover-stage-08-local-first-confidentiality-2026-11-02.md`. | **Code livré ; tests/CI/Android non exécutés ; prochain chantier 09 exclusivement.** |
+| 2026-11-02 | 08 | Lecture locale owner/Profil, cascade 403/404, courses réseau, rotation et continuation, Reader privé, médias publics, Cache-Control no-store, actions N3 à revalider, Watch confirmé, scénarios de régression Flutter/Django ; rapport `discover-stage-08-local-first-confidentiality-2026-11-02.md`. | **Code livré ; validation reprise au chantier 09.** |
+| 2026-11-02 | 09 | PR checkpoint #532 depuis #522 ; tests CI exécutés : Mobile format rouge (36 fichiers), Django bundle Web rouge (2 artefacts), Now goldens 20 échecs. Correctifs sur checkpoint `bff10ab2` et `8d6c3f6`; suppression ancien cache Reader sur #522 ; tests complémentaires lancés et statut consigné dans `discover-stage-09-certification-2026-11-02.md`. | **EN COURS — CI et tests fonctionnels incomplets ; NO MERGE.** |
 
 Pour chaque livraison : ajouter une ligne `date | étape | commit de fin | fichiers | tests ajoutés | résultats exécutés (ou « non exécutés ») | anomalies restantes`. Le mot **certifié** reste réservé à l'exécution du chantier 09.
 
@@ -183,4 +184,4 @@ Pour chaque livraison : ajouter une ligne `date | étape | commit de fin | fichi
 1. Recharger le HEAD courant et le delta depuis l'état du chantier 00 ; vérifier les collisions sans refaire toute l'analyse.
 2. La validation exécutée de 01–08 est différée à la certification 09, selon l'instruction explicite de l'utilisateur. Ne jamais prétendre que les tests ont réussi.
 3. Conserver dans **#522** la traçabilité des livraisons 01–08 ; toute régression ultérieure se corrige à l'étape active avec un test ciblé.
-4. **Ouvrir uniquement le chantier 09** à la prochaine instruction ; ses tests et gates devront certifier les chantiers 01–08 et corriger les causes racines avant intégration.
+4. **Continuer uniquement le chantier 09** jusqu'aux preuves réelles. Vérifier #522/HEAD courant contre le checkpoint, réconcilier les modifications sans rejouer des commits obsolètes et interdire toute intégration rouge ou non certifiée.
