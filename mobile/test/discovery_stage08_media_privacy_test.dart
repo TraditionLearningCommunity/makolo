@@ -5,6 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/presentation/possibilities/discovery_offline_store.dart';
 
 void main() {
+  test('an open Reader invalidates retained bytes on Profile switch', () {
+    final code = File('lib/presentation/possibilities/discovery_reader.dart')
+        .readAsStringSync();
+    expect(code, contains('oldWidget.profileId != widget.profileId'));
+    expect(code, contains('_generation++'));
+    expect(code, contains('_retainedFile = null'));
+    expect(code, contains('_imageBytes = null'));
+  });
+
   test('explicit Reader files are Profile private, not device-global', () async {
     final root = await Directory.systemTemp.createTemp('discover-local-reader-');
     addTearDown(() => root.delete(recursive: true));
