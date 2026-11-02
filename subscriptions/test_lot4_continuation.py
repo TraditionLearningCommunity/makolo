@@ -126,6 +126,8 @@ class SubscriptionContinuationTests(TestCase):
             other_team,
             reverse("activities:create"),
             reverse("activities:create") + "?space=" + self.other.slug,
+            reverse("events:create"),
+            reverse("events:create") + "?" + urlencode({"space": self.other.slug}),
         )
         for value in cases:
             with self.subTest(value=value):
@@ -141,6 +143,34 @@ class SubscriptionContinuationTests(TestCase):
         )
         request.user = self.owner
         self.assertEqual(safe_action_return(request, space=self.space), team)
+
+    def test_space_event_resume_requires_exact_space_and_live_mandate(self):
+        path = reverse("events:create")
+        url = path + "?" + urlencode({"space": self.space.slug})
+        request = self.factory.get(
+            reverse("organizations:console-subscription", args=[self.space.slug]),
+            {"next": url},
+        )
+        request.user = self.owner
+        self.assertEqual(safe_action_return(request, space=self.space), url)
+
+        personal_request = self.factory.get(
+            reverse("subscriptions:home"), {"next": url},
+        )
+        personal_request.user = self.owner
+        self.assertIsNone(safe_action_return(personal_request))
+
+        self.client.force_login(self.owner)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].initial.get("organization"), self.space)
+
+        self.client.force_login(self.teammate)
+        unauthorized = self.client.get(url)
+        self.assertEqual(unauthorized.status_code, 200)
+        self.assertNotEqual(
+            unauthorized.context["form"].initial.get("organization"), self.space,
+        )
 
     def test_preview_and_post_keep_the_same_return_link(self):
         self.client.force_login(self.owner)
@@ -180,7 +210,7 @@ class SubscriptionContinuationTests(TestCase):
         request = self.factory.post(home, {"next": team})
         self.assertEqual(
             subscription_return_home(request, space=self.space),
-            home + "?next=" + urlencode({"next": team}),
+            home + "?" + urlencode({"next": team}),
         )
         forged = self.factory.post(home, {"next": "//evil.invalid"})
         self.assertEqual(subscription_return_home(forged, space=self.space), home)
