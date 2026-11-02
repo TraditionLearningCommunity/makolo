@@ -907,8 +907,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
   // Export saves a user-chosen document, never opens the share sheet.
   Future<void> _exportPdf() async {
     final file = await _downloadPassport();
-    if (file == null || !mounted) return;
+    if (file == null) return;
     try {
+      // The user's chosen destination, not the staging cache, owns the PDF.
+      if (!mounted) return;
       final saved = await savePassportPdf(
         file,
         'passeport-makolo-$_variant.pdf',
@@ -922,6 +924,15 @@ class _MePassportScreenState extends State<MePassportScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Enregistrement du PDF impossible.')),
         );
+      }
+    } finally {
+      // A cancelled save must not retain a sensitive exported document in
+      // the replaceable app cache; history stays server-owned.
+      try {
+        final stagingFile = File(file);
+        if (await stagingFile.exists()) await stagingFile.delete();
+      } on Object {
+        // Staging cleanup is best effort and never hides the save result.
       }
     }
   }
