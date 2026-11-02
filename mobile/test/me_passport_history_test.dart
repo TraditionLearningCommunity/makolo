@@ -128,6 +128,21 @@ class _DatedPassportApi implements MakoloApiClient {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _UnavailablePassportApi implements MakoloApiClient {
+  @override
+  Uri get baseUri => Uri.parse('https://example.test/');
+
+  @override
+  Future<ApiResponse> get(
+    String path, {
+    Map<String, String>? headers,
+    MakoloCancelHandle? cancel,
+  }) async => throw StateError('Offline');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   testWidgets(
     'dated Passport opens the issued content instead of live content',
@@ -185,6 +200,20 @@ void main() {
     expect(api.lastPostPath, 'api/v1/me/passport/shares/$_shareId/revoke/');
     expect(api.shareRevoked, isTrue);
     expect(api.revoked, isFalse);
+  });
+
+  testWidgets('network error is recoverable and variant controls remain available', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: MePassportScreen(api: _UnavailablePassportApi())),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Passeport indisponible'), findsOneWidget);
+    expect(find.text('Réessayer'), findsOneWidget);
+    expect(find.text('Public'), findsOneWidget);
+    await tester.tap(find.text('Réessayer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Réessayer'), findsOneWidget);
   });
 
 }
