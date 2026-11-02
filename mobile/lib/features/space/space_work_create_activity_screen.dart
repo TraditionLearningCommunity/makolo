@@ -132,7 +132,7 @@ class _SpaceWorkCreateActivityScreenState
       if (mounted && _actorValid) {
         setState(() {
           _error = 'Le travail de cet Espace reste indisponible. '
-              'Aucune nouvelle création n’a été envoyée.',
+              'Aucune nouvelle création n’a été envoyée.';
         });
       }
     } finally {
