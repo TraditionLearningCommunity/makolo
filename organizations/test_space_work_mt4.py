@@ -1,5 +1,8 @@
 """MT4 targeted Education/Services N1 N2 N3 and canonical creation gates."""
 from datetime import timedelta
+from unittest.mock import patch
+
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from django.test import TestCase
 from django.urls import reverse
@@ -393,3 +396,117 @@ class MT4SpaceEducationServicesTests(TestCase):
         self.assertFalse(Activity.objects.filter(
             title="Programme interdit", space=self.space,
         ).exists())
+
+    def test_service_creation_failure_rolls_back_activity(self):
+        self.space.archetype = SpaceArchetype.SERVICE_PROVIDER
+        self.space.save(update_fields=["archetype", "updated_at"])
+        with patch(
+            "organizations.space_work_g2_creation.create_service_details",
+            side_effect=DjangoValidationError("Service non configuré"),
+        ):
+            response = self.client.post(self.create_url, {
+                "title": "Prestation à ne pas laisser orpheline",
+                "service_kind": ServiceKind.OTHER,
+            }, content_type="application/json")
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertFalse(Activity.objects.filter(
+            title="Prestation à ne pas laisser orpheline",
+            space=self.space,
+        ).exists())
+
+    def test_service_creation_web_uses_owner_service(self):
+        self.space.archetype = SpaceArchetype.SERVICE_PROVIDER
+        self.space.save(update_fields=["archetype", "updated_at"])
+        url = reverse(
+            "organizations:space-work-create-g2",
+            kwargs={"slug": self.space.slug},
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nouvelle prestation")
+        result = self.client.post(url, {
+            "organization": str(self.space.pk),
+            "title": "Accompagnement scolaire",
+            "short_description": "Aider à préparer les dossiers",
+            "visibility": "private",
+            "service_kind": ServiceKind.EDUCATION_GUIDANCE,
+        })
+        self.assertEqual(result.status_code, 302, result.content)
+        created = Activity.objects.get(
+            title="Accompagnement scolaire", space=self.space,
+        )
+        self.assertEqual(
+            created.service_details.service_kind,
+            ServiceKind.EDUCATION_GUIDANCE,
+        )
+
+    def test_native_service_case_pagination_and_foreign_step_rejection(self):
+        activity, case, _ = self._switch_service()
+        other = self.journey(
+            activity, kind=WorkflowKind.SERVICE,
+            state=JourneyStatus.IN_PROGRESS,
+        )
+        ServiceJourneyContext.objects.create(journey=other)
+        foreign_step = JourneyStep.objects.create(
+            journey=other, title="Étape autre dossier",
+            status=JourneyStepStatus.READY,
+        )
+        for n in range(53):
+            JourneyStep.objects.create(
+                journey=case, title=f"Étape {n:02}",
+                position=n, status=JourneyStepStatus.READY,
+            )
+        url = self.case_url(case)
+        first = self.client.get(url)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(len(first.json()["steps"]), 50)
+        self.assertTrue(first.json()["steps_has_more"])
+        self.assertEqual(first.json()["steps_page"]["offset"], 0)
+        second = self.client.get(url, {"steps_offset": 50})
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(second.json()["steps"]), 3)
+        self.assertFalse(second.json()["steps_has_more"])
+        self.assertEqual(second.json()["steps_page"]["offset"], 50)
+        self.assertEqual(self.client.get(
+            url, {"steps_offset": "-1"},
+        ).status_code, 400)
+        response = self.client.post(url, {
+            "action": "start_step", "id": str(foreign_step.pk),
+        }, content_type="application/json")
+        self.assertEqual(response.status_code, 404)
+        foreign_step.refresh_from_db()
+        self.assertEqual(foreign_step.status, JourneyStepStatus.READY)
+
+    def test_native_service_case_operator_revocation_denies_read_and_command(self):
+        activity, case, _ = self._switch_service()
+        actor = User.objects.create_user(username="mt4-case-mandate", password="x")
+        mandate = grant_activity_role(
+            profile=actor, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
+        self.client.force_login(actor)
+        url = self.case_url(case)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        revoke_mandate(mandate=mandate, actor=self.owner)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        response = self.client.post(url, {
+            "action": "resolve_blocker", "id": str(case.pk),
+        }, content_type="application/json")
+        self.assertEqual(response.status_code, 404)
+
+    def test_education_and_services_have_no_implicit_group_authority(self):
+        programme = self.activity("Programme collectif")
+        from groups.models import Group, GroupMembership
+        group = Group.objects.create(
+            name="Collectif des élèves", space=self.space,
+            created_by=self.owner,
+        )
+        GroupMembership.objects.create(group=group, profile=self.outsider)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(
+            self.depth_url("activity", programme.pk),
+        ).status_code, 404)
+        self.assertEqual(self.client.post(self.create_url, {
+            "title": "Programme forgé",
+        }, content_type="application/json").status_code, 404)
