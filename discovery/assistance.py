@@ -67,3 +67,84 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
             for constraint in intent.constraints
         ],
     }
+
+def research_discovery_sources(*, actor, text: str) -> dict:
+    """Find bounded external leads tied to a Discovery query, not Makolo facts."""
+    from urllib.parse import urlsplit
+
+    from django.utils import timezone
+
+    from research_missions import (
+        ResearchFamily, ResearchMission, ResearchOrigin, ResearchOriginKind,
+    )
+    from web_research import WebResearchMode, WebResearchRequest
+    from web_research.intelligence_engine import IntelligenceWebResearchEngine
+
+    if not getattr(actor, "is_authenticated", False):
+        raise ValueError("Authentification requise.")
+    if not isinstance(text, str) or not text.strip() or len(text.strip()) > 120:
+        raise ValueError("Recherche invalide.")
+    text = text.strip()
+    profile = UserProfile.objects.filter(user=actor).first()
+    registry = build_runtime_registry(
+        capability=IntelligenceCapability.WEB_RESEARCH,
+        profile=profile,
+    )
+    if not registry.providers_for(IntelligenceCapability.WEB_RESEARCH):
+        return {"status": "unavailable", "sources": [], "candidates": []}
+
+    mission = ResearchMission(
+        primary_family=ResearchFamily.POSSIBILITY,
+        subject=text,
+        questions=(f"Quelles sources publiques correspondent à : {text} ?",),
+        origins=(ResearchOrigin(
+            kind=ResearchOriginKind.INITIAL,
+            source_ref="discovery:explicit-source-research",
+        ),),
+        reasons=("Explorer des pistes externes liées à une recherche Makolo.",),
+        limits={"max_candidates": 3, "max_queries": 1},
+    )
+    try:
+        result = IntelligenceWebResearchEngine(
+            IntelligenceGateway(registry=registry),
+        ).execute(WebResearchRequest(
+            mission=mission, mode=WebResearchMode.DISCOVER,
+            requested_at=timezone.now(),
+        ))
+    except Exception:
+        return {"status": "unavailable", "sources": [], "candidates": []}
+
+    if result.outcome.value == "failed":
+        return {"status": "unavailable", "sources": [], "candidates": []}
+
+    sources = {}
+    for source in result.sources:
+        parts = urlsplit(source.locator)
+        if parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
+            continue
+        sources[source.source_ref] = {
+            "title": (source.title or parts.hostname)[:160],
+            "url": source.locator,
+            "host": parts.hostname,
+        }
+
+    candidates = []
+    for candidate in result.candidates:
+        citations = [
+            sources[ref] for ref in candidate.source_refs if ref in sources
+        ][:2]
+        if not citations:
+            continue
+        candidates.append({
+            "label": candidate.label[:160],
+            "summary": (candidate.summary or "")[:400],
+            "sources": citations,
+        })
+        if len(candidates) >= 3:
+            break
+
+    return {
+        "status": "completed" if candidates else "no_results",
+        "sources": list(sources.values())[:6],
+        "candidates": candidates,
+    }
