@@ -254,7 +254,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           TextField(
                             decoration: const InputDecoration(
                               labelText:
-                                  'Rechercher dans l’historique synchronisé',
+                                  'Rechercher dans mon historique',
                               prefixIcon: Icon(Icons.search),
                             ),
                             onChanged: (value) => setState(() {
@@ -312,8 +312,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                           if (visible.isEmpty)
                             const Text(
-                              'Aucun élément correspondant parmi les '
-                              'pages synchronisées.',
+                              'Aucun résultat correspondant parmi les '
+                              'éléments disponibles.',
                             ),
                           for (
                             var index = 0;
@@ -377,7 +377,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     chosen.id!,
                                   ),
                                   child: const Text(
-                                    'Ouvrir chez le propriétaire',
+                                    'Voir les détails',
                                   ),
                                 ),
                             ],

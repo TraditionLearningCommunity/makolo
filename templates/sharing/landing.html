@@ -26,7 +26,7 @@
     {% else %}
       <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.25rem"><span class="mk-badge">{{ opportunity.get_kind_display }}</span><span class="mk-badge">v{{ revision.version }}</span></div>
       <p style="margin-top:.75rem;font-weight:600">{{ revision.issuer_name }}</p>
-      {% if revision_changed %}<p class="mk-panel" style="margin-top:1rem;padding:1rem;font-size:.875rem">Cette Opportunity a été mise à jour depuis la création de ce partage. Makolo vous montre la version publiée actuelle.</p>{% endif %}
+      {% if revision_changed %}<p class="mk-panel" style="margin-top:1rem;padding:1rem;font-size:.875rem">Cette possibilité a été mise à jour depuis son partage. Voici les informations actuellement publiées.</p>{% endif %}
     {% endif %}
     <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-top:1.75rem">
       <a class="mk-btn mk-btn-primary" href="{{ action_url }}">{{ cta_label }}</a>

@@ -456,7 +456,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Cet état personnel n’a pas été confirmé. L’état serveur connu est conservé.',
+            'Votre modification n’a pas été confirmée. Les dernières informations vérifiées restent affichées.',
           ),
         ),
       );
