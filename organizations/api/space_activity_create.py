@@ -29,6 +29,7 @@ class SpaceG1ActivityCreateAPIView(APIView):
             space is None
             or space.archetype not in {
                 SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY,
+                SpaceArchetype.CREATIVE, SpaceArchetype.MEDIA,
             }
             or not can(request.user, PermissionCode.SPACE_ACTIVITIES_MANAGE, space)
         ):
