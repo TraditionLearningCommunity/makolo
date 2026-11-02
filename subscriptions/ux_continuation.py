@@ -66,19 +66,26 @@ def safe_action_return(request, *, space=None):
     except Resolver404:
         return None
     name = match.view_name
+    query = parse_qs(parts.query, keep_blank_values=True)
+    if name in {"activities:create", "events:create"}:
+        if set(query) - {"space"}:
+            return None
+    elif query:
+        # Team creation has no query contract. Do not round-trip arbitrary data.
+        return None
     # Event and Activity are both owner-scoped. A return link must not
     # silently reopen a personal creation after an Espace Subscription denial.
     if space is None:
         if name not in {"activities:create", "events:create"}:
             return None
-        if "space" in parse_qs(parts.query, keep_blank_values=True):
+        if "space" in query:
             return None
     else:
         if name in {"organizations:team-member-create", "organizations:member-create"}:
             if match.kwargs.get("slug") != space.slug:
                 return None
         elif name in {"activities:create", "events:create"}:
-            if parse_qs(parts.query, keep_blank_values=True).get("space") != [space.slug]:
+            if query.get("space") != [space.slug]:
                 return None
         else:
             return None
