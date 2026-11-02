@@ -31,6 +31,9 @@ from organizations.space_product import (
     operating_preset_for_space, visible_operational_footprint_for_space,
 )
 from organizations.space_work_composition import compose_space_work_business_world
+from organizations.api.space_work_g2 import (
+    related_g2_work, service_case_native_handoff,
+)
 from organizations.space_work_media import attach_space_work_recognition_media
 from organizations.space_work_presentation import (
     ordered_work_section_keys,
@@ -605,7 +608,8 @@ def _selected(queryset, kind, source_kind, source_id):
 
 def build_space_work_projection(
     *, profile, space, responsibility_key=None, source_kind=None, source_id=None,
-    section_key=None, offset=0, related_offset=0
+    section_key=None, offset=0, related_offset=0,
+    related_work_offset=0,
 ):
     visible_ids = _visible_activity_ids(profile, space)
     lens_ids = _activity_scope_from_responsibility(
@@ -1053,6 +1057,46 @@ def build_space_work_projection(
         selection["related_occurrences"] = _g1_activity_realizations(
             source_id, offset=related_offset, now=now, today=today,
         )
+
+    if selection is not None and space.archetype in {"education", "service_provider"}:
+        selected_source = selection.get("source") or {}
+        selected_kind = selected_source.get("kind")
+        if (
+            source_kind == "activity"
+            and selected_kind == "activity"
+            and selected_source.get("id") == str(source_id)
+        ):
+            selection["related_occurrences"] = _g1_activity_realizations(
+                source_id, offset=related_offset, now=now, today=today,
+            )
+            selection["related_work"] = related_g2_work(
+                profile=profile, space=space, activity_id=source_id,
+                responsibility=responsibility_key or "all",
+                offset=related_work_offset,
+                education_ids=education_ids, service_ids=service_ids,
+            )
+        elif (
+            space.archetype == "service_provider"
+            and source_kind == "journey"
+            and selected_kind == "journey"
+            and "open_service_case" in selection.get("capabilities", ())
+        ):
+            case = Journey.objects.filter(
+                pk=source_id, activity_id__in=service_ids,
+                workflow=WorkflowKind.SERVICE,
+            ).first()
+            if case is not None:
+                url = service_case_native_handoff(
+                    space=space, journey=case,
+                    responsibility=responsibility_key or "all",
+                )
+                selection["links"]["service_case_native"] = url
+                selection["owner_handoffs"].append({
+                    "intent": "open_service_case_native",
+                    "label": "Suivre le dossier",
+                    "owner": {"kind": "journey", "id": str(case.pk)},
+                    "channel": "api", "url": url,
+                })
 
     return {
         "space": {
