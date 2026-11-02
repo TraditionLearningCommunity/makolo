@@ -10,6 +10,7 @@ from collections import Counter
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--count", type=int, default=20)
+    p.add_argument("--profile-username")
     p.add_argument("--actor", default="beta_event_manager")
     p.add_argument("--domains", default="placement,incidents")
     p.add_argument("--apply", action="store_true")
@@ -56,7 +57,7 @@ def main(argv=None):
             continue
         journeys = list(Journey.objects.filter(
             activity=occurrence.activity, occurrence=occurrence,
-            beneficiary__username__startswith="world_"
+            **({"beneficiary__username": a.profile_username} if a.profile_username else {"beneficiary__username__startswith": "world_"})
         ).exclude(status__in=["rejected", "cancelled", "expired"]).select_related(
             "beneficiary").order_by("id")[:8])
         if not journeys:
