@@ -8,6 +8,7 @@ import '../design/behavior_primitives.dart';
 import '../design/makolo_mark.dart';
 import '../design/makolo_theme.dart';
 import '../navigation/avatar_sheet.dart';
+import '../navigation/active_context_avatar.dart';
 import '../navigation/destination.dart';
 import '../navigation/shell_header.dart';
 import '../navigation/space_context_bar.dart';
@@ -188,8 +189,18 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     showMakoloAvatarSheet(
       context,
       runtime: widget.runtime,
-      onConnections: () => context.push('/connections'),
-      onBilling: () => context.push('/billing'),
+      onConnections: () {
+        final actor = _actor;
+        context.push(actor is SpaceActorContext
+            ? '/space/${Uri.encodeComponent(actor.space.slug)}/connections'
+            : '/connections');
+      },
+      onBilling: () {
+        final actor = _actor;
+        context.push(actor is SpaceActorContext
+            ? '/space/${Uri.encodeComponent(actor.space.slug)}/subscription'
+            : '/billing');
+      },
       onSettings: () => context.push('/settings'),
       onSwitchAccount: widget.onSwitchAccount,
       onLogout: widget.onLogout,
@@ -259,6 +270,16 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
           appBar: MakoloPrimaryHeader(
             kind: _headerKind,
             avatarLetter: avatarLetter,
+            avatarVisual: actor is SpaceActorContext
+                ? ActiveContextAvatar(
+                    runtime: widget.runtime,
+                    actor: actor,
+                    size: 36,
+                  )
+                : null,
+            avatarContextLabel: actor is SpaceActorContext
+                ? 'Contexte Espace : ${actor.space.slug}'
+                : 'Contexte personnel',
             avatarUrl: validAvatar ? resolvedAvatar.toString() : null,
             avatarProfileId: widget.runtime.personal?.store.profileId,
             avatarApi: widget.runtime.api,
