@@ -35,6 +35,7 @@ class PushEndpointRegistrationSerializer(serializers.Serializer):
     installation_id = serializers.CharField(max_length=128)
     token = serializers.CharField(write_only=True, trim_whitespace=True)
     app_version = serializers.CharField(max_length=64, required=False, allow_blank=True)
+    reactivate = serializers.BooleanField(default=False, required=False)
 
 
 class PushEndpointRevokeSerializer(serializers.Serializer):
