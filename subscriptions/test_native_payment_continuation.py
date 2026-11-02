@@ -8,6 +8,7 @@ from django.urls import reverse
 
 from payments.obligation_services import satisfy_payment_obligation
 from subscriptions.billing_models import BillingPeriodUnit, PlanVersionBillingTerms, SubscriptionBillingObligation
+from subscriptions.billing_services import create_subscription_billing_obligation
 from subscriptions.contracts import (
     AcquisitionMode, CatalogVisibility, SubscriptionPlanType,
     SubscriptionSubjectType, SubscriptionTransitionStatus,
@@ -85,6 +86,35 @@ class NativeSubscriptionPaymentContinuationTests(TestCase):
         updated = self.client.get(reverse("subscriptions_native:me")).json()
         self.assertFalse(updated["transition"]["open"])
         self.assertEqual(updated["billing"]["items"][0]["transition_id"], transition["id"])
+
+    def test_open_payment_is_actionable_beyond_first_billing_page(self):
+        version = self.plan("continuation.paid.old-bill", paid=True)
+        response = self.client.post(
+            reverse("subscriptions_native:plan", args=[version.pk]),
+            {"idempotency_key": "continuation-old-bill-intent-001"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        first_transition = response.json()["transition"]
+        payment_id = first_transition["payment_obligation_id"]
+        terms = version.billing_terms
+
+        # An unrelated billing history must not hide the pending change.
+        for number in range(21):
+            create_subscription_billing_obligation(
+                subscription=self.subscription, billing_terms=terms,
+                billing_key=f"other-history-{number}", actor=None,
+            )
+
+        snapshot = self.client.get(reverse("subscriptions_native:me")).json()
+        self.assertNotIn(payment_id, [row["id"] for row in snapshot["billing"]["items"]])
+        self.assertIsNotNone(snapshot["billing"]["next_offset"])
+        transition = snapshot["transition"]
+        self.assertEqual(transition["id"], first_transition["id"])
+        self.assertEqual(transition["next_action"], "pay")
+        self.assertEqual(transition["payment_obligation_id"], payment_id)
+        self.assertEqual(transition["payment_amount"], "18.00")
+        self.assertFalse(transition["can_cancel"])
 
     def test_free_change_activates_immediately_without_payment_obligation(self):
         version = self.plan("continuation.free", paid=False)
