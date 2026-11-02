@@ -90,3 +90,15 @@ Aucun collectif aujourd'hui signifie aucun membre autorise. Une adhesion future 
 - Les migrations historiques ne sont pas destructivement réécrites ; les comportements de publication déjà consentis restent valides.
 
 **État :** règles de l'étape 4 implémentées dans #522. Validation automatique et intégration finale sont des opérations séparées.
+
+## Lecture native d’une version émise — Web/API/Flutter
+
+Une vérification d'émission et un partage explicite de version datée restent deux contrats différents.
+
+- Le reader Web et l'API `sharing.passport.document` partagent la décision de publication actuelle et `_snapshot_content_allowed`. Un lien signé de vérification n'ouvre pas de document privé à un tiers, même lorsque le document est intègre.
+- Le reader d'un lien Sharing passe toujours par `resolve_passport_share` (expiration, révocation, intégrité, variante non complète). Un lien partagé peut lire exclusivement le `PassportSnapshot.payload` original ; il ne reconstruit pas le Profil vivant.
+- L'API fournit `payload=null` lorsque le viewer n'a pas de droit de lecture. Les réponses sensibles sont `private, no-store` et varient sur les éléments d'authentification.
+- Flutter ouvre les liens `/passport/verify/<token>/` et `/passport/shared/<token>/` dans un lecteur natif sans stockage persistant automatique. Changer de token ou recevoir un refus retire la projection précédemment vue.
+- Ce lecteur ne transfère aucun droit supplémentaire de Profile, Permission, Mandate, Access ou Requirement. La vérification d'émission ne certifie pas toutes les déclarations du titulaire.
+
+Contrat de mise en œuvre et tests ciblés : `docs/implementation/profile-passport-reader-closure-2026-11-02.md`. La séquence 01–06 du Passeport demeure inchangée ; il ne s'agit pas d'une étape canonique 07.
