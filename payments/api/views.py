@@ -55,39 +55,15 @@ def _raise_service_error(exc):
     raise exc
 
 
-def _can_see_manual_provider(user):
-    if not getattr(user, "is_authenticated", False):
-        return False
-    if has_platform_authority(user):
-        return True
-    space_ids = space_ids_with_permission(user, PermissionCode.FINANCE_MANAGE)
-    activity_ids = activity_ids_with_permission(user, PermissionCode.ACTIVITY_FINANCE_MANAGE)
-    return bool(space_ids) or bool(activity_ids)
-
-
 class PaymentConfigurationAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        providers = []
-        if getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False):
-            providers.append(PaymentProvider.SANDBOX)
-        if _can_see_manual_provider(request.user):
-            providers.append(PaymentProvider.MANUAL)
-        return Response(
-            {
-                "providers": [
-                    {"value": value, "label": label}
-                    for value, label in PaymentProvider.choices
-                    if value in providers
-                ],
-                "methods": [
-                    {"value": value, "label": label}
-                    for value, label in PaymentMethod.choices
-                ],
-                "sandbox_enabled": bool(getattr(settings, "PAYMENTS_SANDBOX_ENABLED", False)),
-            }
-        )
+        from payments.integration_availability import payment_configuration_for
+
+        response = Response(payment_configuration_for(request.user))
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class PaymentObligationAPIView(APIView):
