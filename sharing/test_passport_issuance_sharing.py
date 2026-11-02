@@ -58,6 +58,38 @@ class PassportIssuanceAndSharingTests(TestCase):
         )
         self.assertFalse(PassportSnapshot.objects.exists())
 
+    def test_personal_issue_creates_dated_snapshot_without_download(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("personal-projections:passport-issue")
+            + "?variant=custom&include=bio",
+            data={}, content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(response.json()["meta"]["projection"],
+                         "personal.me.passport.issuance")
+        self.assertEqual(data["variant"], "custom")
+        snapshot = PassportSnapshot.objects.get(pk=data["id"])
+        self.assertEqual(snapshot.payload["identity"]["bio"], self.owner.bio)
+        self.assertEqual(snapshot.variant, "custom")
+        self.assertEqual(self.client.get(
+            reverse("personal-projections:passport-history")
+        ).json()["data"]["count"], 1)
+        self.assertNotIn("application/pdf", response["Content-Type"])
+
+    def test_personal_issue_is_auth_scoped_and_rejects_context_overrides(self):
+        url = reverse("personal-projections:passport-issue")
+        anonymous = self.client.post(url, data={}, content_type="application/json")
+        self.assertIn(anonymous.status_code, (401, 403))
+        self.client.force_login(self.owner)
+        rejected = self.client.post(
+            url + "?profile_id=" + str(self.visitor.pk),
+            data={}, content_type="application/json",
+        )
+        self.assertEqual(rejected.status_code, 400)
+        self.assertFalse(PassportSnapshot.objects.exists())
+
     def test_past_private_issuance_does_not_become_public_later(self):
         private_issued = self._issue()
         self.assertFalse(private_issued.public_at_issue)
