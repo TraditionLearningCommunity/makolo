@@ -17,8 +17,13 @@ def _safe_failure_reason(exc: IntelligenceError) -> str:
             return "invalid_credentials"
         if technical_code in {"rate_limited", "http_429", "quota_exceeded"}:
             return "rate_limited"
-    # Keep the historical contract for all other provider failures, including
-    # network errors. Only explicit safe codes become more precise.
+        if technical_code in {
+            "network_unavailable", "offline", "timeout",
+            "http_502", "http_503", "http_504",
+        }:
+            return "network_unavailable"
+    # Keep historical opaque error categories for other provider exceptions;
+    # never return a provider-supplied response body or credential.
     return exc.__class__.__name__
 
 
