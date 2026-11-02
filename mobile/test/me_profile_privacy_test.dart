@@ -70,4 +70,69 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets('Accounts gender and birth date are editable from Passport', (tester) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-gender');
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        profileId: 'profile-gender',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+      ),
+    );
+    Map<String, dynamic>? submitted;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: MockClient((request) async {
+        if (request.url.path == '/api/v1/accounts/auth/me/') {
+          return MockResponse(jsonEncode({
+            'first_name': 'Alex',
+            'last_name': 'Exemple',
+            'gender': 'unspecified',
+            'birth_date': null,
+            'language': 'fr',
+            'profile': {'public_profile': false, 'searchable': false},
+          }), 200);
+        }
+        if (request.url.path == '/api/v1/accounts/auth/profile/update/' &&
+            request.method == 'PATCH') {
+          submitted = jsonDecode(request.data as String) as Map<String, dynamic>;
+          return MockResponse(jsonEncode({
+            'message': 'Profil mis à jour.',
+            'user': {
+              'first_name': 'Alex',
+              'last_name': 'Exemple',
+              'gender': submitted!['gender'],
+              'birth_date': submitted!['birth_date'],
+              'language': 'fr',
+              'profile': {'public_profile': false, 'searchable': false},
+            },
+          }), 200);
+        }
+        throw StateError('Unexpected request');
+      }).dio,
+    );
+    addTearDown(api.close);
+    await tester.pumpWidget(MaterialApp(
+      home: MeProfileScreen(api: api, personal: PersonalRepository(store)),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Genre'), findsOneWidget);
+    expect(find.text('Date de naissance'), findsOneWidget);
+    await tester.tap(find.text('Non renseigné'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Femme').last);
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Enregistrer'));
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pumpAndSettle();
+    expect(submitted, isNotNull);
+    expect(submitted!['gender'], 'female');
+    expect(submitted!['birth_date'], isNull);
+  });
+
 }
