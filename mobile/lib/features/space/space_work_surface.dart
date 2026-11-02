@@ -20,6 +20,13 @@ class SpaceWorkSurface extends StatelessWidget {
         _string(presentation?['empty_message']) ??
         'Aucune activité visible pour le moment.';
     final sections = _map(payload['sections']);
+    final archetype = _string(payload['archetype']);
+    final spaceSlug = _string(_map(payload['space'])?['slug']);
+    final canCreateG1 =
+        (archetype == 'generic' || archetype == 'community') &&
+        _string(payload['responsibility']) == 'all' &&
+        _map(payload['capabilities'])?['create_activity'] == true &&
+        spaceSlug != null;
     if (sections == null) {
       return _message('Cette vue n’est pas disponible pour le moment.');
     }
@@ -48,6 +55,19 @@ class SpaceWorkSurface extends StatelessWidget {
           spacing: MakoloSpacing.sm,
           runSpacing: MakoloSpacing.sm,
           children: [
+            if (canCreateG1)
+              FilledButton.icon(
+                icon: const Icon(Icons.add),
+                label: Text(
+                  archetype == 'community'
+                      ? 'Nouvelle initiative'
+                      : 'Nouvelle activité',
+                ),
+                onPressed: () => context.push(
+                  '/space/${Uri.encodeComponent(spaceSlug)}/work/activities/new'
+                  '?archetype=${Uri.encodeComponent(archetype!)}',
+                ),
+              ),
             OutlinedButton.icon(
               icon: const Icon(Icons.search),
               label: const Text('Rechercher'),
