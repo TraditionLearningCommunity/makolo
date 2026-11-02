@@ -48,6 +48,14 @@
                     android:scheme="${makoloAppLinkScheme}"
                     android:host="${makoloAppLinkHost}"
                     android:pathPrefix="/shares/" />
+                <data
+                    android:scheme="${makoloAppLinkScheme}"
+                    android:host="${makoloAppLinkHost}"
+                    android:pathPrefix="/passport/shared/" />
+                <data
+                    android:scheme="${makoloAppLinkScheme}"
+                    android:host="${makoloAppLinkHost}"
+                    android:pathPrefix="/passport/verify/" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
