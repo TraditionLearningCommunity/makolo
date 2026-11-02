@@ -59,11 +59,12 @@ class _IntelligenceConnectionControlsState
     }
   }
 
-  bool _sameOwner(String path, AppRuntime runtime) =>
-      mounted &&
-      widget.mutationsEnabled &&
-      widget.path == path &&
+  bool _scopeUnchanged(String path, AppRuntime runtime) =>
+      mounted && widget.path == path &&
       identical(widget.runtime, runtime);
+
+  bool _sameOwner(String path, AppRuntime runtime) =>
+      _scopeUnchanged(path, runtime) && widget.mutationsEnabled;
 
 
   Future<void> _loadCatalog() async {
@@ -138,14 +139,14 @@ class _IntelligenceConnectionControlsState
 
     var refreshed = false;
     try {
-      if (_sameOwner(ownerPath, ownerRuntime)) {
+      if (_scopeUnchanged(ownerPath, ownerRuntime)) {
         await widget.onChanged();
         refreshed = true;
       }
     } on Object {
       // Server commit and local projection refresh are separate outcomes.
     }
-    if (!_sameOwner(ownerPath, ownerRuntime) ||
+    if (!_scopeUnchanged(ownerPath, ownerRuntime) ||
         mutationVersion != _mutationGeneration) return;
     if (!committed) {
       _notice(
