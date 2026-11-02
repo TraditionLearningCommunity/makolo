@@ -11,7 +11,9 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from .billing_models import PlanVersionBillingTerms
-from .billing_presentation import personal_billing_obligations, terms_as_dict, with_billing_terms
+from .billing_presentation import (
+    next_payment_url_for_actor, personal_billing_obligations, terms_as_dict, with_billing_terms,
+)
 from .contracts import SubscriptionTransitionKind, SubscriptionTransitionStatus
 from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
 from .product_preview import build_subscription_change_preview
@@ -137,9 +139,14 @@ class ProfileSubscriptionChangeView(LoginRequiredMixin, View):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
             return redirect(subscription_return_home(request))
-        messages.success(request, "Votre demande de changement a été enregistrée.")
         if transition.status == SubscriptionTransitionStatus.COMPLETED:
-            messages.success(request, "Votre nouvelle formule est déjà active.")
+            messages.success(request, "Votre nouvelle formule est active.")
+        else:
+            payment_url = next_payment_url_for_actor(transition, request.user)
+            if payment_url:
+                messages.info(request, "Votre choix est enregistré. Vous pouvez payer maintenant ou reprendre plus tard.")
+                return redirect(payment_url)
+            messages.info(request, "Le changement est enregistré. Consultez les conditions restant à finaliser.")
         return redirect(subscription_return_home(request))
 
 
@@ -176,7 +183,7 @@ class ProfileAddonRemoveView(LoginRequiredMixin, View):
         subscription = _profile_subscription(request.user)
         item = get_active_addon(subscription, item_id)
         try:
-            request_subscription_transition_for_actor(
+            transition = request_subscription_transition_for_actor(
                 actor=request.user,
                 subscription_id=subscription.pk,
                 kind=SubscriptionTransitionKind.ADDON_REMOVE,
@@ -187,7 +194,7 @@ class ProfileAddonRemoveView(LoginRequiredMixin, View):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
             return redirect(subscription_return_home(request))
-        messages.success(request, "La demande de retrait de l’option a été enregistrée.")
+        messages.success(request, "Option retirée." if transition.status == SubscriptionTransitionStatus.COMPLETED else "Retrait de l’option à finaliser.")
         return redirect(subscription_return_home(request))
 
 
