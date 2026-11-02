@@ -80,7 +80,21 @@ class SpaceG2ServiceCaseAPIView(APIView):
             raise NotFound()
         return space, responsibility, case
 
-    def _projection(self, request, space, responsibility, case):
+    @staticmethod
+    def _offsets(request):
+        values = {}
+        for name in ("steps_offset", "blockers_offset"):
+            try:
+                offset = int(request.query_params.get(name, "0"))
+            except (TypeError, ValueError):
+                raise ValidationError({name: "Décalage invalide."})
+            if not 0 <= offset <= 10000:
+                raise ValidationError({name: "Décalage hors limites."})
+            values[name] = offset
+        return values
+
+    def _projection(self, request, space, responsibility, case,
+                    *, steps_offset=0, blockers_offset=0):
         context = case.service_context
         activity = case.activity
         can_manage = can(
@@ -96,11 +110,15 @@ class SpaceG2ServiceCaseAPIView(APIView):
             activity=activity,
         )
         steps = list(
-            case.steps.order_by("position", "pk")[:51]
+            case.steps.order_by("position", "pk")[
+                steps_offset:steps_offset + 51
+            ]
         )
         blockers = list(
             case.blockers.filter(status=JourneyBlockerStatus.ACTIVE)
-            .order_by("-detected_at", "pk")[:51]
+            .order_by("-detected_at", "pk")[
+                blockers_offset:blockers_offset + 51
+            ]
         )
         assessments = (
             ServiceRequirementAssessment.objects.filter(context=context)
@@ -143,6 +161,7 @@ class SpaceG2ServiceCaseAPIView(APIView):
                 for step in steps[:50]
             ],
             "steps_has_more": len(steps) > 50,
+            "steps_page": {"offset": steps_offset, "limit": 50},
             "blockers": [
                 {
                     "id": str(blocker.pk), "title": blocker.title,
@@ -153,6 +172,7 @@ class SpaceG2ServiceCaseAPIView(APIView):
                 for blocker in blockers[:50]
             ],
             "blockers_has_more": len(blockers) > 50,
+            "blockers_page": {"offset": blockers_offset, "limit": 50},
             "capabilities": {
                 "manage_steps": can_steps, "resolve_blockers": can_blockers,
             },
@@ -160,10 +180,14 @@ class SpaceG2ServiceCaseAPIView(APIView):
 
     def get(self, request, slug, journey_id):
         space, responsibility, case = self._owner(request, slug, journey_id)
-        return self._reply(self._projection(request, space, responsibility, case))
+        offsets = self._offsets(request)
+        return self._reply(self._projection(
+            request, space, responsibility, case, **offsets,
+        ))
 
     def post(self, request, slug, journey_id):
         space, responsibility, case = self._owner(request, slug, journey_id)
+        offsets = self._offsets(request)
         data = request.data if isinstance(request.data, dict) else {}
         action = data.get("action")
         try:
@@ -220,6 +244,6 @@ class SpaceG2ServiceCaseAPIView(APIView):
         # optimistic local state.
         case.refresh_from_db()
         return self._reply({
-            **self._projection(request, space, responsibility, case),
+            **self._projection(request, space, responsibility, case, **offsets),
             "confirmed_by_owner": True,
         })
