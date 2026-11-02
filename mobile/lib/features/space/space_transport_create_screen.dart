@@ -298,6 +298,18 @@ class _SpaceTransportCreateScreenState
       final api = widget.runtime.api;
       if (api == null) throw StateError('Connexion indisponible');
       final response = await api.post(_path, body: body);
+      if (response.statusCode == 400) {
+        // A definitive owner validation failure is safe to correct; unknown
+        // network results remain retry-locked against duplicate creation.
+        if (mounted && _actorValid && epoch == _epoch) {
+          setState(() {
+            _attempted = false;
+            _error = 'Les valeurs ont été refusées. Vérifiez les lieux, '
+                'le fuseau, le prix et les capacités du départ.';
+          });
+        }
+        return;
+      }
       if (response.statusCode != 201) {
         throw StateError('Création non confirmée');
       }
