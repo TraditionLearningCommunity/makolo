@@ -11,6 +11,7 @@ import '../../presentation/mps/mps_native_renderer.dart';
 import '../space/space_work_g1_realizations.dart';
 import '../space/space_work_g2_depth.dart';
 import '../space/space_work_g3_depth.dart';
+import '../space/space_work_g4_depth.dart';
 
 /// Owner-backed Space N3. A search result is never an authorization grant:
 /// every opening re-reads the source using the current account and actor.
@@ -173,6 +174,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       'continuity_facet': item['continuity_facet'],
       'related_occurrences': item['related_occurrences'],
       'related_work': item['related_work'],
+      'g4_detail': item['g4_detail'],
+      'media_bindings': item['media_bindings'],
       'owner_depth': item['owner_depth'],
       'space_archetype': payload['archetype'],
       'owner_handoffs': item['owner_handoffs'],
@@ -419,6 +422,31 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                           if (!_actorValid) return;
                           setState(() {
                             _g3SecondaryOffset = nextOffset;
+                            _result = _readOwner();
+                          });
+                        },
+                      ),
+                    if ((widget.kind == 'activity' ||
+                            widget.kind == 'occurrence') &&
+                        (data['space_archetype'] == 'creative' ||
+                            data['space_archetype'] == 'media'))
+                      SpaceWorkG4Depth(
+                        slug: widget.spaceActor.space.slug,
+                        archetype: data['space_archetype'] as String,
+                        isActivity: widget.kind == 'activity',
+                        detail: spaceMap(data['g4_detail']) ??
+                            const <String, dynamic>{},
+                        related: spaceMap(data['related_occurrences']),
+                        mediaBindings: data['media_bindings'] is List
+                            ? data['media_bindings'] as List
+                            : const [],
+                        nextOccurrence:
+                            spaceMap(itemContext?['next_occurrence']),
+                        mediaBaseUri: widget.runtime.api?.baseUri,
+                        onPageChange: (nextOffset) {
+                          if (!_actorValid) return;
+                          setState(() {
+                            _relatedOffset = nextOffset;
                             _result = _readOwner();
                           });
                         },
