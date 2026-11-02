@@ -382,7 +382,7 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
         self.assertEqual(payload["proofs"], [])
         self.assertEqual(payload["credentials"], [])
 
-    def test_personalized_avatar_is_opt_in_and_never_affects_public_identity(self):
+    def test_custom_keeps_public_identity_but_explicit_private_photo_requires_opt_in(self):
         self.amina.metadata = {"avatar_url": "/media/passport-selected-portrait.png"}
         self.amina.save(update_fields=["metadata", "updated_at"])
         self.client.force_login(self.amina)
@@ -392,7 +392,10 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
             {"variant": "custom", "include": ["bio"]},
         )
         self.assertEqual(minimal.status_code, 200)
-        self.assertEqual(minimal.context["projection"].identity["avatar_url"], "")
+        self.assertEqual(
+            minimal.context["projection"].identity["avatar_url"],
+            "/media/passport-selected-portrait.png",
+        )
         self.assertEqual(minimal.context["projection"].identity["bio"], self.amina.bio)
 
         selected = self.client.get(
@@ -412,6 +415,24 @@ class G6ProfilePassportTests(G6PassportFixtureMixin, TestCase):
             public.context["projection"].identity["avatar_url"],
             "/media/passport-selected-portrait.png",
         )
+
+    def test_private_portrait_stays_out_of_implicit_custom_identity(self):
+        from accounts.models import ProfileVisibilityTargetKind
+        from accounts.profile_visibility import replace_profile_visibility
+
+        self.amina.metadata = {"avatar_url": "/media/private-avatar.png"}
+        self.amina.save(update_fields=["metadata", "updated_at"])
+        replace_profile_visibility(
+            owner=self.amina,
+            target_kind=ProfileVisibilityTargetKind.FIELD,
+            field_key="avatar",
+            audiences=[],
+        )
+        custom = build_profile_passport(self.amina, variant="custom")
+        self.assertEqual(custom.identity["name"], self.amina.full_name)
+        self.assertEqual(custom.identity["avatar_url"], "")
+        public = build_profile_passport(self.amina, variant="public")
+        self.assertEqual(public.identity["avatar_url"], "")
 
     def test_signed_verification_does_not_disclose_private_snapshot_content(self):
         self.client.force_login(self.amina)
