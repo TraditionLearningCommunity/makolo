@@ -129,12 +129,13 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
   Future<void> _enableHere() async {
     if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
     setState(() => _busy = true);
-    final registrar = PushEndpointRegistrar(
-      api: widget.runtime.api!,
-      tokens: widget.runtime.tokens,
-      source: FirebasePushTokenSource(FirebaseMessaging.instance),
-    );
+    PushEndpointRegistrar? registrar;
     try {
+      registrar = PushEndpointRegistrar(
+        api: widget.runtime.api!,
+        tokens: widget.runtime.tokens,
+        source: FirebasePushTokenSource(FirebaseMessaging.instance),
+      );
       await registrar.reactivateCurrent();
       await _load();
       try {
@@ -151,7 +152,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
             'de notification sur cet appareil.'),
       ));
     } finally {
-      registrar.dispose();
+      registrar?.dispose();
       if (mounted) setState(() => _busy = false);
     }
   }
