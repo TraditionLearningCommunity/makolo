@@ -4,7 +4,7 @@
   <div class="mk-panel p-5 sm:p-7">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
-        <p class="mk-kicker">Jour J · Occurrence</p>
+        <p class="mk-kicker">Jour J</p>
         <h2 id="day-of-heading" class="mt-2 text-3xl font-extrabold tracking-[-.04em]">{{ occurrence.label|default:activity.title }}</h2>
         <p class="mt-2 text-sm" style="color:var(--mk-muted)">{{ activity.title }} · {{ projection.context.phase }}</p>
       </div>
@@ -44,9 +44,9 @@
       <h3 id="day-of-control" class="text-lg font-bold">Contrôle et flux</h3>
       <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Capacité</dt><dd class="mt-1 font-bold">{{ projection.capacity|length }}</dd></div>
-        <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Files live</dt><dd class="mt-1 font-bold">{{ projection.queues|length }}</dd></div>
+        <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Files d’attente</dt><dd class="mt-1 font-bold">{{ projection.queues|length }}</dd></div>
         <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Placements</dt><dd class="mt-1 font-bold">{{ projection.placement|length }}</dd></div>
-        <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Checkpoints</dt><dd class="mt-1 font-bold">{{ projection.checkpoints|length }}</dd></div>
+        <div class="rounded-2xl border p-3" style="border-color:var(--mk-border)"><dt style="color:var(--mk-muted)">Points de contrôle</dt><dd class="mt-1 font-bold">{{ projection.checkpoints|length }}</dd></div>
       </dl>
       {% if projection.scanner.next_scan %}
       <p class="mt-4 text-sm" style="color:var(--mk-muted)">Scanner : {{ projection.scanner.next_scan.state }}</p>
