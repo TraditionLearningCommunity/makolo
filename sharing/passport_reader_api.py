@@ -5,7 +5,6 @@ reader does not mint credentials, create a grant, or recompute dated content.
 """
 from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import Http404
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -13,28 +12,20 @@ from rest_framework.views import APIView
 
 from core.api.projections import projection_envelope
 from .api_views import SharingNoStoreBoundary
-from .models import PublicSubjectKind
-from .passport import profile_has_public_passport, space_has_public_passport
 from .passport_documents import (
     resolve_passport_verification_token, snapshot_payload_is_intact,
 )
 from .passport_sharing import resolve_passport_share
-from .passport_views import _snapshot_content_allowed
+from .passport_views import (
+    _snapshot_content_allowed, snapshot_subject_public_now,
+)
 from .services import ShareUnavailable
 
 
 def _issued_document_response(*, snapshot, viewer, envelope=None):
     """Only the original, authorized issued payload may cross this boundary."""
     intact = snapshot_payload_is_intact(snapshot)
-    if snapshot.subject_kind == PublicSubjectKind.PROFILE:
-        public_now = bool(
-            snapshot.profile_id and snapshot.profile.is_active
-            and profile_has_public_passport(snapshot.profile)
-        )
-    else:
-        public_now = bool(
-            snapshot.space_id and space_has_public_passport(snapshot.space)
-        )
+    public_now = snapshot_subject_public_now(snapshot)
     explicit_grant = envelope is not None
     allowed = (
         intact and not snapshot.is_revoked
