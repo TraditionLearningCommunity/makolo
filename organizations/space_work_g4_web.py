@@ -121,6 +121,13 @@ class SpaceWorkG4DepthView(SpaceWebMixin):
                             "preparation:manage", kwargs={"activity_id": activity.pk},
                         ),
                     },
+                    {
+                        "label": "Présentations et médias",
+                        "url": reverse(
+                            "presentations:studio",
+                            kwargs={"activity_id": activity.pk},
+                        ),
+                    },
                 ])
         elif (
             "open_day_of" in selected.get("capabilities", ())
