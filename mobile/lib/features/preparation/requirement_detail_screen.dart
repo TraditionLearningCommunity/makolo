@@ -268,11 +268,11 @@ class _RequirementWay {
   final String? link;
 
   String get handoffLabel => switch (kind) {
-    'payment' => 'Continuer auprès du propriétaire du paiement.',
+    'payment' => 'Poursuivre le paiement auprès du service concerné.',
     'trusted_reuse' =>
       'Choisir un élément existant sans le déclarer automatiquement satisfait.',
-    'journey_step' => 'Cette étape reste pilotée par son propriétaire.',
-    _ => 'Continuer auprès du propriétaire de cette action.',
+    'journey_step' => 'Poursuivre cette étape dans la démarche concernée.',
+    _ => 'Poursuivre auprès du service concerné.',
   };
 }
 

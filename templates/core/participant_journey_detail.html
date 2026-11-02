@@ -10,7 +10,7 @@
       {% if access %}<a class="mk-deep-context-link" href="{% url 'core:participant-access-detail' access.pk %}">{{ vocabulary.access_detail_label }}</a>{% endif %}
     </nav>
     {% if timing %}<div class="border-t pt-4" style="border-color:var(--mk-border)"><p class="text-xs font-bold uppercase tracking-wider" style="color:var(--mk-subtle)">Prochain repère</p><p class="mt-2 text-sm font-semibold">{{ timing.date_label }}</p><p class="text-xs" style="color:var(--mk-muted)">{{ timing.time_label }}</p></div>{% endif %}
-    <p class="text-xs leading-5" style="color:var(--mk-subtle)">La préparation, l’accès et l’autorité restent des vérités serveur distinctes. Ce panneau ne les recalcule pas.</p>
+    <p class="text-xs leading-5" style="color:var(--mk-subtle)">Votre préparation, vos droits d’accès et vos autorisations sont suivis séparément.</p>
   </div>
 </aside>
 {% endblock %}
