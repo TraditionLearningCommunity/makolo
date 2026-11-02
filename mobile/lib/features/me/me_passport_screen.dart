@@ -1201,31 +1201,30 @@ class _MePassportScreenState extends State<MePassportScreen> {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.cloud_off_outlined, size: 40),
-                  const SizedBox(height: 12),
-                  Text(
-                    snapshot.hasError
-                        ? 'Passeport indisponible. Vos informations ne sont pas modifiées.'
-                        : 'Aucun contenu à présenter dans cette sélection.',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: () => setState(() {
-                      _onlineReady = false;
-                      _future = _load(preferLocal: false);
-                    }),
-                    child: const Text('Réessayer'),
-                  ),
-                ],
+          return ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              _options(const <String, dynamic>{}),
+              const SizedBox(height: 30),
+              const Icon(Icons.cloud_off_outlined, size: 40),
+              const SizedBox(height: 12),
+              Text(
+                snapshot.hasError
+                    ? 'Passeport indisponible. Vos informations ne sont pas modifiées.'
+                    : 'Aucun contenu à présenter dans cette sélection.',
+                textAlign: TextAlign.center,
               ),
-            ),
+              const SizedBox(height: 12),
+              Center(
+                child: OutlinedButton(
+                  onPressed: () => setState(() {
+                    _onlineReady = false;
+                    _future = _load(preferLocal: false);
+                  }),
+                  child: const Text('Réessayer'),
+                ),
+              ),
+            ],
           );
         }
         final data = stored ?? exact!;
