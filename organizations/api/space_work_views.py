@@ -38,6 +38,19 @@ class SpaceWorkAPIView(APIView):
             raise ValidationError({
                 "related_offset": "Une activité doit être sélectionnée.",
             })
+        try:
+            related_work_offset = int(request.query_params.get("related_work_offset", "0"))
+        except (ValueError, TypeError):
+            raise ValidationError({"related_work_offset": "Décalage invalide."})
+        if not 0 <= related_work_offset <= 10000:
+            raise ValidationError({"related_work_offset": "Décalage hors limites."})
+        if related_work_offset and (
+            request.query_params.get("kind") != "activity"
+            or not request.query_params.get("id")
+        ):
+            raise ValidationError({
+                "related_work_offset": "Une activité doit être sélectionnée.",
+            })
         payload = build_space_work_projection(
             profile=request.user,
             space=space,
@@ -46,6 +59,7 @@ class SpaceWorkAPIView(APIView):
             source_id=(request.query_params.get("id") or "").strip()[:80] or None,
             section_key=(request.query_params.get("section") or "").strip()[:40] or None,
             offset=offset, related_offset=related_offset,
+            related_work_offset=related_work_offset,
         )
         if payload is None:
             raise NotFound()
