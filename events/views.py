@@ -14,6 +14,7 @@ from automation.services import ensure_policy
 from presentations.participant_state import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
 from discovery.presentation import availability_presentation, presenter_for, price_presentation
+from subscriptions.ux_continuation import action_subscription_handoff, is_subscription_denial
 
 from .forms import EventForm
 from .models import Event, EventStatus
@@ -84,6 +85,21 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         kwargs["user"] = self.request.user
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if getattr(self, "_subscription_handoff", None):
+            context["subscription_handoff"] = self._subscription_handoff
+        return context
+
+    def _creation_failure(self, form, error, values):
+        if is_subscription_denial(error):
+            self._subscription_handoff = action_subscription_handoff(
+                self.request, space=values.get("organization"),
+                action_url=reverse("events:create"),
+            )
+        form.add_error(None, "; ".join(getattr(error, "messages", [str(error)])))
+        return self.form_invalid(form)
+
     def form_valid(self, form):
         values = dict(form.cleaned_data)
         schedule_values = _pop_schedule_values(values)
@@ -95,8 +111,7 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             try:
                 self.object = create_event(actor=self.request.user, **values)
             except ValidationError as exc:
-                form.add_error(None, "; ".join(exc.messages if hasattr(exc, "messages") else [str(exc)]))
-                return self.form_invalid(form)
+                return self._creation_failure(form, exc, values)
             start_date = occurrence_values["start_date"]
             frequency = schedule_values["frequency"]
             month_day = start_date.day if frequency in {OccurrenceScheduleFrequency.MONTHLY, OccurrenceScheduleFrequency.YEARLY} else None
@@ -124,8 +139,7 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
             try:
                 self.object = create_event(actor=self.request.user, **values)
             except ValidationError as exc:
-                form.add_error(None, "; ".join(exc.messages if hasattr(exc, "messages") else [str(exc)]))
-                return self.form_invalid(form)
+                return self._creation_failure(form, exc, values)
         ensure_policy(self.object)
         messages.success(self.request, "Événement créé en brouillon avec ses dates Makolo.")
         return redirect(self.get_success_url())
