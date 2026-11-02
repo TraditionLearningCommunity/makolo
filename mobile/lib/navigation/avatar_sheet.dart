@@ -169,7 +169,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: MakoloSpacing.lg),
+                const SizedBox(height: MakoloSpacing.md),
                 MakoloActorSelectorTile(
                   runtime: runtime,
                   onTap: onSelectActor == null
@@ -179,7 +179,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                 if (onConnections != null)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    minVerticalPadding: MakoloSpacing.sm,
+                    minVerticalPadding: MakoloSpacing.xs,
                     leading: const Icon(Icons.link_outlined),
                     title: const Text('Connexions'),
                     trailing: const Icon(Icons.chevron_right),
@@ -188,7 +188,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                 if (onBilling != null)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    minVerticalPadding: MakoloSpacing.sm,
+                    minVerticalPadding: MakoloSpacing.xs,
                     leading: const Icon(Icons.credit_card_outlined),
                     title: const Text('Abonnement & facturation'),
                     trailing: const Icon(Icons.chevron_right),
@@ -197,18 +197,18 @@ class MakoloAvatarSheet extends StatelessWidget {
                 if (onSettings != null)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    minVerticalPadding: MakoloSpacing.sm,
+                    minVerticalPadding: MakoloSpacing.xs,
                     leading: const Icon(Icons.settings_outlined),
                     title: const Text('Paramètres'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _closeThen(context, onSettings!),
                   ),
                 if (onSwitchAccount != null || onLogout != null)
-                  const Divider(height: MakoloSpacing.lg),
+                  const Divider(height: MakoloSpacing.md),
                 if (onSwitchAccount != null)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    minVerticalPadding: MakoloSpacing.sm,
+                    minVerticalPadding: MakoloSpacing.xs,
                     leading: const Icon(Icons.switch_account_outlined),
                     title: const Text('Changer de compte'),
                     trailing: const Icon(Icons.chevron_right),
@@ -217,7 +217,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                 if (onLogout != null)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    minVerticalPadding: MakoloSpacing.sm,
+                    minVerticalPadding: MakoloSpacing.xs,
                     leading: const Icon(Icons.logout),
                     title: const Text('Se déconnecter'),
                     onTap: () => _closeThen(context, onLogout!),
