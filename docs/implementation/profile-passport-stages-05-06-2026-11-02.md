@@ -14,7 +14,7 @@
 
 ## 2. Étape 05 — Documents, versions et partage
 
-Les quatre variantes préexistantes — Public, Complet, Thématique, Personnalisé — conservent leurs règles de sélection. Les éditions PDF continuent à matérialiser un snapshot immuable, avec identifiant, empreinte et QR/lien de vérification. Un PDF qui échoue au rendu ne peut plus laisser une version « émise » orpheline : émission et rendu sont dans une même transaction.
+Les quatre variantes préexistantes — Public, Complet, Thématique, Personnalisé — conservent leurs règles de sélection. Les éditions PDF continuent à matérialiser un snapshot immuable, avec identifiant, empreinte et QR/lien de vérification. Un export PDF **ou HTML imprimable** qui échoue au rendu ne peut plus laisser une version « émise » orpheline : émission et rendu sont dans une même transaction.
 
 Le propriétaire peut désormais **révoquer une version datée** depuis l’historique Web ou depuis l’application native. La version et son empreinte restent consultables par son titulaire, mais sa lecture publique et ses liens actifs sont retirés. La révocation utilise le service Sharing canonique pour chaque lien encore actif ; elle est idempotente.
 
@@ -41,8 +41,8 @@ Le `FutureBuilder` est attaché à la clé déterministe de sélection ; une ré
 
 Tests ajoutés/étendus :
 
-- `sharing.test_passport_issuance_sharing` : révocation d’une version et de tous ses partages, archive immuable, révocation d’un seul lien, exposition owner-scoped de la liste active, refus IDOR et rollback PDF ;
-- `mobile/test/me_passport_history_test.dart` : consultation datée, révocations natives, erreur réseau, reprise et maintien des variantes.
+- `sharing.test_passport_issuance_sharing` : révocation d’une version et de tous ses partages, archive immuable, révocation d’un seul lien, exposition owner-scoped de la liste active, refus IDOR et rollback PDF/HTML ;
+- `mobile/test/me_passport_history_test.dart` : consultation datée, révocations natives, erreur réseau, reprise et maintien des variantes, absence de contenu privé ancien lors d’un changement de variante.
 
 Commandes à lancer dans l’environnement de développement réel :
 
