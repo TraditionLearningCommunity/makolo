@@ -264,10 +264,12 @@ class DiscoveryClarification {
   const DiscoveryClarification({
     required this.status,
     required this.criteria,
+    this.reason = '',
   });
 
   final String status;
   final Map<String, String> criteria;
+  final String reason;
 }
 
 /// Sources are transient external leads, never canonical Discovery objects.
@@ -289,10 +291,12 @@ class DiscoverySourceResearch {
   const DiscoverySourceResearch({
     required this.status,
     required this.leads,
+    this.reason = '',
   });
 
   final String status;
   final List<DiscoverySourceLead> leads;
+  final String reason;
 }
 
 class DiscoverySourceState {
@@ -409,6 +413,7 @@ class DiscoveryRepository {
     return DiscoverySourceResearch(
       status: data['status'] as String,
       leads: List.unmodifiable(leads),
+      reason: data['reason'] is String ? data['reason'] as String : '',
     );
   }
 
@@ -449,7 +454,10 @@ class DiscoveryRepository {
       }
       parsed[entry.key as String] = entry.value as String;
     }
-    return DiscoveryClarification(status: status, criteria: parsed);
+    return DiscoveryClarification(
+      status: status, criteria: parsed,
+      reason: data['reason'] is String ? data['reason'] as String : '',
+    );
   }
 
   // Ephemeral navigation context owned by this Profile-specific repository.
