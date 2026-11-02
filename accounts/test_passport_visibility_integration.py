@@ -5,6 +5,9 @@ from django.urls import reverse
 from accounts.models import ProfileVisibilityAudience, ProfileVisibilityPolicy, UserProfile
 from accounts.profile_visibility import ProfileVisibilityResolver, replace_profile_visibility
 from groups.models import Group, GroupMembership, GroupMembershipStatus
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role
+from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 from sharing.passport import PASSPORT_PUBLIC, build_profile_passport
 from topics.models import ProfileInterest, ProfileOpenTo, Topic
 
@@ -77,6 +80,44 @@ class PassportVisibilityIntegrationTests(TestCase):
         membership = GroupMembership.objects.get(group=group, profile=self.viewer)
         membership.status = GroupMembershipStatus.LEFT
         membership.save()
+        self.assertEqual(self._public(self.viewer).identity["bio"], "")
+
+    def test_space_mandate_alone_does_not_grant_my_collectives_visibility(self):
+        space_owner = self.outsider
+        space = Organization.objects.create(
+            name="Espace mandat sans appartenance",
+            slug="privacy-mandate-only-space",
+            created_by=space_owner,
+        )
+        grant_space_role(
+            profile=self.owner, space=space,
+            role=SystemRoleCode.SPACE_OWNER,
+            source="passport-visibility-test",
+        )
+        grant_space_role(
+            profile=self.viewer, space=space,
+            role=SystemRoleCode.SPACE_OWNER,
+            source="passport-visibility-test",
+        )
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field", field_key="bio",
+            audiences=[{"kind": "my_collectives"}],
+        )
+        self.assertEqual(self._public(self.viewer).identity["bio"], "")
+        # Only an active, actual Team membership creates a shared Space relation.
+        team = Team.objects.create(organization=space, name="Équipe réelle")
+        TeamMembership.objects.create(
+            team=team, user=self.owner, status=TeamMembershipStatus.ACTIVE,
+        )
+        TeamMembership.objects.create(
+            team=team, user=self.viewer, status=TeamMembershipStatus.ACTIVE,
+        )
+        self.assertEqual(
+            self._public(self.viewer).identity["bio"], "Texte confidentiel",
+        )
+        TeamMembership.objects.filter(team=team, user=self.viewer).update(
+            status=TeamMembershipStatus.LEFT,
+        )
         self.assertEqual(self._public(self.viewer).identity["bio"], "")
 
     def test_chosen_collective_and_person_are_additive(self):
