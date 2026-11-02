@@ -148,17 +148,6 @@ class AppSettingsScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: onNotifications,
             ),
-          if (onPrivacy != null)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.lock_outline),
-              title: const Text('Confidentialité du Profil'),
-              subtitle: const Text(
-                'Visibilité et présence dans les recherches',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onPrivacy,
-            ),
           if (onSecurity != null)
             ListTile(
               contentPadding: EdgeInsets.zero,
