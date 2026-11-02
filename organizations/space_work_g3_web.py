@@ -140,13 +140,29 @@ class SpaceWorkG3DepthView(SpaceWebMixin):
                     ),
                 })
         elif kind == "occurrence" and detail.get("kind") == "transport_departure":
-            if activity and can(
+            if activity and detail.get("facts", {}).get("can_manage_operations") and can(
+                self.request.user,
+                PermissionCode.ACTIVITY_OPERATIONS_MANAGE,
+                activity=activity,
+            ):
+                actions.append({
+                    "label": "Exploiter ce départ",
+                    "url": reverse(
+                        "organizations:space-work-g3-departure-operations",
+                        kwargs={
+                            "slug": self.space.slug,
+                            "departure_id": detail["facts"]["departure_id"],
+                        },
+                    ) + "?" + urlencode({"responsibility": responsibility}),
+                })
+            elif activity and detail.get("facts", {}).get("operations_visible") and can(
                 self.request.user,
                 PermissionCode.ACTIVITY_OPERATIONS_VIEW,
                 activity=activity,
-            ) and detail.get("facts", {}).get("operations_visible"):
+            ):
+                # Read-only operations remain owned by the existing Console.
                 actions.append({
-                    "label": "Exploiter ce départ",
+                    "label": "Consulter les opérations",
                     "url": reverse(
                         "organizations:console-transport-departure-detail",
                         kwargs={
