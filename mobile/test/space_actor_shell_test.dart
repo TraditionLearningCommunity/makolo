@@ -56,7 +56,10 @@ class _Harness {
   }
 }
 
-Future<_Harness> _harness({bool startInSpace = false}) async {
+Future<_Harness> _harness({
+  bool startInSpace = false,
+  bool emptyInventory = false,
+}) async {
   final database = MakoloDatabase.memory();
   final store = ProfileStore(database, 'profile-a');
   await store.putProjection(
@@ -70,7 +73,7 @@ Future<_Harness> _harness({bool startInSpace = false}) async {
     kind: SpaceSyncKeys.inventoryProjectionKind,
     schemaVersion: 1,
     payload: {
-      'items': [
+      'items': emptyInventory ? <Object>[] : [
         {
           'id': 'space-x',
           'slug': 'space-x',
@@ -390,6 +393,24 @@ void main() {
     expect(harness.actorContext.value, const PersonalActorContext());
     await _disposeUi(tester);
   });
+
+  testWidgets(
+    'Agir comme distinguishes unverified inventory from verified absence',
+    (tester) async {
+      final harness = await _harness(emptyInventory: true);
+      addTearDown(harness.close);
+      await _pump(tester, harness);
+      await tester.tap(find.byTooltip('Avatar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Agir comme'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Aucun inventaire vérifié'), findsOneWidget);
+      expect(find.text('Vous n’avez aucun Espace autorisé.'), findsNothing);
+      expect(harness.actorContext.value, const PersonalActorContext());
+      await _disposeUi(tester);
+    },
+  );
 
   testWidgets('Agir comme cannot select a Space from unverified offline data', (
     tester,
