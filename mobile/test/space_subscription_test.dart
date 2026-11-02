@@ -209,13 +209,13 @@ void main() {
     await tester.scrollUntilVisible(find.text('Examiner le changement'), 180);
     await tester.tap(find.text('Examiner le changement'));
     await tester.pumpAndSettle();
-    expect(find.text('Confirmer'), findsOneWidget);
+    expect(find.text('Appliquer le changement'), findsOneWidget);
 
     await actors.selectPersonal();
     await tester.pumpAndSettle();
     // A modal can outlive the page's authorized snapshot.
-    if (find.text('Confirmer').evaluate().isNotEmpty) {
-      await tester.tap(find.text('Confirmer'));
+    if (find.text('Appliquer le changement').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Appliquer le changement'));
       await tester.pumpAndSettle();
     }
     expect(posted, 0);
