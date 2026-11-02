@@ -5,6 +5,7 @@ expose only explicitly supported fixed providers, not arbitrary OAuth scopes.
 """
 from __future__ import annotations
 
+from core.api.privacy import PrivateNoStoreMixin
 from django.core.exceptions import ImproperlyConfigured, ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -36,7 +37,7 @@ def _validation_error(error):
     return ValidationError(error.messages)
 
 
-class _ScopedIntelligenceConnections:
+class _ScopedIntelligenceConnections(PrivateNoStoreMixin):
     scope = None
 
     def _owner(self, request, *, slug=None):
