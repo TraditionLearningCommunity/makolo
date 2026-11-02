@@ -508,7 +508,7 @@ class PassportHistoryBase(LoginRequiredMixin, TemplateView):
                             ),
                         }
                         for grant in row.passport_share_subjects.all()
-                        if grant.envelope.is_active_at()
+                        if not row.is_revoked and grant.envelope.is_active_at()
                     ],
                 }
                 for row in page.object_list
