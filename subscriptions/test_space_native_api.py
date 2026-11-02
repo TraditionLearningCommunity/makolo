@@ -197,6 +197,38 @@ class NativeSpaceSubscriptionTests(TestCase):
         self.assertEqual(restricted["items"], [])
         self.assertIsNone(restricted["next_offset"])
 
+    def test_space_payment_continuation_survives_paginated_billing(self):
+        terms = PlanVersionBillingTerms.objects.create(
+            plan_version=self.version, amount="18.00",
+            currency="USD", billing_period_unit="month",
+        )
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            self._url("space-plan", self.version.pk),
+            {"idempotency_key": "space-paginated-payment-intent"},
+        )
+        self.assertEqual(response.status_code, 200)
+        original = response.json()["transition"]
+        self.assertEqual(original["next_action"], "pay")
+        for number in range(21):
+            create_subscription_billing_obligation(
+                subscription=self.subscription, billing_terms=terms,
+                billing_key=f"space-other-history-{number}", actor=None,
+            )
+
+        snapshot = self.client.get(self._url("space")).json()
+        self.assertEqual(snapshot["billing"]["visibility"], "visible")
+        self.assertNotIn(
+            original["payment_obligation_id"],
+            [row["id"] for row in snapshot["billing"]["items"]],
+        )
+        self.assertEqual(snapshot["transition"]["next_action"], "pay")
+        self.assertEqual(
+            snapshot["transition"]["payment_obligation_id"],
+            original["payment_obligation_id"],
+        )
+        self.assertFalse(snapshot["transition"]["can_cancel"])
+
     def test_payment_continuation_respects_space_finance_visibility(self):
         from unittest.mock import patch
 
