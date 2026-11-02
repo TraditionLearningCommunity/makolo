@@ -45,6 +45,7 @@ import '../features/settings/account_screen.dart';
 import '../features/settings/billing_screen.dart';
 import '../features/settings/change_password_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/settings/offline_data_screen.dart';
 import '../features/space/space_shell_routes.dart';
 import '../features/interoperability/space_connections_screen.dart';
 import '../features/space/space_create_screen.dart';
@@ -127,6 +128,7 @@ GoRouter createMakoloRouter(
       '/account/password',
       '/settings',
       '/settings/notifications',
+      '/settings/offline-data',
       '/space/create',
     }.contains(path)) {
       return true;
@@ -421,7 +423,12 @@ GoRouter createMakoloRouter(
           onNotifications: () => context.push('/settings/notifications'),
           onSecurity: () => context.push('/account'),
           onPrivacy: () => context.push('/me/profile?visibility=1'),
+          onLocalData: () => context.push('/settings/offline-data'),
         ),
+      ),
+      GoRoute(
+        path: '/settings/offline-data',
+        builder: (context, state) => OfflineDataScreen(runtime: runtime),
       ),
       GoRoute(
         path: '/space/create',
