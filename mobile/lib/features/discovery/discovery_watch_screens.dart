@@ -108,6 +108,62 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
 
   Future<void> _change(DiscoveryWatchSummary watch, String action) async {
     if (_mutating != null) return;
+    String? renamed;
+    DiscoveryQuery? newCriteria;
+    if (action == 'rename') {
+      final controller = TextEditingController(text: watch.name);
+      try {
+        renamed = await showDialog<String>(
+          context: context,
+          builder: (dialog) => AlertDialog(
+            title: const Text('Renommer la veille'),
+            content: TextField(
+              controller: controller,
+              maxLength: 140,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Nom'),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialog),
+                child: const Text('Annuler')),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialog, controller.text.trim()),
+                child: const Text('Enregistrer'),
+              ),
+            ],
+          ),
+        );
+      } finally {
+        controller.dispose();
+      }
+      if (renamed == null || !mounted) return;
+    }
+    if (action == 'criteria') {
+      final current = widget.repository.activeExploration;
+      if (current.watchCriteria.isEmpty) {
+        context.push('/discover/search');
+        return;
+      }
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Remplacer les critères ?'),
+          content: Text('La veille « ${watch.name} » utilisera désormais '
+              'les filtres de votre recherche actuelle. '
+              'Les possibilités enregistrées restent inchangées.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Annuler')),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Remplacer'),
+            ),
+          ],
+        ),
+      );
+      if (approved != true || !mounted) return;
+      newCriteria = current;
+    }
     if (action == 'delete') {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -133,6 +189,12 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
     try {
       if (action == 'delete') {
         await widget.repository.deleteWatch(watch.id);
+      } else if (action == 'rename') {
+        await widget.repository.editWatch(watch.id, name: renamed!);
+      } else if (action == 'criteria') {
+        await widget.repository.editWatch(
+          watch.id, replaceCriteria: newCriteria!,
+        );
       } else {
         await widget.repository.updateWatchStatus(watch.id, action);
       }
@@ -241,6 +303,14 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                           value: watch.statusCode == 'paused' ? 'active' : 'paused',
                           child: Text(watch.statusCode == 'paused'
                               ? 'Reprendre' : 'Mettre en pause'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'rename',
+                          child: Text('Renommer'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'criteria',
+                          child: Text('Remplacer par les filtres actifs'),
                         ),
                         const PopupMenuItem(
                           value: 'delete',
