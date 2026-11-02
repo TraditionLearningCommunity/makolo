@@ -887,6 +887,21 @@ class DiscoveryRepository {
     if (item is! Map) {
       throw const FormatException('Missing saved Discovery item.');
     }
+    DiscoveryWire.validateData({
+      'results': [Map<String, dynamic>.from(item)],
+    });
+    final identity = item['identity'];
+    final savedFact = item['saved'];
+    if (identity is! Map ||
+        identity['family'] != family ||
+        identity['resource'] is! Map ||
+        (identity['resource'] as Map)['id'] != id ||
+        savedFact is! Map ||
+        savedFact['state'] != (saved ? 'saved' : 'not_saved')) {
+      throw const FormatException(
+        'Saved state was not confirmed for the selected possibility',
+      );
+    }
     await store.putProjection(
       kind: itemProjectionKind,
       resourceKey: '$family:$id',
