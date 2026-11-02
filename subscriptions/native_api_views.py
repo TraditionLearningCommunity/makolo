@@ -83,7 +83,39 @@ def _replayed_intent(subscription, *, key, target_plan_version_id=None, source_i
     return True
 
 
-def _snapshot(subscription, *, can_manage=True):
+def _actionable_snapshot(payload):
+    """Present the next user action without owning Payment or Readiness state."""
+    transition = payload.get("transition")
+    if not transition or not transition.get("open"):
+        return payload
+    transition = dict(transition)
+    payload["transition"] = transition
+    billing = payload.get("billing") or {}
+    if billing.get("visibility") == "restricted":
+        transition["next_action"] = "finance_access_required"
+        return payload
+    linked = next(
+        (row for row in billing.get("items", ())
+         if row.get("transition_id") == transition["id"]
+         and row.get("status") in {"pending", "processing"}),
+        None,
+    )
+    if linked is not None:
+        if linked.get("can_open_detail", True):
+            transition["next_action"] = "pay"
+            transition["payment_obligation_id"] = linked["id"]
+            transition["payment_amount"] = linked["amount"]
+            transition["payment_currency"] = linked["currency"]
+        else:
+            transition["next_action"] = "finance_access_required"
+    elif transition.get("status") == "ready":
+        transition["next_action"] = "complete"
+    else:
+        transition["next_action"] = "wait"
+    return payload
+
+
+def _snapshot(subscription, *, can_manage=True, billing=None):
     product = with_billing_terms(build_subscription_product_view(subscription, can_manage=can_manage))
     self_service = {
         str(pk) for pk in PlanVersion.objects.filter(
@@ -96,7 +128,7 @@ def _snapshot(subscription, *, can_manage=True):
         available = bool(row["can_request"]) and row["plan_version_id"] in self_service
         row["can_preview"] = available
         row["can_request"] = can_manage and available
-    return {
+    payload = {
         "subscription": {
             "id": str(subscription.pk),
             "subject_type": subscription.subject_type,
@@ -110,7 +142,7 @@ def _snapshot(subscription, *, can_manage=True):
         "catalog": catalog,
         "transition": product.transition,
         "ongoing_conditions": product.ongoing_conditions,
-        "billing": subscription_billing_obligations(subscription),
+        "billing": billing if billing is not None else subscription_billing_obligations(subscription),
         "history": subscription_transition_history(subscription),
         "space": (
             {"id": str(subscription.space_id), "slug": subscription.space.slug,
@@ -118,6 +150,8 @@ def _snapshot(subscription, *, can_manage=True):
             if subscription.space_id else None
         ),
     }
+    return _actionable_snapshot(payload)
+
 
 class PersonalSubscriptionAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
