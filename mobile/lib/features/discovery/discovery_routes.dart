@@ -67,7 +67,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
       return DiscoveryMapScreen(
         repository: discovery,
         mapConfig: runtime.mapConfig,
-        onOpenOccurrence: (id) => context.push('/occurrences/$id'),
+        onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
       );
     },
   ),
