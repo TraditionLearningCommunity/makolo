@@ -287,10 +287,10 @@ class OngoingContinuityPresentation {
     if (ready.isNotEmpty) return ready.first;
     return switch (rawState) {
       'available' => 'Votre accès est disponible.',
-      'pending' => 'Cette réalité continue.',
+      'pending' => 'En cours.',
       'offered' => 'Une décision vous attend.',
-      'blocked' => 'Cette réalité est bloquée.',
-      _ => 'Cette réalité continue.',
+      'blocked' => 'Une étape est bloquée.',
+      _ => 'Situation en cours, détails à vérifier.',
     };
   }
 
