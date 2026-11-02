@@ -17,6 +17,7 @@ C8 ne doit ni créer des fournisseurs inexistants, ni un « M7.execute » univer
 - **Intelligence / health** : un probe potentiellement facturable lancé avant une rotation, une désactivation ou un retrait ne peut plus réécrire `health_status=healthy` après la mutation. La mise à jour utilise une comparaison atomique avec le `updated_at` et l'activation observés au démarrage ; une réponse devenue obsolète retourne `unknown`, sans réintroduire de preuve périmée.
 - **Intelligence / health** : la réponse `IntelligenceResult.available=False` est désormais interprétée comme un échec de santé, même sans exception. `invalid_credentials` a un état propriétaire distinct. Un résultat mal formé ne certifie pas la disponibilité.
 - **Intelligence / admin** : une rotation de credential via la console technique invalide désormais la santé et les mesures antérieures, comme dans le service API C4 ; pas de réutilisation d'une preuve attachée à l'ancienne clé.
+- **Intelligence / concurrence Platform** : la création de connexions sous une portée Platform unique est désormais sérialisée entre opérateurs distincts avec un verrou transactionnel PostgreSQL à identifiant stable. Le verrou individuel d'opérateur ne suffisait pas. Aucun nouvel état persistant ; le fallback SQLite de développement n'offre pas cette garantie concurrente et le test dédié est réservé à PostgreSQL.
 - **Interoperability et Intelligence APIs** : `Cache-Control: private, no-store` est imposé à tous les résultats, y compris les erreurs d'autorité, d'authentification et de validation, via le mixin de confidentialité existant.
 - Les Mandates Profile/Space/Platform continuent à être contrôlés dans les propriétaires lors de chaque mutation. Aucun booléen Z16 `manageable` n'est un droit générique.
 
@@ -47,6 +48,7 @@ Les contrats C1–C7 et leurs frontières restent inchangés. Aucun modèle ni m
 
 **Tests C8** :
 - `intelligence/test_c8_health_consistency.py` — succès sain, `available=False`, diagnostic retardé après rotation, disable et DELETE, rotation admin.
+- `intelligence/test_c8_platform_creation_concurrency.py` — deux administrateurs Platform créant simultanément le même fournisseur sous PostgreSQL, un seul succès attendu.
 - `interoperability/test_c8_owner_response_privacy.py` — 404 Space, 403 Platform, 400 payload, profil et `no-store`.
 - `discovery/api/test_c8_interop_journey.py` — parcours de connexion et usage propriétaire jusqu'au retrait, sans transport externe réel.
 - `discovery/api/test_c8_operational_events.py` — logs utilisables et minimaux, sans requête privée ou clé.
@@ -67,7 +69,7 @@ Les contrats C1–C7 et leurs frontières restent inchangés. Aucun modèle ni m
 | Intégration PR | Branches concurrentes examinées, intégration sans écraser leurs travaux ; CI obligatoire avant merge | PR ouverte ; CI non déclenchée |
 
 ```bash
-python manage.py test intelligence.test_c8_health_consistency interoperability.test_c8_owner_response_privacy discovery.api.test_c8_interop_journey discovery.api.test_c8_operational_events
+python manage.py test intelligence.test_c8_health_consistency intelligence.test_c8_platform_creation_concurrency interoperability.test_c8_owner_response_privacy discovery.api.test_c8_interop_journey discovery.api.test_c8_operational_events
 python manage.py test intelligence.test_connection_management_api intelligence.test_connection_management_web intelligence.test_web_research_routing interoperability.test_z16_api interoperability.test_c6_owner_integrations interoperability.test_c7_live_authority discovery.api.test_c5_owner_actions notifications.test_push
 python manage.py makemigrations --check --dry-run
 cd mobile
@@ -83,6 +85,6 @@ Le test réel d'un fournisseur, la configuration opérationnelle et les coûts r
 
 **C8 validé en exploitation** exige **réellement** : tests verts, migrations contrôlées, postures PostgreSQL, essais mobiles avec authentification et changements d'acteurs, au moins un fournisseur autorisé testé sous budget connu, aucune régression critique de sécurité/continuité. Ces preuves ne sont pas disponibles dans cette session et ne doivent pas être remplacées par une mention « DONE ».
 
-À surveiller dans la fermeture et les gates M9/M10, sans les traiter comme fonctionnalités C8 fictives : concurrence inter-opérateurs de création de connexions Platform (pas de contrainte d'unicité DB de plateforme par nom/protocole/base URL), santé réelle indépendante de la capacité métier, échec de transport après commit pouvant nécessiter une relecture, coût/quotas réels externes, environnement de push iOS/Android et capacités non installées.
+À surveiller dans la fermeture et les gates M9/M10, sans les traiter comme fonctionnalités C8 fictives : concurrence inter-opérateurs de création de connexions Platform corrigée pour le chemin propriétaire PostgreSQL (sans contrainte d'unicité DB générale, contrôler les voies d'administration directe), santé réelle indépendante de la capacité métier, échec de transport après commit pouvant nécessiter une relecture, coût/quotas réels externes, environnement de push iOS/Android et capacités non installées.
 
 **Décision :** arrêter l'expansion du chantier C1–C8 une fois les défauts réels corrigés ; transférer les gates d'exécution au processus de qualité existant, sans masquer les limites ni créer de nouvelle architecture locale.
