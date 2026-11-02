@@ -296,11 +296,11 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 
   Widget _sectionLink(String label, String target, IconData icon) => ListTile(
-      leading: Icon(icon),
-      title: Text(label),
-      trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: () => setState(() => _section = target),
-    );
+    leading: Icon(icon),
+    title: Text(label),
+    trailing: const Icon(Icons.chevron_right_rounded),
+    onTap: () => setState(() => _section = target),
+  );
 
   Widget _content() {
     final subscription = _object(_data?['subscription']);
@@ -462,43 +462,27 @@ class _BillingScreenState extends State<BillingScreen> {
             ),
           ),
           if (transition['next_action'] == 'pay' &&
-
               _text(transition['payment_obligation_id'], fallback: '').isNotEmpty)
-
             Padding(
-
               padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
-
               child: FilledButton.icon(
-
                 icon: const Icon(Icons.credit_card_outlined),
-
                 label: const Text('Reprendre le paiement'),
-
                 onPressed: () async {
-
                   await context.push(
-
                     '/payments/obligations/' +
-
                         Uri.encodeComponent(transition['payment_obligation_id'].toString()),
-
                   );
-
                   if (mounted) await _load();
-
                 },
-
               ),
-
             )
-
           else if (transition['next_action'] == 'finance_access_required')
-
-            const Text('Le paiement doit être effectué par une personne autorisée à gérer les finances de cet Espace.'),
-
+            const Text(
+              'Le paiement doit être effectué par une personne autorisée '
+              'à gérer les finances de cet Espace.',
+            ),
           if (transition['total_conditions'] is int &&
-
               (transition['total_conditions'] as int) > 0)
             Text(
               'Conditions remplies : ${transition['completed_conditions']} '
