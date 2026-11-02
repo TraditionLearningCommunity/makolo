@@ -6,7 +6,7 @@ from notifications.models import PushEndpoint
 from core.api.privacy import PrivateNoStoreMixin
 
 from notifications.models import Notification
-from notifications.push import register_push_endpoint, revoke_push_endpoint
+from notifications.push import register_push_endpoint, revoke_push_endpoint, revoke_push_endpoint_by_id
 from notifications.selectors import get_notifications_for_user, has_unread_notifications
 
 from .serializers import (
@@ -91,12 +91,8 @@ class PushEndpointDetailAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, pk):
-        endpoint = PushEndpoint.objects.filter(pk=pk, user=request.user).first()
-        if endpoint is None:
+        if not revoke_push_endpoint_by_id(user=request.user, endpoint_id=pk):
             raise NotFound("Appareil introuvable.")
-        if endpoint.active:
-            endpoint.active = False
-            endpoint.save(update_fields=["active", "updated_at"])
         return response.Response(status=204)
 
 
