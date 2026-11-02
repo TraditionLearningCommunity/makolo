@@ -102,25 +102,29 @@ void main() {
       tokens: tokens, session: session,
       recovery: SessionRecoveryController(), api: api,
     );
-    Widget screen(String path) => MaterialApp(
-      home: Scaffold(
-        body: IntelligenceConnectionControls(
-          runtime: runtime, path: path,
-          connections: const [], onChanged: () async {},
+    final currentPath = ValueNotifier<String>(
+      'api/v1/me/intelligence/connections/',
+    );
+    addTearDown(currentPath.dispose);
+    await tester.pumpWidget(MaterialApp(
+      home: ValueListenableBuilder<String>(
+        valueListenable: currentPath,
+        builder: (context, path, _) => Scaffold(
+          body: IntelligenceConnectionControls(
+            runtime: runtime, path: path,
+            connections: const [], onChanged: () async {},
+          ),
         ),
       ),
-    );
-
-    await tester.pumpWidget(screen('api/v1/me/intelligence/connections/'));
+    ));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
     await tester.tap(find.text('Ancien propriétaire'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Relier tavily'), findsOneWidget);
-    await tester.pumpWidget(screen(
-      'api/v1/organizations/workspaces/new/intelligence/connections/',
-    ));
+    currentPath.value =
+        'api/v1/organizations/workspaces/new/intelligence/connections/';
     await tester.pump();
     final fields = find.byType(TextField);
     await tester.enterText(fields.at(1), 'SECRET-OLD-OWNER');
