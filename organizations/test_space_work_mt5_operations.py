@@ -164,12 +164,19 @@ class MT5DepartureOperationsTests(TestCase):
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.get(self.api_url).status_code, 404)
         self.assertEqual(self.client.get(self.web_url).status_code, 404)
-        self.client.force_login(self.owner)
-        # A revoked activity mandate is never replaced by mere knowledge of
-        # an Occurrence, a Route, a Vehicle or an old URL.
-        revoke_mandate(mandate=self.mandate, actor=self.owner)
-        self.assertEqual(self.client.get(self.api_url).status_code, 404)
-        self.assertEqual(self.client.get(self.web_url).status_code, 404)
+        scoped = User.objects.create_user(username="mt5-revoked-operator", password="x")
+        mandate = grant_activity_role(
+            profile=scoped, activity=self.activity,
+            role_code=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+            granted_by=self.owner,
+        )
+        url = self.api_url + f"?responsibility=mandate:{mandate.pk}"
+        web = self.web_url + f"?responsibility=mandate:{mandate.pk}"
+        self.client.force_login(scoped)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        revoke_mandate(mandate=mandate, actor=self.owner)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.get(web).status_code, 404)
 
     def test_activity_mandate_does_not_transfer_fleet_authority(self):
         scoped = User.objects.create_user(username="mt5-scoped-operator", password="x")
