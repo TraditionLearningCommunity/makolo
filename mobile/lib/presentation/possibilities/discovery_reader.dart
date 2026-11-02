@@ -98,8 +98,8 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   @override
   void didUpdateWidget(covariant DiscoveryReader oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldItem = oldWidget.items[_index.clamp(0, oldWidget.items.length - 1)];
-    final nextIndex = _index.clamp(0, widget.items.length - 1);
+    final oldItem = oldWidget.items[_index.clamp(0, oldWidget.items.length - 1).toInt()];
+    final nextIndex = _index.clamp(0, widget.items.length - 1).toInt();
     final nextItem = widget.items[nextIndex];
     if (oldWidget.profileId != widget.profileId ||
         oldWidget.trustedOrigin != widget.trustedOrigin ||
