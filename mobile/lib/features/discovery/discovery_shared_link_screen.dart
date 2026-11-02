@@ -25,6 +25,7 @@ class DiscoverySharedLinkScreen extends StatefulWidget {
 
 class _DiscoverySharedLinkScreenState extends State<DiscoverySharedLinkScreen> {
   String? _error;
+  int _requestGeneration = 0;
 
   @override
   void initState() {
@@ -32,7 +33,33 @@ class _DiscoverySharedLinkScreenState extends State<DiscoverySharedLinkScreen> {
     _resolve();
   }
 
+  @override
+  void didUpdateWidget(covariant DiscoverySharedLinkScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.token != widget.token ||
+        oldWidget.deliveryId != widget.deliveryId) {
+      _resolve();
+    }
+  }
+
+  @override
+  void dispose() {
+    _requestGeneration++;
+    super.dispose();
+  }
+
   Future<void> _resolve() async {
+    final generation = ++_requestGeneration;
+    if (mounted) setState(() => _error = null);
+    final delivery = widget.deliveryId;
+    if (delivery != null && !widget.runtime.isAuthenticated) {
+      // Deliveries are private: resume the same opaque reference after login.
+      widget.runtime.recovery.requireAuthentication(
+        '/shares/${Uri.encodeComponent(delivery)}',
+      );
+      if (mounted) context.go('/login');
+      return;
+    }
     try {
       final api = widget.runtime.api;
       if (api == null) throw const FormatException('API unavailable');
@@ -62,13 +89,15 @@ class _DiscoverySharedLinkScreenState extends State<DiscoverySharedLinkScreen> {
           id.isEmpty) {
         throw const FormatException('Invalid Sharing destination');
       }
-      if (!mounted) return;
-      context.go(
-        '/discover/items/${Uri.encodeComponent(family)}/'
-        '${Uri.encodeComponent(id)}',
-      );
+      final expected = '/discover/items/${Uri.encodeComponent(family)}/'
+          '${Uri.encodeComponent(id)}';
+      if (payload['route'] != expected) {
+        throw const FormatException('Unexpected Sharing route');
+      }
+      if (!mounted || generation != _requestGeneration) return;
+      context.go(expected);
     } on Object {
-      if (mounted) {
+      if (mounted && generation == _requestGeneration) {
         setState(() => _error = 'Ce partage n’est plus disponible.');
       }
     }
