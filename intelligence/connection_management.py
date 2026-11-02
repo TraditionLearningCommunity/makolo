@@ -198,14 +198,21 @@ def update_connection(*, actor, connection, payload):
         profile=connection.profile, space=connection.space,
     )
     previous_enabled = connection.enabled
-    if secret is not None:
-        set_provider_secret(connection=connection, secret=secret)
-        connection.health_status = ProviderHealth.UNKNOWN
     if enabled is True and not hasattr(connection, "credential") and secret is None:
         raise ValidationError({"enabled": "Une clé est nécessaire pour activer cette connexion."})
+    if secret is not None:
+        set_provider_secret(connection=connection, secret=secret)
+    if secret is not None or (enabled is True and not previous_enabled):
+        # A rotated credential or restored channel has no verified health yet.
+        connection.health_status = ProviderHealth.UNKNOWN
+        connection.last_checked_at = None
+        connection.last_latency_ms = None
     if enabled is not None:
         connection.enabled = enabled
-    connection.save(update_fields=["enabled", "health_status", "updated_at"])
+    connection.save(update_fields=[
+        "enabled", "health_status", "last_checked_at",
+        "last_latency_ms", "updated_at",
+    ])
     from operations.services import audit_action
     audit_action(
         actor=actor, action="intelligence.connection_updated",
