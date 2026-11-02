@@ -148,6 +148,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     final canExplore = connection.owner == 'intelligence' &&
         connection.scope == 'profile' &&
         connection.enabled &&
+        connection.usable &&
         connection.capabilities.any(
           (cap) => cap == 'web_research' || cap == 'structured_generate',
         );
