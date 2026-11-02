@@ -5,6 +5,9 @@ import hmac
 import json
 
 from django.core import signing
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
+from django.utils import timezone
 
 from .models import PassportSnapshot, PublicIdentifier, PublicSubjectKind
 from .passport import PASSPORT_PUBLIC, profile_has_public_passport, space_has_public_passport
@@ -213,6 +216,42 @@ def issue_passport_snapshot(projection):
         generated_at=projection.generated_at,
         **subject_kwargs,
     )
+
+
+@transaction.atomic
+def revoke_passport_snapshot(*, snapshot, actor):
+    """Withdraw an issued document, never rewriting its dated content.
+
+    The owner (or authorized Space manager) alone can withdraw issuance.
+    Every currently active Sharing grant to that document is revoked through
+    Sharing's canonical service, so the history cannot show phantom grants.
+    """
+    if not getattr(actor, "is_authenticated", False):
+        raise PermissionDenied("Révocation du Passeport non autorisée.")
+    if snapshot.subject_kind == PublicSubjectKind.PROFILE:
+        allowed = snapshot.profile_id == actor.pk
+    else:
+        from organizations.permissions import user_can_manage_organization
+        allowed = bool(
+            snapshot.space_id
+            and user_can_manage_organization(actor, snapshot.space)
+        )
+    if not allowed:
+        raise PermissionDenied("Révocation du Passeport non autorisée.")
+
+    locked = (
+        PassportSnapshot.objects.select_for_update()
+        .select_related("space")
+        .get(pk=snapshot.pk)
+    )
+    if locked.revoked_at is None:
+        locked.revoked_at = timezone.now()
+        locked.save(update_fields=["revoked_at"])
+    from .services import revoke_share_link
+    for grant in locked.passport_share_subjects.select_related("envelope"):
+        if grant.envelope.is_active_at():
+            revoke_share_link(envelope=grant.envelope, actor=None)
+    return locked
 
 
 def passport_verification_token(snapshot):
