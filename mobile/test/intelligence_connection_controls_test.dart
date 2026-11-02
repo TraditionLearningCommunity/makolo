@@ -100,4 +100,67 @@ void main() {
     expect(refreshed, isTrue);
     expect(find.text('SENSITIVE-DO-NOT-RENDER'), findsNothing);
   });
+  testWidgets('stale or offline connection controls cannot start a key upload', (
+    tester,
+  ) async {
+    final client = MockClient((request) async {
+      expect(request.data, isNull, reason: 'Mutations must remain disabled');
+      return MockResponse(jsonEncode({
+        'offers': [
+          {
+            'code': 'tavily',
+            'label': 'Tavily',
+            'description': 'Recherche Web avec votre clé.',
+            'capabilities': ['web_research'],
+            'requires_model': false,
+            'can_connect': true,
+          },
+        ],
+      }), 200);
+    });
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'token',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      dio: client.dio,
+      tokenStore: tokens,
+    );
+    addTearDown(api.close);
+    final runtime = AppRuntime(
+      tokens: tokens,
+      session: const AuthSession(
+        accessToken: 'token',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+      recovery: SessionRecoveryController(),
+      api: api,
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: IntelligenceConnectionControls(
+          runtime: runtime,
+          path: 'api/v1/me/intelligence/connections/',
+          connections: const [],
+          mutationsEnabled: false,
+          onChanged: () async {},
+        ),
+      ),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    final offerTile = tester.widget<ListTile>(
+      find.ancestor(
+        of: find.text('Tavily'),
+        matching: find.byType(ListTile),
+      ),
+    );
+    expect(offerTile.onTap, isNull);
+    expect(find.textContaining('Actions de connexion suspendues'), findsOneWidget);
+  });
 }
