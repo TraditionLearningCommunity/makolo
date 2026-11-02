@@ -295,6 +295,13 @@ class MT5CommerceTransportTests(TestCase):
             space=self.space, name="Route Lubumbashi → Kolwezi",
         )
         activity = self.activity("Service interurbain")
+        # Activity management is not Operations authority. Exercise the
+        # Departure operation under an explicit Activity Operations Mandate.
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_OPERATIONS_MANAGER,
+            granted_by=self.owner,
+        )
         TransportService.objects.create(activity=activity, route=route)
         vehicle = Vehicle.objects.create(
             space=self.space, label="Bus 18", passenger_capacity=40,
