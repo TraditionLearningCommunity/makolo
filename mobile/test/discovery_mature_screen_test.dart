@@ -1536,11 +1536,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('wide field forwards its exact focused candidate to map', (
+  testWidgets('wide N1 keeps the focus without duplicate Map or Watch actions', (
     tester,
   ) async {
-    String? mapSelection;
-    var mapOpened = false;
     await PresentationHarness.pump(
       tester,
       viewport: const Size(1200, 800),
@@ -1548,19 +1546,15 @@ void main() {
         selection: selection(),
         onOpen: (_) {},
         fieldKey: 'criteria-a',
-        onMap: (key) {
-          mapOpened = true;
-          mapSelection = key;
-        },
+        onMap: (_) {},
+        onWatch: () {},
       ),
     );
     await tester.tap(find.text('Formation Data Science').first);
     await tester.pump();
     expect(find.byKey(const Key('discover-focus-depth')), findsOneWidget);
-    await tester.tap(find.byKey(const Key('discover-field-open-map')));
-    await tester.pump();
-    expect(mapOpened, isTrue);
-    expect(mapSelection, 'activity:media');
+    expect(find.byKey(const Key('discover-field-open-map')), findsNothing);
+    expect(find.byKey(const Key('discover-field-create-watch')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
