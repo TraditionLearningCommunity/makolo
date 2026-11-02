@@ -441,20 +441,25 @@ def build_profile_passport(
             "gender": profile.get_gender_display() if profile.gender else "",
         }
     if custom:
-        # The stable identity (name and publicly admissible portrait) is not
-        # an optional thematic fact. A private portrait remains opt-in when
-        # the owner deliberately composes a particular private document.
-        if "avatar" not in sections and not ProfileVisibilityResolver(
-            owner=profile, viewer=None,
-        ).field("avatar"):
+        # The identity baseline remains visible across variants, but only
+        # its publicly authorized facts are implicit. A private fact must
+        # be deliberately selected before it can enter an issued document.
+        public_fields = ProfileVisibilityResolver(owner=profile, viewer=None)
+        if "avatar" not in sections and not public_fields.field("avatar"):
             identity["avatar_url"] = ""
         if "bio" not in sections:
             identity["bio"] = ""
         if "links" not in sections:
             identity["links"] = ()
         if "location" not in sections:
-            identity["location"] = ""
-        if "profession" not in sections:
+            location_row = UserProfile.objects.filter(user=profile).first()
+            identity["location"] = ", ".join(
+                part for part, field in (
+                    (location_row.city if location_row else "", "city"),
+                    (location_row.country if location_row else "", "country"),
+                ) if part and public_fields.field(field)
+            )
+        if "profession" not in sections and not public_fields.field("profession"):
             identity["profession"] = ""
             identity["headline"] = ""
         if "company_name" not in sections:
