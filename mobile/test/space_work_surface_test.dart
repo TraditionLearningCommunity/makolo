@@ -3,6 +3,45 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/space/space_work_surface.dart';
 
 void main() {
+  testWidgets('MT4 Programmes and Prestations create only with Space owner capability', (
+    tester,
+  ) async {
+    Future<void> show({
+      required String archetype,
+      required bool permitted,
+      String responsibility = 'all',
+    }) => tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SpaceWorkSurface(
+            payload: {
+              'primary_business_label': 'Métier',
+              'archetype': archetype,
+              'responsibility': responsibility,
+              'space': {'slug': 'mt4-space'},
+              'capabilities': {'create_g2': permitted},
+              'presentation': {'empty_message': 'Rien pour le moment.'},
+              'sections': <String, dynamic>{},
+            },
+          ),
+        ),
+      ),
+    );
+    await show(archetype: 'education', permitted: true);
+    expect(find.text('Nouveau programme'), findsOneWidget);
+    await show(archetype: 'service_provider', permitted: true);
+    expect(find.text('Nouvelle prestation'), findsOneWidget);
+    await show(archetype: 'service_provider', permitted: false);
+    expect(find.text('Nouvelle prestation'), findsNothing);
+    await show(
+      archetype: 'education', permitted: true,
+      responsibility: 'mandate:restricted',
+    );
+    expect(find.text('Nouveau programme'), findsNothing);
+    await show(archetype: 'commerce', permitted: true);
+    expect(find.text('Nouvelle prestation'), findsNothing);
+  });
+
   testWidgets('MT3 G1 native creation follows owner capability and perspective', (
     tester,
   ) async {
