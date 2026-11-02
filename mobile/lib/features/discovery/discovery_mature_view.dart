@@ -370,8 +370,53 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     _circleKeys.clear();
     controller.onPinTapped((circle) {
       final key = _circleKeys[circle];
-      if (mounted && key != null) _select(key);
+      if (!mounted || key == null) return;
+      final anchors = _selector.spatialAnchorsFromCollection(
+        widget.selection.collection,
+      );
+      final matching = anchors.where((anchor) => anchor.candidateKey == key);
+      if (matching.isEmpty) return;
+      final point = matching.first;
+      final keys = anchors
+          .where(
+            (anchor) =>
+                anchor.latitude == point.latitude &&
+                anchor.longitude == point.longitude,
+          )
+          .map((anchor) => anchor.candidateKey)
+          .toSet();
+      if (keys.length == 1) {
+        _select(key);
+      } else {
+        unawaited(_chooseCoLocated(keys));
+      }
     });
+  }
+
+  Future<void> _chooseCoLocated(Set<String> candidateKeys) async {
+    final items = widget.selection.collection.items
+        .where((item) => candidateKeys.contains(item.candidateKey))
+        .toList();
+    if (items.isEmpty) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final item in items)
+              ListTile(
+                title: Text(item.title),
+                subtitle: item.place == null ? null : Text(item.place!),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  if (mounted) _select(item.candidateKey);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _displayPins(List<DiscoverySpatialAnchor> anchors) async {
@@ -382,7 +427,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final selected = <DiscoverySpatialAnchor>[];
     for (final anchor in anchors) {
       final identity =
-          '${anchor.candidateKey}:${anchor.latitude}:${anchor.longitude}';
+          '${anchor.latitude}:${anchor.longitude}';
       if (seen.add(identity)) selected.add(anchor);
     }
     try {
