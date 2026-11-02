@@ -16,12 +16,13 @@ def main(argv=None):
     p.add_argument("--domains", default=",".join(DOMAINS))
     p.add_argument("--count", type=int, default=5)
     p.add_argument("--profiles", type=int, default=30)
+    p.add_argument("--profile-username")
     p.add_argument("--apply", action="store_true")
     a = p.parse_args(argv)
     chosen = set(a.domains.split(","))
     if not chosen or not chosen <= set(DOMAINS):
         p.error("Domains: spaces,loyalty,automation")
-    if not 1 <= a.count <= 100 or not 2 <= a.profiles <= 100:
+    if not 1 <= a.count <= 100 or not 1 <= a.profiles <= 100:
         p.error("count 1..100 and profiles 2..100")
     import django
     django.setup()
@@ -40,10 +41,8 @@ def main(argv=None):
     from events.models import Event
     if connection.vendor != "sqlite":
         p.error("SQLite demonstration required")
-    people = list(get_user_model().objects.filter(
-        username__startswith="world_", is_active=True,
-        is_staff=False, is_superuser=False,
-    ).order_by("username")[:a.profiles])
+    from .selection import demo_profiles
+    people = demo_profiles(username=a.profile_username, limit=a.profiles)
     if len(people) < 2:
         p.error("At least two world_* users required")
     now = timezone.now()
