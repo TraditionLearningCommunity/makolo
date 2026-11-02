@@ -401,15 +401,18 @@ class DiscoveryRepository {
         if (url == null ||
             url.scheme != 'https' ||
             url.host.isEmpty ||
-            url.userInfo.isNotEmpty) continue;
-        leads.add(DiscoverySourceLead(
-          label: label,
-          summary: summary,
-          title: source['title'] is String
-              ? source['title'] as String
-              : url.host,
-          url: url,
-        ));
+            url.userInfo.isNotEmpty)
+          continue;
+        leads.add(
+          DiscoverySourceLead(
+            label: label,
+            summary: summary,
+            title: source['title'] is String
+                ? source['title'] as String
+                : url.host,
+            url: url,
+          ),
+        );
         if (leads.length >= 6) break;
       }
       if (leads.length >= 6) break;
@@ -425,9 +428,19 @@ class DiscoveryRepository {
   /// an outbox, or the Profile's projection history.
   Future<DiscoveryClarification> clarifySearch(DiscoveryQuery query) async {
     const allowed = {
-      'q', 'place', 'when', 'period', 'vertical', 'price',
-      'date', 'date_from', 'date_to', 'timezone',
-      'lat', 'lon', 'radius_km',
+      'q',
+      'place',
+      'when',
+      'period',
+      'vertical',
+      'price',
+      'date',
+      'date_from',
+      'date_to',
+      'timezone',
+      'lat',
+      'lon',
+      'radius_km',
     };
     final input = <String, String>{
       for (final entry in query.parameters.entries)
@@ -460,7 +473,8 @@ class DiscoveryRepository {
       parsed[entry.key as String] = entry.value as String;
     }
     return DiscoveryClarification(
-      status: status, criteria: parsed,
+      status: status,
+      criteria: parsed,
       reason: data['reason'] is String ? data['reason'] as String : '',
     );
   }
@@ -613,7 +627,8 @@ class DiscoveryRepository {
     final field = payload['field'];
     if (field is! Map<String, dynamic> ||
         window.schemaVersion != 1 ||
-        window.payload['fingerprint'] is! String) return null;
+        window.payload['fingerprint'] is! String)
+      return null;
     final actor = field['viewer'];
     if (actor is! Map || actor['id'] != profileId) return null;
     return StoredProjection(
@@ -659,8 +674,10 @@ class DiscoveryRepository {
     final root = await _readStoredItems(
       query.copyWith(page: 1, clearContinuation: true),
     );
-    if (root == null || root.payload['viewer'] is! Map ||
-        (root.payload['viewer'] as Map)['id'] != profileId) return;
+    if (root == null ||
+        root.payload['viewer'] is! Map ||
+        (root.payload['viewer'] as Map)['id'] != profileId)
+      return;
     final wire = Map<String, dynamic>.from(collection.wire)
       ..['results'] = bounded
       ..['items'] = bounded;
@@ -825,7 +842,8 @@ class DiscoveryRepository {
       final viewer = snapshot.payload['viewer'];
       if (snapshot.schemaVersion != 1 ||
           viewer is! Map ||
-          viewer['id'] != profileId) return null;
+          viewer['id'] != profileId)
+        return null;
       try {
         DiscoveryWire.validateData(snapshot.payload);
       } on FormatException {
@@ -840,9 +858,12 @@ class DiscoveryRepository {
           identity['family'] is! String ||
           identity['resource'] is! Map ||
           '${identity['family']}:${(identity['resource'] as Map)['id']}' !=
-              source.resourceKey) return null;
+              source.resourceKey)
+        return null;
       try {
-        DiscoveryWire.validateData({'results': [item]});
+        DiscoveryWire.validateData({
+          'results': [item],
+        });
       } on FormatException {
         return null;
       }
@@ -858,7 +879,8 @@ class DiscoveryRepository {
       _readAvailable(
         itemsSource(query),
         await store.readProjection(
-          itemsProjectionKind, resourceKey: query.fingerprint,
+          itemsProjectionKind,
+          resourceKey: query.fingerprint,
         ),
       );
 
@@ -878,7 +900,8 @@ class DiscoveryRepository {
       _readAvailable(
         mapSource(query),
         await store.readProjection(
-          mapProjectionKind, resourceKey: query.mapFingerprint,
+          mapProjectionKind,
+          resourceKey: query.mapFingerprint,
         ),
       );
 
@@ -890,7 +913,8 @@ class DiscoveryRepository {
       _readAvailable(
         itemSource(family, id),
         await store.readProjection(
-          itemProjectionKind, resourceKey: '$family:$id',
+          itemProjectionKind,
+          resourceKey: '$family:$id',
         ),
       );
 
@@ -923,23 +947,26 @@ class DiscoveryRepository {
       .asyncMap((row) => _readAvailable(watchesSource(), row));
 
   Stream<StoredProjection?> watchWatchResults(String watchId, {int page = 1}) =>
-      store.watchProjection(
-        watchResultsProjectionKind,
-        resourceKey: '$watchId:$page',
-      ).asyncMap(
-        (row) => _readAvailable(
-          watchResultsSource(watchId, page: page), row,
-        ),
-      );
+      store
+          .watchProjection(
+            watchResultsProjectionKind,
+            resourceKey: '$watchId:$page',
+          )
+          .asyncMap(
+            (row) =>
+                _readAvailable(watchResultsSource(watchId, page: page), row),
+          );
 
-  Future<StoredProjection?> readWatchResults(String watchId, {int page = 1}) async =>
-      _readAvailable(
-        watchResultsSource(watchId, page: page),
-        await store.readProjection(
-          watchResultsProjectionKind,
-          resourceKey: '$watchId:$page',
-        ),
-      );
+  Future<StoredProjection?> readWatchResults(
+    String watchId, {
+    int page = 1,
+  }) async => _readAvailable(
+    watchResultsSource(watchId, page: page),
+    await store.readProjection(
+      watchResultsProjectionKind,
+      resourceKey: '$watchId:$page',
+    ),
+  );
 
   Future<DiscoverySourceState> readSource(SyncSourceDefinition source) async {
     final query = database.select(database.syncSources)
@@ -985,23 +1012,26 @@ class DiscoveryRepository {
       // A newly signed first page supersedes any prior device-side
       // continuation window; old cursors are never replayed as current.
       await store.deleteProjection(
-        presentedWindowKind, resourceKey: query.mapFingerprint,
+        presentedWindowKind,
+        resourceKey: query.mapFingerprint,
       );
     }
     await indexItemPreviews(query);
-    final rootKey = query.copyWith(
-      page: 1, clearContinuation: true,
-    ).fingerprint;
+    final rootKey = query
+        .copyWith(page: 1, clearContinuation: true)
+        .fingerprint;
     await store.pruneProjectionsOfKind(
       itemsProjectionKind,
       retain: maxCachedTransportPages,
       protectResourceKeys: {query.fingerprint, rootKey},
     );
     await store.pruneProjectionsOfKind(
-      activityPreviewProjectionKind, retain: maxCachedDiscoveryPreviews,
+      activityPreviewProjectionKind,
+      retain: maxCachedDiscoveryPreviews,
     );
     await store.pruneProjectionsOfKind(
-      occurrencePreviewProjectionKind, retain: maxCachedDiscoveryPreviews,
+      occurrencePreviewProjectionKind,
+      retain: maxCachedDiscoveryPreviews,
     );
   }
 
@@ -1077,10 +1107,7 @@ class DiscoveryRepository {
 
   /// Reconcile only a fully owner-confirmed Watch row. This is a local read
   /// model update, never a fabricated Watch state or a new offline mutation.
-  Future<void> _applyConfirmedWatch(
-    Map? watch, {
-    String? deletedId,
-  }) async {
+  Future<void> _applyConfirmedWatch(Map? watch, {String? deletedId}) async {
     final existing = await store.readProjection(watchesProjectionKind);
     final previous = existing?.payload['results'];
     if (existing == null || previous is! List) return;

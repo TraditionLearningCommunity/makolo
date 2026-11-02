@@ -60,12 +60,10 @@ class _IntelligenceConnectionControlsState
   }
 
   bool _scopeUnchanged(String path, AppRuntime runtime) =>
-      mounted && widget.path == path &&
-      identical(widget.runtime, runtime);
+      mounted && widget.path == path && identical(widget.runtime, runtime);
 
   bool _sameOwner(String path, AppRuntime runtime) =>
       _scopeUnchanged(path, runtime) && widget.mutationsEnabled;
-
 
   Future<void> _loadCatalog() async {
     final generation = ++_catalogGeneration;
@@ -85,22 +83,30 @@ class _IntelligenceConnectionControlsState
     try {
       final result = (await api.get(path)).jsonObject();
       final offers = result['offers'];
-      if (!mounted || generation != _catalogGeneration ||
-          path != widget.path || !identical(runtime, widget.runtime)) return;
+      if (!mounted ||
+          generation != _catalogGeneration ||
+          path != widget.path ||
+          !identical(runtime, widget.runtime))
+        return;
       if (offers is! List) throw const FormatException('Invalid owner catalog');
       setState(() {
-        _offers = offers.whereType<Map<String, dynamic>>()
-            .toList(growable: false);
+        _offers = offers.whereType<Map<String, dynamic>>().toList(
+          growable: false,
+        );
         _catalogLoading = false;
         _catalogError = null;
       });
     } on Object {
-      if (!mounted || generation != _catalogGeneration ||
-          path != widget.path || !identical(runtime, widget.runtime)) return;
+      if (!mounted ||
+          generation != _catalogGeneration ||
+          path != widget.path ||
+          !identical(runtime, widget.runtime))
+        return;
       setState(() {
         _offers = const [];
         _catalogLoading = false;
-        _catalogError = 'Catalogue indisponible. Vérifiez votre connexion ou vos droits.';
+        _catalogError =
+            'Catalogue indisponible. Vérifiez votre connexion ou vos droits.';
       });
     }
   }
@@ -147,7 +153,8 @@ class _IntelligenceConnectionControlsState
       // Server commit and local projection refresh are separate outcomes.
     }
     if (!_scopeUnchanged(ownerPath, ownerRuntime) ||
-        mutationVersion != _mutationGeneration) return;
+        mutationVersion != _mutationGeneration)
+      return;
     if (!committed) {
       _notice(
         'Opération non confirmée par le serveur. Vérifiez votre autorité.',
@@ -299,7 +306,8 @@ class _IntelligenceConnectionControlsState
             ],
           ),
         );
-        if (confirmed == true && controller.text.trim().isNotEmpty &&
+        if (confirmed == true &&
+            controller.text.trim().isNotEmpty &&
             _sameOwner(ownerPath, ownerRuntime)) {
           await _submit(
             id: connection.id,

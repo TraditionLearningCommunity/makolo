@@ -145,8 +145,7 @@ class ProfileStore {
   Future<int> deleteProjectionsOfKind(String kind) {
     return (database.delete(database.projectionSnapshots)..where(
           (row) =>
-              row.profileId.equals(profileId) &
-              row.projectionKind.equals(kind),
+              row.profileId.equals(profileId) & row.projectionKind.equals(kind),
         ))
         .go();
   }

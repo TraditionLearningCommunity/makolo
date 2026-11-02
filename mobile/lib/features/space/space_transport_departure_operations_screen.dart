@@ -42,7 +42,8 @@ class _SpaceTransportDepartureOperationsScreenState
   bool get _actorValid => widget.runtime.actorContext?.value == widget.actor;
 
   String get _path => Uri(
-    path: 'api/v1/organizations/workspaces/'
+    path:
+        'api/v1/organizations/workspaces/'
         '${Uri.encodeComponent(widget.actor.space.slug)}/work/g3/transport/'
         'departures/${Uri.encodeComponent(widget.departureId)}/operations/',
     queryParameters: {
@@ -124,7 +125,9 @@ class _SpaceTransportDepartureOperationsScreenState
       }
       final payload = response.jsonObject();
       if (!_matches(payload)) {
-        throw const FormatException('Propriétaire ou responsabilité incorrects');
+        throw const FormatException(
+          'Propriétaire ou responsabilité incorrects',
+        );
       }
       if (!mounted || !_actorValid || epoch != _epoch) return;
       final timing = spaceMap(payload['timing']);
@@ -138,7 +141,8 @@ class _SpaceTransportDepartureOperationsScreenState
     } on Object {
       if (mounted && _actorValid && epoch == _epoch) {
         setState(() {
-          _error = 'Ce départ ne peut pas être consulté maintenant. '
+          _error =
+              'Ce départ ne peut pas être consulté maintenant. '
               'Vérifiez la connexion et votre autorité.';
         });
       }
@@ -153,10 +157,7 @@ class _SpaceTransportDepartureOperationsScreenState
     unawaited(_read());
   }
 
-  Future<void> _command(
-    String action, {
-    String? vehicleId,
-  }) async {
+  Future<void> _command(String action, {String? vehicleId}) async {
     if (_owner == null ||
         !_actorValid ||
         _loading ||
@@ -221,7 +222,8 @@ class _SpaceTransportDepartureOperationsScreenState
       if (mounted && _actorValid && epoch == _epoch) {
         setState(() {
           _owner = null;
-          _error = 'Résultat incertain. Actualisez ce départ avant '
+          _error =
+              'Résultat incertain. Actualisez ce départ avant '
               'toute nouvelle action. Aucun second envoi automatique.';
         });
       }
@@ -280,7 +282,8 @@ class _SpaceTransportDepartureOperationsScreenState
                     ListTile(
                       title: const Text('Véhicule affecté'),
                       subtitle: Text(
-                        spaceText(vehicle?['label']) ?? 'Aucun véhicule affecté',
+                        spaceText(vehicle?['label']) ??
+                            'Aucun véhicule affecté',
                       ),
                     ),
                     if (capacity != null)
@@ -295,8 +298,10 @@ class _SpaceTransportDepartureOperationsScreenState
                       ),
                     if (flags?['can_assign_vehicle'] == true) ...[
                       const SizedBox(height: 14),
-                      Text('Affecter un véhicule',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Affecter un véhicule',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       for (final raw in rows)
                         if (spaceMap(raw) case final Map<String, dynamic> row)
                           ListTile(
@@ -308,9 +313,9 @@ class _SpaceTransportDepartureOperationsScreenState
                             onTap: _posting || _requiresVerification
                                 ? null
                                 : () => _command(
-                                      'assign_vehicle',
-                                      vehicleId: spaceText(row['id']),
-                                    ),
+                                    'assign_vehicle',
+                                    vehicleId: spaceText(row['id']),
+                                  ),
                           ),
                       Wrap(
                         spacing: 8,
@@ -320,8 +325,8 @@ class _SpaceTransportDepartureOperationsScreenState
                               onPressed: _posting
                                   ? null
                                   : () => _pageVehicles(
-                                        offset > limit ? offset - limit : 0,
-                                      ),
+                                      offset > limit ? offset - limit : 0,
+                                    ),
                               child: const Text('Véhicules précédents'),
                             ),
                           if (vehicles?['has_more'] == true)
@@ -336,8 +341,10 @@ class _SpaceTransportDepartureOperationsScreenState
                     ],
                     if (flags?['can_reschedule'] == true) ...[
                       const SizedBox(height: 16),
-                      Text('Reprogrammer',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Reprogrammer',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       TextField(
                         controller: _timezone,
                         enabled: !_posting && !_requiresVerification,

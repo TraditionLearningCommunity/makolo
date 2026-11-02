@@ -199,9 +199,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
               recoverableErrorMessage: 'Actualisation impossible.',
               preservedMessage: '',
               onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
-              empty: const MakoloEmptyState(
-                title: 'Rien en cours.',
-              ),
+              empty: const MakoloEmptyState(title: 'Rien en cours.'),
               content: const SizedBox.shrink(),
             );
           }

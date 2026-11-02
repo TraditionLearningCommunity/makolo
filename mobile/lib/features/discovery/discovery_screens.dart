@@ -261,7 +261,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       final status = await widget.repository.readSource(
         widget.repository.itemsSource(refreshed),
       );
-      if (mounted && status.lastErrorCode == null &&
+      if (mounted &&
+          status.lastErrorCode == null &&
           status.lastSuccessAt != null &&
           !status.invalidated) {
         setState(() => _verifiedFieldKey = refreshed.mapFingerprint);
@@ -460,7 +461,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
                 profileId: widget.repository.profileId,
-                allowOwnerActions: !_refreshing &&
+                allowOwnerActions:
+                    !_refreshing &&
                     _verifiedFieldKey == _query.mapFingerprint &&
                     sourceState.lastErrorCode == null &&
                     !sourceState.invalidated,
@@ -610,8 +612,18 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     final criteria = found?['criteria'];
     if (criteria is! Map) return;
     const keys = {
-      'q', 'place', 'when', 'period', 'vertical', 'price',
-      'date', 'date_from', 'date_to', 'lat', 'lon', 'radius_km',
+      'q',
+      'place',
+      'when',
+      'period',
+      'vertical',
+      'price',
+      'date',
+      'date_from',
+      'date_to',
+      'lat',
+      'lon',
+      'radius_km',
     };
     final params = <String, String>{};
     for (final key in keys) {
@@ -650,10 +662,15 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     builder: (context, snapshot) {
       final results = snapshot.data?.payload['results'];
       if (results is! List) return const SizedBox.shrink();
-      final watches = results.whereType<Map>().where((row) =>
-          row['id'] is String &&
-          row['name'] is String &&
-          row['criteria'] is Map).toList();
+      final watches = results
+          .whereType<Map>()
+          .where(
+            (row) =>
+                row['id'] is String &&
+                row['name'] is String &&
+                row['criteria'] is Map,
+          )
+          .toList();
       if (watches.isEmpty) return const SizedBox.shrink();
       final selected = watches.any((row) => row['id'] == _selectedWatchId)
           ? _selectedWatchId
@@ -661,25 +678,25 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       return KeyedSubtree(
         key: ValueKey('discover-watch-choice-$selected'),
         child: DropdownButtonFormField<String>(
-        key: const Key('discover-search-watch-filter'),
-        initialValue: selected,
-        decoration: const InputDecoration(
-          labelText: 'Veilles',
-          prefixIcon: Icon(Icons.radar_outlined),
-          border: OutlineInputBorder(),
-        ),
-        items: [
-          const DropdownMenuItem<String>(
-            value: '',
-            child: Text('Toutes les possibilités'),
+          key: const Key('discover-search-watch-filter'),
+          initialValue: selected,
+          decoration: const InputDecoration(
+            labelText: 'Veilles',
+            prefixIcon: Icon(Icons.radar_outlined),
+            border: OutlineInputBorder(),
           ),
-          for (final watch in watches)
-            DropdownMenuItem<String>(
-              value: watch['id'] as String,
-              child: Text(watch['name'] as String),
+          items: [
+            const DropdownMenuItem<String>(
+              value: '',
+              child: Text('Toutes les possibilités'),
             ),
-        ],
-        onChanged: (id) => _selectSavedWatch(id, watches),
+            for (final watch in watches)
+              DropdownMenuItem<String>(
+                value: watch['id'] as String,
+                child: Text(watch['name'] as String),
+              ),
+          ],
+          onChanged: (id) => _selectSavedWatch(id, watches),
         ),
       );
     },
@@ -795,14 +812,18 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       final result = await widget.repository.researchSources(requestedText);
       if (!mounted || _search.text.trim() != requestedText) return;
       if (result.status == 'unavailable') {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${_providerFailureMessage(result.reason)} '
-              'Vous pouvez continuer dans Découvrir.'),
-          action: SnackBarAction(
-            label: 'Connexions',
-            onPressed: () => context.push('/connections'),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${_providerFailureMessage(result.reason)} '
+              'Vous pouvez continuer dans Découvrir.',
+            ),
+            action: SnackBarAction(
+              label: 'Connexions',
+              onPressed: () => context.push('/connections'),
+            ),
           ),
-        ));
+        );
         return;
       }
       await showModalBottomSheet<void>(
@@ -815,8 +836,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                Text('Sources pour « $requestedText »',
-                    style: Theme.of(sheetContext).textTheme.titleLarge),
+                Text(
+                  'Sources pour « $requestedText »',
+                  style: Theme.of(sheetContext).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 8),
                 const Text(
                   'Pistes externes non vérifiées comme possibilités Makolo. '
@@ -841,7 +864,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                       ),
                       trailing: const Icon(Icons.open_in_new),
                       onTap: () => unawaited(
-                        launchUrl(lead.url, mode: LaunchMode.externalApplication),
+                        launchUrl(
+                          lead.url,
+                          mode: LaunchMode.externalApplication,
+                        ),
                       ),
                     ),
                   ),
@@ -852,10 +878,14 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       );
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Recherche de sources impossible. '
-              'Votre exploration Makolo est conservée.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Recherche de sources impossible. '
+              'Votre exploration Makolo est conservée.',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _researching = false);
@@ -882,15 +912,19 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         _vertical = params['vertical'] ?? '';
         _date = params['date'] ?? '';
         _searchChanged(_search.text, immediate: true);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Critères clarifiés. Vérifiez la recherche proposée.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Critères clarifiés. Vérifiez la recherche proposée.',
+            ),
+          ),
+        );
       } else {
         final message = result.status == 'unavailable'
             ? '${_providerFailureMessage(result.reason)} '
-                'Vous pouvez poursuivre la recherche normale.'
+                  'Vous pouvez poursuivre la recherche normale.'
             : 'Aucun critère nouveau confirmé. '
-                'Votre recherche reste disponible.';
+                  'Votre recherche reste disponible.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -905,10 +939,14 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       }
     } on Object {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Clarification indisponible. '
-              'Votre recherche actuelle est conservée.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Clarification indisponible. '
+              'Votre recherche actuelle est conservée.',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _clarifying = false);
@@ -923,8 +961,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       final status = await widget.repository.readSource(
         widget.repository.itemsSource(query),
       );
-      if (mounted && _searchCoordinator.isCurrent(revision) &&
-          status.lastErrorCode == null && !status.invalidated &&
+      if (mounted &&
+          _searchCoordinator.isCurrent(revision) &&
+          status.lastErrorCode == null &&
+          !status.invalidated &&
           status.lastSuccessAt != null) {
         setState(() => _verifiedFieldKey = query.mapFingerprint);
       }
@@ -986,8 +1026,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       final status = await widget.repository.readSource(
         widget.repository.itemsSource(query),
       );
-      if (mounted && identical(query, _query) &&
-          status.lastErrorCode == null && !status.invalidated &&
+      if (mounted &&
+          identical(query, _query) &&
+          status.lastErrorCode == null &&
+          !status.invalidated &&
           status.lastSuccessAt != null) {
         setState(() => _verifiedFieldKey = query.mapFingerprint);
       }
@@ -1177,7 +1219,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                   : () => unawaited(_clarifySearch()),
               icon: _clarifying
                   ? const SizedBox(
-                      width: 16, height: 16,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.auto_awesome_outlined),
@@ -1195,7 +1238,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       ),
       Padding(
         padding: const EdgeInsets.fromLTRB(
-          MakoloSpacing.inner, 4, MakoloSpacing.inner, 8,
+          MakoloSpacing.inner,
+          4,
+          MakoloSpacing.inner,
+          8,
         ),
         child: Align(
           alignment: Alignment.centerLeft,
@@ -1206,7 +1252,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                 : () => unawaited(_researchSources()),
             icon: _researching
                 ? const SizedBox(
-                    width: 16, height: 16,
+                    width: 16,
+                    height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.menu_book_outlined),
@@ -1296,7 +1343,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             baseUri: widget.repository.api.baseUri,
                             shareApi: widget.repository.api,
                             profileId: widget.repository.profileId,
-                            allowOwnerActions: !_refreshing &&
+                            allowOwnerActions:
+                                !_refreshing &&
                                 _verifiedFieldKey == _query.mapFingerprint &&
                                 sourceState.lastErrorCode == null &&
                                 !sourceState.invalidated,
@@ -1431,8 +1479,10 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         widget.repository.itemsSource(current),
       );
       rejected = source.lastErrorCode == 'continuation_rejected';
-      if (mounted && identical(current, _query) &&
-          source.lastErrorCode == null && !source.invalidated &&
+      if (mounted &&
+          identical(current, _query) &&
+          source.lastErrorCode == null &&
+          !source.invalidated &&
           source.lastSuccessAt != null) {
         setState(() => _verifiedFieldKey = current.mapFingerprint);
       }
@@ -1594,7 +1644,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
                 profileId: widget.repository.profileId,
-                allowOwnerActions: !_refreshing &&
+                allowOwnerActions:
+                    !_refreshing &&
                     _verifiedFieldKey == _query.mapFingerprint &&
                     source.lastErrorCode == null &&
                     !source.invalidated,
@@ -1672,8 +1723,10 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
       final status = await widget.repository.readSource(
         widget.repository.itemSource(widget.family, widget.id),
       );
-      if (mounted && key == '${widget.family}:${widget.id}' &&
-          status.lastErrorCode == null && status.lastSuccessAt != null &&
+      if (mounted &&
+          key == '${widget.family}:${widget.id}' &&
+          status.lastErrorCode == null &&
+          status.lastSuccessAt != null &&
           !status.invalidated) {
         setState(() => _verifiedItemKey = key);
       }
@@ -1756,8 +1809,10 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                         child: DiscoveryPossibilityUnit(
                           item: item,
                           profileId: widget.repository.profileId,
-                          allowOwnerActions: !_refreshing &&
-                              _verifiedItemKey == '${widget.family}:${widget.id}',
+                          allowOwnerActions:
+                              !_refreshing &&
+                              _verifiedItemKey ==
+                                  '${widget.family}:${widget.id}',
                           detailMode: true,
                           onOpen: () {},
                           onOwnerDepth: (path) => context.push(path),

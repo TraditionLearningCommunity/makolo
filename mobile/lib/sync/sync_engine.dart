@@ -143,8 +143,7 @@ class SyncEngine {
     final epoch = _discoveryRevocationEpoch;
     bool isCurrent() =>
         _sourceGenerations[key] == generation &&
-        (!_isDiscoveryRelated(source) ||
-            _discoveryRevocationEpoch == epoch);
+        (!_isDiscoveryRelated(source) || _discoveryRevocationEpoch == epoch);
     try {
       final response = await api.get(source.path);
       if (!isCurrent()) return;
@@ -194,7 +193,8 @@ class SyncEngine {
           final cursorRejected =
               source.projectionKind == 'discovery.items' &&
               error.statusCode == 400 &&
-              Uri.parse(source.path).queryParameters.containsKey('continuation');
+              Uri.parse(source.path).queryParameters
+                  .containsKey('continuation');
           await _recordFailure(
             source,
             cursorRejected ? 'continuation_rejected' : error.code,

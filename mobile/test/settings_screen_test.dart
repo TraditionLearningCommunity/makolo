@@ -204,10 +204,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Impossible de modifier l’apparence'),
-        findsOneWidget,
-      );
+      expect(find.text('Impossible de modifier l’apparence'), findsOneWidget);
       expect(find.text('Réduire les animations'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Sécurité et appareils'), 200);
       await tester.tap(find.text('Sécurité et appareils'));

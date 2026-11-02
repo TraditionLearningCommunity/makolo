@@ -86,7 +86,8 @@ class _SpaceTransportCreateScreenState
       oldWidget.runtime.actorContext?.removeListener(_onActorChange);
       widget.runtime.actorContext?.addListener(_onActorChange);
     }
-    if (oldWidget.runtime != widget.runtime || oldWidget.actor != widget.actor) {
+    if (oldWidget.runtime != widget.runtime ||
+        oldWidget.actor != widget.actor) {
       _onActorChange();
     }
   }
@@ -96,8 +97,19 @@ class _SpaceTransportCreateScreenState
     ++_epoch;
     widget.runtime.actorContext?.removeListener(_onActorChange);
     for (final controller in [
-      _name, _code, _registration, _capacity, _title, _start, _end,
-      _timezone, _fareName, _price, _currency, _boarding, _reference,
+      _name,
+      _code,
+      _registration,
+      _capacity,
+      _title,
+      _start,
+      _end,
+      _timezone,
+      _fareName,
+      _price,
+      _currency,
+      _boarding,
+      _reference,
     ]) {
       controller.dispose();
     }
@@ -208,19 +220,24 @@ class _SpaceTransportCreateScreenState
     );
     if (date == null || !mounted) return;
     final time = await showTimePicker(
-      context: context, initialTime: TimeOfDay.now(),
+      context: context,
+      initialTime: TimeOfDay.now(),
     );
     if (time == null || !mounted) return;
     String two(int n) => n.toString().padLeft(2, '0');
-    field.text = '${date.year}-${two(date.month)}-${two(date.day)}'
+    field.text =
+        '${date.year}-${two(date.month)}-${two(date.day)}'
         'T${two(time.hour)}:${two(time.minute)}';
   }
 
-  String? _required(String? value) => value == null || value.trim().isEmpty
-      ? 'Champ requis.' : null;
+  String? _required(String? value) =>
+      value == null || value.trim().isEmpty ? 'Champ requis.' : null;
 
   Future<void> _submit() async {
-    if (!_actorValid || _loading || _submitting || _attempted ||
+    if (!_actorValid ||
+        _loading ||
+        _submitting ||
+        _attempted ||
         !_form.currentState!.validate()) {
       return;
     }
@@ -266,8 +283,10 @@ class _SpaceTransportCreateScreenState
     final body = <String, dynamic>{'kind': _kind};
     if (_kind == 'route') {
       body.addAll({
-        'origin': _origin, 'destination': _destination,
-        'name': _name.text.trim(), 'code': _code.text.trim(),
+        'origin': _origin,
+        'destination': _destination,
+        'name': _name.text.trim(),
+        'code': _code.text.trim(),
       });
     } else if (_kind == 'vehicle') {
       body.addAll({
@@ -304,7 +323,8 @@ class _SpaceTransportCreateScreenState
         if (mounted && _actorValid && epoch == _epoch) {
           setState(() {
             _attempted = false;
-            _error = 'Les valeurs ont été refusées. Vérifiez les lieux, '
+            _error =
+                'Les valeurs ont été refusées. Vérifiez les lieux, '
                 'le fuseau, le prix et les capacités du départ.';
           });
         }
@@ -337,7 +357,8 @@ class _SpaceTransportCreateScreenState
     } on Object {
       if (mounted && _actorValid && epoch == _epoch) {
         setState(() {
-          _error = 'Résultat non confirmé. Vérifiez la réalité dans Métier '
+          _error =
+              'Résultat non confirmé. Vérifiez la réalité dans Métier '
               'avant de créer une seconde fois.';
         });
       }
@@ -358,13 +379,16 @@ class _SpaceTransportCreateScreenState
     items: [
       if (optional)
         const DropdownMenuItem<String>(
-          value: '', child: Text('Aucun pour le moment'),
+          value: '',
+          child: Text('Aucun pour le moment'),
         ),
       for (final item in items)
         if (spaceText(item['id']) case final String id)
           DropdownMenuItem(
-            value: id, child: Text(spaceText(item['name']) ??
-                spaceText(item['label']) ?? id),
+            value: id,
+            child: Text(
+              spaceText(item['name']) ?? spaceText(item['label']) ?? id,
+            ),
           ),
     ],
     onChanged: _attempted
@@ -398,266 +422,327 @@ class _SpaceTransportCreateScreenState
                       ),
                     ),
                   ),
-                if (!_loading) Form(
-                  key: _form,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(title,
-                          style: Theme.of(context).textTheme.headlineSmall),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _kind,
-                        decoration: const InputDecoration(
-                          labelText: 'Ce que vous préparez',
+                if (!_loading)
+                  Form(
+                    key: _form,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.headlineSmall,
                         ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: 'route', child: Text('Route'),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: _kind,
+                          decoration: const InputDecoration(
+                            labelText: 'Ce que vous préparez',
                           ),
-                          const DropdownMenuItem(
-                            value: 'vehicle', child: Text('Véhicule'),
-                          ),
-                          if (_canCreateDeparture)
+                          items: [
                             const DropdownMenuItem(
-                              value: 'departure', child: Text('Départ'),
+                              value: 'route',
+                              child: Text('Route'),
                             ),
-                        ],
-                        onChanged: _attempted
-                            ? null
-                            : (v) {
-                                if (v != null) setState(() => _kind = v);
-                              },
-                      ),
-                      const SizedBox(height: 12),
-                      if (_kind == 'route') ...[
-                        _choice('Origine', _origin, _places,
-                            (v) => setState(() => _origin = v)),
-                        _choice('Destination', _destination, _places,
-                            (v) => setState(() => _destination = v)),
-                        if (_morePlaces)
-                          TextButton(
-                            onPressed: () => _loadOptions(more: 'places'),
-                            child: const Text('Voir davantage de lieux'),
-                          ),
-                        TextFormField(
-                          controller: _name,
-                          enabled: !_attempted,
-                          decoration: const InputDecoration(
-                            labelText: 'Nom de la route (facultatif)',
-                          ),
-                        ),
-                        TextFormField(
-                          controller: _code,
-                          enabled: !_attempted,
-                          decoration: const InputDecoration(
-                            labelText: 'Code (facultatif)',
-                          ),
-                        ),
-                      ] else if (_kind == 'vehicle') ...[
-                        TextFormField(
-                          controller: _name,
-                          enabled: !_attempted,
-                          decoration: const InputDecoration(labelText: 'Véhicule'),
-                          validator: _required,
-                        ),
-                        TextFormField(
-                          controller: _registration,
-                          enabled: !_attempted,
-                          decoration: const InputDecoration(
-                            labelText: 'Immatriculation (facultative)',
-                          ),
-                        ),
-                        DropdownButtonFormField<String>(
-                          initialValue: _vehicleType,
-                          decoration: const InputDecoration(labelText: 'Type'),
-                          items: const [
-                            DropdownMenuItem(value: 'bus', child: Text('Bus')),
-                            DropdownMenuItem(value: 'minibus', child: Text('Minibus')),
-                            DropdownMenuItem(value: 'van', child: Text('Van')),
-                            DropdownMenuItem(value: 'car', child: Text('Voiture')),
-                            DropdownMenuItem(value: 'other', child: Text('Autre')),
+                            const DropdownMenuItem(
+                              value: 'vehicle',
+                              child: Text('Véhicule'),
+                            ),
+                            if (_canCreateDeparture)
+                              const DropdownMenuItem(
+                                value: 'departure',
+                                child: Text('Départ'),
+                              ),
                           ],
                           onChanged: _attempted
                               ? null
-                              : (v) => setState(() => _vehicleType = v ?? 'bus'),
+                              : (v) {
+                                  if (v != null) setState(() => _kind = v);
+                                },
                         ),
-                        TextFormField(
-                          controller: _capacity,
-                          enabled: !_attempted,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Places physiques',
+                        const SizedBox(height: 12),
+                        if (_kind == 'route') ...[
+                          _choice(
+                            'Origine',
+                            _origin,
+                            _places,
+                            (v) => setState(() => _origin = v),
                           ),
-                          validator: (v) => (int.tryParse(v ?? '') ?? 0) < 1
-                              ? 'Capacité positive requise.'
-                              : null,
-                        ),
-                      ] else ...[
-                        if (_routes.isEmpty)
-                          const Text('Créez d’abord une route réelle.'),
-                        _choice('Route', _route, _routes, (v) {
-                          setState(() {
-                            _route = v;
-                            final matched = _routes.where(
-                              (row) => row['id'] == v,
-                            );
-                            _timezone.text = matched.isEmpty
-                                ? '' : (spaceText(
-                                    matched.first['timezone'],
-                                  ) ?? '');
-                          });
-                        }),
-                        if (_moreRoutes)
-                          TextButton(
-                            onPressed: () => _loadOptions(more: 'routes'),
-                            child: const Text('Voir davantage de routes'),
+                          _choice(
+                            'Destination',
+                            _destination,
+                            _places,
+                            (v) => setState(() => _destination = v),
                           ),
-                        _choice('Véhicule (facultatif)', _vehicle, _vehicles,
+                          if (_morePlaces)
+                            TextButton(
+                              onPressed: () => _loadOptions(more: 'places'),
+                              child: const Text('Voir davantage de lieux'),
+                            ),
+                          TextFormField(
+                            controller: _name,
+                            enabled: !_attempted,
+                            decoration: const InputDecoration(
+                              labelText: 'Nom de la route (facultatif)',
+                            ),
+                          ),
+                          TextFormField(
+                            controller: _code,
+                            enabled: !_attempted,
+                            decoration: const InputDecoration(
+                              labelText: 'Code (facultatif)',
+                            ),
+                          ),
+                        ] else if (_kind == 'vehicle') ...[
+                          TextFormField(
+                            controller: _name,
+                            enabled: !_attempted,
+                            decoration: const InputDecoration(
+                              labelText: 'Véhicule',
+                            ),
+                            validator: _required,
+                          ),
+                          TextFormField(
+                            controller: _registration,
+                            enabled: !_attempted,
+                            decoration: const InputDecoration(
+                              labelText: 'Immatriculation (facultative)',
+                            ),
+                          ),
+                          DropdownButtonFormField<String>(
+                            initialValue: _vehicleType,
+                            decoration: const InputDecoration(
+                              labelText: 'Type',
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'bus',
+                                child: Text('Bus'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'minibus',
+                                child: Text('Minibus'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'van',
+                                child: Text('Van'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'car',
+                                child: Text('Voiture'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'other',
+                                child: Text('Autre'),
+                              ),
+                            ],
+                            onChanged: _attempted
+                                ? null
+                                : (v) =>
+                                      setState(() => _vehicleType = v ?? 'bus'),
+                          ),
+                          TextFormField(
+                            controller: _capacity,
+                            enabled: !_attempted,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Places physiques',
+                            ),
+                            validator: (v) => (int.tryParse(v ?? '') ?? 0) < 1
+                                ? 'Capacité positive requise.'
+                                : null,
+                          ),
+                        ] else ...[
+                          if (_routes.isEmpty)
+                            const Text('Créez d’abord une route réelle.'),
+                          _choice('Route', _route, _routes, (v) {
+                            setState(() {
+                              _route = v;
+                              final matched = _routes.where(
+                                (row) => row['id'] == v,
+                              );
+                              _timezone.text = matched.isEmpty
+                                  ? ''
+                                  : (spaceText(matched.first['timezone']) ??
+                                        '');
+                            });
+                          }),
+                          if (_moreRoutes)
+                            TextButton(
+                              onPressed: () => _loadOptions(more: 'routes'),
+                              child: const Text('Voir davantage de routes'),
+                            ),
+                          _choice(
+                            'Véhicule (facultatif)',
+                            _vehicle,
+                            _vehicles,
                             (v) => setState(() => _vehicle = v),
-                            optional: true),
-                        if (_moreVehicles)
-                          TextButton(
-                            onPressed: () => _loadOptions(more: 'vehicles'),
-                            child: const Text('Voir davantage de véhicules'),
+                            optional: true,
                           ),
-                        TextFormField(
-                          controller: _title,
-                          enabled: !_attempted,
-                          decoration: const InputDecoration(
-                            labelText: 'Nom du service (facultatif)',
+                          if (_moreVehicles)
+                            TextButton(
+                              onPressed: () => _loadOptions(more: 'vehicles'),
+                              child: const Text('Voir davantage de véhicules'),
+                            ),
+                          TextFormField(
+                            controller: _title,
+                            enabled: !_attempted,
+                            decoration: const InputDecoration(
+                              labelText: 'Nom du service (facultatif)',
+                            ),
                           ),
-                        ),
-                        TextFormField(
-                          controller: _timezone,
-                          enabled: !_attempted,
-                          decoration: const InputDecoration(
-                            labelText: 'Fuseau IANA du départ',
+                          TextFormField(
+                            controller: _timezone,
+                            enabled: !_attempted,
+                            decoration: const InputDecoration(
+                              labelText: 'Fuseau IANA du départ',
+                            ),
+                            validator: _required,
                           ),
-                          validator: _required,
-                        ),
-                        TextFormField(
-                          controller: _start,
-                          enabled: !_attempted,
-                          readOnly: true,
-                          onTap: () => _pickDateTime(_start),
-                          decoration: const InputDecoration(
-                            labelText: 'Date et heure de départ',
-                            suffixIcon: Icon(Icons.calendar_today_outlined),
+                          TextFormField(
+                            controller: _start,
+                            enabled: !_attempted,
+                            readOnly: true,
+                            onTap: () => _pickDateTime(_start),
+                            decoration: const InputDecoration(
+                              labelText: 'Date et heure de départ',
+                              suffixIcon: Icon(Icons.calendar_today_outlined),
+                            ),
+                            validator: _required,
                           ),
-                          validator: _required,
-                        ),
-                        TextFormField(
-                          controller: _end,
-                          enabled: !_attempted,
-                          readOnly: true,
-                          onTap: () => _pickDateTime(_end),
-                          decoration: const InputDecoration(
-                            labelText: 'Arrivée estimée (facultative)',
-                            suffixIcon: Icon(Icons.calendar_today_outlined),
+                          TextFormField(
+                            controller: _end,
+                            enabled: !_attempted,
+                            readOnly: true,
+                            onTap: () => _pickDateTime(_end),
+                            decoration: const InputDecoration(
+                              labelText: 'Arrivée estimée (facultative)',
+                              suffixIcon: Icon(Icons.calendar_today_outlined),
+                            ),
                           ),
-                        ),
-                        TextFormField(
-                          controller: _capacity,
-                          enabled: !_attempted,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Places vendables',
+                          TextFormField(
+                            controller: _capacity,
+                            enabled: !_attempted,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Places vendables',
+                            ),
+                            validator: (v) => (int.tryParse(v ?? '') ?? 0) < 1
+                                ? 'Capacité vendable positive requise.'
+                                : null,
                           ),
-                          validator: (v) => (int.tryParse(v ?? '') ?? 0) < 1
-                              ? 'Capacité vendable positive requise.'
-                              : null,
-                        ),
-                        TextFormField(
-                          controller: _fareName,
-                          enabled: !_attempted,
-                          decoration: const InputDecoration(
-                            labelText: 'Nom du tarif',
+                          TextFormField(
+                            controller: _fareName,
+                            enabled: !_attempted,
+                            decoration: const InputDecoration(
+                              labelText: 'Nom du tarif',
+                            ),
                           ),
-                        ),
-                        TextFormField(
-                          controller: _price,
-                          enabled: !_attempted,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
+                          TextFormField(
+                            controller: _price,
+                            enabled: !_attempted,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'Prix par place',
+                            ),
+                            validator: (v) {
+                              final amount = double.tryParse(v ?? '');
+                              return amount == null || amount < 0
+                                  ? 'Prix invalide.'
+                                  : null;
+                            },
                           ),
-                          decoration: const InputDecoration(
-                            labelText: 'Prix par place',
+                          TextFormField(
+                            controller: _currency,
+                            enabled: !_attempted,
+                            decoration: const InputDecoration(
+                              labelText: 'Devise ISO',
+                            ),
+                            validator: (v) =>
+                                RegExp(r'^[A-Za-z]{3}$').hasMatch(v ?? '')
+                                ? null
+                                : 'Code ISO de trois lettres requis.',
                           ),
-                          validator: (v) {
-                            final amount = double.tryParse(v ?? '');
-                            return amount == null || amount < 0
-                                ? 'Prix invalide.' : null;
-                          },
-                        ),
-                        TextFormField(
-                          controller: _currency,
-                          enabled: !_attempted,
-                          decoration: const InputDecoration(
-                            labelText: 'Devise ISO',
+                          DropdownButtonFormField<String>(
+                            initialValue: _mode,
+                            decoration: const InputDecoration(
+                              labelText: 'Paiement',
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'upfront',
+                                child: Text('Avant confirmation'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'on_site',
+                                child: Text('Sur place'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'none',
+                                child: Text('Sans paiement'),
+                              ),
+                            ],
+                            onChanged: _attempted
+                                ? null
+                                : (v) => setState(() => _mode = v ?? 'upfront'),
                           ),
-                          validator: (v) => RegExp(r'^[A-Za-z]{3}$')
-                              .hasMatch(v ?? '') ? null
-                              : 'Code ISO de trois lettres requis.',
-                        ),
-                        DropdownButtonFormField<String>(
-                          initialValue: _mode,
-                          decoration: const InputDecoration(
-                            labelText: 'Paiement',
+                          TextFormField(
+                            controller: _boarding,
+                            enabled: !_attempted,
+                            maxLength: 320,
+                            decoration: const InputDecoration(
+                              labelText:
+                                  'Consignes d’embarquement (facultatives)',
+                            ),
                           ),
-                          items: const [
-                            DropdownMenuItem(value: 'upfront', child: Text('Avant confirmation')),
-                            DropdownMenuItem(value: 'on_site', child: Text('Sur place')),
-                            DropdownMenuItem(value: 'none', child: Text('Sans paiement')),
-                          ],
-                          onChanged: _attempted
-                              ? null : (v) => setState(() => _mode = v ?? 'upfront'),
-                        ),
-                        TextFormField(
-                          controller: _boarding,
-                          enabled: !_attempted,
-                          maxLength: 320,
-                          decoration: const InputDecoration(
-                            labelText: 'Consignes d’embarquement (facultatives)',
+                          TextFormField(
+                            controller: _reference,
+                            enabled: !_attempted,
+                            maxLength: 80,
+                            decoration: const InputDecoration(
+                              labelText:
+                                  'Référence opérationnelle (facultative)',
+                            ),
                           ),
-                        ),
-                        TextFormField(
-                          controller: _reference,
-                          enabled: !_attempted,
-                          maxLength: 80,
-                          decoration: const InputDecoration(
-                            labelText: 'Référence opérationnelle (facultative)',
+                          CheckboxListTile(
+                            value: _publish,
+                            title: const Text(
+                              'Publier le départ après validation',
+                            ),
+                            onChanged: _attempted
+                                ? null
+                                : (v) => setState(() => _publish = v ?? false),
                           ),
-                        ),
-                        CheckboxListTile(
-                          value: _publish,
-                          title: const Text('Publier le départ après validation'),
-                          onChanged: _attempted
+                          const Text(
+                            'Places physiques, places vendables, réservations '
+                            'et présence sont des vérités distinctes.',
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        FilledButton(
+                          onPressed:
+                              _attempted ||
+                                  _submitting ||
+                                  _loading ||
+                                  (_kind == 'departure' && !_canCreateDeparture)
                               ? null
-                              : (v) => setState(() => _publish = v ?? false),
-                        ),
-                        const Text(
-                          'Places physiques, places vendables, réservations '
-                          'et présence sont des vérités distinctes.',
+                              : _submit,
+                          child: Text(
+                            _submitting
+                                ? 'Enregistrement…'
+                                : _kind == 'departure' && !_publish
+                                ? 'Créer en brouillon'
+                                : 'Confirmer la création',
+                          ),
                         ),
                       ],
-                      const SizedBox(height: 20),
-                      FilledButton(
-                        onPressed: _attempted || _submitting || _loading ||
-                                (_kind == 'departure' && !_canCreateDeparture)
-                            ? null : _submit,
-                        child: Text(
-                          _submitting ? 'Enregistrement…'
-                              : _kind == 'departure' && !_publish
-                                  ? 'Créer en brouillon'
-                                  : 'Confirmer la création',
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
                 OutlinedButton(
-                  onPressed: _submitting ? null : () => context.go('/space/work'),
+                  onPressed: _submitting
+                      ? null
+                      : () => context.go('/space/work'),
                   child: const Text('Retour à Métier'),
                 ),
               ],

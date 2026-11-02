@@ -51,7 +51,8 @@ String connectionCapabilityLabel(String value) => switch (value) {
 };
 
 String _humanize(String value, String fallback) {
-  final text = value.trim()
+  final text = value
+      .trim()
       .replaceAll(RegExp(r'[._-]'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();

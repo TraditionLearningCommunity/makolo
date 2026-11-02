@@ -98,7 +98,8 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   @override
   void didUpdateWidget(covariant DiscoveryReader oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldItem = oldWidget.items[_index.clamp(0, oldWidget.items.length - 1).toInt()];
+    final oldItem =
+        oldWidget.items[_index.clamp(0, oldWidget.items.length - 1).toInt()];
     final nextIndex = _index.clamp(0, widget.items.length - 1).toInt();
     final nextItem = widget.items[nextIndex];
     if (oldWidget.profileId != widget.profileId ||
@@ -387,11 +388,13 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   bool get _canRetainOffline =>
       (widget.profileId != null && widget.profileId!.trim().isNotEmpty) ||
       DiscoveryOfflineStore.isPublishedRecognitionUri(
-        _item.uri, trustedOrigin: widget.trustedOrigin,
+        _item.uri,
+        trustedOrigin: widget.trustedOrigin,
       );
 
   Future<void> _toggleOffline() async {
-    if (!_canRetainOffline || _offlineBusy ||
+    if (!_canRetainOffline ||
+        _offlineBusy ||
         _item.mimeType == 'text/html' ||
         _item.inlineText != null) {
       return;

@@ -89,7 +89,12 @@ class _SpaceWorkOfferEditorScreenState
     ++_epoch;
     widget.runtime.actorContext?.removeListener(_onActorChanged);
     for (final controller in [
-      _name, _description, _price, _currency, _minimum, _maximum,
+      _name,
+      _description,
+      _price,
+      _currency,
+      _minimum,
+      _maximum,
     ]) {
       controller.dispose();
     }
@@ -113,8 +118,10 @@ class _SpaceWorkOfferEditorScreenState
     if (raw is! List) return const [];
     return [
       for (final choice in raw)
-        if (choice is List && choice.length == 2 &&
-            choice[0] is String && choice[1] is String)
+        if (choice is List &&
+            choice.length == 2 &&
+            choice[0] is String &&
+            choice[1] is String)
           (choice[0] as String, choice[1] as String),
     ];
   }
@@ -139,11 +146,9 @@ class _SpaceWorkOfferEditorScreenState
           space?['slug'] != widget.actor.space.slug ||
           data['responsibility'] != (widget.actor.perspective.id ?? 'all') ||
           activity?['kind'] != 'activity' ||
-          (widget.activityId != null &&
-              activity?['id'] != widget.activityId) ||
+          (widget.activityId != null && activity?['id'] != widget.activityId) ||
           (widget.offerId != null &&
-              (offer?['kind'] != 'offer' ||
-                  offer?['id'] != widget.offerId))) {
+              (offer?['kind'] != 'offer' || offer?['id'] != widget.offerId))) {
         throw const FormatException('Offer owner mismatch');
       }
       final options = spaceMap(data['options']);
@@ -166,7 +171,8 @@ class _SpaceWorkOfferEditorScreenState
     } on Object {
       if (!mounted || epoch != _epoch || !_actorValid) return;
       setState(() {
-        _error = 'Cette Offre n’est plus accessible dans ce contexte. '
+        _error =
+            'Cette Offre n’est plus accessible dans ce contexte. '
             'Vérifiez vos droits et votre connexion.';
       });
     } finally {
@@ -177,7 +183,10 @@ class _SpaceWorkOfferEditorScreenState
   }
 
   Future<void> _submit() async {
-    if (!_actorValid || _loading || _posting || _attempted ||
+    if (!_actorValid ||
+        _loading ||
+        _posting ||
+        _attempted ||
         !_formKey.currentState!.validate()) {
       return;
     }
@@ -190,23 +199,27 @@ class _SpaceWorkOfferEditorScreenState
     try {
       final api = widget.runtime.api;
       if (api == null) throw StateError('Connexion indisponible');
-      final response = await api.post(_ownerPath, body: {
-        'name': _name.text.trim(),
-        'description': _description.text.trim(),
-        'unit_price': _price.text.trim(),
-        'currency': _currency.text.trim().toUpperCase(),
-        'payment_mode': _mode,
-        'min_quantity': _minimum.text.trim(),
-        'max_quantity': _maximum.text.trim(),
-        if (_editing) 'status': _status,
-      });
+      final response = await api.post(
+        _ownerPath,
+        body: {
+          'name': _name.text.trim(),
+          'description': _description.text.trim(),
+          'unit_price': _price.text.trim(),
+          'currency': _currency.text.trim().toUpperCase(),
+          'payment_mode': _mode,
+          'min_quantity': _minimum.text.trim(),
+          'max_quantity': _maximum.text.trim(),
+          if (_editing) 'status': _status,
+        },
+      );
       if (response.statusCode == 400) {
         // The owner rejected the command before committing. Allow the user
         // to repair the form; this is not an ambiguous network outcome.
         if (mounted && _actorValid && epoch == _epoch) {
           setState(() {
             _attempted = false;
-            _error = 'Le propriétaire a refusé ces valeurs. Vérifiez le prix, '
+            _error =
+                'Le propriétaire a refusé ces valeurs. Vérifiez le prix, '
                 'le mode de paiement et les quantités.';
           });
         }
@@ -233,7 +246,8 @@ class _SpaceWorkOfferEditorScreenState
     } on Object {
       if (mounted && _actorValid && epoch == _epoch) {
         setState(() {
-          _error = 'Résultat non confirmé. Vérifiez l’offre dans Métier '
+          _error =
+              'Résultat non confirmé. Vérifiez l’offre dans Métier '
               'avant de renouveler une action pour éviter un doublon.';
         });
       }
@@ -327,7 +341,8 @@ class _SpaceWorkOfferEditorScreenState
                           ),
                           validator: (v) =>
                               RegExp(r'^[A-Za-z]{3}$').hasMatch(v?.trim() ?? '')
-                              ? null : 'Code à trois lettres requis.',
+                              ? null
+                              : 'Code à trois lettres requis.',
                         ),
                         TextFormField(
                           controller: _minimum,
@@ -350,9 +365,8 @@ class _SpaceWorkOfferEditorScreenState
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) return null;
                             final max = int.tryParse(v.trim());
-                            if (max == null || max < (int.tryParse(
-                              _minimum.text,
-                            ) ?? 1)) {
+                            if (max == null ||
+                                max < (int.tryParse(_minimum.text) ?? 1)) {
                               return 'Maximum inférieur au minimum.';
                             }
                             return null;
@@ -366,7 +380,8 @@ class _SpaceWorkOfferEditorScreenState
                           items: [
                             for (final (value, label) in _modes)
                               DropdownMenuItem(
-                                value: value, child: Text(label),
+                                value: value,
+                                child: Text(label),
                               ),
                           ],
                           onChanged: _attempted
@@ -382,7 +397,8 @@ class _SpaceWorkOfferEditorScreenState
                             items: [
                               for (final (value, label) in _statuses)
                                 DropdownMenuItem(
-                                  value: value, child: Text(label),
+                                  value: value,
+                                  child: Text(label),
                                 ),
                             ],
                             onChanged: _attempted
@@ -392,9 +408,13 @@ class _SpaceWorkOfferEditorScreenState
                         const SizedBox(height: 20),
                         FilledButton(
                           onPressed: _attempted || _posting ? null : _submit,
-                          child: Text(_posting
-                              ? 'Enregistrement…'
-                              : _editing ? 'Enregistrer' : 'Créer en brouillon'),
+                          child: Text(
+                            _posting
+                                ? 'Enregistrement…'
+                                : _editing
+                                ? 'Enregistrer'
+                                : 'Créer en brouillon',
+                          ),
                         ),
                       ],
                     ),

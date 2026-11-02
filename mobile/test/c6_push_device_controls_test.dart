@@ -12,8 +12,9 @@ import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
-  testWidgets('owned push device can be revoked only through owner DELETE',
-      (tester) async {
+  testWidgets('owned push device can be revoked only through owner DELETE', (
+    tester,
+  ) async {
     var revoked = false;
     var mutations = 0;
     final requests = <String>[];
@@ -25,24 +26,31 @@ void main() {
         revoked = true;
         return const MockResponse('', 204);
       }
-      return MockResponse(jsonEncode({
-        'results': revoked ? [] : [
-          {
-            'id': 'device-1',
-            'provider': 'fcm',
-            'platform': 'android',
-            'active': true,
-            'app_version': '1.4',
-            'token_hint': 'NEVER-RENDER-HINT',
-          },
-        ],
-      }), 200);
+      return MockResponse(
+        jsonEncode({
+          'results': revoked
+              ? []
+              : [
+                  {
+                    'id': 'device-1',
+                    'provider': 'fcm',
+                    'platform': 'android',
+                    'active': true,
+                    'app_version': '1.4',
+                    'token_hint': 'NEVER-RENDER-HINT',
+                  },
+                ],
+        }),
+        200,
+      );
     });
-    final tokens = MemoryTokenStore(session: const AuthSession(
-      accessToken: 'token',
-      refreshToken: 'refresh',
-      profileId: 'profile-a',
-    ));
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'token',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
     final api = MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
       dio: client.dio,
@@ -60,12 +68,17 @@ void main() {
       api: api,
     );
     var refreshed = false;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: PushDeviceControls(
-        runtime: runtime, mutationsEnabled: true,
-        onChanged: () async => refreshed = true,
-      )),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PushDeviceControls(
+            runtime: runtime,
+            mutationsEnabled: true,
+            onChanged: () async => refreshed = true,
+          ),
+        ),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('Android'), findsOneWidget);
@@ -76,7 +89,10 @@ void main() {
     expect(mutations, 1);
     expect(refreshed, isTrue);
     expect(find.text('Aucun appareil actif pour ce Profil.'), findsOneWidget);
-    expect(requests, contains('/api/v1/notifications/push/endpoints/device-1/'));
+    expect(
+      requests,
+      contains('/api/v1/notifications/push/endpoints/device-1/'),
+    );
   });
 
   testWidgets('stale projection has read-only device actions', (tester) async {
@@ -92,11 +108,13 @@ void main() {
         200,
       );
     });
-    final tokens = MemoryTokenStore(session: const AuthSession(
-      accessToken: 'token',
-      refreshToken: 'refresh',
-      profileId: 'profile-a',
-    ));
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'token',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
     final api = MakoloApiClient(
       baseUri: Uri.parse('https://makolo.invalid/'),
       dio: client.dio,
@@ -113,11 +131,17 @@ void main() {
       recovery: SessionRecoveryController(),
       api: api,
     );
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(body: PushDeviceControls(
-        runtime: runtime, mutationsEnabled: false, onChanged: () async {},
-      )),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PushDeviceControls(
+            runtime: runtime,
+            mutationsEnabled: false,
+            onChanged: () async {},
+          ),
+        ),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     final button = tester.widget<OutlinedButton>(

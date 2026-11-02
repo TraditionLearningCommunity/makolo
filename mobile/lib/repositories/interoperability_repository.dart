@@ -172,13 +172,17 @@ class DomainIntegrationProjection {
       owner: json['owner'] is String ? json['owner'] as String : '',
       kind: json['kind'] is String ? json['kind'] as String : '',
       displayName: json['display_name'] is String
-          ? json['display_name'] as String : '',
+          ? json['display_name'] as String
+          : '',
       status: json['status'] is String ? json['status'] as String : '',
       available: json['available'] == true,
       connected: json['connected'] == true,
       description: json['description'] is String
-          ? json['description'] as String : '',
-      activeCount: json['active_count'] is int ? json['active_count'] as int : 0,
+          ? json['description'] as String
+          : '',
+      activeCount: json['active_count'] is int
+          ? json['active_count'] as int
+          : 0,
     );
   }
 }

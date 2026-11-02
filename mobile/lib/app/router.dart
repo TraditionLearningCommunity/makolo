@@ -487,9 +487,7 @@ GoRouter createMakoloRouter(
               message: 'Choisissez cet Espace et sa responsabilité globale.',
             );
           }
-          return SpaceTransportCreateScreen(
-            runtime: runtime, actor: actor,
-          );
+          return SpaceTransportCreateScreen(runtime: runtime, actor: actor);
         },
       ),
       GoRoute(

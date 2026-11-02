@@ -148,9 +148,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
             Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
             TextButton(onPressed: _load, child: const Text('Réessayer')),
           ] else if (!hasPoints && !_collection.hasNext)
-            const Text(
-              'Aucun lieu à afficher pour cette recherche.',
-            )
+            const Text('Aucun lieu à afficher pour cette recherche.')
           else ...[
             if (hasPoints) ...[
               SizedBox(
@@ -168,9 +166,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          'Impossible d’afficher la carte.',
-                        ),
+                        const Text('Impossible d’afficher la carte.'),
                         if (state == MakoloMapRuntimeState.error)
                           TextButton(
                             onPressed: retry,

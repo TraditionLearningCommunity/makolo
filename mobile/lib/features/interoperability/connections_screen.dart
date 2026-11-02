@@ -202,8 +202,11 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     return Card(
       child: ListTile(
         key: Key('domain-integration-${item.code}'),
-        leading: Icon(item.kind == 'device_registration'
-            ? Icons.notifications_outlined : Icons.account_balance_outlined),
+        leading: Icon(
+          item.kind == 'device_registration'
+              ? Icons.notifications_outlined
+              : Icons.account_balance_outlined,
+        ),
         title: Text(item.displayName),
         subtitle: Text('$status\n${item.description}'),
         isThreeLine: true,
@@ -237,9 +240,13 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   }
 
   bool _mutationsAllowed(SyncStatus? status) {
-    if (!_initialLoadComplete || _refreshing || _refreshFailed ||
-        !widget.runtime.isAuthenticated || widget.runtime.api == null ||
-        widget.runtime.sync == null) return false;
+    if (!_initialLoadComplete ||
+        _refreshing ||
+        _refreshFailed ||
+        !widget.runtime.isAuthenticated ||
+        widget.runtime.api == null ||
+        widget.runtime.sync == null)
+      return false;
     return status?.state != SyncVisualState.offline &&
         status?.state != SyncVisualState.failed &&
         status?.state != SyncVisualState.stale &&
@@ -323,12 +330,15 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         ],
         if (projection.domainIntegrations.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
-          Text('Services utilisés dans Makolo',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Services utilisés dans Makolo',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           for (final integration in projection.domainIntegrations)
             _domainIntegrationCard(integration),
           if (projection.domainIntegrations.any(
-              (item) => item.code == 'notifications.push'))
+            (item) => item.code == 'notifications.push',
+          ))
             PushDeviceControls(
               runtime: widget.runtime,
               mutationsEnabled: _mutationsAllowed(syncStatus),
