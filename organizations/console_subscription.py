@@ -24,7 +24,7 @@ from subscriptions.security_services import (
     request_subscription_transition_for_actor,
 )
 from subscriptions.transition_models import SubscriptionTransition
-from subscriptions.ux_continuation import safe_action_return
+from subscriptions.ux_continuation import safe_action_return, subscription_return_home
 
 from .console_views import SpaceConsoleMixin
 
@@ -32,6 +32,13 @@ from .console_views import SpaceConsoleMixin
 class SpaceSubscriptionMixin(SpaceConsoleMixin):
     module_key = "subscription"
     page_title = "Abonnement"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["subscription_return_url"] = safe_action_return(
+            self.request, space=self.space,
+        )
+        return context
 
     def get_subscription(self):
         subscription = (
@@ -152,7 +159,7 @@ class SpaceSubscriptionChangeView(SpaceSubscriptionMixin, View):
             messages.success(request, "La demande de changement de l’Espace a été enregistrée.")
             if transition.status == SubscriptionTransitionStatus.COMPLETED:
                 messages.success(request, "La nouvelle formule de l’Espace est active.")
-        return redirect("organizations:console-subscription", slug=self.space.slug)
+        return redirect(subscription_return_home(request, space=self.space))
 
 
 class SpaceAddonRemovePreviewView(SpaceSubscriptionMixin, TemplateView):
@@ -198,7 +205,7 @@ class SpaceAddonRemoveView(SpaceSubscriptionMixin, View):
             messages.error(request, "; ".join(exc.messages))
         else:
             messages.success(request, "La demande de retrait de l’option a été enregistrée.")
-        return redirect("organizations:console-subscription", slug=self.space.slug)
+        return redirect(subscription_return_home(request, space=self.space))
 
 
 class SpaceTransitionCancelView(SpaceSubscriptionMixin, View):
@@ -216,7 +223,7 @@ class SpaceTransitionCancelView(SpaceSubscriptionMixin, View):
             messages.error(request, "; ".join(exc.messages))
         else:
             messages.success(request, "La demande a été annulée.")
-        return redirect("organizations:console-subscription", slug=self.space.slug)
+        return redirect(subscription_return_home(request, space=self.space))
 
 
 class SpaceTransitionCompleteView(SpaceSubscriptionMixin, View):
@@ -233,4 +240,4 @@ class SpaceTransitionCompleteView(SpaceSubscriptionMixin, View):
             messages.error(request, "; ".join(exc.messages))
         else:
             messages.success(request, "Le changement de formule de l’Espace est terminé.")
-        return redirect("organizations:console-subscription", slug=self.space.slug)
+        return redirect(subscription_return_home(request, space=self.space))
