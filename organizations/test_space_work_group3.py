@@ -267,15 +267,33 @@ class SpaceWorkGroup3Tests(TestCase):
             item for item in sections["active"]["items"]
             if item["source"]["id"] == str(order.pk)
         )
-        self.assertEqual(order_row["owner_url"], reverse(
-            "organizations:space-retrieval-order-detail",
-            kwargs={"slug": self.space.slug, "order_id": order.pk},
-        ))
-        self.assertEqual(order_row["owner_label"], "Voir la commande")
         self.assertEqual(
-            sections["offers"]["items"][0]["owner_url"],
-            reverse("organizations:console-offers", kwargs={"slug": self.space.slug}),
+            order_row["owner_url"],
+            reverse(
+                "organizations:space-work-depth-g3",
+                kwargs={
+                    "slug": self.space.slug, "kind": "commerce_order",
+                    "owner_id": order.pk,
+                },
+            ) + "?responsibility=all&from=active",
         )
+        self.assertEqual(order_row["owner_label"], "Voir la commande")
+        self.assertEqual(self.client.get(order_row["owner_url"]).status_code, 200)
+        offer_row = sections["offers"]["items"][0]
+        self.assertEqual(
+            offer_row["owner_url"],
+            reverse(
+                "organizations:space-work-depth-g3",
+                kwargs={
+                    "slug": self.space.slug, "kind": "offer",
+                    "owner_id": offer_row["source"]["id"],
+                },
+            ) + "?responsibility=all&from=offers",
+        )
+        self.assertEqual(offer_row["owner_label"], "Voir l’offre")
+        offer_depth = self.client.get(offer_row["owner_url"])
+        self.assertEqual(offer_depth.status_code, 200)
+        self.assertContains(offer_depth, "Trousse disponible")
         self.assertContains(response, "Commandes et traitement")
         self.assertContains(response, "Disponibilité" if False else "Ce que nous rendons disponible")
         self.assertNotContains(response, self.client_user.email)
@@ -316,23 +334,34 @@ class SpaceWorkGroup3Tests(TestCase):
         )
         self.assertEqual(
             active["owner_url"], reverse(
-                "organizations:console-transport-departure-detail",
-                kwargs={"slug": self.space.slug, "departure_id": departure.pk},
-            ),
+                "organizations:space-work-depth-g3",
+                kwargs={"slug": self.space.slug, "kind": "occurrence",
+                        "owner_id": occurrence.pk},
+            ) + "?responsibility=all&from=active",
         )
+        self.assertEqual(self.client.get(active["owner_url"]).status_code, 200)
         route_row = sections["routes"]["items"][0]
         self.assertEqual(
             route_row["owner_url"], reverse(
-                "organizations:console-transport-route-detail",
-                kwargs={"slug": self.space.slug, "route_id": route.pk},
-            ),
+                "organizations:space-work-depth-g3",
+                kwargs={"slug": self.space.slug, "kind": "transport_route",
+                        "owner_id": route.pk},
+            ) + "?responsibility=all&from=routes",
         )
+        route_detail = self.client.get(route_row["owner_url"])
+        self.assertEqual(route_detail.status_code, 200)
+        self.assertContains(route_detail, "Route Matadi")
         vehicle_row = sections["vehicles"]["items"][0]
         self.assertEqual(
             vehicle_row["owner_url"], reverse(
-                "organizations:console-transport", kwargs={"slug": self.space.slug},
-            ),
+                "organizations:space-work-depth-g3",
+                kwargs={"slug": self.space.slug, "kind": "vehicle",
+                        "owner_id": vehicle.pk},
+            ) + "?responsibility=all&from=vehicles",
         )
+        vehicle_detail = self.client.get(vehicle_row["owner_url"])
+        self.assertEqual(vehicle_detail.status_code, 200)
+        self.assertContains(vehicle_detail, "25")
         self.assertContains(response, "Départs et exploitation")
         self.assertContains(response, "Aujourd’hui")
         self.assertContains(response, "Bus Matadi")
