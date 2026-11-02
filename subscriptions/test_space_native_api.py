@@ -224,6 +224,15 @@ class NativeSpaceSubscriptionTests(TestCase):
         self.assertNotIn("payment_obligation_id", restricted["transition"])
         self.assertNotIn(str(paid["payment_obligation_id"]), str(restricted))
 
+        from .billing_presentation import next_payment_url_for_actor
+        from .transition_models import SubscriptionTransition
+        transition = SubscriptionTransition.objects.get(pk=paid["id"])
+        with patch(
+            "subscriptions.billing_presentation.space_ids_with_permission",
+            return_value=[],
+        ):
+            self.assertIsNone(next_payment_url_for_actor(transition, self.owner))
+
     def test_nous_handoff_respects_subscription_mandate(self):
         owner = build_space_us_projection(profile=self.owner, space=self.space)
         self.assertEqual(owner["handoffs"]["subscription"], f"/space/{self.space.slug}/subscription")
