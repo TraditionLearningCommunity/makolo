@@ -777,12 +777,6 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   }
 }
 
-   focusPreferred: 560,
-      focusMax: 720,
-    );
-  }
-}
-
 class _DiscoveryScrollableField extends StatelessWidget {
   const _DiscoveryScrollableField({
     required this.selection,
