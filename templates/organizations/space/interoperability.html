@@ -39,6 +39,20 @@
   </div>
   {% endif %}
 
+  {% if domain_integrations %}
+  <section class="mk-ws4-card" aria-labelledby="space-owner-integrations">
+    <div class="mk-ws4-card-head">
+      <h3 id="space-owner-integrations">Capacités métier autorisées</h3>
+    </div>
+    <p>Ce ne sont pas des comptes bancaires connectés : Payments conserve les obligations, les permissions et l'exécution.</p>
+    <ul class="mk-ws4-list">
+      {% for integration in domain_integrations %}
+      <li><div><strong>{{ integration.display_name }}</strong><small>{{ integration.description }}</small></div></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
   {% include 'intelligence/connection_management.html' %}
 
   <nav class="mk-ws4-actions" aria-label="Navigation Connexions">
