@@ -100,9 +100,21 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   Future<void> _refreshAndConfirm() async {
     if (_refreshing) throw StateError('Vérification déjà en cours.');
     final generation = _ownerGeneration;
+    final repository = widget.runtime.interoperability;
+    if (repository == null) {
+      throw StateError('Aucune lecture propriétaire disponible.');
+    }
+    final before = await repository.read();
     await _refresh();
     if (generation != _ownerGeneration || _refreshFailed || _refreshing) {
       throw StateError('Le serveur n’a pas confirmé cette projection.');
+    }
+    // A discarded/out-of-order SyncEngine pull resolves without throwing.
+    // A real server-applied projection must have a newer observation timestamp.
+    final after = await repository.read();
+    if (after == null ||
+        (before != null && !after.receivedAt.isAfter(before.receivedAt))) {
+      throw StateError('Aucune nouvelle observation serveur confirmée.');
     }
   }
 
