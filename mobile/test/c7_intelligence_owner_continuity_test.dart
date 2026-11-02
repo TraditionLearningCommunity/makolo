@@ -122,7 +122,7 @@ void main() {
     await tester.tap(find.text('Ancien propriétaire'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Relier tavily'), findsOneWidget);
+    expect(find.text('Relier Ancien propriétaire'), findsOneWidget);
     currentPath.value =
         'api/v1/organizations/workspaces/new/intelligence/connections/';
     await tester.pump();
