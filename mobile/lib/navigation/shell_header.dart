@@ -203,7 +203,7 @@ class MakoloPrimaryHeader extends StatelessWidget
           button: true,
           label: avatarContextLabel ?? 'Avatar',
           child: IconButton(
-            tooltip: avatarContextLabel ?? 'Avatar',
+            tooltip: 'Avatar',
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: onAvatar,
             icon: Container(
