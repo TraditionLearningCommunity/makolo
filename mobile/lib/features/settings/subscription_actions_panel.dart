@@ -199,6 +199,10 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     if (!_sameSubject(sourceRuntime, profileId) || widget.runtime.api != api)
       return;
     setState(() => _busy = false);
+    final billedAmount = num.tryParse(
+      _object(preview['billing_terms'])?['amount']?.toString() ?? '',
+    );
+    final paidChoice = billedAmount != null && billedAmount > 0;
     final intent = _uniqueIntent();
     var confirming = false;
     String? failed;
@@ -357,7 +361,11 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                 },
                           child: Text(
                             canManage && preview['can_confirm'] != false
-                                ? (confirming ? 'Confirmation…' : 'Confirmer')
+                                ? (confirming
+                                      ? 'Confirmation…'
+                                      : paidChoice
+                                          ? 'Continuer vers le paiement'
+                                          : 'Appliquer le changement')
                                 : 'Consultation uniquement',
                           ),
                         ),
