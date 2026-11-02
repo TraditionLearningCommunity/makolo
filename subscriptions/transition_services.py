@@ -469,7 +469,8 @@ def sync_transition_payment_assessment(*, obligation, actor=None):
         _sync_payment_assessment_locked(link.assessment, actor=actor)
         transitions[link.assessment.transition_id] = link.assessment.transition
     for transition in transitions.values():
-        evaluate_transition_readiness(transition=transition)
+        evaluated = evaluate_transition_readiness(transition=transition)
+        finalize_ready_self_service_transition(transition=evaluated)
     return tuple(link.assessment for link in links)
 
 
@@ -693,6 +694,22 @@ def complete_subscription_transition(*, transition):
         SubscriptionTransitionStatus.COMPLETED,
         at=now,
     )
+
+
+def finalize_ready_self_service_transition(*, transition):
+    """Apply a ready self-service choice without an artificial approval step.
+
+    Readiness still owns mandatory requirements and the billing guard; a pending
+    or failed payment cannot activate the target. Staff/system flows are left
+    under their explicit orchestration.
+    """
+    transition.refresh_from_db(fields=["status", "request_origin"])
+    if (
+        transition.request_origin == SubscriptionTransitionRequestOrigin.SELF_SERVICE
+        and transition.status == SubscriptionTransitionStatus.READY
+    ):
+        return complete_subscription_transition(transition=transition)
+    return transition
 
 
 @transaction.atomic
