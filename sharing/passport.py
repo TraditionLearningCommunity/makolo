@@ -441,16 +441,27 @@ def build_profile_passport(
             "gender": profile.get_gender_display() if profile.gender else "",
         }
     if custom:
-        # The identity baseline remains visible across variants, but only
-        # its publicly authorized facts are implicit. A private fact must
-        # be deliberately selected before it can enter an issued document.
+        # A custom Passport may omit public facts only by explicit selection.
+        # An absent selection is not a privacy instruction. Preserve the
+        # public baseline (identity and each authorized social link) while
+        # excluding unselected private facts, without altering source policy.
         public_fields = ProfileVisibilityResolver(owner=profile, viewer=None)
         if "avatar" not in sections and not public_fields.field("avatar"):
             identity["avatar_url"] = ""
-        if "bio" not in sections:
+        if "bio" not in sections and not public_fields.field("bio"):
             identity["bio"] = ""
         if "links" not in sections:
-            identity["links"] = ()
+            identity["links"] = tuple(
+                (label, url) for label, url, field in (
+                    ("Site web", profile.website, "website"),
+                    ("LinkedIn", profile.linkedin_url, "linkedin_url"),
+                    ("Facebook", profile.facebook_url, "facebook_url"),
+                    ("Instagram", profile.instagram_url, "instagram_url"),
+                    ("TikTok", profile.tiktok_url, "tiktok_url"),
+                    ("X / Twitter", profile.x_url, "x_url"),
+                    ("YouTube", profile.youtube_url, "youtube_url"),
+                ) if url and public_fields.field(field)
+            )
         if "location" not in sections:
             location_row = UserProfile.objects.filter(user=profile).first()
             identity["location"] = ", ".join(
@@ -462,9 +473,9 @@ def build_profile_passport(
         if "profession" not in sections and not public_fields.field("profession"):
             identity["profession"] = ""
             identity["headline"] = ""
-        if "company_name" not in sections:
+        if "company_name" not in sections and not public_fields.field("company_name"):
             identity["company_name"] = ""
-        if "organization_name" not in sections:
+        if "organization_name" not in sections and not public_fields.field("organization_name"):
             identity["organization_name"] = ""
 
     observed_at = timezone.now()
