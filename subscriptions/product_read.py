@@ -54,8 +54,8 @@ _SUBSCRIPTION_STATUS = {
 }
 
 _TRANSITION_STATUS = {
-    SubscriptionTransitionStatus.REQUESTED: ("Demande reçue", "Votre demande a bien été enregistrée."),
-    SubscriptionTransitionStatus.IN_PROGRESS: ("En cours", "Makolo vérifie la demande en cours."),
+    SubscriptionTransitionStatus.REQUESTED: ("Choix enregistré", "Makolo prépare la suite de votre changement."),
+    SubscriptionTransitionStatus.IN_PROGRESS: ("À finaliser", "Le paiement ou une condition du changement reste à finaliser."),
     SubscriptionTransitionStatus.READY: ("Prête", "Le changement peut maintenant être finalisé."),
     SubscriptionTransitionStatus.COMPLETED: ("Terminée", "Le changement de formule est terminé."),
     SubscriptionTransitionStatus.REJECTED: ("Non aboutie", "La demande ne peut pas être finalisée."),
@@ -65,10 +65,10 @@ _TRANSITION_STATUS = {
 }
 
 _ELIGIBILITY_STATUS = {
-    PlanEligibilityStatus.AVAILABLE: ("Disponible", "Cette formule peut être demandée.", "success"),
+    PlanEligibilityStatus.AVAILABLE: ("Disponible", "Vous pouvez choisir cette formule.", "success"),
     PlanEligibilityStatus.CONDITIONALLY_AVAILABLE: (
         "Conditions à remplir",
-        "Cette formule peut être demandée, mais certaines conditions doivent encore être remplies.",
+        "Certaines conditions doivent être remplies avant son activation.",
         "warning",
     ),
     PlanEligibilityStatus.NOT_ELIGIBLE: (
@@ -225,7 +225,7 @@ def _catalog_rows(subscription, active_items):
         label, explanation, tone = _ELIGIBILITY_STATUS[result.status]
         if result.status == PlanEligibilityStatus.CONDITIONALLY_AVAILABLE and not requirements:
             label = "Disponibilité à confirmer"
-            explanation = "Cette formule peut être demandée. Sa disponibilité finale sera confirmée après la demande."
+            explanation = "Cette formule nécessite encore une vérification de ses conditions."
         if current:
             label = "Formule actuelle"
             explanation = "Cette formule est déjà incluse dans votre abonnement."
