@@ -166,8 +166,6 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
             onPressed: () => _create(),
             icon: const Icon(Icons.add_alert_outlined),
           ),
-        ],
-        actions: [
           IconButton(
             tooltip: 'Actualiser',
             onPressed: _refreshing ? null : _refresh,
