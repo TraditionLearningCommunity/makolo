@@ -10,6 +10,7 @@ from django.utils import timezone
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from core.api.z8_projection import build_personal_passport_depth_data
 from journeys.models import Journey, JourneyStatus, WorkflowKind
+from groups.models import Group, GroupStatus
 from sharing.passport import build_profile_passport, profile_passport_topic_options
 from sharing.test_g6_passport import G6PassportFixtureMixin
 from topics.models import ActionMatchKind, ActivityTopic, ProfileOpenTo, Topic
@@ -116,3 +117,23 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
             self.amina, variant="thematic", topic_codes=[topic.code],
         )
         self.assertEqual(list(projection.proofs), [])
+
+    def test_archived_group_does_not_appear_as_current_affiliation(self):
+        active = Group.objects.create(
+            name="Collectif actif stage 3",
+            owner_profile=self.amina,
+            created_by=self.amina,
+            status=GroupStatus.ACTIVE,
+        )
+        archived = Group.objects.create(
+            name="Collectif archive stage 3",
+            owner_profile=self.amina,
+            created_by=self.amina,
+            status=GroupStatus.ARCHIVED,
+        )
+        complete = build_profile_passport(self.amina, variant="complete")
+        group_names = {row["name"] for row in complete.group_affiliations}
+        self.assertIn(active.name, group_names)
+        self.assertNotIn(archived.name, group_names)
+        public = build_profile_passport(self.amina, variant="public")
+        self.assertEqual(public.group_affiliations, ())
