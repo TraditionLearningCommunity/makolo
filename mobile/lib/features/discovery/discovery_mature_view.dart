@@ -457,14 +457,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         if (item.candidateKey == key) return item;
       }
     }
-    final anchorKeys = _selector
-        .spatialAnchorsFromCollection(widget.selection.collection)
-        .map((anchor) => anchor.candidateKey)
-        .toSet();
-    for (final item in items) {
-      if (anchorKeys.contains(item.candidateKey)) return item;
-    }
-    return items.first;
+    return null;
   }
 
   @override
@@ -597,18 +590,44 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                       constraints: BoxConstraints(
                         maxHeight: MediaQuery.sizeOf(context).height * 0.4,
                       ),
-                      child: SingleChildScrollView(
-                        child: _DiscoveryUnit(
-                          item: selected,
-                          selected: true,
-                          onTap: () => widget.onOpen(selected),
-                          onSave: widget.onSave == null
-                              ? null
-                              : () => widget.onSave!(selected),
-                          baseUri: widget.baseUri,
-                          shareApi: widget.shareApi,
-                          profileId: widget.profileId,
-                          allowOwnerActions: widget.allowOwnerActions,
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(MakoloSpacing.md),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      selected.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Fermer l’aperçu',
+                                    onPressed: () {
+                                      setState(() => _selectedCandidateKey = null);
+                                      widget.onSelectionChanged?.call(null);
+                                    },
+                                    icon: const Icon(Icons.close),
+                                  ),
+                                ],
+                              ),
+                              if (selected.place != null)
+                                Text(selected.place!, maxLines: 1, overflow: TextOverflow.ellipsis),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () => widget.onOpen(selected),
+                                  child: const Text('Voir le détail'),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
