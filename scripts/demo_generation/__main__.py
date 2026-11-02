@@ -16,7 +16,8 @@ PERSONAL=("discovery","goals","space")
 ECOSYSTEM=("spaces","loyalty","automation")
 AFTERCARE=("outcomes",)
 SUBSCRIPTIONS=("subscriptions","subscription-catalog")
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,*AFTERCARE,*SUBSCRIPTIONS,"content")
+CONNECTIONS=("connections",)
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,*AFTERCARE,*SUBSCRIPTIONS,*CONNECTIONS,"content")
 DEFAULT=tuple(domain for domain in DOMAINS if domain not in {"content","subscriptions","subscription-catalog"})
 
 
@@ -57,7 +58,7 @@ def build_parser():
 
 
 def run(a):
-    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions
+    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions, connections
     if a.action=="validate":
         options=["--verbosity",str(a.verbosity)]
         if a.quick: options.append("--quick")
@@ -93,6 +94,8 @@ def run(a):
     print("MODE:","GENERATE" if apply else "PLAN","DOMAINES:",",".join(sorted(domains)))
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
+    if "connections" in domains:
+        connections.main(["--apply"] if apply else [])
     if "subscription-catalog" in domains:
         subscription_catalog.main(["--apply"] if apply else [])
     if "subscriptions" in domains:
