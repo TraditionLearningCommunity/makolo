@@ -10,6 +10,7 @@ from collections import Counter
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--count", type=int, default=50)
+    p.add_argument("--profile-username")
     p.add_argument("--apply", action="store_true")
     a = p.parse_args(argv)
     if not 1 <= a.count <= 10000:
@@ -30,7 +31,7 @@ def main(argv=None):
     counts = Counter()
     qs = (Journey.objects.filter(
         activity__slug__startswith="demo-",
-        beneficiary__username__startswith="world_",
+        **({"beneficiary__username": a.profile_username} if a.profile_username else {"beneficiary__username__startswith": "world_"}),
         status=JourneyStatus.CONFIRMED,
         accesses__uses__result=AccessUseResult.ACCEPTED,
     ).exclude(workflow=WorkflowKind.SERVICE).select_related(
