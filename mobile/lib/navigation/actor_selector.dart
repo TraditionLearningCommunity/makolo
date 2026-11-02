@@ -122,8 +122,20 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
     if (_switching) return;
     final controller = widget.runtime.actorContext;
     if (controller == null) return;
-    await controller.selectPersonal();
-    if (mounted) Navigator.of(context).pop();
+    setState(() {
+      _switching = true;
+      _error = null;
+    });
+    try {
+      await controller.selectPersonal();
+      if (mounted) Navigator.of(context).pop();
+    } on Object {
+      if (mounted) {
+        setState(() => _error = 'Le retour à Moi n’a pas été enregistré.');
+      }
+    } finally {
+      if (mounted) setState(() => _switching = false);
+    }
   }
 
   Future<void> _selectSpace(SpaceSummary summary) async {
@@ -181,9 +193,11 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
       if (mounted) Navigator.of(context).pop();
     } on Object {
       if (mounted) {
-        setState(
-          () => _error = 'Impossible de vérifier cet Espace. Votre contexte n’a pas changé.',
-        );
+        final current = controller.value;
+        setState(() => _error = current is PersonalActorContext
+            ? 'Les accès ont changé. Vous êtes revenu à Moi.'
+            : 'Impossible de vérifier cet Espace. '
+              'Aucun nouveau contexte n’a été sélectionné.');
       }
     } finally {
       if (mounted) setState(() => _switching = false);
