@@ -525,7 +525,7 @@ class _BillingScreenState extends State<BillingScreen> {
           for (final row in capacities)
             if (_object(row) != null) _capabilityTile(_object(row)!),
         ],
-        _heading('Gérer mon abonnement'),
+        _heading(_spaceMode ? 'Gérer l’abonnement de cet Espace' : 'Gérer mon abonnement'),
         Card(
           margin: EdgeInsets.zero,
           child: Column(
