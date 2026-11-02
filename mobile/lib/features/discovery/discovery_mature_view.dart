@@ -330,6 +330,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   DiscoveryMapController? _mapController;
   final Map<Object, String> _circleKeys = {};
   int _pinGeneration = 0;
+  bool _initialCameraPositioned = false;
 
   @override
   void dispose() {
@@ -368,6 +369,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
 
   void _mapCreated(DiscoveryMapController controller) {
     _mapController = controller;
+    _initialCameraPositioned = false;
     _circleKeys.clear();
     controller.onPinTapped((circle) {
       final key = _circleKeys[circle];
@@ -406,6 +408,28 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       }
     } on Object {
       // Map rendering failure does not erase a real Discovery list entry.
+    }
+  }
+
+  Future<void> _onStyleReady(List<DiscoverySpatialAnchor> anchors) async {
+    await _displayPins(anchors);
+    final controller = _mapController;
+    if (!mounted || controller == null || _initialCameraPositioned) return;
+    _initialCameraPositioned = true;
+    try {
+      final selected = anchors.where(
+        (anchor) => anchor.candidateKey == _selectedCandidateKey,
+      );
+      if (selected.isNotEmpty) {
+        await controller.moveTo(selected.first.latitude, selected.first.longitude);
+      } else {
+        await controller.fitPins([
+          for (final anchor in anchors)
+            DiscoveryMapPin(anchor.latitude, anchor.longitude),
+        ]);
+      }
+    } on Object {
+      _initialCameraPositioned = false;
     }
   }
 
@@ -454,7 +478,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final key = _selectedCandidateKey;
     if (key != null) {
       for (final item in items) {
-        if (item.candidateKey == key) return item;
+        if (item.candidateKey == key &&
+            _selector.spatialAnchorsFromCollection(widget.selection.collection)
+                .any((anchor) => anchor.candidateKey == key)) return item;
       }
     }
     return null;
@@ -495,11 +521,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     if (points.isEmpty && !widget.showMapOnCompact) {
       return field;
     }
-    if (points.isEmpty) {
-      return const Center(child: Text('Aucun lieu à afficher sur la carte'));
-    }
-
-    final anchor = selectedPoint ?? points.first;
+    final anchor = selectedPoint ?? (points.isEmpty ? null : points.first);
     final spatial = MakoloSpatialFrame(
       spatial: Stack(
         key: const Key('discover-spatial-stack'),
@@ -507,15 +529,17 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           Positioned.fill(
             child: ConfiguredMakoloMapView(
               key: ValueKey(
-                'discover-map-${widget.fieldKey ?? anchor.candidateKey}',
+                'discover-map-${widget.fieldKey ?? 'spatial'}',
               ),
               onMapCreated: (controller) =>
                   _mapCreated(DiscoveryMapController(controller)),
-              onStyleReady: () => unawaited(_displayPins(points)),
+              onStyleReady: () => unawaited(_onStyleReady(points)),
               config: widget.mapConfig,
               initialViewport: MapViewport(
-                center: MapCoordinate(anchor.latitude, anchor.longitude),
-                zoom: 11,
+                center: anchor == null
+                    ? const MapCoordinate(0, 0)
+                    : MapCoordinate(anchor.latitude, anchor.longitude),
+                zoom: anchor == null ? 1 : 11,
               ),
               fallbackBuilder: (context, state, retry) {
                 final retryable = state == MakoloMapRuntimeState.error;
@@ -557,6 +581,23 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
               fit: StackFit.expand,
               children: [
                 spatial,
+                if (points.isEmpty && widget.selection.hasSnapshot)
+                  Positioned(
+                    top: 72,
+                    left: MakoloSpacing.sm,
+                    right: MakoloSpacing.sm,
+                    child: Center(
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(MakoloSpacing.sm),
+                          child: Text(
+                            'Aucune possibilité localisée',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   top: MakoloSpacing.sm,
                   right: MakoloSpacing.sm,
