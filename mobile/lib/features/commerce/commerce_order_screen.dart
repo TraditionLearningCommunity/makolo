@@ -128,7 +128,7 @@ class _CommerceOrderScreenState extends State<CommerceOrderScreen> {
                 'none' => 'Aucun paiement requis pour cette commande.',
                 'on_site' => 'Paiement prévu sur place. Aucun règlement confirmé dans Makolo.',
                 'later' => 'Paiement différé. Aucun règlement confirmé.',
-                _ => 'L’état financier doit être vérifié auprès de Makolo.',
+                _ => 'Statut du paiement à vérifier.',
               }),
             ],
           ],

@@ -700,7 +700,7 @@ class _FormCard extends StatelessWidget {
         title: 'Formulaire',
         subtitle: form.canComplete
             ? 'Une réponse est attendue.'
-            : 'Consultation uniquement pour le moment.',
+            : 'Formulaire en lecture seule.',
         status: MakoloHumanization.presentationLabel(form.state) == null
             ? null
             : MakoloStatus(

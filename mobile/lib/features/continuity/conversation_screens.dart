@@ -141,7 +141,6 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                 state: surface,
                 empty: const MakoloEmptyState(
                   title: 'Aucune conversation',
-                  body: 'Rien ne demande votre attention ici pour le moment.',
                 ),
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement des conversations…',

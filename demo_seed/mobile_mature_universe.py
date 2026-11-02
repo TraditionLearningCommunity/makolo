@@ -379,23 +379,14 @@ def _occurrence_status(spec: dict) -> str:
 
 
 def _activity_copy(spec: dict, vertical: str) -> tuple[str, str]:
-    place = spec.get("geo") or "lieu à confirmer"
-    relation = RELATION_LABELS.get(spec.get("relation"), spec.get("relation", "à suivre"))
-    state = STATE_LABELS.get(spec.get("state"), spec.get("state", "à suivre"))
-    intros = {
-        "event": "Un rendez-vous culturel, professionnel ou communautaire",
-        "transport": "Un déplacement inscrit dans les habitudes de mobilité d’Alain",
-        "service": "Un service utile à une démarche personnelle ou professionnelle",
-        "funding": "Une possibilité de financement ou de prise en charge",
-    }
-    intro = intros.get(vertical, "Une possibilité utile")
-    short = f"{intro}, à {place}. Situation actuelle : {state}."
+    """Public-facing copy for a synthetic beta activity, never a real offer."""
+    place = spec.get("geo")
+    short = f"Exemple fictif · {place}" if place else "Exemple fictif"
     description = (
-        f"{spec['title']} fait partie du parcours d’Alain Kabeya. "
-        f"Cette réalité est localisée ou rattachée à {place} et apparaît comme {relation}. "
-        f"Les dates, accès, ressources et prochaines étapes associés sont disponibles dans Makolo."
+        "Exemple fictif de démonstration. "
+        "Aucune inscription, réservation ou prestation réelle n’est proposée."
     )
-    return short[:320], description
+    return short, description
 
 
 def _activity(spec: dict, *, vertical: str, space: Organization, actor: User) -> Activity:
@@ -843,10 +834,10 @@ def _seed_obtentions(ctx, specs, *, space, actor, primary, places, activities, o
                 actor=actor,
                 space=space,
                 title=spec["title"],
-                short_description=f"{spec['title']} — {RELATION_LABELS.get(spec.get('relation'), 'à suivre')}.",
+                short_description="Exemple fictif",
                 description=(
-                    f"{spec['title']} fait partie des choses qu’Alain souhaite acheter, louer, emprunter ou recevoir. "
-                    f"Makolo suit la remise effective ou le droit d’usage, indépendamment du paiement."
+                    "Exemple fictif de démonstration. "
+                    "Aucune commande, location ni remise réelle n’est proposée."
                 ),
                 targets=[{"title": spec["title"], "quantity": "1", "unit": "unité"}],
                 modes=[MODE_CYCLE[index % len(MODE_CYCLE)]],

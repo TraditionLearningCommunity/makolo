@@ -38,7 +38,7 @@ class SpaceWorkSurface extends StatelessWidget {
         _map(payload['capabilities'])?['create_transport'] == true &&
         spaceSlug != null;
     if (sections == null) {
-      return _message('Cette vue n’est pas disponible pour le moment.');
+      return _message('Impossible d’afficher ces informations.');
     }
 
     final visible = <_WorkSection>[];

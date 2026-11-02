@@ -532,14 +532,14 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                         const Icon(Icons.map_outlined),
                         const SizedBox(height: MakoloSpacing.sm),
                         const Text(
-                          'La carte n’est pas disponible. Le champ reste entièrement utilisable.',
+                          'Impossible d’afficher la carte.',
                           textAlign: TextAlign.center,
                         ),
                         if (retryable) ...[
                           const SizedBox(height: MakoloSpacing.md),
                           OutlinedButton(
                             onPressed: retry,
-                            child: const Text('Réessayer la carte'),
+                            child: const Text('Réessayer'),
                           ),
                         ],
                       ],
@@ -1094,14 +1094,14 @@ class _DiscoveryEmptyState extends StatelessWidget {
     if (states.contains(DiscoveryFieldState.noMatch)) {
       return _EmptyBody(
         icon: Icons.search_off_outlined,
-        title: 'Aucun résultat pour ces critères.',
-        actionLabel: onResetCriteria == null ? null : 'Modifier mes critères',
+        title: 'Aucun résultat.',
+        actionLabel: onResetCriteria == null ? null : 'Modifier les filtres',
         onAction: onResetCriteria,
       );
     }
     return const _EmptyBody(
       icon: Icons.explore_outlined,
-      title: 'Aucune opportunité disponible.',
+      title: 'Aucune possibilité pour le moment.',
     );
   }
 }

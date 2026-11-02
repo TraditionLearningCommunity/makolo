@@ -96,8 +96,7 @@ class AppSettingsScreen extends StatelessWidget {
           if (value == null || preferences == null)
             const ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('Apparence indisponible sur cet appareil'),
-              subtitle: Text('Les autres réglages restent accessibles.'),
+              title: Text('Impossible de modifier l’apparence'),
             )
           else
             Semantics(

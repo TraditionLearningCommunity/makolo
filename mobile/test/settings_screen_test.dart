@@ -205,7 +205,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text('Apparence indisponible sur cet appareil'),
+        find.text('Impossible de modifier l’apparence'),
         findsOneWidget,
       );
       expect(find.text('Réduire les animations'), findsOneWidget);

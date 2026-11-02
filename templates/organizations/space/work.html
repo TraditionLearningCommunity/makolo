@@ -51,7 +51,7 @@
   {% if not work_has_items %}
   <section class="mk-panel p-6" role="status" aria-labelledby="work-empty-title">
     <h3 id="work-empty-title" class="text-xl font-extrabold">{{ projection.presentation.empty_message }}</h3>
-    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Cette vue reste vide tant que les propriétaires métier ne projettent aucun travail accessible. Makolo n’invente pas d’activité pour remplir l’écran.</p>
+    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Aucune activité à afficher pour le moment.</p>
   </section>
   {% endif %}
 
@@ -139,7 +139,7 @@
       {% endif %}
 
       {% if section.has_more %}
-      <p class="mt-4 text-xs" style="color:var(--mk-subtle)">La projection serveur limite cet aperçu. Continuez dans les outils propriétaires pour la profondeur complète.</p>
+      <p class="mt-4 text-xs" style="color:var(--mk-subtle)">D’autres éléments sont accessibles dans les outils de cet espace.</p>
       {% endif %}
     </section>
     {% endfor %}
@@ -148,8 +148,8 @@
   <footer class="mk-panel p-5 sm:p-6">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p class="font-bold">Besoin d’une opération plus profonde ?</p>
-        <p class="mt-1 text-sm" style="color:var(--mk-muted)">La Console reste une profondeur owner-backed ; Métier ne remplace ni Transport, ni Commerce, ni Services, ni les autres domaines propriétaires.</p>
+        <p class="font-bold">Autres actions</p>
+        <p class="mt-1 text-sm" style="color:var(--mk-muted)">Retrouvez les opérations détaillées dans les outils de votre espace.</p>
       </div>
       <a href="{{ space_console_url }}" class="mk-btn mk-btn-secondary shrink-0">Ouvrir les outils de l’Espace</a>
     </div>

@@ -138,7 +138,7 @@ def _event(ctx, key, space, manager, category, place, title, days, hour, *, stat
         })
         ticket_type = upsert(TicketType, f"beta-event-{key}", defaults={
             "event": event, "offer": offer, "capacity_pool": pool, "name": "Standard", "slug": "standard",
-            "description": "Projection Event du tarif canonique.", "is_public": True,
+            "description": "Tarif fictif associé à cet événement.", "is_public": True,
         })
     return {"activity": activity, "occurrence": occ, "event": event, "pool": pool, "offer": offer, "ticket_type": ticket_type}
 
@@ -176,7 +176,7 @@ def _transport(ctx, users, space, places):
         TransportRouteStop.objects.update_or_create(route=route, position=2, defaults={"place": destination, "boarding_allowed": False, "alighting_allowed": True})
         activity = upsert(Activity, f"beta-transport-{key}", defaults={
             "space": space, "created_by": users["transport_operator"], "title": route.name, "slug": f"beta-transport-{key}",
-            "short_description": "Trajet routier fictif de la bêta Makolo.", "description": "Transport canonique indépendant d’Events.",
+            "short_description": "Trajet routier fictif de la bêta Makolo.", "description": "Exemple fictif de trajet routier.",
             "status": ActivityStatus.PUBLISHED, "visibility": ActivityVisibility.PUBLIC,
         })
         service = upsert(TransportService, f"beta-{key}", defaults={"activity": activity, "route": route, "mode": "road"})

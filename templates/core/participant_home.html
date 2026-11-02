@@ -11,20 +11,19 @@
 
   {% if home.is_unavailable %}
     <section class="mk-calm-state" aria-labelledby="home-unavailable-title">
-      <h2 id="home-unavailable-title">Maintenant n’est pas disponible.</h2>
-      <p>{% if home.terminal_message %}{{ home.terminal_message }}{% else %}Nous ne pouvons pas confirmer ce qui compte actuellement.{% endif %}</p>
+      <h2 id="home-unavailable-title">Impossible de charger votre situation.</h2>
+      <p>{% if home.terminal_message %}{{ home.terminal_message }}{% else %}Impossible de charger les informations actuelles.{% endif %}</p>
       <a href="{{ request.get_full_path }}" class="mk-now-cta">Actualiser</a>
     </section>
   {% elif home.all_clear %}
     <section class="mk-calm-state" aria-labelledby="home-clear-title">
       <span class="mk-calm-state__icon" aria-hidden="true"><i data-lucide="circle-check-big"></i></span>
       <h2 id="home-clear-title">{% if home.terminal_message %}{{ home.terminal_message }}{% else %}Tout est en ordre. ✓{% endif %}</h2>
-      <p>Rien à faire pour le moment.</p>
     </section>
   {% else %}
     {% if home.is_partial %}
     <section class="mk-now-secondary" role="status" aria-labelledby="home-partial-title">
-      <div><h2 id="home-partial-title">Vue partielle</h2><p>Ce qui est établi reste affiché. D’autres éléments peuvent manquer.</p></div>
+      <div><h2 id="home-partial-title">Informations incomplètes</h2><p>Certaines informations peuvent manquer.</p></div>
       <a href="{{ request.get_full_path }}" class="mk-now-cta">Actualiser</a>
     </section>
     {% elif home.is_stale %}
@@ -114,15 +113,15 @@
     </section>
     {% elif not home.primary_attention %}
     <section class="mk-calm-state" aria-labelledby="home-undetermined-title">
-      <h2 id="home-undetermined-title">Aucune situation à afficher.</h2>
-      <p>Cette vue ne permet pas de conclure que tout est en ordre.</p>
+      <h2 id="home-undetermined-title">Situation à vérifier</h2>
+      <p>Impossible de confirmer que tout est en ordre.</p>
     </section>
     {% else %}
     <section class="mk-now-list" id="now-stream" aria-label="Autres choses qui comptent maintenant"></section>
     {% endif %}
     {% if home.primary_attention %}
     <div id="now-infinite" data-next-token="{{ home.continuation_token|default:'' }}" data-state="{{ home.continuation_state|default:'end' }}" aria-live="polite">
-      <span id="now-infinite-status">{% if home.continuation_state == "end" %}Vous avez tout exploré{% endif %}</span>
+      <span id="now-infinite-status">{% if home.continuation_state == "end" %}Fin de la liste{% endif %}</span>
     </div>
     {% endif %}
   {% endif %}

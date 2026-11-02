@@ -148,7 +148,7 @@ class _MarkScreenState extends State<MarkScreen> {
   Future<void> _capturePhoto() async {
     final coordinator = await _fileCoordinator();
     if (coordinator == null) {
-      _show('La capture photo locale n’est pas disponible dans cette session.');
+      _show('Impossible de prendre une photo.');
       return;
     }
     final result = await coordinator.capturePhoto(
@@ -192,7 +192,7 @@ class _MarkScreenState extends State<MarkScreen> {
     if (_busy) return;
     final input = _input.text.trim();
     if (input.isEmpty && _attachments.isEmpty) {
-      _show('Dites simplement ce que vous voulez donner à Makolo.');
+      _show('Écrivez un message ou ajoutez un fichier.');
       return;
     }
     setState(() => _busy = true);

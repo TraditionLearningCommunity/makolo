@@ -106,7 +106,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
       if (!mounted || revision != _requestRevision) return;
       setState(() {
         _loading = false;
-        _error = 'Impossible de charger la carte publique.';
+        _error = 'Impossible de charger les lieux.';
       });
     }
   }
@@ -149,7 +149,7 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
             TextButton(onPressed: _load, child: const Text('Réessayer')),
           ] else if (!hasPoints && !_collection.hasNext)
             const Text(
-              'Aucune possibilité géolocalisable pour cette recherche.',
+              'Aucun lieu à afficher pour cette recherche.',
             )
           else ...[
             if (hasPoints) ...[
@@ -169,12 +169,12 @@ class _PublicDiscoveryMapScreenState extends State<PublicDiscoveryMapScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          'Carte indisponible. Les lieux restent consultables.',
+                          'Impossible d’afficher la carte.',
                         ),
                         if (state == MakoloMapRuntimeState.error)
                           TextButton(
                             onPressed: retry,
-                            child: const Text('Réessayer la carte'),
+                            child: const Text('Réessayer'),
                           ),
                       ],
                     ),

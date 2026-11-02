@@ -48,7 +48,7 @@ void main() {
     expect(find.byKey(const Key('geo-suggestions')), findsNothing);
     expect(
       find.byKey(const Key('geo-suggestions-unconfigured')),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
@@ -162,6 +162,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('geo-suggestions-error')), findsOneWidget);
+    expect(find.text('Impossible de proposer des lieux.'), findsOneWidget);
     expect(controller.text, 'K');
   });
 

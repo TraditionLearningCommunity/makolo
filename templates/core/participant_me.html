@@ -113,7 +113,7 @@
           </div>
         {% endif %}
         {% if not me_projection.considerations.interests.items and not me_projection.considerations.open_to.items and not me_projection.considerations.watches.items and not me_projection.considerations.bookmarks.items and not me_projection.considerations.followed_spaces.items and not me_projection.considerations.followed_profiles.items %}
-          <p class="mk-me-n1-empty">Rien d'enregistré pour le moment.</p>
+          <p class="mk-me-n1-empty">Aucun élément enregistré.</p>
         {% endif %}
       </div>
     </section>
@@ -129,7 +129,7 @@
           {% for row in me_projection.collectives.authorized_spaces.items %}
             <div data-me-id="{{ row.id }}" class="mk-me-n1-person-row">
               <span class="mk-me-n1-monogram" aria-hidden="true">{{ row.name|first|upper }}</span>
-              <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong><small>Vous pouvez agir ici</small></span>
+              <span class="mk-me-n1-row-copy"><strong>{{ row.name }}</strong><small>Accès à cet espace</small></span>
             </div>
           {% endfor %}
         {% endif %}
@@ -153,7 +153,7 @@
           {% endfor %}
         {% endif %}
         {% if not me_projection.collectives.authorized_spaces.items and not me_projection.collectives.teams.items and not me_projection.collectives.groups.items %}
-          <p class="mk-me-n1-empty">Aucun collectif pour le moment.</p>
+          <p class="mk-me-n1-empty">Aucun collectif.</p>
         {% endif %}
       </div>
     </section>
@@ -217,7 +217,7 @@
           {% endfor %}
         {% endif %}
         {% if not me_projection.resources.documents.items and not me_projection.resources.proofs.items and not me_projection.resources.credentials.items %}
-          <p class="mk-me-n1-empty">Aucune ressource pour le moment.</p>
+          <p class="mk-me-n1-empty">Aucune ressource.</p>
         {% endif %}
       </div>
     </section>

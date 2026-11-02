@@ -3,8 +3,8 @@
 <section class="mk-ws4-stack" aria-labelledby="space-interoperability-heading">
   <header class="mk-ws4-heading">
     <span class="mk-kicker">Nous · Connexions</span>
-    <h2 id="space-interoperability-heading">À quels systèmes ce Space est-il relié pour fonctionner ?</h2>
-    <p>Uniquement les connexions de {{ space.name }} que votre autorité actuelle permet d’administrer.</p>
+    <h2 id="space-interoperability-heading">Connexions de cet espace</h2>
+    <p>Connexions que vous pouvez gérer pour {{ space.name }}.</p>
   </header>
 
   {% if connections %}
@@ -12,7 +12,7 @@
     <div class="mk-ws4-card-head">
       <div>
         <span class="mk-ws4-eyebrow">Interopérabilité</span>
-        <h3 id="space-connections-list">Connexions du Space</h3>
+        <h3 id="space-connections-list">Connexions</h3>
       </div>
     </div>
     <ul class="mk-ws4-list">
@@ -29,14 +29,12 @@
       </li>
       {% endfor %}
     </ul>
-    <p class="mk-ws4-note">Les détails techniques, credentials et secrets ne sont jamais affichés ici.</p>
   </section>
   {% else %}
   <div class="mk-ws4-state mk-ws4-state--wide" role="status">
     <i data-lucide="workflow" aria-hidden="true"></i>
     <div>
-      <strong>Aucune connexion configurée pour ce Space.</strong>
-      <p>Cet état est valide. Makolo n’invente aucun service pour remplir cette surface.</p>
+      <strong>Aucune connexion</strong>
     </div>
   </div>
   {% endif %}
@@ -46,7 +44,7 @@
   <nav class="mk-ws4-actions" aria-label="Navigation Connexions">
     <a class="mk-ws4-action mk-ws4-action--quiet" href="{{ space_us_url }}">
       <i data-lucide="arrow-left" aria-hidden="true"></i>
-      <span><strong>Retour à Nous</strong><small>Identité et organisation du Space.</small></span>
+      <span><strong>Retour à Nous</strong><small>Identité et organisation de cet espace.</small></span>
     </a>
   </nav>
 </section>

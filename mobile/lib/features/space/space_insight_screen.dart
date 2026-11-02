@@ -174,7 +174,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
     if (space == null || repository == null) {
       return Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: const Center(child: Text('Contexte Space indisponible.')),
+        body: const Center(child: Text('Impossible d’ouvrir cet espace.')),
       );
     }
     final source = relations
@@ -190,7 +190,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
           final status = sourceSnapshot.data;
           if (status?.invalidated == true) {
             return const Center(
-              child: Text('Autorité Space révoquée ou indisponible.'),
+              child: Text('Impossible d’accéder à ces informations.'),
             );
           }
           return StreamBuilder<StoredProjection?>(
@@ -204,7 +204,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
                 return refreshing
                     ? const Center(child: CircularProgressIndicator())
                     : MakoloErrorState(
-                        message: 'Projection non disponible.',
+                        message: 'Impossible de charger ces informations.',
                         onRetry: refresh,
                       );
               }
@@ -212,7 +212,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
                   .evaluate(snapshot.data!, now: DateTime.now());
               if (freshness == FreshnessState.expired) {
                 return MakoloErrorState(
-                  message: 'Cette observation a expiré.',
+                  message: 'Informations à actualiser.',
                   onRetry: refresh,
                 );
               }
@@ -232,7 +232,7 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Actualisation indisponible. Observation conservée du ${snapshot.data!.receivedAt.toLocal()}',
+                              'Actualisation impossible. Dernières informations affichées.',
                             ),
                           ),
                           TextButton(
@@ -263,8 +263,8 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
           spaceMap(payload['authority'])?['scope'] == 'activity_limited';
       return MakoloEmptyState(
         title: limited
-            ? 'Relations globales réservées aux autorités du Space.'
-            : 'Aucune collection relationnelle visible dans ce contexte.',
+            ? 'Vous n’avez pas accès aux relations de cet espace.'
+            : 'Aucune relation à afficher.',
         icon: Icons.lock_outline,
       );
     }
@@ -315,9 +315,9 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
           },
           onSubmitted: (_) => search(),
           decoration: InputDecoration(
-            labelText: 'Rechercher les relations',
+            labelText: 'Rechercher une personne ou une relation',
             suffixIcon: IconButton(
-              tooltip: 'Rechercher dans le Space',
+              tooltip: 'Rechercher',
               onPressed: search,
               icon: const Icon(Icons.search),
             ),
@@ -325,17 +325,17 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
         ),
         if (searchFailed)
           const Text(
-            'Recherche distante indisponible. Résultats locaux partiels.',
+            'Impossible d’actualiser les résultats. Seuls les éléments déjà disponibles sont affichés.',
           ),
         if (query.isNotEmpty && results == null)
           const Text(
-            'Aperçu local partiel. Lancez la recherche pour consulter toutes les relations autorisées.',
+            'Rechercher pour obtenir plus de résultats.',
           ),
         if (groups.values.every((rows) => rows.isEmpty))
           Text(
             query.isEmpty
-                ? 'Aucune relation enregistrée dans les collections visibles.'
-                : 'Aucune relation correspondante dans les données visibles.',
+                ? 'Aucune relation enregistrée.'
+                : 'Aucun résultat.',
           ),
         for (final entry in groups.entries) ...[
           if (entry.value.isNotEmpty)

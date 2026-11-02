@@ -196,7 +196,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         title: Text(_humanize(action.code)),
         subtitle: Text(
           available
-              ? 'Capacité disponible dans Makolo'
+              ? 'Disponible'
               : action.requiresConnection
               ? 'Connexion requise'
               : 'Indisponible pour le moment',
@@ -252,7 +252,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           SizedBox(
             height: widget.runtime.api == null ? 520 : 270,
             child: const MakoloEmptyState(
-              title: 'Aucune connexion pour le moment',
+              title: 'Aucune connexion',
               body: 'Aucun service n’est encore disponible pour votre Profil.',
             ),
           ),
@@ -277,10 +277,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       ),
       children: [
         _freshnessNotice(context, syncStatus),
-        Text(
-          'Les services externes reliés à votre Profil et ce que Makolo peut réellement utiliser maintenant.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
         if (projection.connections.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Text(
@@ -303,7 +299,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         if (projection.actions.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Text(
-            'Capacités et actions',
+            'Actions disponibles',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: MakoloSpacing.sm),
@@ -334,8 +330,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       return const Scaffold(
         body: MakoloErrorState(
           message: 'Vos connexions ne sont pas disponibles sur cet appareil.',
-          preservedMessage:
-              'Vos autres données Makolo restent disponibles normalement.',
         ),
       );
     }
@@ -357,7 +351,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return MakoloErrorState(
-              message: 'Impossible de lire vos connexions pour le moment.',
+              message: 'Impossible d’afficher vos connexions.',
               preservedMessage:
                   'Aucun secret ni aucune donnée de connexion n’a été modifié.',
               onRetry: widget.runtime.sync == null
@@ -384,7 +378,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
                   height: 520,
                   child: MakoloEmptyState(
                     title: 'Connexions indisponibles hors ligne',
-                    body: 'Aucune copie locale n’est encore disponible. Le reste de Makolo continue de fonctionner.',
+                    body: 'Aucune connexion enregistrée sur cet appareil.',
                   ),
                 ),
               ],
@@ -393,7 +387,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
 
           if (_initialLoadComplete && !_refreshing) {
             return MakoloErrorState(
-              message: 'Impossible de vérifier vos connexions pour le moment.',
+              message: 'Impossible de vérifier vos connexions.',
               preservedMessage: 'Aucune connexion n’a été modifiée. Réessayez lorsque le serveur est joignable.',
               onRetry: widget.runtime.sync == null
                   ? null

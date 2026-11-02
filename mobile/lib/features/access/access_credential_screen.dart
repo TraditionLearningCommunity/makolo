@@ -116,13 +116,13 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
             label: 'Chargement du QR…',
           ),
           (null, false, _) when _error != null => MakoloErrorState(
-            message: 'Le QR ne peut pas être affiché pour le moment.',
+            message: 'Impossible d’afficher le QR d’accès.',
             onRetry: _load,
           ),
           (final value?, _, _) when value.credentialType != 'qr' =>
             const MakoloEmptyState(
               title: 'Représentation non prise en charge',
-              body: 'Cette représentation d’accès ne peut pas encore être affichée ici.',
+              body: 'Ce justificatif ne peut pas être affiché ici.',
               icon: Icons.lock_outline_rounded,
             ),
           (final value?, _, _) => _CredentialQr(credential: value),
@@ -158,14 +158,6 @@ class _CredentialQr extends StatelessWidget {
               'Présentez ce QR uniquement au point de contrôle prévu.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: MakoloSpacing.sm),
-            Text(
-              'Il est rechargé depuis Makolo lorsque cette surface revient au premier plan.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
             ),
           ],
         ),
