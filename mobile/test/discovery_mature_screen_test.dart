@@ -1568,6 +1568,28 @@ void main() {
     expect(find.byKey(const Key('makolo-adaptive-split-row')), findsNothing);
   });
 
+  testWidgets('Carte fills a wide viewport without a second list pane', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(1200, 800),
+      child: DiscoverySpatialView(
+        selection: selection(),
+        mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+        showMapOnCompact: true,
+        fieldKey: 'wide-map',
+        onOpen: (_) {},
+      ),
+    );
+    expect(find.byKey(const Key('discover-compact-map')), findsOneWidget);
+    expect(find.byKey(const Key('makolo-adaptive-split-row')), findsNothing);
+    expect(find.byKey(const ValueKey('discover-map-wide-map')), findsOneWidget);
+    expect(find.byKey(const Key('discover-spatial-pane')), findsNothing);
+    expect(find.text('Voir le détail'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'wide N1 keeps the focus without duplicate Map or Watch actions',
     (tester) async {
