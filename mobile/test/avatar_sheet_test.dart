@@ -122,4 +122,44 @@ void main() {
       await tester.runAsync(runtime.close);
     },
   );
+
+  testWidgets('Avatar dismisses before account change or logout', (
+    tester,
+  ) async {
+    final runtime = await _runtimeWithIdentity();
+    addTearDown(runtime.close);
+    var switchCount = 0;
+    var logoutCount = 0;
+    await tester.pumpWidget(MaterialApp(
+      theme: buildMakoloTheme(),
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => showMakoloAvatarSheet(
+              context,
+              runtime: runtime,
+              onSwitchAccount: () => switchCount++,
+              onLogout: () => logoutCount++,
+            ),
+            child: const Text('Avatar'),
+          ),
+        ),
+      ),
+    ));
+
+    await tester.tap(find.text('Avatar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Changer de compte'));
+    await tester.pumpAndSettle();
+    expect(switchCount, 1);
+    expect(find.byType(MakoloAvatarSheet), findsNothing);
+
+    await tester.tap(find.text('Avatar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Se déconnecter'));
+    await tester.pumpAndSettle();
+    expect(logoutCount, 1);
+    expect(find.byType(MakoloAvatarSheet), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
