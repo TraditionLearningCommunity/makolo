@@ -14,6 +14,8 @@ void main() {
             children: [
               SpaceWorkG4Depth(
                 slug: 'atelier',
+                sourceKind: 'activity',
+                sourceId: 'work-1',
                 archetype: 'creative',
                 isActivity: true,
                 detail: const {'description': 'Œuvre en préparation'},
@@ -49,6 +51,8 @@ void main() {
             children: [
               SpaceWorkG4Depth(
                 slug: 'studio',
+                sourceKind: 'activity',
+                sourceId: 'work-2',
                 archetype: 'media',
                 isActivity: true,
                 detail: const {},
