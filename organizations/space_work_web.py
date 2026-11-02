@@ -29,6 +29,25 @@ def _activity_owner_url(space, item, *, profile=None, responsibility="all", sect
         )
     )
     source_kind = source.get("kind")
+    if (
+        space.archetype in {
+            SpaceArchetype.EDUCATION, SpaceArchetype.SERVICE_PROVIDER,
+        }
+        and source_kind in {"activity", "occurrence", "journey"}
+        and "view" in capabilities
+        and source.get("id")
+    ):
+        path = reverse(
+            "organizations:space-work-depth-g2",
+            kwargs={
+                "slug": space.slug, "kind": source_kind,
+                "owner_id": source["id"],
+            },
+        )
+        return path + "?" + urlencode({
+            "responsibility": responsibility,
+            "from": section_key,
+        })
     # G1 now has a real N2, not a direct jump into the Console.
     # The N2 owner read revalidates scope and selection on every visit.
     if (
@@ -133,7 +152,25 @@ def _compose_sections(space, projection, *, profile=None):
                 section_key=key,
             )
             item["owner_label"] = (
-                "Voir la création"
+                "Voir le programme"
+                if item["owner_url"] and space.archetype == SpaceArchetype.EDUCATION
+                and item["source"]["kind"] == "activity"
+                else "Voir la session"
+                if item["owner_url"] and space.archetype == SpaceArchetype.EDUCATION
+                and item["source"]["kind"] == "occurrence"
+                else "Voir l'inscription"
+                if item["owner_url"] and space.archetype == SpaceArchetype.EDUCATION
+                and item["source"]["kind"] == "journey"
+                else "Voir la prestation"
+                if item["owner_url"] and space.archetype == SpaceArchetype.SERVICE_PROVIDER
+                and item["source"]["kind"] == "activity"
+                else "Voir la réalisation"
+                if item["owner_url"] and space.archetype == SpaceArchetype.SERVICE_PROVIDER
+                and item["source"]["kind"] == "occurrence"
+                else "Ouvrir le dossier"
+                if item["owner_url"] and space.archetype == SpaceArchetype.SERVICE_PROVIDER
+                and item["source"]["kind"] == "journey"
+                else "Voir la création"
                 if item["owner_url"] and space.archetype == "creative"
                 and item["source"]["kind"] == "activity"
                 else "Voir la production"
