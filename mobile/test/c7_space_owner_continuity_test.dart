@@ -30,13 +30,6 @@ class _ActorStore implements ActorContextStore {
   Future<void> removeActorContext(String profileId) async {}
 }
 
-const _a = SpaceActorIdentityPlaceholder();
-
-/// Avoid static, mutable actor state; each test creates its own identity.
-class SpaceActorIdentityPlaceholder {
-  const SpaceActorIdentityPlaceholder();
-}
-
 void main() {
   testWidgets('late response from Space A is dropped after actor selects Space B',
       (tester) async {
