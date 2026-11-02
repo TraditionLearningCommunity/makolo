@@ -534,6 +534,13 @@ class _BillingScreenState extends State<BillingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: _section == 'overview'
+            ? null
+            : IconButton(
+                tooltip: 'Retour à l’abonnement',
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => setState(() => _section = 'overview'),
+              ),
         title: Text(
           _section == 'overview'
               ? (_spaceMode ? 'Abonnement de l’Espace' : 'Abonnement & facturation')
