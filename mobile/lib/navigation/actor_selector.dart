@@ -79,21 +79,42 @@ class _MakoloActorPicker extends StatefulWidget {
 
 class _MakoloActorPickerState extends State<_MakoloActorPicker> {
   bool _switching = false;
+  bool _inventoryLoading = false;
+  bool _inventoryConfirmed = false;
   String? _error;
+
   @override
   void initState() {
     super.initState();
-    final repository = widget.runtime.space;
-    if (repository?.sync != null) {
+    if (widget.runtime.space?.sync != null) {
       unawaited(_refreshInventory());
     }
   }
 
   Future<void> _refreshInventory() async {
+    final repository = widget.runtime.space;
+    if (repository?.sync == null || _inventoryLoading || _switching) return;
+    setState(() {
+      _inventoryLoading = true;
+      _error = null;
+    });
     try {
-      await widget.runtime.space?.refreshInventory();
+      await repository!.refreshInventory();
+      final source = await repository.readSource(repository.inventorySource());
+      if (source.invalidated || source.lastSuccessAt == null ||
+          source.lastErrorCode != null) {
+        throw StateError('Inventaire non vérifié.');
+      }
+      if (mounted) setState(() => _inventoryConfirmed = true);
     } on Object {
-      // Cached actor contexts remain usable when refresh is unavailable.
+      if (mounted) {
+        setState(() {
+          _inventoryConfirmed = false;
+          _error = 'Les Espaces ne peuvent pas être vérifiés pour le moment.';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _inventoryLoading = false);
     }
   }
 
@@ -106,7 +127,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
   }
 
   Future<void> _selectSpace(SpaceSummary summary) async {
-    if (_switching) return;
+    if (_switching || _inventoryLoading) return;
     final controller = widget.runtime.actorContext;
     final repository = widget.runtime.space;
     if (controller == null || repository?.sync == null) {
@@ -244,16 +265,32 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                         selected:
                             actor is SpaceActorContext &&
                             actor.space.id == space.identity.id,
-                        onTap: _switching ? null : () => _selectSpace(space),
+                        onTap: _switching || _inventoryLoading
+                            ? null
+                            : () => _selectSpace(space),
                       ),
-                    if (spaces.isEmpty)
+                    if (spaces.isEmpty && _inventoryConfirmed)
                       const Padding(
                         padding: EdgeInsets.symmetric(
                           vertical: MakoloSpacing.md,
                         ),
-                        child: Text(
-                          'Aucun Espace autorisé connu pour le moment.',
+                        child: Text('Vous n’avez aucun Espace autorisé.'),
+                      ),
+                    if (spaces.isEmpty && !_inventoryConfirmed && !_inventoryLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.md,
                         ),
+                        child: Text('Aucun inventaire vérifié. '
+                            'Cela ne signifie pas que vous n’avez aucun Espace.'),
+                      ),
+                    if (spaces.isNotEmpty && !_inventoryConfirmed)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: MakoloSpacing.sm,
+                        ),
+                        child: Text('Espaces connus sur cet appareil. '
+                            'L’accès sera vérifié avant de basculer.'),
                       ),
                     if (_error != null)
                       Padding(
@@ -267,11 +304,21 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                           ),
                         ),
                       ),
-                    if (_switching) const LinearProgressIndicator(),
+                    if (_switching || _inventoryLoading)
+                      const LinearProgressIndicator(),
+                    if (!_inventoryLoading && !_inventoryConfirmed &&
+                        repository.sync != null)
+                      TextButton.icon(
+                        onPressed: _switching ? null : _refreshInventory,
+                        icon: const Icon(Icons.refresh_outlined),
+                        label: const Text('Vérifier mes Espaces'),
+                      ),
                     const SizedBox(height: MakoloSpacing.md),
                     if (widget.runtime.api != null && repository.sync != null)
                       OutlinedButton.icon(
-                        onPressed: _switching ? null : _openCreateSpace,
+                        onPressed: _switching || _inventoryLoading
+                            ? null
+                            : _openCreateSpace,
                         icon: const Icon(Icons.add),
                         label: const Text('Créer un Espace'),
                       ),
