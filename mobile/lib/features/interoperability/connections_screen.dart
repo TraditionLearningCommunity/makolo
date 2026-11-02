@@ -228,6 +228,14 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     return const SizedBox.shrink();
   }
 
+  bool _mutationsAllowed(SyncStatus? status) {
+    if (_refreshFailed || widget.runtime.sync == null) return false;
+    return status?.state != SyncVisualState.offline &&
+        status?.state != SyncVisualState.failed &&
+        status?.state != SyncVisualState.stale &&
+        status?.state != SyncVisualState.conflict;
+  }
+
   Widget _content(
     BuildContext context,
     ProfileInteroperabilityProjection projection,
@@ -251,6 +259,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
             path: 'api/v1/me/intelligence/connections/',
             connections: projection.connections,
             onChanged: _refresh,
+            mutationsEnabled: _mutationsAllowed(syncStatus),
           ),
         ],
       );
@@ -310,6 +319,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           path: 'api/v1/me/intelligence/connections/',
           connections: projection.connections,
           onChanged: _refresh,
+            mutationsEnabled: _mutationsAllowed(syncStatus),
         ),
       ],
     );
