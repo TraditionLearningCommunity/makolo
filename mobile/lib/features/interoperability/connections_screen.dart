@@ -8,6 +8,7 @@ import '../../design/makolo_theme.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../sync/sync_status.dart';
 import 'intelligence_connection_controls.dart';
+import 'interoperability_presentation.dart';
 import 'push_device_controls.dart';
 
 class ProfileConnectionsScreen extends StatefulWidget {
@@ -80,65 +81,13 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     return text[0].toUpperCase() + text.substring(1);
   }
 
-  String _capabilityLabel(String value) {
-    return switch (value) {
-      'text_generate' => 'Génération de texte',
-      'structured_generate' => 'Données structurées',
-      'embed' => 'Représentation sémantique',
-      'rerank' => 'Classement de résultats',
-      'web_research' => 'Recherche sur le Web',
-      _ => _humanize(value),
-    };
-  }
+  String _capabilityLabel(String value) => connectionCapabilityLabel(value);
 
-  String _connectionState(InteroperabilityConnectionProjection connection) {
-    if (!connection.enabled || connection.status == 'disabled') {
-      return 'Désactivé';
-    }
-    if (connection.health == 'unavailable') {
-      return 'Momentanément indisponible';
-    }
-    if (connection.health == 'degraded') {
-      return connection.connected
-          ? 'Connecté · disponibilité réduite'
-          : 'Disponibilité réduite';
-    }
-    if (connection.health == 'unknown') {
-      return connection.connected
-          ? 'Connecté · état à vérifier'
-          : 'État à vérifier';
-    }
-    if (connection.usable) return 'Connecté et disponible';
-    if (connection.connected && connection.capabilities.isEmpty) {
-      return 'Relié · aucune capacité active';
-    }
-    if (connection.connected) return 'Connecté';
-    return connection.available ? 'Disponible' : 'État à vérifier';
-  }
+  String _connectionState(InteroperabilityConnectionProjection row) =>
+      connectionStatusLabel(row);
 
-  String _experienceExplanation(
-    InteroperabilityConnectionProjection connection,
-  ) {
-    if (!connection.enabled || connection.status == 'disabled') {
-      return 'Cette connexion est désactivée.';
-    }
-    if (connection.health == 'unavailable') {
-      return 'Le service ne répond pas actuellement.';
-    }
-    if (connection.health == 'degraded') {
-      return 'Le service peut être temporairement limité.';
-    }
-    if (connection.health == 'unknown') {
-      return 'La disponibilité doit être vérifiée.';
-    }
-    if (connection.connected && connection.capabilities.isEmpty) {
-      return 'Aucune capacité active n’est exposée.';
-    }
-    if (connection.usable) {
-      return 'Cette connexion possède une capacité active.';
-    }
-    return 'Aucune action n’est disponible depuis cette connexion.';
-  }
+  String _experienceExplanation(InteroperabilityConnectionProjection row) =>
+      connectionExperienceMessage(row);
 
   Widget _connectionCard(InteroperabilityConnectionProjection connection) {
     final capabilities = connection.capabilities
