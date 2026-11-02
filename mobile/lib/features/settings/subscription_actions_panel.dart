@@ -203,7 +203,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
       _object(preview['billing_terms'])?['amount']?.toString() ?? '',
     );
     final paidChoice = billedAmount != null && billedAmount > 0;
-    final requiresPaymentVerification = preview['has_payment_requirement'] == true;
+    final requiresPaymentVerification =
+        preview['has_payment_requirement'] == true;
     final intent = _uniqueIntent();
     var confirming = false;
     String? failed;
