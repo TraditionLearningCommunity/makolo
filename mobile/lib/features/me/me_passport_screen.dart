@@ -1192,7 +1192,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
             spacing: 6,
             children: [
               for (final option in const [
-                ('avatar', 'Photo'),
+                ('avatar', 'Photo privée (si choisie)'),
                 ('bio', 'À propos'),
                 ('profession', 'Profession'),
                 ('company_name', 'Entreprise renseignée'),
