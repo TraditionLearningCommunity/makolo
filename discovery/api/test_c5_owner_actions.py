@@ -170,6 +170,28 @@ class DiscoveryConnectedActionsTests(TestCase):
         self.assertEqual(result.data["data"]["status"], "unavailable")
         network.assert_not_called()
 
+    def test_external_provider_failure_exposes_only_safe_reason(self):
+        from intelligence.exceptions import ProviderUnavailable
+
+        self._connect("tavily")
+        for technical, public in (
+            ("invalid_credentials", "invalid_credentials"),
+            ("rate_limited", "rate_limited"),
+            ("network_unavailable", "provider_unavailable"),
+        ):
+            with self.subTest(technical=technical):
+                with patch(
+                    "intelligence.providers.tavily_web._open_url",
+                    side_effect=ProviderUnavailable(technical),
+                ):
+                    response = self.api.post("/api/v1/discovery/research/", {
+                        "q": "formation professionnelle",
+                    }, format="json")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.data["data"]["status"], "unavailable")
+                self.assertEqual(response.data["data"]["reason"], public)
+                self.assertNotIn("TEST-C5-KEY", str(response.data))
+
     def test_source_research_web_requires_csrf(self):
         from django.test import Client
         client = Client(enforce_csrf_checks=True)
