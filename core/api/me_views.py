@@ -10,9 +10,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from sharing.passport_pdf import passport_pdf_response
-from sharing.models import PassportSnapshot
-from sharing.passport_documents import passport_verification_token, snapshot_payload_is_intact
-from sharing.passport_sharing import create_passport_share
+from sharing.models import PassportSnapshot, PassportShareSubject
+from sharing.passport_documents import (
+    passport_verification_token, snapshot_payload_is_intact,
+    revoke_passport_snapshot,
+)
+from sharing.passport_sharing import create_passport_share, revoke_passport_share
 from sharing.passport import build_profile_passport, PASSPORT_VARIANTS
 
 from core.api.me_projection import (
@@ -336,7 +339,9 @@ class PersonalPassportHistoryAPIView(PersonalProjectionAPIView):
             raise ValidationError({"offset": "Entier attendu."}) from exc
         if offset < 0:
             raise ValidationError({"offset": "Décalage négatif interdit."})
-        queryset = PassportSnapshot.objects.filter(profile=request.user).order_by(
+        queryset = PassportSnapshot.objects.filter(profile=request.user).prefetch_related(
+            "passport_share_subjects__envelope",
+        ).order_by(
             "-generated_at", "-pk",
         )
         count = queryset.count()
@@ -353,6 +358,17 @@ class PersonalPassportHistoryAPIView(PersonalProjectionAPIView):
                         "generated_at": row.generated_at.isoformat(),
                         "revoked": row.is_revoked,
                         "integrity_ok": snapshot_payload_is_intact(row),
+                        "active_shares": [
+                            {
+                                "id": str(grant.envelope_id),
+                                "expires_at": (
+                                    grant.envelope.expires_at.isoformat()
+                                    if grant.envelope.expires_at else None
+                                ),
+                            }
+                            for grant in row.passport_share_subjects.all()
+                            if not row.is_revoked and grant.envelope.is_active_at()
+                        ],
                         "verification_path": reverse(
                             "sharing:passport-verify",
                             kwargs={"token": passport_verification_token(row)},
@@ -433,6 +449,44 @@ class PersonalPassportShareAPIView(PersonalProjectionAPIView):
             "share_url": url,
             "expires_at": envelope.expires_at.isoformat(),
             "document_id": snapshot.document_id,
+        }, observed_at=timezone.now())
+
+
+class PersonalPassportVersionRevokeAPIView(PersonalProjectionAPIView):
+    """Owner-only withdrawal of one issued snapshot and its active grants."""
+
+    projection_code = "personal.me.passport.version"
+
+    def post(self, request, snapshot_id):
+        self._guard_personal_scope(request, include_body=True)
+        snapshot = get_object_or_404(
+            PassportSnapshot, pk=snapshot_id, profile=request.user,
+        )
+        revoked = revoke_passport_snapshot(snapshot=snapshot, actor=request.user)
+        return self._response({
+            "id": str(revoked.pk),
+            "document_id": revoked.document_id,
+            "revoked": revoked.is_revoked,
+        }, observed_at=timezone.now())
+
+
+class PersonalPassportShareRevokeAPIView(PersonalProjectionAPIView):
+    """Revoke only a Sharing grant belonging to the current Profile."""
+
+    projection_code = "personal.me.passport.share"
+
+    def post(self, request, share_id):
+        self._guard_personal_scope(request, include_body=True)
+        grant = get_object_or_404(
+            PassportShareSubject.objects.select_related("envelope"),
+            envelope_id=share_id, snapshot__profile=request.user,
+        )
+        revoked = revoke_passport_share(
+            envelope=grant.envelope, actor=request.user,
+        )
+        return self._response({
+            "share_id": str(revoked.pk),
+            "revoked": not revoked.is_active_at(),
         }, observed_at=timezone.now())
 
 
