@@ -51,15 +51,16 @@ def profile_domain_integrations(actor) -> list[dict]:
         return []
     rows = []
     count = PushEndpoint.objects.filter(user=actor, active=True).count()
-    if count:
+    push_enabled = bool(getattr(settings, "MAKOLO_FIREBASE_PUSH_ENABLED", False))
+    if count or push_enabled:
         rows.append({
             "code": "notifications.push",
             "owner": "notifications",
             "kind": "device_registration",
             "display_name": "Notifications sur mes appareils",
-            "status": "registered",
-            "available": bool(getattr(settings, "MAKOLO_FIREBASE_PUSH_ENABLED", False)),
-            "connected": True,
+            "status": "registered" if count else "not_registered",
+            "available": push_enabled,
+            "connected": bool(count),
             "active_count": count,
             "description": "Appareils enregistrés pour les notifications Makolo.",
             "links": {"manage": "/api/v1/notifications/push/endpoints/"},
