@@ -76,6 +76,7 @@ def register_push_endpoint(
             or len(rows) != 1
             or foreign[0].installation_id != installation_id
             or foreign[0].token_hash != digest
+            or foreign[0].platform != platform
         ):
             raise ValueError("Réactivation explicite de cet appareil requise.")
     endpoint = next(
