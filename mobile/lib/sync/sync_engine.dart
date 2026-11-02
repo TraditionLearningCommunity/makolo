@@ -31,6 +31,21 @@ class SyncEngine {
   final MakoloDatabase database;
   final String profileId;
 
+  // Only the most recently started request for a source may change its local
+  // state. A late 200 must not undo a newer owner 403/404 revocation.
+  final Map<String, int> _sourceGenerations = {};
+
+  static const _discoveryDerivedKinds = <String>[
+    'discovery.items',
+    'discovery.map',
+    'discovery.presented-window',
+    'discovery.item',
+    'discovery.activity-preview',
+    'discovery.occurrence-preview',
+    'discovery.watch-results',
+    'discovery.presentation-position',
+  ];
+
   static const roots = [
     SyncRoot('personal.now', 'api/v1/me/now/'),
     SyncRoot('personal.ongoing', 'api/v1/me/ongoing/'),
@@ -115,11 +130,18 @@ class SyncEngine {
   Future<void> pullInteroperability() => pullSource(_interoperabilitySource);
 
   Future<void> pullSource(SyncSourceDefinition source) async {
+    final key = source.sourceKey;
+    final generation = (_sourceGenerations[key] ?? 0) + 1;
+    _sourceGenerations[key] = generation;
+    bool isCurrent() => _sourceGenerations[key] == generation;
     try {
       final response = await api.get(source.path);
+      if (!isCurrent()) return;
       final acquired = source.parser(response);
+      if (!isCurrent()) return;
 
       await database.transaction(() async {
+        if (!isCurrent()) return;
         await source.applier(
           SyncApplyContext(
             database: database,
@@ -145,30 +167,32 @@ class SyncEngine {
             );
       });
     } on TimeoutException {
-      await _recordFailure(source, 'timeout');
+      if (isCurrent()) await _recordFailure(source, 'timeout');
       rethrow;
     } on MakoloApiError catch (error) {
-      if (error.statusCode == 403 || error.statusCode == 404) {
-        await _recordScopedUnavailable(source, error.code);
-      } else {
-        final cursorRejected =
-            source.projectionKind == 'discovery.items' &&
-            error.statusCode == 400 &&
-            Uri.parse(source.path).queryParameters.containsKey('continuation');
-        await _recordFailure(
-          source,
-          cursorRejected ? 'continuation_rejected' : error.code,
-        );
+      if (isCurrent()) {
+        if (error.statusCode == 403 || error.statusCode == 404) {
+          await _recordScopedUnavailable(source, error.code);
+        } else {
+          final cursorRejected =
+              source.projectionKind == 'discovery.items' &&
+              error.statusCode == 400 &&
+              Uri.parse(source.path).queryParameters.containsKey('continuation');
+          await _recordFailure(
+            source,
+            cursorRejected ? 'continuation_rejected' : error.code,
+          );
+        }
       }
       rethrow;
     } on FormatException {
-      await _recordFailure(source, 'contract_error');
+      if (isCurrent()) await _recordFailure(source, 'contract_error');
       rethrow;
     } on MakoloTransportError catch (error) {
-      await _recordFailure(source, error.code);
+      if (isCurrent()) await _recordFailure(source, error.code);
       rethrow;
     } on Object {
-      await _recordFailure(source, 'transport_error');
+      if (isCurrent()) await _recordFailure(source, 'transport_error');
       rethrow;
     }
   }
@@ -192,6 +216,27 @@ class SyncEngine {
         source.projectionKind,
         resourceKey: source.resourceKey,
       );
+      // The field, map, N2 and previews are a composition of owner facts.
+      // Once any such owner explicitly refuses access, retaining a copy
+      // elsewhere is a privacy leak. Transport errors never enter this path.
+      if (source.owner == 'Discovery' ||
+          source.projectionKind == 'activity.detail' ||
+          source.projectionKind == 'occurrence.detail') {
+        for (final kind in _discoveryDerivedKinds) {
+          await store.deleteProjectionsOfKind(kind);
+        }
+        if (source.projectionKind == 'discovery.watches') {
+          await store.deleteProjectionsOfKind('discovery.watches');
+        }
+        // Every saved cursor in this Profile is now unusable. A retained
+        // source row must not claim its deleted snapshot is still current.
+        await (database.update(database.syncSources)..where(
+              (row) =>
+                  row.profileId.equals(profileId) &
+                  row.sourceKey.like('discovery:%'),
+            ))
+            .write(const SyncSourcesCompanion(invalidated: Value(true)));
+      }
       await _ensureSource(source);
       await (database.update(database.syncSources)..where(
             (row) =>
