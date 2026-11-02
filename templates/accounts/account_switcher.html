@@ -30,7 +30,7 @@
   .mk-account-switcher__back { color: rgba(255,255,255,.94); display: inline-flex; align-items: center; gap: 8px; padding: 9px 0; font-weight: 600; text-decoration: none; }
   .mk-account-switcher__back:focus-visible, .mk-account-switcher button:focus-visible { outline: 3px solid #FFBEAC; outline-offset: 3px; }
   .mk-account-switcher__identity { text-align: center; padding: 26px 0 22px; }
-  .mk-account-switcher__mark { width: 48px; height: 48px; display: grid; place-items: center; margin: 0 auto 20px; border: 1px solid rgba(255,255,255,.32); border-radius: 16px; font-size: 23px; font-weight: 800; letter-spacing: -.04em; }
+  .mk-account-switcher__mark { width: fit-content; min-height: 44px; padding: 0 15px; display: grid; place-items: center; margin: 0 auto 20px; border: 1px solid rgba(255,255,255,.32); border-radius: 16px; font-size: 17px; font-weight: 800; letter-spacing: -.04em; }
   .mk-account-switcher__identity h1 { color: #fff; font-size: clamp(24px, 4vw, 30px); line-height: 1.15; font-weight: 800; letter-spacing: -.025em; }
   .mk-account-switcher__identity p { color: rgba(255,255,255,.84); font-size: 14px; margin-top: 9px; }
   .mk-account-switcher__accounts { display: grid; gap: 12px; }
@@ -62,7 +62,7 @@
         <a class="mk-account-switcher__back" href="{% url 'account:profile' %}" aria-label="Retour à Makolo">← Retour à Makolo</a>
       </div>
       <header class="mk-account-switcher__identity">
-        <div class="mk-account-switcher__mark" aria-hidden="true">M</div>
+        <div class="mk-account-switcher__mark" aria-hidden="true">Makolo</div>
         <h1 id="mk-switcher-title">Choisir un compte</h1>
         <p>Sélectionnez un compte pour continuer.</p>
       </header>
