@@ -50,8 +50,6 @@ class PushEndpointSerializer(serializers.ModelSerializer):
             "id",
             "provider",
             "platform",
-            "installation_id",
-            "token_hint",
             "app_version",
             "active",
             "last_seen_at",
