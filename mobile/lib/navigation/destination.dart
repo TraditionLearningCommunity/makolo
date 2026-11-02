@@ -111,6 +111,20 @@ enum MakoloDestination {
   }
 }
 
+/// Route selection is presentation only. The corresponding owner endpoints
+/// still validate Profile, Space and Mandate independently on the server.
+String connectionsRouteForActor(ActorContext actor) => switch (actor) {
+  PersonalActorContext() => '/connections',
+  SpaceActorContext(:final space) =>
+    '/space/${Uri.encodeComponent(space.slug)}/connections',
+};
+
+String subscriptionRouteForActor(ActorContext actor) => switch (actor) {
+  PersonalActorContext() => '/billing',
+  SpaceActorContext(:final space) =>
+    '/space/${Uri.encodeComponent(space.slug)}/subscription',
+};
+
 class StructuredDestination {
   const StructuredDestination({
     required this.kind,
