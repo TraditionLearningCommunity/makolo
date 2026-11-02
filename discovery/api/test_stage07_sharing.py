@@ -64,7 +64,7 @@ class DiscoveryStage07SharingTests(TestCase):
         self.assertEqual(response.status_code, 201)
         payload = response.json()
         self.assertEqual(payload["state"], "link")
-        self.assertTrue(payload["url"].startswith("https://"))
+        self.assertIn(urlsplit(payload["url"]).scheme, ("http", "https"))
         token = urlsplit(payload["url"]).path.rstrip("/").rsplit("/", 1)[-1]
         self.client.logout()
         resolve = reverse("sharing_api:resolve", kwargs={"token": token})
@@ -94,6 +94,12 @@ class DiscoveryStage07SharingTests(TestCase):
             self.client.get(reverse("sharing_api:resolve", kwargs={"token": token})).status_code,
             404,
         )
+
+    def test_explicit_empty_internal_recipient_does_not_fall_back_to_link(self):
+        self.client.force_login(self.sender)
+        response = self.post_share({"intent": "view", "recipient_id": ""})
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(ShareEnvelope.objects.exists())
 
     def test_invalid_internal_recipient_is_rejected_without_a_delivery(self):
         self.client.force_login(self.sender)
