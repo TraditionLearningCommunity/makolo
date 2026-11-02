@@ -193,6 +193,57 @@ void main() {
     expect(collection.items.last.isMappable, isFalse);
   });
 
+  test('map preserves multiple actual geographic roles of one possibility', () {
+    final raw = possibility('trip', 'Voyage', occurrenceId: 'occ-trip');
+    raw['spatial_facts'] = [
+      {
+        'role': 'departure',
+        'place': {'latitude': -11.66, 'longitude': 27.48},
+      },
+      {
+        'role': 'arrival',
+        'place': {'latitude': -10.72, 'longitude': 25.47},
+      },
+      {
+        'role': 'stopover',
+        'place': {'name': 'Unknown coordinates'},
+      },
+    ];
+    final collection = selector.collection(fieldProjection(results: [raw]));
+    final anchors = selector.spatialAnchorsFromCollection(collection);
+    expect(anchors, hasLength(2));
+    expect(anchors.every((anchor) => anchor.candidateKey == 'activity:trip'), isTrue);
+    expect(anchors.first.latitude, -11.66);
+    expect(anchors.last.longitude, 25.47);
+    expect(selector.mapPointsFromCollection(collection), hasLength(1));
+  });
+
+  test('map honors a typed coordinate without manufacturing a place', () {
+    const item = DiscoveryItemPresentation(
+      family: 'activity',
+      id: 'direct',
+      candidateKey: 'activity:direct',
+      title: 'Lieu connu',
+      summary: '',
+      latitude: -11.66,
+      longitude: 27.48,
+      savedState: 'unknown',
+      capabilities: {},
+      links: {},
+    );
+    const collection = DiscoveryCollectionPresentation(
+      items: [item],
+      count: 1,
+      page: 1,
+      pageSize: 24,
+      hasNext: false,
+    );
+    final anchors = selector.spatialAnchorsFromCollection(collection);
+    expect(anchors, hasLength(1));
+    expect(anchors.single.latitude, -11.66);
+    expect(anchors.single.longitude, 27.48);
+  });
+
   test(
     'media and save capabilities are represented without engagement inference',
     () {
