@@ -8,6 +8,7 @@ from intelligence.admin import ProviderConnectionAdmin
 from intelligence.credentials import get_provider_secret
 
 from accounts.models import User, UserProfile
+from intelligence.contracts import IntelligenceResult
 from intelligence.connection_management import (
     create_connection, disconnect_connection, update_connection,
 )
@@ -41,7 +42,10 @@ class ProviderHealthConcurrentLifecycleTests(TestCase):
         provider.supports.side_effect = lambda capability: (
             capability.value == "text_generate"
         )
-        provider.execute.side_effect = operation
+        def execute(request):
+            operation(request)
+            return IntelligenceResult(available=True, output="OK")
+        provider.execute.side_effect = execute
         with patch(
             "intelligence.health.build_configured_provider",
             return_value=provider,
@@ -54,6 +58,24 @@ class ProviderHealthConcurrentLifecycleTests(TestCase):
         self.connection.refresh_from_db()
         self.assertEqual(self.connection.health_status, ProviderHealth.HEALTHY)
         self.assertIsNotNone(self.connection.last_checked_at)
+
+    def test_unavailable_result_cannot_certify_provider(self):
+        provider = Mock()
+        provider.supports.side_effect = lambda cap: cap.value == "text_generate"
+        provider.execute.return_value = IntelligenceResult.unavailable(
+            "invalid_credentials",
+        )
+        with patch(
+            "intelligence.health.build_configured_provider",
+            return_value=provider,
+        ):
+            result = test_provider_connection(self.connection)
+        self.assertEqual(result, ProviderHealth.INVALID_CREDENTIALS)
+        self.connection.refresh_from_db()
+        self.assertEqual(
+            self.connection.health_status,
+            ProviderHealth.INVALID_CREDENTIALS,
+        )
 
     def test_rotation_wins_over_late_healthy_probe(self):
         def rotate(request):
