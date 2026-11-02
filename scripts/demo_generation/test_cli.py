@@ -244,5 +244,34 @@ class DemoGenerationCLITests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             run(args)
 
+
+    def test_subscription_generation_requires_explicit_beneficiary(self):
+        args = build_parser().parse_args(["generate", "--domains", "subscriptions"])
+        with self.assertRaises(SystemExit):
+            run(args)
+
+    def test_named_paid_subscription_preview_is_read_only(self):
+        args = build_parser().parse_args([
+            "plan", "--domains", "subscriptions",
+            "--profile-username", "beta_alain", "--count", "4",
+        ])
+        with patch("scripts.demo_generation.subscriptions.main") as seeded:
+            run(args)
+        self.assertEqual(seeded.call_args.args[0],
+                         ["--profile-username", "beta_alain", "--count", "4"])
+
+    def test_named_paid_subscription_generate_is_explicit(self):
+        args = build_parser().parse_args([
+            "generate", "--domains", "subscriptions",
+            "--profile-username", "beta_alain",
+        ])
+        with patch("scripts.demo_generation.subscriptions.main") as seeded:
+            run(args)
+        self.assertIn("--apply", seeded.call_args.args[0])
+
+    def test_all_never_charges_subscriptions_implicitly(self):
+        self.assertNotIn("subscriptions", parse_domains("all"))
+
+
 if __name__ == "__main__":
     unittest.main()
