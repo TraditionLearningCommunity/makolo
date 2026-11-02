@@ -47,6 +47,7 @@ def _can_manage(actor, subscription):
 def _space_snapshot(actor, subscription):
     payload = _snapshot(
         subscription,
+        actor=actor,
         can_manage=_can_manage(actor, subscription),
         billing=space_billing_for_actor(actor, subscription),
     )
