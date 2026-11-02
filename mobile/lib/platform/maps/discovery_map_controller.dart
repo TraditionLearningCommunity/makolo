@@ -13,6 +13,48 @@ class DiscoveryMapController {
   Future<void> moveTo(double latitude, double longitude) => _controller
       .animateCamera(CameraUpdate.newLatLng(LatLng(latitude, longitude)));
 
+  /// One camera fit on initial style load. MapLibre owns pan/zoom afterward.
+  Future<void> fitPins(List<DiscoveryMapPin> pins) async {
+    if (pins.isEmpty) return;
+    if (pins.length == 1) {
+      await _controller.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(pins.first.latitude, pins.first.longitude),
+          11,
+        ),
+      );
+      return;
+    }
+    var minLatitude = pins.first.latitude;
+    var maxLatitude = minLatitude;
+    var minLongitude = pins.first.longitude;
+    var maxLongitude = minLongitude;
+    for (final pin in pins.skip(1)) {
+      if (pin.latitude < minLatitude) minLatitude = pin.latitude;
+      if (pin.latitude > maxLatitude) maxLatitude = pin.latitude;
+      if (pin.longitude < minLongitude) minLongitude = pin.longitude;
+      if (pin.longitude > maxLongitude) maxLongitude = pin.longitude;
+    }
+    if (minLatitude == maxLatitude && minLongitude == maxLongitude) {
+      await _controller.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(minLatitude, minLongitude), 11),
+      );
+      return;
+    }
+    await _controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLatitude, minLongitude),
+          northeast: LatLng(maxLatitude, maxLongitude),
+        ),
+        left: 40,
+        top: 96,
+        right: 40,
+        bottom: 180,
+      ),
+    );
+  }
+
   void onPinTapped(void Function(Object) callback) {
     _controller.onCircleTapped.add(callback);
   }
