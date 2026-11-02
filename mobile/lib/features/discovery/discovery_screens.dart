@@ -232,9 +232,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       // Even if the device has a fresh-looking snapshot, the server must
       // revalidate actions/visibility after a cold start. SQLite renders
       // immediately; this network check never turns offline into empty.
-      if (locallyValid || local == null || source.invalidated) {
-        await _refreshItems();
-      }
+      await _refreshItems();
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
     }
@@ -1643,6 +1641,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   bool _refreshing = false;
   bool _saving = false;
   String? _verifiedItemKey;
+  String? _refreshingItemKey;
 
   @override
   void initState() {
@@ -1665,10 +1664,11 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   }
 
   Future<void> _refresh() async {
-    if (_refreshing) return;
     final key = '${widget.family}:${widget.id}';
+    if (_refreshing && _refreshingItemKey == key) return;
     setState(() {
       _refreshing = true;
+      _refreshingItemKey = key;
       _verifiedItemKey = null;
     });
     try {
@@ -1684,7 +1684,12 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     } on Object {
       // Cached detail remains readable, never newly actionable.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && _refreshingItemKey == key) {
+        setState(() {
+          _refreshing = false;
+          _refreshingItemKey = null;
+        });
+      }
     }
   }
 
