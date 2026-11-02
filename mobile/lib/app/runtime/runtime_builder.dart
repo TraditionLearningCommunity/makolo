@@ -13,6 +13,7 @@ import '../../features/resources/resource_repository.dart';
 import '../../features/space/space_assembly.dart';
 import '../../features/space/space_occurrence_repository.dart';
 import '../../network/makolo_api_client.dart';
+import '../../navigation/destination.dart';
 import '../../platform/location/location_capability.dart';
 import '../../platform/location/geo_search_gateway.dart';
 import '../../presentation/mps/mps_repository.dart';
@@ -76,12 +77,21 @@ Future<AppRuntime> buildAppRuntime({
     );
   }
 
-  recovery.restoreLaunchLocation(
-    await launchPreferences.readShellLocation(profileId),
-  );
+  // The persisted actor is a local preference, not server authority.
+  // Restore it before selecting the first door; never force a Space user
+  // through the personal shell after an ordinary app restart.
   final actorContext = await ActorContextController.restore(
     profileId: profileId,
     store: launchPreferences,
+  );
+  final savedDoor = MakoloDestination.forPath(
+    await launchPreferences.readShellLocation(profileId) ?? '',
+  );
+  recovery.restoreLaunchLocation(
+    MakoloDestination.forActor(
+      actorContext.value,
+      savedDoor?.door ?? MakoloPrimaryDoor.now,
+    ).path,
   );
   final database = await MakoloDatabase.openForProfile(profileId);
   final store = ProfileStore(database, profileId);
