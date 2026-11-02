@@ -1587,28 +1587,10 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Carte'),
-        actions: [
-          IconButton(
-            key: const Key('discover-map-open-search'),
-            tooltip: 'Rechercher avec les mêmes critères',
-            onPressed: () => context.push(
-              _query.routeLocation(
-                '/discover/search',
-                selectedCandidateKey: _selectedCandidateKey,
-              ),
-            ),
-            icon: const Icon(Icons.search_rounded),
-          ),
-          IconButton(
-            tooltip: 'Actualiser',
-            onPressed: _refreshing ? null : _refresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-      ),
-      body: StreamBuilder<StoredProjection?>(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          StreamBuilder<StoredProjection?>(
         stream: widget.repository.watchItems(_query),
         builder: (context, snapshot) {
           return StreamBuilder<DiscoverySourceState>(
@@ -1670,6 +1652,56 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             },
           );
         },
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.all(MakoloSpacing.sm),
+                child: Material(
+                  elevation: 2,
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(28),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Retour à Découvrir',
+                        onPressed: () => context.pop(),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Carte',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        key: const Key('discover-map-open-search'),
+                        tooltip: 'Rechercher',
+                        onPressed: () => context.push(
+                          _query.routeLocation(
+                            '/discover/search',
+                            selectedCandidateKey: _selectedCandidateKey,
+                          ),
+                        ),
+                        icon: const Icon(Icons.search_rounded),
+                      ),
+                      IconButton(
+                        tooltip: 'Actualiser',
+                        onPressed: _refreshing ? null : _refresh,
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
