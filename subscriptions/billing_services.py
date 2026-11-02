@@ -125,7 +125,7 @@ def create_subscription_billing_obligation(
         commerce_order=None,
         step=None,
         reason=PaymentObligationReason.SUBSCRIPTION,
-        label=f"Subscription {billing_terms.plan_version.plan.code} v{billing_terms.plan_version.version}",
+        label=f"Abonnement — {billing_terms.plan_version.name}",
         amount=billing_terms.amount,
         currency=billing_terms.currency,
         processing_mode=PaymentObligationProcessingMode.MAKOLO_PROVIDER,
