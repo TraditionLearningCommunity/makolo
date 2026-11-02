@@ -4,6 +4,45 @@ import 'package:makolo_mobile/features/space/space_work_surface.dart';
 
 void main() {
   testWidgets(
+    'MT5 Transport creator requires direct owner capability and all lens',
+    (tester) async {
+      Future<void> render({
+        required String archetype,
+        required bool allowed,
+        String responsibility = 'all',
+      }) => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SpaceWorkSurface(
+              payload: {
+                'primary_business_label': 'Métier',
+                'archetype': archetype,
+                'responsibility': responsibility,
+                'space': {'slug': 'mt5-space'},
+                'capabilities': {'create_transport': allowed},
+                'presentation': {'empty_message': 'Aucun départ.'},
+                'sections': <String, dynamic>{},
+              },
+            ),
+          ),
+        ),
+      );
+      await render(archetype: 'transport_operator', allowed: true);
+      expect(find.text('Planifier dans Transport'), findsOneWidget);
+      await render(archetype: 'transport_operator', allowed: false);
+      expect(find.text('Planifier dans Transport'), findsNothing);
+      await render(
+        archetype: 'transport_operator',
+        allowed: true,
+        responsibility: 'mandate:scoped',
+      );
+      expect(find.text('Planifier dans Transport'), findsNothing);
+      await render(archetype: 'commerce', allowed: true);
+      expect(find.text('Planifier dans Transport'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'MT4 Programmes and Prestations create only with Space owner capability',
     (tester) async {
       Future<void> show({
