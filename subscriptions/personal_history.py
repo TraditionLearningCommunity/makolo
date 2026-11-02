@@ -11,7 +11,7 @@ def subscription_transition_history(subscription, *, offset=0, limit=20):
         raise ValueError("Subscription subject is missing")
     rows = list(
         SubscriptionTransition.objects.filter(subscription=subscription)
-        .select_related("target_plan_version")
+        .select_related("target_plan_version", "source_plan_version")
         .order_by("-requested_at", "-pk")[offset:offset + limit + 1]
     )
     return {
@@ -23,6 +23,7 @@ def subscription_transition_history(subscription, *, offset=0, limit=20):
                 "status": item.status,
                 "status_label": item.get_status_display(),
                 "target_name": item.target_plan_version.name,
+                "source_name": item.source_plan_version.name if item.source_plan_version_id else None,
                 "requested_at": item.requested_at,
                 "completed_at": item.completed_at,
                 "expires_at": item.expires_at,
