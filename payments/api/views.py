@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
@@ -9,11 +8,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from authorization.constants import PermissionCode
-from authorization.services import activity_ids_with_permission, has_platform_authority, space_ids_with_permission
 from payments.models import (
-    PaymentMethod, PaymentProvider, PaymentObligationProcessingMode,
-    PaymentObligationStatus, PaymentStatus,
+    PaymentObligationProcessingMode, PaymentObligationStatus, PaymentStatus,
 )
 from payments.selectors import (
     get_payment_events_visible_to, get_payments_visible_to,
