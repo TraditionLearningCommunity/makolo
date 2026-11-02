@@ -49,12 +49,16 @@ class DiscoveryReader extends StatefulWidget {
     super.key,
     required this.items,
     this.initialIndex = 0,
+    this.profileId,
+    this.trustedOrigin,
     this.sharing = const SystemShareGateway(),
     this.downloads = const AndroidDeviceDownloads(),
   });
 
   final List<DiscoveryReaderItem> items;
   final int initialIndex;
+  final String? profileId;
+  final Uri? trustedOrigin;
   final ShareGateway sharing;
   final DeviceDownloads downloads;
 
@@ -75,7 +79,10 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
   bool _offlineBusy = false;
   bool _offlineSaved = false;
   File? _retainedFile;
-  final DiscoveryOfflineStore _offlineStore = const DiscoveryOfflineStore();
+  DiscoveryOfflineStore get _offlineStore => DiscoveryOfflineStore(
+    profileId: widget.profileId,
+    trustedOrigin: widget.trustedOrigin,
+  );
   int _generation = 0;
 
   DiscoveryReaderItem get _item => widget.items[_index];
