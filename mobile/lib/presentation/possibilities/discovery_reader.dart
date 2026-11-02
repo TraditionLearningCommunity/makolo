@@ -95,6 +95,31 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant DiscoveryReader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldItem = oldWidget.items[_index.clamp(0, oldWidget.items.length - 1)];
+    final nextIndex = _index.clamp(0, widget.items.length - 1);
+    final nextItem = widget.items[nextIndex];
+    if (oldWidget.profileId != widget.profileId ||
+        oldWidget.trustedOrigin != widget.trustedOrigin ||
+        oldItem.uri != nextItem.uri ||
+        oldItem.mimeType != nextItem.mimeType ||
+        oldWidget.items.length != widget.items.length) {
+      // The previously opened file/bytes belong to the former Profile and
+      // must never be rendered while the new owner context loads.
+      _generation++;
+      _index = nextIndex;
+      _retainedFile = null;
+      _offlineSaved = false;
+      _text = null;
+      _imageBytes = null;
+      _failure = null;
+      if (_page.hasClients) _page.jumpToPage(_index);
+      _load();
+    }
+  }
+
   Future<void> _disposeLoaded() async {
     final player = _player;
     _player = null;
