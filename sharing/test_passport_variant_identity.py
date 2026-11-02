@@ -43,6 +43,24 @@ class PassportVariantIdentityTests(TestCase):
         self.assertNotIn("owner_details", public.identity)
         self.assertFalse(public.team_affiliations)
 
+    def test_custom_location_baseline_excludes_a_private_city(self):
+        from accounts.models import ProfileVisibilityTargetKind
+        from accounts.profile_visibility import replace_profile_visibility
+
+        row = self.owner.profile
+        row.city = "Ville confidentielle"
+        row.country = "CD"
+        row.save(update_fields=["city", "country", "updated_at"])
+        replace_profile_visibility(
+            owner=self.owner,
+            target_kind=ProfileVisibilityTargetKind.FIELD,
+            field_key="city",
+            audiences=[],
+        )
+        custom = build_profile_passport(self.owner, variant="custom")
+        self.assertEqual(custom.identity["location"], "CD")
+        self.assertNotIn("Ville confidentielle", str(custom.identity))
+
     def test_unselected_custom_bio_stays_excluded_but_identity_stays(self):
         custom = build_profile_passport(self.owner, variant="custom")
         self.assertEqual(custom.identity["name"], self.owner.full_name)
