@@ -45,6 +45,14 @@ class DeepLinkResolver {
         return '/conversations/${target.id}';
       case 'journey':
         return '/journeys/${target.id}';
+      case 'passport_verify':
+        return target.id.isEmpty
+            ? null
+            : '/passport/verify/${Uri.encodeComponent(target.id)}';
+      case 'passport_shared':
+        return target.id.isEmpty
+            ? null
+            : '/passport/shared/${Uri.encodeComponent(target.id)}';
       case 'share_delivery':
         return '/shares/${Uri.encodeComponent(target.id)}';
       case 'share_link':
