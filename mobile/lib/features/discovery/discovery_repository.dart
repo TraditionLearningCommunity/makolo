@@ -854,6 +854,45 @@ class DiscoveryRepository {
     }
   }
 
+  Future<void> editWatch(
+    String id, {
+    String? name,
+    DiscoveryQuery? replaceCriteria,
+  }) async {
+    if (name == null && replaceCriteria == null) {
+      throw const FormatException('Aucune modification de Veille demandée');
+    }
+    if (name != null && (name.trim().isEmpty || name.trim().length > 140)) {
+      throw const FormatException('Nom de Veille invalide');
+    }
+    if (replaceCriteria != null && replaceCriteria.watchCriteria.isEmpty) {
+      throw const FormatException('Critères de Veille manquants');
+    }
+    final response = await api.patch(
+      'api/v1/discovery/watches/${Uri.encodeComponent(id)}/',
+      body: {
+        if (name != null) 'name': name.trim(),
+        if (replaceCriteria != null) 'criteria': replaceCriteria.watchCriteria,
+      },
+    );
+    final envelope = ProjectionEnvelope.parse(
+      response.jsonObject(),
+      expectedProjection: 'discovery.watch',
+    );
+    final watch = envelope.data['watch'];
+    if (watch is! Map ||
+        watch['id'] != id ||
+        (name != null && watch['name'] != name.trim()) ||
+        (replaceCriteria != null && watch['criteria'] is! Map)) {
+      throw const FormatException('Édition de Veille non confirmée');
+    }
+    try {
+      await refreshWatches();
+    } on Object {
+      // The owner-confirmed edit remains valid without a refreshed list.
+    }
+  }
+
   Future<void> deleteWatch(String id) async {
     final response = await api.delete(
       'api/v1/discovery/watches/${Uri.encodeComponent(id)}/',
