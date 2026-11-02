@@ -311,9 +311,12 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                     failed = null;
                                   });
                                   try {
-                                    await api.post(
+                                    final result = (await api.post(
                                       endpoint,
                                       body: {'idempotency_key': intent},
+                                    )).jsonObject();
+                                    final paymentId = _value(
+                                      _object(result['transition'])?['payment_obligation_id'],
                                     );
                                     if (!_sameSubject(
                                           sourceRuntime,
@@ -322,8 +325,19 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                         widget.runtime.api != api)
                                       return;
                                     await widget.onUpdated();
-                                    if (sheetContext.mounted)
+                                    if (sheetContext.mounted) {
                                       Navigator.pop(sheetContext);
+                                    }
+                                    if (paymentId.isNotEmpty &&
+                                        _sameSubject(sourceRuntime, profileId)) {
+                                      await context.push(
+                                        '/payments/obligations/' +
+                                            Uri.encodeComponent(paymentId),
+                                      );
+                                      if (_sameSubject(sourceRuntime, profileId)) {
+                                        await widget.onUpdated();
+                                      }
+                                    }
                                   } on Object catch (error) {
                                     // The intent key is unchanged, including after a lost response.
                                     if (_sameSubject(
