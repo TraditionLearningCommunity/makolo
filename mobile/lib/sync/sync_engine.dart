@@ -264,6 +264,7 @@ class SyncEngine {
         source.projectionKind == 'occurrence.detail') {
       try {
         await const DiscoveryOfflineStore().purgeAutomaticRecognition();
+        await DiscoveryOfflineStore(profileId: profileId).purgePrivateReader();
       } on Object {
         // Projection withdrawal has already committed in SQLite.
       }
