@@ -8,6 +8,7 @@ import '../../design/makolo_theme.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../sync/sync_status.dart';
 import 'intelligence_connection_controls.dart';
+import 'interoperability_presentation.dart';
 
 class ProfileConnectionsScreen extends StatefulWidget {
   const ProfileConnectionsScreen({super.key, required this.runtime});
