@@ -7,10 +7,16 @@ import '../../design/makolo_theme.dart';
 import '../../presentation/contracts/space_presentation.dart';
 
 class SpaceWorkSurface extends StatelessWidget {
-  const SpaceWorkSurface({super.key, required this.payload, this.onLoadMore});
+  const SpaceWorkSurface({
+    super.key,
+    required this.payload,
+    this.onLoadMore,
+    this.mediaBaseUri,
+  });
 
   final Map<String, dynamic> payload;
   final void Function(String section)? onLoadMore;
+  final Uri? mediaBaseUri;
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +165,29 @@ class SpaceWorkSurface extends StatelessWidget {
     final source = _map(item['source']);
     final kind = _string(item['kind']) ?? _string(source?['kind']);
     final capabilities = item['capabilities'];
+    // Only the canonical public PresentationMediaUse delivery URL is rendered.
+    // A private resource, bare asset or unverified external URL is never an image.
+    final bindings = item['media_bindings'];
+    final recognition = bindings is List && bindings.isNotEmpty
+        ? _map(bindings.first)
+        : null;
+    final mediaOwner = _map(recognition?['owner']);
+    final mediaPath = _string(recognition?['url']);
+    final mediaUri = mediaBaseUri != null &&
+            (payload['archetype'] == 'creative' ||
+                payload['archetype'] == 'media') &&
+            recognition?['authorized'] == true &&
+            recognition?['purpose'] == 'recognize' &&
+            recognition?['kind'] == 'image' &&
+            (recognition?['mime_type'] == 'image/jpeg' ||
+                recognition?['mime_type'] == 'image/png') &&
+            mediaOwner?['kind'] == source?['kind'] &&
+            mediaOwner?['id'] == source?['id'] &&
+            mediaPath != null &&
+            mediaPath.startsWith('/presentation/media/uses/') &&
+            mediaPath.endsWith('/file/')
+        ? mediaBaseUri!.resolve(mediaPath)
+        : null;
     final canOpenDayOf =
         source?['kind'] == 'occurrence' &&
         source?['id'] is String &&
@@ -238,11 +267,27 @@ class SpaceWorkSurface extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 2, right: MakoloSpacing.md),
-              child: Icon(
-                _archetypeIcon(kind),
-                color: Theme.of(context).colorScheme.primary,
-                size: 22,
-              ),
+              child: mediaUri == null
+                  ? Icon(
+                      _archetypeIcon(kind),
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 22,
+                    )
+                  : Semantics(
+                      label: _string(recognition?['label']) ??
+                          'Visuel publié de reconnaissance',
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          mediaUri.toString(),
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.image_not_supported_outlined),
+                        ),
+                      ),
+                    ),
             ),
             Expanded(
               child: Column(
