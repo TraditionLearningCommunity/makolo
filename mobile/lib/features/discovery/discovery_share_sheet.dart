@@ -127,7 +127,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
       throw const FormatException('Unexpected share contract');
     }
     if (!mounted || generation != _itemGeneration) {
-      throw const StateError('Share candidate changed during request');
+      throw StateError('Share candidate changed during request');
     }
     setState(() => _created = data);
     final url = _shareUrl;
