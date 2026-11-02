@@ -71,10 +71,10 @@ class SpaceWorkG3OfferAPIView(APIView):
         return response
 
     def get(self, request, slug, **kwargs):
-        return self._response(
-            *self._owner(request, slug, **kwargs)[:1],
-            *self._owner(request, slug, **kwargs)[1:],
+        space, responsibility, activity, offer = self._owner(
+            request, slug, **kwargs,
         )
+        return self._response(space, responsibility, activity, offer)
 
     def post(self, request, slug, **kwargs):
         space, responsibility, activity, offer = self._owner(
