@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/features/interoperability/space_connections_screen.dart';
+import 'package:makolo_mobile/features/interoperability/interoperability_presentation.dart';
 import 'package:makolo_mobile/repositories/interoperability_repository.dart';
 
 InteroperabilityConnectionProjection connection({
@@ -26,31 +27,44 @@ InteroperabilityConnectionProjection connection({
 }
 
 void main() {
+  test('Profile and Space share the same server-owned presentation vocabulary', () {
+    for (final health in ['healthy', 'unknown', 'degraded', 'unavailable']) {
+      final row = connection(health: health);
+      expect(spaceConnectionStatus(row), connectionStatusLabel(row));
+    }
+    expect(connectionExperienceMessage(connection()),
+        'La disponibilité doit être vérifiée.');
+    expect(connectionExperienceMessage(connection(health: 'healthy')),
+        'Cette connexion possède une capacité active.');
+    expect(connectionExperienceMessage(connection(enabled: false)),
+        'Cette connexion est désactivée.');
+  });
+
   test('unverified new provider is never shown as confirmed available', () {
     expect(
       spaceConnectionStatus(connection()),
-      'Reliée · disponibilité à vérifier',
+      'Connecté · état à vérifier',
     );
     expect(
       spaceConnectionStatus(connection(health: 'healthy')),
-      'Connectée et disponible',
+      'Connecté et disponible',
     );
     expect(
       spaceConnectionStatus(connection(health: 'degraded')),
-      'Connectée · disponibilité réduite',
+      'Connecté · disponibilité réduite',
     );
     expect(
       spaceConnectionStatus(connection(health: 'unavailable')),
       'Momentanément indisponible',
     );
-    expect(spaceConnectionStatus(connection(enabled: false)), 'Désactivée');
+    expect(spaceConnectionStatus(connection(enabled: false)), 'Désactivé');
     expect(
       spaceConnectionStatus(connection(health: 'healthy', capabilities: [])),
       'Reliée · aucune capacité active',
     );
     expect(
       spaceConnectionStatus(connection(health: 'healthy', usable: false)),
-      'Reliée · non utilisable',
+      'Connecté',
     );
   });
 }
