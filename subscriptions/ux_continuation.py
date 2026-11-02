@@ -66,19 +66,21 @@ def safe_action_return(request, *, space=None):
     except Resolver404:
         return None
     name = match.view_name
+    # Event and Activity are both owner-scoped. A return link must not
+    # silently reopen a personal creation after an Espace Subscription denial.
     if space is None:
         if name not in {"activities:create", "events:create"}:
             return None
-        if name == "activities:create" and parse_qs(parts.query).get("space"):
+        if "space" in parse_qs(parts.query, keep_blank_values=True):
             return None
     else:
         if name in {"organizations:team-member-create", "organizations:member-create"}:
             if match.kwargs.get("slug") != space.slug:
                 return None
-        elif name == "activities:create":
-            if parse_qs(parts.query).get("space") != [space.slug]:
+        elif name in {"activities:create", "events:create"}:
+            if parse_qs(parts.query, keep_blank_values=True).get("space") != [space.slug]:
                 return None
-        elif name != "events:create":
+        else:
             return None
     return raw
 
