@@ -6,6 +6,7 @@ from .views import (
     DiscoveryActivityDetailView,
     DiscoveryHomeView,
     DiscoveryClarifyWebView,
+    DiscoverySourceResearchWebView,
     DiscoveryPossibilityDetailView,
     ForYouView,
     MyEventsView,
@@ -23,6 +24,7 @@ app_name = "discovery"
 
 urlpatterns = [
     path("clarify/", DiscoveryClarifyWebView.as_view(), name="clarify"),
+    path("research/", DiscoverySourceResearchWebView.as_view(), name="research"),
     path("", DiscoveryHomeView.as_view(), name="home"),
     path("possibilities/<str:family>/<str:item_id>/", DiscoveryPossibilityDetailView.as_view(), name="possibility-detail"),
     path("activities/<uuid:occurrence_id>/", DiscoveryActivityDetailView.as_view(), name="activity-detail"),
