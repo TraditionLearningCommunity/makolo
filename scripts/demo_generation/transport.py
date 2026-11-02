@@ -20,6 +20,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--apply", action="store_true")
     p.add_argument("--beneficiaries", type=int, default=24)
+    p.add_argument("--profile-username")
     p.add_argument("--grantor", default="beta_staff")
     p.add_argument("--operator", default="beta_transport_operator")
     p.add_argument("--scan-count", type=int, default=12,
@@ -57,8 +58,8 @@ def main(argv=None):
         is_staff=False, is_superuser=False).first()
     if grantor is None or operator is None:
         p.error("Grantor ou operateur non administrateur introuvable")
-    people = list(User.objects.filter(username__startswith="world_", is_active=True,
-        is_staff=False,is_superuser=False).order_by("username")[:a.beneficiaries])
+    from .selection import demo_profiles
+    people = demo_profiles(username=a.profile_username, limit=a.beneficiaries)
     if not people:
         p.error("Aucun beneficiaire world_")
     tz = ZoneInfo("Africa/Lubumbashi")
