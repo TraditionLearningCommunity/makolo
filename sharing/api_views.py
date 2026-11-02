@@ -6,6 +6,7 @@ and sharing.services; tokens remain opaque to Flutter.
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError as DomainValidationError
 from django.shortcuts import get_object_or_404
+from django.utils.cache import patch_vary_headers
 from rest_framework.exceptions import NotFound, Throttled, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -34,6 +35,16 @@ from .services import (
 from .views import _recipient_candidates
 
 
+class SharingNoStoreBoundary:
+    """A token or recipient identity must never survive in an HTTP cache."""
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        patch_vary_headers(response, ("Authorization", "Cookie"))
+        return response
+
+
 def _limited(request, recipient=None):
     actor_id = str(request.user.pk)
     identities = [value_rate_identity("sender", actor_id)]
@@ -53,7 +64,7 @@ def _limited(request, recipient=None):
         raise Throttled(detail="Trop d'envois à ce Profil.")
 
 
-class ShareRecipientSearchAPIView(APIView):
+class ShareRecipientSearchAPIView(SharingNoStoreBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -80,7 +91,7 @@ class ShareRecipientSearchAPIView(APIView):
         })
 
 
-class SharePossibilityAPIView(APIView):
+class SharePossibilityAPIView(SharingNoStoreBoundary, APIView):
     permission_classes = [IsAuthenticated]
     ALLOWED = {"activity", "service_activity", "funding_activity", "opportunity"}
 
@@ -188,7 +199,7 @@ def _destination_response(envelope):
     return response
 
 
-class PublicShareResolveAPIView(APIView):
+class PublicShareResolveAPIView(SharingNoStoreBoundary, APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, token):
@@ -200,7 +211,7 @@ class PublicShareResolveAPIView(APIView):
             raise NotFound("Partage indisponible.") from exc
 
 
-class ShareDeliveryResolveAPIView(APIView):
+class ShareDeliveryResolveAPIView(SharingNoStoreBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, delivery_id):

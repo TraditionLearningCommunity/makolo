@@ -288,6 +288,13 @@ class SpaceWorkView(SpaceWebMixin):
                 "projection": projection,
                 "work_sections": sections,
                 "work_has_items": any(section["items"] for section in sections),
+                "work_g3_transport_url": reverse(
+                    "organizations:console-transport",
+                    kwargs={"slug": self.space.slug},
+                ) if (
+                    projection["capabilities"].get("create_transport")
+                    and self.selected_responsibility["key"] == "all"
+                ) else None,
                 "work_g2_create_label": (
                     "Nouveau programme"
                     if self.space.archetype == SpaceArchetype.EDUCATION

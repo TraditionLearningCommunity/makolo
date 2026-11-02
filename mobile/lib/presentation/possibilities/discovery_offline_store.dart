@@ -62,9 +62,15 @@ class DiscoveryOfflineStore {
     return hash.toRadixString(16).padLeft(16, '0');
   }
 
-  bool _mayRetain(Uri url) =>
-      (profileId != null && profileId!.trim().isNotEmpty) ||
-      isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin);
+  bool _mayRetain(Uri url) {
+    // Reader files are discretionary local copies, never authority tokens.
+    // Keep signed, credentialed and unknown-scheme URLs transient only.
+    if ((url.scheme != 'http' && url.scheme != 'https') ||
+        url.host.isEmpty || url.userInfo.isNotEmpty ||
+        url.hasQuery || url.hasFragment) return false;
+    return (profileId != null && profileId!.trim().isNotEmpty) ||
+        isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin);
+  }
 
   Future<Directory> _directory(Uri url) async {
     if (!_mayRetain(url)) {

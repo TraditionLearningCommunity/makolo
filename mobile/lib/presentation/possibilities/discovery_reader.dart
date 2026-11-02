@@ -359,8 +359,14 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
     }
   }
 
+  bool get _canRetainOffline =>
+      (widget.profileId != null && widget.profileId!.trim().isNotEmpty) ||
+      DiscoveryOfflineStore.isPublishedRecognitionUri(
+        _item.uri, trustedOrigin: widget.trustedOrigin,
+      );
+
   Future<void> _toggleOffline() async {
-    if (_offlineBusy ||
+    if (!_canRetainOffline || _offlineBusy ||
         _item.mimeType == 'text/html' ||
         _item.inlineText != null) {
       return;
@@ -608,7 +614,7 @@ class _DiscoveryReaderState extends State<DiscoveryReader> {
       appBar: AppBar(
         title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          if (!website && item.inlineText == null)
+          if (!website && item.inlineText == null && _canRetainOffline)
             IconButton(
               tooltip: _offlineSaved
                   ? 'Supprimer la copie hors ligne Makolo'

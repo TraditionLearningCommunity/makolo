@@ -19,6 +19,9 @@
         {% if work_g2_create_url %}
         <a class="mk-btn mk-btn-secondary" href="{{ work_g2_create_url }}">{{ work_g2_create_label }}</a>
         {% endif %}
+        {% if work_g3_transport_url %}
+        <a class="mk-btn mk-btn-secondary" href="{{ work_g3_transport_url }}">Planifier un départ, une route ou un véhicule</a>
+        {% endif %}
       </div>
     </div>
   </header>
@@ -48,7 +51,7 @@
   {% if not work_has_items %}
   <section class="mk-panel p-6" role="status" aria-labelledby="work-empty-title">
     <h3 id="work-empty-title" class="text-xl font-extrabold">{{ projection.presentation.empty_message }}</h3>
-    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Cette vue reste vide tant que les propriétaires métier ne projettent aucun travail accessible. Makolo n’invente pas d’activité pour remplir l’écran.</p>
+    <p class="mt-2 max-w-2xl text-sm" style="color:var(--mk-muted)">Aucune activité à afficher pour le moment.</p>
   </section>
   {% endif %}
 

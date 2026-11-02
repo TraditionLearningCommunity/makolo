@@ -56,6 +56,8 @@ import '../features/space/space_work_collection_screen.dart';
 import '../features/space/space_repository.dart';
 import '../features/space/space_request_screen.dart';
 import '../features/space/space_service_case_screen.dart';
+import '../features/space/space_work_offer_editor_screen.dart';
+import '../features/space/space_transport_create_screen.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
@@ -470,6 +472,59 @@ GoRouter createMakoloRouter(
             runtime: runtime,
             actor: actor,
             requestId: state.pathParameters['id']!,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/work/g3/transport/new',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug'] ||
+              !actor.perspective.isAll) {
+            return const MakoloSecondaryScreen(
+              title: 'Créer dans Transport',
+              message: 'Choisissez cet Espace et sa responsabilité globale.',
+            );
+          }
+          return SpaceTransportCreateScreen(
+            runtime: runtime, actor: actor,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/work/g3/activities/:activityId/offers/new',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Nouvelle offre',
+              message: 'Choisissez le contexte autorisé de cet Espace.',
+            );
+          }
+          return SpaceWorkOfferEditorScreen(
+            runtime: runtime,
+            actor: actor,
+            activityId: state.pathParameters['activityId']!,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/work/g3/offers/:offerId/edit',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Modifier l’offre',
+              message: 'Choisissez le contexte autorisé de cet Espace.',
+            );
+          }
+          return SpaceWorkOfferEditorScreen(
+            runtime: runtime,
+            actor: actor,
+            offerId: state.pathParameters['offerId']!,
           );
         },
       ),

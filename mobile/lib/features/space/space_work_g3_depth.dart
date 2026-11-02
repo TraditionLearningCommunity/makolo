@@ -10,12 +10,14 @@ class SpaceWorkG3Depth extends StatelessWidget {
     super.key,
     required this.slug,
     required this.payload,
+    this.ownerId,
     required this.onPageChange,
     required this.onSecondaryPageChange,
   });
 
   final String slug;
   final Map<String, dynamic> payload;
+  final String? ownerId;
   final ValueChanged<int> onPageChange;
   final ValueChanged<int> onSecondaryPageChange;
 
@@ -26,8 +28,32 @@ class SpaceWorkG3Depth extends StatelessWidget {
     final widgets = <Widget>[];
     if (kind == 'commerce_activity') {
       widgets.add(_heading(context, 'Offres de cette activité'));
+      if (facts['can_manage_offer'] == true && ownerId != null) {
+        widgets.add(
+          FilledButton.icon(
+            icon: const Icon(Icons.add),
+            label: const Text('Créer une offre'),
+            onPressed: () => context.push(
+              '/space/${Uri.encodeComponent(slug)}/work/g3/'
+              'activities/${Uri.encodeComponent(ownerId!)}/offers/new',
+            ),
+          ),
+        );
+      }
     } else if (kind == 'offer') {
       widgets.add(_heading(context, 'Conditions de cette offre'));
+      if (facts['can_manage_offer'] == true && ownerId != null) {
+        widgets.add(
+          FilledButton.icon(
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Modifier l’offre'),
+            onPressed: () => context.push(
+              '/space/${Uri.encodeComponent(slug)}/work/g3/'
+              'offers/${Uri.encodeComponent(ownerId!)}/edit',
+            ),
+          ),
+        );
+      }
       widgets.add(_fact('Prix unitaire', _money(
         facts['unit_price'], facts['currency'],
       )));

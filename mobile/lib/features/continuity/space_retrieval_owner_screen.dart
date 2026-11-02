@@ -406,6 +406,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         spaceMap(data['owner_depth']) != null)
                       SpaceWorkG3Depth(
                         slug: widget.spaceActor.space.slug,
+                        ownerId: widget.id,
                         payload: spaceMap(data['owner_depth'])!,
                         onPageChange: (nextOffset) {
                           if (!_actorValid) return;

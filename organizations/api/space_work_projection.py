@@ -1165,5 +1165,11 @@ def build_space_work_projection(
                 and resolve_entitlement(space, "activities.create").allowed
             ),
             "create_g2": g2_creation_available(profile, space),
+            "create_transport": (
+                space.archetype == "transport_operator"
+                and has_direct_space_permission(
+                    profile, space, PermissionCode.SPACE_ACTIVITIES_MANAGE
+                )
+            ),
         },
     }
