@@ -38,9 +38,17 @@ Aucun champ `profile_id`, `space_id`, `provider_id`, `base_url` ou `api_key` n'e
 - **Web :** deux formulaires CSRF distincts à côté du champ Découvrir après la recherche initiale. Pour les pistes, une profondeur transitoire affiche des liens externes avec indication explicite de non-vérification et retour à la recherche originale.
 - **Flutter :** le `DiscoveryRepository` transporte les deux actions sans écrire dans Drift/ProfileStore. `DiscoverySearchScreen` permet de clarifier les critères, relance le selector existant, et ouvre les sources dans une feuille temporaire. Les URLs externes doivent être HTTPS et sans identifiants incorporés. Aucun usage en arrière-plan ni queue hors ligne.
 
+## 4.1 Bornes de sécurité supplémentaires
+
+- Les deux POST sont limités à **12 invocations par heure et par utilisateur authentifié**, via les throttles DRF existants (réutilisés dans les vues Django Web). Déployer avec un cache partagé si plusieurs workers doivent appliquer un budget global ; le cache non partagé reste une protection locale seulement.
+- Les paramètres explicites de date, lieu, verticalité, moment et géographie ne sont jamais écrasés par une interprétation externe. Le rayon seul, sans position, ne déclenche pas une fausse autorité géographique.
+- Les URLs de sources doivent être HTTPS, sans identifiants incorporés, et ne doivent pas cibler localhost, les IP privées ou les IP réservées. Seules les sources réellement citées par des pistes affichées figurent dans la réponse.
+- Les erreurs de clé, de quota et de disponibilité sont réduites à des catégories publiques stables. Le contrat historique de l'IntelligenceGateway pour les erreurs réseau reste compatible ; aucune réponse brute du fournisseur ne ressort de l'API.
+- Les utilisateurs peuvent rejoindre **Moi → Connexions** depuis Découvrir lorsqu'une capacité Intelligence n'est pas disponible ; aucune Permission ou Mandate n'est déduite de la présence d'un bouton.
+
 ## 5. Tests ciblés et contrat de sortie
 
-Tests ajoutés : `discovery/api/test_c5_owner_actions.py` et `mobile/test/discovery_c5_connected_actions_test.dart`.
+Tests ajoutés : `discovery/api/test_c5_owner_actions.py` et `mobile/test/discovery_c5_connected_actions_test.dart`. Ils couvrent également le budget d'appels, la protection CSRF, les refus cross-Profil, le GET sans fournisseur, les filtres spatiaux, les URLs privées et la présentation Web des sources.
 
 ```bash
 python manage.py test discovery.api.test_c5_owner_actions discovery.test_intent discovery.api.test_mature_discovery intelligence.test_connection_management_api intelligence.tests web_research.tests.test_provider_pack
