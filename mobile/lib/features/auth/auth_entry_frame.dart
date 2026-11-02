@@ -14,6 +14,7 @@ class AuthEntryFrame extends StatelessWidget {
     this.onBack,
     this.onClose,
     this.footer = '',
+    this.compactIdentity = false,
   });
 
   final String title;
@@ -22,6 +23,7 @@ class AuthEntryFrame extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onClose;
   final String footer;
+  final bool compactIdentity;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +45,9 @@ class AuthEntryFrame extends StatelessWidget {
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              const horizontal = MakoloSpacing.lg;
+              final horizontal = constraints.maxWidth < 360
+                  ? MakoloSpacing.md
+                  : MakoloSpacing.lg;
               final vertical = compact ? MakoloSpacing.sm : MakoloSpacing.lg;
 
               return SingleChildScrollView(
@@ -88,18 +92,22 @@ class AuthEntryFrame extends StatelessWidget {
                               ],
                             ),
                           SizedBox(
-                            height: compact
+                            height: compactIdentity
+                                ? MakoloSpacing.xs
+                                : compact
                                 ? MakoloSpacing.xs
                                 : MakoloSpacing.md,
                           ),
                           Center(
                             child: MakoloMark(
-                              size: compact ? 52 : 64,
+                              size: compactIdentity ? 42 : compact ? 52 : 64,
                               white: true,
                             ),
                           ),
                           SizedBox(
-                            height: compact
+                            height: compactIdentity
+                                ? MakoloSpacing.md
+                                : compact
                                 ? MakoloSpacing.md
                                 : MakoloSpacing.lg,
                           ),
@@ -125,7 +133,9 @@ class AuthEntryFrame extends StatelessWidget {
                             ),
                           ],
                           SizedBox(
-                            height: compact
+                            height: compactIdentity
+                                ? MakoloSpacing.lg
+                                : compact
                                 ? MakoloSpacing.lg
                                 : MakoloSpacing.xl,
                           ),
