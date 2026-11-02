@@ -228,8 +228,8 @@ void main() {
       latitude: -11.66,
       longitude: 27.48,
       savedState: 'unknown',
-      capabilities: {},
-      links: {},
+      capabilities: <String>{},
+      links: <String, String>{},
     );
     const collection = DiscoveryCollectionPresentation(
       items: [item],
