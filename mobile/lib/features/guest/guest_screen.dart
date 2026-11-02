@@ -471,6 +471,17 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
     final theme = Theme.of(context);
     return PublicExperienceShell(
       current: 1,
+      headerActions: [
+        if (!_updatingCriteria &&
+            _selector.spatialAnchorsFromCollection(_collection).isNotEmpty)
+          IconButton(
+            key: const Key('guest-discover-header-map'),
+            tooltip: 'Voir ces possibilités sur la carte',
+            icon: const Icon(Icons.map_outlined),
+            onPressed: () =>
+                context.push(_query.routeLocation('/discover/map')),
+          ),
+      ],
       child: LoadMoreOnScroll(
         hasMore: _collection.hasNext && _error == null && !_updatingCriteria,
         loading: _loading,
@@ -661,19 +672,6 @@ class _GuestDiscoverScreenState extends State<GuestDiscoverScreen> {
                   const Divider(height: 1),
                   const SizedBox(height: MakoloSpacing.sm),
                 ],
-                if (!_updatingCriteria &&
-                    _selector
-                        .spatialAnchorsFromCollection(_collection)
-                        .isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          context.push(_query.routeLocation('/discover/map')),
-                      icon: const Icon(Icons.map_outlined),
-                      label: const Text('Voir sur la carte'),
-                    ),
-                  ),
                 if (_collection.items.isEmpty && !_loading && _error == null)
                   Padding(
                     padding: EdgeInsets.all(MakoloSpacing.lg),
