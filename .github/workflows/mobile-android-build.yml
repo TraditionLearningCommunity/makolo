@@ -63,6 +63,17 @@ jobs:
             ) | not)
           ' config/dev.json > /dev/null
           echo "DEV build configured for a remote HTTPS API."
+      - name: Validate configured DEV mapping
+        run: |
+          set -euo pipefail
+          jq -e '
+            .MAKOLO_ENVIRONMENT == "dev"
+            and .MAKOLO_MAPS_ENABLED == "true"
+            and ((.MAKOLO_MAP_STYLE // "") | startswith("https://"))
+            and .MAKOLO_GEOCODING_ENABLED == "true"
+            and ((.MAKOLO_GEOCODING_API_KEY // "") | length > 0)
+          ' config/dev.json > /dev/null
+          echo "DEV maps and geographic suggestions configured."
       - name: Build Android debug
         run: flutter build apk --debug --flavor dev --dart-define-from-file=config/dev.json
       - name: Upload DEV APK
