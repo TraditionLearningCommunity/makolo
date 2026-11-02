@@ -17,6 +17,7 @@ from rest_framework import status
 from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
 from authorization.services import can
+from intelligence.demo_connections import demo_offers, create_demo_connection
 from intelligence.connection_management import (
     catalog, create_connection, disconnect_connection, update_connection,
 )
@@ -62,10 +63,20 @@ class _ConnectionCatalog(_ScopedIntelligenceConnections, APIView):
 
     def get(self, request, slug=None):
         self._owner(request, slug=slug)
-        return _response({"offers": catalog()})
+        return _response({"offers": catalog() + demo_offers()})
 
     def post(self, request, slug=None):
         _, space = self._owner(request, slug=slug)
+        if isinstance(request.data, dict) and str(request.data.get("provider", "")).startswith("demo-"):
+            try:
+                connection, _ = create_demo_connection(
+                    actor=request.user, scope=self.scope, space=space,
+                    provider=request.data["provider"], consent=request.data.get("consent"),
+                )
+            except DjangoValidationError as exc:
+                raise _validation_error(exc) from exc
+            connection = ProviderConnection.objects.prefetch_related("routes").get(pk=connection.pk)
+            return _response(project_provider_connection(connection, manageable=True), status_code=201)
         try:
             connection = create_connection(
                 actor=request.user, scope=self.scope,
