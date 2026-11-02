@@ -93,7 +93,13 @@ def _actionable_snapshot(payload):
     billing = payload.get("billing") or {}
     if billing.get("visibility") == "restricted":
         transition["next_action"] = "finance_access_required"
+        transition["can_cancel"] = False
         return payload
+    transition["can_cancel"] = not any(
+        row.get("transition_id") == transition["id"]
+        and row.get("status") not in {"cancelled", "expired", "refunded"}
+        for row in billing.get("items", ())
+    )
     linked = next(
         (row for row in billing.get("items", ())
          if row.get("transition_id") == transition["id"]
