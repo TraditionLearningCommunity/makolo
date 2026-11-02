@@ -67,13 +67,13 @@
                 <p><strong>État établi :</strong> {{ situation.state_meaning }}</p>
                 <p><strong>Ce qui compte :</strong> {{ situation.why_now.meaning }}</p>
                 {% if situation.consequence.state == 'unknown' %}
-                  <p style="color:var(--mk-muted)">La conséquence précise n'est pas encore établie par le domaine concerné.</p>
+                  <p style="color:var(--mk-muted)">La conséquence n’est pas encore connue.</p>
                 {% endif %}
                 {% if situation.turn.type == 'none' %}
-                  <p style="color:var(--mk-muted)">Aucune action directe n'est attribuée dans cette projection.</p>
+                  <p style="color:var(--mk-muted)">Aucune action à effectuer ici.</p>
                 {% endif %}
                 {% if situation.links.web %}
-                  <a class="font-semibold underline underline-offset-4" href="{{ situation.links.web }}">Ouvrir le contexte propriétaire</a>
+                  <a class="font-semibold underline underline-offset-4" href="{{ situation.links.web }}">Voir le détail</a>
                 {% endif %}
               </div>
             </details>
@@ -83,9 +83,9 @@
     {% else %}
       <div class="rounded-3xl border px-6 py-10 sm:px-10" role="status"
            style="background:var(--mk-surface, #fff);border-color:var(--mk-border, #e5e7eb)">
-        <h3 class="text-xl font-bold">Aucune situation établie dans cette perspective.</h3>
+        <h3 class="text-xl font-bold">Aucune situation à afficher.</h3>
         <p class="mt-3 max-w-2xl text-sm leading-6" style="color:var(--mk-muted)">
-          La couverture actuelle est partielle. Makolo ne peut pas encore conclure que tout est en ordre pour cet Espace.
+          Impossible de confirmer que tout est en ordre avec les informations disponibles.
         </p>
         <a class="mk-btn mk-btn-secondary mt-5" href="{{ space_work_url }}">Poursuivre dans Métier</a>
       </div>
@@ -93,9 +93,9 @@
     {% if projection.selection.state == 'partial' %}
       <p class="max-w-3xl border-l-2 pl-4 text-sm leading-6" role="status"
          style="border-color:#5232DB;color:var(--mk-muted)">
-        Certaines situations sont connues, mais tous les domaines de cet Espace ne sont pas encore couverts.
+        Certaines informations de cet espace ne sont pas encore disponibles.
         {% if projection.has_more %}
-          Des situations supplémentaires existent au-delà de cet aperçu.
+          D’autres situations sont disponibles.
           <a href="{{ space_work_url }}" class="font-semibold underline underline-offset-4">Poursuivre dans Métier</a>.
         {% endif %}
       </p>
@@ -103,18 +103,18 @@
   {% elif projection_state == 'empty' %}
     <div class="rounded-3xl border px-6 py-10" role="status">
       <h3 class="text-xl font-bold">Tout est en ordre. ✓</h3>
-      <p class="mt-2">Le serveur a établi qu’aucune situation ne réclame d’attention dans ce contexte.</p>
+      <p class="mt-2">Aucune intervention nécessaire actuellement.</p>
     </div>
   {% elif projection_state == 'unavailable' %}
     <div class="rounded-3xl border px-6 py-10" role="status">
-      <h3 class="text-xl font-bold">La sélection n’est pas encore disponible.</h3>
-      <p class="mt-3 text-sm leading-6">Cela ne signifie ni qu’il n’existe rien dans l’Espace, ni que tout est en ordre.</p>
+      <h3 class="text-xl font-bold">Informations à vérifier.</h3>
+      <p class="mt-3 text-sm leading-6">Impossible de confirmer que tout est en ordre.</p>
       <a href="{{ space_work_url }}" class="mk-btn mk-btn-secondary mt-5">Continuer dans Métier</a>
     </div>
   {% else %}
     <div class="rounded-3xl border px-6 py-10" role="alert">
       <h3 class="text-xl font-bold">Maintenant n’a pas pu être chargé.</h3>
-      <p class="mt-3 text-sm">Le contexte de l’Espace reste conservé. Vous pouvez réessayer sans perdre votre position.</p>
+      <p class="mt-3 text-sm">Impossible d’actualiser les informations.</p>
       <a href="{{ space_root_url }}" class="mk-btn mk-btn-primary mt-5">Réessayer</a>
     </div>
   {% endif %}
