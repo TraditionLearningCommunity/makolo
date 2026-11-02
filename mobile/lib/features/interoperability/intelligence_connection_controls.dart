@@ -33,6 +33,8 @@ class _IntelligenceConnectionControlsState
   List<Map<String, dynamic>> _offers = const [];
   bool _busy = false;
   bool _catalogLoading = true;
+  int _catalogGeneration = 0;
+  String? _catalogError;
 
   @override
   void initState() {
@@ -40,24 +42,62 @@ class _IntelligenceConnectionControlsState
     unawaited(_loadCatalog());
   }
 
+  @override
+  void didUpdateWidget(covariant IntelligenceConnectionControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path ||
+        !identical(oldWidget.runtime, widget.runtime)) {
+      // New actor/scope: never carry a provider offer from another owner.
+      _catalogGeneration++;
+      _offers = const [];
+      _catalogLoading = true;
+      _catalogError = null;
+      unawaited(_loadCatalog());
+    }
+  }
+
+  bool _sameOwner(String path, AppRuntime runtime) =>
+      mounted &&
+      widget.mutationsEnabled &&
+      widget.path == path &&
+      identical(widget.runtime, runtime);
+
+
   Future<void> _loadCatalog() async {
-    final api = widget.runtime.api;
+    final generation = ++_catalogGeneration;
+    final path = widget.path;
+    final runtime = widget.runtime;
+    final api = runtime.api;
     if (api == null) {
-      if (mounted) setState(() => _catalogLoading = false);
+      if (mounted && generation == _catalogGeneration) {
+        setState(() {
+          _offers = const [];
+          _catalogLoading = false;
+          _catalogError = 'Service Connexions indisponible.';
+        });
+      }
       return;
     }
     try {
-      final result = (await api.get(widget.path)).jsonObject();
+      final result = (await api.get(path)).jsonObject();
       final offers = result['offers'];
-      if (!mounted) return;
+      if (!mounted || generation != _catalogGeneration ||
+          path != widget.path || !identical(runtime, widget.runtime)) return;
+      if (offers is! List) throw const FormatException('Invalid owner catalog');
       setState(() {
-        _offers = offers is List
-            ? offers.whereType<Map<String, dynamic>>().toList(growable: false)
-            : const [];
+        _offers = offers.whereType<Map<String, dynamic>>()
+            .toList(growable: false);
         _catalogLoading = false;
+        _catalogError = null;
       });
     } on Object {
-      if (mounted) setState(() => _catalogLoading = false);
+      if (!mounted || generation != _catalogGeneration ||
+          path != widget.path || !identical(runtime, widget.runtime)) return;
+      setState(() {
+        _offers = const [];
+        _catalogLoading = false;
+        _catalogError = 'Catalogue indisponible. Vérifiez votre connexion ou vos droits.';
+      });
     }
   }
 
@@ -73,11 +113,14 @@ class _IntelligenceConnectionControlsState
     required Map<String, dynamic> body,
   }) async {
     if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
+    final ownerPath = widget.path;
+    final ownerRuntime = widget.runtime;
     setState(() => _busy = true);
     var committed = false;
     try {
-      final api = widget.runtime.api!;
-      final path = id == null ? widget.path : '${widget.path}$id/';
+      if (!_sameOwner(ownerPath, ownerRuntime)) return;
+      final api = ownerRuntime.api!;
+      final path = id == null ? ownerPath : '${ownerPath}$id/';
       if (method == 'POST') {
         await api.post(path, body: body);
       } else if (method == 'PATCH') {
@@ -92,10 +135,16 @@ class _IntelligenceConnectionControlsState
 
     var refreshed = false;
     try {
-      await widget.onChanged();
-      refreshed = true;
+      if (_sameOwner(ownerPath, ownerRuntime)) {
+        await widget.onChanged();
+        refreshed = true;
+      }
     } on Object {
       // Server commit and local projection refresh are separate outcomes.
+    }
+    if (!_sameOwner(ownerPath, ownerRuntime)) {
+      if (mounted) setState(() => _busy = false);
+      return;
     }
     if (!committed) {
       _notice(
@@ -117,6 +166,8 @@ class _IntelligenceConnectionControlsState
   }
 
   Future<void> _create(Map<String, dynamic> offer) async {
+    final ownerPath = widget.path;
+    final ownerRuntime = widget.runtime;
     final name = TextEditingController(text: offer['label'] as String? ?? '');
     final model = TextEditingController();
     final secret = TextEditingController();
@@ -186,7 +237,7 @@ class _IntelligenceConnectionControlsState
           ],
         ),
       );
-      if (proceed != true || !mounted) return;
+      if (proceed != true || !_sameOwner(ownerPath, ownerRuntime)) return;
       if (name.text.trim().isEmpty ||
           secret.text.trim().isEmpty ||
           (offer['requires_model'] == true && model.text.trim().isEmpty)) {
@@ -216,6 +267,8 @@ class _IntelligenceConnectionControlsState
     String action,
   ) async {
     if (_busy || !widget.mutationsEnabled) return;
+    final ownerPath = widget.path;
+    final ownerRuntime = widget.runtime;
     if (action == 'rotate') {
       final controller = TextEditingController();
       try {
@@ -242,7 +295,8 @@ class _IntelligenceConnectionControlsState
             ],
           ),
         );
-        if (confirmed == true && controller.text.trim().isNotEmpty && mounted) {
+        if (confirmed == true && controller.text.trim().isNotEmpty &&
+            _sameOwner(ownerPath, ownerRuntime)) {
           await _submit(
             id: connection.id,
             method: 'PATCH',
@@ -275,11 +329,12 @@ class _IntelligenceConnectionControlsState
           ],
         ),
       );
-      if (confirmed == true && mounted) {
+      if (confirmed == true && _sameOwner(ownerPath, ownerRuntime)) {
         await _submit(id: connection.id, method: 'DELETE', body: const {});
       }
       return;
     }
+    if (!_sameOwner(ownerPath, ownerRuntime)) return;
     await _submit(
       id: connection.id,
       method: 'PATCH',
@@ -300,6 +355,12 @@ class _IntelligenceConnectionControlsState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_catalogLoading) const LinearProgressIndicator(minHeight: 2),
+        if (_catalogError != null)
+          TextButton.icon(
+            onPressed: () => unawaited(_loadCatalog()),
+            icon: const Icon(Icons.refresh),
+            label: Text(_catalogError!),
+          ),
         if (!widget.mutationsEnabled)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
