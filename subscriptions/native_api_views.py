@@ -96,11 +96,6 @@ def _actionable_snapshot(payload, *, subscription, actor):
     transition = dict(transition)
     payload["transition"] = transition
     billing = payload.get("billing") or {}
-    if billing.get("visibility") == "restricted":
-        transition["next_action"] = "finance_access_required"
-        transition["can_cancel"] = False
-        return payload
-
     source = SubscriptionTransition.objects.filter(
         pk=transition["id"], subscription=subscription
     ).first()
@@ -108,7 +103,20 @@ def _actionable_snapshot(payload, *, subscription, actor):
         transition["next_action"] = "wait"
         return payload
     financial = transition_payment_action_for_actor(source, actor=actor)
-    transition["can_cancel"] = financial["can_cancel"]
+    transition["can_cancel"] = (
+        bool(payload["subscription"]["can_manage"]) and financial["can_cancel"]
+    )
+    if billing.get("visibility") == "restricted":
+        # A financial-reader restriction does not turn a free change into a
+        # payment request. No obligation identifier or amount is disclosed.
+        if financial["has_unsettled_payment"]:
+            transition["next_action"] = "finance_access_required"
+        elif transition.get("status") == "ready":
+            transition["next_action"] = "complete"
+        else:
+            transition["next_action"] = "wait"
+        return payload
+
     payment = financial["payment"]
     if payment is not None:
         transition["next_action"] = "pay"
