@@ -1,6 +1,7 @@
 from django.utils import timezone
 from rest_framework import generics, permissions, response, views
 from rest_framework.exceptions import NotFound
+from notifications.models import PushEndpoint
 
 from core.api.privacy import PrivateNoStoreMixin
 
@@ -74,8 +75,41 @@ class NotificationMarkAllReadAPIView(PrivateNoStoreMixin, views.APIView):
         return response.Response({"updated": updated})
 
 
+def _public_push_endpoint(endpoint):
+    """Owner-only metadata. Never transport IDs, tokens, token hints or ciphertext."""
+    return {
+        "id": str(endpoint.pk),
+        "provider": endpoint.provider,
+        "platform": endpoint.platform,
+        "app_version": endpoint.app_version,
+        "active": endpoint.active,
+        "last_seen_at": endpoint.last_seen_at.isoformat() if endpoint.last_seen_at else None,
+    }
+
+
+class PushEndpointDetailAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        endpoint = PushEndpoint.objects.filter(pk=pk, user=request.user).first()
+        if endpoint is None:
+            raise NotFound("Appareil introuvable.")
+        if endpoint.active:
+            endpoint.active = False
+            endpoint.save(update_fields=["active", "updated_at"])
+        return response.Response(status=204)
+
+
 class PushEndpointAPIView(PrivateNoStoreMixin, views.APIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        endpoints = PushEndpoint.objects.filter(
+            user=request.user, active=True,
+        ).order_by("-last_seen_at", "id")[:30]
+        return response.Response({
+            "results": [_public_push_endpoint(row) for row in endpoints],
+        })
 
     def post(self, request):
         serializer = PushEndpointRegistrationSerializer(data=request.data)
