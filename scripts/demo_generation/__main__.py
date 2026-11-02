@@ -15,9 +15,9 @@ LIVE=("placement","incidents")
 PERSONAL=("discovery","goals","space")
 ECOSYSTEM=("spaces","loyalty","automation")
 AFTERCARE=("outcomes",)
-SUBSCRIPTIONS=("subscriptions",)
+SUBSCRIPTIONS=("subscriptions","subscription-catalog")
 DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,*AFTERCARE,*SUBSCRIPTIONS,"content")
-DEFAULT=tuple(domain for domain in DOMAINS if domain not in {"content","subscriptions"})
+DEFAULT=tuple(domain for domain in DOMAINS if domain not in {"content","subscriptions","subscription-catalog"})
 
 
 def parse_domains(value):
@@ -57,7 +57,7 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions
+    from . import subscription_catalog, scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions
     if a.action=="validate":
         options=["--verbosity",str(a.verbosity)]
         if a.quick: options.append("--quick")
@@ -93,6 +93,8 @@ def run(a):
     print("MODE:","GENERATE" if apply else "PLAN","DOMAINES:",",".join(sorted(domains)))
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
+    if "subscription-catalog" in domains:
+        subscription_catalog.main(["--apply"] if apply else [])
     if "subscriptions" in domains:
         argv=["--count",str(min(a.count,50)),"--profiles",str(a.profiles)]
         if a.profile_username: argv.extend(["--profile-username",a.profile_username])
