@@ -32,6 +32,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
   String? _error;
   List<Map<String, String>> _devices = const [];
   int _generation = 0;
+  int _ownerGeneration = 0;
 
   @override
   void initState() {
@@ -44,6 +45,8 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.runtime, widget.runtime)) {
       _generation++;
+      _ownerGeneration++;
+      _busy = false;
       _devices = const [];
       _error = null;
       _loading = true;
@@ -103,57 +106,94 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
 
   Future<void> _revoke(String id) async {
     if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
+    final ownerRuntime = widget.runtime;
+    final version = _ownerGeneration;
     setState(() => _busy = true);
+    var committed = false;
+    var refreshed = false;
     try {
-      await widget.runtime.api!.delete(
+      await ownerRuntime.api!.delete(
         'api/v1/notifications/push/endpoints/${Uri.encodeComponent(id)}/',
       );
+      committed = true;
+      if (!mounted || version != _ownerGeneration ||
+          !identical(ownerRuntime, widget.runtime)) return;
       await _load();
+      refreshed = _error == null;
       try {
         await widget.onChanged();
       } on Object {
-        // The owner confirmed the mutation; Z16 freshness can recover later.
+        refreshed = false;
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Appareil retiré des notifications Makolo.'),
+      if (!mounted || version != _ownerGeneration ||
+          !identical(ownerRuntime, widget.runtime)) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(refreshed
+            ? 'Appareil retiré des notifications Makolo.'
+            : 'Appareil retiré sur le serveur, '
+                'mais la liste n’a pas pu être entièrement actualisée.'),
       ));
     } on Object {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Retrait non confirmé. Aucun succès local supposé.'),
-      ));
+      if (mounted && version == _ownerGeneration &&
+          identical(ownerRuntime, widget.runtime)) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(committed
+              ? 'Retrait confirmé par le serveur, '
+                  'mais la liste n’a pas pu être actualisée.'
+              : 'Retrait non confirmé. Aucun succès local supposé.'),
+        ));
+      }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted && version == _ownerGeneration &&
+          identical(ownerRuntime, widget.runtime)) {
+        setState(() => _busy = false);
+      }
     }
   }
 
   Future<void> _enableHere() async {
     if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
+    final ownerRuntime = widget.runtime;
+    final version = _ownerGeneration;
     setState(() => _busy = true);
     PushEndpointRegistrar? registrar;
     try {
       registrar = PushEndpointRegistrar(
-        api: widget.runtime.api!,
-        tokens: widget.runtime.tokens,
+        api: ownerRuntime.api!,
+        tokens: ownerRuntime.tokens,
         source: FirebasePushTokenSource(FirebaseMessaging.instance),
       );
       await registrar.reactivateCurrent();
+      if (!mounted || version != _ownerGeneration ||
+          !identical(ownerRuntime, widget.runtime)) return;
       await _load();
       try {
         await widget.onChanged();
       } on Object {
         // A successful owner write is not undone by a subsequent stale read.
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Cet appareil est de nouveau inscrit auprès de Makolo.'),
-      ));
+      if (mounted && version == _ownerGeneration &&
+          identical(ownerRuntime, widget.runtime)) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_error == null
+              ? 'Cet appareil est de nouveau inscrit auprès de Makolo.'
+              : 'Inscription confirmée, actualisation indisponible.'),
+        ));
+      }
     } on Object {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Activation non confirmée. Vérifiez la permission '
-            'de notification sur cet appareil.'),
-      ));
+      if (mounted && version == _ownerGeneration &&
+          identical(ownerRuntime, widget.runtime)) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Activation non confirmée. Vérifiez la permission '
+              'de notification sur cet appareil.'),
+        ));
+      }
     } finally {
       registrar?.dispose();
-      if (mounted) setState(() => _busy = false);
+      if (mounted && version == _ownerGeneration &&
+          identical(ownerRuntime, widget.runtime)) {
+        setState(() => _busy = false);
+      }
     }
   }
 
