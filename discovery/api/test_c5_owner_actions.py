@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
 from rest_framework.test import APIClient
 
 from accounts.models import UserProfile
@@ -169,7 +170,47 @@ class DiscoveryConnectedActionsTests(TestCase):
         from django.test import Client
         client = Client(enforce_csrf_checks=True)
         client.force_login(self.actor)
-        response = client.post("/discover/research/", {
+        response = client.post(reverse("discovery:research"), {
             "q": "formation informatique",
         })
         self.assertEqual(response.status_code, 403)
+
+    def test_web_clarification_preserves_location_context(self):
+        self.client.force_login(self.actor)
+        url = reverse("discovery:clarify")
+        response = self.client.post(url, {
+            "q": "formation à distance",
+            "lat": "-11.66", "lon": "27.48", "radius_km": "25",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("lat=-11.66", response["Location"])
+        self.assertIn("lon=27.48", response["Location"])
+        self.assertIn("radius_km=25", response["Location"])
+
+    def test_external_research_rejects_foreign_profile_selector(self):
+        self._connect("tavily")
+        response = self.api.post("/api/v1/discovery/research/", {
+            "q": "formation", "profile_id": str(self.other.pk),
+        }, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_invalid_openai_output_cannot_invent_discovery_filters(self):
+        self._connect("openai", model="test-model")
+        with patch("intelligence.providers.openai_compatible._open_url",
+                   return_value=_Reply({
+                       "choices": [{
+                           "message": {"content": json.dumps({
+                               "vertical": "service", "place": "Atlantis",
+                               "when": "tomorrow", "period": "",
+                               "price": "", "text": "inventé",
+                           })},
+                       }],
+                   })):
+            response = self.api.post("/api/v1/discovery/clarify/", {
+                "criteria": {"q": "quelque chose de calme avec mes amis"},
+            }, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["status"], "unchanged")
+        self.assertEqual(response.data["data"]["query"]["q"],
+                         "quelque chose de calme avec mes amis")
+        self.assertNotIn("place", response.data["data"]["query"])
