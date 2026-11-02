@@ -102,7 +102,6 @@
                 Action explicite avec un service Intelligence configuré ; des frais fournisseur peuvent s'appliquer.
             </span>
         </form>
-        {% if request.user.is_authenticated and discovery_intent.raw_text %}
         <form method="post" action="{% url 'discovery:research' %}" class="mt-2 flex flex-wrap items-center gap-3">
             {% csrf_token %}
             <input type="hidden" name="q" value="{{ discovery_intent.raw_text }}">
@@ -114,7 +113,6 @@
                 Recherche explicite avec votre service Web connecté ; sources non vérifiées par Makolo, frais fournisseur possibles.
             </span>
         </form>
-        {% endif %}
         {% endif %}
     </section>
 
