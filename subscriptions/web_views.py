@@ -24,6 +24,7 @@ from .security_services import (
     request_subscription_transition_for_actor,
 )
 from .transition_models import SubscriptionTransition
+from .ux_continuation import safe_action_return
 
 
 def _profile_subscription(actor):
@@ -51,6 +52,7 @@ class ProfileSubscriptionView(LoginRequiredMixin, TemplateView):
         context["product"] = with_billing_terms(build_subscription_product_view(subscription, can_manage=True))
         context["personal_billing"] = personal_billing_obligations(subscription)
         context["personal_history"] = personal_transition_history(subscription)
+        context["subscription_return_url"] = safe_action_return(self.request)
         return context
 
 
