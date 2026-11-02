@@ -128,6 +128,8 @@ class SubscriptionContinuationTests(TestCase):
             reverse("activities:create") + "?space=" + self.other.slug,
             reverse("events:create"),
             reverse("events:create") + "?" + urlencode({"space": self.other.slug}),
+            reverse("events:create") + "?" + urlencode({"space": self.space.slug, "next": "//evil.test"}),
+            team + "?" + urlencode({"next": reverse("subscriptions:home")}),
         )
         for value in cases:
             with self.subTest(value=value):
