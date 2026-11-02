@@ -1249,7 +1249,13 @@ class _PassportBody extends StatelessWidget {
           context,
           'Ouvert à',
           _rows(declared['open_to']),
-          (row) => _text(row['label']),
+          (row) {
+            final label = _text(row['label']);
+            final topic = _text(_map(row['topic'])['label']);
+            return label == null
+                ? null
+                : [label, if (topic != null) topic].join(' · ');
+          },
         ),
         _section(context, 'Activités portées', _rows(data['activities']), (
           row,
