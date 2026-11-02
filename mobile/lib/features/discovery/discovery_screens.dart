@@ -214,24 +214,20 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Future<void> _acquire() async {
     try {
-      final local = await widget.repository.readItems(_query);
-      if (!mounted) return;
-      var locallyValid = local != null;
+      final current = _query;
+      final local = await widget.repository.readItems(current);
+      if (!mounted || !identical(current, _query)) return;
       if (local != null) {
         try {
           DiscoveryWire.validateData(local.payload);
-          await widget.repository.indexItemPreviews(_query);
+          await widget.repository.indexItemPreviews(current);
         } on FormatException {
-          locallyValid = false;
+          // Malformed historical rows cannot become owner-verified previews.
         }
       }
-      final source = await widget.repository.readSource(
-        widget.repository.itemsSource(_query),
-      );
-      if (!mounted) return;
-      // Even if the device has a fresh-looking snapshot, the server must
-      // revalidate actions/visibility after a cold start. SQLite renders
-      // immediately; this network check never turns offline into empty.
+      if (!mounted || !identical(current, _query)) return;
+      // An existing snapshot is readable, but a cold start must request fresh
+      // owner authority before enabling actions, even when it looks recent.
       await _refreshItems();
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
@@ -1299,11 +1295,11 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             ),
                             baseUri: widget.repository.api.baseUri,
                             shareApi: widget.repository.api,
-                profileId: widget.repository.profileId,
-                allowOwnerActions: !_refreshing &&
-                    _verifiedFieldKey == _query.mapFingerprint &&
-                    sourceState.lastErrorCode == null &&
-                    !sourceState.invalidated,
+                            profileId: widget.repository.profileId,
+                            allowOwnerActions: !_refreshing &&
+                                _verifiedFieldKey == _query.mapFingerprint &&
+                                sourceState.lastErrorCode == null &&
+                                !sourceState.invalidated,
                             onWatch: _query.watchCriteria.isEmpty
                                 ? null
                                 : () => unawaited(
