@@ -13,6 +13,7 @@ from notifications.models import (
     PushEndpoint,
 )
 from notifications.services import create_notification, dispatch_delivery
+from notifications.push import revoke_push_endpoint_by_id
 
 
 class PushEndpointApiTests(TestCase):
@@ -179,6 +180,24 @@ class PushDeliveryTests(TestCase):
         self.assertEqual(delivery.status, DeliveryStatus.QUEUED)
         self.assertTrue(delivery.destination.startswith("push:"))
         self.assertNotIn("encrypted-for-mock", delivery.destination)
+
+    def test_revoked_device_does_not_receive_queued_delivery(self):
+        notification = create_notification(
+            recipient=self.user,
+            kind=NotificationKind.SYSTEM,
+            category=NotificationCategory.SYSTEM,
+            title="Information non envoyée après retrait",
+            message="Push annulé.",
+            queue_email=False,
+        )
+        delivery = notification.deliveries.get(channel=DeliveryChannel.PUSH)
+        endpoint = PushEndpoint.objects.get(user=self.user)
+        self.assertTrue(revoke_push_endpoint_by_id(
+            user=self.user, endpoint_id=endpoint.pk,
+        ))
+        self.assertEqual(dispatch_delivery(delivery.pk), "skipped")
+        delivery.refresh_from_db()
+        self.assertEqual(delivery.status, DeliveryStatus.SKIPPED)
 
     @mock.patch("notifications.services.send_push_notification", return_value="projects/makolo/messages/123")
     def test_dispatch_push_uses_endpoint_and_marks_delivery_sent(self, send):
