@@ -619,6 +619,7 @@ GoRouter createMakoloRouter(
             runtime: runtime,
             actor: actor,
             isCommunity: state.uri.queryParameters['archetype'] == 'community',
+            archetype: state.uri.queryParameters['archetype'],
           );
         },
       ),
