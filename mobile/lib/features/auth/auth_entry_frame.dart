@@ -12,6 +12,7 @@ class AuthEntryFrame extends StatelessWidget {
     this.subtitle,
     required this.child,
     this.onBack,
+    this.onClose,
     this.footer = '',
   });
 
@@ -19,6 +20,7 @@ class AuthEntryFrame extends StatelessWidget {
   final String? subtitle;
   final Widget child;
   final VoidCallback? onBack;
+  final VoidCallback? onClose;
   final String footer;
 
   @override
@@ -63,15 +65,27 @@ class AuthEntryFrame extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (onBack != null)
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: IconButton(
-                                tooltip: 'Retour',
-                                onPressed: onBack,
-                                color: Colors.white,
-                                icon: const Icon(Icons.arrow_back_rounded),
-                              ),
+                          if (onBack != null || onClose != null)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                if (onBack != null)
+                                  IconButton(
+                                    tooltip: 'Retour',
+                                    onPressed: onBack,
+                                    color: Colors.white,
+                                    icon: const Icon(Icons.arrow_back_rounded),
+                                  )
+                                else
+                                  const SizedBox(width: 48),
+                                if (onClose != null)
+                                  IconButton(
+                                    tooltip: 'Fermer',
+                                    onPressed: onClose,
+                                    color: Colors.white,
+                                    icon: const Icon(Icons.close_rounded),
+                                  ),
+                              ],
                             ),
                           SizedBox(
                             height: compact
