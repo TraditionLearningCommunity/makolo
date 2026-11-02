@@ -513,6 +513,50 @@ def _web_discovery_card(item):
     )
 
 
+class DiscoveryClarifyWebView(LoginRequiredMixin, View):
+    """One explicit paid-provider attempt; fall back to ordinary Discovery."""
+
+    def post(self, request):
+        from urllib.parse import urlencode
+        from discovery.assistance import clarify_discovery_search
+
+        criteria = {
+            key: request.POST.get(key, "")
+            for key in ("q", "place", "when", "period", "vertical", "price",
+                        "date", "date_from", "date_to", "timezone")
+            if key in request.POST
+        }
+        try:
+            result = clarify_discovery_search(
+                actor=request.user, criteria=criteria,
+            )
+        except ValueError:
+            messages.error(request, "Recherche invalide. Corrigez vos critères.")
+            return redirect("discovery:home")
+
+        status = result["status"]
+        if status == "applied":
+            messages.success(
+                request,
+                "Makolo a clarifié votre recherche. Vérifiez les critères proposés.",
+            )
+        elif status == "unavailable":
+            messages.info(
+                request,
+                "Aucun service de clarification n’est disponible. "
+                "La recherche habituelle reste utilisable.",
+            )
+        elif status in {"unchanged", "already_structured"}:
+            messages.info(
+                request,
+                "Aucun critère supplémentaire confirmé. "
+                "Vos critères de recherche restent utilisables.",
+            )
+        query = urlencode(result["query"])
+        destination = reverse("discovery:home")
+        return redirect(destination + ("?" + query if query else ""))
+
+
 class DiscoveryHomeView(TemplateView):
     template_name = "discovery/home.html"
 
