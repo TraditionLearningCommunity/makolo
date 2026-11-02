@@ -8,7 +8,7 @@ from django.utils import timezone
 from research_missions import ResearchFamily, ResearchMission, ResearchOrigin, ResearchOriginKind
 
 from .capabilities import IntelligenceCapability
-from .contracts import IntelligenceRequest
+from .contracts import IntelligenceRequest, IntelligenceResult
 from .credentials import get_provider_secret
 from .exceptions import IntelligenceError, ProviderUnavailable
 from .models import (
@@ -18,6 +18,17 @@ from .models import (
     _validate_external_provider_url,
 )
 from .provider_factory import build_configured_provider
+
+
+def _result_health(result) -> str:
+    """A returned unavailable result is not a successful health probe."""
+    if not isinstance(result, IntelligenceResult):
+        return ProviderHealth.UNAVAILABLE
+    if result.available:
+        return ProviderHealth.HEALTHY
+    if result.reason == "invalid_credentials":
+        return ProviderHealth.INVALID_CREDENTIALS
+    return ProviderHealth.UNAVAILABLE
 
 
 def test_provider_connection(connection: ProviderConnection) -> str:
@@ -39,13 +50,13 @@ def test_provider_connection(connection: ProviderConnection) -> str:
         if provider is None:
             status = ProviderHealth.UNAVAILABLE
         elif provider.supports(IntelligenceCapability.TEXT_GENERATE):
-            provider.execute(
+            result = provider.execute(
                 IntelligenceRequest(
                     capability=IntelligenceCapability.TEXT_GENERATE,
                     input={"messages": [{"role": "user", "content": "Reply with OK."}]},
                 )
             )
-            status = ProviderHealth.HEALTHY
+            status = _result_health(result)
         elif provider.supports(IntelligenceCapability.WEB_RESEARCH):
             mission = ResearchMission(
                 primary_family=ResearchFamily.REFERENCE,
@@ -60,7 +71,7 @@ def test_provider_connection(connection: ProviderConnection) -> str:
                 reasons=("Verify explicit Web Research provider connectivity.",),
                 limits={"max_candidates": 1, "max_queries": 1},
             )
-            provider.execute(
+            result = provider.execute(
                 IntelligenceRequest(
                     capability=IntelligenceCapability.WEB_RESEARCH,
                     input={
@@ -75,7 +86,7 @@ def test_provider_connection(connection: ProviderConnection) -> str:
                     metadata={"feature": "provider_healthcheck"},
                 )
             )
-            status = ProviderHealth.HEALTHY
+            status = _result_health(result)
         else:
             status = ProviderHealth.UNAVAILABLE
     except ProviderUnavailable as exc:
