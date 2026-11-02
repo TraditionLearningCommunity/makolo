@@ -1496,10 +1496,11 @@ void main() {
     expect(find.text('Formation Data Science'), findsOneWidget);
   });
 
-  testWidgets('map route renders a real map pane on compact devices', (
+  testWidgets('Carte stays immersive and opens the same possibility detail', (
     tester,
   ) async {
     String? selected;
+    DiscoveryItemPresentation? opened;
     await PresentationHarness.pump(
       tester,
       viewport: const Size(360, 800),
@@ -1510,20 +1511,26 @@ void main() {
         fieldKey: 'one-filtered-context',
         initialSelectedCandidateKey: 'activity:route',
         onSelectionChanged: (key) => selected = key,
-        onOpen: (_) {},
+        onOpen: (item) => opened = item,
       ),
     );
-    // The disabled MapLibre runtime displays its honest fallback, NOT
-    // another duplicate field replacing the map on narrow layouts.
+
     expect(find.byKey(const Key('discover-compact-map')), findsOneWidget);
+    expect(find.byKey(const Key('makolo-adaptive-split-row')), findsNothing);
     expect(
       find.byKey(const ValueKey('discover-map-one-filtered-context')),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('La carte n’est pas disponible'),
-      findsOneWidget,
-    );
+    expect(find.text('Impossible d’afficher la carte.'), findsOneWidget);
+    expect(find.byKey(const Key('discover-compact-field')), findsNothing);
+    expect(find.text('Voyage vers Kolwezi'), findsOneWidget);
+
+    await tester.tap(find.text('Voir le détail'));
+    await tester.pump();
+    expect(opened?.candidateKey, 'activity:route');
+
+    await tester.tap(find.byTooltip('Voir la liste'));
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('discover-compact-field')), findsOneWidget);
     final mapAction = find.byKey(
       const ValueKey('discover-map-action-activity:media'),
@@ -1531,13 +1538,34 @@ void main() {
     await tester.scrollUntilVisible(
       mapAction,
       160,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: find.byType(Scrollable).last,
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
     await tester.tap(mapAction);
     await tester.pump();
     expect(selected, 'activity:media');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Carte stays on the map without geolocated results', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoverySpatialView(
+        selection: selection(items: const []),
+        mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+        showMapOnCompact: true,
+        fieldKey: 'empty',
+        onOpen: (_) {},
+      ),
+    );
+    expect(find.byKey(const Key('discover-compact-map')), findsOneWidget);
+    expect(find.byKey(const ValueKey('discover-map-empty')), findsOneWidget);
+    expect(find.text('Aucune possibilité localisée'), findsOneWidget);
+    expect(find.text('Voir le détail'), findsNothing);
+    expect(find.byKey(const Key('makolo-adaptive-split-row')), findsNothing);
   });
 
   testWidgets(
