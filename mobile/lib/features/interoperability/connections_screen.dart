@@ -287,30 +287,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     ProfileInteroperabilityProjection projection,
     SyncStatus? syncStatus,
   ) {
-    if (projection.isEmpty) {
-      return ListView(
-        key: const Key('profile-connections-empty'),
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          _freshnessNotice(context, syncStatus),
-          SizedBox(
-            height: widget.runtime.api == null ? 520 : 270,
-            child: const MakoloEmptyState(
-              title: 'Aucune connexion pour le moment',
-              body: 'Aucun service n’est encore disponible pour votre Profil.',
-            ),
-          ),
-          IntelligenceConnectionControls(
-            runtime: widget.runtime,
-            path: 'api/v1/me/intelligence/connections/',
-            connections: projection.connections,
-            onChanged: _refreshAndConfirm,
-            mutationsEnabled: _mutationsAllowed(syncStatus),
-          ),
-        ],
-      );
-    }
-
     return ListView(
       key: const Key('profile-connections-list'),
       padding: const EdgeInsets.fromLTRB(
@@ -321,16 +297,19 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       ),
       children: [
         _freshnessNotice(context, syncStatus),
-        if (projection.connections.isNotEmpty) ...[
-          const SizedBox(height: MakoloSpacing.lg),
-          Text(
-            'Mes connexions',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: MakoloSpacing.sm),
-          for (final connection in projection.connections)
-            _connectionCard(connection),
-        ],
+        Text(
+          'Découvrez les services que Makolo peut relier et gérez '
+          'les connexions réellement établies.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        IntelligenceConnectionControls(
+          runtime: widget.runtime,
+          path: 'api/v1/me/intelligence/connections/',
+          connections: projection.connections,
+          onChanged: _refreshAndConfirm,
+          mutationsEnabled: _mutationsAllowed(syncStatus),
+        ),
+
         if (projection.providers.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Text(
@@ -370,13 +349,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
               onChanged: _refreshAndConfirm,
             ),
         ],
-        IntelligenceConnectionControls(
-          runtime: widget.runtime,
-          path: 'api/v1/me/intelligence/connections/',
-          connections: projection.connections,
-          onChanged: _refreshAndConfirm,
-          mutationsEnabled: _mutationsAllowed(syncStatus),
-        ),
       ],
     );
   }
