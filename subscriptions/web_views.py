@@ -24,7 +24,7 @@ from .security_services import (
     request_subscription_transition_for_actor,
 )
 from .transition_models import SubscriptionTransition
-from .ux_continuation import safe_action_return
+from .ux_continuation import safe_action_return, subscription_return_home
 
 
 def _profile_subscription(actor):
@@ -108,6 +108,7 @@ class ProfileSubscriptionPreviewView(LoginRequiredMixin, TemplateView):
         context.update(
             {
                 "product_preview": preview,
+                "subscription_return_url": safe_action_return(self.request),
                 "idempotency_key": secrets.token_urlsafe(24),
                 "confirm_url_name": "subscriptions:change",
                 "back_url_name": "subscriptions:home",
@@ -135,11 +136,11 @@ class ProfileSubscriptionChangeView(LoginRequiredMixin, View):
             )
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
-            return redirect("subscriptions:home")
+            return redirect(subscription_return_home(request))
         messages.success(request, "Votre demande de changement a été enregistrée.")
         if transition.status == SubscriptionTransitionStatus.COMPLETED:
             messages.success(request, "Votre nouvelle formule est déjà active.")
-        return redirect("subscriptions:home")
+        return redirect(subscription_return_home(request))
 
 
 class ProfileAddonRemovePreviewView(LoginRequiredMixin, TemplateView):
@@ -157,6 +158,7 @@ class ProfileAddonRemovePreviewView(LoginRequiredMixin, TemplateView):
                     kind=SubscriptionTransitionKind.ADDON_REMOVE,
                     source_item=item,
                 ),
+                "subscription_return_url": safe_action_return(self.request),
                 "idempotency_key": secrets.token_urlsafe(24),
                 "confirm_url_name": "subscriptions:addon-remove",
                 "confirm_item_id": str(item.pk),
@@ -184,9 +186,9 @@ class ProfileAddonRemoveView(LoginRequiredMixin, View):
             )
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
-            return redirect("subscriptions:home")
+            return redirect(subscription_return_home(request))
         messages.success(request, "La demande de retrait de l’option a été enregistrée.")
-        return redirect("subscriptions:home")
+        return redirect(subscription_return_home(request))
 
 
 class ProfileTransitionCancelView(LoginRequiredMixin, View):
@@ -205,7 +207,7 @@ class ProfileTransitionCancelView(LoginRequiredMixin, View):
             messages.error(request, "; ".join(exc.messages))
         else:
             messages.success(request, "La demande a été annulée.")
-        return redirect("subscriptions:home")
+        return redirect(subscription_return_home(request))
 
 
 class ProfileTransitionCompleteView(LoginRequiredMixin, View):
@@ -220,4 +222,4 @@ class ProfileTransitionCompleteView(LoginRequiredMixin, View):
             messages.error(request, "; ".join(exc.messages))
         else:
             messages.success(request, "Le changement de formule est terminé.")
-        return redirect("subscriptions:home")
+        return redirect(subscription_return_home(request))
