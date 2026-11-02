@@ -17,7 +17,6 @@ from accounts.models import (
     ProfileVisibilityTargetKind as Target,
 )
 from groups.models import Group, GroupMembership, GroupMembershipStatus, GroupStatus
-from organizations.console_context import authorized_space_ids
 from organizations.models import TeamMembership, TeamMembershipStatus
 
 
@@ -33,7 +32,7 @@ def _collective_memberships(profile):
     """Same canonical sources as Moi, without treating administrative access as membership.
 
     The Me preview is bounded, so it cannot be used as the authority source.
-    Superuser access without a concrete mandate is not a collective relation.
+    Authority (including a real Mandate) is never evidence of membership.
     """
     if not _authenticated(profile):
         return {"spaces": set(), "teams": set(), "groups": set()}
@@ -61,9 +60,6 @@ def _collective_memberships(profile):
         Group.objects.filter(owner_profile=profile, status=GroupStatus.ACTIVE)
         .values_list("pk", flat=True)
     )
-    mandated_spaces = authorized_space_ids(profile)
-    if mandated_spaces is not None:
-        team_spaces.update(mandated_spaces)
     return {"spaces": team_spaces, "teams": teams, "groups": groups}
 
 
