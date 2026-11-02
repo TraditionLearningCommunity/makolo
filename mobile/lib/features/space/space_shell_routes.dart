@@ -569,6 +569,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   Future<void> _mutateTeam(
     Future<void> Function() operation, {
     String successMessage = 'Équipe actualisée.',
+    String? subscriptionHandoff,
   }) async {
     final current = widget.runtime.actorContext?.value;
     if (_teamMutating ||
@@ -612,8 +613,35 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           _fullTeam = null;
         });
       } else {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
+        // A Subscription quota is different from a transport error or a
+        // Mandate refusal. Only a server-declared owner denial can hand off.
+        final isSubscriptionDenial =
+            error.statusCode == 400 && error.fields.containsKey('subscription');
+        final handoff = '/space/${widget.slug}/subscription';
+        final actor = widget.runtime.actorContext?.value;
+        final mayInspect = isSubscriptionDenial &&
+            subscriptionHandoff == handoff &&
+            actor is SpaceActorContext &&
+            actor.space.id == spaceId &&
+            actor.space.slug == widget.slug;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error.message),
+            duration: const Duration(seconds: 7),
+            action: mayInspect
+                ? SnackBarAction(
+                    label: 'Comprendre',
+                    onPressed: () {
+                      final current = widget.runtime.actorContext?.value;
+                      if (!mounted || current is! SpaceActorContext ||
+                          current.space.id != spaceId ||
+                          current.space.slug != widget.slug) return;
+                      context.push('$handoff?from=team');
+                    },
+                  )
+                : null,
+          ),
+        );
       }
     } on Object {
       if (mounted) {
@@ -697,12 +725,15 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         ),
       );
       if (result == null || !mounted) return;
+      final links = payload['handoffs'];
+      final subscriptionHandoff =
+          links is Map ? links['subscription']?.toString() : null;
       await _mutateTeam(() async {
         await api.post(
           'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/team/',
           body: result,
         );
-      });
+      }, subscriptionHandoff: subscriptionHandoff);
     } finally {
       email.dispose();
     }
