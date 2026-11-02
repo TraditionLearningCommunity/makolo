@@ -37,6 +37,7 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.onRetry,
     this.onResetCriteria,
     this.onMap,
+    this.onWatch,
     this.fieldKey,
     this.scrollController,
     this.initialFocusedCandidateKey,
@@ -55,6 +56,7 @@ class DiscoveryExplorationView extends StatefulWidget {
   final VoidCallback? onRetry;
   final VoidCallback? onResetCriteria;
   final ValueChanged<String?>? onMap;
+  final VoidCallback? onWatch;
   final String? fieldKey;
   final ScrollController? scrollController;
   final String? initialFocusedCandidateKey;
@@ -120,6 +122,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
             selection: widget.selection,
             onOpen: widget.onOpen,
             onSave: widget.onSave,
+            onWatch: widget.onWatch,
             baseUri: widget.baseUri,
             shareApi: widget.shareApi,
             onPage: widget.onPage,
@@ -143,6 +146,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           selection: widget.selection,
           onOpen: widget.onOpen,
           onSave: widget.onSave,
+            onWatch: widget.onWatch,
           baseUri: widget.baseUri,
           shareApi: widget.shareApi,
           onPage: widget.onPage,
@@ -199,6 +203,7 @@ class DiscoveryFieldView extends StatelessWidget {
     this.selectionActionLabel,
     this.selectOnCardTap = false,
     this.onMap,
+    this.onWatch,
     this.fieldKey,
     this.scrollController,
   });
@@ -219,6 +224,7 @@ class DiscoveryFieldView extends StatelessWidget {
   final String? selectionActionLabel;
   final bool selectOnCardTap;
   final VoidCallback? onMap;
+  final VoidCallback? onWatch;
   final String? fieldKey;
   final ScrollController? scrollController;
 
@@ -252,6 +258,7 @@ class DiscoveryFieldView extends StatelessWidget {
         selectionActionLabel: selectionActionLabel,
         selectOnCardTap: selectOnCardTap,
         onMap: onMap,
+        onWatch: onWatch,
         fieldKey: fieldKey,
         scrollController: scrollController,
       ),
@@ -571,6 +578,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
     this.selectionActionLabel,
     this.selectOnCardTap = false,
     this.onMap,
+    this.onWatch,
     this.fieldKey,
     this.scrollController,
   });
@@ -589,6 +597,7 @@ class _DiscoveryScrollableField extends StatelessWidget {
   final String? selectionActionLabel;
   final bool selectOnCardTap;
   final VoidCallback? onMap;
+  final VoidCallback? onWatch;
   final String? fieldKey;
   final ScrollController? scrollController;
 
@@ -660,6 +669,13 @@ class _DiscoveryScrollableField extends StatelessWidget {
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                       ),
+                      if (onWatch != null)
+                        IconButton(
+                          key: const Key('discover-field-create-watch'),
+                          tooltip: 'Créer une veille sur ces critères',
+                          icon: const Icon(Icons.notifications_active_outlined),
+                          onPressed: onWatch,
+                        ),
                       if (onMap != null)
                         IconButton(
                           key: const Key('discover-field-open-map'),
