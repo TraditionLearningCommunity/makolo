@@ -9,8 +9,10 @@ from authorization.constants import PermissionCode, SystemRoleCode
 from authorization.models import AuthorityScope, Permission, Role, RolePermission
 from authorization.services import grant_space_role
 from organizations.services import create_organization
-from subscriptions.models import FeatureDefinition
+from subscriptions.models import FeatureDefinition, PlanVersion, SubscriptionPlan
 from subscriptions.runtime_models import Subscription
+from subscriptions.contracts import SubscriptionPlanType, SubscriptionSubjectType
+from subscriptions.services import publish_plan_version
 from subscriptions.runtime_services import create_entitlement_grant
 from subscriptions.ux_continuation import (
     action_subscription_handoff,
@@ -139,6 +141,38 @@ class SubscriptionContinuationTests(TestCase):
         )
         request.user = self.owner
         self.assertEqual(safe_action_return(request, space=self.space), team)
+
+    def test_preview_and_post_keep_the_same_return_link(self):
+        self.client.force_login(self.owner)
+        action = reverse("organizations:team-member-create", args=[self.space.slug])
+        plan = SubscriptionPlan.objects.create(
+            code="lot4.space.preview", plan_type=SubscriptionPlanType.BASE,
+            subject_type=SubscriptionSubjectType.SPACE,
+        )
+        version = PlanVersion.objects.create(
+            plan=plan, version=1, name="Lot 4 Visible Space Plan",
+        )
+        publish_plan_version(version)
+        preview = reverse(
+            "organizations:console-subscription-preview",
+            args=[self.space.slug, version.pk],
+        )
+        response = self.client.get(preview + "?" + urlencode({"next": action}))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'name="next"')
+        back = reverse(
+            "organizations:console-subscription", args=[self.space.slug],
+        )
+        self.assertContains(response, back + "?next=" + urlencode({"next": action})[5:])
+        changed = self.client.post(
+            reverse(
+                "organizations:console-subscription-change",
+                args=[self.space.slug, version.pk],
+            ),
+            {"idempotency_key": "lot4-preview-once", "next": action},
+        )
+        self.assertEqual(changed.status_code, 302)
+        self.assertEqual(changed["Location"], back + "?" + urlencode({"next": action}))
 
     def test_post_confirmation_keeps_only_validated_continuation(self):
         team = reverse("organizations:team-member-create", args=[self.space.slug])
