@@ -3,6 +3,7 @@ import json
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -37,6 +38,9 @@ class DiscoveryConnectedActionsTests(TestCase):
             username="c5-other", password="test-password",
         )
         self.profile = UserProfile.objects.create(user=self.actor)
+        for user in (self.actor, self.other):
+            for scope in ("discovery_clarify", "discovery_research"):
+                cache.delete(f"throttle_${scope}_${user.pk}")
         self.api = APIClient()
         self.api.force_authenticate(self.actor)
 
