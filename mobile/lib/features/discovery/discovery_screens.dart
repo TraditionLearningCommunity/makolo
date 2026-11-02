@@ -127,6 +127,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
   bool _acquisitionFailed = false;
+  String? _verifiedFieldKey;
   bool _loadingMore = false;
   bool _loadMoreFailed = false;
   final Map<String, Future<void>> _pageRequests = {};
@@ -228,18 +229,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         widget.repository.itemsSource(_query),
       );
       if (!mounted) return;
-      if (local == null ||
-          !locallyValid ||
-          DiscoveryRepository.discoveryFreshness.evaluate(
-                local,
-                now: DateTime.now(),
-                invalidated: source.invalidated,
-              ) !=
-              FreshnessState.fresh) {
+      // Even if the device has a fresh-looking snapshot, the server must
+      // revalidate actions/visibility after a cold start. SQLite renders
+      // immediately; this network check never turns offline into empty.
+      if (locallyValid || local == null || source.invalidated) {
         await _refreshItems();
-      } else {
-        // A fresh local field also gets an invisible next lot when possible.
-        unawaited(_prefetchNext(_query));
       }
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
@@ -268,8 +262,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           widget.repository.rememberExploration(_query);
         }
       }
-      await widget.repository.refreshItems(_query);
-      unawaited(_prefetchNext(_query));
+      final refreshed = _query;
+      await widget.repository.refreshItems(refreshed);
+      final status = await widget.repository.readSource(
+        widget.repository.itemsSource(refreshed),
+      );
+      if (mounted && status.lastErrorCode == null &&
+          status.lastSuccessAt != null &&
+          !status.invalidated) {
+        setState(() => _verifiedFieldKey = refreshed.mapFingerprint);
+        unawaited(_prefetchNext(refreshed));
+      }
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
     } finally {
@@ -463,6 +466,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
                 profileId: widget.repository.profileId,
+                allowOwnerActions: !_refreshing &&
+                    _verifiedFieldKey == _query.mapFingerprint &&
+                    sourceState.lastErrorCode == null &&
+                    !sourceState.invalidated,
                 onWatch: _query.watchCriteria.isEmpty
                     ? null
                     : () => unawaited(
@@ -548,6 +555,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
+  String? _verifiedFieldKey;
   bool _clarifying = false;
   bool _researching = false;
   final Map<int, String> _pageTokens = {};
@@ -918,6 +926,14 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (!query.hasCriteria) return;
     try {
       await widget.repository.refreshItems(query);
+      final status = await widget.repository.readSource(
+        widget.repository.itemsSource(query),
+      );
+      if (mounted && _searchCoordinator.isCurrent(revision) &&
+          status.lastErrorCode == null && !status.invalidated &&
+          status.lastSuccessAt != null) {
+        setState(() => _verifiedFieldKey = query.mapFingerprint);
+      }
     } on Object {
       // The owner source records its own failure; keep any matching cache.
     } finally {
@@ -973,6 +989,14 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     setState(() => _refreshing = true);
     try {
       await widget.repository.refreshItems(query);
+      final status = await widget.repository.readSource(
+        widget.repository.itemsSource(query),
+      );
+      if (mounted && identical(query, _query) &&
+          status.lastErrorCode == null && !status.invalidated &&
+          status.lastSuccessAt != null) {
+        setState(() => _verifiedFieldKey = query.mapFingerprint);
+      }
     } on Object {
       // Existing results remain visible.
     } finally {
@@ -1278,6 +1302,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             baseUri: widget.repository.api.baseUri,
                             shareApi: widget.repository.api,
                 profileId: widget.repository.profileId,
+                allowOwnerActions: !_refreshing &&
+                    _verifiedFieldKey == _query.mapFingerprint &&
+                    sourceState.lastErrorCode == null &&
+                    !sourceState.invalidated,
                             onWatch: _query.watchCriteria.isEmpty
                                 ? null
                                 : () => unawaited(
@@ -1349,6 +1377,7 @@ class DiscoveryMapScreen extends StatefulWidget {
 
 class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   static const _selector = DiscoverySelector();
+  String? _verifiedFieldKey;
   late DiscoveryQuery _query;
   bool _refreshing = false;
   bool _loadMoreFailed = false;
@@ -1387,15 +1416,10 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     final current = _query;
     try {
       final local = await widget.repository.readItems(current);
-      if (local == null || local.schemaVersion != 1) {
-        await _refresh();
-        return;
-      }
-      try {
-        DiscoveryWire.validateData(local.payload);
-      } on FormatException {
-        await _refresh();
-      }
+      // Cached map/list points render while owner validity is rechecked.
+      // This also protects a fresh-looking snapshot after a cold start.
+      if (local != null) DiscoveryWire.validateData(local.payload);
+      if (mounted && identical(current, _query)) await _refresh();
     } on Object {
       // A missing field is a recoverable source failure, not an empty map.
       if (mounted && identical(current, _query)) await _refresh();
@@ -1413,6 +1437,11 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         widget.repository.itemsSource(current),
       );
       rejected = source.lastErrorCode == 'continuation_rejected';
+      if (mounted && identical(current, _query) &&
+          source.lastErrorCode == null && !source.invalidated &&
+          source.lastSuccessAt != null) {
+        setState(() => _verifiedFieldKey = current.mapFingerprint);
+      }
     } on Object {
       // The same field and any acquired items remain visible on failure.
     } finally {
@@ -1571,6 +1600,10 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
                 profileId: widget.repository.profileId,
+                allowOwnerActions: !_refreshing &&
+                    _verifiedFieldKey == _query.mapFingerprint &&
+                    source.lastErrorCode == null &&
+                    !source.invalidated,
                 onRetry: () => unawaited(_refresh()),
                 onOpen: (item) {
                   if (widget.onOpenItem != null) {
@@ -1609,6 +1642,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   static const _selector = DiscoverySelector();
   bool _refreshing = false;
   bool _saving = false;
+  String? _verifiedItemKey;
 
   @override
   void initState() {
@@ -1632,11 +1666,23 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
 
   Future<void> _refresh() async {
     if (_refreshing) return;
-    setState(() => _refreshing = true);
+    final key = '${widget.family}:${widget.id}';
+    setState(() {
+      _refreshing = true;
+      _verifiedItemKey = null;
+    });
     try {
       await widget.repository.refreshItem(widget.family, widget.id);
+      final status = await widget.repository.readSource(
+        widget.repository.itemSource(widget.family, widget.id),
+      );
+      if (mounted && key == '${widget.family}:${widget.id}' &&
+          status.lastErrorCode == null && status.lastSuccessAt != null &&
+          !status.invalidated) {
+        setState(() => _verifiedItemKey = key);
+      }
     } on Object {
-      // Preserve local item if present.
+      // Cached detail remains readable, never newly actionable.
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -1709,6 +1755,8 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                         child: DiscoveryPossibilityUnit(
                           item: item,
                           profileId: widget.repository.profileId,
+                          allowOwnerActions: !_refreshing &&
+                              _verifiedItemKey == '${widget.family}:${widget.id}',
                           detailMode: true,
                           onOpen: () {},
                           onOwnerDepth: (path) => context.push(path),
