@@ -538,6 +538,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   late final ProgressiveSearchCoordinator _searchCoordinator;
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
+  bool _clarifying = false;
   final Map<int, String> _pageTokens = {};
   String? _selectedCandidateKey;
 
@@ -672,6 +673,50 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   void _submit(String value) => _searchChanged(value, immediate: true);
+
+  Future<void> _clarifySearch() async {
+    if (_clarifying || _search.text.trim().isEmpty) return;
+    final requestQuery = _query;
+    setState(() => _clarifying = true);
+    try {
+      final result = await widget.repository.clarifySearch(requestQuery);
+      if (!mounted || !identical(requestQuery, _query)) return;
+      if (result.status == 'applied') {
+        final params = result.criteria;
+        _searchCoordinator.invalidate();
+        _pageTokens.clear();
+        _search.text = params['q'] ?? '';
+        _place.text = params['place'] ?? '';
+        _selectedPlace = null;
+        _when = params['when'] ?? '';
+        _price = params['price'] ?? '';
+        _vertical = params['vertical'] ?? '';
+        _date = params['date'] ?? '';
+        _searchChanged(_search.text, immediate: true);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Critères clarifiés. Vérifiez la recherche proposée.'),
+        ));
+      } else {
+        final message = result.status == 'unavailable'
+            ? 'Aucun service Intelligence utilisable. '
+                'Vous pouvez poursuivre la recherche normale.'
+            : 'Aucun critère nouveau confirmé. '
+                'Votre recherche reste disponible.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Clarification indisponible. '
+              'Votre recherche actuelle est conservée.'),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _clarifying = false);
+    }
+  }
 
   Future<void> _loadRevision(int revision) async {
     final query = _query;
@@ -896,6 +941,33 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               ],
             ),
           ),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: MakoloSpacing.inner),
+        child: Row(
+          children: [
+            OutlinedButton.icon(
+              key: const Key('discover-search-clarify'),
+              onPressed: _clarifying || _search.text.trim().isEmpty
+                  ? null
+                  : () => unawaited(_clarifySearch()),
+              icon: _clarifying
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome_outlined),
+              label: const Text('Clarifier ma recherche'),
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Action explicite · frais fournisseur possibles',
+                style: TextStyle(fontSize: 11),
+              ),
+            ),
+          ],
         ),
       ),
       DiscoveryCategoryChips(
