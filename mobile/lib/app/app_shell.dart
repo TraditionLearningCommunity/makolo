@@ -189,18 +189,8 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
     showMakoloAvatarSheet(
       context,
       runtime: widget.runtime,
-      onConnections: () {
-        final actor = _actor;
-        context.push(actor is SpaceActorContext
-            ? '/space/${Uri.encodeComponent(actor.space.slug)}/connections'
-            : '/connections');
-      },
-      onBilling: () {
-        final actor = _actor;
-        context.push(actor is SpaceActorContext
-            ? '/space/${Uri.encodeComponent(actor.space.slug)}/subscription'
-            : '/billing');
-      },
+      onConnections: () => context.push(connectionsRouteForActor(_actor)),
+      onBilling: () => context.push(subscriptionRouteForActor(_actor)),
       onSettings: () => context.push('/settings'),
       onSwitchAccount: widget.onSwitchAccount,
       onLogout: widget.onLogout,
@@ -280,8 +270,12 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
             avatarContextLabel: actor is SpaceActorContext
                 ? 'Contexte Espace : ${actor.space.slug}'
                 : 'Contexte personnel',
-            avatarUrl: validAvatar ? resolvedAvatar.toString() : null,
-            avatarProfileId: widget.runtime.personal?.store.profileId,
+            avatarUrl: actor is PersonalActorContext && validAvatar
+                ? resolvedAvatar.toString()
+                : null,
+            avatarProfileId: actor is PersonalActorContext
+                ? widget.runtime.personal?.store.profileId
+                : null,
             avatarApi: widget.runtime.api,
             avatarRevision: snapshot.data?.receivedAt,
             profileUsername: profileUsername is String ? profileUsername : null,
