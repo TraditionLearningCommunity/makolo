@@ -423,6 +423,42 @@ def build_profile_passport(
                 ("YouTube", profile.youtube_url, "youtube_url"),
             ) if url and visibility.field(field)
         )
+    if thematic:
+        # Themes scope activities and declarations, never the Profile's
+        # identity. Its permanent identity baseline must still honor the
+        # public disclosure rules, including explicit private audiences.
+        thematic_visibility = ProfileVisibilityResolver(owner=profile, viewer=None)
+        if not thematic_visibility.field("name"):
+            identity["name"] = identity["identifier"]
+        for field, key in (
+            ("avatar", "avatar_url"),
+            ("bio", "bio"),
+            ("company_name", "company_name"),
+            ("organization_name", "organization_name"),
+        ):
+            if not thematic_visibility.field(field):
+                identity[key] = ""
+        if not thematic_visibility.field("profession"):
+            identity["profession"] = ""
+            identity["headline"] = ""
+        location_row = UserProfile.objects.filter(user=profile).first()
+        identity["location"] = ", ".join(
+            part for part, field in (
+                (location_row.city if location_row else "", "city"),
+                (location_row.country if location_row else "", "country"),
+            ) if part and thematic_visibility.field(field)
+        )
+        identity["links"] = tuple(
+            (label, url) for label, url, field in (
+                ("Site web", profile.website, "website"),
+                ("LinkedIn", profile.linkedin_url, "linkedin_url"),
+                ("Facebook", profile.facebook_url, "facebook_url"),
+                ("Instagram", profile.instagram_url, "instagram_url"),
+                ("TikTok", profile.tiktok_url, "tiktok_url"),
+                ("X / Twitter", profile.x_url, "x_url"),
+                ("YouTube", profile.youtube_url, "youtube_url"),
+            ) if url and thematic_visibility.field(field)
+        )
     if variant == PASSPORT_COMPLETE:
         # Full owner variant only. All other variants remain disclosure-bounded.
         profile_row = UserProfile.objects.filter(user=profile).first()
