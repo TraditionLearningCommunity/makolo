@@ -113,6 +113,47 @@
       </div>
     </section>
     {% endif %}
+    {% if domain_integrations %}
+    <section class="mk-me-section" aria-labelledby="connections-domain-integrations">
+      <div class="mk-section-heading">
+        <div>
+          <h2 id="connections-domain-integrations">Services utilisés dans Makolo</h2>
+          <p>Ces capacités appartiennent à leurs domaines métier. Elles ne représentent pas des comptes externes à connecter.</p>
+        </div>
+      </div>
+      <div class="mk-me-list">
+      {% for integration in domain_integrations %}
+        <article>
+          <strong>{{ integration.display_name }}</strong>
+          <p>{{ integration.description }}</p>
+          {% if integration.kind == 'device_registration' %}
+            <span>{{ integration.active_count }} appareil{{ integration.active_count|pluralize }} enregistré{{ integration.active_count|pluralize }}</span>
+            {% if not integration.available %}<p>Transport push actuellement indisponible sur le serveur.</p>{% endif %}
+          {% elif integration.status == 'sandbox_only' %}
+            <p>Mode démonstration uniquement — aucun paiement réel confirmé.</p>
+          {% endif %}
+        </article>
+      {% endfor %}
+      </div>
+      {% if push_devices %}
+        <h3 class="mt-4 font-semibold">Mes appareils recevant les notifications</h3>
+        <div class="mk-me-list">
+        {% for device in push_devices %}
+          <div>
+            <strong>{{ device.platform }}</strong>
+            {% if device.app_version %}<span>Application {{ device.app_version }}</span>{% endif %}
+            <form method="post" action="{% url 'core:participant-connections' %}">
+              {% csrf_token %}
+              <input type="hidden" name="operation" value="revoke_push">
+              <input type="hidden" name="endpoint_id" value="{{ device.id }}">
+              <button class="mk-btn mk-btn-secondary" type="submit">Retirer cet appareil</button>
+            </form>
+          </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+    {% endif %}
   </div>
 
   {% include 'intelligence/connection_management.html' %}
