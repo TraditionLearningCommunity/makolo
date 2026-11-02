@@ -7,6 +7,7 @@ import '../../design/makolo_theme.dart';
 import '../../design/presentation_layout.dart';
 import '../../design/presentation_media.dart';
 import '../../design/surface_states.dart';
+import '../../platform/location/location_capability.dart';
 import '../../platform/maps/makolo_map_view.dart';
 import '../../platform/maps/map_runtime_config.dart';
 import '../../platform/maps/discovery_map_controller.dart';
@@ -274,18 +275,13 @@ class DiscoveryFieldView extends StatelessWidget {
         onMap: onMap,
         onWatch: onWatch,
         fieldKey: fieldKey,
-        scrollController: scrollController,
-      ),
-    );
-  }
-}
-
-class DiscoverySpatialView extends StatefulWidget {
+        class DiscoverySpatialView extends StatefulWidget {
   const DiscoverySpatialView({
     super.key,
     required this.selection,
     required this.mapConfig,
     required this.onOpen,
+    this.location,
     this.onSave,
     this.baseUri,
     this.shareApi,
@@ -305,6 +301,7 @@ class DiscoverySpatialView extends StatefulWidget {
   final DiscoveryFieldSelection selection;
   final MakoloMapsConfig mapConfig;
   final DiscoveryOpenItem onOpen;
+  final LocationCapability? location;
   final DiscoverySaveItem? onSave;
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
@@ -409,6 +406,31 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     } on Object {
       // Map rendering failure does not erase a real Discovery list entry.
     }
+  }
+
+  Future<void> _recenterOnDevice() async {
+    final location = widget.location;
+    if (location == null) return;
+    final result = await location.current();
+    if (!mounted) return;
+    final fix = result.fix;
+    if (!result.available || fix == null || _mapController == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Position indisponible')),
+      );
+      return;
+    }
+    setState(() => _selectedCandidateKey = null);
+    widget.onSelectionChanged?.call(null);
+    await _moveCamera(
+      _mapController!,
+      DiscoverySpatialAnchor(
+        candidateKey: '',
+        latitude: fix.latitude,
+        longitude: fix.longitude,
+        fact: const {},
+      ),
+    );
   }
 
   Future<void> _onStyleReady(List<DiscoverySpatialAnchor> anchors) async {
@@ -599,7 +621,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                     ),
                   ),
                 Positioned(
-                  top: MakoloSpacing.sm,
+                  top: 104,
                   right: MakoloSpacing.sm,
                   child: Material(
                     elevation: 2,
@@ -622,6 +644,21 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                     ),
                   ),
                 ),
+                if (widget.location != null && widget.mapConfig.enabled)
+                  Positioned(
+                    top: 164,
+                    right: MakoloSpacing.sm,
+                    child: Material(
+                      elevation: 2,
+                      borderRadius: BorderRadius.circular(24),
+                      color: Theme.of(context).colorScheme.surface,
+                      child: IconButton(
+                        tooltip: 'Ma position',
+                        onPressed: () => unawaited(_recenterOnDevice()),
+                        icon: const Icon(Icons.my_location_rounded),
+                      ),
+                    ),
+                  ),
                 if (selected != null)
                   Positioned(
                     left: MakoloSpacing.sm,
@@ -688,6 +725,12 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       narrow: field,
       focusMin: MakoloLayout.mapMinWidth,
       focusPreferred: 560,
+      focusMax: 720,
+    );
+  }
+}
+
+   focusPreferred: 560,
       focusMax: 720,
     );
   }
