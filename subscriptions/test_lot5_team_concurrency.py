@@ -21,6 +21,10 @@ User = get_user_model()
 
 @unittest.skipUnless(connection.vendor == "postgresql", "Team quota race requires PostgreSQL")
 class TeamMemberQuotaConcurrencyTests(TransactionTestCase):
+    # TransactionTestCase flushes between tests. Preserve migration-seeded
+    # system roles (space-owner, space-admin) for real PostgreSQL races.
+    serialized_rollback = True
+
     def test_two_simultaneous_admissions_consume_one_last_slot(self):
         owner = User.objects.create_user(
             username="lot5-owner", email="lot5-owner@example.test", password="test-only",
