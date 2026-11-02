@@ -32,6 +32,20 @@ from .composition import (
 )
 
 
+class PrivateDiscoveryResponseBoundary:
+    """An API response may depend on viewer/owner authority at every request.
+
+    Do not let a browser, proxy or shared HTTP cache reuse a personal field,
+    Watch, Bookmark, N2 detail, error response or signed continuation.
+    """
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store"
+        response["Vary"] = "Authorization, Cookie"
+        return response
+
+
 MAX_MAP_POINTS = 100
 
 
@@ -49,7 +63,7 @@ def _reject_profile_override(request):
 from .throttles import DiscoveryClarifyThrottle, DiscoveryResearchThrottle
 
 
-class DiscoveryResearchAPIView(APIView):
+class DiscoveryResearchAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Optional external leads; never a canonical Discovery item or GET side effect."""
 
     permission_classes = [IsAuthenticated]
@@ -74,7 +88,7 @@ class DiscoveryResearchAPIView(APIView):
         return response
 
 
-class DiscoveryClarifyAPIView(APIView):
+class DiscoveryClarifyAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Explicit, authenticated Discovery clarification. Never a billable GET."""
 
     permission_classes = [IsAuthenticated]
@@ -102,7 +116,7 @@ class DiscoveryClarifyAPIView(APIView):
         return response
 
 
-class DiscoveryItemsAPIView(APIView):
+class DiscoveryItemsAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Canonical mature Discovery collection.
 
     The legacy Event-only mobile feed remains under /api/v1/events/discover/.
@@ -130,7 +144,7 @@ class DiscoveryItemsAPIView(APIView):
         )
 
 
-class DiscoveryItemDetailAPIView(APIView):
+class DiscoveryItemDetailAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, family, item_id):
@@ -151,7 +165,7 @@ class DiscoveryItemDetailAPIView(APIView):
         )
 
 
-class DiscoveryItemSavedAPIView(APIView):
+class DiscoveryItemSavedAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Explicit conservation, distinct from Interest, Watch and engagement."""
 
     permission_classes = [IsAuthenticated]
@@ -189,7 +203,7 @@ class DiscoveryItemSavedAPIView(APIView):
         )
 
 
-class DiscoveryMapAPIView(APIView):
+class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Public/private-viewer map projection from the same Discovery field."""
 
     permission_classes = [AllowAny]
@@ -223,7 +237,7 @@ class DiscoveryMapAPIView(APIView):
         )
 
 
-class DiscoveryForYouAPIView(APIView):
+class DiscoveryForYouAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Historical Event-compatibility surface, deliberately not Z3 ranking."""
 
     permission_classes = [AllowAny]
@@ -250,7 +264,7 @@ class DiscoveryForYouAPIView(APIView):
         )
 
 
-class BookmarkListCreateAPIView(APIView):
+class BookmarkListCreateAPIView(PrivateDiscoveryResponseBoundary, APIView):
     """Legacy Event-shaped bookmark API backed by canonical ActivityBookmark."""
 
     permission_classes = [IsAuthenticated]
@@ -293,7 +307,7 @@ class BookmarkListCreateAPIView(APIView):
         )
 
 
-class BookmarkDetailAPIView(APIView):
+class BookmarkDetailAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, event_id):
@@ -357,7 +371,7 @@ def _resolve_personal_dossier(request, raw_id):
     return dossier
 
 
-class DiscoveryWatchListCreateAPIView(APIView):
+class DiscoveryWatchListCreateAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -393,7 +407,7 @@ class DiscoveryWatchListCreateAPIView(APIView):
         )
 
 
-class DiscoveryWatchDetailAPIView(APIView):
+class DiscoveryWatchDetailAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, watch_id):
@@ -447,7 +461,7 @@ class DiscoveryWatchDetailAPIView(APIView):
         return Response(status=204)
 
 
-class DiscoveryWatchResultsAPIView(APIView):
+class DiscoveryWatchResultsAPIView(PrivateDiscoveryResponseBoundary, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, watch_id):
