@@ -15,6 +15,7 @@ from .space_history_views import SpaceHistoryAPIView
 from .space_search_views import SpaceSearchAPIView
 from .space_mark_views import SpaceMarkAPIView
 from .space_work_views import SpaceWorkAPIView
+from .space_work_g2_case_views import SpaceG2ServiceCaseAPIView
 from .space_activity_create import SpaceG1ActivityCreateAPIView
 from .space_zs4_views import SpacePilotAPIView, SpaceRelationshipsAPIView, SpaceUsAPIView
 from .views import FollowDetailAPIView, FollowListCreateAPIView
@@ -40,6 +41,7 @@ urlpatterns = [
     path("workspaces/<slug:slug>/requests/<uuid:request_id>/", SpaceJourneyRequestAPIView.as_view(), name="workspace-request-detail"),
     path("workspaces/<slug:slug>/discover/", SpaceDiscoverAPIView.as_view(), name="workspace-discover"),
     path("workspaces/<slug:slug>/work/", SpaceWorkAPIView.as_view(), name="workspace-work"),
+    path("workspaces/<slug:slug>/work/service-cases/<uuid:journey_id>/", SpaceG2ServiceCaseAPIView.as_view(), name="workspace-service-case"),
     path("workspaces/<slug:slug>/work/activities/", SpaceG1ActivityCreateAPIView.as_view(), name="workspace-work-activity-create"),
     path("workspaces/<slug:slug>/history/", SpaceHistoryAPIView.as_view(), name="workspace-history"),
     path("workspaces/<slug:slug>/commerce/orders/<uuid:order_id>/", SpaceCommerceOrderDetailAPIView.as_view(), name="workspace-commerce-order-detail"),
