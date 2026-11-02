@@ -6,6 +6,7 @@ immutable snapshot; the QR proves issuance of that same snapshot.
 """
 from datetime import timezone
 
+from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.urls import reverse
 
@@ -31,12 +32,13 @@ def _permitted_portrait(projection):
         return None
 
 
+@transaction.atomic
 def passport_pdf_response(request, projection):
     """Issue one dated, printable, verifiable PDF of the selected variant."""
     if not projection.has_content:
         raise Http404("Ce Passeport ne contient aucun élément à exporter.")
 
-    # One issuance. Never re-query or re-serialize data after this snapshot.
+    # Issue and render together: a failed PDF must never leave a phantom\n    # historical version in the database. Never recompute facts after issuance.
     snapshot = issue_passport_snapshot(projection)
     verification_url = request.build_absolute_uri(
         reverse(
