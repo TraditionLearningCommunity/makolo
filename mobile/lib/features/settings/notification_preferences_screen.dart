@@ -2,15 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../app/runtime/app_runtime.dart';
+import '../../features/interoperability/push_device_controls.dart';
 import '../../data/local/profile_store.dart';
 import '../../design/makolo_theme.dart';
 import '../../notifications/notification_repository.dart';
 
 /// Preferences are owned by Accounts and synchronized through Notifications.
 class NotificationPreferencesScreen extends StatefulWidget {
-  const NotificationPreferencesScreen({super.key, required this.repository});
+  const NotificationPreferencesScreen({super.key, required this.repository, this.runtime});
 
   final NotificationRepository repository;
+  final AppRuntime? runtime;
 
   @override
   State<NotificationPreferencesScreen> createState() =>
@@ -155,6 +158,25 @@ class _NotificationPreferencesScreenState
                 const Text(
                   'Dernières préférences connues : modification hors ligne indisponible.',
                 ),
+              if (widget.runtime != null) ...[
+                Text(
+                  'Mes appareils de notification',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                PushDeviceControls(
+                  runtime: widget.runtime!,
+                  mutationsEnabled: widget.runtime!.isAuthenticated &&
+                      widget.runtime!.api != null &&
+                      widget.runtime!.sync != null &&
+                      !_loading &&
+                      !_saving &&
+                      _error == null,
+                  onChanged: () async {
+                    await widget.runtime!.sync?.pullInteroperability();
+                  },
+                ),
+                const SizedBox(height: MakoloSpacing.lg),
+              ],
               Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
               toggle(
                 'push_notifications',
