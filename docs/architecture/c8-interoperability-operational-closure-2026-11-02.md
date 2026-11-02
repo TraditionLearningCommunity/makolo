@@ -52,6 +52,7 @@ Les contrats C1–C7 et leurs frontières restent inchangés. Aucun modèle ni m
 - `interoperability/test_c8_owner_response_privacy.py` — 404 Space, 403 Platform, 400 payload, profil et `no-store`.
 - `discovery/api/test_c8_interop_journey.py` — parcours de connexion et usage propriétaire jusqu'au retrait, sans transport externe réel.
 - `discovery/api/test_c8_operational_events.py` — logs utilisables et minimaux, sans requête privée ou clé.
+- `mobile/test/c8_interop_mutation_refresh_test.dart` — écriture Intelligence acceptée, rafraîchissement Z16 interrompu, conservation du snapshot et absence de secrets dans le store.
 - Les tests C4–C7 existants restent obligatoires (permissions, CSRF, frontières d'autorité, FCM, Flutter Sync/Space et sorties Discovery).
 
 ## 4. Matrice d'acceptation et commandes reproductibles
@@ -73,7 +74,7 @@ python manage.py test intelligence.test_c8_health_consistency intelligence.test_
 python manage.py test intelligence.test_connection_management_api intelligence.test_connection_management_web intelligence.test_web_research_routing interoperability.test_z16_api interoperability.test_c6_owner_integrations interoperability.test_c7_live_authority discovery.api.test_c5_owner_actions notifications.test_push
 python manage.py makemigrations --check --dry-run
 cd mobile
-flutter test test/interoperability_screen_test.dart test/c7_intelligence_owner_continuity_test.dart test/c7_space_owner_continuity_test.dart test/c6_domain_integrations_projection_test.dart test/c6_push_device_controls_test.dart test/discovery_c5_connected_actions_test.dart
+flutter test test/c8_interop_mutation_refresh_test.dart test/interoperability_screen_test.dart test/c7_intelligence_owner_continuity_test.dart test/c7_space_owner_continuity_test.dart test/c6_domain_integrations_projection_test.dart test/c6_push_device_controls_test.dart test/discovery_c5_connected_actions_test.dart
 flutter analyze lib/features/interoperability lib/repositories/interoperability_repository.dart
 ```
 
