@@ -87,11 +87,6 @@ def run(a):
     orders=min(a.count,200) if a.orders is None else a.orders
     if not 0<=scans<=100000 or not 0<=orders<=100000:
         raise SystemExit("--scans et --orders 0..100000")
-    if a.profile_username:
-        supported={"discovery","goals","space","journeys","access","commerce","subscriptions"}
-        unsupported=domains-supported
-        if unsupported:
-            raise SystemExit("--profile-username n'est pas encore pris en charge pour: "+",".join(sorted(unsupported))+"; selectionner les domaines compatibles")
     apply=a.action=="generate"
     if apply and "mandates" in domains and not a.grant_roles:
         raise SystemExit("Le domaine mandates exige --grant-roles pour generate.")
@@ -108,6 +103,7 @@ def run(a):
         argv=["--domains",",".join(sorted(ecosystem_selected)),
               "--count",str(min(a.count,100)), "--profiles",str(a.profiles)]
         if apply: argv.append("--apply")
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         ecosystem.main(argv)
     personal_selected=set(PERSONAL)&domains
     if personal_selected:
@@ -119,6 +115,7 @@ def run(a):
     if "transport" in domains:
         argv=["--beneficiaries",str(a.profiles),"--scan-count",str(min(a.profiles,12))]
         if apply: argv.append("--apply")
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         transport.main(argv)
     if "mandates" in domains:
         argv=["--limit",str(min(a.count,200))]
@@ -135,6 +132,7 @@ def run(a):
         argv=["--domains",",".join(sorted(verticals_selected)),
               "--per-domain",str(min(a.count,2000)),"--profiles",str(a.profiles)]
         if apply: argv.append("--apply")
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         verticals.main(argv)
     cross_selected=set(CROSS)&domains
     if cross_selected:
@@ -155,12 +153,14 @@ def run(a):
     if "outcomes" in domains:
         argv=["--count",str(min(a.count,10000))]
         if apply: argv.append("--apply")
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         aftercare.main(argv)
     live_selected=set(LIVE)&domains
     if live_selected:
         argv=["--domains",",".join(sorted(live_selected)),
               "--count",str(min(a.count,200))]
         if apply: argv.append("--apply")
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         live.main(argv)
     community_selected=set(COMMUNITY)&domains
     if community_selected:
@@ -168,12 +168,14 @@ def run(a):
               "--count",str(min(a.count,2000)),
               "--profiles",str(max(a.profiles,2))]
         if apply: argv.append("--apply")
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         community.main(argv)
     engagement_selected=set(ENGAGEMENT)&domains
     if engagement_selected:
         argv=["--domains",",".join(sorted(engagement_selected)),
               "--count",str(min(a.count,2000))]
         if apply: argv.append("--apply")
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         engagement.main(argv)
     if "media" in domains:
         argv=["--count",str(min(a.count,10000))]
