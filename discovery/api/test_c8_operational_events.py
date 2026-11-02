@@ -28,7 +28,7 @@ class C8SafeExternalActionLoggingTests(TestCase):
         self.assertEqual(row.makolo_event, "discovery.external_action")
         self.assertEqual(row.action, "research")
         self.assertEqual(row.status, "unavailable")
-        self.assertEqual(row.reason, "provider_unavailable")
+        self.assertEqual(row.reason, "connection_unavailable")
         self.assertNotIn(private_query, str(row.__dict__))
         self.assertNotIn("api_key", str(row.__dict__))
         self.assertNotIn("provider_token", str(row.__dict__))
