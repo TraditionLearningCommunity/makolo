@@ -46,6 +46,30 @@ def _reject_profile_override(request):
         )
 
 
+class DiscoveryResearchAPIView(APIView):
+    """Optional external leads; never a canonical Discovery item or GET side effect."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from discovery.assistance import research_discovery_sources
+
+        if not isinstance(request.data, dict) or set(request.data) != {"q"}:
+            raise ValidationError({"q": ["Recherche invalide."]})
+        try:
+            result = research_discovery_sources(
+                actor=request.user, text=request.data["q"],
+            )
+        except ValueError as exc:
+            raise ValidationError({"q": [str(exc)]}) from exc
+        response = Response(projection_envelope(
+            projection="discovery.source-leads",
+            scope="personal", data=result,
+        ))
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
 class DiscoveryClarifyAPIView(APIView):
     """Explicit, authenticated Discovery clarification. Never a billable GET."""
 
