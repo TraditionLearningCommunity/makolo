@@ -7,6 +7,7 @@ from django.views.generic import FormView
 from authorization.constants import PermissionCode
 from authorization.services import can
 from organizations.models import Organization, SpaceArchetype
+from subscriptions.ux_continuation import action_subscription_handoff, is_subscription_denial
 
 from .forms import ActivityCreateForm
 from .models import ActivityStatus
@@ -57,6 +58,8 @@ class ActivityCreateView(LoginRequiredMixin, FormView):
                 else "Nouvelle activité"
             )
             context["create_space_return"] = True
+        if getattr(self, "_subscription_handoff", None):
+            context["subscription_handoff"] = self._subscription_handoff
         return context
 
     def post(self, request, *args, **kwargs):
@@ -90,6 +93,17 @@ class ActivityCreateView(LoginRequiredMixin, FormView):
                 status=ActivityStatus.DRAFT,
             )
         except ValidationError as exc:
+            if is_subscription_denial(exc):
+                # Only a confirmed Subscription gate, not any field error,
+                # produces a scoped continuation handoff.
+                from django.urls import reverse
+                from urllib.parse import urlencode
+                action_url = reverse("activities:create")
+                if space is not None:
+                    action_url += "?" + urlencode({"space": space.slug})
+                self._subscription_handoff = action_subscription_handoff(
+                    self.request, space=space, action_url=action_url,
+                )
             form.add_error(None, "; ".join(exc.messages if hasattr(exc, "messages") else [str(exc)]))
             return self.form_invalid(form)
         messages.success(
