@@ -105,6 +105,10 @@ def _g1_activity_realizations(activity_id, *, offset, now, today):
         "has_more": len(rows) > G1_RELATED_LIMIT,
         "offset": offset,
         "limit": G1_RELATED_LIMIT,
+        "coverage_state": (
+            "partial" if offset or len(rows) > G1_RELATED_LIMIT
+            else "established"
+        ),
     }
 
 
