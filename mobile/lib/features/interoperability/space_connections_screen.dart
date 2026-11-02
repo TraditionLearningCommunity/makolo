@@ -40,6 +40,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
   String? loadedId;
   int generation = 0;
   List<InteroperabilityConnectionProjection> connections = const [];
+  List<DomainIntegrationProjection> domainIntegrations = const [];
 
   SpaceActorContext? get actor {
     final current = widget.runtime.actorContext?.value;
@@ -67,6 +68,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
       loading = true;
       loadedId = null;
       connections = const [];
+      domainIntegrations = const [];
     });
     unawaited(_load());
   }
@@ -95,6 +97,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
       loading = true;
       error = null;
       connections = const [];
+      domainIntegrations = const [];
     });
     try {
       final payload = (await api.get('${root}interoperability/')).jsonObject();
@@ -103,13 +106,23 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
         throw const FormatException('Unexpected Space interop projection');
       }
       final rows = payload['connections'];
+      final ownerRows = payload['domain_integrations'];
       if (rows is! List) throw const FormatException('Connections missing');
+      if (ownerRows != null && ownerRows is! List) {
+        throw const FormatException('Domain owner integrations invalid');
+      }
       if (!mounted || generation != version || actor?.space.id != id) return;
       setState(() {
         connections = rows
             .whereType<Map<String, dynamic>>()
             .map(InteroperabilityConnectionProjection.fromJson)
             .where((row) => row.scope == 'space')
+            .toList(growable: false);
+        domainIntegrations = (ownerRows is List ? ownerRows : const [])
+            .whereType<Map<String, dynamic>>()
+            .map(DomainIntegrationProjection.fromJson)
+            .where((row) => row.owner == 'payments' &&
+                row.kind == 'processing_capability')
             .toList(growable: false);
         authorized = true;
         loadedId = id;
@@ -120,6 +133,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
       setState(() {
         authorized = false;
         connections = const [];
+      domainIntegrations = const [];
         loading = false;
         error =
             'Connexion au Space impossible ou autorité non confirmée. '
@@ -173,6 +187,18 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                         subtitle: Text(spaceConnectionStatus(row)),
                       ),
                     ),
+                  if (domainIntegrations.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text('Capacités financières de cet Espace',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const Text('Modes de traitement autorisés par Payments. '
+                        'Aucun compte bancaire externe connecté.'),
+                    for (final item in domainIntegrations)
+                      Card(child: ListTile(
+                        title: Text(item.displayName),
+                        subtitle: Text(item.description),
+                      )),
+                  ],
                   IntelligenceConnectionControls(
                     runtime: widget.runtime,
                     path: '${root}intelligence/connections/',
