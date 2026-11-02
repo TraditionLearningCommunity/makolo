@@ -101,8 +101,15 @@ def write_offer(*, activity, offer, cleaned):
             payment_modes=[cleaned["payment_mode"]], **values,
         )
     values["status"] = cleaned["status"] or offer.status
+    # Editing the default mode must not silently erase other modes the
+    # Commerce owner already configured. An actual change of default is
+    # explicit and replaces the incompatible set through the canonical API.
+    payment_modes = (
+        None if cleaned["payment_mode"] == offer.payment_mode
+        else [cleaned["payment_mode"]]
+    )
     return update_offer(
-        offer=offer, payment_modes=[cleaned["payment_mode"]], **values,
+        offer=offer, payment_modes=payment_modes, **values,
     )
 
 
