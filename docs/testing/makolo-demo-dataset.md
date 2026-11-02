@@ -228,3 +228,14 @@ python -m scripts.demo_generation validate
 - Le résultat ne certifie pas automatiquement les projections web/mobile ; après validation, vérifier un petit `generate` puis `audit` avant toute charge de 1000/10000.
 
 L'interface conserve une seule entrée : `inventory`, `audit`, `validate`, `plan` et `generate` passent par `python -m scripts.demo_generation`.
+
+## Cibler un compte existant pour les prochaines donnees
+
+La CLI accepte `--profile-username beta_alain` pour les domaines `discovery,goals,space,journeys,access,commerce`. Le compte doit etre actif, non-staff et non-superuser. Les nouvelles Journey, Access, commandes, favoris, veilles et objectifs sont alors lies au compte explicitement selectionne, sans renommage et sans copie de donnees des profils `world_*`. Les autres domaines restent refuses explicitement sous ce mode, car certains scenarii exigent des acteurs et proprietaires differents ; ne pas utiliser `--domains all` avec cette option.
+
+```bash
+python -m scripts.demo_generation plan --domains discovery,goals,space,journeys,access,commerce --count 20 --profiles 1 --profile-username beta_alain
+python -m scripts.demo_generation generate --domains discovery,goals,space,journeys,access,commerce --count 20 --profiles 1 --profile-username beta_alain
+```
+
+Le domaine `media` continue de reutiliser les `PresentationAsset` deja associes a des Activity anciennes, si le fichier existe physiquement et si l'acteur dispose des droits. Il ne copie aucun fichier ni transfert de propriete. `MEDIA ... assets_files_available=0` signale un blocage reel du stockage sur l'environnement : les 314 enregistrements ne peuvent pas devenir des images fonctionnelles sans fichier sous-jacent.
