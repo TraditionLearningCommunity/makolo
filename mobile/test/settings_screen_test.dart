@@ -119,4 +119,52 @@ void main() {
     expect(find.text('2FA'), findsNothing);
     expect(find.text('Langue'), findsNothing);
   });
+
+  testWidgets('privacy settings hand off to the existing Profile owner', (
+    tester,
+  ) async {
+    final controller = AppPreferencesController(
+      store: FileLaunchPreferencesStore.forFile(File('unused-privacy')),
+      initial: const LaunchPreferencesSnapshot(),
+    );
+    addTearDown(controller.dispose);
+    var privacyOpened = false;
+    var notificationsOpened = false;
+    var securityOpened = false;
+    final runtime = AppRuntime(
+      tokens: MemoryTokenStore(),
+      session: null,
+      recovery: SessionRecoveryController(),
+      preferences: controller,
+      config: MakoloRuntimeConfig.fromValues(const {}),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppSettingsScreen(
+          runtime: runtime,
+          onPrivacy: () => privacyOpened = true,
+          onNotifications: () => notificationsOpened = true,
+          onSecurity: () => securityOpened = true,
+          packageInfo: Future.value(PackageInfo(
+            appName: 'Makolo',
+            packageName: 'com.makolo.mobile',
+            version: '1.0.0',
+            buildNumber: '1',
+          )),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Confidentialité du Profil'),
+      200,
+    );
+    await tester.tap(find.text('Confidentialité du Profil'));
+    expect(privacyOpened, isTrue);
+    await tester.tap(find.text('Notifications'));
+    expect(notificationsOpened, isTrue);
+    await tester.tap(find.text('Sécurité et appareils'));
+    expect(securityOpened, isTrue);
+    expect(find.text('Compte'), findsNothing);
+  });
 }
