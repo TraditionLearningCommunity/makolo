@@ -107,8 +107,11 @@ void main() {
       expect(find.text('Capacité mesurée'), findsOneWidget);
       expect(find.textContaining('Limite dépassée'), findsOneWidget);
       expect(find.text('Justificatif attendu'), findsOneWidget);
+      await tester.ensureVisible(find.text('Historique'));
+      await tester.tap(find.text('Historique'));
+      await tester.pumpAndSettle();
       expect(find.text('Ancienne formule'), findsOneWidget);
-      expect(find.text('Mes changements'), findsOneWidget);
+      expect(find.text('Mes changements'), findsNothing);
     },
   );
 }
