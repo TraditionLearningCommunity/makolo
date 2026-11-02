@@ -143,7 +143,7 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                 bottom: MediaQuery.viewInsetsOf(sheet).bottom + 12,
               ),
               child: SizedBox(
-                height: MediaQuery.sizeOf(sheet).height * .72,
+                height: MediaQuery.sizeOf(sheet).height * .49,
                 child: Column(
                   children: [
                     Text(label, style: Theme.of(sheet).textTheme.titleLarge),
@@ -153,64 +153,93 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                     Expanded(
                       child: ListView(
                         children: [
-                          for (final option in choices)
-                            CheckboxListTile(
-                              dense: true,
-                              title: Text(option['label']?.toString() ?? ''),
-                              value: selected.contains(token(option)),
-                              onChanged: working
-                                  ? null
-                                  : (value) => redraw(() {
-                                      final key = token(option);
-                                      if (value == true) {
-                                        if (option['kind'] == 'public') {
-                                          selected.clear();
-                                        } else {
-                                          selected.remove('public:');
-                                        }
-                                        selected.add(key);
-                                      } else {
-                                        selected.remove(key);
-                                      }
-                                    }),
-                            ),
-                          const Divider(),
-                          TextField(
-                            controller: searchInput,
-                            decoration: InputDecoration(
-                              labelText: 'Ajouter une personne Makolo',
-                              suffixIcon: IconButton(
-                                onPressed: working ? null : search,
-                                icon: const Icon(Icons.search),
-                              ),
-                            ),
-                            onSubmitted: (_) => search(),
+                          ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.public_outlined),
+                            title: const Text('Tout le monde'),
+                            subtitle: const Text('Cette information est publique'),
+                            trailing: selected.contains('public:')
+                                ? const Icon(Icons.check_circle)
+                                : null,
+                            onTap: working
+                                ? null
+                                : () => redraw(() {
+                                    selected
+                                      ..clear()
+                                      ..add('public:');
+                                  }),
                           ),
-                          for (final person in candidates)
-                            ListTile(
-                              title: Text(
-                                person['name']?.toString() ?? 'Profil',
+                          ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.lock_outline),
+                            title: const Text('Moi uniquement'),
+                            subtitle: const Text('Aucune audience autorisée'),
+                            trailing: selected.isEmpty
+                                ? const Icon(Icons.check_circle)
+                                : null,
+                            onTap: working
+                                ? null
+                                : () => redraw(selected.clear),
+                          ),
+                          ExpansionTile(
+                            tilePadding: EdgeInsets.zero,
+                            title: const Text('Choisir des personnes ou collectifs'),
+                            subtitle: const Text('Options avancées'),
+                            children: [
+                              for (final option in choices)
+                                if (option['kind'] != 'public')
+                                  CheckboxListTile(
+                                    dense: true,
+                                    title: Text(option['label']?.toString() ?? ''),
+                                    value: selected.contains(token(option)),
+                                    onChanged: working
+                                        ? null
+                                        : (value) => redraw(() {
+                                            final key = token(option);
+                                            if (value == true) {
+                                              selected.remove('public:');
+                                              selected.add(key);
+                                            } else {
+                                              selected.remove(key);
+                                            }
+                                          }),
+                                  ),
+                              TextField(
+                                controller: searchInput,
+                                decoration: InputDecoration(
+                                  labelText: 'Rechercher une personne Makolo',
+                                  suffixIcon: IconButton(
+                                    onPressed: working ? null : search,
+                                    icon: const Icon(Icons.search),
+                                  ),
+                                ),
+                                onSubmitted: (_) => search(),
                               ),
-                              subtitle: Text(
-                                '@' + (person['username']?.toString() ?? ''),
-                              ),
-                              onTap: () => redraw(() {
-                                if (person['id'] == null) return;
-                                final item = {
-                                  'kind': 'selected_profile',
-                                  'id': person['id'],
-                                  'label': person['name'],
-                                };
-                                if (!choices.any(
-                                  (row) => token(row) == token(item),
-                                )) {
-                                  choices.add(item);
-                                }
-                                selected.remove('public:');
-                                selected.add(token(item));
-                                candidates = [];
-                              }),
-                            ),
+                              for (final person in candidates)
+                                ListTile(
+                                  title: Text(person['name']?.toString() ?? 'Profil'),
+                                  subtitle: Text(
+                                    '@' + (person['username']?.toString() ?? ''),
+                                  ),
+                                  onTap: () => redraw(() {
+                                    if (person['id'] == null) return;
+                                    final item = {
+                                      'kind': 'selected_profile',
+                                      'id': person['id'],
+                                      'label': person['name'],
+                                    };
+                                    if (!choices.any(
+                                      (row) => token(row) == token(item),
+                                    )) {
+                                      choices.add(item);
+                                    }
+                                    selected.remove('public:');
+                                    selected.add(token(item));
+                                    candidates = [];
+                                  }),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -219,8 +248,8 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                         TextButton(
                           onPressed: working
                               ? null
-                              : () => redraw(selected.clear),
-                          child: const Text('Moi uniquement'),
+                              : () => Navigator.pop(sheet),
+                          child: const Text('Annuler'),
                         ),
                         const Spacer(),
                         FilledButton(
@@ -313,14 +342,34 @@ class _VisibilityState extends State<MePassportVisibilityScreen> {
                   'Révoquez séparément les liens de partage explicites.',
                 ),
               ),
-              const ListTile(title: Text('Présentation')),
-              for (final entry in _map(_data!['fields']).entries)
-                _entry(
-                  _label(entry.key),
-                  'field',
-                  entry.key,
-                  _map(entry.value),
+              const ListTile(
+                title: Text('Informations renseignées'),
+                subtitle: Text(
+                  'Public signifie autorisé, pas nécessairement renseigné.',
                 ),
+              ),
+              for (final entry in _map(_data!['fields']).entries)
+                if (_map(entry.value)['has_value'] != false)
+                  _entry(
+                    _label(entry.key),
+                    'field',
+                    entry.key,
+                    _map(entry.value),
+                  ),
+              ExpansionTile(
+                title: const Text('Informations à renseigner'),
+                subtitle: const Text('Réglages conservés pour plus tard'),
+                children: [
+                  for (final entry in _map(_data!['fields']).entries)
+                    if (_map(entry.value)['has_value'] == false)
+                      _entry(
+                        _label(entry.key),
+                        'field',
+                        entry.key,
+                        _map(entry.value),
+                      ),
+                ],
+              ),
               const Divider(),
               const ListTile(title: Text('Centres d’intérêt')),
               for (final row in _rows(_data!['interests']))
