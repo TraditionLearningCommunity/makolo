@@ -10,6 +10,8 @@ from accounts.models import User, UserProfile
 from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_space_role
+from intelligence.capabilities import IntelligenceCapability
+from intelligence.runtime import build_runtime_registry
 from intelligence.credentials import get_provider_secret
 from intelligence.models import ProviderConnection, ProviderCredential, ProviderScope
 from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
@@ -113,6 +115,35 @@ class ConnectionManagementAPITests(TestCase):
             self.assertNotIn("NEW-SECRET", recorded)
             self.assertNotIn("api.tavily.com", recorded)
 
+
+    def test_owner_scoped_connection_is_consumable_by_existing_runtime_registry(self):
+        self._auth(self.owner)
+        created = self._create(self.profile_url)
+        self.assertEqual(created.status_code, 201, created.data)
+        identity = created.data["id"]
+        capability = IntelligenceCapability.WEB_RESEARCH
+
+        personal = build_runtime_registry(capability=capability, profile=self.owner_profile)
+        other = build_runtime_registry(capability=capability, profile=self.other_profile)
+        self.assertEqual([provider.key for provider in personal.providers], [identity])
+        self.assertEqual(other.providers, [])
+
+        detail = self.profile_url + identity + "/"
+        self.assertEqual(
+            self.client.patch(detail, {"enabled": False}, format="json").status_code, 200,
+        )
+        disabled = build_runtime_registry(capability=capability, profile=self.owner_profile)
+        self.assertEqual(disabled.providers, [])
+
+        self.assertEqual(
+            self.client.patch(detail, {"enabled": True}, format="json").status_code, 200,
+        )
+        enabled = build_runtime_registry(capability=capability, profile=self.owner_profile)
+        self.assertEqual([provider.key for provider in enabled.providers], [identity])
+
+        self.assertEqual(self.client.delete(detail).status_code, 204)
+        removed = build_runtime_registry(capability=capability, profile=self.owner_profile)
+        self.assertEqual(removed.providers, [])
 
     def test_consent_cannot_be_inferred_from_a_submitted_api_key(self):
         self._auth(self.owner)
