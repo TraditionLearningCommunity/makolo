@@ -6,8 +6,14 @@ import 'package:makolo_mobile/features/me/me_passport_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 
 const _versionId = '11111111-1111-4111-8111-111111111111';
+const _shareId = '22222222-2222-4222-8222-222222222222';
 
 class _DatedPassportApi implements MakoloApiClient {
+  _DatedPassportApi({this.withShares = false});
+  final bool withShares;
+  bool revoked = false;
+  bool shareRevoked = false;
+  String? lastPostPath;
   @override
   Uri get baseUri => Uri.parse('https://example.test/');
 
@@ -67,7 +73,12 @@ class _DatedPassportApi implements MakoloApiClient {
             'document_id': 'PM-P-20261030-11111111',
             'variant': 'complete',
             'generated_at': '2026-10-30T10:00:00Z',
-            'revoked': false,
+            'revoked': revoked,
+            'active_shares': withShares && !shareRevoked && !revoked
+                ? [
+                    {'id': _shareId, 'expires_at': '2026-11-30T10:00:00Z'},
+                  ]
+                : const [],
             'integrity_ok': true,
           },
         ],
@@ -86,6 +97,31 @@ class _DatedPassportApi implements MakoloApiClient {
       'established': {'proofs': const []},
       'issued': {'credentials': const []},
     });
+  }
+
+  @override
+  Future<ApiResponse> post(
+    String path, {
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+    MakoloCancelHandle? cancel,
+  }) async {
+    lastPostPath = path;
+    if (path.contains('passport/history/$_versionId/revoke/')) {
+      revoked = true;
+      return _envelope('personal.me.passport.version', {
+        'id': _versionId,
+        'revoked': true,
+      });
+    }
+    if (path.contains('passport/shares/$_shareId/revoke/')) {
+      shareRevoked = true;
+      return _envelope('personal.me.passport.share', {
+        'share_id': _shareId,
+        'revoked': true,
+      });
+    }
+    throw StateError('Unexpected post: $path');
   }
 
   @override
@@ -113,4 +149,42 @@ void main() {
       expect(find.text('Recherche'), findsOneWidget);
     },
   );
+  testWidgets('native owner can revoke an issued version and refresh history', (tester) async {
+    final api = _DatedPassportApi();
+    await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Versions datées'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Gérer cette version'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Révoquer cette version'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Révoquer la version'));
+    await tester.pumpAndSettle();
+
+    expect(api.lastPostPath, 'api/v1/me/passport/history/$_versionId/revoke/');
+    expect(api.revoked, isTrue);
+    expect(find.textContaining('Révoqué'), findsWidgets);
+  });
+
+  testWidgets('native owner can revoke one share without revoking the version', (tester) async {
+    final api = _DatedPassportApi(withShares: true);
+    await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Versions datées'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Gérer cette version'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Révoquer le lien ·'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Révoquer le lien'));
+    await tester.pumpAndSettle();
+
+    expect(api.lastPostPath, 'api/v1/me/passport/shares/$_shareId/revoke/');
+    expect(api.shareRevoked, isTrue);
+    expect(api.revoked, isFalse);
+  });
+
 }
