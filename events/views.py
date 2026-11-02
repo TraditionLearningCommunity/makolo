@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from datetime import datetime
 
 from django.contrib import messages
@@ -10,6 +12,9 @@ from django.views import View
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from activities.models import OccurrenceScheduleFrequency, OccurrenceStatus, OccurrenceTimingKind
+from authorization.constants import PermissionCode
+from authorization.services import can
+from organizations.models import Organization
 from automation.services import ensure_policy
 from presentations.participant_state import resolve_participant_activity_state
 from core.participant_selectors import participant_state_context
@@ -85,6 +90,19 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         kwargs["user"] = self.request.user
         return kwargs
 
+    def get_initial(self):
+        initial = super().get_initial()
+        slug = (self.request.GET.get("space") or "").strip()
+        if slug:
+            # Navigation is a hint, not authority. Verify the same Mandate that
+            # determines the form's available Espace choices.
+            space = Organization.objects.filter(slug=slug).first()
+            if space is not None and can(
+                self.request.user, PermissionCode.SPACE_ACTIVITIES_MANAGE, space
+            ):
+                initial["organization"] = space
+        return initial
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if getattr(self, "_subscription_handoff", None):
@@ -95,7 +113,11 @@ class EventCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
         if is_subscription_denial(error):
             self._subscription_handoff = action_subscription_handoff(
                 self.request, space=values.get("organization"),
-                action_url=reverse("events:create"),
+                action_url=(
+                    reverse("events:create")
+                    + ("?" + urlencode({"space": values["organization"].slug})
+                       if values.get("organization") is not None else "")
+                ),
             )
         form.add_error(None, "; ".join(getattr(error, "messages", [str(error)])))
         return self.form_invalid(form)
