@@ -1121,6 +1121,25 @@ def build_space_work_projection(
             pk=source_id, space=space, pk__in=visible_ids,
         ).first()
         if activity is not None:
+            # A source-specific GET excludes all Occurrences from the main
+            # section scan; fetch the single real upcoming owner date here.
+            # Do not infer an Activity lifecycle from this date.
+            next_owner_date = (
+                Occurrence.objects.filter(
+                    activity=activity, status=OccurrenceStatus.SCHEDULED,
+                ).filter(
+                    Q(start_at__gt=now) |
+                    Q(start_at__isnull=True, start_date__gt=today)
+                ).order_by("start_date", "start_time", "pk").first()
+            )
+            if next_owner_date is not None:
+                selection.setdefault("context", {})["next_occurrence"] = {
+                    "id": str(next_owner_date.pk),
+                    "label": next_owner_date.label or activity.title,
+                    "start_date": next_owner_date.start_date,
+                    "start_time": next_owner_date.start_time,
+                    "timezone": next_owner_date.timezone,
+                }
             selection["g4_detail"] = {
                 "description": activity.description or None,
                 "language": (
