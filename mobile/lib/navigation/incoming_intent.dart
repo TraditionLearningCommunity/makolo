@@ -42,7 +42,9 @@ class IncomingIntentResolver {
     if (route == null) return null;
     // A public, revocable Sharing URL remains readable before login.
     // Private deliveries still require the recipient's authenticated session.
-    if (route.startsWith('/s/')) {
+    if (route.startsWith('/s/') ||
+        route.startsWith('/passport/shared/') ||
+        route.startsWith('/passport/verify/')) {
       return IngressResolution(route: route, requiresAuthentication: false);
     }
     if (authenticated) {
