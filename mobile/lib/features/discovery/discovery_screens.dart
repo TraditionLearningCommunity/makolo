@@ -650,8 +650,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       final watches = results.whereType<Map>().where((row) =>
           row['id'] is String &&
           row['name'] is String &&
-          row['criteria'] is Map &&
-          row['status'] != 'paused').toList();
+          row['criteria'] is Map).toList();
       if (watches.isEmpty) return const SizedBox.shrink();
       final selected = watches.any((row) => row['id'] == _selectedWatchId)
           ? _selectedWatchId
