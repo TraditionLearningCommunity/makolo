@@ -7,6 +7,23 @@ import '../../app/runtime/app_runtime.dart';
 import '../../platform/notifications/push_endpoint_registrar.dart';
 import '../../platform/notifications/push_token_source.dart';
 
+/// Three independent post-write facts: server registration, device list
+/// freshness, and the parent Z16 projection. Never collapse them to success.
+String pushActivationConfirmation({
+  required bool devicesRefreshed,
+  required bool projectionRefreshed,
+}) {
+  if (!devicesRefreshed) {
+    return 'Inscription confirmée sur le serveur, mais la liste des '
+        'appareils n’a pas pu être actualisée.';
+  }
+  if (!projectionRefreshed) {
+    return 'Inscription confirmée, liste des appareils actualisée, '
+        'mais les connexions restent à vérifier.';
+  }
+  return 'Cet appareil est inscrit et les connexions sont actualisées.';
+}
+
 /// Online-only, owner-scoped Notifications management.
 class PushDeviceControls extends StatefulWidget {
   const PushDeviceControls({
@@ -196,13 +213,10 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       if (mounted &&
           version == _ownerGeneration &&
           identical(ownerRuntime, widget.runtime)) {
-        final message = !devicesRefreshed
-            ? 'Inscription confirmée sur le serveur, mais la liste des '
-                'appareils n’a pas pu être actualisée.'
-            : !projectionRefreshed
-                ? 'Inscription confirmée, liste des appareils actualisée, '
-                    'mais les connexions restent à vérifier.'
-                : 'Cet appareil est inscrit et les connexions sont actualisées.';
+        final message = pushActivationConfirmation(
+          devicesRefreshed: devicesRefreshed,
+          projectionRefreshed: projectionRefreshed,
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
