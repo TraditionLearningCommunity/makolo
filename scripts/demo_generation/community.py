@@ -68,7 +68,9 @@ def main(argv=None):
             else:
                 counts["groups_existing"] += 1
             member = users[(index + 1) % len(users)] if len(users) > 1 else None
-            if GroupMembership.objects.filter(group=group, profile=member,
+            if member is None:
+                counts["members_skipped_single_profile"] += 1
+            elif GroupMembership.objects.filter(group=group, profile=member,
                                               status="active").exists():
                 counts["members_existing"] += 1
             elif not a.apply:
