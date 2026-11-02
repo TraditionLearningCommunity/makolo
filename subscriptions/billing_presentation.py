@@ -101,6 +101,25 @@ def subscription_billing_obligations(subscription, *, offset=0, limit=20):
     }
 
 
+def next_payment_url_for_actor(transition, actor):
+    """Use the existing Payments route only if this actor may open the obligation.
+
+    The Subscription manager role alone never grants Space payment access.
+    """
+    from django.urls import reverse
+    from payments.selectors import obligations_visible_to
+
+    link = (
+        transition.billing_obligation_links.select_related("obligation")
+        .order_by("-created_at", "-pk").first()
+    )
+    if link is None or link.obligation.status not in {"pending", "processing"}:
+        return None
+    if not obligations_visible_to(actor).filter(pk=link.obligation_id).exists():
+        return None
+    return reverse("payments:obligation-start", kwargs={"obligation_pk": link.obligation_id})
+
+
 def personal_billing_obligations(subscription, *, offset=0, limit=20):
     """Retained personal entrypoint for its Web/native callers."""
     if subscription.profile_id is None:
