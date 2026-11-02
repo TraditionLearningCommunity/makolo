@@ -41,6 +41,8 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.family != widget.item.family ||
         oldWidget.item.id != widget.item.id ||
+        oldWidget.api != widget.api ||
+        oldWidget.baseUri != widget.baseUri ||
         oldWidget.authenticated != widget.authenticated) {
       // Opaque share tokens are bound to one owner identity and sender.
       ++_itemGeneration;
@@ -95,11 +97,14 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
 
   Future<void> _action(Future<void> Function() task) async {
     if (_busy) return;
+    final generation = _itemGeneration;
     setState(() => _busy = true);
     try {
       await task();
     } on Object {
-      _feedback('Le partage n’a pas pu aboutir. Réessayez.');
+      if (generation == _itemGeneration) {
+        _feedback('Le partage n’a pas pu aboutir. Réessayez.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
