@@ -177,7 +177,7 @@ class DiscoveryConnectedActionsTests(TestCase):
         for technical, public in (
             ("invalid_credentials", "invalid_credentials"),
             ("rate_limited", "rate_limited"),
-            ("network_unavailable", "provider_unavailable"),
+            ("network_unavailable", "network_unavailable"),
         ):
             with self.subTest(technical=technical):
                 with patch(
