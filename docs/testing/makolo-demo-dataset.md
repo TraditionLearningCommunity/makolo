@@ -250,3 +250,16 @@ python -m scripts.demo_generation generate --domains subscriptions --profile-use
 ```
 
 Ce domaine est volontairement exclu de `--domains all` et exige un username explicite. Si aucun tarif payant n'existe dans le catalogue actif, le compteur indique `NO_PAID_CATALOG` : publier d'abord une vraie formule de demonstration et ses capacites, sans dupliquer de verites metier. Le sandbox ne correspond a aucun paiement bancaire reel.
+
+## Selection des profils : mode general et mode cible
+
+Le generateur ne depend d'aucun username code en dur. Pour chaque domaine accepte, `--profile-username <username>` cible le beneficiaire personnel indique ; sans cette option, les comptes synthetiques eligibles `world_*` restent selectionnes avec `--profiles N`. Les operateurs de Scanner, responsables de Space et autorites de Mandate restent des roles contextuels distincts du beneficiaire. La creation de contenus communs (catalogues, media et Activity appartenant a d'autres responsables) n'est pas automatiquement personnalisee par le username ; les droits proprietaires sont verifies par leurs services.
+
+```bash
+python -m scripts.demo_generation plan --domains all --count 20 --profiles 20
+python -m scripts.demo_generation plan --domains all --count 20 --profiles 1 --profile-username beta_alain
+python -m scripts.demo_generation plan --domains subscriptions --count 2 --profiles 20
+python -m scripts.demo_generation plan --domains subscriptions --count 2 --profile-username beta_alain
+```
+
+`subscriptions` est volontairement opt-in : le domaine peut etre genere pour tous les `world_*` ou un seul utilisateur, mais n'est pas declenche par `all` pour eviter de facturer automatiquement chaque profil lors des lots generaux. Ce sont exclusivement des tentatives de paiement sandbox sur SQLite de test.
