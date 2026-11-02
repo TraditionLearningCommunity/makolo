@@ -583,22 +583,28 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 _field('Nom', _lastName),
                 _birthDatePicker(),
                 _genderSelector(),
-                _field('Profession', _profession),
                 _field('À propos', _bio, lines: 3),
                 OutlinedButton.icon(
                   onPressed: _saving ? null : _changeAvatar,
                   icon: const Icon(Icons.photo_camera_outlined),
                   label: const Text('Modifier la photo'),
                 ),
-                _sectionTitle('Localisation'),
-                _countryAutocomplete(),
-                _field('Ville', _city),
-                _field('Adresse', _address),
-                _sectionTitle('Contact et activité'),
+                const SizedBox(height: 12),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  initiallyExpanded:
+                      _city.text.isNotEmpty || _country.text.isNotEmpty ||
+                      _address.text.isNotEmpty,
+                  title: const Text('Localisation'),
+                  subtitle: const Text('Pays, ville et adresse (facultatifs)'),
+                  children: [
+                    _countryAutocomplete(),
+                    _field('Ville', _city),
+                    _field('Adresse', _address),
+                  ],
+                ),
+                _sectionTitle('Contact'),
                 _field('Téléphone', _phone),
-                _field('Site web', _website),
-                _field('Entreprise', _company),
-                _field('Organisation', _organization),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: DropdownButtonFormField<String>(
@@ -620,15 +626,30 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 ),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
-                  title: const Text('Réseaux sociaux'),
-                  subtitle: const Text('Liens facultatifs'),
+                  initiallyExpanded: [
+                    _profession.text, _website.text, _company.text,
+                    _organization.text,
+                  ].any((value) => value.trim().isNotEmpty),
+                  title: const Text('Activité et liens'),
+                  subtitle: const Text('Profession, organisation, site et réseaux'),
                   children: [
-                    _field('LinkedIn', _linkedin),
-                    _field('Facebook', _facebook),
-                    _field('Instagram', _instagram),
-                    _field('TikTok', _tiktok),
-                    _field('X', _x),
-                    _field('YouTube', _youtube),
+                    _field('Profession', _profession),
+                    _field('Site web', _website),
+                    _field('Entreprise', _company),
+                    _field('Organisation', _organization),
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text('Réseaux sociaux'),
+                      subtitle: const Text('Liens facultatifs'),
+                      children: [
+                        _field('LinkedIn', _linkedin),
+                        _field('Facebook', _facebook),
+                        _field('Instagram', _instagram),
+                        _field('TikTok', _tiktok),
+                        _field('X', _x),
+                        _field('YouTube', _youtube),
+                      ],
+                    ),
                   ],
                 ),
                 KeyedSubtree(
