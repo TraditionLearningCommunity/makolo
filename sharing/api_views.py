@@ -6,6 +6,7 @@ and sharing.services; tokens remain opaque to Flutter.
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError as DomainValidationError
 from django.shortcuts import get_object_or_404
+from django.utils.cache import patch_vary_headers
 from rest_framework.exceptions import NotFound, Throttled, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -40,7 +41,7 @@ class SharingNoStoreBoundary:
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
         response["Cache-Control"] = "private, no-store"
-        response["Vary"] = "Authorization, Cookie"
+        patch_vary_headers(response, ("Authorization", "Cookie"))
         return response
 
 
