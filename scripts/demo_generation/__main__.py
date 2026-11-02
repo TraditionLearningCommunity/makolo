@@ -95,7 +95,7 @@ def run(a):
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
     if "connections" in domains:
-        connections.main(["--apply"] if apply else [])
+        connections.main((["--apply"] if apply else []) + ["--count", str(min(a.count,5000)), "--profiles", str(a.profiles)] + (["--profile-username", a.profile_username] if a.profile_username else []))
     if "subscription-catalog" in domains:
         subscription_catalog.main(["--apply"] if apply else [])
     if "subscriptions" in domains:
