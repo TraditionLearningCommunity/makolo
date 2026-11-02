@@ -1,7 +1,7 @@
 # Makolo — registre de fermeture de Découvrir
 **Document vivant — responsable : branche [#522](https://github.com/TraditionLearningCommunity/makolo/pull/522)**  
 **Initialisé le :** 2026-10-31  
-**Chantier courant :** **07 — Save, Watch, Sharing et engagements N3, CODE LIVRÉ**. Compte rendu : [chantier 07](discover-stage-07-save-watch-sharing-engagement-2026-11-02.md). **Prochain : 08**, non commencé ici.  
+**Chantier courant :** **08 — Local-first et confidentialité, CODE LIVRÉ**. Compte rendu : [chantier 08](discover-stage-08-local-first-confidentiality-2026-11-02.md). **Prochain : 09**, non commencé ; exécution et certification différées.  
 **Chantier 00 :** **FERMÉ — réconciliation documentaire**.  
 **Relevé de référence :** [chantier 00 — réconciliation](discover-stage-00-reconciliation-2026-10-31.md).
 
@@ -42,8 +42,8 @@ Pas de modèle persistant générique `Possibility`, de scoring client, de deuxi
 | **05** | Recherche, carte et navigation | **LIVRÉ EN CODE — validation différée à 09** | [Relevé exploration 05](discover-stage-05-search-map-navigation-2026-10-31.md) : routes filtrées, carte compacte et repères, pagination signée, scroll/focus et public invité |
 | **06** | N2, variantes et comparaison conditionnelle | **LIVRÉ EN CODE — validation différée à 09** | [Relevé 06](discover-stage-06-n2-variants-comparison-2026-10-31.md) : profondeur Web/Flutter, trois assessment states, variantes occurrence, comparaison strictement conditionnelle, aucun classement fictif, tests écrits |
 | **07** | Save, Watch, Sharing, engagements N3 | **LIVRÉ EN CODE — validation différée à 09** | [Relevé 07](discover-stage-07-save-watch-sharing-engagement-2026-11-02.md) : Save identité confirmée, Watch CRUD Web/Flutter idempotent, Sharing interne/externe et reprise, routes owner N3 attestées par tests écrits |
-| **08** | Local-first et confidentialité | **PROCHAIN CHANTIER** | Snapshots, reprise, offline, profils, cache/révocation et cold-start contrôlés |
-| **09** | Certification et intégration | **VERROUILLÉ** | Tests et validation réels attestés, CI requise, rapport de fermeture final, décision explicite de merge |
+| **08** | Local-first et confidentialité | **LIVRÉ EN CODE — validation différée à 09** | [Relevé 08](discover-stage-08-local-first-confidentiality-2026-11-02.md) : cache borné, tombstones, isolations Profil/Reader, retour offline, cold start, cache HTTP et tests écrits |
+| **09** | Certification et intégration | **PROCHAIN CHANTIER** | Tests et validation réels attestés, CI requise, rapport de fermeture final, décision explicite de merge |
 
 **Règle de retour :** si un chantier clos révèle une régression lors du suivant, créer une anomalie avec preuve et la corriger dans l'étape active comme dépendance bloquante ; ne pas relancer tout le périmètre ancien. Mise à jour du présent registre obligatoire.
 
@@ -80,20 +80,20 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | R10 | Ressources publiques, sans données restreintes | `ÉCART_CODE` corrigé : droits Preparation, scope Occurrence, textes inline bornés sans supprimer les références ; tests non exécutés | `discovery/api/composition.py`, `discovery/api/test_resource_previews.py` | 02 ; livraison/stockage 03 |
 | R11 | Cohérence collection/détail/médias | Collection/détail conservent la même composition et admission owner ; droits et fichiers des médias encore réservés à 03 | `discovery/api/composition.py`, `discovery/api/media_bindings.py`, `discovery/api/test_mature_discovery.py` | 02 ; médias 03 |
 | R12 | Media-use owner, statut publié, retrait | `ÉCART_CODE` corrigé : media selector/livraison même admission owner, Group et Occurrence ; audit/migration legacy ajoutés, exécution non réalisée | `presentations/media_selectors.py`, `media_delivery.py`, `management/commands/harden_presentation_media_assets.py` | 03 ; migration déploiement |
-| R13 | Rétention automatique de médias réellement first-party | `ÉCART_CODE` corrigé : origine de confiance obligatoire, remplacement non destructeur, retrait sérialisé ; tests écrits non exécutés | `mobile/lib/presentation/possibilities/discovery_offline_store.dart`, `mobile/lib/presentation/media/retained_public_discovery_image.dart` | 03 ; états offline 08 |
+| R13 | Rétention automatique de médias réellement first-party | `ÉCART_CODE` corrigé en 03/08 : origine de confiance, quota automatique public, retrait sérialisé, Reader isolé par Profil, aucune réutilisation de copies legacy partagées ; tests écrits non exécutés | `discovery_offline_store.dart`, `discovery_reader.dart`, `discovery_stage08_media_privacy_test.dart` | 03 ; 08 |
 | R14 | N1 contextualisé et adaptatif | `ÉCART_CODE` corrigé : rôles géographiques, notes limitantes et variantes owner, section pratique adaptative, MIME/alt galerie ; tests N1 écrits, non exécutés | `discovery_possibility_unit.dart`, `discovery/views.py`, `templates/discovery/_universal_card.html` | 04 |
 | R15 | N1 dates à droite, faits stables, ressources dépliables | Date ajout humanisée à droite et accessible exactement, description dépliable, deux ressources puis toutes et trois interactions réutilisées ; tests écrits non exécutés | `discovery_possibility_unit.dart`, `templates/discovery/_universal_card.html`, tests Flutter/Web | 04 |
 | R16 | Recherche/filtres/continuation sur mêmes critères | `ÉCART_CODE` corrigé : routes conservent mêmes filtres, pages signées et historique local des curseurs réels, sans inventer de token ; tests ajoutés non exécutés | `discovery_repository.dart`, `discovery_screens.dart`, `discovery_routes.dart` | 05 |
 | R17 | Carte liée au même champ et aux mêmes critères | `ÉCART_CODE` corrigé : query passée par URL, même watchItems, MapLibre avec repères owner, véritable carte compacte et sélection ; tests non exécutés | `discovery_routes.dart`, `discovery_screens.dart`, `discovery_mature_view.dart` | 05 |
-| R18 | Retour, sélection, scroll et contexte après redémarrage | `ÉCART_CODE` corrigé au niveau navigation : scroll et candidat sélectionné stockés avec la page/continuation root, critères transportés par route ; profil et révocation complets relèvent de 08 | `discovery_screens.dart`, `discovery_offline_position_test.dart` | 05 puis 08 |
-| R19 | États NO_MATCH/END_OF_FIELD/OFFLINE distincts | Présentation Map raccordée au state de source, échecs/continuation traités sans créer de résultats ; tests réels et local-first de 08/09 restent non attestés | `discovery_screens.dart`, `discovery_selector.dart`, `discovery_wire.dart` | 05 puis 08 |
+| R18 | Retour, sélection, scroll et contexte après redémarrage | `ÉCART_CODE` corrigé : position de présentation par Profil, continuation opaque, root revalidé sur cold start, ancienne fenêtre éliminée à nouvelle première page, actions N3 suspendues sans nouvelle réponse owner ; essais Android restent à 09 | `discovery_screens.dart`, `discovery_repository.dart`, `discovery_stage08_local_first_test.dart` | 05 puis 08 |
+| R19 | États NO_MATCH/END_OF_FIELD/OFFLINE distincts | Les états distincts du selector sont conservés ; réseau hors service ne purge pas le snapshot, refus 403/404 supprime et tombstone, sans faux résultat ni action. Tests écrits à 08, exécution à 09 | `sync_engine.dart`, `discovery_selector.dart`, `discovery_stage08_local_first_test.dart` | 05 puis 08 |
 | R20 | N2 sens, profondeur, variantes et inconnues | `ÉCART_CODE` corrigé : N2 Web et Flutter owner-backed, favorable/limiting/unknown, ressources complètes, variantes et relations admises ; scénarios écrits non exécutés | `discovery_n2_model.dart`, `discovery_n2_depth.dart`, `discovery/n2_presentation.py`, `templates/discovery/possibility_detail.html` | 06 |
 | R21 | Comparaison conditionnelle sur faits comparables | `ÉCART_CODE` corrigé : table facultative seulement pour ≥2 Occurrences d'une même Activity dont une dimension Début/Fin/Lieu est connue pour chacune ; pas d'alternative inter-verticale fictive | `discovery_n2_model.dart`, `discovery/n2_presentation.py`, tests dédiés | 06 |
 | R22 | Save distinct de Watch distinct de Engage | `ÉCART_CODE` corrigé : confirmation Save identité+état, Watch créée et gérée indépendamment en API/Web/Flutter, retries idempotents, N2 Watch canonique ; tests écrits non exécutés | `discovery_repository.dart`, `discovery_watch_screens.dart`, `discovery/watch_forms.py`, `discovery/api/views.py` | 07 |
 | R23 | Sharing interne/externe, reprise et refus | `ÉCART_CODE` corrigé : lien owner-confirmé, delivery ID obligatoire, tokens purgés au changement d'item, destinataire explicite non vide, reprise Auth pour partage privé, refus de route altérée ; tests écrits non exécutés | `sharing/api_views.py`, `discovery_share_sheet.dart`, `discovery_shared_link_screen.dart`, `test_stage07_sharing.py` | 07 |
 | R24 | N3 owner-backed sans action fictive | Parcours natifs owner vérifiés et préexistants conservés ; tests N3 supplémentaires Commerce/Funding/Events/Obtention + Service existant, aucune action pour chemin forgé. Exécution à 09 | `discovery_possibility_unit.dart`, `discovery_stage07_actions_test.dart`, `discovery/api/test_personal_primary_actions.py` | 07 |
-| R25 | Snapshot distingué de fraîcheur réseau | `EXISTANT_SOURCE`, tests réels manquants | `sync_engine.dart`, `discovery_repository.dart` | 08 |
-| R26 | Pages bornées, reprise, profils, révocation | `PARTIEL` | `profile_store.dart`, `discovery_offline_store.dart` | 08 |
+| R25 | Snapshot distingué de fraîcheur réseau | `ÉCART_CODE` corrigé : timestamps et fraîcheur distincts, lecture du snapshot périmée réconciliée avec source et refus, aucune mutation owner sur simple cache, revalidation volatile N1/N2/Map. Tests écrits, non exécutés | `discovery_repository.dart`, `discovery_screens.dart`, `discovery_possibility_unit.dart` | 08 |
+| R26 | Pages bornées, reprise, profils, révocation | `ÉCART_CODE` corrigé : rotation bornée par Profile, pages actives protégées, suppression cascade owner, génération/époque de révocation, Reader Profile privé, non-cache HTTP, tests ajoutés non exécutés | `profile_store.dart`, `sync_engine.dart`, `discovery_offline_store.dart`, `test_stage08_http_privacy.py` | 08 |
 | R27 | Cold start Android, liens et UI vraie | `À_VÉRIFIER` ; absence d'attestation | Runbook Android et tests Flutter | 09 |
 | R28 | Migrations, compatibilité, CI, déploiement | `À_VÉRIFIER` — non exécuté à l'étape 00 | Six migrations listées dans le relevé | 09 |
 
@@ -150,12 +150,12 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 **Travail :** Save/Watch/Share/owner engagement, handoff et retour, refus, auth, idempotence si nécessaire.  
 **Sortie livrée :** [rapport 07](discover-stage-07-save-watch-sharing-engagement-2026-11-02.md) ; Save vérifié, Watch CRUD idempotent, Sharing avec identités et reprises contrôlées, N3 strictement propriétaire, tests ciblés écrits. Les résultats métier ne sont jamais simulés ; tests non exécutés.
 
-### 08 — Local-first et Confidentialité **PROCHAIN CHANTIER**
+### 08 — Local-first et Confidentialité **LIVRÉ EN CODE / VALIDATION À 09**
 **Entrée :** sorties 07 ; R13/R18/R19/R25–R26.  
 **Travail :** snapshots, rotation, reprise, Profile isolation, media caches, refus/révocation, erreur réseau, démarrage à froid.  
-**Sortie :** aucun faux succès offline, aucune donnée révoquée présentée comme fraîche, reprise vérifiée.
+**Sortie livrée :** [rapport 08](discover-stage-08-local-first-confidentiality-2026-11-02.md). Garde-fous de lecture, synchro, cache, médias et reprise implémentés ; tests de scénario écrits ; exécution sur Android et certification non attestées avant 09.
 
-### 09 — Certification finale **VERROUILLÉ**
+### 09 — Certification finale **PROCHAIN CHANTIER**
 **Entrée :** sorties 08 ; R27–R28.  
 **Travail :** tests Django/PostgreSQL, Flutter/Web/E2E, migration, formatage/analyse, compatibilité, vrai Android, CI, contrôle de la branche et décision d'intégration.  
 **Sortie :** rapport de fermeture et preuve des gates pertinentes, aucun défaut bloquant ou non justifié.
@@ -173,13 +173,14 @@ Les statuts ci-dessous sont des **observations d'audit**, pas des tâches commen
 | 2026-10-31 | 04 | N1 Web/Flutter : date d'ajout relative à droite, signification des faits temporaux/spatiaux, absence d'inférence, notes limitantes et variantes réelles, galerie MIME/alt et sections conditionnelles ; tests dédiés dans `discovery_mature_screen_test.dart` et `test_m8b_mature_discover.py`, relevé `discover-stage-04-presentation-n1-2026-10-31.md`. | **Code livré, tests non exécutés.** |
 | 2026-10-31 | 05 | Query Search/Carte, filtres et focus transités par URL et navigation globale/guest, vraie carte compacte et repères MapLibre, scroll root sauvegardé par profil, curseurs historiques, erreur continuation et sources ; tests et dossier `discover-stage-05-search-map-navigation-2026-10-31.md`. | **Code livré ; tests et carte réelle non certifiés.** |
 | 2026-10-31 | 06 | N2 Flutter & Web sur `detail_projection` owner-admis, trois états d'assessment, variants Occurrence, relations explicites, ressources complètes, comparaison bornée aux dimensions réellement communes et tests `discovery_n2_depth_test.dart`/`test_n2_presentation.py`. | **Code livré ; tests/CI/appareil/Web non exécutés.** |
-| 2026-11-02 | 07 | Save identité+état confirmés ; Watch CRUD owner et Web/Flutter idempotent, critères autonomes, pause/reprise, renommer, modifier et supprimer ; Sharing lien, livraison et reprise autorisés ; parcours N3 stricts + tests Python/Flutter ; dossier `discover-stage-07-save-watch-sharing-engagement-2026-11-02.md`. | **Code livré ; tests/CI non exécutés ; prochain chantier 08 exclusivement.** |
+| 2026-11-02 | 07 | Save identité+état confirmés ; Watch CRUD owner et Web/Flutter idempotent, critères autonomes, pause/reprise, renommer, modifier et supprimer ; Sharing lien, livraison et reprise autorisés ; parcours N3 stricts + tests Python/Flutter ; dossier `discover-stage-07-save-watch-sharing-engagement-2026-11-02.md`. | **Code livré ; tests/CI non exécutés.** |
+| 2026-11-02 | 08 | Lecture locale owner/Profil, cascade 403/404, courses réseau, rotation et continuation, Reader privé, médias publics, Cache-Control no-store, actions N3 à revalider, Watch confirmé, scénarios de régression Flutter/Django ; rapport `discover-stage-08-local-first-confidentiality-2026-11-02.md`. | **Code livré ; tests/CI/Android non exécutés ; prochain chantier 09 exclusivement.** |
 
 Pour chaque livraison : ajouter une ligne `date | étape | commit de fin | fichiers | tests ajoutés | résultats exécutés (ou « non exécutés ») | anomalies restantes`. Le mot **certifié** reste réservé à l'exécution du chantier 09.
 
 ## 6. Instruction impérative pour la suite
 
 1. Recharger le HEAD courant et le delta depuis l'état du chantier 00 ; vérifier les collisions sans refaire toute l'analyse.
-2. La validation exécutée de 01–07 est différée à la certification 09, selon l'instruction explicite de l'utilisateur. Ne jamais prétendre que les tests ont réussi.
-3. Conserver dans **#522** la traçabilité des livraisons 01–07 ; toute régression ultérieure se corrige à l'étape active avec un test ciblé.
-4. **Ouvrir uniquement le chantier 08** à la prochaine instruction, sans anticiper 09. Les opérations physiques de stockage et la certification restent distinctes des livraisons de code.
+2. La validation exécutée de 01–08 est différée à la certification 09, selon l'instruction explicite de l'utilisateur. Ne jamais prétendre que les tests ont réussi.
+3. Conserver dans **#522** la traçabilité des livraisons 01–08 ; toute régression ultérieure se corrige à l'étape active avec un test ciblé.
+4. **Ouvrir uniquement le chantier 09** à la prochaine instruction ; ses tests et gates devront certifier les chantiers 01–08 et corriger les causes racines avant intégration.
