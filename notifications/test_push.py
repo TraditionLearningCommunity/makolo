@@ -133,6 +133,31 @@ class PushEndpointApiTests(TestCase):
             "token-after-user-opt-in",
         )
 
+    def test_c7_other_profile_cannot_silently_restore_revoked_installation(self):
+        self._register(token="c7-device-token", installation="shared-c7-device")
+        original = PushEndpoint.objects.get(user=self.user)
+        self.assertEqual(
+            self.client.delete(
+                f"/api/v1/notifications/push/endpoints/{original.pk}/"
+            ).status_code, 204,
+        )
+        self.client.force_authenticate(self.other)
+        attempted = self.client.post(
+            "/api/v1/notifications/push/endpoints/",
+            {
+                "provider": "fcm",
+                "platform": "android",
+                "installation_id": "shared-c7-device",
+                "token": "c7-device-token",
+            },
+            format="json",
+        )
+        self.assertEqual(attempted.status_code, 400)
+        self.assertNotIn(str(original.pk), str(attempted.data))
+        original.refresh_from_db()
+        self.assertFalse(original.active)
+        self.assertEqual(original.user_id, self.user.pk)
+
     def test_revoke_is_scoped_to_authenticated_user(self):
         self._register()
         endpoint = PushEndpoint.objects.get()
