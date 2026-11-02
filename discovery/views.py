@@ -571,9 +571,10 @@ class DiscoveryClarifyWebView(LoginRequiredMixin, View):
             )
         elif status == "unavailable":
             failure_labels = {
-                "invalid_credentials": "La clé du fournisseur a été refusée.",
-                "rate_limited": "Le fournisseur a atteint sa limite d'usage.",
-                "network_unavailable": "Le fournisseur est momentanément injoignable.",
+                "connection_unavailable": "Aucune connexion Intelligence utilisable. Vérifiez Moi → Connexions.",
+                "invalid_credentials": "La clé du fournisseur a été refusée. Vérifiez Moi → Connexions.",
+                "rate_limited": "Le fournisseur a atteint sa limite d'usage. Réessayez plus tard.",
+                "network_unavailable": "Le fournisseur est momentanément injoignable. Réessayez plus tard.",
             }
             messages.info(
                 request,
