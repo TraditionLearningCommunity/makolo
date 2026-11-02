@@ -441,7 +441,12 @@ def build_profile_passport(
             "gender": profile.get_gender_display() if profile.gender else "",
         }
     if custom:
-        if "avatar" not in sections:
+        # The stable identity (name and publicly admissible portrait) is not
+        # an optional thematic fact. A private portrait remains opt-in when
+        # the owner deliberately composes a particular private document.
+        if "avatar" not in sections and not ProfileVisibilityResolver(
+            owner=profile, viewer=None,
+        ).field("avatar"):
             identity["avatar_url"] = ""
         if "bio" not in sections:
             identity["bio"] = ""
