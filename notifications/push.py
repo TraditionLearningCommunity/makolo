@@ -62,13 +62,11 @@ def register_push_endpoint(
     )
 
     endpoint = rows[0] if rows else None
-    if (
-        endpoint is not None
-        and endpoint.user_id == user.pk
-        and not endpoint.active
-        and not reactivate
-    ):
-        # User-initiated revoke must survive automatic token refresh/app start.
+    if endpoint is not None and not endpoint.active and not reactivate:
+        # A revoked endpoint must not be revived by automatic registration,
+        # even after changing the authenticated account on the device.
+        if endpoint.user_id != user.pk:
+            raise ValueError("Réactivation explicite requise pour cet appareil.")
         return endpoint
     for duplicate in rows[1:]:
         duplicate.delete()
