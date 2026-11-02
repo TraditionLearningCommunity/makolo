@@ -162,6 +162,39 @@ void main() {
     router.dispose();
   });
 
+  testWidgets('MT5 departure N3 action is available only with manage authority', (
+    tester,
+  ) async {
+    Future<void> render(bool manage) => tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SpaceWorkG3Depth(
+            slug: 'transport',
+            ownerId: 'occurrence-1',
+            payload: {
+              'kind': 'transport_departure',
+              'facts': {
+                'departure_id': 'departure-1',
+                'route': {'name': 'Lubumbashi → Kolwezi'},
+                'operations_visible': true,
+                'can_manage_operations': manage,
+                'vehicle_assignment_known': true,
+                'vehicle': null,
+              },
+            },
+            onPageChange: _ignore,
+            onSecondaryPageChange: _ignore,
+          ),
+        ),
+      ),
+    );
+    await render(false);
+    expect(find.text('Exploiter ce départ'), findsNothing);
+    expect(find.textContaining('Véhicule : Non affecté'), findsOneWidget);
+    await render(true);
+    expect(find.text('Exploiter ce départ'), findsOneWidget);
+  });
+
   testWidgets('MT5 Transport physical capacity never implies available seats', (
     tester,
   ) async {
