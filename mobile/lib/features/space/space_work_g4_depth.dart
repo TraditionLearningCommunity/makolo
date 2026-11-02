@@ -10,6 +10,8 @@ class SpaceWorkG4Depth extends StatelessWidget {
   const SpaceWorkG4Depth({
     super.key,
     required this.slug,
+    required this.sourceKind,
+    required this.sourceId,
     required this.archetype,
     required this.isActivity,
     required this.detail,
@@ -21,6 +23,8 @@ class SpaceWorkG4Depth extends StatelessWidget {
   });
 
   final String slug;
+  final String sourceKind;
+  final String sourceId;
   final String archetype;
   final bool isActivity;
   final Map<String, dynamic> detail;
@@ -43,7 +47,8 @@ class SpaceWorkG4Depth extends StatelessWidget {
           binding?['kind'] == 'image' &&
           (binding?['mime_type'] == 'image/jpeg' ||
               binding?['mime_type'] == 'image/png') &&
-          (owner?['kind'] == 'activity' || owner?['kind'] == 'occurrence') &&
+          owner?['kind'] == sourceKind &&
+          owner?['id'] == sourceId &&
           path != null &&
           path.startsWith('/presentation/media/uses/') &&
           path.endsWith('/file/')) {
