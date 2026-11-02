@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:flutter/material.dart';
 
 import '../../app/runtime/app_runtime.dart';
+import '../../platform/notifications/push_endpoint_registrar.dart';
+import '../../platform/notifications/push_token_source.dart';
 
 /// Online-only, owner-scoped Notifications management.
 class PushDeviceControls extends StatefulWidget {
@@ -121,6 +126,36 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
     }
   }
 
+  Future<void> _enableHere() async {
+    if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
+    setState(() => _busy = true);
+    final registrar = PushEndpointRegistrar(
+      api: widget.runtime.api!,
+      tokens: widget.runtime.tokens,
+      source: FirebasePushTokenSource(FirebaseMessaging.instance),
+    );
+    try {
+      await registrar.reactivateCurrent();
+      await _load();
+      try {
+        await widget.onChanged();
+      } on Object {
+        // A successful owner write is not undone by a subsequent stale read.
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Cet appareil est de nouveau inscrit auprès de Makolo.'),
+      ));
+    } on Object {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Activation non confirmée. Vérifiez la permission '
+            'de notification sur cet appareil.'),
+      ));
+    } finally {
+      registrar.dispose();
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -154,6 +189,15 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
                 child: const Text('Retirer'),
               ),
             ),
+          ),
+        if (widget.runtime.config?.firebase.enabled == true &&
+            (Platform.isAndroid || Platform.isIOS))
+          OutlinedButton.icon(
+            key: const Key('push-reactivate-current'),
+            onPressed: _busy || !widget.mutationsEnabled
+                ? null : () => unawaited(_enableHere()),
+            icon: const Icon(Icons.add_alert_outlined),
+            label: const Text('Activer sur cet appareil'),
           ),
         if (!widget.mutationsEnabled)
           const Text('Gestion suspendue tant que la connexion ou les droits '
