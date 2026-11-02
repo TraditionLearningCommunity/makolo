@@ -43,8 +43,7 @@ def main(argv=None):
         p.error("SQLite demonstration required")
     from .selection import demo_profiles
     people = demo_profiles(username=a.profile_username, limit=a.profiles)
-    if len(people) < 2:
-        p.error("At least two world_* users required")
+
     now = timezone.now()
     counts = Counter()
     # Space creation precedes loyalty: composition, no duplicated ownership.
@@ -68,8 +67,8 @@ def main(argv=None):
                     continue
             else:
                 counts["spaces_existing"] += 1
-            member = people[(i + 1) % len(people)]
-            if not TeamMembership.objects.filter(team__organization=org,
+            member = people[(i + 1) % len(people)] if len(people) > 1 else None
+            if member is not None and not TeamMembership.objects.filter(team__organization=org,
                     user=member, status="active").exists():
                 if not a.apply:
                     counts["members_planned"] += 1
