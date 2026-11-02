@@ -95,5 +95,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Cotisation octobre'), findsOneWidget);
     expect(find.textContaining('12.00 USD'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Abonnement & facturation'), findsOneWidget);
+    expect(find.text('Changer de formule'), findsOneWidget);
   });
 }
