@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../design/makolo_theme.dart';
+import '../../network/api_error.dart';
 
 /// Native creation through the canonical Organizations owner contract.
 class SpaceCreateScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
   bool _publicProfile = false;
   bool _saving = false;
   bool _created = false;
+  bool _creationAttempted = false;
   SpaceActorIdentity? _createdIdentity;
   String? _error;
 
@@ -31,7 +33,9 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
   }
 
   Future<void> _create() async {
-    if (_saving || _created || !_form.currentState!.validate()) return;
+    if (_saving || _creationAttempted || !_form.currentState!.validate()) {
+      return;
+    }
     final repository = widget.runtime.space;
     final actor = widget.runtime.actorContext;
     if (repository?.sync == null || actor == null) {
@@ -42,6 +46,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
     }
     setState(() {
       _saving = true;
+      _creationAttempted = true;
       _error = null;
     });
     try {
@@ -54,14 +59,30 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
       // A POST response does not substitute for a current authority inventory.
       await _verifyCreatedSpace(identity);
       if (mounted) context.go('/space/now');
+    } on MakoloApiError catch (error) {
+      if (mounted) {
+        setState(() {
+          if (!_created && error.statusCode >= 400 &&
+              error.statusCode < 500) {
+            // A definitive client rejection did not create the Espace.
+            _creationAttempted = false;
+          }
+          _error = _created
+              ? 'Espace créé, accès à vérifier. Utilisez « Vérifier mon accès ».'
+              : _creationAttempted
+                  ? 'Réponse incertaine : vérifiez d’abord vos Espaces '
+                    'avant toute nouvelle demande de création.'
+                  : 'La création a été refusée. Vérifiez les informations saisies.';
+        });
+      }
     } on Object {
       if (mounted) {
-        setState(
-          () => _error = _created
-              ? 'Espace créé. La vérification de votre accès est indisponible. '
-                    'Utilisez « Vérifier mon accès » pour reprendre sans recréer cet Espace.'
-              : 'La création n’a pas été confirmée. Vérifiez votre connexion avant de réessayer.',
-        );
+        setState(() {
+          _error = _created
+              ? 'Espace créé, accès à vérifier. Utilisez « Vérifier mon accès ».'
+              : 'Réponse incertaine : la demande a peut-être abouti. '
+                'Consultez vos Espaces avant de créer à nouveau.';
+        });
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -168,9 +189,14 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                 ),
               const SizedBox(height: MakoloSpacing.lg),
               FilledButton(
-                onPressed: _saving || _created ? null : _create,
+                onPressed: _saving || _creationAttempted ? null : _create,
                 child: Text(_saving ? 'Création…' : 'Créer cet Espace'),
               ),
+              if (_creationAttempted && !_created)
+                TextButton(
+                  onPressed: () => context.go('/me'),
+                  child: const Text('Consulter mes Espaces depuis Moi'),
+                ),
               if (_created) ...[
                 OutlinedButton(
                   onPressed: _saving ? null : _retryVerification,
