@@ -2,7 +2,10 @@
 from unittest.mock import Mock, patch
 
 from django.test import TestCase
+from django.contrib import admin
 from django.utils import timezone
+from intelligence.admin import ProviderConnectionAdmin
+from intelligence.credentials import get_provider_secret
 
 from accounts.models import User, UserProfile
 from intelligence.connection_management import (
@@ -76,6 +79,31 @@ class ProviderHealthConcurrentLifecycleTests(TestCase):
         self.connection.refresh_from_db()
         self.assertFalse(self.connection.enabled)
         self.assertNotEqual(self.connection.health_status, ProviderHealth.HEALTHY)
+
+    def test_admin_credential_rotation_invalidates_old_health(self):
+        self.connection.health_status = ProviderHealth.HEALTHY
+        self.connection.last_checked_at = timezone.now()
+        self.connection.last_latency_ms = 8
+        self.connection.save(update_fields=[
+            "health_status", "last_checked_at", "last_latency_ms", "updated_at",
+        ])
+        model_admin = ProviderConnectionAdmin(ProviderConnection, admin.site)
+        fake_form = Mock()
+        fake_form.cleaned_data = {"api_key": "admin-replacement-test-key"}
+        model_admin.save_model(
+            request=Mock(user=self.actor),
+            obj=self.connection,
+            form=fake_form,
+            change=True,
+        )
+        self.connection.refresh_from_db()
+        self.assertEqual(self.connection.health_status, ProviderHealth.UNKNOWN)
+        self.assertIsNone(self.connection.last_checked_at)
+        self.assertIsNone(self.connection.last_latency_ms)
+        self.assertEqual(
+            get_provider_secret(connection=self.connection),
+            "admin-replacement-test-key",
+        )
 
     def test_removed_connection_is_not_recreated_by_old_probe(self):
         def disconnect(request):
