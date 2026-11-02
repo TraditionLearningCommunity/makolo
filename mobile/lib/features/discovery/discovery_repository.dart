@@ -711,6 +711,7 @@ class DiscoveryRepository {
     const selector = DiscoverySelector();
     final source = await readSource(itemsSource(query));
     if (source.ownerUnavailable) return null;
+    current = await _readAvailable(itemsSource(query), current);
     // A revoked first-page field cannot be resurrected by a derived window,
     // even if a later cursor still has locally cached rows.
     final rootQuery = query.copyWith(page: 1, clearContinuation: true);
@@ -721,7 +722,13 @@ class DiscoveryRepository {
       resourceKey: query.mapFingerprint,
     );
     final windowPage = window?.payload['page'];
-    if (window != null && windowPage is int) {
+    // A new root acquisition invalidates the history of a former signed
+    // cursor even when its displayed criteria did not change.
+    final currentRoot = await _readStoredItems(rootQuery);
+    if (window != null &&
+        windowPage is int &&
+        currentRoot != null &&
+        !currentRoot.receivedAt.isAfter(window.receivedAt)) {
       final retained = _presentedProjection(query, window);
       if (retained != null) {
         if (windowPage == query.page &&
@@ -814,6 +821,32 @@ class DiscoveryRepository {
   ) async {
     if (snapshot == null) return null;
     if ((await readSource(source)).ownerUnavailable) return null;
+    if (source.projectionKind == itemsProjectionKind) {
+      final viewer = snapshot.payload['viewer'];
+      if (snapshot.schemaVersion != 1 ||
+          viewer is! Map ||
+          viewer['id'] != profileId) return null;
+      try {
+        DiscoveryWire.validateData(snapshot.payload);
+      } on FormatException {
+        return null;
+      }
+    }
+    if (source.projectionKind == itemProjectionKind) {
+      final item = snapshot.payload['item'];
+      final identity = item is Map ? item['identity'] : null;
+      if (snapshot.schemaVersion != 1 ||
+          identity is! Map ||
+          identity['family'] is! String ||
+          identity['resource'] is! Map ||
+          '${identity['family']}:${(identity['resource'] as Map)['id']}' !=
+              source.resourceKey) return null;
+      try {
+        DiscoveryWire.validateData({'results': [item]});
+      } on FormatException {
+        return null;
+      }
+    }
     if (snapshot.expiresAt != null &&
         !DateTime.now().toUtc().isBefore(snapshot.expiresAt!.toUtc())) {
       return null;
@@ -946,11 +979,30 @@ class DiscoveryRepository {
   Future<void> refreshItems(DiscoveryQuery query) async {
     final source = itemsSource(query);
     await _refresh(source);
-    // A failed offline refresh retains the cached collection, but must not
-    // re-index it as if fresh server data had just been received.
-    if ((await readSource(source)).lastErrorCode == null) {
-      await indexItemPreviews(query);
+    // A failed offline refresh retains existing data without re-indexing it.
+    if ((await readSource(source)).lastErrorCode != null) return;
+    if (query.page == 1) {
+      // A newly signed first page supersedes any prior device-side
+      // continuation window; old cursors are never replayed as current.
+      await store.deleteProjection(
+        presentedWindowKind, resourceKey: query.mapFingerprint,
+      );
     }
+    await indexItemPreviews(query);
+    final rootKey = query.copyWith(
+      page: 1, clearContinuation: true,
+    ).fingerprint;
+    await store.pruneProjectionsOfKind(
+      itemsProjectionKind,
+      retain: maxCachedTransportPages,
+      protectResourceKeys: {query.fingerprint, rootKey},
+    );
+    await store.pruneProjectionsOfKind(
+      activityPreviewProjectionKind, retain: maxCachedDiscoveryPreviews,
+    );
+    await store.pruneProjectionsOfKind(
+      occurrencePreviewProjectionKind, retain: maxCachedDiscoveryPreviews,
+    );
   }
 
   Future<void> indexItemPreviews(DiscoveryQuery query) async {
@@ -959,10 +1011,27 @@ class DiscoveryRepository {
     await _indexDiscoveryItemPreviews(projection);
   }
 
-  Future<void> refreshMap(DiscoveryQuery query) => _refresh(mapSource(query));
+  Future<void> refreshMap(DiscoveryQuery query) async {
+    await _refresh(mapSource(query));
+    if ((await readSource(mapSource(query))).lastErrorCode == null) {
+      await store.pruneProjectionsOfKind(
+        mapProjectionKind,
+        retain: 12,
+        protectResourceKeys: {query.mapFingerprint},
+      );
+    }
+  }
 
-  Future<void> refreshItem(String family, String id) =>
-      _refresh(itemSource(family, id));
+  Future<void> refreshItem(String family, String id) async {
+    await _refresh(itemSource(family, id));
+    if ((await readSource(itemSource(family, id))).lastErrorCode == null) {
+      await store.pruneProjectionsOfKind(
+        itemProjectionKind,
+        retain: maxCachedDiscoveryDetails,
+        protectResourceKeys: {'$family:$id'},
+      );
+    }
+  }
 
   Future<void> refreshActivity(String id) async {
     final source = activitySource(id);
@@ -993,6 +1062,18 @@ class DiscoveryRepository {
   }
 
   Future<void> refreshWatches() => _refresh(watchesSource());
+
+  Future<void> _forgetWatchResults(String watchId) async {
+    final snapshots = await store.readProjections(watchResultsProjectionKind);
+    for (final snapshot in snapshots) {
+      if (snapshot.resourceKey.startsWith('$watchId:')) {
+        await store.deleteProjection(
+          watchResultsProjectionKind,
+          resourceKey: snapshot.resourceKey,
+        );
+      }
+    }
+  }
 
   /// A Watch is not Save, Share or owner Engagement. The API owns creation
   /// and deduplication; only its confirmed response may open a Watch screen.
@@ -1103,8 +1184,17 @@ class DiscoveryRepository {
     }
   }
 
-  Future<void> refreshWatchResults(String watchId, {int page = 1}) =>
-      _refresh(watchResultsSource(watchId, page: page));
+  Future<void> refreshWatchResults(String watchId, {int page = 1}) async {
+    final source = watchResultsSource(watchId, page: page);
+    await _refresh(source);
+    if ((await readSource(source)).lastErrorCode == null) {
+      await store.pruneProjectionsOfKind(
+        watchResultsProjectionKind,
+        retain: maxCachedWatchResults,
+        protectResourceKeys: {'$watchId:$page'},
+      );
+    }
+  }
 
   Future<void> setSaved({
     required String family,
