@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
@@ -12,11 +13,12 @@ import 'subscription_billing_format.dart';
 /// Private subscription read model supplied by the canonical Subscriptions API.
 /// No absent or stale local record is interpreted as "no subscription".
 class BillingScreen extends StatefulWidget {
-  const BillingScreen({super.key, required this.runtime, this.spaceSlug, this.expectedSpaceId});
+  const BillingScreen({super.key, required this.runtime, this.spaceSlug, this.expectedSpaceId, this.fromTeam = false});
 
   final AppRuntime runtime;
   final String? spaceSlug;
   final String? expectedSpaceId;
+  final bool fromTeam;
 
   @override
   State<BillingScreen> createState() => _BillingScreenState();
@@ -309,6 +311,37 @@ class _BillingScreenState extends State<BillingScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_spaceMode && widget.fromTeam && _currentSpace != null) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(MakoloSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Vous veniez de l’ajout d’un collaborateur.'),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Consultez les limites et conditions de cet Espace. '
+                    'Un changement de formule ne confirme pas l’ajout automatiquement.',
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Revenir à l’équipe'),
+                    onPressed: () {
+                      if (_currentSpace == null) return;
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/space/${Uri.encodeComponent(widget.spaceSlug!)}/us/team');
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         _heading(_spaceMode ? 'Abonnement de cet Espace' : 'Mon abonnement'),
         if (_spaceMode) ...[
           Text(
