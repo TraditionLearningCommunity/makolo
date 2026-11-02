@@ -1409,6 +1409,7 @@ class DiscoveryMapScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.mapConfig,
+    this.location,
     required this.onOpenOccurrence,
     this.onOpenItem,
     this.query = const DiscoveryQuery(),
@@ -1417,6 +1418,7 @@ class DiscoveryMapScreen extends StatefulWidget {
 
   final DiscoveryRepository repository;
   final MakoloMapsConfig mapConfig;
+  final LocationCapability? location;
   final ValueChanged<String> onOpenOccurrence;
   final void Function(String family, String id)? onOpenItem;
   final DiscoveryQuery query;
@@ -1624,6 +1626,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 key: ValueKey('discover-map-field-${_query.mapFingerprint}'),
                 selection: selection,
                 mapConfig: widget.mapConfig,
+                location: widget.location,
                 showMapOnCompact: true,
                 fieldKey: _query.mapFingerprint,
                 initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
