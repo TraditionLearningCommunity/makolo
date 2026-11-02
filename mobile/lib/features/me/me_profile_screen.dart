@@ -20,11 +20,13 @@ class MeProfileScreen extends StatefulWidget {
     required this.personal,
     this.drafts,
     this.openAvatarPicker = false,
+    this.focusVisibility = false,
   });
   final MakoloApiClient api;
   final PersonalRepository personal;
   final DraftRepository? drafts;
   final bool openAvatarPicker;
+  final bool focusVisibility;
 
   @override
   State<MeProfileScreen> createState() => _MeProfileScreenState();
@@ -56,6 +58,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   bool _countryHasUnselectedInput = false;
 
   bool _avatarPickerScheduled = false;
+  bool _visibilityJumpScheduled = false;
+  final ScrollController _scrollController = ScrollController();
   bool _loading = true;
   bool _loaded = false;
   bool _saving = false;
@@ -476,6 +480,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     for (final controller in [
       _firstName,
       _lastName,
@@ -503,13 +508,26 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.focusVisibility && _loaded && !_visibilityJumpScheduled) {
+      _visibilityJumpScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _scrollController.hasClients) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
+    }
     return Scaffold(
-      appBar: AppBar(title: const Text('Modifier mon passeport')),
+      appBar: AppBar(
+        title: Text(widget.focusVisibility
+            ? 'Confidentialité du Profil'
+            : 'Modifier mon passeport'),
+      ),
       body: _loading && _cachedIdentity == null
           ? const Center(child: CircularProgressIndicator.adaptive())
           : !_loaded
           ? _localSummary(context)
           : ListView(
+              controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 44),
               children: [
                 if (_error != null) ...[
