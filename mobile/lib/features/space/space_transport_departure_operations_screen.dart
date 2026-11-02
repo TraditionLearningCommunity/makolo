@@ -216,6 +216,9 @@ class _SpaceTransportDepartureOperationsScreenState
         throw const FormatException('Réponse non confirmée');
       }
       if (!mounted || !_actorValid || epoch != _epoch) return;
+      // _read increments the epoch. Release the command guard before it,
+      // while keeping actions disabled until the owner confirms the reload.
+      setState(() => _posting = false);
       await _read();
     } on Object {
       if (mounted && _actorValid && epoch == _epoch) {
