@@ -172,7 +172,9 @@ void main() {
         find.text('Présentation actuellement mise à jour.'),
         findsOneWidget,
       );
-      await tester.tap(find.byTooltip('Versions datées'));
+      await tester.tap(find.byTooltip('Autres actions du Passeport'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Versions datées'));
       await tester.pumpAndSettle();
       expect(find.text('PM-P-20261030-11111111'), findsOneWidget);
       await tester.tap(find.text('PM-P-20261030-11111111'));
@@ -186,7 +188,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Versions datées'));
+    await tester.tap(find.byTooltip('Autres actions du Passeport'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Versions datées'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Gérer cette version'));
     await tester.pumpAndSettle();
@@ -205,7 +209,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Versions datées'));
+    await tester.tap(find.byTooltip('Autres actions du Passeport'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Versions datées'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Gérer cette version'));
     await tester.pumpAndSettle();
