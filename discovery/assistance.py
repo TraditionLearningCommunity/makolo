@@ -53,7 +53,9 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
     intent = resolve_discovery_intent(params)
     status = "already_structured"
     reason = ""
-    if _should_augment(intent):
+    if _should_augment(intent) and not any(
+        value for key, value in params.items() if key != "q"
+    ):
         profile = UserProfile.objects.filter(user=actor).first()
         registry = build_runtime_registry(
             capability=IntelligenceCapability.STRUCTURED_GENERATE,
