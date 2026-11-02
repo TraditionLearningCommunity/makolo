@@ -163,8 +163,10 @@ void main() {
     );
     await tester.tap(find.text('Confidentialité du Profil'));
     expect(privacyOpened, isTrue);
+    await tester.ensureVisible(find.text('Notifications'));
     await tester.tap(find.text('Notifications'));
     expect(notificationsOpened, isTrue);
+    await tester.ensureVisible(find.text('Sécurité et appareils'));
     await tester.tap(find.text('Sécurité et appareils'));
     expect(securityOpened, isTrue);
     await tester.scrollUntilVisible(find.text('Données hors ligne'), 200);
