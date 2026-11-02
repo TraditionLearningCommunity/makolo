@@ -172,7 +172,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'La suite est indisponible. Les éléments déjà consultés sont conservés.',
+                          'Impossible de charger la suite.',
                         ),
                       ),
                       TextButton(
