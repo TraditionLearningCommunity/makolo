@@ -314,6 +314,20 @@ void main() {
     );
   });
 
+  test('fallback synthesis does not invent progress or a blocked step', () {
+    final items = OngoingContinuityPresentation.fromProjection(
+      _projection([
+        {'state': 'pending', 'title': 'Réservation'},
+        {'state': 'blocked', 'title': 'Dossier'},
+        {'state': 'unknown', 'title': 'Suivi'},
+      ]),
+    );
+    expect(items[0].synthesis, 'En attente d’une suite.');
+    expect(items[1].synthesis, 'La suite est bloquée.');
+    expect(items[2].synthesis, 'Situation à vérifier.');
+    expect(items[2].unknown, 'L’état actuel est inconnu.');
+  });
+
   test('true empty has no synthetic suggestion', () {
     expect(
       OngoingContinuityPresentation.fromProjection(_projection(const [])),

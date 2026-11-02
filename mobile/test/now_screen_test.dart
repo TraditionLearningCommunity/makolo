@@ -476,7 +476,7 @@ void main() {
 
     expect(find.text('Tout est en ordre. ✓'), findsNothing);
     expect(
-      find.text('Now n’est pas disponible pour le moment.'),
+      find.text('Impossible d’afficher votre situation pour le moment.'),
       findsOneWidget,
     );
   });
@@ -500,7 +500,7 @@ void main() {
     expect(find.text('Tout est en ordre. ✓'), findsNothing);
     expect(find.textContaining('Hors connexion'), findsNothing);
     expect(
-      find.text('Now n’est pas disponible pour le moment.'),
+      find.text('Impossible d’afficher votre situation pour le moment.'),
       findsOneWidget,
     );
   });
