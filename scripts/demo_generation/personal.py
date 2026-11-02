@@ -16,6 +16,7 @@ def main(argv=None):
     p.add_argument("--domains", default=",".join(DOMAINS))
     p.add_argument("--count", type=int, default=30)
     p.add_argument("--profiles", type=int, default=30)
+    p.add_argument("--profile-username")
     p.add_argument("--apply", action="store_true")
     a = p.parse_args(argv)
     domains = set(a.domains.split(","))
@@ -38,10 +39,12 @@ def main(argv=None):
     from organizations.services import follow_organization
     if connection.vendor != "sqlite":
         p.error("SQLite demo only")
-    users = list(get_user_model().objects.filter(
-        username__startswith="world_", is_active=True,
-        is_staff=False, is_superuser=False,
-    ).order_by("username")[:a.profiles])
+    eligible = get_user_model().objects.filter(is_active=True, is_staff=False, is_superuser=False)
+    if a.profile_username:
+        eligible = eligible.filter(username=a.profile_username)
+    else:
+        eligible = eligible.filter(username__startswith="world_")
+    users = list(eligible.order_by("username")[:a.profiles])
     activities = list(Activity.objects.filter(
         slug__startswith="demo-", status=ActivityStatus.PUBLISHED,
         visibility=ActivityVisibility.PUBLIC,
@@ -50,7 +53,7 @@ def main(argv=None):
         public_profile=True,
     ).exclude(verification_status="suspended").order_by("id")[:a.count])
     if not users:
-        p.error("No synthetic world_* users")
+        p.error("Aucun profil beneficiaire eligible pour la selection")
     counts = Counter()
     today = timezone.localdate()
     month_start = today.replace(day=1)
