@@ -107,7 +107,14 @@ def next_payment_url_for_actor(transition, actor):
     The Subscription manager role alone never grants Space payment access.
     """
     from django.urls import reverse
+    from authorization.constants import PermissionCode
+    from authorization.services import space_ids_with_permission
     from payments.selectors import obligations_visible_to
+
+    if transition.subscription.space_id is not None:
+        finance_spaces = space_ids_with_permission(actor, PermissionCode.FINANCE_VIEW)
+        if finance_spaces is not None and transition.subscription.space_id not in finance_spaces:
+            return None
 
     link = (
         transition.billing_obligation_links.select_related("obligation")
