@@ -872,7 +872,7 @@ class _TransverseRetrievalScreenState extends State<TransverseRetrievalScreen> {
                           if (_canOpen(selected))
                             TextButton(
                               onPressed: () => _open(selected),
-                              child: const Text('Ouvrir chez le propriétaire'),
+                              child: const Text('Voir les détails'),
                             ),
                         ],
                       ),
