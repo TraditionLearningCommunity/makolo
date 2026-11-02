@@ -44,6 +44,29 @@ def build_profile_visibility_settings(profile):
             ],
         }
 
+    # A visibility policy describes permission, not the existence of a value.
+    # Avoid making blank fields look like published information in the editor.
+    profile_row = getattr(profile, "profile", None)
+    field_values = {
+        "name": profile.full_name or profile.username,
+        "avatar": bool(getattr(profile, "avatar", None))
+            or bool((profile.metadata or {}).get("avatar_url"))
+            if isinstance(profile.metadata, dict) else bool(getattr(profile, "avatar", None)),
+        "bio": profile.bio,
+        "profession": getattr(profile_row, "profession", None),
+        "country": getattr(profile_row, "country", None),
+        "city": getattr(profile_row, "city", None),
+        "company_name": getattr(profile_row, "company_name", None),
+        "organization_name": getattr(profile_row, "organization_name", None),
+        "website": profile.website,
+        "linkedin_url": profile.linkedin_url,
+        "facebook_url": profile.facebook_url,
+        "instagram_url": profile.instagram_url,
+        "tiktok_url": profile.tiktok_url,
+        "x_url": profile.x_url,
+        "youtube_url": profile.youtube_url,
+    }
+
     memberships = _collective_memberships(profile)
     return {
         "collectives": {
@@ -65,7 +88,10 @@ def build_profile_visibility_settings(profile):
             "selected_group", "selected_profile",
         ],
         "fields": {
-            key: setting(Target.FIELD, key, default_public=True)
+            key: {
+                **setting(Target.FIELD, key, default_public=True),
+                "has_value": bool(field_values.get(key)),
+            }
             for key in PROFILE_VISIBILITY_FIELDS
         },
         "interests": [
