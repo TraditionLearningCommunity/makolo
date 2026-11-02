@@ -12,7 +12,7 @@ Un seul Profil, plusieurs projections selon le lecteur. La variante Complete est
 
 ## Audiences cumulables
 - Public : tout visiteur.
-- Mes collectifs : membres actuels partageant un collectif actif avec le proprietaire, relation recalculee a chaque consultation.
+- Mes collectifs : membres actuels partageant une appartenance effective a un collectif actif avec le proprietaire, relation recalculee a chaque consultation. Un Mandate ou une Permission d'Espace sans Membership n'etablit jamais cette appartenance.
 - Espace, Equipe ou Groupe choisi : relation effective des deux profils au collectif selectionne.
 - Personne choisie : profil Makolo designe.
 - Une politique sans audience est privee.
@@ -58,3 +58,11 @@ Aucun collectif aujourd'hui signifie aucun membre autorise. Une adhesion future 
 - Les scenarios de publication, retrait, nouvelles appartenances, depart de
   collectif, IDOR et anciennes versions publiques sont couverts par des tests
   cibles a executer localement dans P5.
+
+## Fermeture de la frontiere appartenance / autorite (etape 4)
+- Les TeamMembership actives creent des relations Team et Space, sans accorder d'autorite.
+- Les GroupMembership actives et les Groups personnels actifs possedes creent des relations Group, sans autorite implicite.
+- Les Mandates d'Espace restent dans Authorization : ils ne sont pas des Membership et n'ouvrent pas « Mes collectifs ».
+- Les audiences restreintes sont resolues sur le viewer authentifie et les appartenances courantes a chaque consultation, jamais par simple role global ou cache public.
+- L'aperçu du lecteur peut exposer seulement les champs explicitement ouverts a ce lecteur ; la projection publique exportable conserve ses limites de publication.
+- Regression cible : `accounts.test_passport_visibility_integration` couvre Mandate seul, adhesion active et depart.
