@@ -1,13 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/app/runtime/actor_context.dart';
+import 'package:makolo_mobile/app/runtime/app_runtime.dart';
+import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/app/runtime/actor_context_controller.dart';
 import 'package:makolo_mobile/data/local/makolo_database.dart';
 import 'package:makolo_mobile/data/local/profile_store.dart';
 import 'package:makolo_mobile/features/space/space_repository.dart';
+import 'package:makolo_mobile/features/space/space_create_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:makolo_mobile/sync/sync_engine.dart';
 import 'package:makolo_mobile/sync/sync_source.dart';
@@ -626,6 +630,47 @@ void main() {
       expect(posted, isTrue);
       expect(identity, SpaceActorIdentity(id: 'space-x', slug: 'space-x'));
       expect(harness.actorContext.value, const PersonalActorContext());
+    },
+  );
+
+  testWidgets(
+    'uncertain create response cannot repeat an unconfirmed Space POST',
+    (tester) async {
+      var attempts = 0;
+      final harness = await _harness(
+        handler: (request) async {
+          if (request.url.path == '/api/v1/organizations/workspaces/' &&
+              request.data != null) {
+            attempts++;
+            return const MockResponse(
+              '{"error":{"code":"unavailable","message":"Try later"}}',
+              503,
+            );
+          }
+          throw StateError('Unexpected request');
+        },
+      );
+      addTearDown(harness.close);
+      final runtime = AppRuntime(
+        tokens: MemoryTokenStore(),
+        session: null,
+        recovery: SessionRecoveryController(),
+        actorContext: harness.actorContext,
+        space: harness.repository,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: SpaceCreateScreen(runtime: runtime)),
+      );
+      await tester.enterText(find.byType(TextFormField), 'Espace Associatif');
+      await tester.tap(find.text('Créer cet Espace'));
+      await tester.pumpAndSettle();
+
+      expect(attempts, 1);
+      expect(find.textContaining('Réponse incertaine'), findsOneWidget);
+      final submit = tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(submit.onPressed, isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
     },
   );
 }
