@@ -380,6 +380,16 @@ class PublicPassportIdentifierView(PassportViewMixin):
 
 
 
+def snapshot_subject_public_now(snapshot):
+    """One disclosure gate shared by HTML and native dated readers."""
+    if snapshot.subject_kind == PublicSubjectKind.PROFILE:
+        return bool(
+            snapshot.profile and snapshot.profile.is_active
+            and profile_has_public_passport(snapshot.profile)
+        )
+    return bool(snapshot.space and space_has_public_passport(snapshot.space))
+
+
 def _snapshot_content_allowed(snapshot, viewer, *, currently_public):
     """Do not let a document token grant permissions or expose current data."""
     if not snapshot_payload_is_intact(snapshot):
@@ -419,13 +429,7 @@ class PassportVerificationView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         snapshot = self.get_snapshot()
-        if snapshot.subject_kind == PublicSubjectKind.PROFILE:
-            currently_public = bool(
-                snapshot.profile and snapshot.profile.is_active
-                and profile_has_public_passport(snapshot.profile)
-            )
-        else:
-            currently_public = bool(snapshot.space and space_has_public_passport(snapshot.space))
+        currently_public = snapshot_subject_public_now(snapshot)
         intact = snapshot_payload_is_intact(snapshot)
         allowed = _snapshot_content_allowed(
             snapshot, self.request.user, currently_public=currently_public,
