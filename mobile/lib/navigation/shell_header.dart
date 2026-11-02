@@ -28,6 +28,8 @@ class MakoloPrimaryHeader extends StatelessWidget
     this.avatarProfileId,
     this.avatarApi,
     this.avatarRevision,
+    this.avatarVisual,
+    this.avatarContextLabel,
     this.profileUsername,
   });
 
@@ -46,6 +48,8 @@ class MakoloPrimaryHeader extends StatelessWidget
   final String? avatarProfileId;
   final MakoloApiClient? avatarApi;
   final Object? avatarRevision;
+  final Widget? avatarVisual;
+  final String? avatarContextLabel;
   final String? profileUsername;
 
   Widget _avatarFallback(BuildContext context) => Center(
@@ -197,9 +201,9 @@ class MakoloPrimaryHeader extends StatelessWidget
         ..._contextActions(),
         Semantics(
           button: true,
-          label: 'Avatar',
+          label: avatarContextLabel ?? 'Avatar',
           child: IconButton(
-            tooltip: 'Avatar',
+            tooltip: avatarContextLabel ?? 'Avatar',
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: onAvatar,
             icon: Container(
@@ -210,7 +214,7 @@ class MakoloPrimaryHeader extends StatelessWidget
                 color: Theme.of(context).colorScheme.primaryContainer,
               ),
               child: ClipOval(
-                child: ProfileAvatarImage(
+                child: avatarVisual ?? ProfileAvatarImage(
                   profileId: avatarProfileId,
                   url: avatarUrl,
                   size: 36,
