@@ -60,7 +60,7 @@ class C8OwnerInteropJourneyTests(TestCase):
             "https://example.org/reference",
         )
         sent = outbound.call_args.args[0]
-        self.assertEqual(sent.get_header("X-Api-Key"), key)
+        self.assertEqual(sent.get_header("Authorization"), f"Bearer {key}")
         self.assertNotIn(key, str(result.data))
 
     def test_lifecycle_and_real_discovery_consumption_share_one_owner(self):
