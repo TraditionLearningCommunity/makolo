@@ -342,6 +342,10 @@ class DiscoveryRepository {
   static const itemsProjectionKind = 'discovery.items';
   static const presentedWindowKind = 'discovery.presented-window';
   static const int maxPresentedWindowItems = 50;
+  static const int maxCachedTransportPages = 48;
+  static const int maxCachedDiscoveryDetails = 80;
+  static const int maxCachedDiscoveryPreviews = 120;
+  static const int maxCachedWatchResults = 24;
   static const itemProjectionKind = 'discovery.item';
   static const mapProjectionKind = 'discovery.map';
   static const activityProjectionKind = 'activity.detail';
@@ -607,9 +611,11 @@ class DiscoveryRepository {
   ) {
     final payload = window.payload;
     final field = payload['field'];
-    if (field is! Map<String, dynamic>) return null;
+    if (field is! Map<String, dynamic> ||
+        window.schemaVersion != 1 ||
+        window.payload['fingerprint'] is! String) return null;
     final actor = field['viewer'];
-    if (actor is Map && actor['id'] != profileId) return null;
+    if (actor is! Map || actor['id'] != profileId) return null;
     return StoredProjection(
       kind: itemsProjectionKind,
       resourceKey: query.fingerprint,
@@ -650,11 +656,11 @@ class DiscoveryRepository {
     );
     // A fresh first-page acquisition starts a new server field. Do not
     // concatenate its candidates with a window from a previous field.
-    final root = await store.readProjection(
-      itemsProjectionKind,
-      resourceKey: query.copyWith(page: 1, clearContinuation: true).fingerprint,
+    final root = await _readStoredItems(
+      query.copyWith(page: 1, clearContinuation: true),
     );
-    if (root == null) return;
+    if (root == null || root.payload['viewer'] is! Map ||
+        (root.payload['viewer'] as Map)['id'] != profileId) return;
     final wire = Map<String, dynamic>.from(collection.wire)
       ..['results'] = bounded
       ..['items'] = bounded;
@@ -667,6 +673,10 @@ class DiscoveryRepository {
         'fingerprint': query.fingerprint,
         'field': wire,
       },
+      receivedAt: projection.receivedAt,
+      sourceGeneratedAt: projection.sourceGeneratedAt,
+      lastVerifiedOnlineAt: projection.lastVerifiedOnlineAt,
+      freshnessPolicyId: discoveryFreshness.id,
     );
     final oldPage = previous?.payload['page'];
     final oldKey = previous?.payload['fingerprint'];
@@ -687,9 +697,10 @@ class DiscoveryRepository {
       itemsProjectionKind,
       resourceKey: query.fingerprint,
     );
-    if (query.page <= 1) return updates;
     return updates.asyncMap(
-      (current) => _logicalItemsProjection(query, current),
+      (current) => query.page <= 1
+          ? _readAvailable(itemsSource(query), current)
+          : _logicalItemsProjection(query, current),
     );
   }
 
@@ -795,8 +806,28 @@ class DiscoveryRepository {
     );
   }
 
-  Future<StoredProjection?> _readStoredItems(DiscoveryQuery query) =>
-      store.readProjection(itemsProjectionKind, resourceKey: query.fingerprint);
+  /// Owner 403/404 is a tombstone, not an offline stale snapshot. All local
+  /// reads (including root, map and N2) must pass this gate.
+  Future<StoredProjection?> _readAvailable(
+    SyncSourceDefinition source,
+    StoredProjection? snapshot,
+  ) async {
+    if (snapshot == null) return null;
+    if ((await readSource(source)).ownerUnavailable) return null;
+    if (snapshot.expiresAt != null &&
+        !DateTime.now().toUtc().isBefore(snapshot.expiresAt!.toUtc())) {
+      return null;
+    }
+    return snapshot;
+  }
+
+  Future<StoredProjection?> _readStoredItems(DiscoveryQuery query) async =>
+      _readAvailable(
+        itemsSource(query),
+        await store.readProjection(
+          itemsProjectionKind, resourceKey: query.fingerprint,
+        ),
+      );
 
   /// Keep one-shot offline reads consistent with the watched logical field.
   /// Each raw server page remains the only persisted snapshot.
@@ -807,16 +838,28 @@ class DiscoveryRepository {
   }
 
   Stream<StoredProjection?> watchMap(DiscoveryQuery query) => store
-      .watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
+      .watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint)
+      .asyncMap((row) => _readAvailable(mapSource(query), row));
 
-  Future<StoredProjection?> readMap(DiscoveryQuery query) => store
-      .readProjection(mapProjectionKind, resourceKey: query.mapFingerprint);
+  Future<StoredProjection?> readMap(DiscoveryQuery query) async =>
+      _readAvailable(
+        mapSource(query),
+        await store.readProjection(
+          mapProjectionKind, resourceKey: query.mapFingerprint,
+        ),
+      );
 
-  Stream<StoredProjection?> watchItem(String family, String id) =>
-      store.watchProjection(itemProjectionKind, resourceKey: '$family:$id');
+  Stream<StoredProjection?> watchItem(String family, String id) => store
+      .watchProjection(itemProjectionKind, resourceKey: '$family:$id')
+      .asyncMap((row) => _readAvailable(itemSource(family, id), row));
 
-  Future<StoredProjection?> readItem(String family, String id) =>
-      store.readProjection(itemProjectionKind, resourceKey: '$family:$id');
+  Future<StoredProjection?> readItem(String family, String id) async =>
+      _readAvailable(
+        itemSource(family, id),
+        await store.readProjection(
+          itemProjectionKind, resourceKey: '$family:$id',
+        ),
+      );
 
   Stream<StoredProjection?> watchActivity(String id) =>
       store.watchProjection(activityProjectionKind, resourceKey: id);
@@ -842,19 +885,27 @@ class DiscoveryRepository {
   Future<StoredProjection?> readOccurrencePreview(String id) =>
       store.readProjection(occurrencePreviewProjectionKind, resourceKey: id);
 
-  Stream<StoredProjection?> watchWatches() =>
-      store.watchProjection(watchesProjectionKind);
+  Stream<StoredProjection?> watchWatches() => store
+      .watchProjection(watchesProjectionKind)
+      .asyncMap((row) => _readAvailable(watchesSource(), row));
 
   Stream<StoredProjection?> watchWatchResults(String watchId, {int page = 1}) =>
       store.watchProjection(
         watchResultsProjectionKind,
         resourceKey: '$watchId:$page',
+      ).asyncMap(
+        (row) => _readAvailable(
+          watchResultsSource(watchId, page: page), row,
+        ),
       );
 
-  Future<StoredProjection?> readWatchResults(String watchId, {int page = 1}) =>
-      store.readProjection(
-        watchResultsProjectionKind,
-        resourceKey: '$watchId:$page',
+  Future<StoredProjection?> readWatchResults(String watchId, {int page = 1}) async =>
+      _readAvailable(
+        watchResultsSource(watchId, page: page),
+        await store.readProjection(
+          watchResultsProjectionKind,
+          resourceKey: '$watchId:$page',
+        ),
       );
 
   Future<DiscoverySourceState> readSource(SyncSourceDefinition source) async {
