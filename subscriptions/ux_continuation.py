@@ -53,7 +53,7 @@ def action_subscription_handoff(request, *, space=None, action_url=None):
 
 def safe_action_return(request, *, space=None):
     """Accept only local, explicit creation depths and exact Space contexts."""
-    raw = request.GET.get("next", "")
+    raw = request.POST.get("next", "") or request.GET.get("next", "")
     if not raw or len(raw) > 2048 or not raw.startswith("/") or raw.startswith("//"):
         return None
     if "\\" in raw or any(ord(char) < 32 for char in raw):
@@ -81,3 +81,13 @@ def safe_action_return(request, *, space=None):
         elif name != "events:create":
             return None
     return raw
+
+
+def subscription_return_home(request, *, space=None):
+    """Keep a validated continuation through server-side Subscription mutations."""
+    if space is None:
+        url = reverse("subscriptions:home")
+    else:
+        url = reverse("organizations:console-subscription", args=[space.slug])
+    next_path = safe_action_return(request, space=space)
+    return url + ("?" + urlencode({"next": next_path}) if next_path else "")
