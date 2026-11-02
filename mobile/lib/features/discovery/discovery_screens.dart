@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/local/profile_store.dart';
 import '../../design/behavior_primitives.dart';
@@ -539,6 +540,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   DiscoveryQuery _query = const DiscoveryQuery();
   bool _refreshing = false;
   bool _clarifying = false;
+  bool _researching = false;
   final Map<int, String> _pageTokens = {};
   String? _selectedCandidateKey;
 
@@ -673,6 +675,77 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   }
 
   void _submit(String value) => _searchChanged(value, immediate: true);
+
+  Future<void> _researchSources() async {
+    if (_researching || _search.text.trim().isEmpty) return;
+    final requestedText = _search.text.trim();
+    setState(() => _researching = true);
+    try {
+      final result = await widget.repository.researchSources(requestedText);
+      if (!mounted || _search.text.trim() != requestedText) return;
+      if (result.status == 'unavailable') {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Recherche de sources indisponible. '
+              'Vous pouvez continuer dans Découvrir.'),
+        ));
+        return;
+      }
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.75,
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Text('Sources pour « $requestedText »',
+                    style: Theme.of(sheetContext).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                const Text(
+                  'Pistes externes non vérifiées comme possibilités Makolo. '
+                  'Consultez la source avant toute démarche.',
+                ),
+                if (result.leads.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text('Aucune piste externe suffisamment sourcée.'),
+                  ),
+                for (final lead in result.leads)
+                  Card(
+                    child: ListTile(
+                      title: Text(lead.label),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (lead.summary.isNotEmpty) Text(lead.summary),
+                          const SizedBox(height: 4),
+                          Text('${lead.title} · ${lead.url.host}'),
+                        ],
+                      ),
+                      trailing: const Icon(Icons.open_in_new),
+                      onTap: () => unawaited(
+                        launchUrl(lead.url, mode: LaunchMode.externalApplication),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Recherche de sources impossible. '
+              'Votre exploration Makolo est conservée.'),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _researching = false);
+    }
+  }
 
   Future<void> _clarifySearch() async {
     if (_clarifying || _search.text.trim().isEmpty) return;
@@ -968,6 +1041,27 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               ),
             ),
           ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+          MakoloSpacing.inner, 4, MakoloSpacing.inner, 8,
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const Key('discover-search-sources'),
+            onPressed: _researching || _search.text.trim().isEmpty
+                ? null
+                : () => unawaited(_researchSources()),
+            icon: _researching
+                ? const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.menu_book_outlined),
+            label: const Text('Chercher des sources externes'),
+          ),
         ),
       ),
       DiscoveryCategoryChips(
