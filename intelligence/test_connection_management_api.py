@@ -12,6 +12,8 @@ from authorization.constants import SystemRoleCode
 from authorization.platform_services import grant_platform_role
 from authorization.services import grant_space_role
 from intelligence.capabilities import IntelligenceCapability
+from intelligence.contracts import IntelligenceRequest
+from intelligence.gateway import IntelligenceGateway
 from intelligence.runtime import build_runtime_registry
 from intelligence.credentials import get_provider_secret
 from intelligence.models import ProviderConnection, ProviderCredential, ProviderHealth, ProviderScope
@@ -116,6 +118,51 @@ class ConnectionManagementAPITests(TestCase):
             self.assertNotIn("NEW-SECRET", recorded)
             self.assertNotIn("api.tavily.com", recorded)
 
+
+    def test_created_openai_provider_executes_through_existing_gateway_without_real_network(self):
+        self._auth(self.owner)
+        created = self.client.post(self.profile_url, {
+            "provider": "openai",
+            "name": "Génération de test",
+            "api_key": "TEST-ONLY-OPENAI-KEY",
+            "model": "test-model",
+            "consent": True,
+        }, format="json")
+        self.assertEqual(created.status_code, 201, created.data)
+
+        class FakeProviderResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def read(self):
+                return b'{"choices":[{"message":{"content":"C4 OK"}}]}'
+
+        capability = IntelligenceCapability.TEXT_GENERATE
+        registry = build_runtime_registry(
+            capability=capability, profile=self.owner_profile,
+        )
+        with patch(
+            "intelligence.providers.openai_compatible._open_url",
+            return_value=FakeProviderResponse(),
+        ) as provider_transport:
+            result = IntelligenceGateway(registry).execute(
+                IntelligenceRequest(
+                    capability=capability,
+                    input={"text": "Vérification C4"},
+                )
+            )
+        self.assertTrue(result.available)
+        self.assertEqual(result.output, "C4 OK")
+        self.assertEqual(result.provider_key, created.data["id"])
+        transport_request = provider_transport.call_args.args[0]
+        self.assertEqual(
+            transport_request.get_header("Authorization"),
+            "Bearer TEST-ONLY-OPENAI-KEY",
+        )
+        self.assertNotIn("TEST-ONLY-OPENAI-KEY", str(created.data))
 
     def test_reactivation_and_rotation_invalidate_stale_health_checks(self):
         self._auth(self.owner)
