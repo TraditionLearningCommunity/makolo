@@ -83,6 +83,37 @@ class DiscoveryStage07WatchSaveTests(TestCase):
         self.assertEqual(self.client.delete(detail).status_code, 204)
         self.assertFalse(DiscoveryWatch.objects.filter(pk=watch_id).exists())
 
+    def test_edit_name_and_criteria_preserves_watch_identity(self):
+        self.client.force_login(self.owner)
+        created = self.post_json(self.url, {
+            "name": "Veille initiale", "criteria": {"q": "bourse"},
+        })
+        self.assertEqual(created.status_code, 201)
+        watch_id = created.json()["data"]["watch"]["id"]
+        detail = reverse("discovery_api:watch-detail", kwargs={"watch_id": watch_id})
+        renamed = self.patch_json(detail, {"name": "Veille renommée"})
+        self.assertEqual(renamed.status_code, 200)
+        self.assertEqual(renamed.json()["data"]["watch"]["name"], "Veille renommée")
+        changed = self.patch_json(detail, {"criteria": {
+            "q": "formation", "place": "Lubumbashi",
+        }})
+        self.assertEqual(changed.status_code, 200)
+        self.assertEqual(changed.json()["data"]["watch"]["id"], watch_id)
+        self.assertEqual(changed.json()["data"]["watch"]["criteria"]["q"], "formation")
+        self.assertEqual(DiscoveryWatch.objects.filter(owner=self.owner).count(), 1)
+
+    def test_web_watch_create_uses_same_idempotent_owner_transition(self):
+        self.client.force_login(self.owner)
+        form = reverse("discovery:watch-create")
+        body = {"name": "Veille Web", "criteria": json.dumps({"q": "transport"})}
+        first = self.client.post(form, data=body)
+        second = self.client.post(form, data=body)
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.assertEqual(DiscoveryWatch.objects.filter(
+            owner=self.owner, name="Veille Web",
+        ).count(), 1)
+
     def test_bad_watch_criteria_and_status_are_400_not_server_errors(self):
         self.client.force_login(self.owner)
         for criteria in ({}, {"lat": "-11.6"}, {"vertical": "not_supported"}):
