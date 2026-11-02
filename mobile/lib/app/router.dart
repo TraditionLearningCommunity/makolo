@@ -399,6 +399,22 @@ GoRouter createMakoloRouter(
             '/login?switch=1&email=${Uri.encodeQueryComponent(email)}',
           ),
           onAddAccount: () => context.push('/login?add=1'),
+          onClose: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              final actor = runtime.actorContext?.value ??
+                  const PersonalActorContext();
+              context.go(
+                runtime.isAuthenticated
+                    ? MakoloDestination.forActor(
+                        actor,
+                        MakoloPrimaryDoor.now,
+                      ).path
+                    : '/welcome',
+              );
+            }
+          },
         ),
       ),
       GoRoute(
