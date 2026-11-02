@@ -47,6 +47,18 @@ def _activity_owner_url(space, item, *, profile=None, responsibility="all", sect
             "from": section_key,
         })
     if (
+        space.archetype in {SpaceArchetype.CREATIVE, SpaceArchetype.MEDIA}
+        and source_kind in {"activity", "occurrence"}
+        and "view" in capabilities and source.get("id")
+    ):
+        return reverse(
+            "organizations:space-work-depth-g4",
+            kwargs={"slug": space.slug, "kind": source_kind,
+                    "owner_id": source["id"]},
+        ) + "?" + urlencode({
+            "responsibility": responsibility, "from": section_key,
+        })
+    if (
         space.archetype in {
             SpaceArchetype.EDUCATION, SpaceArchetype.SERVICE_PROVIDER,
         }
@@ -317,6 +329,10 @@ class SpaceWorkView(SpaceWebMixin):
                     if self.space.archetype == SpaceArchetype.COMMUNITY
                     else "Nouvelle activité"
                     if self.space.archetype == SpaceArchetype.GENERIC
+                    else "Nouvelle création"
+                    if self.space.archetype == SpaceArchetype.CREATIVE
+                    else "Nouvelle production"
+                    if self.space.archetype == SpaceArchetype.MEDIA
                     else None
                 ) if (
                     projection["capabilities"].get("create_activity")
@@ -328,6 +344,7 @@ class SpaceWorkView(SpaceWebMixin):
                 ) if (
                     self.space.archetype in {
                         SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY,
+                        SpaceArchetype.CREATIVE, SpaceArchetype.MEDIA,
                     }
                     and projection["capabilities"].get("create_activity")
                     and self.selected_responsibility["key"] == "all"
