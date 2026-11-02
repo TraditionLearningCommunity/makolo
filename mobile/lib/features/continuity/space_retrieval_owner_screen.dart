@@ -10,6 +10,7 @@ import '../../presentation/mps/mps_models.dart';
 import '../../presentation/mps/mps_native_renderer.dart';
 import '../space/space_work_g1_realizations.dart';
 import '../space/space_work_g2_depth.dart';
+import '../space/space_work_g3_depth.dart';
 
 /// Owner-backed Space N3. A search result is never an authorization grant:
 /// every opening re-reads the source using the current account and actor.
@@ -36,6 +37,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
   late Future<Map<String, dynamic>> _result;
   int _relatedOffset = 0;
   int _relatedWorkOffset = 0;
+  int _g3Offset = 0;
+  int _g3SecondaryOffset = 0;
 
   bool get _actorValid =>
       widget.runtime.actorContext?.value == widget.spaceActor;
@@ -52,6 +55,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     setState(() {
       _relatedOffset = 0;
       _relatedWorkOffset = 0;
+      _g3Offset = 0;
+      _g3SecondaryOffset = 0;
       // A return to this Space also forces owner revalidation.
       _result = _actorValid
           ? _readOwner()
@@ -78,6 +83,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
         oldWidget.id != widget.id) {
       _relatedOffset = 0;
       _relatedWorkOffset = 0;
+      _g3Offset = 0;
+      _g3SecondaryOffset = 0;
       _result = _readOwner();
     }
   }
@@ -123,6 +130,9 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
           'related_offset': '$_relatedOffset',
         if (kind == 'activity' && _relatedWorkOffset > 0)
           'related_work_offset': '$_relatedWorkOffset',
+        if (_g3Offset > 0) 'g3_offset': '$_g3Offset',
+        if (_g3SecondaryOffset > 0)
+          'g3_secondary_offset': '$_g3SecondaryOffset',
         if (!perspective.isAll) 'responsibility': perspective.id!,
       },
     ).toString();
@@ -163,6 +173,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       'continuity_facet': item['continuity_facet'],
       'related_occurrences': item['related_occurrences'],
       'related_work': item['related_work'],
+      'owner_depth': item['owner_depth'],
       'space_archetype': payload['archetype'],
       'owner_handoffs': item['owner_handoffs'],
       'day_of':
@@ -218,6 +229,27 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
         payload['id'] != widget.id) {
       throw const FormatException('Order owner does not match context');
     }
+    // Commerce owns this order. Work adds historical order lines and
+    // amounts only after an independent Space/responsibility owner selection.
+    final selectionPath = Uri(
+      path: '${_spacePath}work/',
+      queryParameters: {
+        'kind': 'commerce_order',
+        'id': widget.id,
+        if (_g3Offset > 0) 'g3_offset': '$_g3Offset',
+        if (!perspective.isAll) 'responsibility': perspective.id!,
+      },
+    ).toString();
+    final work = (await api.get(selectionPath)).jsonObject();
+    final selected = spaceMap(work['selection']);
+    final selectedSource = spaceMap(selected?['source']);
+    final selectedSpace = spaceMap(work['space']);
+    if (selectedSpace?['id'] != widget.spaceActor.space.id ||
+        work['responsibility'] != (perspective.id ?? 'all') ||
+        selectedSource?['kind'] != 'commerce_order' ||
+        selectedSource?['id'] != widget.id) {
+      throw const FormatException('Commerce owner no longer selectable');
+    }
     final activity = payload['activity'];
     return {
       'title': payload['title'],
@@ -225,6 +257,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       'status': payload['status'],
       'summary': activity is Map ? activity['title'] : null,
       'timing': payload['cancelled_at'],
+      'owner_depth': selected?['owner_depth'],
+      'space_archetype': work['archetype'],
     };
   }
 
@@ -366,6 +400,27 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         title: 'Points à examiner',
                         body:
                             '${blockers.length} blocage(s) actif(s) dans cette démarche.',
+                      ),
+                    if ((data['space_archetype'] == 'commerce' ||
+                            data['space_archetype'] == 'transport_operator') &&
+                        spaceMap(data['owner_depth']) != null)
+                      SpaceWorkG3Depth(
+                        slug: widget.spaceActor.space.slug,
+                        payload: spaceMap(data['owner_depth'])!,
+                        onPageChange: (nextOffset) {
+                          if (!_actorValid) return;
+                          setState(() {
+                            _g3Offset = nextOffset;
+                            _result = _readOwner();
+                          });
+                        },
+                        onSecondaryPageChange: (nextOffset) {
+                          if (!_actorValid) return;
+                          setState(() {
+                            _g3SecondaryOffset = nextOffset;
+                            _result = _readOwner();
+                          });
+                        },
                       ),
                     if (widget.kind == 'activity' &&
                         (data['space_archetype'] == 'education' ||
