@@ -87,6 +87,48 @@ void main() {
     expect(page, 24);
   });
 
+  testWidgets('MT6 rejects a published image bound to a different owner', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            children: [
+              SpaceWorkG4Depth(
+                slug: 'atelier',
+                sourceKind: 'activity',
+                sourceId: 'current-work',
+                archetype: 'creative',
+                isActivity: true,
+                detail: const {},
+                related: const {
+                  'items': [],
+                  'offset': 0,
+                  'limit': 12,
+                  'has_more': false,
+                },
+                mediaBindings: const [
+                  {
+                    'authorized': true,
+                    'purpose': 'recognize',
+                    'kind': 'image',
+                    'mime_type': 'image/png',
+                    'url': '/presentation/media/uses/other/file/',
+                    'owner': {'kind': 'occurrence', 'id': 'other-edition'},
+                  },
+                ],
+                mediaBaseUri: Uri.parse('https://makolo.example/'),
+                onPageChange: (_) {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(Image), findsNothing);
+  });
+
   testWidgets('MT6 create requires owner capability and global responsibility', (
     tester,
   ) async {
