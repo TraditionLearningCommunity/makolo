@@ -1,6 +1,7 @@
 """Issuance history is immutable; publication and Sharing are independent."""
 from datetime import timedelta
 from urllib.parse import urlsplit
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -243,6 +244,19 @@ class PassportIssuanceAndSharingTests(TestCase):
             self.client.get("/api/v1/me/passport/history/").json()
             ["data"]["items"][0]["active_shares"], [],
         )
+
+    def test_failed_pdf_render_never_emits_a_phantom_version(self):
+        self.client.force_login(self.owner)
+        count_before = PassportSnapshot.objects.count()
+        with patch(
+            "sharing.passport_pdf.render_passport_layout",
+            side_effect=RuntimeError("PDF renderer unavailable"),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.client.get(reverse("sharing:passport-me"), {
+                    "pdf": "1", "variant": "complete",
+                })
+        self.assertEqual(PassportSnapshot.objects.count(), count_before)
 
     def test_another_profile_cannot_revoke_document_or_link(self):
         from sharing.models import PassportShareSubject
