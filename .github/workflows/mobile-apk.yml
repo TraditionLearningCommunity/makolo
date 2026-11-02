@@ -95,6 +95,18 @@ jobs:
             jq --arg api "$MAKOLO_APK_API_BASE_URL"               '.MAKOLO_API_BASE_URL = $api'               /tmp/makolo-dev-runtime.json > /tmp/makolo-dev-runtime.override.json
             mv /tmp/makolo-dev-runtime.override.json /tmp/makolo-dev-runtime.json
           fi
+      - name: Verify effective APK DEV runtime
+        run: |
+          set -euo pipefail
+          jq -e '
+            .MAKOLO_ENVIRONMENT == "dev"
+            and (.MAKOLO_API_BASE_URL | type == "string" and test("^https://[^/]+/?$"))
+            and .MAKOLO_MAPS_ENABLED == "true"
+            and ((.MAKOLO_MAP_STYLE // "") | startswith("https://"))
+            and .MAKOLO_GEOCODING_ENABLED == "true"
+            and ((.MAKOLO_GEOCODING_API_KEY // "") | length > 0)
+          ' /tmp/makolo-dev-runtime.json > /dev/null
+          echo "Effective DEV APK configuration verified (no provider values printed)."
       - name: Build Android DEV debug APK
         run: flutter build apk --debug --flavor dev --dart-define-from-file=/tmp/makolo-dev-runtime.json
       - name: Publish Android DEV debug APK
