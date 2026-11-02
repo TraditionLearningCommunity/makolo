@@ -27,6 +27,11 @@ class SpaceWorkSurface extends StatelessWidget {
         _string(payload['responsibility']) == 'all' &&
         _map(payload['capabilities'])?['create_activity'] == true &&
         spaceSlug != null;
+    final canCreateG2 =
+        (archetype == 'education' || archetype == 'service_provider') &&
+        _string(payload['responsibility']) == 'all' &&
+        _map(payload['capabilities'])?['create_g2'] == true &&
+        spaceSlug != null;
     if (sections == null) {
       return _message('Cette vue n’est pas disponible pour le moment.');
     }
@@ -55,6 +60,19 @@ class SpaceWorkSurface extends StatelessWidget {
           spacing: MakoloSpacing.sm,
           runSpacing: MakoloSpacing.sm,
           children: [
+            if (canCreateG2)
+              FilledButton.icon(
+                icon: const Icon(Icons.add),
+                label: Text(
+                  archetype == 'education'
+                      ? 'Nouveau programme'
+                      : 'Nouvelle prestation',
+                ),
+                onPressed: () => context.push(
+                  '/space/${Uri.encodeComponent(spaceSlug!)}/work/g2/new'
+                  '?archetype=${Uri.encodeComponent(archetype!)}',
+                ),
+              ),
             if (canCreateG1)
               FilledButton.icon(
                 icon: const Icon(Icons.add),
