@@ -28,7 +28,6 @@ from discovery.card_contract import (
     present_service_card,
 )
 from discovery.intent import DiscoveryIntent, resolve_discovery_intent
-from discovery.intelligence import interpret_with_intelligence
 from discovery.models import ActivityBookmark
 from discovery.presentation import aggregate_discovery_items, build_discovery_item
 from discovery.search import (
@@ -202,8 +201,10 @@ def compose_discovery(params, *, profile=None) -> DiscoveryComposition:
     legitimate end of results.
     """
 
+    # Ordinary GET exploration must not make implicit paid external API calls.
+    # User-invoked POST /discovery/clarify/ resolves optional Intelligence;
+    # returned structured criteria can then be searched deterministically.
     intent = resolve_discovery_intent(params)
-    intent = interpret_with_intelligence(intent, profile=profile)
     search_params = intent.to_search_params()
     vertical = intent.vertical
 
