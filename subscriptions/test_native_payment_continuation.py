@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
@@ -15,6 +16,7 @@ from subscriptions.models import PlanVersion, SubscriptionPlan
 from subscriptions.runtime_models import Subscription
 from subscriptions.services import publish_plan_version
 from subscriptions.transition_models import SubscriptionTransition
+from subscriptions.transition_services import cancel_subscription_transition
 
 
 User = get_user_model()
@@ -70,6 +72,9 @@ class NativeSubscriptionPaymentContinuationTests(TestCase):
         link = SubscriptionBillingObligation.objects.get(transition_id=transition["id"])
         self.assertEqual(str(link.obligation_id), transition["payment_obligation_id"])
         self.assertIn("Option de continuation", link.obligation.label)
+        with self.assertRaises(ValidationError):
+            cancel_subscription_transition(transition=link.transition, actor=self.profile)
+        self.assertEqual(link.transition.billing_obligation_links.count(), 1)
 
         satisfy_payment_obligation(obligation=link.obligation, source="native-continuation-test")
         recorded = SubscriptionTransition.objects.get(pk=transition["id"])
