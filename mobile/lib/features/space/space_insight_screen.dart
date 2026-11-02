@@ -328,14 +328,10 @@ class _SpaceInsightScreenState extends State<SpaceInsightScreen> {
             'Impossible d’actualiser les résultats. Seuls les éléments déjà disponibles sont affichés.',
           ),
         if (query.isNotEmpty && results == null)
-          const Text(
-            'Rechercher pour obtenir plus de résultats.',
-          ),
+          const Text('Rechercher pour obtenir plus de résultats.'),
         if (groups.values.every((rows) => rows.isEmpty))
           Text(
-            query.isEmpty
-                ? 'Aucune relation enregistrée.'
-                : 'Aucun résultat.',
+            query.isEmpty ? 'Aucune relation enregistrée.' : 'Aucun résultat.',
           ),
         for (final entry in groups.entries) ...[
           if (entry.value.isNotEmpty)

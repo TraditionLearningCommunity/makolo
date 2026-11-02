@@ -66,8 +66,11 @@ class DiscoveryOfflineStore {
     // Reader files are discretionary local copies, never authority tokens.
     // Keep signed, credentialed and unknown-scheme URLs transient only.
     if ((url.scheme != 'http' && url.scheme != 'https') ||
-        url.host.isEmpty || url.userInfo.isNotEmpty ||
-        url.hasQuery || url.hasFragment) return false;
+        url.host.isEmpty ||
+        url.userInfo.isNotEmpty ||
+        url.hasQuery ||
+        url.hasFragment)
+      return false;
     return (profileId != null && profileId!.trim().isNotEmpty) ||
         isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin);
   }

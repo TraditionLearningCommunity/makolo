@@ -105,6 +105,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
   final String? selectionActionLabel;
   final Uri? baseUri;
   final String? profileId;
+
   /// Cached recognition is not a live authorization from the owner.
   final bool allowOwnerActions;
   final bool compact;

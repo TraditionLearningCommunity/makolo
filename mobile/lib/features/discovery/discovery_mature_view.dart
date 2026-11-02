@@ -584,7 +584,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                         isScrollControlled: true,
                         builder: (sheetContext) => SafeArea(
                           child: SizedBox(
-                            height: MediaQuery.sizeOf(sheetContext).height * 0.75,
+                            height:
+                                MediaQuery.sizeOf(sheetContext).height * 0.75,
                             child: field,
                           ),
                         ),

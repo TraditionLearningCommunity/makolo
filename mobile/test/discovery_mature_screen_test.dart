@@ -756,23 +756,27 @@ void main() {
     },
   );
 
-  testWidgets('Découvrir has no duplicate map or watch-creation icon in field', (
-    tester,
-  ) async {
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(360, 800),
-      child: DiscoveryExplorationView(
-        selection: selection(items: [item('one', 'Événement')]),
-        onOpen: (_) {},
-        onMap: () {},
-        onWatch: () {},
-      ),
-    );
-    expect(find.byKey(const Key('discover-field-open-map')), findsNothing);
-    expect(find.byKey(const Key('discover-field-create-watch')), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'Découvrir has no duplicate map or watch-creation icon in field',
+    (tester) async {
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(360, 800),
+        child: DiscoveryExplorationView(
+          selection: selection(items: [item('one', 'Événement')]),
+          onOpen: (_) {},
+          onMap: () {},
+          onWatch: () {},
+        ),
+      );
+      expect(find.byKey(const Key('discover-field-open-map')), findsNothing);
+      expect(
+        find.byKey(const Key('discover-field-create-watch')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('N1 long description expands inline without opening detail', (
     tester,
@@ -1536,27 +1540,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('wide N1 keeps the focus without duplicate Map or Watch actions', (
-    tester,
-  ) async {
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(1200, 800),
-      child: DiscoveryExplorationView(
-        selection: selection(),
-        onOpen: (_) {},
-        fieldKey: 'criteria-a',
-        onMap: (_) {},
-        onWatch: () {},
-      ),
-    );
-    await tester.tap(find.text('Formation Data Science').first);
-    await tester.pump();
-    expect(find.byKey(const Key('discover-focus-depth')), findsOneWidget);
-    expect(find.byKey(const Key('discover-field-open-map')), findsNothing);
-    expect(find.byKey(const Key('discover-field-create-watch')), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'wide N1 keeps the focus without duplicate Map or Watch actions',
+    (tester) async {
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(1200, 800),
+        child: DiscoveryExplorationView(
+          selection: selection(),
+          onOpen: (_) {},
+          fieldKey: 'criteria-a',
+          onMap: (_) {},
+          onWatch: () {},
+        ),
+      );
+      await tester.tap(find.text('Formation Data Science').first);
+      await tester.pump();
+      expect(find.byKey(const Key('discover-focus-depth')), findsOneWidget);
+      expect(find.byKey(const Key('discover-field-open-map')), findsNothing);
+      expect(
+        find.byKey(const Key('discover-field-create-watch')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('G05 uses the shared 1040 spatial threshold', (tester) async {
     for (final width in [1000.0, 1040.0, 1080.0]) {

@@ -90,7 +90,8 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
       if (query == null) {
         return const MakoloSecondaryScreen(
           title: 'Carte',
-          message: 'Impossible d’ouvrir cette recherche. Revenez aux résultats.',
+          message:
+              'Impossible d’ouvrir cette recherche. Revenez aux résultats.',
         );
       }
       return DiscoveryMapScreen(

@@ -4,7 +4,8 @@ import 'dart:io';
 import '../../platform/files/passport_pdf_saver.dart';
 
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
+
+import '../../data/files/profile_paths.dart';
 
 import '../../platform/sharing/share_gateway.dart';
 
@@ -124,9 +125,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
   Future<File?> _avatarFile() async {
     final id = widget.personal?.store.profileId;
     if (id == null || id.isEmpty) return null;
-    final base = await getApplicationSupportDirectory();
-    final safe = id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
-    return File('${base.path}/profiles/$safe/passport-avatar.jpg');
+    final root = await ProfilePaths.privateRoot(id);
+    return File('${root.path}/passport-avatar.jpg');
   }
 
   Future<void> _persistAvatar(Map<String, dynamic> data) async {
@@ -734,7 +734,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
     if (_exporting) return null;
     setState(() => _exporting = true);
     try {
-      final directory = await getTemporaryDirectory();
+      final profileId = widget.personal?.store.profileId;
+      if (profileId == null || profileId.trim().isEmpty) {
+        throw StateError('Profil requis pour conserver le PDF temporaire.');
+      }
+      final directory = await ProfilePaths.reconstructibleCache(profileId);
       final file = '${directory.path}/passeport-makolo-$_variant.pdf';
       final url = Uri(
         path: 'api/v1/me/passport/pdf/',

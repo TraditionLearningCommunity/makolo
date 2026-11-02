@@ -137,8 +137,11 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
         domainIntegrations = (ownerRows is List ? ownerRows : const [])
             .whereType<Map<String, dynamic>>()
             .map(DomainIntegrationProjection.fromJson)
-            .where((row) => row.owner == 'payments' &&
-                row.kind == 'processing_capability')
+            .where(
+              (row) =>
+                  row.owner == 'payments' &&
+                  row.kind == 'processing_capability',
+            )
             .toList(growable: false);
         authorized = true;
         loadedId = id;
@@ -163,9 +166,14 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
   Widget build(BuildContext context) {
     final current = actor;
     final syncState = SyncStatusScope.maybeOf(context)?.state;
-    final freshOwner = authorized && current != null &&
-        loadedId == current.space.id && !loading;
-    final canMutate = freshOwner && widget.runtime.api != null &&
+    final freshOwner =
+        authorized &&
+        current != null &&
+        loadedId == current.space.id &&
+        !loading;
+    final canMutate =
+        freshOwner &&
+        widget.runtime.api != null &&
         syncState != SyncVisualState.offline &&
         syncState != SyncVisualState.failed &&
         syncState != SyncVisualState.stale &&
@@ -219,15 +227,21 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                     ),
                   if (domainIntegrations.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    Text('Capacités financières de cet Espace',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const Text('Modes de traitement autorisés par Payments. '
-                        'Aucun compte bancaire externe connecté.'),
+                    Text(
+                      'Capacités financières de cet Espace',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const Text(
+                      'Modes de traitement autorisés par Payments. '
+                      'Aucun compte bancaire externe connecté.',
+                    ),
                     for (final item in domainIntegrations)
-                      Card(child: ListTile(
-                        title: Text(item.displayName),
-                        subtitle: Text(item.description),
-                      )),
+                      Card(
+                        child: ListTile(
+                          title: Text(item.displayName),
+                          subtitle: Text(item.description),
+                        ),
+                      ),
                   ],
                   if (!canMutate)
                     const Padding(

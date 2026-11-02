@@ -38,11 +38,13 @@ void main() {
         200,
       );
     });
-    final tokenStore = MemoryTokenStore(session: const AuthSession(
-      accessToken: 'c5-token',
-      refreshToken: 'refresh',
-      profileId: 'profile-a',
-    ));
+    final tokenStore = MemoryTokenStore(
+      session: const AuthSession(
+        accessToken: 'c5-token',
+        refreshToken: 'refresh',
+        profileId: 'profile-a',
+      ),
+    );
     api = MakoloApiClient(
       baseUri: Uri.parse('https://example.invalid/'),
       dio: client.dio,
@@ -62,11 +64,13 @@ void main() {
   });
 
   test('clarification calls owner explicitly with bounded criteria', () async {
-    final result = await repository.clarifySearch(const DiscoveryQuery(
-      text: 'une sortie calme demain',
-      page: 3,
-      continuation: 'opaque',
-    ));
+    final result = await repository.clarifySearch(
+      const DiscoveryQuery(
+        text: 'une sortie calme demain',
+        page: 3,
+        continuation: 'opaque',
+      ),
+    );
     expect(result.status, 'applied');
     expect(result.criteria['vertical'], 'event');
     final request = sent['/api/v1/discovery/clarify/'] as Map<String, dynamic>;
@@ -77,11 +81,14 @@ void main() {
     expect(criteria.containsKey('page'), isFalse);
   });
 
-  test('external leads are transient and only expose safe https links', () async {
-    final response = await repository.researchSources('bourses');
-    expect(response.status, 'completed');
-    expect(response.leads, hasLength(1));
-    expect(response.leads.single.url.host, 'example.org');
-    expect(sent['/api/v1/discovery/research/'], {'q': 'bourses'});
-  });
+  test(
+    'external leads are transient and only expose safe https links',
+    () async {
+      final response = await repository.researchSources('bourses');
+      expect(response.status, 'completed');
+      expect(response.leads, hasLength(1));
+      expect(response.leads.single.url.host, 'example.org');
+      expect(sent['/api/v1/discovery/research/'], {'q': 'bourses'});
+    },
+  );
 }

@@ -51,8 +51,10 @@ void main() {
       ),
     );
     expect(find.text('Offre connue hors ligne'), findsWidgets);
-    expect(find.textContaining('Une connexion et une vérification'),
-        findsOneWidget);
+    expect(
+      find.textContaining('Une connexion et une vérification'),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('discover-primary-n2')), findsNothing);
     final save = tester.widget<IconButton>(
       find.byKey(const Key('discover-save-n2')),
@@ -62,26 +64,27 @@ void main() {
     expect(opened, isFalse);
   });
 
-  testWidgets('after owner validation the same N2 may expose real owner action', (
-    tester,
-  ) async {
-    String? opened;
-    await PresentationHarness.pump(
-      tester,
-      viewport: const Size(390, 840),
-      child: DiscoveryPossibilityUnit(
-        item: item(),
-        detailMode: true,
-        allowOwnerActions: true,
-        onOpen: () {},
-        onNativeAction: (route) => opened = route,
-      ),
-    );
-    final action = find.byKey(const Key('discover-primary-n2'));
-    expect(action, findsOneWidget);
-    await tester.ensureVisible(action);
-    await tester.tap(action);
-    await tester.pump();
-    expect(opened, '/commerce/activities/activity-08/checkout');
-  });
+  testWidgets(
+    'after owner validation the same N2 may expose real owner action',
+    (tester) async {
+      String? opened;
+      await PresentationHarness.pump(
+        tester,
+        viewport: const Size(390, 840),
+        child: DiscoveryPossibilityUnit(
+          item: item(),
+          detailMode: true,
+          allowOwnerActions: true,
+          onOpen: () {},
+          onNativeAction: (route) => opened = route,
+        ),
+      );
+      final action = find.byKey(const Key('discover-primary-n2'));
+      expect(action, findsOneWidget);
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pump();
+      expect(opened, '/commerce/activities/activity-08/checkout');
+    },
+  );
 }

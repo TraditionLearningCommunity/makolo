@@ -145,9 +145,7 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Confirmer votre décision'),
-        content: Text(
-          'Voulez-vous $label cette demande ?',
-        ),
+        content: Text('Voulez-vous $label cette demande ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -188,11 +186,8 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       // the command just because the subsequent observation is unavailable.
       await _load();
       if (!mounted || !_actorValid) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Décision confirmée.'),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Décision confirmée.')));
     } on Object {
       if (!mounted || !_actorValid || epoch != _epoch) return;
       setState(() {

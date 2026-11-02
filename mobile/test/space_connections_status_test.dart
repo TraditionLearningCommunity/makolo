@@ -27,24 +27,30 @@ InteroperabilityConnectionProjection connection({
 }
 
 void main() {
-  test('Profile and Space share the same server-owned presentation vocabulary', () {
-    for (final health in ['healthy', 'unknown', 'degraded', 'unavailable']) {
-      final row = connection(health: health);
-      expect(spaceConnectionStatus(row), connectionStatusLabel(row));
-    }
-    expect(connectionExperienceMessage(connection()),
-        'La disponibilité doit être vérifiée.');
-    expect(connectionExperienceMessage(connection(health: 'healthy')),
-        'Cette connexion possède une capacité active.');
-    expect(connectionExperienceMessage(connection(enabled: false)),
-        'Cette connexion est désactivée.');
-  });
+  test(
+    'Profile and Space share the same server-owned presentation vocabulary',
+    () {
+      for (final health in ['healthy', 'unknown', 'degraded', 'unavailable']) {
+        final row = connection(health: health);
+        expect(spaceConnectionStatus(row), connectionStatusLabel(row));
+      }
+      expect(
+        connectionExperienceMessage(connection()),
+        'La disponibilité doit être vérifiée.',
+      );
+      expect(
+        connectionExperienceMessage(connection(health: 'healthy')),
+        'Cette connexion possède une capacité active.',
+      );
+      expect(
+        connectionExperienceMessage(connection(enabled: false)),
+        'Cette connexion est désactivée.',
+      );
+    },
+  );
 
   test('unverified new provider is never shown as confirmed available', () {
-    expect(
-      spaceConnectionStatus(connection()),
-      'Connecté · état à vérifier',
-    );
+    expect(spaceConnectionStatus(connection()), 'Connecté · état à vérifier');
     expect(
       spaceConnectionStatus(connection(health: 'healthy')),
       'Connecté et disponible',

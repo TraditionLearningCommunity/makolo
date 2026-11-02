@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:firebase_messaging/firebase_messaging.dart';
-
 import 'package:flutter/material.dart';
 
 import '../../app/runtime/app_runtime.dart';
@@ -58,21 +56,22 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
     final generation = ++_generation;
     final api = widget.runtime.api;
     if (api == null) {
-      if (mounted) setState(() {
-        _loading = false;
-        _devices = const [];
-        _error = 'Service Notifications indisponible.';
-      });
+      if (mounted)
+        setState(() {
+          _loading = false;
+          _devices = const [];
+          _error = 'Service Notifications indisponible.';
+        });
       return;
     }
-    if (mounted) setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (mounted)
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
     try {
-      final payload = (await api.get(
-        'api/v1/notifications/push/endpoints/',
-      )).jsonObject();
+      final payload = (await api.get('api/v1/notifications/push/endpoints/'))
+          .jsonObject();
       final values = payload['results'];
       if (values is! List) throw const FormatException('Invalid push owner');
       final devices = <Map<String, String>>[];
@@ -81,12 +80,14 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
             value['id'] is! String ||
             value['platform'] is! String ||
             value['provider'] != 'fcm' ||
-            value['active'] != true) continue;
+            value['active'] != true)
+          continue;
         devices.add({
           'id': value['id'] as String,
           'platform': value['platform'] as String,
           'appVersion': value['app_version'] is String
-              ? value['app_version'] as String : '',
+              ? value['app_version'] as String
+              : '',
         });
       }
       if (!mounted || generation != _generation) return;
@@ -116,8 +117,10 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
         'api/v1/notifications/push/endpoints/${Uri.encodeComponent(id)}/',
       );
       committed = true;
-      if (!mounted || version != _ownerGeneration ||
-          !identical(ownerRuntime, widget.runtime)) return;
+      if (!mounted ||
+          version != _ownerGeneration ||
+          !identical(ownerRuntime, widget.runtime))
+        return;
       await _load();
       refreshed = _error == null;
       try {
@@ -125,26 +128,38 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       } on Object {
         refreshed = false;
       }
-      if (!mounted || version != _ownerGeneration ||
-          !identical(ownerRuntime, widget.runtime)) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(refreshed
-            ? 'Appareil retiré des notifications Makolo.'
-            : 'Appareil retiré sur le serveur, '
-                'mais la liste n’a pas pu être entièrement actualisée.'),
-      ));
+      if (!mounted ||
+          version != _ownerGeneration ||
+          !identical(ownerRuntime, widget.runtime))
+        return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            refreshed
+                ? 'Appareil retiré des notifications Makolo.'
+                : 'Appareil retiré sur le serveur, '
+                      'mais la liste n’a pas pu être entièrement actualisée.',
+          ),
+        ),
+      );
     } on Object {
-      if (mounted && version == _ownerGeneration &&
+      if (mounted &&
+          version == _ownerGeneration &&
           identical(ownerRuntime, widget.runtime)) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(committed
-              ? 'Retrait confirmé par le serveur, '
-                  'mais la liste n’a pas pu être actualisée.'
-              : 'Retrait non confirmé. Aucun succès local supposé.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              committed
+                  ? 'Retrait confirmé par le serveur, '
+                        'mais la liste n’a pas pu être actualisée.'
+                  : 'Retrait non confirmé. Aucun succès local supposé.',
+            ),
+          ),
+        );
       }
     } finally {
-      if (mounted && version == _ownerGeneration &&
+      if (mounted &&
+          version == _ownerGeneration &&
           identical(ownerRuntime, widget.runtime)) {
         setState(() => _busy = false);
       }
@@ -161,36 +176,49 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
       registrar = PushEndpointRegistrar(
         api: ownerRuntime.api!,
         tokens: ownerRuntime.tokens,
-        source: FirebasePushTokenSource(FirebaseMessaging.instance),
+        source: FirebasePushTokenSource.system(),
       );
       await registrar.reactivateCurrent();
-      if (!mounted || version != _ownerGeneration ||
-          !identical(ownerRuntime, widget.runtime)) return;
+      if (!mounted ||
+          version != _ownerGeneration ||
+          !identical(ownerRuntime, widget.runtime))
+        return;
       await _load();
       try {
         await widget.onChanged();
       } on Object {
         // A successful owner write is not undone by a subsequent stale read.
       }
-      if (mounted && version == _ownerGeneration &&
+      if (mounted &&
+          version == _ownerGeneration &&
           identical(ownerRuntime, widget.runtime)) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_error == null
-              ? 'Cet appareil est de nouveau inscrit auprès de Makolo.'
-              : 'Inscription confirmée, actualisation indisponible.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _error == null
+                  ? 'Cet appareil est de nouveau inscrit auprès de Makolo.'
+                  : 'Inscription confirmée, actualisation indisponible.',
+            ),
+          ),
+        );
       }
     } on Object {
-      if (mounted && version == _ownerGeneration &&
+      if (mounted &&
+          version == _ownerGeneration &&
           identical(ownerRuntime, widget.runtime)) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Activation non confirmée. Vérifiez la permission '
-              'de notification sur cet appareil.'),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Activation non confirmée. Vérifiez la permission '
+              'de notification sur cet appareil.',
+            ),
+          ),
+        );
       }
     } finally {
       registrar?.dispose();
-      if (mounted && version == _ownerGeneration &&
+      if (mounted &&
+          version == _ownerGeneration &&
           identical(ownerRuntime, widget.runtime)) {
         setState(() => _busy = false);
       }
@@ -202,11 +230,15 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Mes appareils de notification',
-            style: Theme.of(context).textTheme.titleMedium),
+        Text(
+          'Mes appareils de notification',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
         const SizedBox(height: 6),
-        const Text('Appareils enregistrés auprès de Notifications. '
-            'Leur présence ne garantit pas la livraison de chaque message.'),
+        const Text(
+          'Appareils enregistrés auprès de Notifications. '
+          'Leur présence ne garantit pas la livraison de chaque message.',
+        ),
         if (_loading) const LinearProgressIndicator(minHeight: 2),
         if (_error != null)
           TextButton.icon(
@@ -223,10 +255,12 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
               leading: const Icon(Icons.notifications_active_outlined),
               title: Text(device['platform'] == 'android' ? 'Android' : 'iOS'),
               subtitle: device['appVersion']!.isEmpty
-                  ? null : Text('Makolo ${device['appVersion']}'),
+                  ? null
+                  : Text('Makolo ${device['appVersion']}'),
               trailing: OutlinedButton(
                 onPressed: _busy || !widget.mutationsEnabled
-                    ? null : () => unawaited(_revoke(device['id']!)),
+                    ? null
+                    : () => unawaited(_revoke(device['id']!)),
                 child: const Text('Retirer'),
               ),
             ),
@@ -236,13 +270,16 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
           OutlinedButton.icon(
             key: const Key('push-reactivate-current'),
             onPressed: _busy || !widget.mutationsEnabled
-                ? null : () => unawaited(_enableHere()),
+                ? null
+                : () => unawaited(_enableHere()),
             icon: const Icon(Icons.add_alert_outlined),
             label: const Text('Activer sur cet appareil'),
           ),
         if (!widget.mutationsEnabled)
-          const Text('Gestion suspendue tant que la connexion ou les droits '
-              'ne sont pas confirmés.'),
+          const Text(
+            'Gestion suspendue tant que la connexion ou les droits '
+            'ne sont pas confirmés.',
+          ),
       ],
     );
   }
