@@ -18,7 +18,8 @@ def _safe_failure_reason(exc: IntelligenceError) -> str:
         if technical_code in {"rate_limited", "http_429", "quota_exceeded"}:
             return "rate_limited"
         if technical_code in {"network_unavailable", "offline", "timeout"}:
-            return "network_unavailable"
+            # Preserve the historical gateway contract for network errors.
+            return "ProviderUnavailable"
         return "provider_unavailable"
     return exc.__class__.__name__
 
