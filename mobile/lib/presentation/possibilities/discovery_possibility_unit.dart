@@ -150,16 +150,18 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
     }
     if (widget.onSave == null) return;
     final previousState = widget.item.savedState;
+    final candidateKey = widget.item.candidateKey;
     setState(() => _saving = true);
     try {
       await widget.onSave!();
       if (mounted &&
+          widget.item.candidateKey == candidateKey &&
           !widget.allowSavePrompt &&
           widget.item.savedState == previousState) {
         setState(() => _confirmedSaved = previousState != 'saved');
       }
     } on Object {
-      if (mounted) {
+      if (mounted && widget.item.candidateKey == candidateKey) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('L’enregistrement n’a pas pu être confirmé.'),
