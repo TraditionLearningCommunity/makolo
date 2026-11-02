@@ -7,7 +7,9 @@ from uuid import UUID
 
 from django.utils import timezone
 
-from activities.models import Occurrence
+from activities.models import Activity, Occurrence
+from authorization.constants import PermissionCode
+from authorization.services import can
 from commerce.models import CommerceOrder, Offer
 from transport.models import TransportDeparture, TransportRoute, TransportService, Vehicle
 
@@ -81,6 +83,32 @@ def g3_owner_depth(*, space, selection, profile, visible_ids,
         return None
 
     if space.archetype == "commerce":
+        if kind == "activity":
+            activity = Activity.objects.filter(
+                pk=owner_id, space=space, pk__in=visible_ids,
+            ).first()
+            if activity is None:
+                return None
+            offers = Offer.objects.filter(
+                activity=activity,
+            ).order_by("name", "pk")
+            return {
+                "kind": "commerce_activity",
+                "facts": {
+                    "can_manage_offer": can(
+                        profile, PermissionCode.ACTIVITY_COMMERCE_MANAGE,
+                        activity=activity,
+                    ),
+                },
+                "offers": _page(
+                    offers, offset=offset,
+                    serialize=lambda offer: {
+                        "source": {"kind": "offer", "id": str(offer.pk)},
+                        "title": offer.name,
+                        "state": offer.status, "openable": True,
+                    },
+                ),
+            }
         if kind == "offer":
             offer = (
                 Offer.objects.filter(
@@ -105,6 +133,10 @@ def g3_owner_depth(*, space, selection, profile, visible_ids,
                     "available_from": offer.available_from,
                     "available_until": offer.available_until,
                     "currently_available": offer.is_currently_available,
+                    "can_manage_offer": can(
+                        profile, PermissionCode.ACTIVITY_COMMERCE_MANAGE,
+                        activity=offer.activity,
+                    ),
                     "capacity_pool_bound": bool(offer.capacity_pool_id),
                     "occurrence": (
                         {"kind": "occurrence", "id": str(offer.occurrence_id)}
