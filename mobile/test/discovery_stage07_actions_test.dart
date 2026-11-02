@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -61,8 +62,46 @@ void main() {
     expect(watcher, contains('widget.onOpenItem(item.family, item.id)'));
     expect(share, contains("payload['delivery_id'] is! String"));
     expect(share, contains('Sharing authority unavailable'));
+    expect(share, contains('generation != _itemGeneration'));
     expect(sharedLink, contains('requireAuthentication('));
     expect(sharedLink, contains("payload['route'] != expected"));
+  });
+
+  testWidgets('a delayed Save confirmation cannot mark another item saved', (
+    tester,
+  ) async {
+    final pending = Completer<void>();
+    DiscoveryItemPresentation item(String id) => DiscoveryItemPresentation(
+      family: 'activity', id: id, candidateKey: 'activity:$id',
+      title: 'Possibilité $id', summary: '',
+      savedState: 'not_saved', capabilities: const {'view', 'save'},
+      links: const {}, wire: const {},
+    );
+    final shown = ValueNotifier(item('first'));
+    await PresentationHarness.pump(
+      tester, viewport: const Size(390, 840),
+      child: ValueListenableBuilder<DiscoveryItemPresentation>(
+        valueListenable: shown,
+        builder: (_, value, __) => DiscoveryPossibilityUnit(
+          item: value,
+          onOpen: () {},
+          onSave: () => pending.future,
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('discover-save-n1')));
+    await tester.pump();
+    shown.value = item('second');
+    await tester.pump();
+    pending.complete();
+    await tester.pump();
+    expect(
+      tester.widget<IconButton>(
+        find.byKey(const Key('discover-save-n1')),
+      ).tooltip,
+      'Enregistrer',
+    );
+    shown.dispose();
   });
 
   testWidgets('N3 only opens owner API-verified commerce checkout', (
