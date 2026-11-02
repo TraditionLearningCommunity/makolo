@@ -236,19 +236,32 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertNotIn("--apply", personal.call_args.args[0])
         self.assertNotIn("--apply", scale.call_args.args[0])
 
-    def test_named_beneficiary_refuses_unscoped_domains(self):
+    def test_generic_paid_subscription_preview(self):
+        args = build_parser().parse_args(["plan", "--domains", "subscriptions"])
+        with patch("scripts.demo_generation.subscriptions.main") as seeded:
+            run(args)
+        self.assertEqual(seeded.call_args.args[0],
+                         ["--count", "50", "--profiles", "30"])
+
+    def test_named_all_is_accepted_for_contextual_routing(self):
         args = build_parser().parse_args([
-            "generate", "--domains", "all",
-            "--profile-username", "beta_alain",
+            "plan", "--domains", "all", "--profile-username", "beta_alain",
         ])
-        with self.assertRaises(SystemExit):
+        with patch("scripts.demo_generation.personal.main") as personal, \
+             patch("scripts.demo_generation.ecosystem.main") as ecosystem, \
+             patch("scripts.demo_generation.transport.main"), \
+             patch("scripts.demo_generation.mandates.main"), \
+             patch("scripts.demo_generation.foundations.main"), \
+             patch("scripts.demo_generation.verticals.main"), \
+             patch("scripts.demo_generation.scale.main"), \
+             patch("scripts.demo_generation.aftercare.main"), \
+             patch("scripts.demo_generation.live.main"), \
+             patch("scripts.demo_generation.community.main"), \
+             patch("scripts.demo_generation.engagement.main"), \
+             patch("scripts.demo_generation.media.main"):
             run(args)
-
-
-    def test_subscription_generation_requires_explicit_beneficiary(self):
-        args = build_parser().parse_args(["generate", "--domains", "subscriptions"])
-        with self.assertRaises(SystemExit):
-            run(args)
+        self.assertIn("--profile-username", personal.call_args.args[0])
+        self.assertIn("--profile-username", ecosystem.call_args.args[0])
 
     def test_named_paid_subscription_preview_is_read_only(self):
         args = build_parser().parse_args([
@@ -258,7 +271,7 @@ class DemoGenerationCLITests(unittest.TestCase):
         with patch("scripts.demo_generation.subscriptions.main") as seeded:
             run(args)
         self.assertEqual(seeded.call_args.args[0],
-                         ["--profile-username", "beta_alain", "--count", "4"])
+                         ["--count", "4", "--profiles", "30", "--profile-username", "beta_alain"])
 
     def test_named_paid_subscription_generate_is_explicit(self):
         args = build_parser().parse_args([
