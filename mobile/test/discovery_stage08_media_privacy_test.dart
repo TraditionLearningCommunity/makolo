@@ -71,6 +71,26 @@ void main() {
     expect(await guest.retained(tokenized), isNull);
   });
 
+  test('Profile Reader rejects signed and credentialed URLs for persistence', () async {
+    final root = await Directory.systemTemp.createTemp('discover-private-url-');
+    addTearDown(() => root.delete(recursive: true));
+    final privateStore = DiscoveryOfflineStore(
+      rootOverride: root, profileId: 'profile-a',
+    );
+    final source = File('${root.path}/source.pdf');
+    await source.writeAsBytes([37, 80, 68, 70]);
+    for (final uri in [
+      Uri.parse('https://owner.test/file.pdf?token=secret'),
+      Uri.parse('https://owner.test/file.pdf#fragment'),
+      Uri.parse('https://person:password@owner.test/file.pdf'),
+      Uri.parse('file:///tmp/secret.pdf'),
+    ]) {
+      expect(await privateStore.retained(uri), isNull);
+      await expectLater(privateStore.save(uri, source),
+          throwsA(isA<FormatException>()));
+    }
+  });
+
   test('public automatic recognition revocation does not remove Reader files', () async {
     final root = await Directory.systemTemp.createTemp('discover-media-revoke-');
     addTearDown(() => root.delete(recursive: true));
