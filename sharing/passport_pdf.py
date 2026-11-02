@@ -38,7 +38,8 @@ def passport_pdf_response(request, projection):
     if not projection.has_content:
         raise Http404("Ce Passeport ne contient aucun élément à exporter.")
 
-    # Issue and render together: a failed PDF must never leave a phantom\n    # historical version in the database. Never recompute facts after issuance.
+    # Issue and render together: a failed PDF must never leave a phantom
+    # historical version in the database. Never recompute facts after issuance.
     snapshot = issue_passport_snapshot(projection)
     verification_url = request.build_absolute_uri(
         reverse(
