@@ -146,7 +146,7 @@ class _DiscoveryExplorationViewState extends State<DiscoveryExplorationView> {
           selection: widget.selection,
           onOpen: widget.onOpen,
           onSave: widget.onSave,
-            onWatch: widget.onWatch,
+          onWatch: widget.onWatch,
           baseUri: widget.baseUri,
           shareApi: widget.shareApi,
           onPage: widget.onPage,
