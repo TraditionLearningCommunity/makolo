@@ -173,7 +173,13 @@ class SyncEngine {
     } on MakoloApiError catch (error) {
       if (isCurrent()) {
         if (error.statusCode == 403 || error.statusCode == 404) {
-          await _recordScopedUnavailable(source, error.code);
+          // Arbitrary owner error codes are not stable tombstone names.
+          // Normalize HTTP authority refusal so every local reader can
+          // recognize it even after a cold start.
+          await _recordScopedUnavailable(
+            source,
+            error.statusCode == 403 ? 'permission_denied' : 'not_found',
+          );
         } else {
           final cursorRejected =
               source.projectionKind == 'discovery.items' &&
