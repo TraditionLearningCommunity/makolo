@@ -240,6 +240,13 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                     Text('Disponibilité : ' + _value(preview['eligibility'])),
                   _list('Capacités obtenues', preview['features_gained']),
                   _list('Capacités retirées', preview['features_lost']),
+                  if (_objects(preview['features_gained']).isEmpty &&
+                      _objects(preview['features_lost']).isEmpty &&
+                      _objects(preview['quota_changes']).isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text('Aucune différence de capacité déclarée entre ces offres. Comparez le tarif et les conditions avant de continuer.'),
+                    ),
                   _list('Conditions', preview['requirements']),
                   _list('À savoir', preview['warnings']),
                   for (final quota in _objects(preview['quota_changes'])) ...[
@@ -263,12 +270,14 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                   if (preview['has_payment_requirement'] == true) ...[
                     const SizedBox(height: 12),
                     const Text(
-                      'Cette demande comporte une condition de paiement.',
+                      'Un règlement est nécessaire avant l’activation.',
                     ),
                   ],
                   const SizedBox(height: 12),
-                  const Text(
-                    'La confirmation est soumise aux vérifications du serveur.',
+                  Text(
+                    paidChoice
+                        ? 'Votre choix est enregistré puis vous accédez au paiement. L’abonnement actuel reste actif jusqu’à confirmation.'
+                        : 'Makolo appliquera directement ce changement lorsque les conditions sont satisfaites.',
                   ),
                   if (failed != null) ...[
                     const SizedBox(height: 10),
@@ -591,7 +600,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
             onPressed: _busy
                 ? null
                 : () => _transition(_value(transition['id']), 'cancel'),
-            child: const Text('Annuler la demande'),
+            child: const Text('Annuler ce changement'),
           ),
         ],
         if (widget.section == 'history') ...[
@@ -635,8 +644,10 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         ),
         const SizedBox(height: 8),
         if (hasOpenTransition)
-          const Text(
-            'Terminez ou annulez la demande en cours avant de lancer un autre changement.',
+          Text(
+            transition?['next_action'] == 'pay'
+                ? 'Finalisez d’abord le paiement de votre changement en cours, ou annulez-le.'
+                : 'Un changement est déjà en cours. Terminez-le ou annulez-le avant un nouveau choix.',
           ),
 
         if (catalog.isEmpty)
