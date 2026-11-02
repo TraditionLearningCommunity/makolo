@@ -1,6 +1,8 @@
 name: Funding PostgreSQL
 
 on:
+  # Explicit full gate for pre-merge / operational verification.
+  workflow_dispatch:
   push:
     branches:
       - main
