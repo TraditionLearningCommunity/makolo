@@ -162,6 +162,35 @@ class W8PersonalConnectionsWebTests(TestCase):
         self.assertNotIn("openai_compatible", html)
         self.assertNotIn("text_generate", html)
 
+    def test_real_discovery_handoff_only_for_usable_personal_research_connection(self):
+        own = self._connection(
+            name="Recherche utilisable",
+            scope=ProviderScope.PROFILE,
+            profile=self.profile,
+        )
+        own.routes.update(capability=IntelligenceCapability.WEB_RESEARCH.value)
+        other = self._connection(
+            name="Recherche désactivée",
+            scope=ProviderScope.PROFILE,
+            profile=self.profile,
+            enabled=False,
+        )
+        other.routes.update(capability=IntelligenceCapability.WEB_RESEARCH.value)
+        foreign = self._connection(
+            name="Recherche autre Profil",
+            scope=ProviderScope.PROFILE,
+            profile=self.other_profile,
+        )
+        foreign.routes.update(capability=IntelligenceCapability.WEB_RESEARCH.value)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("core:participant-connections"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Recherche utilisable")
+        self.assertContains(response, "Recherche désactivée")
+        self.assertNotContains(response, "Recherche autre Profil")
+        self.assertContains(response, "Explorer dans Découvrir", count=1)
+        self.assertContains(response, reverse("discovery:home"))
+
     def test_space_and_platform_connections_never_leak_into_personal_page(self):
         space = Organization.objects.create(
             name="W8 Space",
