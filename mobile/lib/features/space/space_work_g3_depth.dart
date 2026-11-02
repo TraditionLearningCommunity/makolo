@@ -24,7 +24,9 @@ class SpaceWorkG3Depth extends StatelessWidget {
     final kind = spaceText(payload['kind']);
     final facts = spaceMap(payload['facts']) ?? const <String, dynamic>{};
     final widgets = <Widget>[];
-    if (kind == 'offer') {
+    if (kind == 'commerce_activity') {
+      widgets.add(_heading(context, 'Offres de cette activité'));
+    } else if (kind == 'offer') {
       widgets.add(_heading(context, 'Conditions de cette offre'));
       widgets.add(_fact('Prix unitaire', _money(
         facts['unit_price'], facts['currency'],
@@ -127,7 +129,7 @@ class SpaceWorkG3Depth extends StatelessWidget {
         'propriétaires ; aucune présence n’est déduite de la capacité.',
       ));
     }
-    for (final key in ['lines', 'services', 'departures']) {
+    for (final key in ['offers', 'lines', 'services', 'departures']) {
       final list = spaceMap(payload[key]);
       if (list != null) {
         widgets.add(_collection(
@@ -174,6 +176,7 @@ class SpaceWorkG3Depth extends StatelessWidget {
     final limit = data['limit'] is int ? data['limit'] as int : 12;
     final hasMore = data['has_more'] == true;
     final label = switch (key) {
+      'offers' => 'Offres liées',
       'lines' => 'Lignes de commande',
       'services' => 'Services de cette route',
       _ => 'Départs liés',
