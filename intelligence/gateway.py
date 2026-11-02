@@ -9,6 +9,20 @@ from .registry import IntelligenceRegistry, get_intelligence_registry
 from .telemetry import record_invocation
 
 
+def _safe_failure_reason(exc: IntelligenceError) -> str:
+    """Stable, public categories; never disclose provider response or credentials."""
+    if exc.__class__.__name__ == "ProviderUnavailable":
+        technical_code = str(exc).strip().casefold()
+        if technical_code == "invalid_credentials":
+            return "invalid_credentials"
+        if technical_code in {"rate_limited", "http_429", "quota_exceeded"}:
+            return "rate_limited"
+        if technical_code in {"network_unavailable", "offline", "timeout"}:
+            return "network_unavailable"
+        return "provider_unavailable"
+    return exc.__class__.__name__
+
+
 def _feature(request: IntelligenceRequest) -> str:
     value = request.metadata.get("feature", "")
     return value if isinstance(value, str) else ""
@@ -35,7 +49,7 @@ class IntelligenceGateway:
             try:
                 result = provider.execute(request)
             except IntelligenceError as exc:
-                last_reason = exc.__class__.__name__
+                last_reason = _safe_failure_reason(exc)
                 record_invocation(
                     capability=request.capability.value,
                     available=False,
