@@ -65,6 +65,7 @@ from .space_work_web import SpaceWorkView
 from .space_work_g1_web import SpaceWorkG1DepthView
 from .space_work_g2_web import SpaceWorkG2DepthView
 from .space_work_g3_web import SpaceWorkG3DepthView
+from .space_work_g4_web import SpaceWorkG4DepthView
 from .space_work_g3_offer_web import SpaceWorkG3OfferView
 from .space_work_g3_departure_web import SpaceWorkG3DepartureOperationsView
 from .space_work_g2_create_web import SpaceWorkG2CreateView
@@ -115,6 +116,10 @@ urlpatterns = [
     path(
         "<slug:slug>/work/g2/<str:kind>/<uuid:owner_id>/",
         SpaceWorkG2DepthView.as_view(), name="space-work-depth-g2",
+    ),
+    path(
+        "<slug:slug>/work/g4/<str:kind>/<uuid:owner_id>/",
+        SpaceWorkG4DepthView.as_view(), name="space-work-depth-g4",
     ),
     path(
         "<slug:slug>/work/g3/<str:kind>/<uuid:owner_id>/",
