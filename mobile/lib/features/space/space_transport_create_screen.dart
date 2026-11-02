@@ -163,19 +163,28 @@ class _SpaceTransportCreateScreenState
       }
       if (!mounted || !_actorValid || epoch != _epoch) return;
       setState(() {
-        _routes = more == 'routes'
-            ? [..._routes, ..._rows(routes['items'])]
-            : _rows(routes['items']);
-        _vehicles = more == 'vehicles'
-            ? [..._vehicles, ..._rows(vehicles['items'])]
-            : _rows(vehicles['items']);
-        _places = more == 'places'
-            ? [..._places, ..._rows(places['items'])]
-            : _rows(places['items']);
-        _moreRoutes = routes['has_more'] == true;
-        _moreVehicles = vehicles['has_more'] == true;
-        _morePlaces = places['has_more'] == true;
+        if (more == null || more == 'routes') {
+          _routes = more == 'routes'
+              ? [..._routes, ..._rows(routes['items'])]
+              : _rows(routes['items']);
+          _moreRoutes = routes['has_more'] == true;
+        }
+        if (more == null || more == 'vehicles') {
+          _vehicles = more == 'vehicles'
+              ? [..._vehicles, ..._rows(vehicles['items'])]
+              : _rows(vehicles['items']);
+          _moreVehicles = vehicles['has_more'] == true;
+        }
+        if (more == null || more == 'places') {
+          _places = more == 'places'
+              ? [..._places, ..._rows(places['items'])]
+              : _rows(places['items']);
+          _morePlaces = places['has_more'] == true;
+        }
         _canCreateDeparture = caps?['create_departure'] == true;
+        if (!_canCreateDeparture && _kind == 'departure') {
+          _kind = 'route';
+        }
       });
     } on Object {
       if (mounted && _actorValid && epoch == _epoch) {
