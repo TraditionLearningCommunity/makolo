@@ -319,8 +319,8 @@ class DiscoveryWatchListCreateAPIView(APIView):
 
     def post(self, request):
         name = str(request.data.get("name") or "").strip()
-        if not name:
-            raise ValidationError({"name": ["Le nom de la Veille est obligatoire."]})
+        if not name or len(name) > 140:
+            raise ValidationError({"name": ["Le nom de la Veille doit contenir entre 1 et 140 caractères."]})
         criteria = _normalize_watch_or_error(request.data.get("criteria"))
         dossier = _resolve_personal_dossier(
             request, request.data.get("dossier_id"),
@@ -353,9 +353,9 @@ class DiscoveryWatchDetailAPIView(APIView):
         watch = _owned_watch(request, watch_id)
         if "name" in request.data:
             name = str(request.data.get("name") or "").strip()
-            if not name:
+            if not name or len(name) > 140:
                 raise ValidationError(
-                    {"name": ["Le nom de la Veille est obligatoire."]}
+                    {"name": ["Le nom de la Veille doit contenir entre 1 et 140 caractères."]}
                 )
             watch.name = name
         if "criteria" in request.data:
@@ -374,7 +374,10 @@ class DiscoveryWatchDetailAPIView(APIView):
                 request,
                 request.data.get("dossier_id"),
             )
-        watch.save()
+        try:
+            watch.save()
+        except DomainValidationError as exc:
+            raise ValidationError({"watch": exc.messages}) from exc
         return Response(
             projection_envelope(
                 projection="discovery.watch",
