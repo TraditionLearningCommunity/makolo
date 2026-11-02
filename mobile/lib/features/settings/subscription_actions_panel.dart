@@ -203,6 +203,7 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
       _object(preview['billing_terms'])?['amount']?.toString() ?? '',
     );
     final paidChoice = billedAmount != null && billedAmount > 0;
+    final requiresPaymentVerification = preview['has_payment_requirement'] == true;
     final intent = _uniqueIntent();
     var confirming = false;
     String? failed;
@@ -270,14 +271,16 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                   if (preview['has_payment_requirement'] == true) ...[
                     const SizedBox(height: 12),
                     const Text(
-                      'Un règlement est nécessaire avant l’activation.',
+                      'Une condition de paiement doit être satisfaite avant l’activation.',
                     ),
                   ],
                   const SizedBox(height: 12),
                   Text(
                     paidChoice
-                        ? 'Votre choix est enregistré puis vous accédez au paiement. L’abonnement actuel reste actif jusqu’à confirmation.'
-                        : 'Makolo appliquera directement ce changement lorsque les conditions sont satisfaites.',
+                        ? 'Votre choix sera enregistré avant le paiement. L’abonnement actuel reste actif jusqu’à confirmation.'
+                        : requiresPaymentVerification
+                        ? 'Votre demande restera en cours jusqu’à validation du paiement requis. La formule actuelle reste active.'
+                        : 'Makolo appliquera ce changement lorsque les conditions sont satisfaites.',
                   ),
                   if (failed != null) ...[
                     const SizedBox(height: 10),
@@ -374,6 +377,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                       ? 'Confirmation…'
                                       : paidChoice
                                           ? 'Continuer vers le paiement'
+                                          : requiresPaymentVerification
+                                          ? 'Demander le changement'
                                           : 'Appliquer le changement')
                                 : 'Consultation uniquement',
                           ),
