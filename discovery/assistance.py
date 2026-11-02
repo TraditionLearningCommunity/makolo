@@ -17,6 +17,7 @@ from .intelligence import interpret_with_intelligence, _should_augment
 _ALLOWED_CRITERIA = frozenset({
     "q", "place", "when", "period", "vertical", "price",
     "date", "date_from", "date_to", "timezone",
+    "lat", "lon", "radius_km",
 })
 
 
@@ -54,7 +55,7 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
     status = "already_structured"
     reason = ""
     if _should_augment(intent) and not any(
-        value for key, value in params.items() if key != "q"
+        value for key, value in params.items() if key not in {"q", "radius_km"}
     ):
         profile = UserProfile.objects.filter(user=actor).first()
         registry = build_runtime_registry(
