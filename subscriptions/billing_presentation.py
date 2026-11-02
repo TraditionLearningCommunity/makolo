@@ -165,8 +165,15 @@ def transition_payment_action_for_actor(transition, *, actor):
         ),
         None,
     )
+    has_unsettled_payment = any(
+        obligation.status in {"pending", "processing"} for obligation in obligations
+    )
     if payable is None:
-        return {"can_cancel": can_cancel, "payment": None, "payment_access_required": False}
+        return {
+            "can_cancel": can_cancel, "payment": None,
+            "payment_access_required": False,
+            "has_unsettled_payment": has_unsettled_payment,
+        }
     accessible = obligations_visible_to(actor).filter(pk=payable.pk).exists()
     return {
         "can_cancel": can_cancel,
@@ -175,4 +182,5 @@ def transition_payment_action_for_actor(transition, *, actor):
             if accessible else None
         ),
         "payment_access_required": not accessible,
+        "has_unsettled_payment": has_unsettled_payment,
     }
