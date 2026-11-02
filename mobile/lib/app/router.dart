@@ -689,6 +689,7 @@ GoRouter createMakoloRouter(
             runtime: runtime,
             spaceSlug: slug,
             expectedSpaceId: actor.space.id,
+            fromTeam: state.uri.queryParameters['from'] == 'team',
           );
         },
       ),
