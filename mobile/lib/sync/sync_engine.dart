@@ -35,6 +35,12 @@ class SyncEngine {
   // Only the most recently started request for a source may change its local
   // state. A late 200 must not undo a newer owner 403/404 revocation.
   final Map<String, int> _sourceGenerations = {};
+  int _discoveryRevocationEpoch = 0;
+
+  static bool _isDiscoveryRelated(SyncSourceDefinition source) =>
+      source.owner == 'Discovery' ||
+      source.projectionKind == 'activity.detail' ||
+      source.projectionKind == 'occurrence.detail';
 
   static const _discoveryDerivedKinds = <String>[
     'discovery.items',
@@ -134,7 +140,11 @@ class SyncEngine {
     final key = source.sourceKey;
     final generation = (_sourceGenerations[key] ?? 0) + 1;
     _sourceGenerations[key] = generation;
-    bool isCurrent() => _sourceGenerations[key] == generation;
+    final epoch = _discoveryRevocationEpoch;
+    bool isCurrent() =>
+        _sourceGenerations[key] == generation &&
+        (!_isDiscoveryRelated(source) ||
+            _discoveryRevocationEpoch == epoch);
     try {
       final response = await api.get(source.path);
       if (!isCurrent()) return;
@@ -218,6 +228,10 @@ class SyncEngine {
     SyncSourceDefinition source,
     String code,
   ) async {
+    // Invalidate all concurrently in-flight Discovery readers. A successful
+    // response to another request, started before this denial, cannot
+    // rehydrate a derived collection after the withdrawal committed.
+    if (_isDiscoveryRelated(source)) _discoveryRevocationEpoch++;
     await database.transaction(() async {
       await store.deleteProjection(
         source.projectionKind,
@@ -226,9 +240,7 @@ class SyncEngine {
       // The field, map, N2 and previews are a composition of owner facts.
       // Once any such owner explicitly refuses access, retaining a copy
       // elsewhere is a privacy leak. Transport errors never enter this path.
-      if (source.owner == 'Discovery' ||
-          source.projectionKind == 'activity.detail' ||
-          source.projectionKind == 'occurrence.detail') {
+      if (_isDiscoveryRelated(source)) {
         for (final kind in _discoveryDerivedKinds) {
           await store.deleteProjectionsOfKind(kind);
         }
@@ -240,7 +252,7 @@ class SyncEngine {
         await (database.update(database.syncSources)..where(
               (row) =>
                   row.profileId.equals(profileId) &
-                  row.sourceKey.like('discovery:%'),
+                  row.sourceKey.like('discovery%'),
             ))
             .write(const SyncSourcesCompanion(invalidated: Value(true)));
       }
@@ -259,9 +271,7 @@ class SyncEngine {
     });
     // Owner denial also withdraws automatic published-recognition bytes.
     // Explicit Reader retention stays user-owned and independent.
-    if (source.owner == 'Discovery' ||
-        source.projectionKind == 'activity.detail' ||
-        source.projectionKind == 'occurrence.detail') {
+    if (_isDiscoveryRelated(source)) {
       try {
         await const DiscoveryOfflineStore().purgeAutomaticRecognition();
         await DiscoveryOfflineStore(profileId: profileId).purgePrivateReader();
