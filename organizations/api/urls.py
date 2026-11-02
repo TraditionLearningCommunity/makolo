@@ -18,6 +18,7 @@ from .space_work_views import SpaceWorkAPIView
 from .space_work_g2_case_views import SpaceG2ServiceCaseAPIView
 from .space_work_g2_create import SpaceWorkG2CreateAPIView
 from .space_work_g3_offer_views import SpaceWorkG3OfferAPIView
+from .space_work_g3_transport_create import SpaceG3TransportCreateAPIView
 from .space_activity_create import SpaceG1ActivityCreateAPIView
 from .space_zs4_views import SpacePilotAPIView, SpaceRelationshipsAPIView, SpaceUsAPIView
 from .views import FollowDetailAPIView, FollowListCreateAPIView
@@ -47,6 +48,7 @@ urlpatterns = [
     path("workspaces/<slug:slug>/work/g2/create/", SpaceWorkG2CreateAPIView.as_view(), name="workspace-work-g2-create"),
     path("workspaces/<slug:slug>/work/g3/activities/<uuid:activity_id>/offers/", SpaceWorkG3OfferAPIView.as_view(), name="workspace-work-g3-offer-create"),
     path("workspaces/<slug:slug>/work/g3/offers/<uuid:offer_id>/", SpaceWorkG3OfferAPIView.as_view(), name="workspace-work-g3-offer-edit"),
+    path("workspaces/<slug:slug>/work/g3/transport/create/", SpaceG3TransportCreateAPIView.as_view(), name="workspace-work-g3-transport-create"),
     path("workspaces/<slug:slug>/work/activities/", SpaceG1ActivityCreateAPIView.as_view(), name="workspace-work-activity-create"),
     path("workspaces/<slug:slug>/history/", SpaceHistoryAPIView.as_view(), name="workspace-history"),
     path("workspaces/<slug:slug>/commerce/orders/<uuid:order_id>/", SpaceCommerceOrderDetailAPIView.as_view(), name="workspace-commerce-order-detail"),
