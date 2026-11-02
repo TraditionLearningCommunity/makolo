@@ -106,9 +106,9 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
           content: Text(
             isSpace
                 ? 'Vous allez répondre au nom de cet Espace. '
-                      'Le serveur vérifiera votre Mandate et vos permissions.'
+                      'Votre autorisation à agir pour cet Espace sera vérifiée.'
                 : 'Vous allez répondre personnellement. '
-                      'La décision sera vérifiée par le propriétaire.',
+                      'Votre réponse sera vérifiée avant d’être confirmée.',
           ),
           actions: [
             TextButton(
@@ -171,7 +171,7 @@ class _NowProposalDecisionState extends State<NowProposalDecision> {
         label: Text(widget.action.label),
       ),
       if (_sending) const LinearProgressIndicator(),
-      if (_confirmed) const Text('Réponse confirmée par le réseau d’action.'),
+      if (_confirmed) const Text('Réponse confirmée.'),
       if (_error != null)
         Text(
           _error!,

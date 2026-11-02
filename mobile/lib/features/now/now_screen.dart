@@ -1286,7 +1286,7 @@ class _NowUnavailable extends StatelessWidget {
       child: Center(
         child: Padding(
           padding: EdgeInsets.all(MakoloSpacing.inner),
-          child: Text('Now n’est pas disponible pour le moment.'),
+          child: Text('Impossible d’afficher votre situation pour le moment.'),
         ),
       ),
     );
