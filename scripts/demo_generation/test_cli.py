@@ -307,13 +307,13 @@ class DemoGenerationCLITests(unittest.TestCase):
         args = build_parser().parse_args(["plan", "--domains", "connections"])
         with patch("scripts.demo_generation.connections.main") as connected:
             run(args)
-        connected.assert_called_once_with([])
+        connected.assert_called_once_with(["--count", "50", "--profiles", "30"])
 
     def test_connections_generate_does_not_claim_credentials(self):
         args = build_parser().parse_args(["generate", "--domains", "connections"])
         with patch("scripts.demo_generation.connections.main") as connected:
             run(args)
-        connected.assert_called_once_with(["--apply"])
+        connected.assert_called_once_with(["--apply", "--count", "50", "--profiles", "30"])
 
 
 if __name__ == "__main__":
