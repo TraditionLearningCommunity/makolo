@@ -603,7 +603,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
               fit: StackFit.expand,
               children: [
                 spatial,
-                if (points.isEmpty && widget.selection.hasSnapshot)
+                if (points.isEmpty &&
+                    widget.selection.hasSnapshot &&
+                    widget.selection.surface.availability == MakoloAvailabilityCue.empty)
                   Positioned(
                     top: 72,
                     left: MakoloSpacing.sm,
