@@ -14,6 +14,7 @@ from .billing_presentation import (
     subscription_billing_obligations,
     terms_as_dict,
     with_billing_terms,
+    transition_payment_action_for_actor,
 )
 from .contracts import AcquisitionMode, SubscriptionTransitionKind
 from .models import PlanVersion
@@ -83,8 +84,12 @@ def _replayed_intent(subscription, *, key, target_plan_version_id=None, source_i
     return True
 
 
-def _actionable_snapshot(payload):
-    """Present the next user action without owning Payment or Readiness state."""
+def _actionable_snapshot(payload, *, subscription, actor):
+    """Present the next action from the exact transition, not a billing page.
+
+    Billing history is paginated independently. An older payable obligation
+    must remain actionable even when newer unrelated bills fill that page.
+    """
     transition = payload.get("transition")
     if not transition or not transition.get("open"):
         return payload
@@ -95,25 +100,23 @@ def _actionable_snapshot(payload):
         transition["next_action"] = "finance_access_required"
         transition["can_cancel"] = False
         return payload
-    transition["can_cancel"] = not any(
-        row.get("transition_id") == transition["id"]
-        and row.get("status") not in {"cancelled", "expired", "refunded"}
-        for row in billing.get("items", ())
-    )
-    linked = next(
-        (row for row in billing.get("items", ())
-         if row.get("transition_id") == transition["id"]
-         and row.get("status") in {"pending", "processing"}),
-        None,
-    )
-    if linked is not None:
-        if linked.get("can_open_detail", True):
-            transition["next_action"] = "pay"
-            transition["payment_obligation_id"] = linked["id"]
-            transition["payment_amount"] = linked["amount"]
-            transition["payment_currency"] = linked["currency"]
-        else:
-            transition["next_action"] = "finance_access_required"
+
+    source = SubscriptionTransition.objects.filter(
+        pk=transition["id"], subscription=subscription
+    ).first()
+    if source is None:
+        transition["next_action"] = "wait"
+        return payload
+    financial = transition_payment_action_for_actor(source, actor=actor)
+    transition["can_cancel"] = financial["can_cancel"]
+    payment = financial["payment"]
+    if payment is not None:
+        transition["next_action"] = "pay"
+        transition["payment_obligation_id"] = payment["id"]
+        transition["payment_amount"] = payment["amount"]
+        transition["payment_currency"] = payment["currency"]
+    elif financial["payment_access_required"]:
+        transition["next_action"] = "finance_access_required"
     elif transition.get("status") == "ready":
         transition["next_action"] = "complete"
     else:
@@ -121,7 +124,7 @@ def _actionable_snapshot(payload):
     return payload
 
 
-def _snapshot(subscription, *, can_manage=True, billing=None):
+def _snapshot(subscription, *, actor, can_manage=True, billing=None):
     product = with_billing_terms(build_subscription_product_view(subscription, can_manage=can_manage))
     self_service = {
         str(pk) for pk in PlanVersion.objects.filter(
@@ -156,7 +159,7 @@ def _snapshot(subscription, *, can_manage=True, billing=None):
             if subscription.space_id else None
         ),
     }
-    return _actionable_snapshot(payload)
+    return _actionable_snapshot(payload, subscription=subscription, actor=actor)
 
 
 class PersonalSubscriptionAPIView(APIView):
@@ -164,7 +167,7 @@ class PersonalSubscriptionAPIView(APIView):
 
     def get(self, request):
         subscription = Subscription.objects.filter(profile=request.user).first()
-        return _private(_snapshot(subscription) if subscription else {"subscription": None})
+        return _private(_snapshot(subscription, actor=request.user) if subscription else {"subscription": None})
 
 
 class PersonalSubscriptionObligationsAPIView(APIView):
@@ -214,7 +217,7 @@ class PersonalSubscriptionPlanAPIView(APIView):
         subscription = _owned(request)
         key = _key(request)
         if _replayed_intent(subscription, key=key, target_plan_version_id=plan_version_id):
-            return _private(_snapshot(subscription))
+            return _private(_snapshot(subscription, actor=request.user))
         target = get_self_service_target(subscription, plan_version_id)
         try:
             request_subscription_transition_for_actor(
@@ -224,7 +227,7 @@ class PersonalSubscriptionPlanAPIView(APIView):
             )
         except (DjangoValidationError, DjangoPermissionDenied) as exc:
             _error(exc)
-        return _private(_snapshot(subscription))
+        return _private(_snapshot(subscription, actor=request.user))
 
 
 class PersonalSubscriptionAddonRemoveAPIView(APIView):
@@ -246,7 +249,7 @@ class PersonalSubscriptionAddonRemoveAPIView(APIView):
         subscription = _owned(request)
         key = _key(request)
         if _replayed_intent(subscription, key=key, source_item_id=item_id):
-            return _private(_snapshot(subscription))
+            return _private(_snapshot(subscription, actor=request.user))
         item = get_active_addon(subscription, item_id)
         try:
             request_subscription_transition_for_actor(
@@ -256,7 +259,7 @@ class PersonalSubscriptionAddonRemoveAPIView(APIView):
             )
         except (DjangoValidationError, DjangoPermissionDenied) as exc:
             _error(exc)
-        return _private(_snapshot(subscription))
+        return _private(_snapshot(subscription, actor=request.user))
 
 
 class PersonalSubscriptionTransitionAPIView(APIView):
@@ -281,4 +284,4 @@ class PersonalSubscriptionTransitionAPIView(APIView):
                 raise Http404
         except (DjangoValidationError, DjangoPermissionDenied) as exc:
             _error(exc)
-        return _private(_snapshot(subscription))
+        return _private(_snapshot(subscription, actor=request.user))
