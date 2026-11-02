@@ -343,9 +343,10 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     super.dispose();
   }
 
-  void _select(String key) {
+  void _select(String key, {bool moveCamera = true}) {
     setState(() => _selectedCandidateKey = key);
     widget.onSelectionChanged?.call(key);
+    if (!moveCamera) return;
     final anchors = _selector.spatialAnchorsFromCollection(
       widget.selection.collection,
     );
@@ -392,7 +393,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           .map((anchor) => anchor.candidateKey)
           .toSet();
       if (keys.length == 1) {
-        _select(key);
+        _select(key, moveCamera: false);
       } else {
         unawaited(_chooseCoLocated(keys));
       }
@@ -416,7 +417,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                 subtitle: item.place == null ? null : Text(item.place!),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  if (mounted) _select(item.candidateKey);
+                  if (mounted) _select(item.candidateKey, moveCamera: false);
                 },
               ),
           ],
