@@ -94,6 +94,68 @@ class SubscriptionContinuationTests(TestCase):
         self.assertContains(landing, target)
         self.assertNotContains(landing, self.other.slug + "/subscription")
 
+    def test_quota_recovery_reopens_real_team_action(self):
+        self._limit_one()
+        self.client.force_login(self.owner)
+        target = reverse("organizations:team-member-create", args=[self.space.slug])
+        payload = {"email": self.teammate.email, "role": SystemRoleCode.SPACE_ADMIN}
+
+        blocked = self.client.post(target, payload)
+        self.assertEqual(blocked.status_code, 400)
+        handoff = blocked.context["subscription_handoff"]["url"]
+        subscription_page = self.client.get(handoff)
+        self.assertEqual(subscription_page.status_code, 200)
+        self.assertContains(subscription_page, "Revenir à l’action")
+
+        create_entitlement_grant(
+            space=self.space,
+            feature=FeatureDefinition.objects.get(code="team.members"),
+            value=1,
+            reason="Additional member capacity, server-owned",
+        )
+        resumed = self.client.get(
+            parse_qs(urlsplit(handoff).query)["next"][0]
+        )
+        self.assertEqual(resumed.status_code, 200)
+        created = self.client.post(target, payload)
+        self.assertEqual(created.status_code, 302)
+        from organizations.models import TeamMembership, TeamMembershipStatus
+        self.assertEqual(
+            TeamMembership.objects.filter(
+                team__organization=self.space, user=self.teammate,
+                status=TeamMembershipStatus.ACTIVE,
+            ).count(),
+            1,
+        )
+        # Repeating the already counted Profile doesn't consume a second slot.
+        repeat = self.client.post(target, payload)
+        self.assertEqual(repeat.status_code, 302)
+
+    def test_other_space_remains_usable_when_first_space_is_limited(self):
+        self._limit_one()
+        self.client.force_login(self.owner)
+        blocked = self.client.post(
+            reverse("organizations:team-member-create", args=[self.space.slug]),
+            {"email": self.teammate.email, "role": SystemRoleCode.SPACE_ADMIN},
+        )
+        self.assertEqual(blocked.status_code, 400)
+        independent = self.client.post(
+            reverse("organizations:team-member-create", args=[self.other.slug]),
+            {"email": self.teammate.email, "role": SystemRoleCode.SPACE_ADMIN},
+        )
+        self.assertEqual(independent.status_code, 302)
+        from organizations.models import TeamMembership, TeamMembershipStatus
+        self.assertTrue(TeamMembership.objects.filter(
+            team__organization=self.other,
+            user=self.teammate,
+            status=TeamMembershipStatus.ACTIVE,
+        ).exists())
+        self.assertFalse(TeamMembership.objects.filter(
+            team__organization=self.space,
+            user=self.teammate,
+            status=TeamMembershipStatus.ACTIVE,
+        ).exists())
+
     def test_team_manager_without_subscription_mandate_gets_no_financial_handoff(self):
         self._limit_one()
         role = Role.objects.create(
