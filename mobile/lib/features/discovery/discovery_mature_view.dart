@@ -422,15 +422,15 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     }
     setState(() => _selectedCandidateKey = null);
     widget.onSelectionChanged?.call(null);
-    await _moveCamera(
-      _mapController!,
-      DiscoverySpatialAnchor(
-        candidateKey: '',
-        latitude: fix.latitude,
-        longitude: fix.longitude,
-        fact: const {},
-      ),
-    );
+    try {
+      await _mapController!.moveTo(fix.latitude, fix.longitude);
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de se recentrer')),
+        );
+      }
+    }
   }
 
   Future<void> _onStyleReady(List<DiscoverySpatialAnchor> anchors) async {
