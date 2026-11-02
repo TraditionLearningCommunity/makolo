@@ -587,10 +587,20 @@ def profile_passport_topic_options(profile):
         credentials_for_profile(profile).values_list("activity_id", flat=True)
     )
     activity_ids.update(
-        proofs_for_profile(profile).values_list("journey__activity_id", flat=True)
+        proofs_for_profile(profile).filter(status=ProofStatus.ACTIVE).values_list(
+            "journey__activity_id", flat=True
+        )
     )
     topic_ids = set(
         ProfileInterest.objects.filter(profile=profile, topic__is_active=True).values_list("topic_id", flat=True)
+    )
+    # Open To is a distinct explicit declaration, not an inferred Interest.
+    # Its topic must remain selectable even when the owner has no matching
+    # Interest, owned Activity, Proof or Credential.
+    topic_ids.update(
+        ProfileOpenTo.objects.filter(
+            profile=profile, is_active=True, topic__is_active=True,
+        ).values_list("topic_id", flat=True)
     )
     topic_ids.update(
         Topic.objects.filter(activity_links__activity_id__in=activity_ids).values_list("pk", flat=True)
