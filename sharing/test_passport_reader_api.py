@@ -1,9 +1,11 @@
 """Native Passport reader: same disclosure boundary as Web, no extra authority."""
+from datetime import timedelta
 from urllib.parse import urlsplit
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import UserProfile
 from sharing.passport import build_profile_passport
@@ -116,6 +118,17 @@ class PassportReaderAPIContracts(TestCase):
         # The independent signed verification still establishes issuance,
         # without giving the anonymous recipient a new viewing right.
         verified = self.client.get(self._verification_url(snapshot))
+        self.assertFalse(verified.json()["data"]["can_view_content"])
+
+    def test_expired_grant_is_unreadable_without_revoking_issuance(self):
+        snapshot = self._issue("custom")
+        envelope, url = self._share(snapshot)
+        envelope.expires_at = timezone.now() - timedelta(seconds=1)
+        envelope.save(update_fields=["expires_at", "updated_at"])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        verified = self.client.get(self._verification_url(snapshot))
+        self.assertEqual(verified.status_code, 200)
+        self.assertTrue(verified.json()["data"]["integrity_ok"])
         self.assertFalse(verified.json()["data"]["can_view_content"])
 
     def test_withdrawal_closes_share_and_retains_read_only_owner_archive(self):
