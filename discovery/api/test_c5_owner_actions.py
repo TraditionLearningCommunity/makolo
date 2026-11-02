@@ -245,3 +245,23 @@ class DiscoveryConnectedActionsTests(TestCase):
         self.assertEqual(result.data["data"]["query"]["radius_km"], "25")
         self.assertEqual(result.data["data"]["status"], "already_structured")
         network.assert_not_called()
+
+
+    def test_web_source_action_renders_only_sourced_leads_in_query_context(self):
+        self._connect("tavily")
+        self.client.force_login(self.actor)
+        with patch("intelligence.providers.tavily_web._open_url",
+                   return_value=_Reply({"results": [{
+                       "title": "Référence externe",
+                       "url": "https://example.org/reference",
+                       "content": "Une information à contrôler.",
+                   }]})):
+            response = self.client.post(
+                reverse("discovery:research"), {"q": "bourse de recherche"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Référence externe")
+        self.assertContains(response, "https://example.org/reference")
+        self.assertContains(response, "non vérifiées")
+        self.assertNotContains(response, "TEST-C5-KEY")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
