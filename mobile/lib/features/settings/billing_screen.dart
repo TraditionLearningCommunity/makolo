@@ -555,7 +555,14 @@ class _BillingScreenState extends State<BillingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: _section == 'overview',
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _section != 'overview' && mounted) {
+          setState(() => _section = 'overview');
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         leading: _section == 'overview'
             ? null
@@ -610,6 +617,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 ],
               ),
             ),
+      ),
     );
   }
 }
