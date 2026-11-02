@@ -36,6 +36,8 @@ class _IntelligenceConnectionControlsState
   int _catalogGeneration = 0;
   int _mutationGeneration = 0;
   String? _catalogError;
+  String _view = 'discover';
+  String _query = '';
 
   @override
   void initState() {
@@ -349,86 +351,166 @@ class _IntelligenceConnectionControlsState
   @override
   Widget build(BuildContext context) {
     if (widget.runtime.api == null) return const SizedBox.shrink();
-    final connectable = _offers
-        .where((row) => row['can_connect'] == true)
-        .toList();
     final manageable = widget.connections
         .where((row) => row.manageable && row.owner == 'intelligence')
-        .toList();
+        .toList(growable: false);
+    final query = _query.trim().toLowerCase();
+    final visibleOffers = _offers.where((offer) {
+      final searchable = [
+        offer['label'] as String? ?? '',
+        offer['description'] as String? ?? '',
+        ...((offer['capabilities'] as List?)?.whereType<String>() ??
+            <String>[]),
+      ].join(' ').toLowerCase();
+      return searchable.contains(query);
+    }).toList(growable: false);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_catalogLoading) const LinearProgressIndicator(minHeight: 2),
-        if (_catalogError != null)
-          TextButton.icon(
-            onPressed: () => unawaited(_loadCatalog()),
-            icon: const Icon(Icons.refresh),
-            label: Text(_catalogError!),
-          ),
-        if (!widget.mutationsEnabled)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'Actions de connexion suspendues hors ligne ou tant '
-              'que les droits ne sont pas confirmés. Réessayez une fois connecté.',
+        const SizedBox(height: 16),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(
+              value: 'discover',
+              icon: Icon(Icons.explore_outlined),
+              label: Text('Découvrir'),
             ),
-          ),
-        if (connectable.isNotEmpty) ...[
-          const SizedBox(height: 20),
+            ButtonSegment(
+              value: 'manage',
+              icon: Icon(Icons.link_outlined),
+              label: Text('Mes connexions'),
+            ),
+          ],
+          selected: {_view},
+          onSelectionChanged: (selection) =>
+              setState(() => _view = selection.first),
+        ),
+        const SizedBox(height: 16),
+        if (_view == 'discover') ...[
           Text(
-            'Relier un service Intelligence',
+            'Services à connecter',
             style: Theme.of(context).textTheme.titleMedium,
           ),
+          const SizedBox(height: 4),
           const Text(
-            'Utilisez une clé API qui vous appartient. '
-            'Il ne s’agit pas d’un accès à votre compte social.',
+            'Explorez les services réellement proposés par Makolo. '
+            'Leur présence ne signifie pas qu’ils sont déjà connectés.',
           ),
-          for (final offer in connectable)
-            ListTile(
-              leading: const Icon(Icons.add_link),
-              title: Text(offer['label'] as String? ?? 'Service'),
-              subtitle: Text(offer['description'] as String? ?? ''),
-              enabled: !_busy && widget.mutationsEnabled,
-              onTap: !_busy && widget.mutationsEnabled
-                  ? () => unawaited(_create(offer))
-                  : null,
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('connection-catalog-search'),
+            onChanged: (value) => setState(() => _query = value),
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              labelText: 'Rechercher un service',
+              border: OutlineInputBorder(),
             ),
-        ],
-        if (_offers.isNotEmpty && connectable.isEmpty)
-          const Text(
-            'La configuration sécurisée des connexions '
-            'est indisponible sur ce serveur.',
           ),
-        if (manageable.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            'Gérer les connexions',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          for (final connection in manageable)
-            ListTile(
-              title: Text(connection.displayName),
-              trailing: PopupMenuButton<String>(
-                enabled: !_busy && widget.mutationsEnabled,
-                tooltip: 'Gérer la connexion',
-                onSelected: (action) => unawaited(_manage(connection, action)),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: connection.enabled ? 'disable' : 'enable',
-                    child: Text(
-                      connection.enabled ? 'Désactiver' : 'Réactiver',
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'rotate',
-                    child: Text('Remplacer la clé'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'disconnect',
-                    child: Text('Retirer de Makolo'),
-                  ),
-                ],
+          if (_catalogLoading)
+            const LinearProgressIndicator(minHeight: 2),
+          if (_catalogError != null)
+            TextButton.icon(
+              onPressed: () => unawaited(_loadCatalog()),
+              icon: const Icon(Icons.refresh),
+              label: Text(_catalogError!),
+            ),
+          if (!_catalogLoading &&
+              _catalogError == null &&
+              visibleOffers.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                _offers.isEmpty
+                    ? 'Aucun service connectable n’est proposé actuellement.'
+                    : 'Aucun service ne correspond à cette recherche.',
               ),
+            ),
+          for (final offer in visibleOffers)
+            Card(
+              child: ListTile(
+                key: Key('connection-offer-${offer['code']}'),
+                leading: const Icon(Icons.extension_outlined),
+                title: Text(offer['label'] as String? ?? 'Service'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(offer['description'] as String? ?? ''),
+                    if (offer['can_connect'] != true)
+                      const Text(
+                        'Connexion indisponible sur ce serveur.',
+                      ),
+                  ],
+                ),
+                trailing: TextButton(
+                  onPressed: _busy || !widget.mutationsEnabled ||
+                          offer['can_connect'] != true
+                      ? null
+                      : () => unawaited(_create(offer)),
+                  child: const Text('Connecter'),
+                ),
+              ),
+            ),
+          if (!widget.mutationsEnabled)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'La connexion nécessite une vérification récente du serveur. '
+                'Vous pouvez continuer à explorer les services.',
+              ),
+            ),
+        ] else ...[
+          Text(
+            'Mes services connectés',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Contrôlez les connexions établies pour ce contexte. '
+            'Les permissions et la disponibilité restent vérifiées par le serveur.',
+          ),
+          if (manageable.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text('Aucune connexion Intelligence établie.'),
+            ),
+          for (final connection in manageable)
+            Card(
+              child: ListTile(
+                key: Key('manage-connection-${connection.id}'),
+                leading: const Icon(Icons.link_outlined),
+                title: Text(connection.displayName),
+                subtitle: Text(
+                  connection.enabled ? 'Activée' : 'Désactivée',
+                ),
+                trailing: PopupMenuButton<String>(
+                  enabled: !_busy && widget.mutationsEnabled,
+                  tooltip: 'Gérer la connexion',
+                  onSelected: (action) =>
+                      unawaited(_manage(connection, action)),
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: connection.enabled ? 'disable' : 'enable',
+                      child: Text(
+                        connection.enabled ? 'Désactiver' : 'Réactiver',
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'rotate',
+                      child: Text('Remplacer la clé'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'disconnect',
+                      child: Text('Retirer de Makolo'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (!widget.mutationsEnabled && manageable.isNotEmpty)
+            const Text(
+              'Gestion suspendue : une confirmation récente du serveur '
+              'est nécessaire.',
             ),
         ],
       ],
