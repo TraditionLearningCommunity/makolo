@@ -7,8 +7,8 @@ import 'package:flutter/services.dart';
 /// native MediaStore channel handles scoped storage and cleans failed writes.
 /// Other platforms retain their user-selected destination (no unsafe
 /// assumptions about public filesystem paths).
-Future<Uri?> savePassportPdf(String path, String filename) async {
-  if (Platform.isAndroid) {
+Future<Uri?> savePassportPdf(String path, String filename, {bool chooseDestination = false}) async {
+  if (Platform.isAndroid && !chooseDestination) {
     final savedName = await const MethodChannel('makolo/downloads')
         .invokeMethod<String>('saveFile', {
           'source_path': path,
@@ -26,7 +26,7 @@ Future<Uri?> savePassportPdf(String path, String filename) async {
     return Uri(path: savedName);
   }
   return FilePicker.saveFile(
-    dialogTitle: 'Enregistrer le Passeport PDF',
+    dialogTitle: 'Choisir où enregistrer le Passeport PDF',
     fileName: filename,
     type: FileType.custom,
     allowedExtensions: const ['pdf'],
