@@ -286,5 +286,20 @@ class DemoGenerationCLITests(unittest.TestCase):
         self.assertNotIn("subscriptions", parse_domains("all"))
 
 
+
+    def test_demo_subscription_catalog_is_opt_in(self):
+        self.assertNotIn("subscription-catalog", parse_domains("all"))
+        args = build_parser().parse_args(["plan", "--domains", "subscription-catalog"])
+        with patch("scripts.demo_generation.subscription_catalog.main") as catalog:
+            run(args)
+        catalog.assert_called_once_with([])
+
+    def test_demo_subscription_catalog_generate(self):
+        args = build_parser().parse_args(["generate", "--domains", "subscription-catalog"])
+        with patch("scripts.demo_generation.subscription_catalog.main") as catalog:
+            run(args)
+        catalog.assert_called_once_with(["--apply"])
+
+
 if __name__ == "__main__":
     unittest.main()
