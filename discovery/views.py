@@ -518,7 +518,11 @@ class DiscoverySourceResearchWebView(LoginRequiredMixin, View):
 
     def post(self, request):
         from discovery.assistance import research_discovery_sources
+        from discovery.api.throttles import DiscoveryResearchThrottle
 
+        if not DiscoveryResearchThrottle().allow_request(request, self):
+            messages.warning(request, "Trop de recherches externes récentes. Réessayez plus tard.")
+            return redirect("discovery:home")
         text = request.POST.get("q", "")
         try:
             result = research_discovery_sources(actor=request.user, text=text)
@@ -539,7 +543,11 @@ class DiscoveryClarifyWebView(LoginRequiredMixin, View):
     def post(self, request):
         from urllib.parse import urlencode
         from discovery.assistance import clarify_discovery_search
+        from discovery.api.throttles import DiscoveryClarifyThrottle
 
+        if not DiscoveryClarifyThrottle().allow_request(request, self):
+            messages.warning(request, "Trop de clarifications récentes. Réessayez plus tard.")
+            return redirect("discovery:home")
         criteria = {
             key: request.POST.get(key, "")
             for key in ("q", "place", "when", "period", "vertical", "price",
