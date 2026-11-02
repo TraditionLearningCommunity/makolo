@@ -1,4 +1,5 @@
 {% extends 'base/app.html' %}
+{% load static %}
 {% block title %}Ouvert à | Makolo{% endblock %}
 {% block content %}
 <div class="mx-auto max-w-3xl space-y-6">
@@ -14,40 +15,5 @@
     <div class="mt-7 flex justify-between"><a href="{% url 'account:profile' %}" class="mk-btn mk-btn-secondary">Mon profil</a><button class="mk-btn mk-btn-primary" type="submit">Enregistrer</button></div>
   </form>
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const choices = [...document.querySelectorAll('input[name="kinds"]')];
-  const publicChoices = new Map(
-    [...document.querySelectorAll('input[name="public_kinds"]')]
-      .map((choice) => [choice.value, choice])
-  );
-  const searchableChoices = new Map(
-    [...document.querySelectorAll('input[name="searchable_kinds"]')]
-      .map((choice) => [choice.value, choice])
-  );
-  const initiallySelected = new Set(
-    choices.filter((choice) => choice.checked).map((choice) => choice.value)
-  );
-  for (const choice of choices) {
-    choice.addEventListener('change', () => {
-      if (!choice.checked) {
-        const pub = publicChoices.get(choice.value);
-        if (pub) pub.checked = false;
-        const searchable = searchableChoices.get(choice.value);
-        if (searchable) searchable.checked = false;
-      } else if (!initiallySelected.has(choice.value)) {
-        const pub = publicChoices.get(choice.value);
-        if (pub) pub.checked = true;
-      }
-    });
-  }
-  for (const option of [...publicChoices.values(), ...searchableChoices.values()]) {
-    option.addEventListener('change', () => {
-      if (!option.checked) return;
-      const selected = choices.find((choice) => choice.value === option.value);
-      if (selected) selected.checked = true;
-    });
-  }
-});
-</script>
+<script defer src="{% static 'js/topic-declaration-visibility.js' %}"></script>
 {% endblock %}
