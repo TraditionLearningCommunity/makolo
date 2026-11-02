@@ -117,6 +117,11 @@ class SpaceG1NativeActivityCreateTests(TestCase):
         subscription = Subscription.objects.get(space=self.space)
         subscription.status = "suspended"
         subscription.save(update_fields=["status"])
+        root = self.client.get(
+            reverse("organizations_api:workspace-work", kwargs={"slug": self.space.slug})
+        )
+        self.assertEqual(root.status_code, 200)
+        self.assertFalse(root.data["capabilities"]["create_activity"])
         response = self.client.post(self.url, self.payload(), format="json")
         self.assertEqual(response.status_code, 400, response.data)
         self.assertFalse(Activity.objects.filter(
