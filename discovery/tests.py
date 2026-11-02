@@ -23,6 +23,8 @@ from events.models import Event, EventCategory
 from geography.models import Place, SpacePlace, SpacePlaceRole
 from journeys.models import Journey, JourneyStatus, WorkflowKind
 from organizations.models import Organization, OrganizationVerificationStatus, SpaceArchetype
+from subscriptions.models import FeatureDefinition
+from subscriptions.runtime_services import create_entitlement_grant
 from transport.services import (
     configure_transport_fare,
     create_transport_departure,
@@ -61,6 +63,14 @@ class CanonicalDiscoveryTests(TestCase):
             public_profile=True,
             verification_status=OrganizationVerificationStatus.VERIFIED,
             created_by=self.user,
+        )
+        # Transport creation uses the canonical subscription gate; give this
+        # discovery fixture an explicit Activity capability rather than bypassing it.
+        create_entitlement_grant(
+            feature=FeatureDefinition.objects.get(code="activities.create"),
+            value=True,
+            reason="Canonical Discovery transport integration fixture",
+            space=self.space,
         )
         self.category = EventCategory.objects.create(name="Culture Discovery")
         self.lubumbashi = Place.objects.create(
