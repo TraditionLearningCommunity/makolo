@@ -596,12 +596,18 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                   : () => _transition(_value(transition['id']), 'complete'),
               child: const Text('Finaliser le changement prêt'),
             ),
-          OutlinedButton(
-            onPressed: _busy
-                ? null
-                : () => _transition(_value(transition['id']), 'cancel'),
-            child: const Text('Annuler ce changement'),
-          ),
+          if (transition['can_cancel'] != false)
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _transition(_value(transition['id']), 'cancel'),
+              child: const Text('Annuler ce changement'),
+            )
+          else
+            const Text(
+              'Ce changement possède une obligation financière. '
+              'Une annulation exige d’abord la régularisation de cette obligation.',
+            ),
         ],
         if (widget.section == 'history') ...[
         const SizedBox(height: 8),
