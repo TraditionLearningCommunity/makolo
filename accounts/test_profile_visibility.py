@@ -38,6 +38,19 @@ class ProfileVisibilityPolicyTests(TestCase):
                 field_key="email",
             )
 
+    def test_owner_settings_distinguish_public_permission_from_blank_value(self):
+        from accounts.profile_visibility_projection import build_profile_visibility_settings
+
+        settings = build_profile_visibility_settings(self.owner)
+        self.assertTrue(settings["fields"]["website"]["default_public"])
+        self.assertFalse(settings["fields"]["website"]["has_value"])
+        self.assertTrue(settings["fields"]["name"]["has_value"])
+        self.owner.website = "https://example.test"
+        self.owner.save(update_fields=["website", "updated_at"])
+        updated = build_profile_visibility_settings(self.owner)
+        self.assertTrue(updated["fields"]["website"]["has_value"])
+        self.assertTrue(updated["fields"]["website"]["default_public"])
+
     def test_one_policy_per_owner_and_field(self):
         ProfileVisibilityPolicy.objects.create(
             owner=self.owner,
