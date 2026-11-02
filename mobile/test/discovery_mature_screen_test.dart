@@ -756,6 +756,24 @@ void main() {
     },
   );
 
+  testWidgets('Découvrir has no duplicate map or watch-creation icon in field', (
+    tester,
+  ) async {
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(360, 800),
+      child: DiscoveryExplorationView(
+        selection: selection(items: [item('one', 'Événement')]),
+        onOpen: (_) {},
+        onMap: () {},
+        onWatch: () {},
+      ),
+    );
+    expect(find.byKey(const Key('discover-field-open-map')), findsNothing);
+    expect(find.byKey(const Key('discover-field-create-watch')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('N1 long description expands inline without opening detail', (
     tester,
   ) async {
