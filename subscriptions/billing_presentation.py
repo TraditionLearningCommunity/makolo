@@ -9,6 +9,9 @@ from dataclasses import replace
 
 from django.db.models import Q
 
+from authorization.constants import PermissionCode
+from authorization.services import space_ids_with_permission
+
 from payments.models import PaymentObligation
 
 from .billing_models import PlanVersionBillingTerms
@@ -107,8 +110,6 @@ def next_payment_url_for_actor(transition, actor):
     The Subscription manager role alone never grants Space payment access.
     """
     from django.urls import reverse
-    from authorization.constants import PermissionCode
-    from authorization.services import space_ids_with_permission
     from payments.selectors import obligations_visible_to
 
     if transition.subscription.space_id is not None:
