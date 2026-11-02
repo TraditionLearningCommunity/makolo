@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.http import Http404
@@ -87,6 +88,20 @@ class PassportViewMixin(TemplateView):
             raise PermissionDenied("Cette variante du Passeport est réservée au sujet autorisé.")
         self.variant = variant
         return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        # HTML issuance also writes a dated record during context building.
+        # Force template rendering inside the transaction so a broken
+        # export never appears as a successfully issued version.
+        if not (
+            request.GET.get("download") == "1"
+            or request.GET.get("document") == "1"
+        ):
+            return super().get(request, *args, **kwargs)
+        with transaction.atomic():
+            response = super().get(request, *args, **kwargs)
+            response.render()
+            return response
 
     def _document_url(self, mode):
         params = self.request.GET.copy()
