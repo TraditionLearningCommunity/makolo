@@ -65,7 +65,10 @@ def profile_domain_integrations(actor) -> list[dict]:
             "description": "Appareils enregistrés pour les notifications Makolo.",
             "links": {"manage": "/api/v1/notifications/push/endpoints/"},
         })
-    rows.extend(_payment_capabilities(actor, allow_manual=True))
+    # Manual payment processing belongs to the *specific* Space/Activity or
+    # Platform authority context, not to a global Profile. A person who has
+    # finance.manage in one Space cannot act for every other Space from Moi.
+    rows.extend(_payment_capabilities(actor, allow_manual=False))
     return rows
 
 
