@@ -96,6 +96,36 @@ class C6OwnerIntegrationTests(TestCase):
         ):
             self.assertNotIn(forbidden, serialized)
 
+    def test_finance_authority_in_one_space_is_not_a_global_profile_payment_capability(self):
+        # The owner has SPACE_OWNER and FINANCE in this Space. Personal
+        # Connections still cannot promise manual payments in arbitrary contexts.
+        self.api.force_authenticate(self.owner)
+        personal = self.api.get("/api/v1/me/interoperability/")
+        self.assertEqual(personal.status_code, 200)
+        self.assertNotIn(
+            "payments.manual",
+            [row["code"] for row in personal.data["domain_integrations"]],
+        )
+        self.assertIn(
+            "payments.sandbox",
+            [row["code"] for row in personal.data["domain_integrations"]],
+        )
+        space = self.api.get(
+            "/api/v1/organizations/workspaces/c6-space/interoperability/"
+        )
+        self.assertEqual(space.status_code, 200)
+        self.assertIn(
+            "payments.manual",
+            [row["code"] for row in space.data["domain_integrations"]],
+        )
+        self.api.force_authenticate(self.operator)
+        platform_personal = self.api.get("/api/v1/me/interoperability/")
+        self.assertEqual(platform_personal.status_code, 200)
+        self.assertNotIn(
+            "payments.manual",
+            [row["code"] for row in platform_personal.data["domain_integrations"]],
+        )
+
     def test_other_profile_sees_only_own_push_integration(self):
         self.api.force_authenticate(self.other)
         res = self.api.get("/api/v1/me/interoperability/")
