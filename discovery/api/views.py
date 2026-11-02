@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 
 from rest_framework.exceptions import NotFound, ValidationError
+from django.core.exceptions import ValidationError as DomainValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,7 +19,7 @@ from discovery.services import (
     public_discovery_events,
     serialize_event,
 )
-from discovery.watches import execute_watch, normalize_watch_criteria
+from discovery.watches import execute_watch, normalize_watch_criteria, ensure_discovery_watch
 from objectives.models import Dossier
 
 from .composition import (
@@ -275,14 +276,24 @@ def _watch_payload(watch):
     }
 
 
+def _normalize_watch_or_error(raw):
+    try:
+        return normalize_watch_criteria(raw)
+    except DomainValidationError as exc:
+        raise ValidationError({"criteria": exc.messages}) from exc
+
+
 def _resolve_personal_dossier(request, raw_id):
     if raw_id in (None, ""):
         return None
-    dossier = Dossier.objects.filter(
-        pk=raw_id,
+    try:
+        dossier = Dossier.objects.filter(
+            pk=raw_id,
         owner_profile=request.user,
-        owning_space__isnull=True,
-    ).first()
+            owning_space__isnull=True,
+        ).first()
+    except (ValueError, TypeError, DomainValidationError) as exc:
+        raise ValidationError({"dossier_id": ["Identifiant de Dossier invalide."]}) from exc
     if dossier is None:
         raise ValidationError(
             {"dossier_id": ["Dossier personnel introuvable."]}
@@ -310,23 +321,19 @@ class DiscoveryWatchListCreateAPIView(APIView):
         name = str(request.data.get("name") or "").strip()
         if not name:
             raise ValidationError({"name": ["Le nom de la Veille est obligatoire."]})
-        criteria = normalize_watch_criteria(request.data.get("criteria"))
+        criteria = _normalize_watch_or_error(request.data.get("criteria"))
         dossier = _resolve_personal_dossier(
-            request,
-            request.data.get("dossier_id"),
+            request, request.data.get("dossier_id"),
         )
-        watch = DiscoveryWatch.objects.create(
-            owner=request.user,
-            name=name,
-            criteria=criteria,
-            dossier=dossier,
+        watch, created = ensure_discovery_watch(
+            owner=request.user, name=name, criteria=criteria, dossier=dossier,
         )
         return Response(
             projection_envelope(
                 projection="discovery.watch",
-                data={"watch": _watch_payload(watch)},
+                data={"watch": _watch_payload(watch), "created": created},
             ),
-            status=201,
+            status=201 if created else 200,
         )
 
 
@@ -352,7 +359,7 @@ class DiscoveryWatchDetailAPIView(APIView):
                 )
             watch.name = name
         if "criteria" in request.data:
-            watch.criteria = normalize_watch_criteria(
+            watch.criteria = _normalize_watch_or_error(
                 request.data.get("criteria")
             )
         if "status" in request.data:
