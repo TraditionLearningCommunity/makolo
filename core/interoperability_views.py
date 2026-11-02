@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import uuid
 
 from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import redirect
 from django.urls import reverse
-from __future__ import annotations
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
