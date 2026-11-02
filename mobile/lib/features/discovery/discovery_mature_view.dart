@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../../design/makolo_components.dart';
 import '../../design/makolo_theme.dart';
@@ -178,127 +179,181 @@ class DiscoverySpatialView extends StatefulWidget {
 
 class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   static const _selector = DiscoverySelector();
-  String? _selectedCandidateKey;
+  MapLibreMapController? _controller;
+  bool _styleReady = false;
+  String? _selectedKey;
+  final Map<String, String> _markerKeys = {};
+
+  List<DiscoveryItemPresentation> get _mappedItems =>
+      widget.selection.collection.items.where((item) => item.isMappable).toList();
+
+  DiscoveryItemPresentation? get _selected {
+    for (final item in _mappedItems) {
+      if (item.candidateKey == _selectedKey) return item;
+    }
+    return null;
+  }
 
   @override
   void didUpdateWidget(covariant DiscoverySpatialView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final keys = widget.selection.collection.items
-        .map((item) => item.candidateKey)
-        .toSet();
-    if (_selectedCandidateKey != null &&
-        !keys.contains(_selectedCandidateKey)) {
-      _selectedCandidateKey = null;
+    if (_selectedKey != null &&
+        !_mappedItems.any((item) => item.candidateKey == _selectedKey)) {
+      _selectedKey = null;
+    }
+    if (oldWidget.selection.collection != widget.selection.collection &&
+        _styleReady) {
+      _syncMarkers();
     }
   }
 
-  DiscoveryItemPresentation? get _selectedItem {
-    final items = widget.selection.collection.items;
-    if (items.isEmpty) return null;
-    final key = _selectedCandidateKey;
-    if (key != null) {
-      for (final item in items) {
-        if (item.candidateKey == key) return item;
+  void _onMapCreated(MapLibreMapController controller) {
+    _controller = controller;
+    controller.onCircleTapped.add(_onCircleTapped);
+  }
+
+  void _onCircleTapped(Circle circle) {
+    final key = _markerKeys[circle.id];
+    if (key != null && mounted) setState(() => _selectedKey = key);
+  }
+
+  Future<void> _syncMarkers() async {
+    final controller = _controller;
+    if (controller == null || !_styleReady) return;
+    try {
+      await controller.clearCircles();
+      _markerKeys.clear();
+      for (final item in _mappedItems) {
+        if (!mounted || _controller != controller) return;
+        final circle = await controller.addCircle(
+          CircleOptions(
+            geometry: LatLng(item.latitude!, item.longitude!),
+            circleRadius: item.candidateKey == _selectedKey ? 11 : 8,
+            circleColor: '#5232DB',
+            circleStrokeColor: '#FFFFFF',
+            circleStrokeWidth: 2.5,
+          ),
+        );
+        _markerKeys[circle.id] = item.candidateKey;
       }
+    } catch (_) {
+      // A style reload may invalidate annotations; the next style-ready
+      // callback recreates them without changing the Discovery snapshot.
     }
-    for (final item in items) {
-      if (item.isMappable) return item;
-    }
-    return items.first;
   }
 
   @override
   Widget build(BuildContext context) {
-    final points = _selector.mapPointsFromCollection(
-      widget.selection.collection,
-    );
-    final selected = _selectedItem;
-    DiscoveryMapPoint? selectedPoint;
-    if (selected != null) {
-      for (final point in points) {
-        if (point.candidateKey == selected.candidateKey) {
-          selectedPoint = point;
-          break;
-        }
-      }
-    }
-
-    final field = DiscoveryFieldView(
-      selection: widget.selection,
-      onOpen: widget.onOpen,
-      onPage: widget.onPage,
-      onRetry: widget.onRetry,
-      selectedCandidateKey: _selectedCandidateKey,
-      onSelect: (item) => setState(() {
-        _selectedCandidateKey = item.candidateKey;
-      }),
-      selectionActionLabel: 'Voir sur la carte',
-    );
-
-    if (points.isEmpty) {
-      return field;
-    }
-
-    final anchor = selectedPoint ?? points.first;
-    final spatial = MakoloSpatialFrame(
-      spatial: Stack(
-        key: const Key('discover-spatial-stack'),
-        children: [
-          Positioned.fill(
-            child: ConfiguredMakoloMapView(
-              key: ValueKey(
-                'discover-map-${anchor.candidateKey ?? anchor.occurrenceId}',
+    final items = _mappedItems;
+    final anchor = items.isEmpty ? null : items.first;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (anchor != null)
+          ConfiguredMakoloMapView(
+            config: widget.mapConfig,
+            initialViewport: MapViewport(
+              center: MapCoordinate(anchor.latitude!, anchor.longitude!),
+              zoom: 11,
+            ),
+            onMapCreated: _onMapCreated,
+            onStyleReady: () {
+              _styleReady = true;
+              _syncMarkers();
+            },
+            fallbackBuilder: (context, state, retry) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.map_outlined, size: 32),
+                  const SizedBox(height: MakoloSpacing.sm),
+                  const Text('Impossible d’afficher la carte'),
+                  if (state == MakoloMapRuntimeState.error)
+                    TextButton(onPressed: retry, child: const Text('Réessayer')),
+                ],
               ),
-              config: widget.mapConfig,
-              initialViewport: MapViewport(
-                center: MapCoordinate(anchor.latitude, anchor.longitude),
-                zoom: 11,
-              ),
-              fallbackBuilder: (context, state, retry) {
-                final retryable = state == MakoloMapRuntimeState.error;
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(MakoloSpacing.inner),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.map_outlined),
-                        const SizedBox(height: MakoloSpacing.sm),
-                        const Text(
-                          'La carte n’est pas disponible. Le champ reste entièrement utilisable.',
-                          textAlign: TextAlign.center,
-                        ),
-                        if (retryable) ...[
-                          const SizedBox(height: MakoloSpacing.md),
-                          OutlinedButton(
-                            onPressed: retry,
-                            child: const Text('Réessayer la carte'),
-                          ),
-                        ],
-                      ],
+            ),
+          )
+        else
+          const Center(child: Text('Aucun lieu à afficher sur la carte')),
+        if (items.isNotEmpty)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Material(
+              borderRadius: BorderRadius.circular(24),
+              color: Theme.of(context).colorScheme.surface,
+              child: IconButton(
+                tooltip: 'Afficher les possibilités',
+                icon: const Icon(Icons.list_rounded),
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (sheetContext) => SafeArea(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        return ListTile(
+                          title: Text(item.title),
+                          subtitle: item.place == null ? null : Text(item.place!),
+                          onTap: () {
+                            Navigator.pop(sheetContext);
+                            setState(() => _selectedKey = item.candidateKey);
+                            _controller?.animateCamera(
+                              CameraUpdate.newLatLng(
+                                LatLng(item.latitude!, item.longitude!),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
-                );
-              },
+                ),
+              ),
             ),
           ),
-        ],
-      ),
-      compactFallback: field,
-    );
-
-    return MakoloAdaptiveSplit(
-      splitAt: MakoloLayout.discoverSpatialMinWidth,
-      field: field,
-      focus: SizedBox(
-        key: const Key('discover-spatial-pane'),
-        height: 620,
-        child: spatial,
-      ),
-      narrow: field,
-      focusMin: MakoloLayout.mapMinWidth,
-      focusPreferred: 560,
-      focusMax: 720,
+        if (_selected != null)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 16,
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(MakoloSpacing.md),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(_selected!.title,
+                            style: Theme.of(context).textTheme.titleMedium),
+                        ),
+                        IconButton(
+                          tooltip: 'Fermer',
+                          icon: const Icon(Icons.close),
+                          onPressed: () => setState(() => _selectedKey = null),
+                        ),
+                      ],
+                    ),
+                    if (_selected!.place != null) Text(_selected!.place!),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => widget.onOpen(_selected!),
+                        child: const Text('Voir le détail'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
