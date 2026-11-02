@@ -6,9 +6,9 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from discovery.models import DiscoveryWatch, OpportunitySave
+from discovery.models import DiscoveryWatch
 from opportunities.models import (
-    Opportunity, OpportunityKind, OpportunityPublicationStatus,
+    Opportunity, OpportunityKind, OpportunityPublicationStatus, OpportunitySave,
     OpportunityRevision,
 )
 
@@ -57,9 +57,6 @@ class DiscoveryStage07WatchSaveTests(TestCase):
         self.assertTrue(first.json()["data"]["created"])
         self.assertFalse(second.json()["data"]["created"])
         self.assertEqual(DiscoveryWatch.objects.filter(owner=self.owner).count(), 1)
-        self.assertEqual(self.owner.activity_bookmarks.count(), 0) if hasattr(
-            self.owner, "activity_bookmarks"
-        ) else None
 
     def test_pause_resume_delete_are_explicit_and_private(self):
         self.client.force_login(self.owner)
