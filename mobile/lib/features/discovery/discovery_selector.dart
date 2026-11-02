@@ -481,6 +481,19 @@ class DiscoverySelector {
         });
         if (!alreadyLocated) facts.add(legacyPlace);
       }
+      if (item.latitude != null && item.longitude != null) {
+        final duplicate = facts.any((fact) {
+          final place = _map(fact['place']) ?? fact;
+          return _double(place['latitude']) == item.latitude &&
+              _double(place['longitude']) == item.longitude;
+        });
+        if (!duplicate) {
+          facts.add({
+            'latitude': item.latitude,
+            'longitude': item.longitude,
+          });
+        }
+      }
       for (final fact in facts) {
         final place = _map(fact['place']) ?? fact;
         final latitude = _double(place['latitude']);
@@ -510,16 +523,22 @@ class DiscoverySelector {
     DiscoveryCollectionPresentation collection,
   ) {
     final points = <DiscoveryMapPoint>[];
+    final anchors = spatialAnchorsFromCollection(collection);
     for (final item in collection.items) {
-      if (!item.isMappable || item.occurrenceId == null) continue;
+      if (item.occurrenceId == null) continue;
+      final matches = anchors.where(
+        (anchor) => anchor.candidateKey == item.candidateKey,
+      );
+      if (matches.isEmpty) continue;
+      final anchor = matches.first;
       points.add(
         DiscoveryMapPoint(
           activityId: item.id,
           occurrenceId: item.occurrenceId!,
           candidateKey: item.candidateKey,
           title: item.title,
-          latitude: item.latitude!,
-          longitude: item.longitude!,
+          latitude: anchor.latitude,
+          longitude: anchor.longitude,
           placeName: item.place,
         ),
       );
