@@ -87,6 +87,7 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
     this.selectionActionLabel,
     this.baseUri,
     this.profileId,
+    this.allowOwnerActions = true,
     this.compact = false,
     this.detailMode = false,
     this.onNativeAction,
@@ -104,6 +105,8 @@ class DiscoveryPossibilityUnit extends StatefulWidget {
   final String? selectionActionLabel;
   final Uri? baseUri;
   final String? profileId;
+  /// Cached recognition is not a live authorization from the owner.
+  final bool allowOwnerActions;
   final bool compact;
 
   /// Renders the same server-owned facts at N2 without repeating N1 chrome.
@@ -730,6 +733,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
   }
 
   String? get _primaryNativePath {
+    if (!widget.allowOwnerActions) return null;
     final action = _serverPrimaryAction;
     final destination = action?['destination'];
     if (destination is! Map || destination['kind'] != 'native') return null;
@@ -1256,6 +1260,15 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
             ),
           _media(context),
           if (resources.isNotEmpty) _resourceSection(context, resources),
+          if (widget.detailMode && !widget.allowOwnerActions)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Text(
+                'Informations conservées. Une connexion et une '
+                'vérification sont nécessaires pour agir.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
           if (widget.detailMode && _primaryNativePath != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -1294,6 +1307,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       ),
                       onPressed:
                           !_saving &&
+                              widget.allowOwnerActions &&
                               ((widget.onSave != null && canToggle) ||
                                   (widget.allowSavePrompt &&
                                       widget.onSignIn != null))
