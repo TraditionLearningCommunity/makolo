@@ -8,6 +8,7 @@ import '../data/files/profile_recognition_image_store.dart';
 import '../data/files/profile_paths.dart';
 import '../network/api_error.dart';
 import '../network/makolo_api_client.dart';
+import '../presentation/possibilities/discovery_offline_store.dart';
 import 'freshness.dart';
 import 'sync_source.dart';
 
@@ -250,6 +251,17 @@ class SyncEngine {
             ),
           );
     });
+    // Owner denial also withdraws automatic published-recognition bytes.
+    // Explicit Reader retention stays user-owned and independent.
+    if (source.owner == 'Discovery' ||
+        source.projectionKind == 'activity.detail' ||
+        source.projectionKind == 'occurrence.detail') {
+      try {
+        await const DiscoveryOfflineStore().purgeAutomaticRecognition();
+      } on Object {
+        // Projection withdrawal has already committed in SQLite.
+      }
+    }
     // A root owner denial revokes its derived continuation too. A network
     // failure never reaches this branch and therefore preserves it.
     if (source.projectionKind == 'personal.now') {
