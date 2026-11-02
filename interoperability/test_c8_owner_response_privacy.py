@@ -14,6 +14,7 @@ class PrivateInteropErrorBoundaryTests(TestCase):
         UserProfile.objects.create(user=self.user)
         self.space = Organization.objects.create(
             name="C8 Restricted Space", slug="c8-restricted-space",
+            created_by=self.user,
         )
         self.client = APIClient()
         self.client.force_authenticate(self.user)
