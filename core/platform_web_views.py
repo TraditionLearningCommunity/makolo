@@ -22,6 +22,7 @@ from intelligence.connection_web import connection_form_context, handle_connecti
 from intelligence.models import ProviderScope
 
 from interoperability.projections import build_interoperability_payload
+from interoperability.domain_integrations import platform_domain_integrations
 from operations.product_overview import build_product_operations_overview
 from operations.selectors import (
     get_operations_audit_logs, get_operations_incidents,
@@ -234,7 +235,9 @@ class PlatformInteroperabilityView(PlatformView):
             self_link="/api/v1/platform/interoperability/",
             actor=self.request.user,
             authority_context="platform",
+            domain_integrations=platform_domain_integrations(self.request.user),
         )
+        context["domain_integrations"] = context["interoperability"]["domain_integrations"]
         context.update(connection_form_context())
         context["connections"] = [present_connection(row) for row in connections]
         return context
