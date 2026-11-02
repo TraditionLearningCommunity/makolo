@@ -90,6 +90,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Makolo Pro'), findsOneWidget);
     expect(find.text('Actif'), findsOneWidget);
+    await tester.ensureVisible(find.text('Facturation'));
+    await tester.tap(find.text('Facturation'));
+    await tester.pumpAndSettle();
     expect(find.text('Cotisation octobre'), findsOneWidget);
     expect(find.textContaining('12.00 USD'), findsOneWidget);
   });
