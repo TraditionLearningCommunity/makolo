@@ -9,6 +9,7 @@ import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/auth/token_store.dart';
 import 'package:makolo_mobile/features/settings/billing_screen.dart';
 import 'package:makolo_mobile/network/makolo_api_client.dart';
+import 'package:makolo_mobile/network/api_error.dart';
 
 import 'dio_testing.dart';
 import 'fakes.dart';
@@ -31,6 +32,24 @@ class _ActorStore implements ActorContextStore {
 }
 
 void main() {
+  test('only typed Subscription validation carries a team quota handoff', () {
+    final quota = MakoloApiError.fromResponse(
+      400, '{"subscription":["La capacité de membres actifs est atteinte."]}',
+    );
+    expect(quota.statusCode, 400);
+    expect(quota.fields.containsKey('subscription'), isTrue);
+
+    final authority = MakoloApiError.fromResponse(
+      403, '{"detail":"Autorité absente."}',
+    );
+    expect(authority.fields.containsKey('subscription'), isFalse);
+
+    final other = MakoloApiError.fromResponse(
+      400, '{"email":["Profil introuvable."]}',
+    );
+    expect(other.fields.containsKey('subscription'), isFalse);
+  });
+
   testWidgets('Space Subscription is scoped, read-only and never uses Profile billing',
       (tester) async {
     final actor = await ActorContextController.restore(
@@ -76,8 +95,10 @@ void main() {
     addTearDown(runtime.close);
     await tester.pumpWidget(MaterialApp(home: BillingScreen(
       runtime: runtime, spaceSlug: 'space-a', expectedSpaceId: 'space-a',
+      fromTeam: true,
     )));
     await tester.pumpAndSettle();
+    expect(find.text('Revenir à l’équipe'), findsOneWidget);
     expect(find.text('BASE de l’Espace A'), findsOneWidget);
     expect(find.text('Abonnement de l’Espace'), findsWidgets);
     expect(find.text('Formule collective'), findsOneWidget);
@@ -88,6 +109,7 @@ void main() {
     await actor.selectPersonal();
     await tester.pumpAndSettle();
     expect(find.text('BASE de l’Espace A'), findsNothing);
+    expect(find.text('Revenir à l’équipe'), findsNothing);
     expect(find.textContaining('Sélectionnez cet Espace'), findsWidgets);
   });
 
