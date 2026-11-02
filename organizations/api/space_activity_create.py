@@ -5,7 +5,6 @@ The route, actor and owner are rechecked on every POST. Never cache success
 for an unconfirmed mutation or create a parallel Initiative model.
 """
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
