@@ -100,6 +100,38 @@ class PushEndpointApiTests(TestCase):
         self.assertFalse(own.active)
         self.assertEqual(self.client.get("/api/v1/notifications/push/endpoints/").data["results"], [])
 
+    def test_c6_revoked_device_is_not_silently_reactivated_by_token_refresh(self):
+        self._register(token="before-revoke", installation="same-installation")
+        endpoint = PushEndpoint.objects.get(user=self.user)
+        url = f"/api/v1/notifications/push/endpoints/{endpoint.pk}/"
+        self.assertEqual(self.client.delete(url).status_code, 204)
+        retried = self._register(
+            token="new-token-automatically-refreshed",
+            installation="same-installation",
+        )
+        self.assertEqual(retried.status_code, 200)
+        endpoint.refresh_from_db()
+        self.assertFalse(endpoint.active)
+        self.assertEqual(PushEndpoint.objects.count(), 1)
+        explicit = self.client.post(
+            "/api/v1/notifications/push/endpoints/",
+            {
+                "provider": "fcm",
+                "platform": "android",
+                "installation_id": "same-installation",
+                "token": "token-after-user-opt-in",
+                "reactivate": True,
+            },
+            format="json",
+        )
+        self.assertEqual(explicit.status_code, 200)
+        endpoint.refresh_from_db()
+        self.assertTrue(endpoint.active)
+        self.assertEqual(
+            decrypt_runtime_secret(endpoint.encrypted_token),
+            "token-after-user-opt-in",
+        )
+
     def test_revoke_is_scoped_to_authenticated_user(self):
         self._register()
         endpoint = PushEndpoint.objects.get()
