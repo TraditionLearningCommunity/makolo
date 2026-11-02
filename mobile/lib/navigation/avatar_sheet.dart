@@ -84,6 +84,9 @@ class MakoloAvatarSheet extends StatelessWidget {
           final activation = activationValue is Map ? activationValue : null;
           final completionPercentage = activation?['percentage'];
           final displayName = identity?['display_name'] as String?;
+          final connectedAccountName = displayName?.trim().isNotEmpty == true
+              ? displayName!
+              : 'Profil Makolo';
           final usernameValue = identity?['username'];
           final firstLetter =
               displayName != null && displayName.trim().isNotEmpty
@@ -102,7 +105,9 @@ class MakoloAvatarSheet extends StatelessWidget {
 
           return Semantics(
             container: true,
-            label: 'Identité et actions globales',
+            label: actor is SpaceActorContext
+                ? 'Espace actif et compte connecté'
+                : 'Compte personnel et actions globales',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -148,9 +153,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                             ),
                           ] else
                             Text(
-                              displayName?.trim().isNotEmpty == true
-                                  ? displayName!
-                                  : 'Profil Makolo',
+                              connectedAccountName,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                           if (actor is PersonalActorContext &&
@@ -183,7 +186,7 @@ class MakoloAvatarSheet extends StatelessWidget {
                 if (actor is SpaceActorContext) ...[
                   const SizedBox(height: MakoloSpacing.sm),
                   Text(
-                    'Compte connecté : ${displayName?.trim().isNotEmpty == true ? displayName : 'Profil Makolo'}',
+                    'Compte connecté : $connectedAccountName',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
