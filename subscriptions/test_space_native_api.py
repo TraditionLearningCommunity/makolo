@@ -13,6 +13,7 @@ from .billing_services import create_subscription_billing_obligation
 from .contracts import AcquisitionMode, CatalogVisibility, SubscriptionPlanType, SubscriptionSubjectType
 from .models import PlanVersion, SubscriptionPlan
 from .runtime_models import Subscription
+from .runtime_services import add_subscription_item
 from .security_services import request_subscription_transition_for_actor
 from .transition_models import SubscriptionTransition
 
@@ -196,6 +197,48 @@ class NativeSpaceSubscriptionTests(TestCase):
         self.assertEqual(restricted["visibility"], "restricted")
         self.assertEqual(restricted["items"], [])
         self.assertIsNone(restricted["next_offset"])
+
+    def test_free_space_change_still_completes_without_finance_view(self):
+        from unittest.mock import patch
+
+        addon = SubscriptionPlan.objects.create(
+            code="native.space.free.addon",
+            plan_type=SubscriptionPlanType.ADDON,
+            subject_type=SubscriptionSubjectType.SPACE,
+        )
+        version = PlanVersion.objects.create(
+            plan=addon, version=1, name="Option gratuite",
+            catalog_visibility=CatalogVisibility.PUBLIC,
+            acquisition_mode=AcquisitionMode.SELF_SERVICE,
+        )
+        from .services import publish_plan_version
+        publish_plan_version(version)
+        item = add_subscription_item(subscription=self.subscription, plan_version=version)
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            self._url("space-addon-remove", item.pk),
+            {"idempotency_key": "space-free-without-finance-view"},
+        )
+        self.assertEqual(response.status_code, 200)
+        transition = response.json()["transition"]
+        self.assertEqual(transition["status"], "ready")
+
+        with patch(
+            "subscriptions.space_billing_view.space_ids_with_permission",
+            return_value=[],
+        ):
+            snapshot = self.client.get(self._url("space")).json()
+        self.assertEqual(snapshot["billing"]["visibility"], "restricted")
+        self.assertEqual(snapshot["transition"]["next_action"], "complete")
+        self.assertTrue(snapshot["transition"]["can_cancel"])
+        self.assertNotIn("payment_obligation_id", snapshot["transition"])
+
+        completed = self.client.post(
+            self._url("space-transition", transition["id"], "complete")
+        )
+        self.assertEqual(completed.status_code, 200)
+        item.refresh_from_db()
+        self.assertEqual(item.status, "ended")
 
     def test_space_payment_continuation_survives_paginated_billing(self):
         terms = PlanVersionBillingTerms.objects.create(
