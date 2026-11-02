@@ -48,6 +48,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/space/space_shell_routes.dart';
 import '../features/interoperability/space_connections_screen.dart';
 import '../features/space/space_create_screen.dart';
+import '../features/space/space_work_create_activity_screen.dart';
 import '../features/space/space_us_settings_screen.dart';
 import '../features/space/space_insight_screen.dart';
 import '../features/space/space_work_collection_screen.dart';
@@ -461,6 +462,25 @@ GoRouter createMakoloRouter(
             runtime: runtime,
             actor: actor,
             requestId: state.pathParameters['id']!,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/space/:slug/work/activities/new',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug'] ||
+              !actor.perspective.isAll) {
+            return const MakoloSecondaryScreen(
+              title: 'Nouvelle activité',
+              message: 'Choisissez votre Espace et sa responsabilité globale.',
+            );
+          }
+          return SpaceWorkCreateActivityScreen(
+            runtime: runtime,
+            actor: actor,
+            isCommunity: state.uri.queryParameters['archetype'] == 'community',
           );
         },
       ),
