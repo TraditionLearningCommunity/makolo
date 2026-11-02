@@ -39,7 +39,7 @@ Ni un plan sans BillingTerms ni un libellé « Tarif non communiqué » ne doive
 
 Django :
 ```bash
-python manage.py test subscriptions.test_native_payment_continuation subscriptions.test_f2_billing subscriptions.test_s4_payment_bridge subscriptions.test_s4_transitions subscriptions.test_space_native_api subscriptions.test_s6_product_ux subscriptions.test_lot3_enforcement
+python manage.py test subscriptions.test_native_payment_continuation subscriptions.test_web_checkout_continuation subscriptions.test_f2_billing subscriptions.test_s4_payment_bridge subscriptions.test_s4_transitions subscriptions.test_space_native_api subscriptions.test_s6_product_ux subscriptions.test_lot3_enforcement
 python manage.py makemigrations --check --dry-run
 ```
 Flutter :
