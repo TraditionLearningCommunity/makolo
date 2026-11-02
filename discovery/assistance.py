@@ -24,7 +24,7 @@ def _record_external_action(*, action: str, status: str, reason: str = "",
     """Safe operational event. Never include search text, user, key or URL."""
     public_reason = reason if reason in {
         "invalid_credentials", "rate_limited", "network_unavailable",
-        "provider_unavailable",
+        "connection_unavailable", "provider_unavailable",
     } else ""
     _logger.info(
         "discovery.external_action",
@@ -46,8 +46,14 @@ _ALLOWED_CRITERIA = frozenset({
 
 
 def _public_failure(reason: str) -> str:
-    if reason in {"invalid_credentials", "rate_limited", "network_unavailable"}:
+    """Closed vocabulary for UI and logs; never forward provider messages."""
+    if reason in {
+        "invalid_credentials", "rate_limited", "network_unavailable",
+        "connection_unavailable",
+    }:
         return reason
+    if reason == "capability_not_configured":
+        return "connection_unavailable"
     return "provider_unavailable"
 
 
@@ -88,7 +94,7 @@ def clarify_discovery_search(*, actor, criteria: dict) -> dict:
         )
         if not registry.providers_for(IntelligenceCapability.STRUCTURED_GENERATE):
             status = "unavailable"
-            reason = "provider_unavailable"
+            reason = "connection_unavailable"
         else:
             observer = _ObservedGateway(IntelligenceGateway(registry=registry))
             try:
@@ -147,9 +153,9 @@ def research_discovery_sources(*, actor, text: str) -> dict:
     if not registry.providers_for(IntelligenceCapability.WEB_RESEARCH):
         _record_external_action(
             action="research", status="unavailable",
-            reason="provider_unavailable",
+            reason="connection_unavailable",
         )
-        return {"status": "unavailable", "reason": "provider_unavailable",
+        return {"status": "unavailable", "reason": "connection_unavailable",
                 "sources": [], "candidates": []}
 
     mission = ResearchMission(
