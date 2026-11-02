@@ -55,6 +55,7 @@ import '../features/space/space_insight_screen.dart';
 import '../features/space/space_work_collection_screen.dart';
 import '../features/space/space_repository.dart';
 import '../features/space/space_request_screen.dart';
+import '../features/space/space_service_case_screen.dart';
 import '../features/space/space_occurrence_screen.dart';
 import '../navigation/destination.dart';
 import '../navigation/secondary_screen.dart';
@@ -516,6 +517,24 @@ GoRouter createMakoloRouter(
           kind: 'commerce_order',
           id: state.pathParameters['id']!,
         ),
+      ),
+      GoRoute(
+        path: '/space/:slug/services/cases/:id',
+        builder: (context, state) {
+          final actor = runtime.actorContext?.value;
+          if (actor is! SpaceActorContext ||
+              actor.space.slug != state.pathParameters['slug']) {
+            return const MakoloSecondaryScreen(
+              title: 'Dossier de prestation',
+              message: 'Choisissez le contexte autorisé de cet Espace.',
+            );
+          }
+          return SpaceServiceCaseScreen(
+            runtime: runtime,
+            actor: actor,
+            journeyId: state.pathParameters['id']!,
+          );
+        },
       ),
       GoRoute(
         path: '/space/:slug/retrieval/:kind/:id',
