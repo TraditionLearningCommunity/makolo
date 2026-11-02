@@ -1719,7 +1719,6 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               ? () => _setSaved(item!.savedState != 'saved')
                               : null,
                           shareApi: widget.repository.api,
-                profileId: widget.repository.profileId,
                           shareAuthenticated: true,
                           baseUri: widget.repository.api.baseUri,
                         ),
