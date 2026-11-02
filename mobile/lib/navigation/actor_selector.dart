@@ -48,14 +48,12 @@ class MakoloActorSelectorTile extends StatelessWidget {
           final label = _actorLabel(actor, spaces);
           return ListTile(
             contentPadding: EdgeInsets.zero,
-            minVerticalPadding: MakoloSpacing.sm,
+            minVerticalPadding: MakoloSpacing.xs,
             leading: const Icon(Icons.person_pin_circle_outlined),
             title: const Text('Agir comme'),
             subtitle: Text(
-              actor is SpaceActorContext
-                  ? 'Agit actuellement pour $label'
-                  : 'Moi',
-              maxLines: 1,
+              actor is SpaceActorContext ? label : 'Moi',
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             trailing: const Icon(Icons.chevron_right),
@@ -238,9 +236,9 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
                 MakoloSpacing.lg,
-                MakoloSpacing.sm,
+                MakoloSpacing.xs,
                 MakoloSpacing.lg,
-                MakoloSpacing.lg,
+                MakoloSpacing.md,
               ),
               child: Semantics(
                 container: true,
@@ -255,7 +253,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                     const SizedBox(height: MakoloSpacing.md),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      minVerticalPadding: MakoloSpacing.sm,
+                      minVerticalPadding: MakoloSpacing.xs,
                       leading: const Icon(Icons.person_outline),
                       title: const Text('Moi'),
                       trailing: actor is PersonalActorContext
@@ -267,7 +265,7 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                     for (final space in spaces)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        minVerticalPadding: MakoloSpacing.sm,
+                        minVerticalPadding: MakoloSpacing.xs,
                         leading: const Icon(Icons.groups_outlined),
                         title: Text(
                           space.name,
