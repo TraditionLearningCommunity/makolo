@@ -1,9 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:makolo_mobile/auth/token_store.dart';
+import 'package:makolo_mobile/network/makolo_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/runtime/app_runtime.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/features/settings/subscription_actions_panel.dart';
 
+import 'dio_testing.dart';
 import 'fakes.dart';
 
 void main() {
@@ -96,4 +102,77 @@ void main() {
     );
     expect(find.text('Examiner le changement'), findsNothing);
   });
+
+  testWidgets('paid offer opens the exact server-provided payment obligation', (tester) async {
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        profileId: 'test-profile', accessToken: 'access', refreshToken: 'refresh',
+      ),
+    );
+    var posts = 0;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: MockClient((request) async {
+        if (request.method == 'GET') {
+          return MockResponse(jsonEncode({
+            'target_name': 'Formule Max',
+            'current_name': 'Formule Plus',
+            'billing_terms': {
+              'amount': '18.00', 'currency': 'USD', 'period_unit': 'month',
+              'period_count': 1,
+            },
+            'can_confirm': true,
+            'features_gained': <Object>[],
+            'features_lost': <Object>[],
+            'quota_changes': <Object>[],
+          }), 200);
+        }
+        posts++;
+        return MockResponse(jsonEncode({
+          'transition': {
+            'id': 'transition-1', 'open': true,
+            'next_action': 'pay',
+            'payment_obligation_id': 'obligation-from-server',
+          },
+        }), 200);
+      }).dio,
+    );
+    final runtime = AppRuntime(
+      tokens: tokens, session: null,
+      recovery: SessionRecoveryController(), api: api,
+    );
+    addTearDown(runtime.close);
+    final router = GoRouter(routes: [
+      GoRoute(path: '/', builder: (context, state) => Scaffold(
+        body: SubscriptionActionsPanel(
+          runtime: runtime,
+          section: 'plans',
+          snapshot: {
+            'subscription': {'id': 'owned', 'can_manage': true, 'active_addons': <Object>[]},
+            'catalog': [{
+              'plan_type': 'base', 'plan_version_id': 'plan-max',
+              'name': 'Formule Max', 'current': false, 'can_request': true,
+              'billing_terms': {'amount': '18.00', 'currency': 'USD', 'period_unit': 'month'},
+            }],
+            'billing': {'items': <Object>[], 'next_offset': null},
+          },
+          onUpdated: () async {},
+        ),
+      )),
+      GoRoute(path: '/payments/obligations/:id', builder: (context, state) =>
+        Scaffold(body: Text('Paiement ' + state.pathParameters['id']!))),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Examiner le changement'));
+    await tester.pumpAndSettle();
+    expect(find.text('Continuer vers le paiement'), findsOneWidget);
+    await tester.tap(find.text('Continuer vers le paiement'));
+    await tester.pumpAndSettle();
+    expect(find.text('Paiement obligation-from-server'), findsOneWidget);
+    expect(posts, 1);
+  });
+
 }
