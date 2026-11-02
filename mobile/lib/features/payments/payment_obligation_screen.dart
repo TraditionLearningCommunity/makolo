@@ -29,7 +29,7 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
   bool _paying = false;
   bool _sandboxAvailable = false;
   String? _error;
-  final String _idempotencyKey = _newKey();
+  String _idempotencyKey = _newKey();
 
   static String _newKey() {
     final random = Random.secure();
@@ -66,6 +66,11 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
         // Unknown provider availability is not permission to pay.
       }
       if (!mounted) return;
+      // Only a confirmed terminal failure permits a new payment intent key.
+      if (_payment?['status'] == 'failed' ||
+          _payment?['status'] == 'cancelled') {
+        _idempotencyKey = _newKey();
+      }
       setState(() {
         _obligation = obligation;
         _payment = obligation['active_payment'] is Map
@@ -119,6 +124,14 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
         }
         _payment = payment;
       }
+      if (payment['status'] == 'failed' || payment['status'] == 'cancelled') {
+        _idempotencyKey = _newKey();
+        await _load();
+        if (mounted) {
+          setState(() => _error = 'Paiement refusé. Vous pouvez réessayer.');
+        }
+        return;
+      }
       if (payment['status'] != 'succeeded') {
         final paymentId = Uri.encodeComponent(payment['id'] as String);
         final response = await api.post(
@@ -126,6 +139,9 @@ class _PaymentObligationScreenState extends State<PaymentObligationScreen> {
         );
         payment = response.jsonObject();
         _payment = payment;
+      }
+      if (payment['status'] == 'failed' || payment['status'] == 'cancelled') {
+        _idempotencyKey = _newKey();
       }
       if (!mounted) return;
       await _load();
