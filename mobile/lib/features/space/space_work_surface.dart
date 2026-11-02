@@ -67,7 +67,7 @@ class SpaceWorkSurface extends StatelessWidget {
           children: [
             if (canCreateTransport)
               FilledButton.icon(
-                icon: const Icon(Icons.add_road_outlined),
+                icon: const Icon(Icons.add),
                 label: const Text('Planifier dans Transport'),
                 onPressed: () => context.push(
                   '/space/${Uri.encodeComponent(spaceSlug!)}/work/g3/transport/new',
