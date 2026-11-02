@@ -820,7 +820,11 @@ class DiscoveryRepository {
         watch['criteria'] is! Map) {
       throw const FormatException('Veille non confirmée par le serveur');
     }
-    await refreshWatches();
+    try {
+      await refreshWatches();
+    } on Object {
+      // Watch identity was already confirmed; list sync is opportunistic.
+    }
     return watch['id'] as String;
   }
 
@@ -840,7 +844,11 @@ class DiscoveryRepository {
     if (watch is! Map || watch['id'] != id || watch['status'] != status) {
       throw const FormatException('Transition de Veille non confirmée');
     }
-    await refreshWatches();
+    try {
+      await refreshWatches();
+    } on Object {
+      // Server status was already confirmed; do not imply a failed change.
+    }
   }
 
   Future<void> deleteWatch(String id) async {
@@ -850,7 +858,11 @@ class DiscoveryRepository {
     if (response.statusCode != 204) {
       throw const FormatException('Suppression de Veille non confirmée');
     }
-    await refreshWatches();
+    try {
+      await refreshWatches();
+    } on Object {
+      // Server deletion already confirmed; list can reconcile later.
+    }
   }
 
 
