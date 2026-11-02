@@ -13,7 +13,6 @@ class AppSettingsScreen extends StatelessWidget {
     this.onNotifications,
     this.onSecurity,
     this.onPrivacy,
-    this.onLocalData,
   });
 
   final AppRuntime runtime;
@@ -21,7 +20,6 @@ class AppSettingsScreen extends StatelessWidget {
   final VoidCallback? onNotifications;
   final VoidCallback? onSecurity;
   final VoidCallback? onPrivacy;
-  final VoidCallback? onLocalData;
 
   String _themeLabel(MakoloThemePreference preference) {
     return switch (preference) {
@@ -169,22 +167,6 @@ class AppSettingsScreen extends StatelessWidget {
               subtitle: const Text('Mot de passe et comptes mémorisés'),
               trailing: const Icon(Icons.chevron_right),
               onTap: onSecurity,
-            ),
-          const SizedBox(height: MakoloSpacing.md),
-          Text(
-            'Données sur cet appareil',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          if (onLocalData != null)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.offline_bolt_outlined),
-              title: const Text('Données hors ligne'),
-              subtitle: const Text(
-                'Copies disponibles et dernière acquisition sur cet appareil',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: onLocalData,
             ),
           const SizedBox(height: MakoloSpacing.lg),
           const Divider(),
