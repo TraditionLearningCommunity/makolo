@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../app/runtime/app_runtime.dart';
 import '../data/local/profile_store.dart';
 import '../design/behavior_states.dart';
 import '../design/makolo_theme.dart';
@@ -19,9 +20,11 @@ class NotificationInboxScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.onOpenDestination,
+    this.runtime,
   });
 
   final NotificationRepository repository;
+  final AppRuntime? runtime;
   final Future<void> Function(String path) onOpenDestination;
 
   @override
@@ -159,6 +162,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => NotificationPreferencesScreen(
+                          runtime: widget.runtime,
                           repository: widget.repository,
                         ),
                       ),
