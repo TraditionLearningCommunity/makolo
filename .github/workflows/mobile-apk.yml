@@ -71,7 +71,7 @@ jobs:
       - name: Full checkpoint validation
         if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'full'
         run: |
-          dart format --output=none --set-exit-if-changed lib test
+          bash tool/dart_format.sh check
           flutter analyze
           flutter test --exclude-tags golden
       - name: Validate configured DEV mapping
