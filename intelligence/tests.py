@@ -91,6 +91,20 @@ class IntelligenceFoundationTests(SimpleTestCase):
         self.assertTrue(result.available)
         self.assertEqual(result.provider_key, "echo")
 
+    def test_network_provider_error_has_safe_user_recoverable_category(self):
+        gateway = IntelligenceGateway(
+            IntelligenceRegistry(providers=[FailingProvider()])
+        )
+        result = gateway.execute(
+            IntelligenceRequest(
+                capability=IntelligenceCapability.STRUCTURED_GENERATE,
+                input={"text": "SECRET-DO-NOT-LOG"},
+            )
+        )
+        self.assertFalse(result.available)
+        self.assertEqual(result.reason, "network_unavailable")
+        self.assertNotIn("SECRET-DO-NOT-LOG", repr(result))
+
     def test_gateway_falls_through_invalid_provider_result(self):
         gateway = IntelligenceGateway(IntelligenceRegistry(providers=[InvalidProvider(), EchoProvider()]))
         result = gateway.execute(
