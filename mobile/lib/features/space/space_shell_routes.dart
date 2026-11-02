@@ -230,6 +230,7 @@ class _SpaceShellRootScreenState extends State<SpaceShellRootScreen> {
                     projection: snapshot.data,
                     fallbackSpaceName: actor.space.slug,
                     onRefresh: _refresh,
+                    mediaBaseUri: widget.runtime.api?.baseUri,
                   ),
                 ),
               ],
@@ -247,12 +248,14 @@ class _SpaceProjectionBody extends StatelessWidget {
     required this.projection,
     required this.fallbackSpaceName,
     required this.onRefresh,
+    this.mediaBaseUri,
   });
 
   final SpaceShellSurface surface;
   final StoredProjection? projection;
   final String fallbackSpaceName;
   final Future<void> Function() onRefresh;
+  final Uri? mediaBaseUri;
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +270,10 @@ class _SpaceProjectionBody extends StatelessWidget {
         payload,
         emptyMessage: 'Rien à découvrir pour le moment.',
       ),
-      SpaceShellSurface.work => SpaceWorkSurface(payload: payload),
+      SpaceShellSurface.work => SpaceWorkSurface(
+        payload: payload,
+        mediaBaseUri: mediaBaseUri,
+      ),
       SpaceShellSurface.us => _usBody(context, payload),
     };
   }
