@@ -173,3 +173,33 @@ class DemoIntegrationTests(TestCase):
         self.assertEqual(Form.objects.filter(activity=activity).count(), 1)
         self.assertEqual(FormRequest.objects.filter(journey=journey).count(), 1)
 
+    def test_demo_connections_are_real_local_rows_without_external_credentials(self):
+        from django.core.exceptions import ValidationError
+        from intelligence.demo_connections import demo_offers, create_demo_connection
+        from intelligence.connection_management import update_connection
+        from intelligence.models import ProviderScope, ProviderCredential, IntelligenceRoute
+        from intelligence.interoperability import project_provider_connection
+        self.assertEqual(len(demo_offers()), 50)
+        code = demo_offers()[0]["code"]
+        connection, created = create_demo_connection(
+            actor=self.owner, scope=ProviderScope.PROFILE,
+            provider=code, consent=True,
+        )
+        self.assertTrue(created)
+        repeated, created_again = create_demo_connection(
+            actor=self.owner, scope=ProviderScope.PROFILE,
+            provider=code, consent=True,
+        )
+        self.assertFalse(created_again)
+        self.assertEqual(connection.pk, repeated.pk)
+        self.assertFalse(connection.enabled)
+        self.assertFalse(ProviderCredential.objects.filter(connection=connection).exists())
+        self.assertEqual(IntelligenceRoute.objects.filter(connection=connection, enabled=False).count(), 1)
+        projected = project_provider_connection(connection, manageable=True)
+        self.assertTrue(projected["demo"])
+        self.assertFalse(projected["usable"])
+        with self.assertRaises(ValidationError):
+            update_connection(actor=self.owner, connection=connection, payload={"enabled": True})
+        with self.assertRaises(ValidationError):
+            create_demo_connection(actor=self.beneficiary, scope=ProviderScope.PROFILE,
+                                   provider=code, consent=False)
