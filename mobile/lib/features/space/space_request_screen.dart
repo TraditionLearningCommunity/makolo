@@ -124,8 +124,8 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       setState(() {
         _owner = null;
         _error =
-            'Le propriétaire ne rend plus cette demande accessible '
-            'dans ce contexte. Vérifiez la connexion ou vos droits.';
+            'Impossible de charger cette demande. '
+            'Vérifiez votre connexion ou vos droits d’accès.';
       });
     } finally {
       if (mounted && epoch == _epoch) setState(() => _loading = false);
@@ -146,8 +146,7 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Confirmer votre décision'),
         content: Text(
-          'Voulez-vous $label cette demande ? '
-          'Le propriétaire vérifiera à nouveau votre autorité et son état.',
+          'Voulez-vous $label cette demande ?',
         ),
         actions: [
           TextButton(
@@ -191,7 +190,7 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       if (!mounted || !_actorValid) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Décision confirmée par le propriétaire.'),
+          content: Text('Décision confirmée.'),
         ),
       );
     } on Object {
@@ -199,8 +198,8 @@ class _SpaceRequestScreenState extends State<SpaceRequestScreen> {
       setState(() {
         _owner = null;
         _error =
-            'La décision n’est pas confirmée ici. '
-            'Actualisez la demande avant toute nouvelle tentative.';
+            'Impossible de vérifier la décision. '
+            'Actualisez la demande avant de réessayer.';
       });
     } finally {
       if (mounted && _actorValid) setState(() => _sending = false);

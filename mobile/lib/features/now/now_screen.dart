@@ -318,7 +318,7 @@ class _NowScreenState extends State<NowScreen> {
           source.lastErrorCode != null ||
           syncStatus?.state == SyncVisualState.failed) {
         return MakoloErrorState(
-          message: 'Now indisponible.',
+          message: 'Impossible d’afficher votre situation actuelle.',
           preservedMessage: '',
           onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
         );
@@ -336,7 +336,7 @@ class _NowScreenState extends State<NowScreen> {
       }
 
       return const MakoloEmptyState(
-        title: 'Now indisponible.',
+        title: 'Impossible d’afficher votre situation actuelle.',
         icon: Icons.adjust,
       );
     }

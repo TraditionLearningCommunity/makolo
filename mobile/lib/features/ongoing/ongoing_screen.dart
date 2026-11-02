@@ -158,7 +158,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
                   sourceSnapshot.data?.lastErrorCode != null ||
                   syncStatus?.state == SyncVisualState.failed)) {
             return MakoloErrorState(
-              message: 'En cours indisponible.',
+              message: 'Impossible d’afficher ce qui est en cours.',
               preservedMessage: '',
               onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
             );
@@ -179,7 +179,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
                 availability: MakoloAvailabilityCue.empty,
               ),
               empty: MakoloEmptyState(
-                title: 'En cours indisponible.',
+                title: 'Impossible d’afficher ce qui est en cours.',
                 body: 'Vos informations ne sont pas encore disponibles sur cet appareil.',
               ),
               content: SizedBox.shrink(),
@@ -200,7 +200,7 @@ class _OngoingScreenState extends State<OngoingScreen> {
               preservedMessage: '',
               onRetry: () => SyncRefreshScope.maybeOf(context)?.refresh(),
               empty: const MakoloEmptyState(
-                title: 'Rien en cours pour le moment.',
+                title: 'Rien en cours.',
               ),
               content: const SizedBox.shrink(),
             );
