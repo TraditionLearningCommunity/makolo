@@ -88,7 +88,10 @@ def related_g2_work(*, profile, space, activity_id, responsibility, offset,
         "offset": offset,
         "limit": RELATED_LIMIT,
         "has_more": len(rows) > RELATED_LIMIT,
-        "coverage_state": "partial" if offset else "established",
+        "coverage_state": (
+            "partial" if offset or len(rows) > RELATED_LIMIT
+            else "established"
+        ),
     }
 
 
