@@ -199,6 +199,18 @@ class PushEndpointApiTests(TestCase):
                 self.assertTrue(endpoint.active)
                 self.assertEqual(PushEndpoint.objects.count(), 1)
 
+        wrong_platform = self.client.post(
+            "/api/v1/notifications/push/endpoints/",
+            {
+                "provider": "fcm", "platform": "ios",
+                "installation_id": "same-device-id",
+                "token": "same-device-token", "reactivate": True,
+            }, format="json",
+        )
+        self.assertEqual(wrong_platform.status_code, 400)
+        endpoint.refresh_from_db()
+        self.assertEqual(endpoint.user_id, self.user.pk)
+
         # An explicit opt-in from the same installation holding the current
         # FCM token transfers only the endpoint, never a Mandate or permission.
         result = self.client.post(
