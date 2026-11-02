@@ -120,6 +120,43 @@ class PassportVisibilityIntegrationTests(TestCase):
         )
         self.assertEqual(self._public(self.viewer).identity["bio"], "")
 
+    def test_mandate_alone_cannot_be_selected_as_collective_audience(self):
+        space = Organization.objects.create(
+            name="Espace mandat selection",
+            slug="privacy-mandate-selection-space",
+            created_by=self.outsider,
+        )
+        grant_space_role(
+            profile=self.owner, space=space,
+            role=SystemRoleCode.SPACE_OWNER,
+            source="passport-visibility-test",
+        )
+        with self.assertRaises(Exception):
+            replace_profile_visibility(
+                owner=self.owner, target_kind="field", field_key="bio",
+                audiences=[{"kind": "selected_space", "id": str(space.pk)}],
+            )
+        self.assertFalse(
+            ProfileVisibilityPolicy.objects.filter(
+                owner=self.owner, target_kind="field", field_key="bio",
+            ).exists()
+        )
+        team = Team.objects.create(organization=space, name="Membres")
+        TeamMembership.objects.create(
+            user=self.owner, team=team, status=TeamMembershipStatus.ACTIVE,
+        )
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field", field_key="bio",
+            audiences=[{"kind": "selected_space", "id": str(space.pk)}],
+        )
+        self.assertEqual(self._public(self.viewer).identity["bio"], "")
+        TeamMembership.objects.create(
+            user=self.viewer, team=team, status=TeamMembershipStatus.ACTIVE,
+        )
+        self.assertEqual(
+            self._public(self.viewer).identity["bio"], "Texte confidentiel",
+        )
+
     def test_chosen_collective_and_person_are_additive(self):
         group = Group.objects.create(name="Association", owner_profile=self.owner)
         GroupMembership.objects.create(group=group, profile=self.owner)
