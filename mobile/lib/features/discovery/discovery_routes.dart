@@ -100,6 +100,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         initialSelectedCandidateKey: state.uri.queryParameters['selected'],
         repository: discovery,
         mapConfig: runtime.mapConfig,
+        location: runtime.location,
         onOpenOccurrence: (id) => context.push('/occurrences/$id'),
         onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
       );
