@@ -39,6 +39,7 @@ from organizations.space_work_presentation import (
 from requirements.contracts import RequirementAssessmentState
 from services.models import ServiceRequirementAssessment
 from services.selectors import service_journeys_visible_to
+from subscriptions.entitlements import resolve_entitlement
 from operations.occurrence_live import occurrence_live_phase
 from transport.models import TransportRoute, Vehicle
 
@@ -1097,8 +1098,13 @@ def build_space_work_projection(
             "workspace": f"/api/v1/organizations/workspaces/{space.slug}/",
         },
         "capabilities": {
-            "create_activity": has_direct_space_permission(
-                profile, space, PermissionCode.SPACE_ACTIVITIES_MANAGE
+            # A permission alone cannot advertise a creation that the
+            # owning Space's subscription explicitly disallows.
+            "create_activity": (
+                has_direct_space_permission(
+                    profile, space, PermissionCode.SPACE_ACTIVITIES_MANAGE
+                )
+                and resolve_entitlement(space, "activities.create").allowed
             ),
         },
     }
