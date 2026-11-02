@@ -289,6 +289,22 @@ def add_or_update_member(*, organization, actor, user, role: str) -> TeamMembers
         raise PermissionDenied("Seul un propriétaire peut accorder la propriété de cet Espace.")
 
     require_team_member_capacity(organization, user)
+    # Serialize admissions for this Space, not merely updates to one Team row.
+    organization = Organization.objects.select_for_update().get(pk=organization.pk)
+    already_active = TeamMembership.objects.filter(
+        team__organization=organization,
+        team__is_active=True,
+        status=TeamMembershipStatus.ACTIVE,
+        user=user,
+    ).exists()
+    if not already_active:
+        from subscriptions.entitlements import resolve_entitlement
+
+        entitlement = resolve_entitlement(organization, "team.members")
+        # An unconfigured quota is not a zero-member quota.
+        if entitlement.effective_value is not None and not entitlement.allowed:
+            raise ValidationError({"subscription": "La limite de collaborateurs actifs de cet Espace est atteinte."})
+
     team = ensure_default_team(organization)
     membership, _ = TeamMembership.objects.update_or_create(
         team=team,
