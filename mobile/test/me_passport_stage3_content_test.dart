@@ -70,9 +70,9 @@ class _Stage3PassportApi implements MakoloApiClient {
 }
 
 void main() {
-  testWidgets('Passport preserves each Open To topic in native presentation', (
-    tester,
-  ) async {
+  testWidgets(
+    'Passport preserves each Open To topic in native presentation',
+    (tester) async {
     await tester.pumpWidget(
       MaterialApp(home: MePassportScreen(api: _Stage3PassportApi())),
     );
@@ -80,5 +80,6 @@ void main() {
     expect(find.text('Mentorat · Géométrie'), findsOneWidget);
     expect(find.text('Mentorat · Recherche'), findsOneWidget);
     expect(find.text('Mentorat'), findsNothing);
-  });
+    },
+  );
 }
