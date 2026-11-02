@@ -36,6 +36,7 @@ def register_push_endpoint(
     installation_id: str,
     token: str,
     app_version: str = "",
+    reactivate: bool = False,
 ) -> PushEndpoint:
     provider = (provider or "").strip().lower()
     platform = (platform or "").strip().lower()
@@ -61,6 +62,14 @@ def register_push_endpoint(
     )
 
     endpoint = rows[0] if rows else None
+    if (
+        endpoint is not None
+        and endpoint.user_id == user.pk
+        and not endpoint.active
+        and not reactivate
+    ):
+        # User-initiated revoke must survive automatic token refresh/app start.
+        return endpoint
     for duplicate in rows[1:]:
         duplicate.delete()
 
