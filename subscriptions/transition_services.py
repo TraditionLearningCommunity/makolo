@@ -721,6 +721,21 @@ def cancel_subscription_transition(*, transition, actor=None, reason=""):
         raise SubscriptionTransitionError(
             "Cette Transition ne peut plus être annulée."
         )
+    # Cancelling only the Subscription row would leave an independently payable
+    # obligation owned by Payments. Never orphan a platform-payee claim.
+    from .billing_models import SubscriptionBillingObligation
+
+    if SubscriptionBillingObligation.objects.filter(transition=transition).exclude(
+        obligation__status__in={
+            PaymentObligationStatus.CANCELLED,
+            PaymentObligationStatus.EXPIRED,
+            PaymentObligationStatus.REFUNDED,
+        }
+    ).exists():
+        raise SubscriptionTransitionError(
+            "Ce changement possède une obligation financière active. "
+            "Son annulation doit d'abord être régularisée dans Payments."
+        )
     return _set_transition_status(
         transition,
         SubscriptionTransitionStatus.CANCELLED,
