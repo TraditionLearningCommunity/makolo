@@ -135,6 +135,73 @@ void main() {
     expect(opened, isFalse);
   });
 
+  testWidgets('N3 preserves native Event ticket choice without a fake purchase', (
+    tester,
+  ) async {
+    final event = _candidate(
+      family: 'activity', id: 'event-activity',
+      engagement: const {
+        'owner': 'events', 'state': 'owner_api',
+        'capabilities': ['inspect_offers'],
+        'resource': {'kind': 'event', 'id': 'event-7', 'slug': 'gospel-night'},
+        'links': {'native': '/events/gospel-night/tickets'},
+        'primary_action': {
+          'code': 'inspect_offers', 'label': 'Voir les billets',
+          'destination': {
+            'kind': 'native', 'path': '/events/gospel-night/tickets',
+          },
+        },
+      },
+    );
+    String? path;
+    await PresentationHarness.pump(
+      tester, viewport: const Size(390, 840),
+      child: DiscoveryPossibilityUnit(
+        item: event, detailMode: true,
+        onOpen: () => fail('No artificial purchase'),
+        onNativeAction: (value) => path = value,
+      ),
+    );
+    final action = find.byKey(const Key('discover-primary-n2'));
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    await tester.pump();
+    expect(path, '/events/gospel-night/tickets');
+  });
+
+  testWidgets('N3 Obtention opens only the owner choose route', (
+    tester,
+  ) async {
+    final item = _candidate(
+      family: 'activity', id: 'activity-7',
+      engagement: const {
+        'owner': 'obtention', 'state': 'owner_api',
+        'capabilities': ['start_journey'],
+        'resource': {'kind': 'obtention', 'id': 'obtention-7'},
+        'primary_action': {
+          'code': 'start_journey', 'label': 'Obtenir',
+          'destination': {
+            'kind': 'native', 'path': '/obtention/obtention-7/choose',
+          },
+        },
+      },
+    );
+    String? path;
+    await PresentationHarness.pump(
+      tester, viewport: const Size(390, 840),
+      child: DiscoveryPossibilityUnit(
+        item: item, detailMode: true,
+        onOpen: () => fail('No generic onboarding flow'),
+        onNativeAction: (value) => path = value,
+      ),
+    );
+    final action = find.byKey(const Key('discover-primary-n2'));
+    expect(action, findsOneWidget);
+    await tester.tap(action);
+    await tester.pump();
+    expect(path, '/obtention/obtention-7/choose');
+  });
+
   testWidgets('N3 funding uses the exact owner contribution route', (
     tester,
   ) async {
