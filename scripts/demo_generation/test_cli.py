@@ -301,5 +301,20 @@ class DemoGenerationCLITests(unittest.TestCase):
         catalog.assert_called_once_with(["--apply"])
 
 
+
+    def test_connections_catalog_is_in_all_without_fake_credentials(self):
+        self.assertIn("connections", parse_domains("all"))
+        args = build_parser().parse_args(["plan", "--domains", "connections"])
+        with patch("scripts.demo_generation.connections.main") as connected:
+            run(args)
+        connected.assert_called_once_with([])
+
+    def test_connections_generate_does_not_claim_credentials(self):
+        args = build_parser().parse_args(["generate", "--domains", "connections"])
+        with patch("scripts.demo_generation.connections.main") as connected:
+            run(args)
+        connected.assert_called_once_with(["--apply"])
+
+
 if __name__ == "__main__":
     unittest.main()
