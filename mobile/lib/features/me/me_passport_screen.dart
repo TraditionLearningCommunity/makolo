@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:pdfrx/pdfrx.dart';
+
 import '../../platform/files/passport_pdf_saver.dart';
 
 import 'package:flutter/material.dart';
@@ -905,36 +907,94 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
-  // Android exports directly to Downloads via its native MediaStore bridge.
-  Future<void> _exportPdf() async {
-    final file = await _downloadPassport();
-    if (file == null) return;
+  Future<void> _discardTemporaryPdf(String path) async {
     try {
-      // Downloads on Android owns the PDF; the staging cache is temporary.
-      if (!mounted) return;
-      final saved = await savePassportPdf(
-        file,
-        'passeport-makolo-$_variant.pdf',
-      );
-      if (!mounted || saved == null) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passeport PDF enregistré dans Téléchargements.')),
-      );
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } on Object {
+      // No cached export is a source of Passport authority.
+    }
+  }
+
+  Future<void> _previewPdf(String path) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: const Text('Aperçu du Passeport PDF')),
+          body: PdfViewer.file(path),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    if (_exporting || !_onlineReady) return;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility_outlined),
+              title: const Text('Prévisualiser le PDF'),
+              subtitle: const Text('Consulter le document avant de l’enregistrer.'),
+              onTap: () => Navigator.pop(sheetContext, 'preview'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.download_outlined),
+              title: const Text('Enregistrer dans Téléchargements'),
+              onTap: () => Navigator.pop(sheetContext, 'downloads'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.folder_open_outlined),
+              title: const Text('Choisir le dossier'),
+              subtitle: const Text('Utiliser le sélecteur de fichiers Android.'),
+              onTap: () => Navigator.pop(sheetContext, 'choose'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: const Text('Partager le fichier PDF'),
+              subtitle: const Text('WhatsApp, messages ou autre application installée.'),
+              onTap: () => Navigator.pop(sheetContext, 'share'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+    final file = await _downloadPassport();
+    if (file == null || !mounted) {
+      if (file != null) await _discardTemporaryPdf(file);
+      return;
+    }
+    try {
+      if (action == 'preview') {
+        await _previewPdf(file);
+      } else if (action == 'share') {
+        await const SystemShareGateway().shareFiles(paths: [file]);
+      } else {
+        final saved = await savePassportPdf(
+          file,
+          'passeport-makolo-$_variant.pdf',
+          chooseDestination: action == 'choose',
+        );
+        if (!mounted || saved == null) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(action == 'downloads'
+              ? 'Passeport enregistré dans Téléchargements.'
+              : 'Passeport enregistré à l’emplacement choisi.')),
+        );
+      }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enregistrement du PDF impossible.')),
+          const SnackBar(content: Text('Cette opération PDF a échoué.')),
         );
       }
     } finally {
-      // A cancelled save must not retain a sensitive exported document in
-      // the replaceable app cache; history stays server-owned.
-      try {
-        final stagingFile = File(file);
-        if (await stagingFile.exists()) await stagingFile.delete();
-      } on Object {
-        // Staging cleanup is best effort and never hides the save result.
-      }
+      await _discardTemporaryPdf(file);
     }
   }
 
@@ -1007,6 +1067,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
                 onTap: () => Navigator.pop(context, 'issue_share'),
               ),
             ListTile(
+              leading: const Icon(Icons.picture_as_pdf_outlined),
+              title: const Text('Partager le PDF dans une application'),
+              subtitle: const Text('Transmettre le document via WhatsApp, SMS ou une autre application.'),
+              onTap: () => Navigator.pop(context, 'pdf'),
+            ),
+            ListTile(
               leading: const Icon(Icons.history_outlined),
               title: const Text('Partager une version déjà émise'),
               subtitle: const Text(
@@ -1031,6 +1097,16 @@ class _MePassportScreenState extends State<MePassportScreen> {
       ),
     );
     if (action == null || !mounted) return;
+    if (action == 'pdf') {
+      final file = await _downloadPassport();
+      if (file == null) return;
+      try {
+        await const SystemShareGateway().shareFiles(paths: [file]);
+      } finally {
+        await _discardTemporaryPdf(file);
+      }
+      return;
+    }
     if (action == 'history') {
       await _showDatedHistory();
       return;
