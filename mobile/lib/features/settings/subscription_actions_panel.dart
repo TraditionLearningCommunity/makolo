@@ -373,6 +373,18 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
     );
   }
 
+  Future<void> _openPayment(String obligationId) async {
+    final sourceRuntime = widget.runtime;
+    final profileId = sourceRuntime.session?.profileId;
+    if (obligationId.isEmpty || !_sameSubject(sourceRuntime, profileId)) return;
+    await context.push(
+      '/payments/obligations/' + Uri.encodeComponent(obligationId),
+    );
+    if (_sameSubject(sourceRuntime, profileId)) {
+      await widget.onUpdated();
+    }
+  }
+
   Future<void> _transition(String id, String action) async {
     final api = widget.runtime.api;
     final sourceRuntime = widget.runtime;
@@ -549,6 +561,17 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         if ((widget.section == 'overview' || widget.section == 'plans') &&
             canManage && transition != null && transition['open'] == true) ...[
           const SizedBox(height: 8),
+          if (transition['next_action'] == 'pay' &&
+              _value(transition['payment_obligation_id']).isNotEmpty)
+            FilledButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () => _openPayment(_value(transition['payment_obligation_id'])),
+              icon: const Icon(Icons.credit_card_outlined),
+              label: const Text('Reprendre le paiement'),
+            )
+          else if (transition['next_action'] == 'finance_access_required')
+            const Text('Une personne autorisée à gérer les finances de cet Espace doit régler cette obligation.'),
           if (transition['status'] == 'ready')
             FilledButton(
               onPressed: _busy
