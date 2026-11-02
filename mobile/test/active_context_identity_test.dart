@@ -55,7 +55,7 @@ void main() {
     expect(
       activeSpaceName(
         spaceE.space,
-        const [
+        [
           SpaceSummary(
             identity: SpaceActorIdentity(id: 'space-e', slug: 'artiste-e'),
             name: 'Univers Artistique',
