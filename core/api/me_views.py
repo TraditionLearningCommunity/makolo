@@ -13,7 +13,7 @@ from sharing.passport_pdf import passport_pdf_response
 from sharing.models import PassportSnapshot, PassportShareSubject
 from sharing.passport_documents import (
     passport_verification_token, snapshot_payload_is_intact,
-    revoke_passport_snapshot,
+    revoke_passport_snapshot, issue_passport_snapshot,
 )
 from sharing.passport_sharing import create_passport_share, revoke_passport_share
 from sharing.passport import build_profile_passport, PASSPORT_VARIANTS
@@ -289,42 +289,73 @@ class PersonalPassportAPIView(PersonalProjectionAPIView):
         return response
 
 
+def _selected_personal_passport(request):
+    """One authorized builder for issue and PDF, never two document truths."""
+    variant = (request.query_params.get("variant") or PASSPORT_COMPLETE).strip()
+    if variant not in PASSPORT_VARIANTS:
+        raise ValidationError({"variant": "Variante inconnue."})
+    try:
+        return build_profile_passport(
+            request.user,
+            variant=variant,
+            topic_codes=request.query_params.getlist("topic"),
+            selected_activity_ids=(
+                request.query_params.getlist("activity") if variant == "custom" else None
+            ),
+            selected_proof_ids=(
+                request.query_params.getlist("proof") if variant == "custom" else None
+            ),
+            selected_credential_ids=(
+                request.query_params.getlist("credential") if variant == "custom" else None
+            ),
+            selected_sections=(
+                request.query_params.getlist("include") if variant == "custom" else None
+            ),
+        )
+    except ValueError as exc:
+        raise ValidationError({"variant": str(exc)}) from exc
+    except DjangoPermissionDenied as exc:
+        raise ValidationError({"selection": "Sélection non autorisée."}) from exc
+
+
 class PersonalPassportPdfAPIView(PersonalProjectionAPIView):
-    """Native authenticated PDF export; same owner, selection and privacy rules."""
+    """Authenticated PDF export also issues one immutable dated document."""
 
     projection_code = "personal.me.passport"
 
     def get(self, request):
         self._guard_personal_scope(request)
-        variant = (request.query_params.get("variant") or PASSPORT_COMPLETE).strip()
-        if variant not in PASSPORT_VARIANTS:
-            raise ValidationError({"variant": "Variante inconnue."})
-        try:
-            projection = build_profile_passport(
-                request.user,
-                variant=variant,
-                topic_codes=request.query_params.getlist("topic"),
-                selected_activity_ids=(
-                    request.query_params.getlist("activity")
-                    if variant == "custom" else None
-                ),
-                selected_proof_ids=(
-                    request.query_params.getlist("proof")
-                    if variant == "custom" else None
-                ),
-                selected_credential_ids=(
-                    request.query_params.getlist("credential")
-                    if variant == "custom" else None
-                ),
-                selected_sections=(
-                    request.query_params.getlist("include")
-                    if variant == "custom" else None
-                ),
-            )
-        except ValueError as exc:
-            raise ValidationError({"variant": str(exc)}) from exc
-        return passport_pdf_response(request, projection)
+        return passport_pdf_response(request, _selected_personal_passport(request))
 
+
+class PersonalPassportIssueAPIView(PersonalProjectionAPIView):
+    """Issue one dated document without requiring the owner to download a PDF."""
+
+    projection_code = "personal.me.passport.issuance"
+
+    def post(self, request):
+        self._guard_personal_scope(request, include_body=True)
+        identity = [value_rate_identity("issuer", str(request.user.pk))]
+        if not allow_web_request(
+            request, scope="passport-issue-minute", limit=8,
+            window_seconds=60, identities=identity,
+        ):
+            from rest_framework.exceptions import Throttled
+            raise Throttled(detail="Trop d'émissions. Réessayez plus tard.")
+        projection = _selected_personal_passport(request)
+        if not projection.has_content:
+            raise ValidationError({"selection": "Aucun contenu à émettre."})
+        snapshot = issue_passport_snapshot(projection)
+        return self._response({
+            "id": str(snapshot.pk),
+            "document_id": snapshot.document_id,
+            "variant": snapshot.variant,
+            "generated_at": snapshot.generated_at.isoformat(),
+            "verification_path": reverse(
+                "sharing:passport-verify",
+                kwargs={"token": passport_verification_token(snapshot)},
+            ),
+        }, observed_at=timezone.now())
 
 
 class PersonalPassportHistoryAPIView(PersonalProjectionAPIView):
