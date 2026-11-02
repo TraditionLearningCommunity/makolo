@@ -64,7 +64,7 @@ class SpaceWorkSurface extends StatelessWidget {
                       : 'Nouvelle activité',
                 ),
                 onPressed: () => context.push(
-                  '/space/${Uri.encodeComponent(spaceSlug)}/work/activities/new'
+                  '/space/${Uri.encodeComponent(spaceSlug!)}/work/activities/new'
                   '?archetype=${Uri.encodeComponent(archetype!)}',
                 ),
               ),
