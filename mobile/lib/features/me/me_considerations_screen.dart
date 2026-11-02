@@ -206,7 +206,11 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
     super.dispose();
   }
 
-  Future<void> _save(String family, Set<String> values) async {
+  Future<void> _save(
+    String family,
+    Set<String> values, {
+    String? newVisibility,
+  }) async {
     if (_saving) return;
     // Invalidate any outstanding search result before applying server-confirmed state.
     ++_requestEpoch;
@@ -214,7 +218,11 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
     try {
       final result = await widget.api.put(
         'api/v1/me/considerations/settings/',
-        body: {'family': family, 'values': values.toList()},
+        body: {
+          'family': family,
+          'values': values.toList(),
+          if (newVisibility != null) 'new_visibility': newVisibility,
+        },
       );
       final confirmed = ProjectionEnvelope.parse(
         result.jsonObject(),
@@ -286,6 +294,50 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
         );
       }
     }
+  }
+
+  Future<void> _addChoice(
+    String family,
+    Set<String> selected,
+    String value,
+  ) async {
+    // An active declaration is public by default, but the owner must be
+    // able to choose private *before* the first server mutation.
+    final visibility = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text('Visibilité de ce choix'),
+              subtitle: Text(
+                'Vous pourrez modifier cette audience dans la confidentialité du Passeport.',
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.public_rounded),
+              title: const Text('Ajouter publiquement'),
+              subtitle: const Text(
+                'Visible sur votre Passeport si votre profil public est activé.',
+              ),
+              onTap: () => Navigator.pop(sheetContext, 'public'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.lock_outline_rounded),
+              title: const Text('Garder privé'),
+              subtitle: const Text('Pour vos choix personnels uniquement.'),
+              onTap: () => Navigator.pop(sheetContext, 'private'),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || visibility == null) return;
+    final next = Set<String>.from(selected)..add(value);
+    await _save(family, next, newVisibility: visibility);
   }
 
   Widget _choices(
@@ -399,11 +451,11 @@ class _MeConsiderationsState extends State<MeConsiderationsScreen> {
                   label: Text(option['label'].toString()),
                   onPressed: _saving || _showingLocal
                       ? null
-                      : () {
-                          final next = Set<String>.from(selected)
-                            ..add(option['id'].toString());
-                          _save(family, next);
-                        },
+                      : () => _addChoice(
+                          family,
+                          selected,
+                          option['id'].toString(),
+                        ),
                 ),
             ],
           ),
