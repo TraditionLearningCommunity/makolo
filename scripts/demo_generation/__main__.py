@@ -43,7 +43,7 @@ def build_parser():
         s.add_argument("--domains",default="all",help="all ou liste: "+",".join(DOMAINS))
         s.add_argument("--count",type=int,default=50,help="Budget de scenarios par module")
         s.add_argument("--profiles",type=int,default=30,help="Profils world_* candidats")
-        s.add_argument("--profile-username",default=None,help="Beneficiaire explicite pour une generation ciblee (ex: beta_alain)")
+        s.add_argument("--profile-username",default=None,help="Cibler explicitement un beneficiaire par username (aucun compte code en dur)")
         s.add_argument("--scans",type=int,default=None)
         s.add_argument("--orders",type=int,default=None)
         s.add_argument("--grant-roles",action="store_true",help="Concession explicite des Mandates demo")
@@ -87,8 +87,6 @@ def run(a):
     orders=min(a.count,200) if a.orders is None else a.orders
     if not 0<=scans<=100000 or not 0<=orders<=100000:
         raise SystemExit("--scans et --orders 0..100000")
-    if "subscriptions" in domains and not a.profile_username:
-        raise SystemExit("Le domaine subscriptions exige --profile-username explicite.")
     if a.profile_username:
         supported={"discovery","goals","space","journeys","access","commerce","subscriptions"}
         unsupported=domains-supported
@@ -101,7 +99,8 @@ def run(a):
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
     if "subscriptions" in domains:
-        argv=["--profile-username",a.profile_username,"--count",str(min(a.count,50))]
+        argv=["--count",str(min(a.count,50)),"--profiles",str(a.profiles)]
+        if a.profile_username: argv.extend(["--profile-username",a.profile_username])
         if apply: argv.append("--apply")
         subscriptions.main(argv)
     ecosystem_selected=set(ECOSYSTEM)&domains
