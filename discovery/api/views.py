@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
+from django.utils.cache import patch_vary_headers
 
 from rest_framework.exceptions import NotFound, ValidationError
 from django.core.exceptions import ValidationError as DomainValidationError
@@ -42,7 +43,7 @@ class PrivateDiscoveryResponseBoundary:
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
         response["Cache-Control"] = "private, no-store"
-        response["Vary"] = "Authorization, Cookie"
+        patch_vary_headers(response, ("Authorization", "Cookie"))
         return response
 
 
