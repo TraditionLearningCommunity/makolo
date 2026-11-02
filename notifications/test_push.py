@@ -158,6 +158,85 @@ class PushEndpointApiTests(TestCase):
         self.assertFalse(original.active)
         self.assertEqual(original.user_id, self.user.pk)
 
+    def test_cross_profile_active_endpoint_never_moves_on_background_refresh(self):
+        self._register(token="shared-device-token", installation="shared-device-id")
+        endpoint = PushEndpoint.objects.get(user=self.user)
+        self.client.force_authenticate(self.other)
+        response = self.client.post(
+            "/api/v1/notifications/push/endpoints/",
+            {
+                "provider": "fcm", "platform": "android",
+                "installation_id": "shared-device-id",
+                "token": "shared-device-token",
+            }, format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("shared-device-id", str(response.data))
+        endpoint.refresh_from_db()
+        self.assertTrue(endpoint.active)
+        self.assertEqual(endpoint.user_id, self.user.pk)
+
+    def test_cross_profile_explicit_transfer_requires_both_device_proofs(self):
+        self._register(token="same-device-token", installation="same-device-id")
+        endpoint = PushEndpoint.objects.get(user=self.user)
+        self.client.force_authenticate(self.other)
+        for installation, token in (
+            ("same-device-id", "attacker-different-token"),
+            ("attacker-different-id", "same-device-token"),
+        ):
+            with self.subTest(installation=installation):
+                response = self.client.post(
+                    "/api/v1/notifications/push/endpoints/",
+                    {
+                        "provider": "fcm", "platform": "android",
+                        "installation_id": installation, "token": token,
+                        "reactivate": True,
+                    }, format="json",
+                )
+                self.assertEqual(response.status_code, 400)
+                endpoint.refresh_from_db()
+                self.assertEqual(endpoint.user_id, self.user.pk)
+                self.assertTrue(endpoint.active)
+                self.assertEqual(PushEndpoint.objects.count(), 1)
+
+        # An explicit opt-in from the same installation holding the current
+        # FCM token transfers only the endpoint, never a Mandate or permission.
+        result = self.client.post(
+            "/api/v1/notifications/push/endpoints/",
+            {
+                "provider": "fcm", "platform": "android",
+                "installation_id": "same-device-id",
+                "token": "same-device-token", "reactivate": True,
+            }, format="json",
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertNotIn("same-device-token", str(result.data))
+        endpoint.refresh_from_db()
+        self.assertEqual(endpoint.user_id, self.other.pk)
+        self.assertTrue(endpoint.active)
+        self.assertEqual(PushEndpoint.objects.count(), 1)
+        self.assertFalse(
+            PushEndpoint.objects.filter(user=self.user, active=True).exists()
+        )
+
+    def test_cross_profile_revoked_endpoint_requires_explicit_opt_in(self):
+        self._register(token="revoked-c8-token", installation="revoked-c8-id")
+        endpoint = PushEndpoint.objects.get(user=self.user)
+        self.client.delete(f"/api/v1/notifications/push/endpoints/{endpoint.pk}/")
+        self.client.force_authenticate(self.other)
+        attempted = self.client.post(
+            "/api/v1/notifications/push/endpoints/",
+            {
+                "provider": "fcm", "platform": "android",
+                "installation_id": "revoked-c8-id",
+                "token": "revoked-c8-token",
+            }, format="json",
+        )
+        self.assertEqual(attempted.status_code, 400)
+        endpoint.refresh_from_db()
+        self.assertFalse(endpoint.active)
+        self.assertEqual(endpoint.user_id, self.user.pk)
+
     def test_revoke_is_scoped_to_authenticated_user(self):
         self._register()
         endpoint = PushEndpoint.objects.get()
