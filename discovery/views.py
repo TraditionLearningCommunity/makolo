@@ -561,10 +561,17 @@ class DiscoveryClarifyWebView(LoginRequiredMixin, View):
                 "Makolo a clarifié votre recherche. Vérifiez les critères proposés.",
             )
         elif status == "unavailable":
+            failure_labels = {
+                "invalid_credentials": "La clé du fournisseur a été refusée.",
+                "rate_limited": "Le fournisseur a atteint sa limite d'usage.",
+                "network_unavailable": "Le fournisseur est momentanément injoignable.",
+            }
             messages.info(
                 request,
-                "Aucun service de clarification n’est disponible. "
-                "La recherche habituelle reste utilisable.",
+                failure_labels.get(
+                    result.get("reason"),
+                    "Aucun service de clarification n’est disponible.",
+                ) + " La recherche habituelle reste utilisable.",
             )
         elif status in {"unchanged", "already_structured"}:
             messages.info(
@@ -572,7 +579,13 @@ class DiscoveryClarifyWebView(LoginRequiredMixin, View):
                 "Aucun critère supplémentaire confirmé. "
                 "Vos critères de recherche restent utilisables.",
             )
-        query = urlencode(result["query"])
+        # Preserve navigation-only/geospatial filters; these are still
+        # validated by the existing Discovery GET selector.
+        query_params = dict(result["query"])
+        for key in ("lat", "lon", "radius_km", "ordering"):
+            if key in request.POST and key not in query_params:
+                query_params[key] = request.POST[key]
+        query = urlencode(query_params)
         destination = reverse("discovery:home")
         return redirect(destination + ("?" + query if query else ""))
 
