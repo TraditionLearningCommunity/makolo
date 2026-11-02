@@ -137,3 +137,33 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
         self.assertNotIn(archived.name, group_names)
         public = build_profile_passport(self.amina, variant="public")
         self.assertEqual(public.group_affiliations, ())
+
+    def test_personalized_default_keeps_public_identity_and_links(self):
+        from accounts.profile_visibility import replace_profile_visibility
+
+        public = build_profile_passport(self.amina, variant="public")
+        thematic = build_profile_passport(
+            self.amina, variant="thematic", topic_codes=[self.tech.code],
+        )
+        custom = build_profile_passport(
+            self.amina, variant="custom", selected_sections=[],
+        )
+        for projection in (thematic, custom):
+            self.assertEqual(projection.identity["name"], public.identity["name"])
+            self.assertEqual(projection.identity["bio"], public.identity["bio"])
+            self.assertEqual(projection.identity["links"], public.identity["links"])
+
+        # A deliberate private setting still takes precedence over the
+        # implicit custom baseline. The owner keeps the full version.
+        replace_profile_visibility(
+            owner=self.amina,
+            target_kind="field",
+            field_key="bio",
+            audiences=[],
+        )
+        custom = build_profile_passport(
+            self.amina, variant="custom", selected_sections=[],
+        )
+        self.assertEqual(custom.identity["bio"], "")
+        complete = build_profile_passport(self.amina, variant="complete")
+        self.assertEqual(complete.identity["bio"], "Bio publique Amina")
