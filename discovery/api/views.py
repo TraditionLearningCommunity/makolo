@@ -289,7 +289,7 @@ def _resolve_personal_dossier(request, raw_id):
     try:
         dossier = Dossier.objects.filter(
             pk=raw_id,
-        owner_profile=request.user,
+            owner_profile=request.user,
             owning_space__isnull=True,
         ).first()
     except (ValueError, TypeError, DomainValidationError) as exc:
