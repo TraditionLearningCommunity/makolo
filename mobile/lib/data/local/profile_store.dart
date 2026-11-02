@@ -139,6 +139,18 @@ class ProfileStore {
         .go();
   }
 
+  /// Remove all snapshots of one derived kind in this Profile only. A server
+  /// refusal of a Discovery owner invalidates its formerly composed windows;
+  /// it must not erase the other Profile's local data.
+  Future<int> deleteProjectionsOfKind(String kind) {
+    return (database.delete(database.projectionSnapshots)..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.projectionKind.equals(kind),
+        ))
+        .go();
+  }
+
   StoredProjection _storedProjection(ProjectionSnapshot row) {
     return StoredProjection(
       kind: row.projectionKind,
