@@ -247,6 +247,13 @@ class MT4SpaceEducationServicesTests(TestCase):
             activity=activity,
             service_kind=ServiceKind.ADMINISTRATIVE_SUPPORT,
         )
+        # The Space owner identity does not imply a Services operator Mandate.
+        # Grant the actual activity-scoped role for dossier actions.
+        grant_activity_role(
+            profile=self.owner, activity=activity,
+            role_code=SystemRoleCode.ACTIVITY_SERVICE_MANAGER,
+            granted_by=self.owner,
+        )
         journey = self.journey(
             activity, kind=WorkflowKind.SERVICE,
             state=JourneyStatus.IN_PROGRESS,
