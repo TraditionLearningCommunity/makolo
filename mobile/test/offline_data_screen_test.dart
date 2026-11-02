@@ -37,8 +37,14 @@ void main() {
     expect(find.text('Mes Espaces'), findsOneWidget);
     expect(find.textContaining('Copie reçue'), findsOneWidget);
     expect(find.text('Private Person'), findsNothing);
-    expect(find.textContaining('Une copie locale ne donne aucun nouveau droit'),
-        findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.textContaining('Une copie locale ne donne aucun nouveau droit'),
+      200,
+    );
+    expect(
+      find.textContaining('Une copie locale ne donne aucun nouveau droit'),
+      findsOneWidget,
+    );
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }
