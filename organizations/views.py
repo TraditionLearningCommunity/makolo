@@ -10,6 +10,7 @@ from .console_context import authorized_spaces
 from .forms import OrganizationFollowPreferenceForm, OrganizationForm, OrganizationMemberForm
 from .models import Organization, OrganizationFollow, OrganizationVerificationStatus, SpaceLifecycle, TeamMembership
 from .permissions import user_can_manage_organization, user_can_manage_organization_team
+from subscriptions.ux_continuation import action_subscription_handoff, is_subscription_denial
 from .services import (
     add_or_update_member,
     create_organization,
@@ -187,6 +188,7 @@ class OrganizationMemberCreateView(LoginRequiredMixin, View):
         if not user_can_manage_organization_team(request.user, organization):
             raise PermissionDenied("Vous ne pouvez pas gérer cette équipe.")
         form = OrganizationMemberForm(request.POST)
+        subscription_handoff = None
         if form.is_valid():
             try:
                 user = find_user_for_team(email=form.cleaned_data["email"])
@@ -197,6 +199,14 @@ class OrganizationMemberCreateView(LoginRequiredMixin, View):
                     role=form.cleaned_data["role"],
                 )
             except (ValidationError, PermissionDenied) as exc:
+                if is_subscription_denial(exc):
+                    subscription_handoff = action_subscription_handoff(
+                        request, space=organization,
+                        action_url=reverse(
+                            "organizations:team-member-create",
+                            kwargs={"slug": organization.slug},
+                        ),
+                    )
                 form.add_error(None, "; ".join(getattr(exc, "messages", [str(exc)])))
             else:
                 messages.success(request, "Membre et responsabilité mis à jour.")
@@ -204,7 +214,8 @@ class OrganizationMemberCreateView(LoginRequiredMixin, View):
         return render(
             request,
             "organizations/member_form.html",
-            {"organization": organization, "space": organization, "form": form},
+            {"organization": organization, "space": organization, "form": form,
+             "subscription_handoff": subscription_handoff},
         )
 
 
