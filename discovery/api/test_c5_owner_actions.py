@@ -1,0 +1,175 @@
+"""C5: user-invoked Discovery actions consume the C4 scoped Intelligence channels."""
+import json
+from unittest.mock import patch
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+from rest_framework.test import APIClient
+
+from accounts.models import UserProfile
+from intelligence.connection_management import create_connection
+from intelligence.models import ProviderScope
+
+
+class _Reply:
+    def __init__(self, value):
+        self.value = value
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self):
+        return json.dumps(self.value).encode("utf-8")
+
+
+@patch.dict("os.environ", {"INTELLIGENCE_CREDENTIAL_MASTER_KEY": "test-only-c5-key"})
+class DiscoveryConnectedActionsTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.actor = User.objects.create_user(
+            username="c5-actor", password="test-password",
+        )
+        self.other = User.objects.create_user(
+            username="c5-other", password="test-password",
+        )
+        self.profile = UserProfile.objects.create(user=self.actor)
+        self.api = APIClient()
+        self.api.force_authenticate(self.actor)
+
+    def _connect(self, provider, *, model=""):
+        return create_connection(
+            actor=self.actor, scope=ProviderScope.PROFILE,
+            payload={
+                "provider": provider, "name": f"C5 {provider}",
+                "api_key": f"TEST-C5-KEY-{provider}",
+                "model": model, "consent": True,
+            },
+        )
+
+    def test_clarify_requires_owner_and_valid_payload(self):
+        self.api.force_authenticate(user=None)
+        response = self.api.post("/api/v1/discovery/clarify/", {
+            "criteria": {"q": "quelque chose de calme"},
+        }, format="json")
+        self.assertIn(response.status_code, {401, 403})
+        self.api.force_authenticate(self.actor)
+        for invalid in (
+            {"criteria": {"q": "test", "profile_id": str(self.other.pk)}},
+            {"criteria": {"q": "x" * 121}},
+            {"criteria": "pas une recherche"},
+        ):
+            response = self.api.post(
+                "/api/v1/discovery/clarify/", invalid, format="json",
+            )
+            self.assertEqual(response.status_code, 400, response.data)
+
+    def test_clarify_uses_only_own_openai_route_and_canonicalizes_output(self):
+        self._connect("openai", model="test-model")
+        other_client = APIClient()
+        other_client.force_authenticate(self.other)
+        unrelated = other_client.post("/api/v1/discovery/clarify/", {
+            "criteria": {"q": "quelque chose de calme avec mes amis"},
+        }, format="json")
+        self.assertEqual(unrelated.status_code, 200)
+        self.assertEqual(unrelated.data["data"]["status"], "unavailable")
+
+        with patch("intelligence.providers.openai_compatible._open_url",
+                   return_value=_Reply({
+                       "choices": [{
+                           "message": {"content": json.dumps({
+                               "vertical": "event", "place": "",
+                               "when": "tomorrow", "period": "evening",
+                               "price": "", "text": "calme",
+                           })},
+                       }],
+                   })) as outbound:
+            response = self.api.post("/api/v1/discovery/clarify/", {
+                "criteria": {"q": "quelque chose de calme avec mes amis"},
+            }, format="json")
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["meta"]["projection"], "discovery.clarification")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(response.data["data"]["status"], "applied")
+        self.assertEqual(response.data["data"]["query"]["vertical"], "event")
+        self.assertEqual(response.data["data"]["query"]["when"], "tomorrow")
+        self.assertTrue(outbound.called)
+        serialized = str(response.data)
+        self.assertNotIn("TEST-C5-KEY", serialized)
+        self.assertNotIn("provider_key", serialized)
+        self.assertFalse(
+            any(row["source"] == "default"
+                for row in response.data["data"]["constraints"])
+        )
+
+    def test_explicit_filters_never_trigger_paid_provider(self):
+        self._connect("openai", model="test-model")
+        with patch("intelligence.providers.openai_compatible._open_url") as network:
+            response = self.api.post("/api/v1/discovery/clarify/", {
+                "criteria": {"q": "gospel", "vertical": "event"},
+            }, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["status"], "already_structured")
+        self.assertEqual(response.data["data"]["query"]["vertical"], "event")
+        network.assert_not_called()
+
+    def test_normal_discovery_get_never_triggers_external_provider(self):
+        self._connect("openai", model="test-model")
+        with patch("intelligence.providers.openai_compatible._open_url") as network:
+            response = self.api.get(
+                "/api/v1/discovery/items/",
+                {"q": "quelque chose de calme avec mes amis"},
+            )
+        self.assertEqual(response.status_code, 200)
+        network.assert_not_called()
+
+    def test_web_research_keeps_only_https_source_backed_pointers(self):
+        self._connect("tavily")
+        with patch("intelligence.providers.tavily_web._open_url",
+                   return_value=_Reply({"results": [
+                       {
+                           "title": "Document public",
+                           "url": "https://example.org/public",
+                           "content": "Une piste publique à vérifier.",
+                       },
+                       {
+                           "title": "Local",
+                           "url": "http://127.0.0.1/internal",
+                           "content": "A rejeter.",
+                       },
+                   ]})):
+            response = self.api.post(
+                "/api/v1/discovery/research/",
+                {"q": "bourse en ingénierie"}, format="json",
+            )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(response.data["meta"]["projection"], "discovery.source-leads")
+        self.assertEqual(len(response.data["data"]["candidates"]), 1)
+        lead = response.data["data"]["candidates"][0]
+        self.assertEqual(lead["sources"][0]["url"], "https://example.org/public")
+        self.assertNotIn("TEST-C5-KEY", str(response.data))
+        self.assertNotIn("127.0.0.1", str(response.data))
+
+    def test_web_research_non_owner_cannot_use_personal_key(self):
+        self._connect("exa")
+        self.api.force_authenticate(self.other)
+        with patch("intelligence.providers.exa_web._open_url") as network:
+            result = self.api.post(
+                "/api/v1/discovery/research/",
+                {"q": "formation informatique"}, format="json",
+            )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.data["data"]["status"], "unavailable")
+        network.assert_not_called()
+
+    def test_source_research_web_requires_csrf(self):
+        from django.test import Client
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.actor)
+        response = client.post("/discover/research/", {
+            "q": "formation informatique",
+        })
+        self.assertEqual(response.status_code, 403)
