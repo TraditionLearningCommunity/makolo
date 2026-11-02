@@ -4,6 +4,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User, UserProfile
@@ -13,7 +14,7 @@ from authorization.services import grant_space_role
 from intelligence.capabilities import IntelligenceCapability
 from intelligence.runtime import build_runtime_registry
 from intelligence.credentials import get_provider_secret
-from intelligence.models import ProviderConnection, ProviderCredential, ProviderScope
+from intelligence.models import ProviderConnection, ProviderCredential, ProviderHealth, ProviderScope
 from organizations.models import Organization, Team, TeamMembership, TeamMembershipStatus
 from operations.models import OperationsAuditLog
 
@@ -115,6 +116,40 @@ class ConnectionManagementAPITests(TestCase):
             self.assertNotIn("NEW-SECRET", recorded)
             self.assertNotIn("api.tavily.com", recorded)
 
+
+    def test_reactivation_and_rotation_invalidate_stale_health_checks(self):
+        self._auth(self.owner)
+        response = self._create(self.profile_url, name="Health reset")
+        self.assertEqual(response.status_code, 201)
+        connection = ProviderConnection.objects.get(pk=response.data["id"])
+        connection.health_status = ProviderHealth.HEALTHY
+        connection.last_checked_at = timezone.now()
+        connection.last_latency_ms = 19
+        connection.save(update_fields=[
+            "health_status", "last_checked_at", "last_latency_ms",
+        ])
+        detail = self.profile_url + str(connection.pk) + "/"
+        self.assertEqual(
+            self.client.patch(detail, {"enabled": False}, format="json").status_code, 200,
+        )
+        restored = self.client.patch(detail, {"enabled": True}, format="json")
+        self.assertEqual(restored.status_code, 200)
+        self.assertEqual(restored.data["health"], "unknown")
+        connection.refresh_from_db()
+        self.assertIsNone(connection.last_checked_at)
+        self.assertIsNone(connection.last_latency_ms)
+        connection.health_status = ProviderHealth.HEALTHY
+        connection.last_checked_at = timezone.now()
+        connection.last_latency_ms = 34
+        connection.save(update_fields=[
+            "health_status", "last_checked_at", "last_latency_ms",
+        ])
+        rotated = self.client.patch(detail, {"api_key": "replacement"}, format="json")
+        self.assertEqual(rotated.status_code, 200)
+        self.assertEqual(rotated.data["health"], "unknown")
+        connection.refresh_from_db()
+        self.assertIsNone(connection.last_checked_at)
+        self.assertIsNone(connection.last_latency_ms)
 
     def test_owner_scoped_connection_is_consumable_by_existing_runtime_registry(self):
         self._auth(self.owner)
