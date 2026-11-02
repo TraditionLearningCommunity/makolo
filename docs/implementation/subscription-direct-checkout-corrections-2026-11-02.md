@@ -45,7 +45,7 @@ python manage.py makemigrations --check --dry-run
 Flutter :
 ```bash
 cd mobile
-flutter format --set-exit-if-changed lib/features/settings/billing_screen.dart lib/features/settings/subscription_actions_panel.dart lib/features/payments/payment_obligation_screen.dart test/billing_screen_test.dart test/subscription_personal_flow_test.dart test/subscription_actions_panel_test.dart test/space_subscription_test.dart test/payment_obligation_retry_test.dart
+dart format --output=none --set-exit-if-changed lib/features/settings/billing_screen.dart lib/features/settings/subscription_actions_panel.dart lib/features/payments/payment_obligation_screen.dart test/billing_screen_test.dart test/subscription_personal_flow_test.dart test/subscription_actions_panel_test.dart test/space_subscription_test.dart test/payment_obligation_retry_test.dart
 flutter analyze
 flutter test test/subscription_actions_panel_test.dart test/subscription_personal_flow_test.dart test/billing_screen_test.dart test/space_subscription_test.dart test/payment_obligation_retry_test.dart
 ```
