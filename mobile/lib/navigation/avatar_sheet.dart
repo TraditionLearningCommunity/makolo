@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../app/providers.dart';
+import '../app/runtime/actor_context.dart';
+import 'active_context_avatar.dart';
 import '../data/local/profile_store.dart';
 import '../design/behavior_primitives.dart';
 import '../design/makolo_theme.dart';
 import 'actor_selector.dart';
-import 'profile_avatar_image.dart';
 
 Future<void> showMakoloAvatarSheet(
   BuildContext context, {
@@ -60,13 +61,6 @@ class MakoloAvatarSheet extends StatelessWidget {
     return null;
   }
 
-  Widget _avatarInitial(String? letter) => letter == null
-      ? const Icon(Icons.person_outline)
-      : Text(
-          letter,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        );
-
   void _closeThen(BuildContext context, VoidCallback action) {
     Navigator.of(context).pop();
     WidgetsBinding.instance.addPostFrameCallback((_) => action());
@@ -85,6 +79,7 @@ class MakoloAvatarSheet extends StatelessWidget {
         stream: _identityStream,
         builder: (context, snapshot) {
           final identity = _identity(snapshot.data);
+          final actor = runtime.actorContext?.value ?? const PersonalActorContext();
           final activationValue = identity?['activation'];
           final activation = activationValue is Map ? activationValue : null;
           final completionPercentage = activation?['percentage'];
@@ -123,13 +118,14 @@ class MakoloAvatarSheet extends StatelessWidget {
                           .colorScheme
                           .onPrimaryContainer,
                       child: ClipOval(
-                        child: ProfileAvatarImage(
-                          profileId: runtime.personal?.store.profileId,
-                          api: runtime.api,
-                          revision: snapshot.data?.receivedAt,
-                          url: safeAvatar ? avatarUri.toString() : null,
+                        child: ActiveContextAvatar(
+                          runtime: runtime,
+                          actor: actor,
                           size: 48,
-                          fallback: _avatarInitial(firstLetter),
+                          personalLetter: firstLetter,
+                          personalUrl:
+                              safeAvatar ? avatarUri.toString() : null,
+                          personalRevision: snapshot.data?.receivedAt,
                         ),
                       ),
                     ),
@@ -138,19 +134,34 @@ class MakoloAvatarSheet extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            displayName?.trim().isNotEmpty == true
-                                ? displayName!
-                                : 'Profil Makolo',
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          if (usernameValue is String &&
+                          if (actor is SpaceActorContext) ...[
+                            Text('Espace actif',
+                                style: Theme.of(context).textTheme.labelMedium),
+                            StreamBuilder(
+                              stream: runtime.space?.watchInventory(),
+                              builder: (context, spaces) => Text(
+                                activeSpaceName(actor.space, spaces.data),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ),
+                          ] else
+                            Text(
+                              displayName?.trim().isNotEmpty == true
+                                  ? displayName!
+                                  : 'Profil Makolo',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                          if (actor is PersonalActorContext &&
+                              usernameValue is String &&
                               usernameValue.trim().isNotEmpty)
                             Text(
                               '@' + usernameValue,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
-                          if (completionPercentage is int &&
+                          if (actor is PersonalActorContext &&
+                              completionPercentage is int &&
                               completionPercentage >= 0 &&
                               completionPercentage < 100 &&
                               activation?['is_complete'] != true)
@@ -169,6 +180,13 @@ class MakoloAvatarSheet extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (actor is SpaceActorContext) ...[
+                  const SizedBox(height: MakoloSpacing.sm),
+                  Text(
+                    'Compte connecté : ${displayName?.trim().isNotEmpty == true ? displayName : 'Profil Makolo'}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
                 const SizedBox(height: MakoloSpacing.md),
                 MakoloActorSelectorTile(
                   runtime: runtime,
