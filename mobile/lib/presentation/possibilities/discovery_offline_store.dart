@@ -4,13 +4,23 @@ import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
 
+import '../../data/files/profile_paths.dart';
+
 /// Explicitly retained *public* Discovery bytes. This is not a cache of
 /// credentials, proof, private Journey documents, or authorization state.
 /// No URLs or API tokens are written to the filesystem.
 class DiscoveryOfflineStore {
-  const DiscoveryOfflineStore({this.rootOverride, this.trustedOrigin});
+  const DiscoveryOfflineStore({
+    this.rootOverride,
+    this.trustedOrigin,
+    this.profileId,
+  });
 
   final Directory? rootOverride;
+
+  /// The real authenticated Profile, not the selected Space actor. Null is
+  /// allowed only for openly published first-party recognition files.
+  final String? profileId;
 
   /// The API origin supplied by trusted app configuration, never by the image.
   final Uri? trustedOrigin;
@@ -52,9 +62,24 @@ class DiscoveryOfflineStore {
     return hash.toRadixString(16).padLeft(16, '0');
   }
 
-  Future<Directory> _directory() async {
+  bool _mayRetain(Uri url) =>
+      (profileId != null && profileId!.trim().isNotEmpty) ||
+      isPublishedRecognitionUri(url, trustedOrigin: trustedOrigin);
+
+  Future<Directory> _directory(Uri url) async {
+    if (!_mayRetain(url)) {
+      throw const FormatException(
+        'This Reader resource has no safe offline Profile scope',
+      );
+    }
     final root = rootOverride ?? await getApplicationSupportDirectory();
-    final directory = Directory('${root.path}/discovery/public-offline');
+    final id = profileId;
+    // The old /discovery/public-offline directory is intentionally ignored:
+    // its contents were not scoped to a Profile. No unsafe migration.
+    final subpath = id == null || id.isEmpty
+        ? 'discovery/public-reader'
+        : 'profiles/${ProfilePaths.safeProfileId(id)}/discovery/reader';
+    final directory = Directory('${root.path}/$subpath');
     await directory.create(recursive: true);
     return directory;
   }
@@ -176,6 +201,23 @@ class DiscoveryOfflineStore {
     return work;
   }
 
+  /// A verified owner withdrawal also removes explicitly retained Reader
+  /// copies for the same Profile. A transport outage must never call this.
+  /// The shared historical public-offline directory remains unreadable.
+  Future<void> purgePrivateReader() {
+    final id = profileId;
+    if (id == null || id.trim().isEmpty) return Future<void>.value();
+    final work = _pendingWrites.then((_) async {
+      final root = rootOverride ?? await getApplicationSupportDirectory();
+      final dir = Directory(
+        '${root.path}/profiles/${ProfilePaths.safeProfileId(id)}/discovery/reader',
+      );
+      if (await dir.exists()) await dir.delete(recursive: true);
+    });
+    _pendingWrites = work.catchError((Object _) {});
+    return work;
+  }
+
   Future<void> removeRecognitionImage(Uri url) {
     // Revocation must follow pending writes, or an in-flight download could
     // put the image back after the owner returned 403/404.
@@ -188,11 +230,12 @@ class DiscoveryOfflineStore {
   }
 
   Future<File> location(Uri url) async {
-    final directory = await _directory();
+    final directory = await _directory(url);
     return File('${directory.path}/${keyFor(url)}.data');
   }
 
   Future<File?> retained(Uri url) async {
+    if (!_mayRetain(url)) return null;
     final file = await location(url);
     return await file.exists() && await file.length() > 0 ? file : null;
   }
