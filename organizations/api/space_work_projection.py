@@ -35,6 +35,7 @@ from organizations.space_work_g2_creation import g2_creation_available
 from organizations.api.space_work_g2 import (
     related_g2_work, service_case_native_handoff,
 )
+from organizations.api.space_work_g3 import g3_owner_depth
 from organizations.space_work_media import attach_space_work_recognition_media
 from organizations.space_work_presentation import (
     ordered_work_section_keys,
@@ -611,6 +612,7 @@ def build_space_work_projection(
     *, profile, space, responsibility_key=None, source_kind=None, source_id=None,
     section_key=None, offset=0, related_offset=0,
     related_work_offset=0,
+    g3_offset=0, g3_secondary_offset=0,
 ):
     visible_ids = _visible_activity_ids(profile, space)
     lens_ids = _activity_scope_from_responsibility(
@@ -1098,6 +1100,17 @@ def build_space_work_projection(
                     "owner": {"kind": "journey", "id": str(case.pk)},
                     "channel": "api", "url": url,
                 })
+
+    if selection is not None and space.archetype in {"commerce", "transport_operator"}:
+        # Work has already verified the selected source and the viewer's
+        # responsibility. The owner expansion never widens that selection.
+        depth = g3_owner_depth(
+            space=space, selection=selection, profile=profile,
+            visible_ids=visible_ids, operations_ids=caps["operations"],
+            offset=g3_offset, secondary_offset=g3_secondary_offset,
+        )
+        if depth is not None:
+            selection["owner_depth"] = depth
 
     return {
         "space": {
