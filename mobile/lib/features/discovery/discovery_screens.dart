@@ -694,6 +694,10 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('${_providerFailureMessage(result.reason)} '
               'Vous pouvez continuer dans Découvrir.'),
+          action: SnackBarAction(
+            label: 'Connexions',
+            onPressed: () => context.push('/connections'),
+          ),
         ));
         return;
       }
@@ -784,7 +788,15 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
             : 'Aucun critère nouveau confirmé. '
                 'Votre recherche reste disponible.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
+          SnackBar(
+            content: Text(message),
+            action: result.status == 'unavailable'
+                ? SnackBarAction(
+                    label: 'Connexions',
+                    onPressed: () => context.push('/connections'),
+                  )
+                : null,
+          ),
         );
       }
     } on Object {
