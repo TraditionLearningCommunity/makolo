@@ -6,10 +6,11 @@ User-supplied keys are stored exclusively by Intelligence's encrypted credential
 from __future__ import annotations
 
 import os
+import hashlib
 from dataclasses import dataclass
 
 from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import connection as db_connection, transaction
 
 from accounts.models import UserProfile
 from authorization.constants import PermissionCode
@@ -116,6 +117,26 @@ def _assert_management(*, actor, scope, profile=None, space=None):
     raise PermissionDenied("Autorité insuffisante.")
 
 
+def _serialize_platform_creates() -> None:
+    """Transaction-scoped Postgres mutex shared by *all* Platform operators.
+
+    Locking each operator independently cannot prevent two actors creating
+    the same logical provider connection concurrently. No database state is
+    introduced; non-Postgres development DBs remain best-effort.
+    """
+    if db_connection.vendor != "postgresql":
+        return
+    lock_key = int.from_bytes(
+        hashlib.sha256(
+            b"makolo:intelligence:platform-provider-create:v1"
+        ).digest()[:8],
+        byteorder="big",
+        signed=True,
+    )
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_key])
+
+
 @transaction.atomic
 def create_connection(*, actor, scope, payload, space=None):
     """Create one concrete provider connection, routes and encrypted credential atomically."""
@@ -154,7 +175,9 @@ def create_connection(*, actor, scope, payload, space=None):
         _assert_management(actor=actor, scope=scope, space=locked_space)
         owner = _owner_filter(scope=scope, space=locked_space)
     else:
-        # Platform lifecycle is technical; serialize changes on the current operator.
+        # Platform operators share one logical owner. Serialize the existence
+        # check across operators on PostgreSQL before checking duplicates.
+        _serialize_platform_creates()
         type(actor).objects.select_for_update().get(pk=actor.pk)
         _assert_management(actor=actor, scope=scope)
         owner = _owner_filter(scope=scope)
