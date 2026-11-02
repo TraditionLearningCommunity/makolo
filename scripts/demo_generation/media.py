@@ -31,6 +31,10 @@ def main(argv=None):
 
     counts = Counter()
     counts["assets_total"] = PresentationAsset.objects.count()
+    counts["published_uses_existing"] = PresentationMediaUse.objects.filter(
+        state=PresentationMediaState.PUBLISHED).count()
+    # Old Activities are valid sources; the new Activity is not required
+    # to be the original context, provided canonical ownership allows reuse.
     candidates = PresentationAsset.objects.filter(
         Q(owner_profile__isnull=False) | Q(owner_space__isnull=False),
         mime_type__in=("image/jpeg", "image/png"),
@@ -58,6 +62,7 @@ def main(argv=None):
         if not file_available:
             counts["file_absent"] += 1
             continue
+        counts["assets_files_available"] += 1
         activities = Activity.objects.filter(
             slug__startswith="demo-", status=ActivityStatus.PUBLISHED
         )
@@ -113,7 +118,9 @@ def main(argv=None):
             except (ValidationError, PermissionDenied, OSError):
                 counts["rejected"] += 1
     print("MEDIA", "APPLY" if a.apply else "PREVIEW", dict(sorted(counts.items())))
-    print("No file copy, no ownership change, no external asset authorization bypass.")
+    print("Existing published media may be reused across historical and new Activities only when the source file exists and canonical permissions allow it.")
+    if counts["assets_files_available"] == 0:
+        print("BLOCKED: No existing asset file is accessible in this environment; database associations alone cannot make missing files render.")
 
 
 if __name__ == "__main__":
