@@ -594,14 +594,21 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.history_rounded),
-            title: Text(_value(event['target_name'], 'Changement')),
+            title: Text(
+              _value(event['source_name']).isEmpty
+                  ? _value(event['target_name'], 'Changement')
+                  : _value(event['source_name']) +
+                      ' → ' + _value(event['target_name'], 'Changement'),
+            ),
             subtitle: Text(
-              _value(event['kind_label']) +
+              (event['kind'] == 'base_switch'
+                  ? 'Changement de formule'
+                  : _value(event['kind_label'])) +
                   ' · ' +
                   _value(event['status_label'], 'À vérifier') +
-                  (subscriptionDateLabel(event['requested_at']).isEmpty
+                  (subscriptionDateLabel(event['completed_at'] ?? event['requested_at']).isEmpty
                       ? ''
-                      : ' · ' + subscriptionDateLabel(event['requested_at'])),
+                      : ' · ' + subscriptionDateLabel(event['completed_at'] ?? event['requested_at'])),
             ),
           ),
         if (_historyOffset != null)
@@ -704,17 +711,28 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         for (final obligation in bills)
           Card(
             child: ListTile(
-              title: Text(_value(obligation['label'], 'Facturation')),
-              subtitle: Text(
-                _value(obligation['amount']) +
-                    ' ' +
-                    _value(obligation['currency']) +
-                    ' · ' +
+              title: Text(
+                _value(obligation['amount']) + ' ' + _value(obligation['currency']),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_value(obligation['label'], 'Facturation')),
+                  const SizedBox(height: 4),
+                  Text(
                     subscriptionObligationStatusLabel(obligation['status']) +
-                    (subscriptionDateLabel(obligation['due_at']).isEmpty
-                        ? ''
-                        : ' · Échéance ' +
-                              subscriptionDateLabel(obligation['due_at'])),
+                        (subscriptionDateLabel(obligation['due_at']).isEmpty
+                            ? ''
+                            : ' · Échéance ' +
+                                subscriptionDateLabel(obligation['due_at'])),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (obligation['can_start_payment'] == true &&
+                      (widget.spaceSlug == null ||
+                          obligation['can_open_detail'] == true))
+                    const Text('Ouvrir pour payer'),
+                ],
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap:
