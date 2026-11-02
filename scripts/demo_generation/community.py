@@ -15,12 +15,13 @@ def main(argv=None):
     p.add_argument("--domains", default=",".join(sorted(DOMAINS)))
     p.add_argument("--count", type=int, default=30)
     p.add_argument("--profiles", type=int, default=30)
+    p.add_argument("--profile-username")
     p.add_argument("--apply", action="store_true")
     a = p.parse_args(argv)
     selected = set(a.domains.split(","))
     if not selected or not selected <= DOMAINS:
         p.error("Domains: groups,objectives,notifications,trust,contributions,sharing")
-    if not 1 <= a.count <= 2000 or not 2 <= a.profiles <= 100:
+    if not 1 <= a.count <= 2000 or not 1 <= a.profiles <= 100:
         p.error("count 1..2000 and profiles 2..100 required")
     import django
     django.setup()
@@ -43,9 +44,8 @@ def main(argv=None):
     from sharing.services import create_activity_share
     if connection.vendor != "sqlite":
         p.error("SQLite demo database required")
-    users = list(get_user_model().objects.filter(
-        username__startswith="world_", is_active=True, is_staff=False,
-        is_superuser=False).order_by("username")[:a.profiles])
+    from .selection import demo_profiles
+    users = demo_profiles(username=a.profile_username, limit=a.profiles)
     if len(users) < 2:
         p.error("Two active world_* profiles required")
 
