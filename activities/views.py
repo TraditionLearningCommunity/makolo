@@ -36,6 +36,7 @@ class ActivityCreateView(LoginRequiredMixin, FormView):
             return None
         if space.archetype not in {
             SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY,
+            SpaceArchetype.CREATIVE, SpaceArchetype.MEDIA,
         }:
             return None
         return space
@@ -55,6 +56,10 @@ class ActivityCreateView(LoginRequiredMixin, FormView):
             context["create_space_label"] = (
                 "Nouvelle initiative"
                 if space.archetype == SpaceArchetype.COMMUNITY
+                else "Nouvelle création"
+                if space.archetype == SpaceArchetype.CREATIVE
+                else "Nouvelle production"
+                if space.archetype == SpaceArchetype.MEDIA
                 else "Nouvelle activité"
             )
             context["create_space_return"] = True
