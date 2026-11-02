@@ -289,6 +289,20 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
                                   preview['can_confirm'] == false
                               ? null
                               : () async {
+                                  // A preview dialog can outlive its actor
+                                  // context. Never send a mutation for the
+                                  // former Space after the user switches.
+                                  if (!_sameSubject(
+                                        sourceRuntime,
+                                        profileId,
+                                      ) ||
+                                      widget.runtime.api != api ||
+                                      !canManage) {
+                                    if (sheetContext.mounted) {
+                                      Navigator.pop(sheetContext);
+                                    }
+                                    return;
+                                  }
                                   setSheet(() {
                                     confirming = true;
                                     failed = null;
