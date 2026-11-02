@@ -1101,6 +1101,33 @@ def build_space_work_projection(
                     "channel": "api", "url": url,
                 })
 
+    if (
+        selection is not None
+        and space.archetype in {"creative", "media"}
+        and source_kind == "activity"
+        and selection.get("source") == {"kind": "activity", "id": str(source_id)}
+    ):
+        # MT6: Activity is the work/production; real Occurrences are its
+        # presentations or editions. Selection was checked for the active
+        # owner and responsibility before any relationship is expanded.
+        selection["related_occurrences"] = _g1_activity_realizations(
+            source_id, offset=related_offset, now=now, today=today,
+        )
+        activity = Activity.objects.filter(
+            pk=source_id, space=space, pk__in=visible_ids,
+        ).first()
+        if activity is not None:
+            selection["g4_detail"] = {
+                "description": activity.description or None,
+                "language": (
+                    "Création" if space.archetype == "creative" else "Production"
+                ),
+                "related_label": (
+                    "Présentations et réalisations"
+                    if space.archetype == "creative" else "Éditions et réalisations"
+                ),
+            }
+
     if selection is not None and space.archetype in {"commerce", "transport_operator"}:
         # Work has already verified the selected source and the viewer's
         # responsibility. The owner expansion never widens that selection.
