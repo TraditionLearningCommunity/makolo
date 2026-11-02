@@ -75,6 +75,7 @@ class _IntelligenceConnectionControlsState
   }) async {
     if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
     setState(() => _busy = true);
+    var committed = false;
     try {
       final api = widget.runtime.api!;
       final path = id == null ? widget.path : '${widget.path}$id/';
@@ -85,22 +86,29 @@ class _IntelligenceConnectionControlsState
       } else {
         await api.delete(path);
       }
+      committed = true;
+    } on Object {
+      // Server failure or unknown result: never write optimistic local state.
+    }
+
+    var refreshed = false;
+    try {
       await widget.onChanged();
+      refreshed = true;
+    } on Object {
+      // Server commit and local projection refresh are separate outcomes.
+    }
+    if (!committed) {
+      _notice('Opération non confirmée par le serveur. Vérifiez votre autorité.');
+    } else if (!refreshed) {
+      _notice('Modification enregistrée sur le serveur, mais '
+          'l’actualisation de cet écran est indisponible.');
+    } else {
       _notice(method == 'DELETE'
           ? 'Connexion retirée de Makolo. Révoquez aussi la clé chez le fournisseur.'
           : 'Connexion enregistrée sur le serveur.');
-    } on Object {
-      // A 401/403/404 may mean current authority was revoked. Ask the owner
-      // screen to revalidate; never leave an old Space permission actionable.
-      try {
-        await widget.onChanged();
-      } on Object {
-        // The owner screen keeps its own unavailable/recovery state.
-      }
-      _notice('Opération non confirmée par le serveur. Vérifiez votre autorité.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
+    if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _create(Map<String, dynamic> offer) async {
