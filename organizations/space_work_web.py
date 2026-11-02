@@ -253,6 +253,23 @@ class SpaceWorkView(SpaceWebMixin):
                 "projection": projection,
                 "work_sections": sections,
                 "work_has_items": any(section["items"] for section in sections),
+                "work_g2_create_label": (
+                    "Nouveau programme"
+                    if self.space.archetype == SpaceArchetype.EDUCATION
+                    else "Nouvelle prestation"
+                    if self.space.archetype == SpaceArchetype.SERVICE_PROVIDER
+                    else None
+                ) if (
+                    projection["capabilities"].get("create_g2")
+                    and self.selected_responsibility["key"] == "all"
+                ) else None,
+                "work_g2_create_url": reverse(
+                    "organizations:space-work-create-g2",
+                    kwargs={"slug": self.space.slug},
+                ) if (
+                    projection["capabilities"].get("create_g2")
+                    and self.selected_responsibility["key"] == "all"
+                ) else None,
                 "work_create_label": (
                     "Nouvelle initiative"
                     if self.space.archetype == SpaceArchetype.COMMUNITY
