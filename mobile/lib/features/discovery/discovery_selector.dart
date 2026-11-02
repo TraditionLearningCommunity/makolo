@@ -500,6 +500,8 @@ class DiscoverySelector {
         final longitude = _double(place['longitude']);
         if (latitude == null ||
             longitude == null ||
+            !latitude.isFinite ||
+            !longitude.isFinite ||
             latitude < -90 ||
             latitude > 90 ||
             longitude < -180 ||
