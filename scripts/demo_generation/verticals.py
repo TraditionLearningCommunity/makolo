@@ -18,6 +18,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--per-domain", type=int, default=50)
     p.add_argument("--profiles", type=int, default=30)
+    p.add_argument("--profile-username")
     p.add_argument("--apply", action="store_true")
     p.add_argument("--domains", default="opportunities,services,obtention,funding")
     a = p.parse_args(argv)
@@ -44,8 +45,8 @@ def main(argv=None):
     from payments.services import initiate_obligation_payment, complete_sandbox_payment
     if connection.vendor != "sqlite":
         p.error("SQLite de demonstration obligatoire")
-    profiles = list(get_user_model().objects.filter(username__startswith="world_",
-        is_active=True, is_staff=False, is_superuser=False).order_by("username")[:a.profiles])
+    from .selection import demo_profiles
+    profiles = demo_profiles(username=a.profile_username, limit=a.profiles)
     if not profiles:
         p.error("Aucun utilisateur world_")
     counts = Counter()
@@ -177,7 +178,7 @@ def main(argv=None):
         sandbox_enabled = connection.vendor == "sqlite"
         contributions = (FundingContribution.objects.filter(
             funding__activity__slug__startswith="demo-generation-funding-",
-            contributor_profile__username__startswith="world_",
+            contributor_profile__in=profiles,
             payment_obligation__isnull=False,
         ).select_related("payment_obligation", "contributor_profile")
          .order_by("id")[:a.per_domain])
