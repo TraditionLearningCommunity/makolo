@@ -22,6 +22,10 @@ from .provider_factory import build_configured_provider
 
 def test_provider_connection(connection: ProviderConnection) -> str:
     started = monotonic()
+    # A health probe may outlive a key rotation, disable or disconnect. Keep
+    # the exact row version observed before contacting the external provider.
+    original_updated_at = connection.updated_at
+    original_enabled = connection.enabled
     status = ProviderHealth.UNKNOWN
     try:
         if connection.scope in {ProviderScope.SPACE, ProviderScope.PROFILE}:
@@ -83,8 +87,26 @@ def test_provider_connection(connection: ProviderConnection) -> str:
     except (IntelligenceError, ValidationError, ValueError, ImproperlyConfigured):
         status = ProviderHealth.UNAVAILABLE
 
-    connection.health_status = status
-    connection.last_checked_at = timezone.now()
-    connection.last_latency_ms = max(0, int((monotonic() - started) * 1000))
-    connection.save(update_fields=["health_status", "last_checked_at", "last_latency_ms", "updated_at"])
-    return status
+    # Compare-and-swap: do not overwrite fresh state after rotation, disable,
+    # or removal while a billable provider probe was in flight. QuerySet.update
+    # avoids an unconditional model.save() that could revive stale evidence.
+    checked_at = timezone.now()
+    latency = max(0, int((monotonic() - started) * 1000))
+    updated = ProviderConnection.objects.filter(
+        pk=connection.pk,
+        enabled=original_enabled,
+        updated_at=original_updated_at,
+    ).update(
+        health_status=status,
+        last_checked_at=checked_at,
+        last_latency_ms=latency,
+        updated_at=checked_at,
+    )
+    if updated:
+        connection.health_status = status
+        connection.last_checked_at = checked_at
+        connection.last_latency_ms = latency
+        connection.updated_at = checked_at
+        return status
+    # The caller must not announce a result for an obsolete credential.
+    return ProviderHealth.UNKNOWN
