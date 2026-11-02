@@ -84,14 +84,11 @@ Future<AppRuntime> buildAppRuntime({
     profileId: profileId,
     store: launchPreferences,
   );
-  final savedDoor = MakoloDestination.forPath(
-    await launchPreferences.readShellLocation(profileId) ?? '',
-  );
   recovery.restoreLaunchLocation(
-    MakoloDestination.forActor(
+    restoredShellPath(
       actorContext.value,
-      savedDoor?.door ?? MakoloPrimaryDoor.now,
-    ).path,
+      await launchPreferences.readShellLocation(profileId),
+    ),
   );
   final database = await MakoloDatabase.openForProfile(profileId);
   final store = ProfileStore(database, profileId);
