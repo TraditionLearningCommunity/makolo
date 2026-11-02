@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../design/behavior_states.dart';
@@ -9,7 +8,6 @@ import '../../design/makolo_theme.dart';
 import '../../repositories/interoperability_repository.dart';
 import '../../sync/sync_status.dart';
 import 'intelligence_connection_controls.dart';
-import 'interoperability_presentation.dart';
 import 'push_device_controls.dart';
 
 class ProfileConnectionsScreen extends StatefulWidget {
@@ -131,50 +129,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   }
 
   String _capabilityLabel(String value) => connectionCapabilityLabel(value);
-
-  String _connectionState(InteroperabilityConnectionProjection row) =>
-      connectionStatusLabel(row);
-
-  String _experienceExplanation(InteroperabilityConnectionProjection row) =>
-      connectionExperienceMessage(row);
-
-  Widget _connectionCard(InteroperabilityConnectionProjection connection) {
-    final capabilities = connection.capabilities
-        .map(_capabilityLabel)
-        .join(' · ');
-    // A configured personal Intelligence capability can be explored through
-    // Discovery's real owner-owned actions. This is navigation, not execution
-    // and never a grant of permission or a promise of provider availability.
-    final canExplore = connection.owner == 'intelligence' &&
-        connection.scope == 'profile' &&
-        connection.enabled &&
-        connection.usable &&
-        connection.capabilities.any(
-          (cap) => cap == 'web_research' || cap == 'structured_generate',
-        );
-    return Card(
-      child: ListTile(
-        key: Key('connection-${connection.id}'),
-        leading: const Icon(Icons.link_outlined),
-        title: Text(connection.displayName),
-        subtitle: Text(
-          [
-            _connectionState(connection),
-            _experienceExplanation(connection),
-            if (capabilities.isNotEmpty) capabilities,
-          ].join('\n'),
-        ),
-        isThreeLine: true,
-        trailing: canExplore
-            ? TextButton(
-                key: Key('discover-from-connection-${connection.id}'),
-                onPressed: () => context.push('/discover'),
-                child: const Text('Explorer'),
-              )
-            : null,
-      ),
-    );
-  }
 
   Widget _providerCard(InteroperabilityProviderProjection provider) {
     final capabilities = provider.capabilities
@@ -309,7 +263,6 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           onChanged: _refreshAndConfirm,
           mutationsEnabled: _mutationsAllowed(syncStatus),
         ),
-
         if (projection.providers.isNotEmpty) ...[
           const SizedBox(height: MakoloSpacing.lg),
           Text(
