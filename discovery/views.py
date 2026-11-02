@@ -10,7 +10,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -511,6 +511,26 @@ def _web_discovery_card(item):
             "item_id": identity["resource"]["id"],
         }),
     )
+
+
+class DiscoverySourceResearchWebView(LoginRequiredMixin, View):
+    """Source leads for an explicit Discovery query; not canonical possibilities."""
+
+    def post(self, request):
+        from discovery.assistance import research_discovery_sources
+
+        text = request.POST.get("q", "")
+        try:
+            result = research_discovery_sources(actor=request.user, text=text)
+        except ValueError:
+            messages.error(request, "Recherche de sources invalide.")
+            return redirect("discovery:home")
+        response = render(request, "discovery/source_leads.html", {
+            "query_text": text.strip(),
+            "external_leads": result,
+        })
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class DiscoveryClarifyWebView(LoginRequiredMixin, View):
