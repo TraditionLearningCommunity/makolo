@@ -47,11 +47,11 @@ def build_profile_visibility_settings(profile):
     # A visibility policy describes permission, not the existence of a value.
     # Avoid making blank fields look like published information in the editor.
     profile_row = getattr(profile, "profile", None)
+    metadata = profile.metadata if isinstance(profile.metadata, dict) else {}
     field_values = {
         "name": profile.full_name or profile.username,
         "avatar": bool(getattr(profile, "avatar", None))
-            or bool((profile.metadata or {}).get("avatar_url"))
-            if isinstance(profile.metadata, dict) else bool(getattr(profile, "avatar", None)),
+            or bool(metadata.get("avatar_url")),
         "bio": profile.bio,
         "profession": getattr(profile_row, "profession", None),
         "country": getattr(profile_row, "country", None),
