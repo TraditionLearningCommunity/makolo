@@ -263,3 +263,14 @@ python -m scripts.demo_generation plan --domains subscriptions --count 2 --profi
 ```
 
 `subscriptions` est volontairement opt-in : le domaine peut etre genere pour tous les `world_*` ou un seul utilisateur, mais n'est pas declenche par `all` pour eviter de facturer automatiquement chaque profil lors des lots generaux. Ce sont exclusivement des tentatives de paiement sandbox sur SQLite de test.
+
+## Catalogue des forfaits avant attribution
+
+La commande opt-in `--domains subscription-catalog` cree six forfaits clairement marques DEMO, pour Profil et Espace, avec versions publiees, tarifs fictifs USD par mois et Entitlements reels fondes sur les FeatureDefinition existantes. Le catalogue ne remplace aucun BASE par defaut et n'affecte aucun compte lors de sa creation. Le script est idempotent par code de forfait et refuse toute collision de type ou de sujet. Il ne constitue pas une publication de tarifs commerciaux officiels.
+
+```bash
+python -m scripts.demo_generation plan --domains subscription-catalog
+python -m scripts.demo_generation generate --domains subscription-catalog
+```
+
+Les changements entre BASE (ex. gratuit vers Profil Plus ou Profil Max) exigent la transition canonique `BASE_SWITCH`, distincte de la commande de facturation add-on actuellement disponible. Ne pas employer `--domains subscriptions` pour attribuer les BASE tant que ce support n'est pas ajoute et valide. Toujours travailler dans la SQLite de demonstration.
