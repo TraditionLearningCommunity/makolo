@@ -5,17 +5,13 @@ import 'package:flutter/material.dart';
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../repositories/interoperability_repository.dart';
+import '../../sync/sync_status.dart';
 import 'intelligence_connection_controls.dart';
+import 'interoperability_presentation.dart';
 
-/// Interpret a connection without turning unverified health into availability.
-String spaceConnectionStatus(InteroperabilityConnectionProjection row) {
-  if (!row.enabled || row.status == 'disabled') return 'Désactivée';
-  if (row.health == 'unavailable') return 'Momentanément indisponible';
-  if (row.health == 'degraded') return 'Connectée · disponibilité réduite';
-  if (row.health != 'healthy') return 'Reliée · disponibilité à vérifier';
-  if (row.capabilities.isEmpty) return 'Reliée · aucune capacité active';
-  return row.usable ? 'Connectée et disponible' : 'Reliée · non utilisable';
-}
+/// Same human labels as Profile and Web; technical health is not authority.
+String spaceConnectionStatus(InteroperabilityConnectionProjection row) =>
+    connectionStatusLabel(row);
 
 /// Space Connections are a server-authorized, online-only view until the
 /// existing SpaceSync owner has a scoped Z16 source. Never cache it as Profile.
@@ -74,9 +70,29 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant SpaceConnectionsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.runtime, widget.runtime) ||
+        oldWidget.slug != widget.slug) {
+      oldWidget.runtime.actorContext?.removeListener(_actorChanged);
+      widget.runtime.actorContext?.addListener(_actorChanged);
+      _actorChanged();
+    }
+  }
+
+  @override
   void dispose() {
     widget.runtime.actorContext?.removeListener(_actorChanged);
     super.dispose();
+  }
+
+  Future<void> _refreshAndConfirm() async {
+    final expected = actor?.space.id;
+    if (expected == null) throw StateError('Autorité Space indisponible.');
+    await _load();
+    if (!authorized || loadedId != expected || actor?.space.id != expected) {
+      throw StateError('Autorité Space non confirmée après actualisation.');
+    }
   }
 
   Future<void> _load() async {
@@ -133,7 +149,8 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
       setState(() {
         authorized = false;
         connections = const [];
-      domainIntegrations = const [];
+        domainIntegrations = const [];
+        loadedId = null;
         loading = false;
         error =
             'Connexion au Space impossible ou autorité non confirmée. '
@@ -145,6 +162,15 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
   @override
   Widget build(BuildContext context) {
     final current = actor;
+    final syncState = SyncStatusScope.maybeOf(context)?.state;
+    final freshOwner = authorized && current != null &&
+        loadedId == current.space.id && !loading;
+    final canMutate = freshOwner && widget.runtime.api != null &&
+        syncState != SyncVisualState.offline &&
+        syncState != SyncVisualState.failed &&
+        syncState != SyncVisualState.stale &&
+        syncState != SyncVisualState.conflict &&
+        syncState != SyncVisualState.syncing;
     return Scaffold(
       appBar: AppBar(title: const Text('Connexions du Space')),
       body: current == null
@@ -184,7 +210,11 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                       child: ListTile(
                         leading: const Icon(Icons.link_outlined),
                         title: Text(row.displayName),
-                        subtitle: Text(spaceConnectionStatus(row)),
+                        subtitle: Text(
+                          '${spaceConnectionStatus(row)}\n'
+                          '${connectionExperienceMessage(row)}',
+                        ),
+                        isThreeLine: true,
                       ),
                     ),
                   if (domainIntegrations.isNotEmpty) ...[
@@ -199,11 +229,21 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                         subtitle: Text(item.description),
                       )),
                   ],
+                  if (!canMutate)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'Dernière observation uniquement. Les modifications '
+                        'sont suspendues jusqu’à une nouvelle vérification.',
+                      ),
+                    ),
                   IntelligenceConnectionControls(
+                    key: ValueKey('space-connections-${current.space.id}'),
                     runtime: widget.runtime,
                     path: '${root}intelligence/connections/',
                     connections: connections,
-                    onChanged: _load,
+                    mutationsEnabled: canMutate,
+                    onChanged: _refreshAndConfirm,
                   ),
                 ],
               ),
