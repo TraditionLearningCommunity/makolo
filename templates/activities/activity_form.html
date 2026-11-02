@@ -10,6 +10,7 @@
   <form method="post" class="mk-panel space-y-5 p-5 sm:p-7">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="rounded-2xl border border-rose-500/20 bg-rose-50 p-4 text-sm text-rose-800">{{ form.non_field_errors }}</div>{% endif %}
+    {% include 'subscriptions/_blocked_action_handoff.html' %}
     {% for field in form %}
       <div>
         <label for="{{ field.id_for_label }}" class="mb-2 block text-sm font-bold">{{ field.label }}</label>
