@@ -333,10 +333,71 @@ void main() {
     expect(find.text('Service disponible'), findsOneWidget);
     expect(find.textContaining('provider_internal_code'), findsNothing);
     expect(find.text('Calendar create'), findsOneWidget);
-    expect(find.text('Connexion requise'), findsOneWidget);
+    expect(find.text('Connexion adaptée requise.'), findsOneWidget);
     expect(find.text('Private denied'), findsNothing);
     expect(find.text('Profile helper'), findsOneWidget);
+    expect(
+      find.text('Extension déclarée · aucun lancement direct depuis Connexions.'),
+      findsOneWidget,
+    );
+    // The registry metadata must not act as an executable owner action.
+    final actionTile = tester.widget<ListTile>(
+      find.ancestor(of: find.text('Calendar create'), matching: find.byType(ListTile)),
+    );
+    expect(actionTile.onTap, isNull);
 
+    await _unmount(tester);
+  });
+
+  testWidgets('personal Intelligence shows a real Discovery continuation', (
+    tester,
+  ) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final runtime = await _runtimeWithPayload(
+      _payload(connections: [
+        {
+          'id': 'research',
+          'scope': 'profile',
+          'owner': 'intelligence',
+          'provider_protocol': 'tavily_search',
+          'display_name': 'Recherche externe',
+          'available': true,
+          'connected': true,
+          'usable': true,
+          'manageable': true,
+          'enabled': true,
+          'status': 'connected',
+          'health': 'unknown',
+          'capabilities': ['web_research'],
+        },
+        {
+          'id': 'space',
+          'scope': 'space',
+          'owner': 'intelligence',
+          'provider_protocol': 'tavily_search',
+          'display_name': 'Service autre contexte',
+          'available': true,
+          'connected': true,
+          'usable': true,
+          'manageable': true,
+          'enabled': true,
+          'status': 'connected',
+          'health': 'healthy',
+          'capabilities': ['web_research'],
+        },
+      ]),
+      database: database,
+    );
+    await tester.pumpWidget(MaterialApp(
+      theme: buildMakoloTheme(),
+      home: ProfileConnectionsScreen(runtime: runtime),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.byKey(const Key('discover-from-connection-research')), findsOneWidget);
+    expect(find.byKey(const Key('discover-from-connection-space')), findsNothing);
+    expect(find.text('Service autre contexte'), findsNothing);
     await _unmount(tester);
   });
 
