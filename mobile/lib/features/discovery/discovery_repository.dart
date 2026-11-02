@@ -168,10 +168,13 @@ class DiscoveryQuery {
       'q', 'place', 'when', 'period', 'vertical', 'price',
       'date', 'date_from', 'date_to', 'lat', 'lon', 'radius_km',
     };
-    return Map.unmodifiable({
+    return Map<String, String>.unmodifiable({
       for (final entry in parameters.entries)
         if (allowed.contains(entry.key) && entry.value.trim().isNotEmpty)
-          entry.key: entry.value.trim(),
+          entry.key: entry.key == 'radius_km' &&
+                  radiusKm != null && radiusKm! == radiusKm!.roundToDouble()
+              ? radiusKm!.round().toString()
+              : entry.value.trim(),
     });
   }
 
