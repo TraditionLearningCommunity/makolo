@@ -7,6 +7,16 @@ import '../../app/runtime/app_runtime.dart';
 import '../../repositories/interoperability_repository.dart';
 import 'intelligence_connection_controls.dart';
 
+/// Interpret a connection without turning unverified health into availability.
+String spaceConnectionStatus(InteroperabilityConnectionProjection row) {
+  if (!row.enabled || row.status == 'disabled') return 'Désactivée';
+  if (row.health == 'unavailable') return 'Momentanément indisponible';
+  if (row.health == 'degraded') return 'Connectée · disponibilité réduite';
+  if (row.health != 'healthy') return 'Reliée · disponibilité à vérifier';
+  if (row.capabilities.isEmpty) return 'Reliée · aucune capacité active';
+  return row.usable ? 'Connectée et disponible' : 'Reliée · non utilisable';
+}
+
 /// Space Connections are a server-authorized, online-only view until the
 /// existing SpaceSync owner has a scoped Z16 source. Never cache it as Profile.
 class SpaceConnectionsScreen extends StatefulWidget {
@@ -153,11 +163,7 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
                       child: ListTile(
                         leading: const Icon(Icons.link_outlined),
                         title: Text(row.displayName),
-                        subtitle: Text(!row.enabled
-                            ? 'Désactivée'
-                            : row.usable
-                            ? 'Connectée et disponible'
-                            : 'Reliée · disponibilité à vérifier'),
+                        subtitle: Text(spaceConnectionStatus(row)),
                       ),
                     ),
                   IntelligenceConnectionControls(
