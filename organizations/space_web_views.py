@@ -16,6 +16,7 @@ from intelligence.models import ProviderScope
 
 from interoperability.presentation import present_connection
 from interoperability.projections import build_interoperability_payload
+from interoperability.domain_integrations import space_domain_integrations
 
 from .api.space_attention_projection import (
     build_space_discover_projection,
@@ -286,7 +287,9 @@ class SpaceInteroperabilityView(SpaceWebMixin):
             ),
             actor=self.request.user,
             authority_context=self.space,
+            domain_integrations=space_domain_integrations(self.request.user, self.space),
         )
+        context["domain_integrations"] = context["interoperability"]["domain_integrations"]
         context.update(connection_form_context())
         context["connections"] = [present_connection(row) for row in connections]
         return context
