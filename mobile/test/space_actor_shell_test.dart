@@ -73,24 +73,26 @@ Future<_Harness> _harness({
     kind: SpaceSyncKeys.inventoryProjectionKind,
     schemaVersion: 1,
     payload: {
-      'items': emptyInventory ? <Object>[] : [
-        {
-          'id': 'space-x',
-          'slug': 'space-x',
-          'name': 'Space X',
-          'archetype': 'generic',
-          'lifecycle': 'active',
-          'limited_to_activities': false,
-        },
-        {
-          'id': 'space-y',
-          'slug': 'space-y',
-          'name': 'Space Y',
-          'archetype': 'generic',
-          'lifecycle': 'active',
-          'limited_to_activities': false,
-        },
-      ],
+      'items': emptyInventory
+          ? <Object>[]
+          : [
+              {
+                'id': 'space-x',
+                'slug': 'space-x',
+                'name': 'Space X',
+                'archetype': 'generic',
+                'lifecycle': 'active',
+                'limited_to_activities': false,
+              },
+              {
+                'id': 'space-y',
+                'slug': 'space-y',
+                'name': 'Space Y',
+                'archetype': 'generic',
+                'lifecycle': 'active',
+                'limited_to_activities': false,
+              },
+            ],
     },
   );
   await store.putProjection(

@@ -82,7 +82,11 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
     final current = actor;
     final api = widget.runtime.api;
     if (current == null || api == null) {
-      if (mounted) setState(() { authorized = false; loading = false; });
+      if (mounted)
+        setState(() {
+          authorized = false;
+          loading = false;
+        });
       return;
     }
     final id = current.space.id;
@@ -94,14 +98,16 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
     });
     try {
       final payload = (await api.get('${root}interoperability/')).jsonObject();
-      if (payload['schema_version'] != 'z16.v1' || payload['context'] != 'space') {
+      if (payload['schema_version'] != 'z16.v1' ||
+          payload['context'] != 'space') {
         throw const FormatException('Unexpected Space interop projection');
       }
       final rows = payload['connections'];
       if (rows is! List) throw const FormatException('Connections missing');
       if (!mounted || generation != version || actor?.space.id != id) return;
       setState(() {
-        connections = rows.whereType<Map<String, dynamic>>()
+        connections = rows
+            .whereType<Map<String, dynamic>>()
             .map(InteroperabilityConnectionProjection.fromJson)
             .where((row) => row.scope == 'space')
             .toList(growable: false);
@@ -115,7 +121,8 @@ class _SpaceConnectionsScreenState extends State<SpaceConnectionsScreen> {
         authorized = false;
         connections = const [];
         loading = false;
-        error = 'Connexion au Space impossible ou autorité non confirmée. '
+        error =
+            'Connexion au Space impossible ou autorité non confirmée. '
             'Les données ne sont pas conservées sur cet écran.';
       });
     }

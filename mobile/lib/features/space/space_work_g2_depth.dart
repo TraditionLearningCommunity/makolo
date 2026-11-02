@@ -32,7 +32,9 @@ class SpaceWorkG2Depth extends StatelessWidget {
       children: [
         _collection(
           context,
-          title: isEducation ? 'Sessions de ce programme' : 'Réalisations liées',
+          title: isEducation
+              ? 'Sessions de ce programme'
+              : 'Réalisations liées',
           empty: isEducation
               ? 'Aucune session liée pour le moment.'
               : 'Aucune réalisation liée pour le moment.',
@@ -74,9 +76,8 @@ class SpaceWorkG2Depth extends StatelessWidget {
       children: [
         Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        if (items.isEmpty) Text(
-          offset == 0 ? empty : 'Aucun autre élément sur cette page.',
-        ),
+        if (items.isEmpty)
+          Text(offset == 0 ? empty : 'Aucun autre élément sur cette page.'),
         for (final raw in items)
           if (spaceMap(raw) case final Map<String, dynamic> item)
             _row(context, item, isOccurrence),
@@ -116,19 +117,20 @@ class SpaceWorkG2Depth extends StatelessWidget {
             id: spaceText(source?['id']),
           )
         : null;
-    final title = spaceText(row['title']) ??
-        (isOccurrence ? 'Réalisation' : 'Démarche');
+    final title =
+        spaceText(row['title']) ?? (isOccurrence ? 'Réalisation' : 'Démarche');
     final date = spaceText(timing?['start_date']);
     final state = spaceText(row['state']);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(title),
-      subtitle: Text([
-        if (date != null) date,
-        if (state != null) spaceStateLabel(state),
-        if (isOccurrence && route == null)
-          'Date non ouvrable dans cet état',
-      ].join(' · ')),
+      subtitle: Text(
+        [
+          if (date != null) date,
+          if (state != null) spaceStateLabel(state),
+          if (isOccurrence && route == null) 'Date non ouvrable dans cet état',
+        ].join(' · '),
+      ),
       trailing: route != null ? const Icon(Icons.chevron_right) : null,
       onTap: route == null ? null : () => context.push(route),
     );

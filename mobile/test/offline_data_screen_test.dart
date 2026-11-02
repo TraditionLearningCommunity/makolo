@@ -9,15 +9,18 @@ import 'package:makolo_mobile/features/settings/offline_data_screen.dart';
 import 'fakes.dart';
 
 void main() {
-  testWidgets('offline status uses only Profile-scoped cached copy metadata',
-      (tester) async {
+  testWidgets('offline status uses only Profile-scoped cached copy metadata', (
+    tester,
+  ) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
     final store = ProfileStore(database, 'profile-a');
     await store.putProjection(
       kind: 'personal.me',
       schemaVersion: 1,
-      payload: {'identity': {'display_name': 'Private Person'}},
+      payload: {
+        'identity': {'display_name': 'Private Person'},
+      },
     );
     final runtime = AppRuntime(
       tokens: MemoryTokenStore(),

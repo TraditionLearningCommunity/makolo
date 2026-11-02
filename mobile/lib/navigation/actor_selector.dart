@@ -101,7 +101,8 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
     try {
       await repository!.refreshInventory();
       final source = await repository.readSource(repository.inventorySource());
-      if (source.invalidated || source.lastSuccessAt == null ||
+      if (source.invalidated ||
+          source.lastSuccessAt == null ||
           source.lastErrorCode != null) {
         throw StateError('Inventaire non vérifié.');
       }
@@ -194,10 +195,12 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
     } on Object {
       if (mounted) {
         final current = controller.value;
-        setState(() => _error = current is PersonalActorContext
-            ? 'Les accès ont changé. Vous êtes revenu à Moi.'
-            : 'Impossible de vérifier cet Espace. '
-              'Aucun nouveau contexte n’a été sélectionné.');
+        setState(
+          () => _error = current is PersonalActorContext
+              ? 'Les accès ont changé. Vous êtes revenu à Moi.'
+              : 'Impossible de vérifier cet Espace. '
+                    'Aucun nouveau contexte n’a été sélectionné.',
+        );
       }
     } finally {
       if (mounted) setState(() => _switching = false);
@@ -293,21 +296,27 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                         ),
                         child: Text('Vous n’avez aucun Espace autorisé.'),
                       ),
-                    if (spaces.isEmpty && !_inventoryConfirmed && !_inventoryLoading)
+                    if (spaces.isEmpty &&
+                        !_inventoryConfirmed &&
+                        !_inventoryLoading)
                       const Padding(
                         padding: EdgeInsets.symmetric(
                           vertical: MakoloSpacing.md,
                         ),
-                        child: Text('Aucun inventaire vérifié. '
-                            'Cela ne signifie pas que vous n’avez aucun Espace.'),
+                        child: Text(
+                          'Aucun inventaire vérifié. '
+                          'Cela ne signifie pas que vous n’avez aucun Espace.',
+                        ),
                       ),
                     if (spaces.isNotEmpty && !_inventoryConfirmed)
                       const Padding(
                         padding: EdgeInsets.symmetric(
                           vertical: MakoloSpacing.sm,
                         ),
-                        child: Text('Espaces connus sur cet appareil. '
-                            'L’accès sera vérifié avant de basculer.'),
+                        child: Text(
+                          'Espaces connus sur cet appareil. '
+                          'L’accès sera vérifié avant de basculer.',
+                        ),
                       ),
                     if (_error != null)
                       Padding(
@@ -323,7 +332,8 @@ class _MakoloActorPickerState extends State<_MakoloActorPicker> {
                       ),
                     if (_switching || _inventoryLoading)
                       const LinearProgressIndicator(),
-                    if (!_inventoryLoading && !_inventoryConfirmed &&
+                    if (!_inventoryLoading &&
+                        !_inventoryConfirmed &&
                         repository.sync != null)
                       TextButton.icon(
                         onPressed: _switching ? null : _refreshInventory,

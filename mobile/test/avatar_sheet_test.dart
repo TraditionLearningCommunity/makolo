@@ -130,22 +130,24 @@ void main() {
     addTearDown(runtime.close);
     var switchCount = 0;
     var logoutCount = 0;
-    await tester.pumpWidget(MaterialApp(
-      theme: buildMakoloTheme(),
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: TextButton(
-            onPressed: () => showMakoloAvatarSheet(
-              context,
-              runtime: runtime,
-              onSwitchAccount: () => switchCount++,
-              onLogout: () => logoutCount++,
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => showMakoloAvatarSheet(
+                context,
+                runtime: runtime,
+                onSwitchAccount: () => switchCount++,
+                onLogout: () => logoutCount++,
+              ),
+              child: const Text('Avatar'),
             ),
-            child: const Text('Avatar'),
           ),
         ),
       ),
-    ));
+    );
 
     await tester.tap(find.text('Avatar'));
     await tester.pumpAndSettle();

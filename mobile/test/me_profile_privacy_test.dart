@@ -31,15 +31,15 @@ void main() {
         tokenStore: tokens,
         dio: MockClient((request) async {
           if (request.url.path == '/api/v1/accounts/auth/me/') {
-            return MockResponse(jsonEncode({
-              'first_name': 'Amina',
-              'last_name': 'M.',
-              'language': 'fr',
-              'profile': {
-                'public_profile': false,
-                'searchable': false,
-              },
-            }), 200);
+            return MockResponse(
+              jsonEncode({
+                'first_name': 'Amina',
+                'last_name': 'M.',
+                'language': 'fr',
+                'profile': {'public_profile': false, 'searchable': false},
+              }),
+              200,
+            );
           }
           throw StateError('Unexpected request');
         }).dio,

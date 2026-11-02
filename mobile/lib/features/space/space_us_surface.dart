@@ -64,12 +64,15 @@ class SpaceUsSurface extends StatelessWidget {
 
     final settingsTarget = limited ? null : route('settings');
     final connectionsTarget =
-        !limited && slug != null &&
-                _value(handoffs?['connections']) == '/space/$slug/connections'
-            ? '/space/$slug/connections'
-            : null;
+        !limited &&
+            slug != null &&
+            _value(handoffs?['connections']) == '/space/$slug/connections'
+        ? '/space/$slug/connections'
+        : null;
     final pilotTarget = limited ? null : route('pilot');
-    final subscriptionTarget = !limited && slug != null &&
+    final subscriptionTarget =
+        !limited &&
+            slug != null &&
             _value(handoffs?['subscription']) == '/space/$slug/subscription'
         ? '/space/$slug/subscription'
         : null;

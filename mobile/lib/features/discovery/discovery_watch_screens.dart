@@ -99,7 +99,9 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
       return;
     }
     final id = await showDiscoveryWatchCreation(
-      context, repository: widget.repository, query: query,
+      context,
+      repository: widget.repository,
+      query: query,
     );
     if (mounted && id != null) {
       context.push('/discover/watches/${Uri.encodeComponent(id)}');
@@ -124,8 +126,10 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
               decoration: const InputDecoration(labelText: 'Nom'),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialog),
-                child: const Text('Annuler')),
+              TextButton(
+                onPressed: () => Navigator.pop(dialog),
+                child: const Text('Annuler'),
+              ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialog, controller.text.trim()),
                 child: const Text('Enregistrer'),
@@ -148,12 +152,16 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         context: context,
         builder: (dialog) => AlertDialog(
           title: const Text('Remplacer les critères ?'),
-          content: Text('La veille « ${watch.name} » utilisera désormais '
-              'les filtres de votre recherche actuelle. '
-              'Les possibilités enregistrées restent inchangées.'),
+          content: Text(
+            'La veille « ${watch.name} » utilisera désormais '
+            'les filtres de votre recherche actuelle. '
+            'Les possibilités enregistrées restent inchangées.',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialog, false),
-              child: const Text('Annuler')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Annuler'),
+            ),
             FilledButton(
               onPressed: () => Navigator.pop(dialog, true),
               child: const Text('Remplacer'),
@@ -169,8 +177,10 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         context: context,
         builder: (dialog) => AlertDialog(
           title: const Text('Supprimer cette veille ?'),
-          content: Text('La veille « ${watch.name} » sera supprimée. '
-              'Cela ne supprime aucune possibilité enregistrée.'),
+          content: Text(
+            'La veille « ${watch.name} » sera supprimée. '
+            'Cela ne supprime aucune possibilité enregistrée.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialog, false),
@@ -193,22 +203,32 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
         await widget.repository.editWatch(watch.id, name: renamed!);
       } else if (action == 'criteria') {
         await widget.repository.editWatch(
-          watch.id, replaceCriteria: newCriteria!,
+          watch.id,
+          replaceCriteria: newCriteria!,
         );
       } else {
         await widget.repository.updateWatchStatus(watch.id, action);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(action == 'delete'
-              ? 'Veille supprimée.' : 'État de la veille confirmé.')),
+          SnackBar(
+            content: Text(
+              action == 'delete'
+                  ? 'Veille supprimée.'
+                  : 'État de la veille confirmé.',
+            ),
+          ),
         );
       }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('La modification de la veille '
-              'n’a pas été confirmée par le serveur.')),
+          const SnackBar(
+            content: Text(
+              'La modification de la veille '
+              'n’a pas été confirmée par le serveur.',
+            ),
+          ),
         );
       }
     } finally {
@@ -300,9 +320,14 @@ class _DiscoveryWatchesScreenState extends State<DiscoveryWatchesScreen> {
                       onSelected: (action) => unawaited(_change(watch, action)),
                       itemBuilder: (_) => [
                         PopupMenuItem(
-                          value: watch.statusCode == 'paused' ? 'active' : 'paused',
-                          child: Text(watch.statusCode == 'paused'
-                              ? 'Reprendre' : 'Mettre en pause'),
+                          value: watch.statusCode == 'paused'
+                              ? 'active'
+                              : 'paused',
+                          child: Text(
+                            watch.statusCode == 'paused'
+                                ? 'Reprendre'
+                                : 'Mettre en pause',
+                          ),
                         ),
                         const PopupMenuItem(
                           value: 'rename',

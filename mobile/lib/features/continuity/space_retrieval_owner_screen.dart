@@ -412,8 +412,9 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                         data['owner_handoffs'] is List)
                       for (final handoff in data['owner_handoffs'] as List)
                         if (spaceText(
-                          spaceMap(spaceMap(handoff)?['owner'])?['id'],
-                        ) case final String requestId)
+                              spaceMap(spaceMap(handoff)?['owner'])?['id'],
+                            )
+                            case final String requestId)
                           if (spaceText(spaceMap(handoff)?['intent']) ==
                                   'open_request' &&
                               spaceText(
@@ -423,24 +424,28 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                                   ) ==
                                   'journey_request')
                             ListTile(
-                            leading: const Icon(Icons.fact_check_outlined),
-                            title: const Text('Examiner la demande'),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => context.push(
-                              '/space/requests/${Uri.encodeComponent(requestId)}',
+                              leading: const Icon(Icons.fact_check_outlined),
+                              title: const Text('Examiner la demande'),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () => context.push(
+                                '/space/requests/${Uri.encodeComponent(requestId)}',
+                              ),
                             ),
-                          ),
                     if (widget.kind == 'journey' &&
                         data['space_archetype'] == 'service_provider' &&
                         data['owner_handoffs'] is List)
                       for (final handoff in data['owner_handoffs'] as List)
                         if (spaceText(spaceMap(handoff)?['intent']) ==
                                 'open_service_case_native' &&
-                            spaceText(spaceMap(spaceMap(handoff)?['owner'])?['id']) ==
+                            spaceText(
+                                  spaceMap(spaceMap(handoff)?['owner'])?['id'],
+                                ) ==
                                 widget.id)
                           ListTile(
                             leading: const Icon(Icons.work_outline),
-                            title: const Text('Suivre le dossier de prestation'),
+                            title: const Text(
+                              'Suivre le dossier de prestation',
+                            ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => context.push(
                               '/space/${Uri.encodeComponent(widget.spaceActor.space.slug)}'

@@ -527,9 +527,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.focusVisibility
-            ? 'Confidentialité du Profil'
-            : 'Modifier mon passeport'),
+        title: Text(
+          widget.focusVisibility
+              ? 'Confidentialité du Profil'
+              : 'Modifier mon passeport',
+        ),
       ),
       body: _loading && _cachedIdentity == null
           ? const Center(child: CircularProgressIndicator.adaptive())

@@ -34,7 +34,9 @@ Future<void> _startDiscoveryWatch(
   DiscoveryQuery query,
 ) async {
   final id = await showDiscoveryWatchCreation(
-    context, repository: repository, query: query,
+    context,
+    repository: repository,
+    query: query,
   );
   if (id != null && context.mounted) {
     context.push('/discover/watches/${Uri.encodeComponent(id)}');
@@ -461,9 +463,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 shareApi: widget.repository.api,
                 onWatch: _query.watchCriteria.isEmpty
                     ? null
-                    : () => unawaited(_startDiscoveryWatch(
-                          context, widget.repository, _query,
-                        )),
+                    : () => unawaited(
+                        _startDiscoveryWatch(
+                          context,
+                          widget.repository,
+                          _query,
+                        ),
+                      ),
                 fieldKey: _query.mapFingerprint,
                 scrollController: _fieldScroll,
                 initialFocusedCandidateKey: _focusedCandidateKey,
@@ -975,9 +981,13 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             shareApi: widget.repository.api,
                             onWatch: _query.watchCriteria.isEmpty
                                 ? null
-                                : () => unawaited(_startDiscoveryWatch(
-                                    context, widget.repository, _query,
-                                  )),
+                                : () => unawaited(
+                                    _startDiscoveryWatch(
+                                      context,
+                                      widget.repository,
+                                      _query,
+                                    ),
+                                  ),
                             fieldKey: _query.mapFingerprint,
                             initialFocusedCandidateKey: _selectedCandidateKey,
                             onFocusedCandidateChanged: (key) =>

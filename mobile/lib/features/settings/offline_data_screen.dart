@@ -94,13 +94,17 @@ class _OfflineDataScreenState extends State<OfflineDataScreen> {
                 for (final copy in copies)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(copy.snapshot == null
-                        ? Icons.cloud_off_outlined
-                        : Icons.offline_pin_outlined),
+                    leading: Icon(
+                      copy.snapshot == null
+                          ? Icons.cloud_off_outlined
+                          : Icons.offline_pin_outlined,
+                    ),
                     title: Text(copy.label),
-                    subtitle: Text(copy.snapshot == null
-                        ? 'Aucune copie locale disponible'
-                        : 'Copie reçue : ${_receivedAt(context, copy.snapshot!.receivedAt)}'),
+                    subtitle: Text(
+                      copy.snapshot == null
+                          ? 'Aucune copie locale disponible'
+                          : 'Copie reçue : ${_receivedAt(context, copy.snapshot!.receivedAt)}',
+                    ),
                     trailing: copy.snapshot == null
                         ? null
                         : const Icon(Icons.check_circle_outline),

@@ -71,9 +71,9 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
           _error = _created
               ? 'Espace créé, accès à vérifier. Utilisez « Vérifier mon accès ».'
               : _creationAttempted
-                  ? 'Réponse incertaine : vérifiez d’abord vos Espaces '
+              ? 'Réponse incertaine : vérifiez d’abord vos Espaces '
                     'avant toute nouvelle demande de création.'
-                  : 'La création a été refusée. Vérifiez les informations saisies.';
+              : 'La création a été refusée. Vérifiez les informations saisies.';
         });
       }
     } on Object {
@@ -82,7 +82,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
           _error = _created
               ? 'Espace créé, accès à vérifier. Utilisez « Vérifier mon accès ».'
               : 'Réponse incertaine : la demande a peut-être abouti. '
-                'Consultez vos Espaces avant de créer à nouveau.';
+                    'Consultez vos Espaces avant de créer à nouveau.';
         });
       }
     } finally {

@@ -27,19 +27,30 @@ InteroperabilityConnectionProjection connection({
 
 void main() {
   test('unverified new provider is never shown as confirmed available', () {
-    expect(spaceConnectionStatus(connection()),
-        'Reliée · disponibilité à vérifier');
-    expect(spaceConnectionStatus(connection(health: 'healthy')),
-        'Connectée et disponible');
-    expect(spaceConnectionStatus(connection(health: 'degraded')),
-        'Connectée · disponibilité réduite');
-    expect(spaceConnectionStatus(connection(health: 'unavailable')),
-        'Momentanément indisponible');
-    expect(spaceConnectionStatus(connection(enabled: false)),
-        'Désactivée');
-    expect(spaceConnectionStatus(connection(health: 'healthy', capabilities: [])),
-        'Reliée · aucune capacité active');
-    expect(spaceConnectionStatus(connection(health: 'healthy', usable: false)),
-        'Reliée · non utilisable');
+    expect(
+      spaceConnectionStatus(connection()),
+      'Reliée · disponibilité à vérifier',
+    );
+    expect(
+      spaceConnectionStatus(connection(health: 'healthy')),
+      'Connectée et disponible',
+    );
+    expect(
+      spaceConnectionStatus(connection(health: 'degraded')),
+      'Connectée · disponibilité réduite',
+    );
+    expect(
+      spaceConnectionStatus(connection(health: 'unavailable')),
+      'Momentanément indisponible',
+    );
+    expect(spaceConnectionStatus(connection(enabled: false)), 'Désactivée');
+    expect(
+      spaceConnectionStatus(connection(health: 'healthy', capabilities: [])),
+      'Reliée · aucune capacité active',
+    );
+    expect(
+      spaceConnectionStatus(connection(health: 'healthy', usable: false)),
+      'Reliée · non utilisable',
+    );
   });
 }

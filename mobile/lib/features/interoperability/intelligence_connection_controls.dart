@@ -63,9 +63,8 @@ class _IntelligenceConnectionControlsState
 
   void _notice(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _submit({
@@ -99,14 +98,20 @@ class _IntelligenceConnectionControlsState
       // Server commit and local projection refresh are separate outcomes.
     }
     if (!committed) {
-      _notice('Opération non confirmée par le serveur. Vérifiez votre autorité.');
+      _notice(
+        'Opération non confirmée par le serveur. Vérifiez votre autorité.',
+      );
     } else if (!refreshed) {
-      _notice('Modification enregistrée sur le serveur, mais '
-          'l’actualisation de cet écran est indisponible.');
+      _notice(
+        'Modification enregistrée sur le serveur, mais '
+        'l’actualisation de cet écran est indisponible.',
+      );
     } else {
-      _notice(method == 'DELETE'
-          ? 'Connexion retirée de Makolo. Révoquez aussi la clé chez le fournisseur.'
-          : 'Connexion enregistrée sur le serveur.');
+      _notice(
+        method == 'DELETE'
+            ? 'Connexion retirée de Makolo. Révoquez aussi la clé chez le fournisseur.'
+            : 'Connexion enregistrée sur le serveur.',
+      );
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -128,27 +133,35 @@ class _IntelligenceConnectionControlsState
               children: [
                 Text(offer['description'] as String? ?? ''),
                 const SizedBox(height: 12),
-                const Text('Votre clé reste chiffrée sur le serveur Makolo. '
-                    'Les appels peuvent être facturés par le fournisseur.'),
+                const Text(
+                  'Votre clé reste chiffrée sur le serveur Makolo. '
+                  'Les appels peuvent être facturés par le fournisseur.',
+                ),
                 ValueListenableBuilder<bool>(
                   valueListenable: accepted,
                   builder: (context, value, _) => CheckboxListTile(
                     value: value,
                     onChanged: (next) => accepted.value = next == true,
-                    title: const Text('J’autorise Makolo à utiliser cette clé '
-                        'pour les capacités indiquées.'),
+                    title: const Text(
+                      'J’autorise Makolo à utiliser cette clé '
+                      'pour les capacités indiquées.',
+                    ),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
                 ),
                 TextField(
                   controller: name,
-                  decoration: const InputDecoration(labelText: 'Nom de la connexion'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nom de la connexion',
+                  ),
                   maxLength: 120,
                 ),
                 if (offer['requires_model'] == true)
                   TextField(
                     controller: model,
-                    decoration: const InputDecoration(labelText: 'Identifiant du modèle'),
+                    decoration: const InputDecoration(
+                      labelText: 'Identifiant du modèle',
+                    ),
                     maxLength: 160,
                   ),
                 TextField(
@@ -174,18 +187,22 @@ class _IntelligenceConnectionControlsState
         ),
       );
       if (proceed != true || !mounted) return;
-      if (name.text.trim().isEmpty || secret.text.trim().isEmpty ||
+      if (name.text.trim().isEmpty ||
+          secret.text.trim().isEmpty ||
           (offer['requires_model'] == true && model.text.trim().isEmpty)) {
         _notice('Renseignez le nom, la clé et le modèle si nécessaire.');
         return;
       }
-      await _submit(method: 'POST', body: {
-        'provider': offer['code'],
-        'name': name.text.trim(),
-        'model': model.text.trim(),
-        'api_key': secret.text.trim(),
-        'consent': true,
-      });
+      await _submit(
+        method: 'POST',
+        body: {
+          'provider': offer['code'],
+          'name': name.text.trim(),
+          'model': model.text.trim(),
+          'api_key': secret.text.trim(),
+          'consent': true,
+        },
+      );
     } finally {
       name.dispose();
       model.dispose();
@@ -194,7 +211,10 @@ class _IntelligenceConnectionControlsState
     }
   }
 
-  Future<void> _manage(InteroperabilityConnectionProjection connection, String action) async {
+  Future<void> _manage(
+    InteroperabilityConnectionProjection connection,
+    String action,
+  ) async {
     if (_busy || !widget.mutationsEnabled) return;
     if (action == 'rotate') {
       final controller = TextEditingController();
@@ -224,7 +244,8 @@ class _IntelligenceConnectionControlsState
         );
         if (confirmed == true && controller.text.trim().isNotEmpty && mounted) {
           await _submit(
-            id: connection.id, method: 'PATCH',
+            id: connection.id,
+            method: 'PATCH',
             body: {'api_key': controller.text.trim()},
           );
         }
@@ -238,8 +259,10 @@ class _IntelligenceConnectionControlsState
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Retirer cette connexion ?'),
-          content: const Text('Les credentials conservés par Makolo seront '
-              'supprimés. Votre clé externe reste sous le contrôle du fournisseur.'),
+          content: const Text(
+            'Les credentials conservés par Makolo seront '
+            'supprimés. Votre clé externe reste sous le contrôle du fournisseur.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -258,7 +281,8 @@ class _IntelligenceConnectionControlsState
       return;
     }
     await _submit(
-      id: connection.id, method: 'PATCH',
+      id: connection.id,
+      method: 'PATCH',
       body: {'enabled': action == 'enable'},
     );
   }
@@ -266,7 +290,9 @@ class _IntelligenceConnectionControlsState
   @override
   Widget build(BuildContext context) {
     if (widget.runtime.api == null) return const SizedBox.shrink();
-    final connectable = _offers.where((row) => row['can_connect'] == true).toList();
+    final connectable = _offers
+        .where((row) => row['can_connect'] == true)
+        .toList();
     final manageable = widget.connections
         .where((row) => row.manageable && row.owner == 'intelligence')
         .toList();
@@ -277,15 +303,21 @@ class _IntelligenceConnectionControlsState
         if (!widget.mutationsEnabled)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Actions de connexion suspendues hors ligne ou tant '
-                'que les droits ne sont pas confirmés. Réessayez une fois connecté.'),
+            child: Text(
+              'Actions de connexion suspendues hors ligne ou tant '
+              'que les droits ne sont pas confirmés. Réessayez une fois connecté.',
+            ),
           ),
         if (connectable.isNotEmpty) ...[
           const SizedBox(height: 20),
-          Text('Relier un service Intelligence',
-              style: Theme.of(context).textTheme.titleMedium),
-          const Text('Utilisez une clé API qui vous appartient. '
-              'Il ne s’agit pas d’un accès à votre compte social.'),
+          Text(
+            'Relier un service Intelligence',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const Text(
+            'Utilisez une clé API qui vous appartient. '
+            'Il ne s’agit pas d’un accès à votre compte social.',
+          ),
           for (final offer in connectable)
             ListTile(
               leading: const Icon(Icons.add_link),
@@ -296,12 +328,16 @@ class _IntelligenceConnectionControlsState
             ),
         ],
         if (_offers.isNotEmpty && connectable.isEmpty)
-          const Text('La configuration sécurisée des connexions '
-              'est indisponible sur ce serveur.'),
+          const Text(
+            'La configuration sécurisée des connexions '
+            'est indisponible sur ce serveur.',
+          ),
         if (manageable.isNotEmpty) ...[
           const SizedBox(height: 16),
-          Text('Gérer les connexions',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Gérer les connexions',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           for (final connection in manageable)
             ListTile(
               title: Text(connection.displayName),
@@ -312,7 +348,9 @@ class _IntelligenceConnectionControlsState
                 itemBuilder: (context) => [
                   PopupMenuItem(
                     value: connection.enabled ? 'disable' : 'enable',
-                    child: Text(connection.enabled ? 'Désactiver' : 'Réactiver'),
+                    child: Text(
+                      connection.enabled ? 'Désactiver' : 'Réactiver',
+                    ),
                   ),
                   const PopupMenuItem(
                     value: 'rotate',

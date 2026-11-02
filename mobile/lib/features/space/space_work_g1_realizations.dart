@@ -40,9 +40,9 @@ class SpaceWorkG1Realizations extends StatelessWidget {
             Text(
               isCommunity
                   ? 'Aucune action datée pour le moment. '
-                      'L’initiative reste disponible.'
+                        'L’initiative reste disponible.'
                   : 'Aucune réalisation datée pour le moment. '
-                      'L’activité reste disponible.',
+                        'L’activité reste disponible.',
             ),
           for (final raw in rows)
             if (spaceMap(raw) case final Map<String, dynamic> row)
@@ -56,9 +56,8 @@ class SpaceWorkG1Realizations extends StatelessWidget {
                 children: [
                   if (offset > 0)
                     OutlinedButton(
-                      onPressed: () => onPageChange(
-                        offset > limit ? offset - limit : 0,
-                      ),
+                      onPressed: () =>
+                          onPageChange(offset > limit ? offset - limit : 0),
                       child: const Text('Précédentes'),
                     ),
                   if (hasMore)

@@ -38,19 +38,13 @@ class _Stage3PassportApi implements MakoloApiClient {
                 'id': 'a',
                 'kind': 'mentor',
                 'label': 'Mentorat',
-                'topic': {
-                  'code': 'geometry',
-                  'label': 'Géométrie',
-                },
+                'topic': {'code': 'geometry', 'label': 'Géométrie'},
               },
               {
                 'id': 'b',
                 'kind': 'mentor',
                 'label': 'Mentorat',
-                'topic': {
-                  'code': 'research',
-                  'label': 'Recherche',
-                },
+                'topic': {'code': 'research', 'label': 'Recherche'},
               },
             ],
           },
@@ -70,16 +64,15 @@ class _Stage3PassportApi implements MakoloApiClient {
 }
 
 void main() {
-  testWidgets(
-    'Passport preserves each Open To topic in native presentation',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(home: MePassportScreen(api: _Stage3PassportApi())),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Mentorat · Géométrie'), findsOneWidget);
-      expect(find.text('Mentorat · Recherche'), findsOneWidget);
-      expect(find.text('Mentorat'), findsNothing);
-    },
-  );
+  testWidgets('Passport preserves each Open To topic in native presentation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(home: MePassportScreen(api: _Stage3PassportApi())),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Mentorat · Géométrie'), findsOneWidget);
+    expect(find.text('Mentorat · Recherche'), findsOneWidget);
+    expect(find.text('Mentorat'), findsNothing);
+  });
 }

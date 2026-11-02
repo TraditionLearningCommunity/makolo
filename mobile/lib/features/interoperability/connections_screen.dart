@@ -115,7 +115,9 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     return connection.available ? 'Disponible' : 'État à vérifier';
   }
 
-  String _experienceExplanation(InteroperabilityConnectionProjection connection) {
+  String _experienceExplanation(
+    InteroperabilityConnectionProjection connection,
+  ) {
     if (!connection.enabled || connection.status == 'disabled') {
       return 'Cette connexion est désactivée.';
     }
@@ -319,7 +321,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           path: 'api/v1/me/intelligence/connections/',
           connections: projection.connections,
           onChanged: _refresh,
-            mutationsEnabled: _mutationsAllowed(syncStatus),
+          mutationsEnabled: _mutationsAllowed(syncStatus),
         ),
       ],
     );

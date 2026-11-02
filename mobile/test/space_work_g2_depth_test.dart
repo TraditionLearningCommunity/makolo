@@ -51,9 +51,8 @@ void main() {
         ),
         GoRoute(
           path: '/space/:slug/retrieval/:kind/:id',
-          builder: (context, state) => Scaffold(
-            body: Text(state.pathParameters['id'] ?? ''),
-          ),
+          builder: (context, state) =>
+              Scaffold(body: Text(state.pathParameters['id'] ?? '')),
         ),
       ],
     );

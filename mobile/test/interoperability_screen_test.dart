@@ -160,7 +160,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('Mon service'), findsOneWidget);
-      expect(find.text('Cette connexion possède une capacité active.'), findsOneWidget);
+      expect(
+        find.text('Cette connexion possède une capacité active.'),
+        findsOneWidget,
+      );
       expect(find.textContaining('Connecté et disponible'), findsOneWidget);
       expect(find.textContaining('Génération de texte'), findsOneWidget);
       expect(find.text('Service Espace'), findsNothing);

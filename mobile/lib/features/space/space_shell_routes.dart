@@ -625,7 +625,8 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             error.statusCode == 400 && error.fields.containsKey('subscription');
         final handoff = '/space/${widget.slug}/subscription';
         final actor = widget.runtime.actorContext?.value;
-        final mayInspect = isSubscriptionDenial &&
+        final mayInspect =
+            isSubscriptionDenial &&
             subscriptionHandoff == handoff &&
             actor is SpaceActorContext &&
             actor.space.id == spaceId &&
@@ -639,9 +640,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                     label: 'Comprendre',
                     onPressed: () {
                       final current = widget.runtime.actorContext?.value;
-                      if (!mounted || current is! SpaceActorContext ||
+                      if (!mounted ||
+                          current is! SpaceActorContext ||
                           current.space.id != spaceId ||
-                          current.space.slug != widget.slug) return;
+                          current.space.slug != widget.slug)
+                        return;
                       context.push('$handoff?from=team');
                     },
                   )
@@ -736,8 +739,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       );
       if (result == null || !mounted) return;
       final links = payload['handoffs'];
-      final subscriptionHandoff =
-          links is Map ? links['subscription']?.toString() : null;
+      final subscriptionHandoff = links is Map
+          ? links['subscription']?.toString()
+          : null;
       await _mutateTeam(() async {
         await api.post(
           'api/v1/organizations/workspaces/${Uri.encodeComponent(widget.slug)}/team/',

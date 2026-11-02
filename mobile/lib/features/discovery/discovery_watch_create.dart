@@ -12,10 +12,8 @@ Future<String?> showDiscoveryWatchCreation(
   if (query.watchCriteria.isEmpty) return null;
   return showDialog<String>(
     context: context,
-    builder: (_) => _CreateDiscoveryWatchDialog(
-      repository: repository,
-      query: query,
-    ),
+    builder: (_) =>
+        _CreateDiscoveryWatchDialog(repository: repository, query: query),
   );
 }
 
@@ -33,7 +31,8 @@ class _CreateDiscoveryWatchDialog extends StatefulWidget {
       _CreateDiscoveryWatchDialogState();
 }
 
-class _CreateDiscoveryWatchDialogState extends State<_CreateDiscoveryWatchDialog> {
+class _CreateDiscoveryWatchDialogState
+    extends State<_CreateDiscoveryWatchDialog> {
   late final TextEditingController _name;
   bool _saving = false;
   String? _error;
@@ -44,8 +43,8 @@ class _CreateDiscoveryWatchDialogState extends State<_CreateDiscoveryWatchDialog
     final candidate = widget.query.text.trim().isNotEmpty
         ? widget.query.text.trim()
         : widget.query.place.trim().isNotEmpty
-            ? 'Veille · ${widget.query.place.trim()}'
-            : 'Ma veille';
+        ? 'Veille · ${widget.query.place.trim()}'
+        : 'Ma veille';
     _name = TextEditingController(
       text: candidate.length <= 140 ? candidate : candidate.substring(0, 140),
     );
@@ -76,8 +75,10 @@ class _CreateDiscoveryWatchDialogState extends State<_CreateDiscoveryWatchDialog
       if (mounted) Navigator.of(context).pop(id);
     } on Object {
       if (mounted) {
-        setState(() => _error =
-            'Veille non confirmée. Vérifiez les critères et réessayez.');
+        setState(
+          () => _error =
+              'Veille non confirmée. Vérifiez les critères et réessayez.',
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -92,8 +93,10 @@ class _CreateDiscoveryWatchDialogState extends State<_CreateDiscoveryWatchDialog
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Cette veille réutilise les filtres de votre recherche. '
-              'Elle n’enregistre ni une possibilité ni une participation.'),
+          const Text(
+            'Cette veille réutilise les filtres de votre recherche. '
+            'Elle n’enregistre ni une possibilité ni une participation.',
+          ),
           const SizedBox(height: 16),
           TextField(
             key: const Key('discover-watch-name'),
@@ -104,7 +107,10 @@ class _CreateDiscoveryWatchDialogState extends State<_CreateDiscoveryWatchDialog
             onSubmitted: (_) => _create(),
           ),
           if (_error != null)
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
         ],
       ),
       actions: [
@@ -116,8 +122,11 @@ class _CreateDiscoveryWatchDialogState extends State<_CreateDiscoveryWatchDialog
           key: const Key('discover-watch-confirm'),
           onPressed: _saving ? null : _create,
           child: _saving
-              ? const SizedBox(width: 18, height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Créer la veille'),
         ),
       ],

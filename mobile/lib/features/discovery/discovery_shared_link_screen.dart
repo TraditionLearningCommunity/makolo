@@ -89,7 +89,8 @@ class _DiscoverySharedLinkScreenState extends State<DiscoverySharedLinkScreen> {
           id.isEmpty) {
         throw const FormatException('Invalid Sharing destination');
       }
-      final expected = '/discover/items/${Uri.encodeComponent(family)}/'
+      final expected =
+          '/discover/items/${Uri.encodeComponent(family)}/'
           '${Uri.encodeComponent(id)}';
       if (payload['route'] != expected) {
         throw const FormatException('Unexpected Sharing route');

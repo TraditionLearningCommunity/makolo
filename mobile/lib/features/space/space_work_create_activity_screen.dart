@@ -19,6 +19,7 @@ class SpaceWorkCreateActivityScreen extends StatefulWidget {
   final AppRuntime runtime;
   final SpaceActorContext actor;
   final bool isCommunity;
+
   /// Only affects the visible grammar; the server rechecks the Space owner.
   final String? archetype;
 
@@ -40,8 +41,7 @@ class _SpaceWorkCreateActivityScreenState
   bool _confirmed = false;
   String? _error;
 
-  bool get _actorValid =>
-      widget.runtime.actorContext?.value == widget.actor;
+  bool get _actorValid => widget.runtime.actorContext?.value == widget.actor;
 
   String get _archetype =>
       widget.archetype ?? (widget.isCommunity ? 'community' : 'generic');
@@ -50,11 +50,11 @@ class _SpaceWorkCreateActivityScreenState
   bool get _isG2 => _archetype == 'education' || _isService;
 
   String get _subject => switch (_archetype) {
-        'community' => 'initiative',
-        'education' => 'programme',
-        'service_provider' => 'prestation',
-        _ => 'activité',
-      };
+    'community' => 'initiative',
+    'education' => 'programme',
+    'service_provider' => 'prestation',
+    _ => 'activité',
+  };
 
   @override
   void dispose() {
@@ -132,10 +132,7 @@ class _SpaceWorkCreateActivityScreenState
     if (!_actorValid) return;
     final repository = widget.runtime.space;
     if (repository == null) throw StateError('Dépôt local absent');
-    await repository.refreshWork(
-      widget.actor.space,
-      widget.actor.perspective,
-    );
+    await repository.refreshWork(widget.actor.space, widget.actor.perspective);
   }
 
   Future<void> _verifyWithoutCreating() async {
@@ -150,7 +147,8 @@ class _SpaceWorkCreateActivityScreenState
     } on Object {
       if (mounted && _actorValid) {
         setState(() {
-          _error = 'Le travail de cet Espace reste indisponible. '
+          _error =
+              'Le travail de cet Espace reste indisponible. '
               'Aucune nouvelle création n’a été envoyée.';
         });
       }
@@ -165,9 +163,7 @@ class _SpaceWorkCreateActivityScreenState
     return Scaffold(
       appBar: AppBar(title: Text(label)),
       body: !_actorValid
-          ? const Center(
-              child: Text('Sélectionnez votre Espace autorisé.'),
-            )
+          ? const Center(child: Text('Sélectionnez votre Espace autorisé.'))
           : SafeArea(
               child: Form(
                 key: _form,
@@ -192,10 +188,9 @@ class _SpaceWorkCreateActivityScreenState
                       decoration: InputDecoration(
                         labelText: 'Nom de l’$_subject',
                       ),
-                      validator: (value) =>
-                          (value?.trim().isEmpty ?? true)
-                              ? 'Indiquez un nom.'
-                              : null,
+                      validator: (value) => (value?.trim().isEmpty ?? true)
+                          ? 'Indiquez un nom.'
+                          : null,
                     ),
                     const SizedBox(height: MakoloSpacing.md),
                     TextFormField(
@@ -225,17 +220,42 @@ class _SpaceWorkCreateActivityScreenState
                           labelText: 'Type de prestation',
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'application_support', child: Text('Accompagnement de candidature')),
-                          DropdownMenuItem(value: 'career_support', child: Text('Accompagnement carrière')),
-                          DropdownMenuItem(value: 'education_guidance', child: Text('Orientation éducative')),
-                          DropdownMenuItem(value: 'document_support', child: Text('Accompagnement documentaire')),
-                          DropdownMenuItem(value: 'administrative_support', child: Text('Accompagnement administratif')),
-                          DropdownMenuItem(value: 'interview_preparation', child: Text('Préparation d’entretien')),
-                          DropdownMenuItem(value: 'orientation', child: Text('Orientation')),
-                          DropdownMenuItem(value: 'other', child: Text('Autre')),
+                          DropdownMenuItem(
+                            value: 'application_support',
+                            child: Text('Accompagnement de candidature'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'career_support',
+                            child: Text('Accompagnement carrière'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'education_guidance',
+                            child: Text('Orientation éducative'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'document_support',
+                            child: Text('Accompagnement documentaire'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'administrative_support',
+                            child: Text('Accompagnement administratif'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'interview_preparation',
+                            child: Text('Préparation d’entretien'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'orientation',
+                            child: Text('Orientation'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'other',
+                            child: Text('Autre'),
+                          ),
                         ],
-                        validator: (v) =>
-                            v == null ? 'Choisissez le type de prestation.' : null,
+                        validator: (v) => v == null
+                            ? 'Choisissez le type de prestation.'
+                            : null,
                         onChanged: _attempted
                             ? null
                             : (v) => setState(() => _serviceKind = v),
@@ -295,7 +315,9 @@ class _SpaceWorkCreateActivityScreenState
                       ),
                     const SizedBox(height: MakoloSpacing.sm),
                     OutlinedButton(
-                      onPressed: _sending ? null : () => context.go('/space/work'),
+                      onPressed: _sending
+                          ? null
+                          : () => context.go('/space/work'),
                       child: const Text('Retour à Métier'),
                     ),
                   ],

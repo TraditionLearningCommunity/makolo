@@ -31,72 +31,8 @@ class _ActorStore implements ActorContextStore {
 }
 
 void main() {
-  testWidgets('Space subscription uses Space snapshot and clears it on actor switch', (
-    tester,
-  ) async {
-    final actors = await ActorContextController.restore(
-      profileId: 'profile-a',
-      store: _ActorStore(),
-    );
-    await actors.selectSpace(SpaceActorIdentity(id: 'space-a', slug: 'space-a'));
-    final tokens = MemoryTokenStore(
-      session: const AuthSession(
-        profileId: 'profile-a', accessToken: 'access', refreshToken: 'refresh',
-      ),
-    );
-    final api = MakoloApiClient(
-      baseUri: Uri.parse('https://makolo.invalid/'),
-      tokenStore: tokens,
-      dio: MockClient((request) async {
-        expect(request.url.path, '/api/v1/subscriptions/spaces/space-a/');
-        return MockResponse(jsonEncode({
-          'space': {'id': 'space-a', 'slug': 'space-a', 'name': 'Espace A'},
-          'subscription': {
-            'id': 'sub-a', 'subject_type': 'space',
-            'can_manage': true,
-            'status': {'label': 'Actif', 'explanation': 'Capacités collectives'},
-            'current_base': {'name': 'Formule de l’Espace A'},
-            'active_addons': [],
-          },
-          'capabilities': [
-            {
-              'name': 'Équipe de l’Espace', 'value': 10,
-              'value_label': '10 membres', 'usage': 4,
-              'usage_label': '4 utilisés sur 10', 'allowed': true,
-              'over_limit': false,
-            },
-          ],
-          'catalog': [],
-          'history': {'items': [], 'next_offset': null},
-          'billing': {'items': [], 'next_offset': null},
-        }), 200);
-      }).dio,
-    );
-    final runtime = AppRuntime(
-      tokens: tokens, session: null,
-      recovery: SessionRecoveryController(),
-      actorContext: actors, api: api,
-    );
-    addTearDown(runtime.close);
-    await tester.pumpWidget(MaterialApp(
-      home: BillingScreen(
-        runtime: runtime, spaceSlug: 'space-a', expectedSpaceId: 'space-a',
-      ),
-    ));
-    await tester.pumpAndSettle();
-    expect(find.text('Formule de l’Espace A'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Équipe de l’Espace'), 180);
-    expect(find.text('Équipe de l’Espace'), findsOneWidget);
-    expect(find.text('Mon abonnement'), findsNothing);
-
-    await actors.selectSpace(SpaceActorIdentity(id: 'space-b', slug: 'space-b'));
-    await tester.pumpAndSettle();
-    expect(find.text('Formule de l’Espace A'), findsNothing);
-    expect(find.textContaining('Sélectionnez cet Espace'), findsOneWidget);
-  });
-
   testWidgets(
-    'actor switch while preview is open blocks old Space POST',
+    'Space subscription uses Space snapshot and clears it on actor switch',
     (tester) async {
       final actors = await ActorContextController.restore(
         profileId: 'profile-a',
@@ -112,61 +48,42 @@ void main() {
           refreshToken: 'refresh',
         ),
       );
-      var posted = 0;
       final api = MakoloApiClient(
         baseUri: Uri.parse('https://makolo.invalid/'),
         tokenStore: tokens,
         dio: MockClient((request) async {
-          if (request.url.path == '/api/v1/subscriptions/spaces/space-a/') {
-            return MockResponse(
-              jsonEncode({
-                'space': {
-                  'id': 'space-a',
-                  'slug': 'space-a',
-                  'name': 'Espace A',
+          expect(request.url.path, '/api/v1/subscriptions/spaces/space-a/');
+          return MockResponse(
+            jsonEncode({
+              'space': {'id': 'space-a', 'slug': 'space-a', 'name': 'Espace A'},
+              'subscription': {
+                'id': 'sub-a',
+                'subject_type': 'space',
+                'can_manage': true,
+                'status': {
+                  'label': 'Actif',
+                  'explanation': 'Capacités collectives',
                 },
-                'subscription': {
-                  'id': 'sub-a',
-                  'subject_type': 'space',
-                  'can_manage': true,
-                  'status': {'label': 'Actif'},
-                  'current_base': {'name': 'Base Espace'},
-                  'active_addons': [],
+                'current_base': {'name': 'Formule de l’Espace A'},
+                'active_addons': [],
+              },
+              'capabilities': [
+                {
+                  'name': 'Équipe de l’Espace',
+                  'value': 10,
+                  'value_label': '10 membres',
+                  'usage': 4,
+                  'usage_label': '4 utilisés sur 10',
+                  'allowed': true,
+                  'over_limit': false,
                 },
-                'catalog': [
-                  {
-                    'name': 'Alternative Espace',
-                    'plan_version_id': 'plan-a',
-                    'plan_type': 'base',
-                    'can_request': true,
-                    'can_preview': true,
-                    'current': false,
-                    'eligibility_label': 'Disponible',
-                  },
-                ],
-                'history': {'items': [], 'next_offset': null},
-                'billing': {'items': [], 'next_offset': null},
-              }),
-              200,
-            );
-          }
-          if (request.url.path ==
-              '/api/v1/subscriptions/spaces/space-a/plans/plan-a/') {
-            if (request.method == 'POST') posted++;
-            return MockResponse(
-              jsonEncode({
-                'target_name': 'Alternative Espace',
-                'kind': 'base_switch',
-                'can_confirm': true,
-                'features_gained': [],
-                'features_lost': [],
-                'requirements': [],
-                'quota_changes': [],
-              }),
-              200,
-            );
-          }
-          throw StateError('Unexpected endpoint: ${request.url.path}');
+              ],
+              'catalog': [],
+              'history': {'items': [], 'next_offset': null},
+              'billing': {'items': [], 'next_offset': null},
+            }),
+            200,
+          );
         }).dio,
       );
       final runtime = AppRuntime(
@@ -187,35 +104,138 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.text('Examiner le changement'),
-        180,
-      );
-      await tester.tap(find.text('Examiner le changement'));
-      await tester.pumpAndSettle();
-      expect(find.text('Confirmer'), findsOneWidget);
+      expect(find.text('Formule de l’Espace A'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Équipe de l’Espace'), 180);
+      expect(find.text('Équipe de l’Espace'), findsOneWidget);
+      expect(find.text('Mon abonnement'), findsNothing);
 
-      await actors.selectPersonal();
+      await actors.selectSpace(
+        SpaceActorIdentity(id: 'space-b', slug: 'space-b'),
+      );
       await tester.pumpAndSettle();
-      // A modal can outlive the page's authorized snapshot.
-      if (find.text('Confirmer').evaluate().isNotEmpty) {
-        await tester.tap(find.text('Confirmer'));
-        await tester.pumpAndSettle();
-      }
-      expect(posted, 0);
+      expect(find.text('Formule de l’Espace A'), findsNothing);
+      expect(find.textContaining('Sélectionnez cet Espace'), findsOneWidget);
     },
   );
+
+  testWidgets('actor switch while preview is open blocks old Space POST', (
+    tester,
+  ) async {
+    final actors = await ActorContextController.restore(
+      profileId: 'profile-a',
+      store: _ActorStore(),
+    );
+    await actors.selectSpace(
+      SpaceActorIdentity(id: 'space-a', slug: 'space-a'),
+    );
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        profileId: 'profile-a',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+      ),
+    );
+    var posted = 0;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: MockClient((request) async {
+        if (request.url.path == '/api/v1/subscriptions/spaces/space-a/') {
+          return MockResponse(
+            jsonEncode({
+              'space': {'id': 'space-a', 'slug': 'space-a', 'name': 'Espace A'},
+              'subscription': {
+                'id': 'sub-a',
+                'subject_type': 'space',
+                'can_manage': true,
+                'status': {'label': 'Actif'},
+                'current_base': {'name': 'Base Espace'},
+                'active_addons': [],
+              },
+              'catalog': [
+                {
+                  'name': 'Alternative Espace',
+                  'plan_version_id': 'plan-a',
+                  'plan_type': 'base',
+                  'can_request': true,
+                  'can_preview': true,
+                  'current': false,
+                  'eligibility_label': 'Disponible',
+                },
+              ],
+              'history': {'items': [], 'next_offset': null},
+              'billing': {'items': [], 'next_offset': null},
+            }),
+            200,
+          );
+        }
+        if (request.url.path ==
+            '/api/v1/subscriptions/spaces/space-a/plans/plan-a/') {
+          if (request.method == 'POST') posted++;
+          return MockResponse(
+            jsonEncode({
+              'target_name': 'Alternative Espace',
+              'kind': 'base_switch',
+              'can_confirm': true,
+              'features_gained': [],
+              'features_lost': [],
+              'requirements': [],
+              'quota_changes': [],
+            }),
+            200,
+          );
+        }
+        throw StateError('Unexpected endpoint: ${request.url.path}');
+      }).dio,
+    );
+    final runtime = AppRuntime(
+      tokens: tokens,
+      session: null,
+      recovery: SessionRecoveryController(),
+      actorContext: actors,
+      api: api,
+    );
+    addTearDown(runtime.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BillingScreen(
+          runtime: runtime,
+          spaceSlug: 'space-a',
+          expectedSpaceId: 'space-a',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Examiner le changement'), 180);
+    await tester.tap(find.text('Examiner le changement'));
+    await tester.pumpAndSettle();
+    expect(find.text('Confirmer'), findsOneWidget);
+
+    await actors.selectPersonal();
+    await tester.pumpAndSettle();
+    // A modal can outlive the page's authorized snapshot.
+    if (find.text('Confirmer').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Confirmer'));
+      await tester.pumpAndSettle();
+    }
+    expect(posted, 0);
+  });
 
   testWidgets('Space view-only can preview but never confirm a change', (
     tester,
   ) async {
     final actors = await ActorContextController.restore(
-      profileId: 'profile-a', store: _ActorStore(),
+      profileId: 'profile-a',
+      store: _ActorStore(),
     );
-    await actors.selectSpace(SpaceActorIdentity(id: 'space-a', slug: 'space-a'));
+    await actors.selectSpace(
+      SpaceActorIdentity(id: 'space-a', slug: 'space-a'),
+    );
     final tokens = MemoryTokenStore(
       session: const AuthSession(
-        profileId: 'profile-a', accessToken: 'access', refreshToken: 'refresh',
+        profileId: 'profile-a',
+        accessToken: 'access',
+        refreshToken: 'refresh',
       ),
     );
     var posts = 0;
@@ -224,52 +244,74 @@ void main() {
       tokenStore: tokens,
       dio: MockClient((request) async {
         if (request.url.path == '/api/v1/subscriptions/spaces/space-a/') {
-          return MockResponse(jsonEncode({
-            'space': {'id': 'space-a', 'slug': 'space-a', 'name': 'Espace A'},
-            'subscription': {
-              'id': 'sub-a', 'subject_type': 'space',
-              'can_manage': false,
-              'status': {'label': 'Actif'},
-              'current_base': {'name': 'Base Espace'},
-              'active_addons': [],
-            },
-            'catalog': [
-              {
-                'name': 'Alternative Espace',
-                'plan_version_id': 'plan-a', 'plan_type': 'base',
-                'can_request': false, 'can_preview': true,
-                'current': false, 'eligibility_label': 'Disponible',
+          return MockResponse(
+            jsonEncode({
+              'space': {'id': 'space-a', 'slug': 'space-a', 'name': 'Espace A'},
+              'subscription': {
+                'id': 'sub-a',
+                'subject_type': 'space',
+                'can_manage': false,
+                'status': {'label': 'Actif'},
+                'current_base': {'name': 'Base Espace'},
+                'active_addons': [],
               },
-            ],
-            'history': {'items': [], 'next_offset': null},
-            'billing': {'items': [], 'next_offset': null},
-          }), 200);
+              'catalog': [
+                {
+                  'name': 'Alternative Espace',
+                  'plan_version_id': 'plan-a',
+                  'plan_type': 'base',
+                  'can_request': false,
+                  'can_preview': true,
+                  'current': false,
+                  'eligibility_label': 'Disponible',
+                },
+              ],
+              'history': {'items': [], 'next_offset': null},
+              'billing': {'items': [], 'next_offset': null},
+            }),
+            200,
+          );
         }
         if (request.url.path ==
             '/api/v1/subscriptions/spaces/space-a/plans/plan-a/') {
-          if (request.url.path == '/api/v1/subscriptions/spaces/space-a/plans/plan-a/' &&
+          if (request.url.path ==
+                  '/api/v1/subscriptions/spaces/space-a/plans/plan-a/' &&
               request.body.isNotEmpty) {
             posts++;
           }
-          return MockResponse(jsonEncode({
-            'target_name': 'Alternative Espace', 'kind': 'base_switch',
-            'can_confirm': false, 'features_gained': [],
-            'features_lost': [], 'requirements': [], 'quota_changes': [],
-          }), 200);
+          return MockResponse(
+            jsonEncode({
+              'target_name': 'Alternative Espace',
+              'kind': 'base_switch',
+              'can_confirm': false,
+              'features_gained': [],
+              'features_lost': [],
+              'requirements': [],
+              'quota_changes': [],
+            }),
+            200,
+          );
         }
         throw StateError('Unexpected endpoint: ${request.url.path}');
       }).dio,
     );
     final runtime = AppRuntime(
-      tokens: tokens, session: null, recovery: SessionRecoveryController(),
-      actorContext: actors, api: api,
+      tokens: tokens,
+      session: null,
+      recovery: SessionRecoveryController(),
+      actorContext: actors,
+      api: api,
     );
     addTearDown(runtime.close);
-    await tester.pumpWidget(MaterialApp(
-      home: BillingScreen(
-        runtime: runtime, spaceSlug: 'space-a', expectedSpaceId: 'space-a',
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BillingScreen(
+          runtime: runtime,
+          spaceSlug: 'space-a',
+          expectedSpaceId: 'space-a',
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Examiner le changement'), 180);
     await tester.tap(find.text('Examiner le changement'));

@@ -40,7 +40,8 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
   String get _path {
     final perspective = widget.actor.perspective;
     return Uri(
-      path: 'api/v1/organizations/workspaces/'
+      path:
+          'api/v1/organizations/workspaces/'
           '${Uri.encodeComponent(widget.actor.space.slug)}/work/'
           'service-cases/${Uri.encodeComponent(widget.journeyId)}/',
       queryParameters: {
@@ -122,7 +123,8 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
       if (!mounted || !_actorValid || epoch != _epoch) return;
       setState(() {
         _owner = null;
-        _error = 'Ce dossier n’est pas accessible actuellement. '
+        _error =
+            'Ce dossier n’est pas accessible actuellement. '
             'Vérifiez votre connexion ou vos autorisations.';
       });
     } finally {
@@ -200,7 +202,9 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
       }
       final confirmed = response.jsonObject();
       if (confirmed['confirmed_by_owner'] != true || !_matches(confirmed)) {
-        throw const FormatException('Réponse non confirmée par le propriétaire');
+        throw const FormatException(
+          'Réponse non confirmée par le propriétaire',
+        );
       }
       if (!mounted || !_actorValid || epoch != _epoch) return;
       // Reload instead of pretending a local button changed the Journey.
@@ -208,7 +212,8 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
     } on Object {
       if (!mounted || !_actorValid || epoch != _epoch) return;
       setState(() {
-        _error = 'Résultat de l’action non confirmé. Actualisez le dossier '
+        _error =
+            'Résultat de l’action non confirmé. Actualisez le dossier '
             'avant d’envisager une nouvelle action.';
       });
     } finally {
@@ -255,21 +260,26 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                       spaceText(activity?['title']) ?? 'Prestation',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    if (spaceText(data['objective']) case final String objective)
+                    if (spaceText(data['objective'])
+                        case final String objective)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(objective),
                       ),
                     const SizedBox(height: 12),
-                    Text('État : ${spaceStateLabel(spaceText(data['status']) ?? 'unknown')}'),
+                    Text(
+                      'État : ${spaceStateLabel(spaceText(data['status']) ?? 'unknown')}',
+                    ),
                     if (spaceText(data['outcome']) case final String outcome)
                       Text('Résultat déclaré : ${spaceStateLabel(outcome)}'),
                     if (conditions != null &&
                         conditions['total'] is int &&
                         conditions['total'] > 0) ...[
                       const SizedBox(height: 20),
-                      Text('Conditions évaluées',
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Conditions évaluées',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       Text(
                         '${conditions['satisfied']} satisfaites · '
                         '${conditions['awaiting']} en attente · '
@@ -277,8 +287,10 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                       ),
                     ],
                     const SizedBox(height: 24),
-                    Text('Étapes de la démarche',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Étapes de la démarche',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     if (steps.isEmpty)
                       const Text('Aucune étape établie pour ce dossier.'),
                     for (final raw in steps)
@@ -286,26 +298,33 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(spaceText(step['title']) ?? 'Étape'),
-                          subtitle: Text(spaceStateLabel(
-                            spaceText(step['status']) ?? 'unknown',
-                          )),
-                          trailing: step['can_start'] == true &&
-                                  !_mustVerify && !_busy
+                          subtitle: Text(
+                            spaceStateLabel(
+                              spaceText(step['status']) ?? 'unknown',
+                            ),
+                          ),
+                          trailing:
+                              step['can_start'] == true &&
+                                  !_mustVerify &&
+                                  !_busy
                               ? TextButton(
                                   onPressed: () => _command(
-                                    'start_step', step['id'] as String,
+                                    'start_step',
+                                    step['id'] as String,
                                   ),
                                   child: const Text('Démarrer'),
                                 )
                               : step['can_complete'] == true &&
-                                      !_mustVerify && !_busy
-                                  ? TextButton(
-                                      onPressed: () => _command(
-                                        'complete_step', step['id'] as String,
-                                      ),
-                                      child: const Text('Terminer'),
-                                    )
-                                  : null,
+                                    !_mustVerify &&
+                                    !_busy
+                              ? TextButton(
+                                  onPressed: () => _command(
+                                    'complete_step',
+                                    step['id'] as String,
+                                  ),
+                                  child: const Text('Terminer'),
+                                )
+                              : null,
                         ),
                     if (_stepsOffset > 0 || data['steps_has_more'] == true)
                       Wrap(
@@ -314,23 +333,28 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                           if (_stepsOffset > 0)
                             OutlinedButton(
                               onPressed: () => _changePage(
-                                steps: true, offset: _stepsOffset > 50
-                                    ? _stepsOffset - 50 : 0,
+                                steps: true,
+                                offset: _stepsOffset > 50
+                                    ? _stepsOffset - 50
+                                    : 0,
                               ),
                               child: const Text('Étapes précédentes'),
                             ),
                           if (data['steps_has_more'] == true)
                             OutlinedButton(
                               onPressed: () => _changePage(
-                                steps: true, offset: _stepsOffset + 50,
+                                steps: true,
+                                offset: _stepsOffset + 50,
                               ),
                               child: const Text('Étapes suivantes'),
                             ),
                         ],
                       ),
                     const SizedBox(height: 24),
-                    Text('Blocages actifs',
-                        style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Blocages actifs',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     if (blockers.isEmpty)
                       const Text('Aucun blocage actif déclaré.'),
                     for (final raw in blockers)
@@ -341,11 +365,14 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                           subtitle: Text(
                             'Sévérité : ${spaceText(blocker['severity']) ?? 'inconnue'}',
                           ),
-                          trailing: blocker['can_resolve'] == true &&
-                                  !_mustVerify && !_busy
+                          trailing:
+                              blocker['can_resolve'] == true &&
+                                  !_mustVerify &&
+                                  !_busy
                               ? TextButton(
                                   onPressed: () => _command(
-                                    'resolve_blocker', blocker['id'] as String,
+                                    'resolve_blocker',
+                                    blocker['id'] as String,
                                   ),
                                   child: const Text('Résoudre'),
                                 )
@@ -359,15 +386,18 @@ class _SpaceServiceCaseScreenState extends State<SpaceServiceCaseScreen> {
                           if (_blockersOffset > 0)
                             OutlinedButton(
                               onPressed: () => _changePage(
-                                steps: false, offset: _blockersOffset > 50
-                                    ? _blockersOffset - 50 : 0,
+                                steps: false,
+                                offset: _blockersOffset > 50
+                                    ? _blockersOffset - 50
+                                    : 0,
                               ),
                               child: const Text('Blocages précédents'),
                             ),
                           if (data['blockers_has_more'] == true)
                             OutlinedButton(
                               onPressed: () => _changePage(
-                                steps: false, offset: _blockersOffset + 50,
+                                steps: false,
+                                offset: _blockersOffset + 50,
                               ),
                               child: const Text('Blocages suivants'),
                             ),

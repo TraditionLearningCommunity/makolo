@@ -165,15 +165,27 @@ class DiscoveryQuery {
   /// freshness, viewer, or client map selection as Watch criteria.
   Map<String, String> get watchCriteria {
     const allowed = {
-      'q', 'place', 'when', 'period', 'vertical', 'price',
-      'date', 'date_from', 'date_to', 'lat', 'lon', 'radius_km',
+      'q',
+      'place',
+      'when',
+      'period',
+      'vertical',
+      'price',
+      'date',
+      'date_from',
+      'date_to',
+      'lat',
+      'lon',
+      'radius_km',
       'timezone',
     };
     return Map<String, String>.unmodifiable({
       for (final entry in parameters.entries)
         if (allowed.contains(entry.key) && entry.value.trim().isNotEmpty)
-          entry.key: entry.key == 'radius_km' &&
-                  radiusKm != null && radiusKm! == radiusKm!.roundToDouble()
+          entry.key:
+              entry.key == 'radius_km' &&
+                  radiusKm != null &&
+                  radiusKm! == radiusKm!.roundToDouble()
               ? radiusKm!.round().toString()
               : entry.value.trim(),
     });
@@ -907,8 +919,6 @@ class DiscoveryRepository {
       // Server deletion already confirmed; list can reconcile later.
     }
   }
-
-
 
   Future<void> refreshWatchResults(String watchId, {int page = 1}) =>
       _refresh(watchResultsSource(watchId, page: page));
