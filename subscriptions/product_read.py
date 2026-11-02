@@ -218,6 +218,10 @@ def _catalog_rows(subscription, active_items):
         if result.status == PlanEligibilityStatus.CONDITIONALLY_AVAILABLE and not requirements:
             label = "Disponibilité à confirmer"
             explanation = "Cette formule peut être demandée. Sa disponibilité finale sera confirmée après la demande."
+        if current:
+            label = "Formule actuelle"
+            explanation = "Cette formule est déjà incluse dans votre abonnement."
+            tone = "neutral"
         rows.append(
             {
                 "plan_version_id": str(version.pk),
