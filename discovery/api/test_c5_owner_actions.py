@@ -40,7 +40,7 @@ class DiscoveryConnectedActionsTests(TestCase):
         self.profile = UserProfile.objects.create(user=self.actor)
         for user in (self.actor, self.other):
             for scope in ("discovery_clarify", "discovery_research"):
-                cache.delete(f"throttle_${scope}_${user.pk}")
+                cache.delete(f"throttle_{scope}_{user.pk}")
         self.api = APIClient()
         self.api.force_authenticate(self.actor)
 
