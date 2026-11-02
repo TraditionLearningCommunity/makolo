@@ -70,7 +70,7 @@ class SpaceWorkG4Depth extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Semantics(
-              label: spaceText(spaceMap(mediaBindings.first)['label']) ??
+              label: spaceText(spaceMap(mediaBindings.first)?['label']) ??
                   'Visuel publié de reconnaissance',
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -85,11 +85,12 @@ class SpaceWorkG4Depth extends StatelessWidget {
               ),
             ),
           ),
-        if (isActivity && spaceText(detail['description']) case final String description)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: Text(description),
-          ),
+        if (isActivity)
+          if (spaceText(detail['description']) case final String description)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: Text(description),
+            ),
         if (isActivity && nextOccurrence != null)
           ListTile(
             contentPadding: EdgeInsets.zero,
