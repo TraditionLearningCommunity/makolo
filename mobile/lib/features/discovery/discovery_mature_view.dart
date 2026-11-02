@@ -551,7 +551,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           Positioned.fill(
             child: ConfiguredMakoloMapView(
               key: ValueKey(
-                'discover-map-${widget.fieldKey ?? 'spatial'}',
+                'discover-map-${widget.fieldKey ?? (widget.showMapOnCompact ? 'spatial' : (anchor?.candidateKey ?? 'spatial'))}',
               ),
               onMapCreated: (controller) =>
                   _mapCreated(DiscoveryMapController(controller)),
