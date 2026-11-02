@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/providers.dart';
 import '../../design/behavior_states.dart';
@@ -141,6 +142,15 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     final capabilities = connection.capabilities
         .map(_capabilityLabel)
         .join(' · ');
+    // A configured personal Intelligence capability can be explored through
+    // Discovery's real owner-owned actions. This is navigation, not execution
+    // and never a grant of permission or a promise of provider availability.
+    final canExplore = connection.owner == 'intelligence' &&
+        connection.scope == 'profile' &&
+        connection.enabled &&
+        connection.capabilities.any(
+          (cap) => cap == 'web_research' || cap == 'structured_generate',
+        );
     return Card(
       child: ListTile(
         key: Key('connection-${connection.id}'),
@@ -154,6 +164,13 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           ].join('\n'),
         ),
         isThreeLine: true,
+        trailing: canExplore
+            ? TextButton(
+                key: Key('discover-from-connection-${connection.id}'),
+                onPressed: () => context.push('/discover'),
+                child: const Text('Explorer'),
+              )
+            : null,
       ),
     );
   }
@@ -180,24 +197,28 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         key: Key('extension-${extension.code}'),
         leading: const Icon(Icons.widgets_outlined),
         title: Text(_humanize(extension.code)),
-        subtitle: const Text('Extension disponible pour votre Profil'),
+        subtitle: const Text(
+          'Extension déclarée · aucun lancement direct depuis Connexions.',
+        ),
       ),
     );
   }
 
   Widget _actionCard(InteroperabilityActionProjection action) {
-    final available = action.available;
     return Card(
       child: ListTile(
         key: Key('action-${action.code}'),
         leading: const Icon(Icons.bolt_outlined),
         title: Text(_humanize(action.code)),
         subtitle: Text(
-          available
-              ? 'Disponible'
-              : action.requiresConnection
-              ? 'Connexion requise'
-              : 'Indisponible pour le moment',
+          !action.authorized
+              ? 'Action non autorisée dans ce contexte.'
+              : !action.available && action.requiresConnection
+                  ? 'Connexion adaptée requise.'
+                  : !action.available
+                      ? 'Indisponible dans ce contexte.'
+                      : 'Capacité déclarée · poursuivre dans son domaine '
+                          'propriétaire. Aucun lancement direct ici.',
         ),
       ),
     );
