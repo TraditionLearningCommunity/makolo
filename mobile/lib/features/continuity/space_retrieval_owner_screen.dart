@@ -9,6 +9,7 @@ import '../../presentation/contracts/space_presentation.dart';
 import '../../presentation/mps/mps_models.dart';
 import '../../presentation/mps/mps_native_renderer.dart';
 import '../space/space_work_g1_realizations.dart';
+import '../space/space_work_g2_depth.dart';
 
 /// Owner-backed Space N3. A search result is never an authorization grant:
 /// every opening re-reads the source using the current account and actor.
@@ -34,6 +35,7 @@ class SpaceRetrievalOwnerScreen extends StatefulWidget {
 class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
   late Future<Map<String, dynamic>> _result;
   int _relatedOffset = 0;
+  int _relatedWorkOffset = 0;
 
   bool get _actorValid =>
       widget.runtime.actorContext?.value == widget.spaceActor;
@@ -49,6 +51,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
     if (!mounted) return;
     setState(() {
       _relatedOffset = 0;
+      _relatedWorkOffset = 0;
       // A return to this Space also forces owner revalidation.
       _result = _actorValid
           ? _readOwner()
@@ -74,6 +77,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
         oldWidget.kind != widget.kind ||
         oldWidget.id != widget.id) {
       _relatedOffset = 0;
+      _relatedWorkOffset = 0;
       _result = _readOwner();
     }
   }
@@ -117,6 +121,8 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
         'id': widget.id,
         if (kind == 'activity' && _relatedOffset > 0)
           'related_offset': '$_relatedOffset',
+        if (kind == 'activity' && _relatedWorkOffset > 0)
+          'related_work_offset': '$_relatedWorkOffset',
         if (!perspective.isAll) 'responsibility': perspective.id!,
       },
     ).toString();
@@ -156,6 +162,7 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
       'presentation_unavailable': presentationUnavailable,
       'continuity_facet': item['continuity_facet'],
       'related_occurrences': item['related_occurrences'],
+      'related_work': item['related_work'],
       'space_archetype': payload['archetype'],
       'owner_handoffs': item['owner_handoffs'],
       'day_of':
@@ -361,6 +368,33 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                             '${blockers.length} blocage(s) actif(s) dans cette démarche.',
                       ),
                     if (widget.kind == 'activity' &&
+                        (data['space_archetype'] == 'education' ||
+                            data['space_archetype'] == 'service_provider') &&
+                        spaceMap(data['related_occurrences']) != null &&
+                        spaceMap(data['related_work']) != null)
+                      SpaceWorkG2Depth(
+                        slug: widget.spaceActor.space.slug,
+                        archetype: data['space_archetype'] as String,
+                        occurrences: spaceMap(data['related_occurrences'])!,
+                        work: spaceMap(data['related_work'])!,
+                        onOccurrencesPageChange: (nextOffset) {
+                          if (!_actorValid) return;
+                          setState(() {
+                            _relatedOffset = nextOffset;
+                            _result = _readOwner();
+                          });
+                        },
+                        onWorkPageChange: (nextOffset) {
+                          if (!_actorValid) return;
+                          setState(() {
+                            _relatedWorkOffset = nextOffset;
+                            _result = _readOwner();
+                          });
+                        },
+                      ),
+                    if (widget.kind == 'activity' &&
+                        (data['space_archetype'] == 'generic' ||
+                            data['space_archetype'] == 'community') &&
                         spaceMap(data['related_occurrences']) != null)
                       SpaceWorkG1Realizations(
                         payload: spaceMap(data['related_occurrences'])!,
@@ -389,6 +423,23 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => context.push(
                               '/space/requests/${Uri.encodeComponent(requestId)}',
+                            ),
+                          ),
+                    if (widget.kind == 'journey' &&
+                        data['space_archetype'] == 'service_provider' &&
+                        data['owner_handoffs'] is List)
+                      for (final handoff in data['owner_handoffs'] as List)
+                        if (spaceText(spaceMap(handoff)?['intent']) ==
+                                'open_service_case_native' &&
+                            spaceText(spaceMap(spaceMap(handoff)?['owner'])?['id']) ==
+                                widget.id)
+                          ListTile(
+                            leading: const Icon(Icons.work_outline),
+                            title: const Text('Suivre le dossier de prestation'),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => context.push(
+                              '/space/${Uri.encodeComponent(widget.spaceActor.space.slug)}'
+                              '/services/cases/${Uri.encodeComponent(widget.id)}',
                             ),
                           ),
                     if (activityRoute != null)
