@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -128,6 +129,22 @@ class _DatedPassportApi implements MakoloApiClient {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _DelayedVariantApi extends _DatedPassportApi {
+  final publicResult = Completer<ApiResponse>();
+
+  @override
+  Future<ApiResponse> get(
+    String path, {
+    Map<String, String>? headers,
+    MakoloCancelHandle? cancel,
+  }) {
+    if (Uri.parse(path).queryParameters['variant'] == 'public') {
+      return publicResult.future;
+    }
+    return super.get(path, headers: headers, cancel: cancel);
+  }
+}
+
 class _UnavailablePassportApi implements MakoloApiClient {
   @override
   Uri get baseUri => Uri.parse('https://example.test/');
@@ -214,6 +231,29 @@ void main() {
     await tester.tap(find.text('Réessayer'));
     await tester.pumpAndSettle();
     expect(find.text('Réessayer'), findsOneWidget);
+  });
+
+  testWidgets('switching Passport variant never paints previous private data', (tester) async {
+    final api = _DelayedVariantApi();
+    await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
+    await tester.pumpAndSettle();
+    expect(find.text('Présentation actuellement mise à jour.'), findsOneWidget);
+
+    await tester.tap(find.text('Public'));
+    await tester.pump();
+    expect(find.text('Présentation actuellement mise à jour.'), findsNothing);
+
+    api.publicResult.complete(api._envelope('personal.me.passport', {
+      'variant': 'public',
+      'identity': {'name': 'Profil public', 'links': const []},
+      'declared': {'interests': const [], 'open_to': const []},
+      'activities': const [],
+      'established': {'proofs': const []},
+      'issued': {'credentials': const []},
+    }));
+    await tester.pumpAndSettle();
+    expect(find.text('Profil public'), findsOneWidget);
+    expect(find.text('Présentation actuellement mise à jour.'), findsNothing);
   });
 
 }
