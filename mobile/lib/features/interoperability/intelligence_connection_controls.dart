@@ -14,12 +14,14 @@ class IntelligenceConnectionControls extends StatefulWidget {
     required this.path,
     required this.connections,
     required this.onChanged,
+    this.mutationsEnabled = true,
   });
 
   final AppRuntime runtime;
   final String path;
   final List<InteroperabilityConnectionProjection> connections;
   final Future<void> Function() onChanged;
+  final bool mutationsEnabled;
 
   @override
   State<IntelligenceConnectionControls> createState() =>
@@ -71,7 +73,7 @@ class _IntelligenceConnectionControlsState
     required String method,
     required Map<String, dynamic> body,
   }) async {
-    if (_busy || widget.runtime.api == null) return;
+    if (_busy || !widget.mutationsEnabled || widget.runtime.api == null) return;
     setState(() => _busy = true);
     try {
       final api = widget.runtime.api!;
@@ -185,7 +187,7 @@ class _IntelligenceConnectionControlsState
   }
 
   Future<void> _manage(InteroperabilityConnectionProjection connection, String action) async {
-    if (_busy) return;
+    if (_busy || !widget.mutationsEnabled) return;
     if (action == 'rotate') {
       final controller = TextEditingController();
       try {
@@ -264,6 +266,12 @@ class _IntelligenceConnectionControlsState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (_catalogLoading) const LinearProgressIndicator(minHeight: 2),
+        if (!widget.mutationsEnabled)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Actions de connexion suspendues hors ligne ou tant '
+                'que les droits ne sont pas confirmés. Réessayez une fois connecté.'),
+          ),
         if (connectable.isNotEmpty) ...[
           const SizedBox(height: 20),
           Text('Relier un service Intelligence',
@@ -275,7 +283,7 @@ class _IntelligenceConnectionControlsState
               leading: const Icon(Icons.add_link),
               title: Text(offer['label'] as String? ?? 'Service'),
               subtitle: Text(offer['description'] as String? ?? ''),
-              enabled: !_busy,
+              enabled: !_busy && widget.mutationsEnabled,
               onTap: () => unawaited(_create(offer)),
             ),
         ],
@@ -290,7 +298,7 @@ class _IntelligenceConnectionControlsState
             ListTile(
               title: Text(connection.displayName),
               trailing: PopupMenuButton<String>(
-                enabled: !_busy,
+                enabled: !_busy && widget.mutationsEnabled,
                 tooltip: 'Gérer la connexion',
                 onSelected: (action) => unawaited(_manage(connection, action)),
                 itemBuilder: (context) => [
