@@ -186,16 +186,29 @@ class PersonalConsiderationSettingsAPIView(PersonalProjectionAPIView):
             raise ValidationError({"values": "Sélection invalide."})
         if any(not isinstance(value, str) for value in values):
             raise ValidationError({"values": "Sélection invalide."})
+        # A client may explicitly choose how newly added declarations are
+        # disclosed. Omission preserves the documented public-first behavior;
+        # neither choice changes existing declarations or discoverability.
+        new_visibility = request.data.get("new_visibility", "public")
+        if new_visibility not in ("public", "private"):
+            raise ValidationError({"new_visibility": "Visibilité initiale invalide."})
         try:
             if family == "interests":
-                replace_profile_interests(profile=request.user, topic_ids=values)
+                replace_profile_interests(
+                    profile=request.user, topic_ids=values,
+                    new_visibility=new_visibility,
+                )
             else:
                 retained = ProfileOpenTo.objects.filter(
                     profile=request.user, topic__isnull=True, kind__in=values,
                 )
                 public_kinds = list(
                     retained.filter(is_public=True).values_list("kind", flat=True)
-                ) + list(set(values) - set(retained.values_list("kind", flat=True)))
+                )
+                if new_visibility == "public":
+                    public_kinds.extend(
+                        set(values) - set(retained.values_list("kind", flat=True))
+                    )
                 searchable_kinds = list(
                     retained.filter(is_searchable=True).values_list("kind", flat=True)
                 )
