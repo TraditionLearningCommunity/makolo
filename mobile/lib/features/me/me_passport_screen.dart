@@ -540,32 +540,59 @@ class _MePassportScreenState extends State<MePassportScreen> {
   }
 
   Future<void> _shareDatedVersion(String snapshotId) async {
-    final confirmed = await showDialog<bool>(
+    var selectedDays = 7;
+    final days = await showDialog<int>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Partager cette version émise ?'),
-        content: const Text(
-          'Ce partage donne accès uniquement au document sélectionné pendant '
-          '7 jours, même si votre Passeport est privé. Vous pourrez révoquer '
-          'le lien depuis l’historique Web.',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, updateDialog) => AlertDialog(
+          title: const Text('Partager cette version émise ?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Seul le document sélectionné sera accessible via ce lien. '
+                'Cela ne rend pas votre Profil public. Vous pourrez révoquer '
+                'le lien ici, dans les versions datées.',
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                initialValue: selectedDays,
+                decoration: const InputDecoration(
+                  labelText: 'Durée du partage',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 1, child: Text('1 jour')),
+                  DropdownMenuItem(value: 7, child: Text('7 jours')),
+                  DropdownMenuItem(value: 30, child: Text('30 jours')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    updateDialog(() => selectedDays = value);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, selectedDays),
+              child: const Text('Créer le lien'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Partager 7 jours'),
-          ),
-        ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (days == null || !mounted) return;
     try {
       final response = await widget.api.post(
         'api/v1/me/passport/history/$snapshotId/share/',
-        body: const {'days': 7},
+        body: {'days': days},
       );
       final data = ProjectionEnvelope.parse(
         response.jsonObject(),
@@ -578,6 +605,101 @@ class _MePassportScreenState extends State<MePassportScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Partage de cette version indisponible.')),
+      );
+    }
+  }
+
+  Future<void> _revokeDatedVersion(String snapshotId) async {
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Révoquer cette version ?'),
+        content: const Text(
+          'La version restera dans votre historique, mais tous ses liens '
+          'actifs et sa lecture publique seront retirés. Les PDF déjà '
+          'enregistrés par un destinataire ne peuvent pas être rappelés.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Conserver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Révoquer la version'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true || !mounted) return;
+    try {
+      final response = await widget.api.post(
+        'api/v1/me/passport/history/$snapshotId/revoke/',
+        body: const {},
+      );
+      final data = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport.version',
+      ).data;
+      if (data['revoked'] != true) {
+        throw const FormatException('Version revocation not confirmed');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Version et partages révoqués.')),
+      );
+      await _showDatedHistory();
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Révocation de la version impossible.')),
+      );
+    }
+  }
+
+  Future<void> _revokeDatedShare(String shareId) async {
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Révoquer ce lien ?'),
+        content: const Text(
+          'Ce lien cessera de fonctionner. Le document émis et les autres '
+          'liens éventuels restent inchangés.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Conserver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Révoquer le lien'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true || !mounted) return;
+    try {
+      final response = await widget.api.post(
+        'api/v1/me/passport/shares/$shareId/revoke/',
+        body: const {},
+      );
+      final data = ProjectionEnvelope.parse(
+        response.jsonObject(),
+        expectedProjection: 'personal.me.passport.share',
+      ).data;
+      if (data['revoked'] != true) {
+        throw const FormatException('Share revocation not confirmed');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lien de partage révoqué.')),
+      );
+      await _showDatedHistory();
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Révocation du lien impossible.')),
       );
     }
   }
@@ -648,19 +770,41 @@ class _MePassportScreenState extends State<MePassportScreen> {
                                         Navigator.pop(sheetContext);
                                         _openDatedVersion(id);
                                       },
-                                trailing:
-                                    !revoked &&
-                                        intact &&
-                                        row['variant'] != 'complete' &&
-                                        row['id'] != null
-                                    ? IconButton(
-                                        tooltip: 'Partager cette version',
-                                        icon: const Icon(Icons.share_outlined),
-                                        onPressed: () {
+                                trailing: row['id'] != null && intact && !revoked
+                                    ? PopupMenuButton<String>(
+                                        tooltip: 'Gérer cette version',
+                                        onSelected: (action) async {
                                           final id = row['id'].toString();
                                           Navigator.pop(sheetContext);
-                                          _shareDatedVersion(id);
+                                          if (action == 'share') {
+                                            await _shareDatedVersion(id);
+                                          } else if (action == 'revoke_version') {
+                                            await _revokeDatedVersion(id);
+                                          } else if (action.startsWith('revoke_share:')) {
+                                            await _revokeDatedShare(
+                                              action.substring('revoke_share:'.length),
+                                            );
+                                          }
                                         },
+                                        itemBuilder: (_) => [
+                                          if (row['variant'] != 'complete')
+                                            const PopupMenuItem(
+                                              value: 'share',
+                                              child: Text('Partager cette version'),
+                                            ),
+                                          for (final grant in _rows(row['active_shares']))
+                                            if (grant['id'] != null)
+                                              PopupMenuItem(
+                                                value: 'revoke_share:${grant['id']}',
+                                                child: Text(
+                                                  'Révoquer le lien · ${_historicalDate(grant['expires_at'])}',
+                                                ),
+                                              ),
+                                          const PopupMenuItem(
+                                            value: 'revoke_version',
+                                            child: Text('Révoquer cette version'),
+                                          ),
+                                        ],
                                       )
                                     : null,
                               );
@@ -1041,6 +1185,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
       ],
     ),
     body: FutureBuilder<Map<String, dynamic>>(
+      key: ValueKey(_passportStorageKey()),
       future: _future,
       builder: (context, snapshot) {
         // FutureBuilder may retain the previous variant while a new request
@@ -1053,7 +1198,35 @@ class _MePassportScreenState extends State<MePassportScreen> {
             ? futureData
             : null;
         if (stored == null && exact == null) {
-          return const SizedBox.expand();
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_off_outlined, size: 40),
+                  const SizedBox(height: 12),
+                  Text(
+                    snapshot.hasError
+                        ? 'Passeport indisponible. Vos informations ne sont pas modifiées.'
+                        : 'Aucun contenu à présenter dans cette sélection.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () => setState(() {
+                      _onlineReady = false;
+                      _future = _load(preferLocal: false);
+                    }),
+                    child: const Text('Réessayer'),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
         final data = stored ?? exact!;
         return ListView(
