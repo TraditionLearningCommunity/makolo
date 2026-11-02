@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.api.privacy import PrivateNoStoreMixin
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -26,14 +27,14 @@ def _private_response(payload):
     return response
 
 
-class PersonalInteroperabilityAPIView(APIView):
+class PersonalInteroperabilityAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         return _private_response(build_profile_interoperability_payload(request.user))
 
 
-class SpaceInteroperabilityAPIView(APIView):
+class SpaceInteroperabilityAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, slug):
@@ -59,7 +60,7 @@ class SpaceInteroperabilityAPIView(APIView):
         )
 
 
-class PlatformInteroperabilityAPIView(APIView):
+class PlatformInteroperabilityAPIView(PrivateNoStoreMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
