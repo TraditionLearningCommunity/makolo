@@ -188,7 +188,7 @@ class _BillingScreenState extends State<BillingScreen> {
 
   Widget _heading(String title) => Padding(
     padding: const EdgeInsets.only(
-      top: MakoloSpacing.lg,
+      top: MakoloSpacing.md,
       bottom: MakoloSpacing.sm,
     ),
     child: Text(title, style: Theme.of(context).textTheme.titleMedium),
@@ -295,14 +295,12 @@ class _BillingScreenState extends State<BillingScreen> {
     );
   }
 
-  Widget _sectionLink(String label, String target, IconData icon) => Card(
-    child: ListTile(
+  Widget _sectionLink(String label, String target, IconData icon) => ListTile(
       leading: Icon(icon),
       title: Text(label),
       trailing: const Icon(Icons.chevron_right_rounded),
       onTap: () => setState(() => _section = target),
-    ),
-  );
+    );
 
   Widget _content() {
     final subscription = _object(_data?['subscription']);
@@ -463,7 +461,44 @@ class _BillingScreenState extends State<BillingScreen> {
               ),
             ),
           ),
+          if (transition['next_action'] == 'pay' &&
+
+              _text(transition['payment_obligation_id'], fallback: '').isNotEmpty)
+
+            Padding(
+
+              padding: const EdgeInsets.only(bottom: MakoloSpacing.sm),
+
+              child: FilledButton.icon(
+
+                icon: const Icon(Icons.credit_card_outlined),
+
+                label: const Text('Reprendre le paiement'),
+
+                onPressed: () async {
+
+                  await context.push(
+
+                    '/payments/obligations/' +
+
+                        Uri.encodeComponent(transition['payment_obligation_id'].toString()),
+
+                  );
+
+                  if (mounted) await _load();
+
+                },
+
+              ),
+
+            )
+
+          else if (transition['next_action'] == 'finance_access_required')
+
+            const Text('Le paiement doit être effectué par une personne autorisée à gérer les finances de cet Espace.'),
+
           if (transition['total_conditions'] is int &&
+
               (transition['total_conditions'] as int) > 0)
             Text(
               'Conditions remplies : ${transition['completed_conditions']} '
@@ -507,10 +542,20 @@ class _BillingScreenState extends State<BillingScreen> {
             if (_object(row) != null) _capabilityTile(_object(row)!),
         ],
         _heading('Gérer mon abonnement'),
-        _sectionLink('Changer de formule', 'plans', Icons.swap_horiz_rounded),
-        _sectionLink('Gérer mes options', 'options', Icons.tune_rounded),
-        _sectionLink('Facturation', 'billing', Icons.receipt_long_outlined),
-        _sectionLink('Historique', 'history', Icons.history_rounded),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Column(
+            children: [
+              _sectionLink('Changer de formule', 'plans', Icons.swap_horiz_rounded),
+              const Divider(height: 1),
+              _sectionLink('Mes options', 'options', Icons.tune_rounded),
+              const Divider(height: 1),
+              _sectionLink('Facturation', 'billing', Icons.receipt_long_outlined),
+              const Divider(height: 1),
+              _sectionLink('Historique', 'history', Icons.history_rounded),
+            ],
+          ),
+        ),
         ],
         SubscriptionActionsPanel(
           runtime: widget.runtime,
@@ -549,7 +594,8 @@ class _BillingScreenState extends State<BillingScreen> {
               onRefresh: _load,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(MakoloSpacing.inner),
+                padding: const EdgeInsets.fromLTRB(
+                  MakoloSpacing.inner, 8, MakoloSpacing.inner, 24),
                 children: [
                   if (_loading) const LinearProgressIndicator(),
                   if (_error != null)
