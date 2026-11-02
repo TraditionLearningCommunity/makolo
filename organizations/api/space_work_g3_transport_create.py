@@ -41,6 +41,8 @@ def _uuid(raw, field):
 
 
 def _positive_int(raw, field):
+    if isinstance(raw, bool):
+        raise ValidationError({field: "Quantité entière requise."})
     try:
         number = int(raw)
     except (TypeError, ValueError):
@@ -48,6 +50,17 @@ def _positive_int(raw, field):
     if number < 1:
         raise ValidationError({field: "La quantité doit être positive."})
     return number
+
+
+def _text(raw, field, *, limit=180, blank=True):
+    if raw is None and blank:
+        return ""
+    if not isinstance(raw, str):
+        raise ValidationError({field: "Texte invalide."})
+    value = raw.strip()
+    if len(value) > limit or (not blank and not value):
+        raise ValidationError({field: "Valeur absente ou trop longue."})
+    return value
 
 
 def _timestamp(raw, timezone_name, field):
@@ -108,7 +121,7 @@ class SpaceG3TransportCreateAPIView(APIView):
             offsets[key] = offset
         routes = TransportRoute.objects.filter(
             space=space, active=True,
-        ).order_by("name", "pk")
+        ).prefetch_related("stops__place").order_by("name", "pk")
         vehicles = Vehicle.objects.filter(
             space=space, active=True,
         ).order_by("label", "pk")
@@ -179,12 +192,12 @@ class SpaceG3TransportCreateAPIView(APIView):
                 places = {row.place_id: row.place for row in rows}
                 if len(places) != 2:
                     raise ValidationError({"places": "Lieux indisponibles dans cet Espace."})
-                name = (data.get("name") or "").strip() or (
+                name = _text(data.get("name"), "name", limit=180) or (
                     f"{places[origin_id].name} → {places[destination_id].name}"
                 )
                 route = create_transport_route(
                     space=space, name=name,
-                    code=(data.get("code") or "").strip(),
+                    code=_text(data.get("code"), "code", limit=48),
                     stops=[places[origin_id], places[destination_id]],
                 )
                 result = {"kind": "transport_route", "id": str(route.pk)}
@@ -193,8 +206,9 @@ class SpaceG3TransportCreateAPIView(APIView):
                 if vehicle_type not in VehicleType.values:
                     raise ValidationError({"vehicle_type": "Type de véhicule inconnu."})
                 vehicle = create_transport_vehicle(
-                    space=space, label=data.get("label") or "",
-                    registration=data.get("registration") or "",
+                    space=space,
+                    label=_text(data.get("label"), "label", limit=180, blank=False),
+                    registration=_text(data.get("registration"), "registration", limit=80),
                     passenger_capacity=_positive_int(
                         data.get("passenger_capacity"), "passenger_capacity",
                     ),
@@ -239,7 +253,9 @@ class SpaceG3TransportCreateAPIView(APIView):
                     raise ValidationError({"unit_price": "Montant invalide."})
                 if not price.is_finite() or price < 0:
                     raise ValidationError({"unit_price": "Montant invalide."})
-                currency = (data.get("currency") or "").strip().upper()
+                currency = _text(
+                    data.get("currency"), "currency", limit=3, blank=False,
+                ).upper()
                 if len(currency) != 3 or not currency.isalpha():
                     raise ValidationError({"currency": "Code de devise invalide."})
                 mode = data.get("payment_mode") or PaymentMode.UPFRONT
@@ -254,17 +270,23 @@ class SpaceG3TransportCreateAPIView(APIView):
                     service = create_transport_service(
                         space=space, created_by=request.user,
                         route=route,
-                        title=(data.get("title") or "").strip() or route.name,
+                        title=_text(data.get("title"), "title", limit=220) or route.name,
                     )
                 departure = create_transport_departure(
                     service=service, start_at=start, end_at=end,
                     timezone_name=tz_name, vehicle=vehicle, capacity=total,
-                    boarding_instructions=(data.get("boarding_instructions") or "").strip(),
-                    operational_reference=(data.get("operational_reference") or "").strip(),
+                    boarding_instructions=_text(
+                        data.get("boarding_instructions"), "boarding_instructions",
+                        limit=320,
+                    ),
+                    operational_reference=_text(
+                        data.get("operational_reference"), "operational_reference",
+                        limit=80,
+                    ),
                 )
                 configure_transport_fare(
                     departure=departure,
-                    name=(data.get("fare_name") or "").strip() or "Standard",
+                    name=_text(data.get("fare_name"), "fare_name", limit=180) or "Standard",
                     unit_price=price, currency=currency, payment_mode=mode,
                 )
                 if data.get("publish") is True:
