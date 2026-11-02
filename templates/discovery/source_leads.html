@@ -9,7 +9,23 @@
     <p class="mk-page-copy">Ces pages publiques sont des pistes fournies par un service externe. Makolo n'a pas confirmé leur existence comme Activity, Occurrence, service ou Opportunity. Vérifiez la source avant toute démarche.</p>
   </header>
   {% if external_leads.status == 'unavailable' %}
-    <div class="mk-panel p-5" role="status">La recherche externe est indisponible. Votre recherche dans Makolo reste possible.</div>
+    <div class="mk-panel p-5" role="status">
+      {% if external_leads.reason == 'connection_unavailable' %}
+        Aucune connexion Intelligence utilisable pour cette recherche.
+      {% elif external_leads.reason == 'invalid_credentials' %}
+        La clé du fournisseur a été refusée. Vérifiez votre connexion.
+      {% elif external_leads.reason == 'rate_limited' %}
+        Le fournisseur a atteint sa limite d'usage. Réessayez plus tard.
+      {% elif external_leads.reason == 'network_unavailable' %}
+        Le fournisseur est momentanément injoignable. Réessayez plus tard.
+      {% else %}
+        Le service externe est indisponible actuellement.
+      {% endif %}
+      <p>Votre recherche dans Makolo reste disponible.</p>
+      {% if external_leads.reason == 'connection_unavailable' or external_leads.reason == 'invalid_credentials' %}
+        <a href="{% url 'core:participant-connections' %}" class="mk-btn mk-btn-secondary">Gérer mes connexions</a>
+      {% endif %}
+    </div>
   {% elif external_leads.candidates %}
     <div class="space-y-4">
     {% for item in external_leads.candidates %}
