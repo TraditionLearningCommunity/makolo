@@ -280,3 +280,21 @@ Les changements entre BASE (ex. gratuit vers Profil Plus ou Profil Max) exigent 
 `python -m scripts.demo_generation plan --domains connections` expose le catalogue des offres propriétaires Tavily, Exa, OpenAI API et OpenAI Web Research, puis les comptes réels de `ProviderConnection`, `IntelligenceRoute`, `ProviderCredential` et `PushEndpoint` selon leur portée. `generate --domains connections` exécute le même diagnostic sans mutation : une relation d'autorisation ne peut pas être créée par un générateur sans le consentement de son propriétaire et un véritable secret fourni par celui-ci. Le catalogue lui-même est défini dans `intelligence.connection_management.OFFERS` et n'a besoin d'aucune insertion en base. Les routes doivent provenir de `create_connection`, les clés du propriétaire chiffré, et les PushEndpoint des installations natives. Le champ `can_connect` indique la configuration serveur requise sans exposer de secret.
 
 Pour obtenir un état réellement connecté dans la bêta, le propriétaire effectue le POST propriétaire Intelligence depuis la future UX, avec `provider`, `name`, `api_key`, `model` si requis, et `consent: true`. La disponibilité réelle de la clé n'est pas déduite de sa création. Ce protocole ne simule aucun OAuth. Aucune donnée de clé ni jeton complet ne doit apparaître dans les journaux d'audit.
+
+## 50 choix Connexions de démonstration — application PythonAnywhere
+
+Le domaine `connections` comprend désormais 50 simulations combinant cinq familles de capacités et dix contextes. L'API de catalogue Intelligence expose ces offres après les quatre offres externes fixes, avec `demo=true`. Un POST propriétaire sur un code `demo-*` exige `consent=true`, mais pas de clé API; il crée des `ProviderConnection` et `IntelligenceRoute` désactivées, sans `ProviderCredential`. Les vues de gestion et le DELETE existants restent disponibles. Le provider externe n'est jamais appelé par ces simulations. La projection indique `simulation_only=true`, `external_execution=false`.
+
+Depuis la console existante (SQLite de test uniquement), pour remplir les deux profils synthétiques existants avec **50 relations démo réparties** :
+
+```bash
+python -m scripts.demo_generation generate --domains connections --count 50 --profiles 2
+```
+
+Pour choisir directement un utilisateur synthétique existant (et non en créer un) :
+
+```bash
+python -m scripts.demo_generation generate --domains connections --count 50 --profiles 2 --profile-username world_example
+```
+
+Remplacer `world_example` par un vrai username synthétique; ne pas inventer un compte. Le catalogue contient 50 options, mais ce ne sont pas 50 intégrations tierces fonctionnelles. Les connexions réelles restent soumises aux clés, à la configuration et au consentement d'origine.
