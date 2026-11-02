@@ -578,7 +578,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         if ((widget.section == 'overview' || widget.section == 'plans') &&
             canManage && transition != null && transition['open'] == true) ...[
           const SizedBox(height: 8),
-          if (transition['next_action'] == 'pay' &&
+          if (widget.section == 'plans' &&
+              transition['next_action'] == 'pay' &&
               _value(transition['payment_obligation_id']).isNotEmpty)
             FilledButton.icon(
               onPressed: _busy
@@ -587,7 +588,8 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               icon: const Icon(Icons.credit_card_outlined),
               label: const Text('Reprendre le paiement'),
             )
-          else if (transition['next_action'] == 'finance_access_required')
+          else if (widget.section == 'plans' &&
+                 transition['next_action'] == 'finance_access_required')
             const Text('Une personne autorisée à gérer les finances de cet Espace doit régler cette obligation.'),
           if (transition['status'] == 'ready')
             FilledButton(
