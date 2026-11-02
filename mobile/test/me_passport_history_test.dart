@@ -108,6 +108,14 @@ class _DatedPassportApi implements MakoloApiClient {
     MakoloCancelHandle? cancel,
   }) async {
     lastPostPath = path;
+    if (path.contains('passport/issue/')) {
+      return _envelope('personal.me.passport.issuance', {
+        'id': _versionId,
+        'document_id': 'PM-P-20261030-11111111',
+        'variant': Uri.parse(path).queryParameters['variant'] ?? 'complete',
+        'generated_at': '2026-10-30T10:00:00Z',
+      });
+    }
     if (path.contains('passport/history/$_versionId/revoke/')) {
       revoked = true;
       return _envelope('personal.me.passport.version', {
@@ -140,6 +148,33 @@ class _DelayedVariantApi extends _DatedPassportApi {
   }) {
     if (Uri.parse(path).queryParameters['variant'] == 'public') {
       return publicResult.future;
+    }
+    return super.get(path, headers: headers, cancel: cancel);
+  }
+}
+
+class _VariantPassportApi extends _DatedPassportApi {
+  @override
+  Future<ApiResponse> get(
+    String path, {
+    Map<String, String>? headers,
+    MakoloCancelHandle? cancel,
+  }) async {
+    final variant = Uri.parse(path).queryParameters['variant'];
+    if (variant != null && variant != 'complete') {
+      return _envelope('personal.me.passport', {
+        'variant': variant,
+        'identity': {
+          'name': 'Profil exemple',
+          'avatar_url': '',
+          'links': const [],
+        },
+        'declared': {'interests': const [], 'open_to': const []},
+        'activities': const [],
+        'established': {'proofs': const []},
+        'issued': {'credentials': const []},
+        'topic_options': const [],
+      });
     }
     return super.get(path, headers: headers, cancel: cancel);
   }
@@ -260,6 +295,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Profil public'), findsOneWidget);
     expect(find.text('Présentation actuellement mise à jour.'), findsNothing);
+  });
+
+  testWidgets('owner can issue an immutable version without downloading a PDF', (tester) async {
+    final api = _DatedPassportApi();
+    await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Autres actions du Passeport'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Émettre une version sans PDF'));
+    await tester.pumpAndSettle();
+    expect(api.lastPostPath, contains('api/v1/me/passport/issue/'));
+    expect(api.lastPostPath, contains('variant=complete'));
+    expect(find.textContaining('Version PM-P-20261030'), findsOneWidget);
+  });
+
+  testWidgets('public and empty thematic variants retain the identity baseline', (tester) async {
+    final api = _VariantPassportApi();
+    await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Public'));
+    await tester.pumpAndSettle();
+    expect(find.text('Profil exemple'), findsOneWidget);
+    expect(find.textContaining('uniquement les informations renseignées'), findsOneWidget);
+
+    await tester.tap(find.text('Thématique'));
+    await tester.pumpAndSettle();
+    expect(find.text('Profil exemple'), findsOneWidget);
+    expect(find.textContaining('Aucun thème disponible'), findsOneWidget);
+    expect(find.text('Choisir mes centres d’intérêt'), findsOneWidget);
   });
 
 }
