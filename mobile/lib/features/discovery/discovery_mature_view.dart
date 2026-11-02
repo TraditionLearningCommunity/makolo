@@ -564,14 +564,59 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         child: spatial,
       ),
       narrow: widget.showMapOnCompact
-          ? Column(
+          ? Stack(
+              key: const Key('discover-compact-map'),
+              fit: StackFit.expand,
               children: [
-                SizedBox(
-                  key: const Key('discover-compact-map'),
-                  height: 290,
-                  child: spatial,
+                spatial,
+                Positioned(
+                  top: MakoloSpacing.sm,
+                  right: MakoloSpacing.sm,
+                  child: Material(
+                    elevation: 2,
+                    borderRadius: BorderRadius.circular(24),
+                    color: Theme.of(context).colorScheme.surface,
+                    child: IconButton(
+                      tooltip: 'Voir la liste',
+                      icon: const Icon(Icons.list_rounded),
+                      onPressed: () => showModalBottomSheet<void>(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (sheetContext) => SafeArea(
+                          child: SizedBox(
+                            height: MediaQuery.sizeOf(sheetContext).height * 0.75,
+                            child: field,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                Expanded(child: field),
+                if (selected != null)
+                  Positioned(
+                    left: MakoloSpacing.sm,
+                    right: MakoloSpacing.sm,
+                    bottom: MakoloSpacing.sm,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+                      ),
+                      child: SingleChildScrollView(
+                        child: _DiscoveryUnit(
+                          item: selected,
+                          selected: true,
+                          onTap: () => widget.onOpen(selected),
+                          onSave: widget.onSave == null
+                              ? null
+                              : () => widget.onSave!(selected),
+                          baseUri: widget.baseUri,
+                          shareApi: widget.shareApi,
+                          profileId: widget.profileId,
+                          allowOwnerActions: widget.allowOwnerActions,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             )
           : field,
