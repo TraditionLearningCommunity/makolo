@@ -531,11 +531,19 @@ class DiscoverySearchScreen extends StatefulWidget {
 }
 
 String _providerFailureMessage(String reason) => switch (reason) {
-  'invalid_credentials' => 'La clé du fournisseur a été refusée.',
-  'rate_limited' => 'Le fournisseur a atteint sa limite d’usage.',
-  'network_unavailable' => 'Le fournisseur est momentanément injoignable.',
+  'connection_unavailable' =>
+    'Aucune connexion Intelligence utilisable pour cette recherche.',
+  'invalid_credentials' =>
+    'La clé du fournisseur a été refusée. Vérifiez-la dans Connexions.',
+  'rate_limited' =>
+    'La limite du fournisseur est atteinte. Réessayez plus tard.',
+  'network_unavailable' =>
+    'Le fournisseur est momentanément injoignable. Réessayez plus tard.',
   _ => 'Ce service n’est pas disponible actuellement.',
 };
+
+bool _canRepairDiscoveryConnection(String reason) =>
+    reason == 'connection_unavailable' || reason == 'invalid_credentials';
 
 class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
   static const _selector = DiscoverySelector();
@@ -819,10 +827,12 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
               '${_providerFailureMessage(result.reason)} '
               'Vous pouvez continuer dans Découvrir.',
             ),
-            action: SnackBarAction(
-              label: 'Connexions',
-              onPressed: () => context.push('/connections'),
-            ),
+            action: _canRepairDiscoveryConnection(result.reason)
+                ? SnackBarAction(
+                    label: 'Connexions',
+                    onPressed: () => context.push('/connections'),
+                  )
+                : null,
           ),
         );
         return;
@@ -926,7 +936,8 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            action: result.status == 'unavailable'
+            action: result.status == 'unavailable' &&
+                    _canRepairDiscoveryConnection(result.reason)
                 ? SnackBarAction(
                     label: 'Connexions',
                     onPressed: () => context.push('/connections'),
