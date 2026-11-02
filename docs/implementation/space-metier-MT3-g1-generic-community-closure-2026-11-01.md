@@ -3,7 +3,7 @@
 **Date :** 2026-11-01  
 **Dépôt :** `TraditionLearningCommunity/makolo`  
 **Branche/PR :** `fix/discover-a-continuation-context-20261014` / #522.  
-**Statut :** implémentation source du périmètre MT3 complète ; tests ciblés ajoutés, **non exécutés** dans cet environnement (pas de checkout Django ni SDK Flutter). Ceci ne certifie pas une exécution E2E. **Ne pas confondre clôture de MT3 avec MT7/MT8.**
+**Statut :** périmètre MT3 G1 implémenté côté serveur, Web et Flutter (création native comprise). Tests ciblés ajoutés, **non exécutés** dans cet environnement (pas de checkout Django ni SDK Flutter). Ceci ne certifie pas une exécution E2E ni la validation du formatage Dart. **Ne pas confondre clôture de code MT3 et validation de sortie MT8.**
 
 ## 1. Problème résolu
 
@@ -25,13 +25,14 @@ La règle reste : **une application, deux clients, profondeur N2 contextuelle, 0
 
 Le N1 `SpaceWorkSurface` existant ouvre déjà `/space/:slug/retrieval/:kind/:id`. Le détail `SpaceRetrievalOwnerScreen` relit systématiquement l'owner sous l'acteur et la perspective actifs. MT3 le complète :
 
+- Création G1 désormais native, pas reportée à MT7 : `SpaceWorkSurface` propose « Nouvelle activité » ou « Nouvelle initiative » seulement lorsque `responsibility=all`, `SPACE_ACTIVITIES_MANAGE` et `resolve_entitlement(space, 'activities.create').allowed` sont établis par le serveur. Le formulaire `SpaceWorkCreateActivityScreen` envoie un POST connecté à `/api/v1/organizations/workspaces/<slug>/work/activities/` ; `SpaceG1ActivityCreateAPIView` impose l'acteur, l'archétype et la permission, valide les mêmes champs que `ActivityCreateForm`, délègue `create_activity` au propriétaire canonique et renvoie un brouillon. Aucune création n'est confirmée hors ligne. Après une réponse réseau ambiguë, le client ne renvoie pas automatiquement le POST ; il invite à vérifier Métier.
 - Pour une sélection Activity Generic/Community, l'API Work renvoie `selection.related_occurrences` : liste bornée de **12**, `offset`, `limit`, `has_more`, `openable`. Pas de vue complète persistance, ni média privé, ni données bénéficiaires.
 - `related_offset` est un paramètre GET borné à 0–10 000, valide seulement pour une Activity sélectionnée ; chaque page redemande au serveur une sélection autorisée. Le mobile affiche pages suivantes/précédentes et suit les liens uniquement si l'Occurrence est réellement sélectionnable.
 - `SpaceWorkG1Realizations` représente les faits dans les composants natifs communs : « Actions et réalisations » pour Community, « Dates et réalisations » pour Generic, calme réel sans fausse Occurrence.
 - Une démarche ne propose « Examiner la demande » que quand `owner_handoffs` contient `open_request` avec l'identité réelle `journey_request`. La route `/space/requests/:id` et son action native owner réévaluent les droits et ne mutent jamais en cache.
 - Jour J reste la route native `/space/occurrences/:id/day-of` déjà en place. Pas d'ouverture simulée d'une page Web propriétaire à la place d'un écran Flutter ni de mutation hors ligne inventée.
 
-**Limite connue mais non bloquante pour le périmètre MT3 :** les outils de gestion admin propriétaires (Resources/Funding/Service) ont des vues Web existantes mais pas tous un écran opérateur natif équivalent ; leur portage/assemblage complet relève de MT4–MT7, pas d'une copie locale de la logique d'autorisation.
+**Limite restante hors spécialité MT3 :** les outils administratifs propriétaires Resources/Funding/Service n'ont pas tous une profondeur opérateur Flutter équivalente ; leur convergence transverse relève de MT4–MT7. La création G1 native et son endpoint serveur sont implémentés ici. Une commande de création incertaine n'est pas rejouée automatiquement : aucune déduplication serveur générique n'a été inventée.
 
 ## 4. Fichiers MT3 modifiés ou créés
 
@@ -43,11 +44,15 @@ Le N1 `SpaceWorkSurface` existant ouvre déjà `/space/:slug/retrieval/:kind/:id
 - `activities/views.py`, `templates/activities/activity_form.html` : contexte Space G1 sécurisé sur le formulaire Activity canonique.
 - `templates/organizations/space/work.html` : CTA de création G1 seulement lorsque l'autorité effective le permet.
 - `organizations/api/space_work_views.py` : validation de `related_offset`.
+- `organizations/api/space_activity_create.py`, `organizations/api/urls.py` : création G1 native avec autorité, formulaire et service propriétaire ; `space_work_projection.py` tient compte de l'entitlement Space.
 - `organizations/api/space_work_projection.py` : relation d'Occurrences bornée, source/propriétaire, règle commune d'ouvrabilité.
 - `mobile/lib/features/continuity/space_retrieval_owner_screen.dart` : sélection, pagination, détail lié, demande owner.
 - `mobile/lib/features/space/space_work_g1_realizations.dart` : composant natif G1 partagé.
+- `mobile/lib/features/space/space_work_create_activity_screen.dart`, `mobile/lib/app/router.dart`, `mobile/lib/features/space/space_work_surface.dart` : formulaire natif sous acteur Space, confirmation et reprise sans double émission.
 - `organizations/test_space_work_mt3.py` : tests Web/API de profondeur, scopes, revocation, pages, état ancien, JourneyRequest exact, Funding et case Service.
 - `mobile/test/space_work_g1_realizations_test.dart` : tests de calme, pagination, non-navigable, navigation autorisée.
+- `organizations/test_space_work_mt3_native_create.py` : POST, ownership, refus Mandate, validation, entitlement.
+- `mobile/test/space_work_surface_test.dart` : visibilité conditionnelle du CTA natif G1.
 - Cette documentation.
 
 **Aucun nouveau modèle, migration, tableau de tâches générique, statut de Readiness ni permission introduits.**
@@ -59,7 +64,7 @@ Pas de CI bloquante demandée par le commanditaire, mais les tests ne doivent pa
 ```bash
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py test organizations.test_space_work_mt3 organizations.test_space_work_mt2 organizations.test_zs3_space_work_api organizations.test_ws3_space_work_web
+python manage.py test organizations.test_space_work_mt3 organizations.test_space_work_mt3_native_create organizations.test_space_work_mt2 organizations.test_zs3_space_work_api organizations.test_ws3_space_work_web
 cd mobile
 bash tool/dart_format.sh write
 bash tool/dart_format.sh check
