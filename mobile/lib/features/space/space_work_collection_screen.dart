@@ -192,6 +192,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                             )
                     : SpaceWorkSurface(
                         payload: payload!,
+                        mediaBaseUri: widget.runtime.api?.baseUri,
                         onLoadMore: (_) {
                           if (!loading) unawaited(loadPage());
                         },
