@@ -462,6 +462,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
+                profileId: widget.repository.profileId,
                 onWatch: _query.watchCriteria.isEmpty
                     ? null
                     : () => unawaited(
@@ -1276,6 +1277,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                             ),
                             baseUri: widget.repository.api.baseUri,
                             shareApi: widget.repository.api,
+                profileId: widget.repository.profileId,
                             onWatch: _query.watchCriteria.isEmpty
                                 ? null
                                 : () => unawaited(
@@ -1568,6 +1570,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                     _saveDiscoveryPossibility(widget.repository, item, _query),
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
+                profileId: widget.repository.profileId,
                 onRetry: () => unawaited(_refresh()),
                 onOpen: (item) {
                   if (widget.onOpenItem != null) {
@@ -1705,6 +1708,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                         constraints: const BoxConstraints(maxWidth: 1040),
                         child: DiscoveryPossibilityUnit(
                           item: item,
+                          profileId: widget.repository.profileId,
                           detailMode: true,
                           onOpen: () {},
                           onOwnerDepth: (path) => context.push(path),
@@ -1715,6 +1719,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               ? () => _setSaved(item!.savedState != 'saved')
                               : null,
                           shareApi: widget.repository.api,
+                profileId: widget.repository.profileId,
                           shareAuthenticated: true,
                           baseUri: widget.repository.api.baseUri,
                         ),
