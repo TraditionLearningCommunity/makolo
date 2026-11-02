@@ -420,7 +420,7 @@ GoRouter createMakoloRouter(
           runtime: runtime,
           onNotifications: () => context.push('/settings/notifications'),
           onSecurity: () => context.push('/account'),
-          onPrivacy: () => context.push('/me/profile'),
+          onPrivacy: () => context.push('/me/profile?visibility=1'),
         ),
       ),
       GoRoute(
