@@ -34,6 +34,7 @@ class DiscoveryShareControl extends StatefulWidget {
 class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   bool _busy = false;
   Map<String, dynamic>? _created;
+  int _itemGeneration = 0;
 
   @override
   void didUpdateWidget(covariant DiscoveryShareControl oldWidget) {
@@ -42,6 +43,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
         oldWidget.item.id != widget.item.id ||
         oldWidget.authenticated != widget.authenticated) {
       // Opaque share tokens are bound to one owner identity and sender.
+      ++_itemGeneration;
       _created = null;
     }
   }
@@ -79,6 +81,12 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     return resolved;
   }
 
+  @override
+  void dispose() {
+    ++_itemGeneration;
+    super.dispose();
+  }
+
   void _feedback(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -111,10 +119,15 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     }
     // Authenticated shares are always owner-confirmed. Missing web_share does
     // not authorize silently falling back to an unverified public URL.
-    final result = await api.post(_endpoint, body: {'intent': 'view'});
+    final generation = _itemGeneration;
+    final endpoint = _endpoint;
+    final result = await api.post(endpoint, body: {'intent': 'view'});
     final data = result.jsonObject();
     if (data['state'] != 'link') {
       throw const FormatException('Unexpected share contract');
+    }
+    if (!mounted || generation != _itemGeneration) {
+      throw const StateError('Share candidate changed during request');
     }
     setState(() => _created = data);
     final url = _shareUrl;
