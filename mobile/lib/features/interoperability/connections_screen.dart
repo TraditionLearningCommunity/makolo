@@ -261,7 +261,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
           SizedBox(
             height: widget.runtime.api == null ? 520 : 270,
             child: const MakoloEmptyState(
-              title: 'Aucune connexion',
+              title: 'Aucune connexion pour le moment',
               body: 'Aucun service n’est encore disponible pour votre Profil.',
             ),
           ),
@@ -401,7 +401,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
                   height: 520,
                   child: MakoloEmptyState(
                     title: 'Connexions indisponibles hors ligne',
-                    body: 'Aucune connexion enregistrée sur cet appareil.',
+                    body: 'Aucune connexion enregistrée sur cet appareil. Le reste de Makolo continue de fonctionner.',
                   ),
                 ),
               ],
@@ -410,7 +410,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
 
           if (_initialLoadComplete && !_refreshing) {
             return MakoloErrorState(
-              message: 'Impossible de vérifier vos connexions.',
+              message: 'Impossible de vérifier vos connexions pour le moment.',
               preservedMessage: 'Aucune connexion n’a été modifiée. Réessayez lorsque le serveur est joignable.',
               onRetry: widget.runtime.sync == null
                   ? null
