@@ -62,9 +62,10 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
     } on MakoloApiError catch (error) {
       if (mounted) {
         setState(() {
-          if (!_created && error.statusCode >= 400 &&
-              error.statusCode < 500) {
-            // A definitive client rejection did not create the Espace.
+          if (!_created &&
+              const {400, 401, 403, 404, 422}.contains(error.statusCode)) {
+            // Only definitive rejections permit editing and resubmitting.
+            // Timeouts and conflicts may have followed a successful POST.
             _creationAttempted = false;
           }
           _error = _created
