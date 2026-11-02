@@ -14,6 +14,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--domains", default="forms,crm")
     p.add_argument("--count", type=int, default=30)
+    p.add_argument("--profile-username")
     p.add_argument("--apply", action="store_true")
     a = p.parse_args(argv)
     selected = set(a.domains.split(","))
@@ -44,7 +45,7 @@ def main(argv=None):
     if "crm" in selected:
         orders = TicketOrder.objects.filter(
             event__activity__slug__startswith="demo-",
-            buyer__username__startswith="world_",
+            **({"buyer__username": a.profile_username} if a.profile_username else {"buyer__username__startswith": "world_"}),
         ).select_related("event", "event__activity", "buyer").order_by("id")[:a.count]
         for order in orders:
             if not getattr(order.event, "organization", None):
@@ -58,7 +59,7 @@ def main(argv=None):
                     counts["crm_orders_reconciled"] += 1
         tickets = Ticket.objects.filter(
             event__activity__slug__startswith="demo-",
-            owner__username__startswith="world_",
+            **({"owner__username": a.profile_username} if a.profile_username else {"owner__username__startswith": "world_"}),
         ).select_related("event", "event__activity", "owner").order_by("id")[:a.count]
         for ticket in tickets:
             if not getattr(ticket.event, "organization", None):
@@ -76,7 +77,7 @@ def main(argv=None):
         # 80 of thousands of unrelated published Activities.
         activities = Activity.objects.filter(
             slug__startswith="demo-", status=ActivityStatus.PUBLISHED,
-            journeys__beneficiary__username__startswith="world_",
+            **({"journeys__beneficiary__username": a.profile_username} if a.profile_username else {"journeys__beneficiary__username__startswith": "world_"}),
         ).distinct().annotate(
             demo_priority=Case(
                 When(slug__startswith="demo-generation-services-", then=Value(0)),
@@ -95,7 +96,7 @@ def main(argv=None):
                 counts["forms_no_authority"] += 1
                 continue
             journey = Journey.objects.filter(activity=activity,
-                beneficiary__username__startswith="world_").order_by("id").first()
+                **({"beneficiary__username": a.profile_username} if a.profile_username else {"beneficiary__username__startswith": "world_"})).order_by("id").first()
             if not journey:
                 counts["forms_no_journey"] += 1
                 continue
