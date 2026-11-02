@@ -31,6 +31,7 @@ from organizations.space_product import (
     operating_preset_for_space, visible_operational_footprint_for_space,
 )
 from organizations.space_work_composition import compose_space_work_business_world
+from organizations.space_work_g2_creation import g2_creation_available
 from organizations.api.space_work_g2 import (
     related_g2_work, service_case_native_handoff,
 )
@@ -1150,5 +1151,6 @@ def build_space_work_projection(
                 )
                 and resolve_entitlement(space, "activities.create").allowed
             ),
+            "create_g2": g2_creation_available(profile, space),
         },
     }
