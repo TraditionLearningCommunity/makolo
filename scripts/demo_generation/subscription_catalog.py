@@ -24,7 +24,7 @@ def main(argv=None):
     import django
     django.setup()
     from django.db import connection, transaction
-    from subscriptions.models import SubscriptionPlan, PlanVersion, PlanBenefit
+    from subscriptions.models import SubscriptionPlan, PlanVersion, PlanBenefit, PlanEntitlement, FeatureDefinition
     from subscriptions.billing_models import PlanVersionBillingTerms
     from subscriptions.services import publish_plan_version
     from subscriptions.contracts import PlanVersionStatus
@@ -52,6 +52,16 @@ def main(argv=None):
                 short_description="Offre fictive pour la validation de Makolo.",
                 description="Données de démonstration uniquement. Pas une offre commerciale.",
             )
+            entitlements = (
+                {"activities.create": True} if subject == "profile" else
+                {"activities.create": True, "team.members": 5 if code.endswith("equipe") else 25,
+                 "custom_roles": code.endswith("organisation") or code.endswith("option")}
+            )
+            if kind == "addon":
+                entitlements = {"activities.create": True} if subject == "profile" else {"team.members": 3}
+            for feature_code, value in entitlements.items():
+                feature = FeatureDefinition.objects.get(code=feature_code, is_active=True)
+                PlanEntitlement.objects.create(plan_version=version, feature=feature, value=value)
             PlanBenefit.objects.create(
                 plan_version=version,
                 title="Scénarios de démonstration et facturation sandbox",
@@ -67,7 +77,7 @@ def main(argv=None):
             created += 1
     print("DEMO CATALOG", "APPLY" if a.apply else "PREVIEW",
           {"new":created,"existing":existing})
-    print("Tarifs uniquement fictifs, sans promesse de capacités supplémentaires.")
+    print("Tarifs fictifs; entitlements sur Features existantes, pas de permission implicite.")
 
 
 if __name__ == "__main__":
