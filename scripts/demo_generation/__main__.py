@@ -15,8 +15,9 @@ LIVE=("placement","incidents")
 PERSONAL=("discovery","goals","space")
 ECOSYSTEM=("spaces","loyalty","automation")
 AFTERCARE=("outcomes",)
-DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,*AFTERCARE,"content")
-DEFAULT=tuple(domain for domain in DOMAINS if domain!="content")
+SUBSCRIPTIONS=("subscriptions",)
+DOMAINS=("activities","mandates",*CROSS,"transport",*VERTICALS,"media",*COMMUNITY,*ENGAGEMENT,*LIVE,*PERSONAL,*ECOSYSTEM,*AFTERCARE,*SUBSCRIPTIONS,"content")
+DEFAULT=tuple(domain for domain in DOMAINS if domain not in {"content","subscriptions"})
 
 
 def parse_domains(value):
@@ -56,7 +57,7 @@ def build_parser():
 
 
 def run(a):
-    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate
+    from . import scale, transport, verticals, mandates, content, clock, media, community, audit, engagement, live, foundations, catalog, personal, ecosystem, aftercare, validate, subscriptions
     if a.action=="validate":
         options=["--verbosity",str(a.verbosity)]
         if a.quick: options.append("--quick")
@@ -86,8 +87,10 @@ def run(a):
     orders=min(a.count,200) if a.orders is None else a.orders
     if not 0<=scans<=100000 or not 0<=orders<=100000:
         raise SystemExit("--scans et --orders 0..100000")
+    if "subscriptions" in domains and not a.profile_username:
+        raise SystemExit("Le domaine subscriptions exige --profile-username explicite.")
     if a.profile_username:
-        supported={"discovery","goals","space","journeys","access","commerce"}
+        supported={"discovery","goals","space","journeys","access","commerce","subscriptions"}
         unsupported=domains-supported
         if unsupported:
             raise SystemExit("--profile-username n'est pas encore pris en charge pour: "+",".join(sorted(unsupported))+"; selectionner les domaines compatibles")
@@ -97,6 +100,10 @@ def run(a):
     print("MODE:","GENERATE" if apply else "PLAN","DOMAINES:",",".join(sorted(domains)))
     if "activities" in domains:
         print("ACTIVITIES: reutilisation des objets demo existants; creation par verticale explicite.")
+    if "subscriptions" in domains:
+        argv=["--profile-username",a.profile_username,"--count",str(min(a.count,50))]
+        if apply: argv.append("--apply")
+        subscriptions.main(argv)
     ecosystem_selected=set(ECOSYSTEM)&domains
     if ecosystem_selected:
         argv=["--domains",",".join(sorted(ecosystem_selected)),
