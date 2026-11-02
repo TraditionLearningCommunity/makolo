@@ -69,20 +69,19 @@ class AppSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final preferences = runtime.preferences;
-    if (preferences == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Paramètres')),
-        body: const Center(
-          child: Text('Paramètres indisponibles pour le moment.'),
-        ),
-      );
-    }
-
+    if (preferences == null) return _settingsContent(context, null);
     return ListenableBuilder(
       listenable: preferences,
-      builder: (context, _) {
-        final value = preferences.value;
-        return Scaffold(
+      builder: (context, _) => _settingsContent(context, preferences),
+    );
+  }
+
+  Widget _settingsContent(
+    BuildContext context,
+    AppPreferencesController? preferences,
+  ) {
+    final value = preferences?.value;
+    return Scaffold(
           appBar: AppBar(title: const Text('Paramètres')),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(
@@ -94,31 +93,38 @@ class AppSettingsScreen extends StatelessWidget {
             children: [
               Text('Apparence', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: MakoloSpacing.sm),
-              Semantics(
-                label: 'Apparence ${_themeLabel(value.themePreference)}',
-                child: SegmentedButton<MakoloThemePreference>(
-                  segments: const [
-                    ButtonSegment(
-                      value: MakoloThemePreference.system,
-                      label: Text('Système'),
-                    ),
-                    ButtonSegment(
-                      value: MakoloThemePreference.light,
-                      label: Text('Clair'),
-                    ),
-                    ButtonSegment(
-                      value: MakoloThemePreference.dark,
-                      label: Text('Sombre'),
-                    ),
-                  ],
-                  showSelectedIcon: false,
-                  selected: {value.themePreference},
-                  onSelectionChanged: (selection) {
-                    if (selection.isEmpty) return;
-                    preferences.setThemePreference(selection.first);
-                  },
+              if (value == null || preferences == null)
+                const ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Apparence indisponible sur cet appareil'),
+                  subtitle: Text('Les autres réglages restent accessibles.'),
+                )
+              else
+                Semantics(
+                  label: 'Apparence ${_themeLabel(value.themePreference)}',
+                  child: SegmentedButton<MakoloThemePreference>(
+                    segments: const [
+                      ButtonSegment(
+                        value: MakoloThemePreference.system,
+                        label: Text('Système'),
+                      ),
+                      ButtonSegment(
+                        value: MakoloThemePreference.light,
+                        label: Text('Clair'),
+                      ),
+                      ButtonSegment(
+                        value: MakoloThemePreference.dark,
+                        label: Text('Sombre'),
+                      ),
+                    ],
+                    showSelectedIcon: false,
+                    selected: {value.themePreference},
+                    onSelectionChanged: (selection) {
+                      if (selection.isEmpty) return;
+                      preferences.setThemePreference(selection.first);
+                    },
+                  ),
                 ),
-              ),
               const SizedBox(height: MakoloSpacing.xl),
               Text(
                 'Accessibilité',
@@ -130,8 +136,8 @@ class AppSettingsScreen extends StatelessWidget {
                 subtitle: const Text(
                   'Limite les animations non essentielles. Les réglages du système restent respectés.',
                 ),
-                value: value.reduceMotion,
-                onChanged: preferences.setReduceMotion,
+                value: value?.reduceMotion ?? false,
+                onChanged: preferences?.setReduceMotion,
               ),
               const SizedBox(height: MakoloSpacing.lg),
               const Divider(),
@@ -209,8 +215,6 @@ class AppSettingsScreen extends StatelessWidget {
             ],
           ),
         );
-      },
-    );
   }
 }
 
