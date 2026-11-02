@@ -115,6 +115,14 @@ def _item_card(item):
     }
 
 
+# Presentation wording only: FeatureDefinition remains the canonical technical catalog.
+_CAPABILITY_COPY = {
+    "activities.create": "Créez et organisez vos activités dans Makolo.",
+    "team.members": "Nombre de personnes pouvant collaborer dans votre Espace.",
+    "custom_roles": "Définissez des responsabilités adaptées à votre Espace.",
+}
+
+
 def _capability_rows(subscription):
     results = resolve_effective_entitlements(subscription.subject)
     active = {code: result for code, result in results.items() if result.effective_value is not None}
@@ -140,7 +148,7 @@ def _capability_rows(subscription):
             {
                 "code": code,
                 "name": feature.name,
-                "description": feature.description,
+                "description": _CAPABILITY_COPY.get(code, feature.description),
                 "value": result.effective_value,
                 "value_label": value_label,
                 "usage": result.usage,
