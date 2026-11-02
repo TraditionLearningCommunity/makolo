@@ -26,6 +26,7 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
   bool _initialLoadComplete = false;
   bool _refreshing = false;
   bool _refreshFailed = false;
+  int _ownerGeneration = 0;
 
   @override
   void didChangeDependencies() {
@@ -35,7 +36,23 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
     unawaited(_ensureProjection());
   }
 
+  @override
+  void didUpdateWidget(covariant ProfileConnectionsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.runtime, widget.runtime)) {
+      _ownerGeneration++;
+      _requestedInitialRefresh = true;
+      _initialLoadComplete = false;
+      _refreshFailed = false;
+      _refreshing = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_ensureProjection());
+      });
+    }
+  }
+
   Future<void> _ensureProjection() async {
+    final generation = _ownerGeneration;
     try {
       // Cached Z16 is an observation, not current permission to mutate.
       // Refresh even when a snapshot exists; a failure preserves it.
@@ -43,14 +60,19 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
         await _refresh();
       }
     } on Object {
-      if (mounted) setState(() => _refreshFailed = true);
+      if (mounted && generation == _ownerGeneration) {
+        setState(() => _refreshFailed = true);
+      }
     } finally {
-      if (mounted) setState(() => _initialLoadComplete = true);
+      if (mounted && generation == _ownerGeneration) {
+        setState(() => _initialLoadComplete = true);
+      }
     }
   }
 
   Future<void> _refresh() async {
     if (_refreshing || !mounted) return;
+    final generation = _ownerGeneration;
     final sync = widget.runtime.sync;
     if (sync == null) {
       setState(() => _refreshFailed = true);
@@ -65,15 +87,21 @@ class _ProfileConnectionsScreenState extends State<ProfileConnectionsScreen> {
       // the owner response has been validated and applied by SyncEngine.
       await sync.pullInteroperability();
     } on Object {
-      if (mounted) setState(() => _refreshFailed = true);
+      if (mounted && generation == _ownerGeneration) {
+        setState(() => _refreshFailed = true);
+      }
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && generation == _ownerGeneration) {
+        setState(() => _refreshing = false);
+      }
     }
   }
 
   Future<void> _refreshAndConfirm() async {
+    if (_refreshing) throw StateError('Vérification déjà en cours.');
+    final generation = _ownerGeneration;
     await _refresh();
-    if (_refreshFailed) {
+    if (generation != _ownerGeneration || _refreshFailed || _refreshing) {
       throw StateError('Le serveur n’a pas confirmé cette projection.');
     }
   }
