@@ -604,7 +604,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
             .showSnackBar(SnackBar(content: Text(successMessage)));
       }
     } on MakoloApiError catch (error) {
-      if (!mounted) return;
+      final currentActor = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          currentActor is! SpaceActorContext ||
+          currentActor.space.id != spaceId ||
+          currentActor.space.slug != widget.slug) {
+        return; // Late response from a different actor; never show stale data.
+      }
       if (error.statusCode == 401 ||
           error.statusCode == 403 ||
           error.statusCode == 404) {
@@ -644,7 +650,11 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         );
       }
     } on Object {
-      if (mounted) {
+      final currentActor = widget.runtime.actorContext?.value;
+      if (mounted &&
+          currentActor is SpaceActorContext &&
+          currentActor.space.id == spaceId &&
+          currentActor.space.slug == widget.slug) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
