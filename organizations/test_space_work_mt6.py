@@ -107,6 +107,9 @@ class MT6CreativeMediaDepthTests(TestCase):
         self.assertEqual(item["g4_detail"]["language"], "Production")
         self.assertEqual(item["related_occurrences"]["items"][0]["source"]["id"],
                          str(edition.pk))
+        self.assertEqual(
+            item["context"]["next_occurrence"]["id"], str(edition.pk),
+        )
         self.assertNotIn("feed", str(item).lower())
         self.assertNotIn("portfolio", str(item).lower())
         detail = self.client.get(self.depth("activity", production.pk))
