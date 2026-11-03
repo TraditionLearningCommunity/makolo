@@ -930,7 +930,8 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                       ],
                     );
                   },
-                ),            );
+                ),
+              );
           },
         );
       },
