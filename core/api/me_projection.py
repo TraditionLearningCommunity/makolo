@@ -559,6 +559,15 @@ def _passport_open_to(row):
     }
 
 
+def _passport_topic_codes(activity):
+    if activity is None:
+        return []
+    return list(
+        activity.topic_links.filter(topic__is_active=True)
+        .values_list("topic__code", flat=True)
+    )
+
+
 def _passport_activity(activity):
     return {
         "kind": "activity",
@@ -567,15 +576,22 @@ def _passport_activity(activity):
         "status": activity.status,
         "status_label": activity.get_status_display(),
         "visibility": activity.visibility,
+        "topic_codes": _passport_topic_codes(activity),
     }
 
 
 def _passport_proof(proof):
-    return _proof_item(proof)
+    return {
+        **_proof_item(proof),
+        "topic_codes": _passport_topic_codes(proof.journey.activity),
+    }
 
 
 def _passport_credential(credential):
-    return _credential_item(credential)
+    return {
+        **_credential_item(credential),
+        "topic_codes": _passport_topic_codes(credential.activity),
+    }
 
 
 def build_personal_passport_data(
