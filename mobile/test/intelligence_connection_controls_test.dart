@@ -92,9 +92,10 @@ void main() {
       await tester.enterText(fields.at(0), 'Ma recherche');
       await tester.enterText(fields.at(1), 'SENSITIVE-DO-NOT-RENDER');
       expect(find.text('SENSITIVE-DO-NOT-RENDER'), findsNothing);
+      await tester.ensureVisible(find.byType(Checkbox));
       await tester.tap(find.byType(Checkbox));
       await tester.pump();
-      await tester.tap(find.widgetWithText(FilledButton, 'Relier'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Connecter'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -165,11 +166,13 @@ void main() {
       final offerTile = tester.widget<ListTile>(
         find.ancestor(of: find.text('Tavily'), matching: find.byType(ListTile)),
       );
-      expect(offerTile.onTap, isNull);
-      expect(
-        find.textContaining('Actions de connexion suspendues'),
-        findsOneWidget,
-      );
+      expect(offerTile.onTap, isNotNull,
+          reason: 'Discovery stays readable without mutation rights');
+      await tester.tap(find.text('Tavily'));
+      await tester.pump();
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.textContaining('Ce service reste consultable'),
+          findsOneWidget);
     },
   );
 }
