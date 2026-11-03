@@ -98,9 +98,11 @@ class _AuthorityCard extends StatelessWidget {
   String? _date(BuildContext context, Object? value) {
     if (value is! String || value.isEmpty) return null;
     final parsed = DateTime.tryParse(value);
-    return parsed == null
-        ? null
-        : MaterialLocalizations.of(context).formatMediumDate(parsed.toLocal());
+    if (parsed == null) return null;
+    final local = parsed.toLocal();
+    final labels = MaterialLocalizations.of(context);
+    return '${labels.formatMediumDate(local)} · '
+        '${labels.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
   }
 }
 
