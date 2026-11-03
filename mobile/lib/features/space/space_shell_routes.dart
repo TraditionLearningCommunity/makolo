@@ -1242,7 +1242,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
         _map(payload['capabilities'])?['manage_ownership'] == true;
     final intro = switch (widget.depth) {
       'team' => 'Les collaborateurs actuellement visibles dans cette équipe.',
-      'responsibilities' => 'Ce que nous portons, sans déduire une autorité de cette responsabilité.',
+      'responsibilities' => 'Les rôles associés à votre autorité actuelle. Ils ne constituent pas des Assignments opérationnels.',
       'ownership' =>
         'Les Mandates de propriétaire actifs, indépendants des appartenances.',
       'trust' => 'Les faits de vérification établis dans ce contexte.',
@@ -1459,7 +1459,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
 
   String _depthTitle(String depth) => switch (depth) {
     'team' => 'Équipe',
-    'responsibilities' => 'Responsabilités',
+    'responsibilities' => 'Mes rôles',
     'authority' => 'Mes autorisations',
     'relationships' => 'Personnes & relations',
     'ownership' => 'Gouvernance',
