@@ -87,8 +87,14 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
     try {
       // Read the OS-protected copy first. No re-acquisition is required to
       // show a previously granted, not-yet-expired display permission.
-      final retained = await widget.repository
-          .readRetainedCredential(requestedAccess);
+      AccessCredentialData? retained;
+      try {
+        retained = await widget.repository
+            .readRetainedCredential(requestedAccess);
+      } on Object {
+        // A missing/unavailable OS vault must not block an online-only QR.
+        // The secret is never copied to an unprotected alternative store.
+      }
       if (!mounted || _generation != generation ||
           widget.accessId != requestedAccess) return;
       if (retained != null) {
