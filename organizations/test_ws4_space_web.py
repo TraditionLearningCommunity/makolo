@@ -246,6 +246,7 @@ class WS4SpaceWebTests(TestCase):
         self.assertContains(detail, "Génération de texte")
         self.assertNotContains(response, "Connexion Profile privée")
         self.assertNotContains(response, "Connexion Platform privée")
+        self.assertNotContains(response, "Traitement disponible")
         html = response.content.decode("utf-8")
         self.assertNotIn("space-secret-ciphertext", html)
         self.assertNotIn("space-key-hint", html)
