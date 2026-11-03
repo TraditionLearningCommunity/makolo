@@ -6,7 +6,7 @@ reader does not mint credentials, create a grant, or recompute dated content.
 from django.core import signing
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.exceptions import NotFound
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,7 +19,8 @@ from .passport_sharing import resolve_passport_share
 from .passport_views import (
     _snapshot_content_allowed, snapshot_subject_public_now,
 )
-from .services import ShareUnavailable
+from .services import ShareUnavailable, resolve_delivery_for_recipient
+from django.core.exceptions import PermissionDenied
 
 
 def _issued_document_response(*, snapshot, viewer, envelope=None):
@@ -88,4 +89,24 @@ class PassportSharedReaderAPIView(SharingNoStoreBoundary, APIView):
             raise NotFound("Partage indisponible.") from exc
         return _issued_document_response(
             snapshot=snapshot, viewer=request.user, envelope=envelope,
+        )
+
+
+class PassportDeliveryReaderAPIView(SharingNoStoreBoundary, APIView):
+    """Recipient-bound reader; a delivery never transfers the issuer's session."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, delivery_id):
+        try:
+            delivery = resolve_delivery_for_recipient(
+                delivery_id=delivery_id, user=request.user, mark_opened=True,
+            )
+        except PermissionDenied as exc:
+            from rest_framework.exceptions import PermissionDenied as Forbidden
+            raise Forbidden("Partage réservé au destinataire.") from exc
+        except ShareUnavailable as exc:
+            raise NotFound("Partage indisponible.") from exc
+        return _issued_document_response(
+            snapshot=delivery.envelope.passport_subject.snapshot,
+            viewer=request.user, envelope=delivery.envelope,
         )
