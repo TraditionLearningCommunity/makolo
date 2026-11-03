@@ -195,6 +195,70 @@ def profile_public_snapshot_still_disclosable(snapshot):
     return True
 
 
+
+def space_public_snapshot_still_disclosable(snapshot):
+    """Public verification never re-exposes withdrawn collective facts.
+
+    Keep the immutable text of the dated document. If any represented
+    Activity, public Trust claim or credential aggregate no longer meets the
+    current public admission, hide the payload rather than silently edit a
+    signed edition. Explicit, revocable Sharing grants are separate.
+    """
+    if snapshot.subject_kind != PublicSubjectKind.SPACE or not snapshot.space_id:
+        return False
+    if not space_has_public_passport(snapshot.space):
+        return False
+    from .passport import PASSPORT_PUBLIC, build_space_passport
+
+    dated = snapshot.payload or {}
+    if dated.get("variant") != PASSPORT_PUBLIC:
+        return False
+    if dated.get("space_teams"):
+        return False
+    identity = dated.get("identity")
+    if not isinstance(identity, dict) or identity.get("owner_details"):
+        return False
+
+    current = serialize_passport_projection(build_space_passport(
+        snapshot.space, variant=PASSPORT_PUBLIC,
+    ))
+
+    admitted_activities = {
+        str(row.get("id"))
+        for row in current.get("activities") or []
+        if isinstance(row, dict) and row.get("id")
+    }
+    for item in dated.get("activities") or []:
+        if (not isinstance(item, dict) or not item.get("id")
+                or str(item["id"]) not in admitted_activities):
+            return False
+
+    current_claims = {
+        (row.get("label"), row.get("valid_until"))
+        for row in current.get("trust_verifications") or []
+        if isinstance(row, dict) and row.get("label")
+    }
+    for item in dated.get("trust_verifications") or []:
+        if (not isinstance(item, dict) or
+                (item.get("label"), item.get("valid_until")) not in current_claims):
+            return False
+
+    current_credentials = {
+        row["credential_type"]: row["count"]
+        for row in current.get("credential_summary") or []
+        if isinstance(row, dict) and row.get("credential_type")
+        and isinstance(row.get("count"), int)
+    }
+    for item in dated.get("credential_summary") or []:
+        if not isinstance(item, dict):
+            return False
+        key, count = item.get("credential_type"), item.get("count")
+        if (not key or not isinstance(count, int) or isinstance(count, bool)
+                or count < 0 or current_credentials.get(key, -1) < count):
+            return False
+    return True
+
+
 def snapshot_payload_is_intact(snapshot):
     """Check the issued text payload without recomposing any live subject data."""
     canonical = json.dumps(
