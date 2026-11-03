@@ -93,10 +93,11 @@ L'émission reste une revalidation serveur de la composition, puis un seul
 La barre supérieure possède quatre commandes directes : Confidentialité,
 Versions, PDF et Partager. PDF émet et enregistre dans les Téléchargements
 Android, sans prévisualisation ni choix de destination. Partager propose :
-PDF dans l'OS ; destinataire Profil dans Makolo (Sharing direct) ; ancienne
-version ; lien public vivant avec copie au presse-papiers ; lien de version
-datée avec un droit Sharing approprié. L'historique propose Télécharger,
-Partager et Révoquer, sans émission supplémentaire.
+PDF dans l'OS ; destinataire Profil dans Makolo (Sharing direct) ;
+lien public vivant avec copie au presse-papiers ; lien de version datée avec
+un droit Sharing approprié. Les anciennes versions ne figurent pas dans ce
+menu : elles restent accessibles uniquement par l'icône Versions, avec
+Télécharger, Partager et Révoquer, sans émission supplémentaire.
 
 Une implication confirmée est imprimée comme titre, fonction et date connue ;
 une appartenance ou une propriété ne vaut pas participation. Les faits absents
@@ -114,3 +115,23 @@ sélection admissible.
 **Statut : implémenté sur la branche de PR #522, non validé sur appareil,
 non fusionné.** Le formatter, les tests et la vérification Android restent
 à faire avant intégration.
+
+
+### Rectification du 3 novembre 2026 — Informations personnelles
+
+Le Passeport complet contient les faits personnels admissibles au titulaire,
+dont certains sont publics. Les variantes filtrées ne doivent pas vider toute
+la section « Informations personnelles ». Le serveur expose uniquement
+`presentation_details` (prénom et nom si publiables, identifiant public,
+ville et pays si publiables) dans les variantes Public, Thématique et
+Personnalisé, séparément de `owner_details` (téléphone, adresse, naissance
+et autres faits sensibles). Les champs absents sont omis dans Flutter et le
+PDF, sans label « Non renseigné ». La lecture historique réévalue les droits
+par champ. Aucun fait sensible n'est publié sur la seule base d'une case
+cochée.
+
+L'éditeur Flutter conserve l'API Accounts existante. Il regroupe les champs
+en Identité, Localisation, Contact, Activité professionnelle, Liens et réseaux
+sociaux, Visibilité. L'e-mail est en lecture seule (absence de changement
+vérifié dans l'API existante), l'identifiant utilise sa propre route sécurisée
+et la langue est une préférence documentaire, pas une information personnelle.
