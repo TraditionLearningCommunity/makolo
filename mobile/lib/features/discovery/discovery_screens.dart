@@ -1489,7 +1489,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool force = false}) async {
     if (!mounted || (_refreshing && identical(_refreshingQuery, _query))) {
       return;
     }
@@ -1501,10 +1501,14 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       _refreshingQuery = current;
     });
     try {
-      await repository.refreshSpatial(current);
-      // Acquisition state and authorization are tracked by the owner source.
+      if (force) {
+        await repository.refreshItems(current);
+      } else {
+        await repository.refreshSpatial(current);
+      }
+      // One Discovery field provides both N1 and spatial presentation.
     } on Object {
-      // The same field and any acquired items remain visible on failure.
+      // An offline field remains readable; no fabricated geographic points.
     } finally {
       if (mounted && generation == _spatialGeneration) {
         setState(() {
@@ -1579,7 +1583,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         builder: (context, snapshot) {
           return StreamBuilder<DiscoverySourceState>(
             stream: widget.repository.watchSource(
-              widget.repository.spatialSource(_query),
+              widget.repository.itemsSource(_query),
             ),
             initialData: DiscoverySourceState.unknown,
             builder: (context, sourceSnapshot) {
@@ -1630,7 +1634,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
                 shareAuthenticated: widget.authenticated,
-                onRetry: () => unawaited(_refresh()),
+                onRetry: () => unawaited(_refresh(force: true)),
                 onOpen: (item) => unawaited(_openDetail(item)),
               );
             },
