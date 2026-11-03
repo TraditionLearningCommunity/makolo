@@ -44,6 +44,10 @@ void main() {
   });
 
   testWidgets('MT7 respects server chapter and section order', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
