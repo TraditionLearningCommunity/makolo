@@ -36,7 +36,7 @@ class SubscriptionsConfig(AppConfig):
         )
 
     def ready(self):
-        from . import domain_event_hooks, signals  # noqa: F401
+        from . import coverage_event_hooks, domain_event_hooks, signals  # noqa: F401
         from .evaluators import register_subscription_evaluators
 
         register_subscription_evaluators()
