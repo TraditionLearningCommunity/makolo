@@ -339,7 +339,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 title: const Text('Historique'),
                 actions: [
                   IconButton(
-                    tooltip: 'Recherche transverse',
+                    tooltip: 'Rechercher dans Makolo',
                     onPressed: () => context.push('/search'),
                     icon: const Icon(Icons.search),
                   ),
