@@ -761,12 +761,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 ),
                 KeyedSubtree(
                   key: _visibilityAnchor,
-                  child: _sectionTitle('Visibilité'),
+                  child: _sectionTitle('Visibilité générale'),
                 ),
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Passeport public'),
-                  subtitle: const Text('Autoriser la présentation publique'),
                   value: _publicProfile,
                   onChanged: _saving
                       ? null
@@ -778,9 +777,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Visible dans la recherche'),
-                  subtitle: const Text(
-                    'Être proposé dans la recherche Makolo, indépendamment de l’accès direct au Passeport',
-                  ),
+
                   value: _searchable,
                   onChanged: _saving
                       ? null
