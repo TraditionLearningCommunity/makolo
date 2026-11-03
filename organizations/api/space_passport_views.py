@@ -33,6 +33,7 @@ from sharing.models import PassportSnapshot, PassportShareSubject
 from sharing.passport import (
     PASSPORT_COMPLETE, PASSPORT_PUBLIC, PASSPORT_VARIANTS,
     build_space_passport, space_passport_topic_options,
+    space_has_public_passport,
 )
 from sharing.passport_documents import (
     issue_passport_snapshot, passport_verification_token,
@@ -198,6 +199,7 @@ class SpacePassportAPIView(_SpacePassportAPIView):
             "subject_kind": "space",
             "subject_id": str(space.pk),
             "slug": space.slug,
+            "public_profile_enabled": space_has_public_passport(space),
             "variant": "complete",
             "identity": {
                 **complete.identity,
