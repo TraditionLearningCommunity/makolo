@@ -100,4 +100,54 @@ void main() {
     expect(find.text('Abonnement & facturation'), findsOneWidget);
     expect(find.text('Changer de formule'), findsOneWidget);
   });
+
+  testWidgets('empty billing stays compact and hides implementation language', (
+    tester,
+  ) async {
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        profileId: 'profile-a',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+      ),
+    );
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: MockClient((request) async {
+        expect(request.url.path, '/api/v1/subscriptions/me/');
+        return MockResponse(
+          jsonEncode({
+            'subscription': {
+              'status': {'label': 'Actif'},
+              'current_base': {'name': 'Makolo Base'},
+              'active_addons': <Object>[],
+            },
+            'billing': {'items': <Object>[], 'next_offset': null},
+            'catalog': <Object>[],
+          }),
+          200,
+        );
+      }).dio,
+    );
+    final runtime = AppRuntime(
+      tokens: tokens,
+      session: null,
+      recovery: SessionRecoveryController(),
+      api: api,
+    );
+    addTearDown(runtime.close);
+    await tester.pumpWidget(MaterialApp(home: BillingScreen(runtime: runtime)));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Facturation'));
+    await tester.tap(find.text('Facturation'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('Aucun montant enregistré pour cet abonnement'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('ceux du serveur'), findsNothing);
+    expect(find.textContaining('hors ligne'), findsNothing);
+  });
+
 }
