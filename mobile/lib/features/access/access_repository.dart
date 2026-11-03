@@ -7,6 +7,7 @@ import '../../sync/freshness.dart';
 import '../../sync/projection_contract.dart';
 import '../../sync/sync_engine.dart';
 import '../../sync/sync_source.dart';
+import 'access_credential_vault.dart';
 
 class AccessSourceState {
   const AccessSourceState({
@@ -33,12 +34,18 @@ class AccessCredentialData {
     required this.credentialType,
     required this.payload,
     this.issuedAt,
+    this.locallyRetained = false,
+    this.checkedAt,
+    this.offlineUntil,
   });
 
   final String accessId;
   final String credentialType;
   final String payload;
   final DateTime? issuedAt;
+  final bool locallyRetained;
+  final DateTime? checkedAt;
+  final DateTime? offlineUntil;
 }
 
 class AccessRepository {
@@ -48,7 +55,8 @@ class AccessRepository {
     required this.profileId,
     this.sync,
     this.api,
-  });
+    AccessCredentialVault? credentialVault,
+  }) : credentialVault = credentialVault ?? SecureAccessCredentialVault();
 
   static const collectionProjectionKind = 'personal.accesses';
   static const projectionKind = 'personal.access.detail';
@@ -62,6 +70,7 @@ class AccessRepository {
   final String profileId;
   final SyncEngine? sync;
   final MakoloApiClient? api;
+  final AccessCredentialVault credentialVault;
 
   String collectionResourceKey({
     required String relationship,
@@ -276,12 +285,66 @@ class AccessRepository {
       throw StateError('Remote Access owner is not configured.');
     }
     await engine.refreshSource(sourceFor(accessId));
+    if ((await readSource(accessId)).invalidated) {
+      await credentialVault.delete(profileId, accessId);
+    }
   }
 
   Future<void> invalidateDetail(String accessId) async {
     final engine = sync;
     if (engine == null) return;
     await engine.invalidate(sourceFor(accessId));
+  }
+
+  /// A link comes from the owner collection, not an invented local route.
+  Future<String?> readKnownCredentialPath(String accessId) async {
+    final source = await readCollectionSource(relationship: 'beneficiary');
+    if (source.invalidated) return null;
+    final pages = await store.readProjections(collectionProjectionKind);
+    for (final page in pages) {
+      if (!page.resourceKey.startsWith('beneficiary:')) continue;
+      final rows = page.payload['items'];
+      if (rows is! List) continue;
+      for (final raw in rows) {
+        final item = _map(raw);
+        if (_string(_map(item['identity'])['id']) != accessId) continue;
+        final link = _string(_map(item['links'])['credential']);
+        if (link != null && _isCredentialPath(link, accessId)) return link;
+      }
+    }
+    return null;
+  }
+
+  static bool _isCredentialPath(String path, String accessId) {
+    final parsed = Uri.tryParse(path);
+    if (parsed == null || parsed.hasAuthority ||
+        parsed.hasQuery || parsed.hasFragment) return false;
+    return parsed.path ==
+        '/api/v1/me/accesses/$accessId/credential/';
+  }
+
+  Future<AccessCredentialData?> readRetainedCredential(
+      String accessId) async {
+    final detail = await readSource(accessId);
+    final collection = await readCollectionSource(relationship: 'beneficiary');
+    if (detail.invalidated || collection.invalidated) {
+      await credentialVault.delete(profileId, accessId);
+      return null;
+    }
+    final value = await credentialVault.read(profileId, accessId);
+    if (value == null || !_isCredentialPath(value.path, accessId)) {
+      if (value != null) await credentialVault.delete(profileId, accessId);
+      return null;
+    }
+    return AccessCredentialData(
+      accessId: accessId,
+      credentialType: 'qr',
+      payload: value.payload,
+      issuedAt: value.issuedAt,
+      locallyRetained: true,
+      checkedAt: value.checkedAt,
+      offlineUntil: value.expiresAt,
+    );
   }
 
   Future<AccessCredentialData> fetchCredential({
@@ -292,18 +355,30 @@ class AccessRepository {
     if (remote == null) {
       throw StateError('Remote Access owner is not configured.');
     }
-
-    final response = await remote.get(path);
-    final envelope = ProjectionEnvelope.parse(response.jsonObject());
-    if (envelope.projection != credentialProjectionKind) {
-      throw FormatException(
-        'Expected $credentialProjectionKind, got ${envelope.projection}',
-      );
+    if (!_isCredentialPath(path, accessId)) {
+      throw const FormatException('Unexpected Access credential owner path');
     }
 
-    final access = _map(envelope.data['access']);
-    final relationship = _string(envelope.data['relationship']);
-    final representation = _map(envelope.data['representation']);
+    late final Map<String, dynamic> data;
+    try {
+      final response = await remote.get(path);
+      final envelope = ProjectionEnvelope.parse(response.jsonObject());
+      if (envelope.projection != credentialProjectionKind) {
+        throw FormatException(
+          'Expected $credentialProjectionKind, got ${envelope.projection}',
+        );
+      }
+      data = envelope.data;
+    } on MakoloApiError catch (error) {
+      if (error.statusCode == 403 || error.statusCode == 404) {
+        await credentialVault.delete(profileId, accessId);
+      }
+      rethrow;
+    }
+
+    final access = _map(data['access']);
+    final relationship = _string(data['relationship']);
+    final representation = _map(data['representation']);
     final receivedAccessId = _string(access['id']);
     final credentialType = _string(representation['credential_type']);
     final payload = _string(representation['payload']);
@@ -315,12 +390,50 @@ class AccessRepository {
       throw const FormatException('Invalid AccessCredential owner payload.');
     }
 
+    final issued = _dateTime(representation['issued_at']);
+    final policy = _map(data['offline_presentation']);
+    final expiry = _dateTime(policy['expires_at']);
+    final checked = _dateTime(policy['observed_at']);
+    final canRetain = credentialType == 'qr' &&
+        policy['allowed'] == true &&
+        policy['scope'] == 'display_only' &&
+        expiry != null &&
+        checked != null &&
+        !expiry.isBefore(checked) &&
+        expiry.isAfter(DateTime.now().toUtc());
+    if (canRetain) {
+      try {
+        await credentialVault.save(
+          profileId,
+          RetainedAccessQr(
+            accessId: accessId,
+            path: path,
+            payload: payload,
+            issuedAt: issued,
+            checkedAt: checked,
+            expiresAt: expiry,
+          ),
+        );
+      } on Object {
+        // Secure-store failure never copies a secret into an unprotected DB.
+      }
+    } else {
+      await credentialVault.delete(profileId, accessId);
+    }
+
     return AccessCredentialData(
       accessId: accessId,
       credentialType: credentialType,
       payload: payload,
-      issuedAt: _dateTime(representation['issued_at']),
+      issuedAt: issued,
+      checkedAt: checked,
+      offlineUntil: canRetain ? expiry : null,
     );
+  }
+
+  static DateTime? _dateTime(Object? raw) {
+    final text = _string(raw);
+    return text == null ? null : DateTime.tryParse(text);
   }
 
   static Map<String, dynamic> _map(Object? value) {
