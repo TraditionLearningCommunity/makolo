@@ -22,6 +22,7 @@ from .presentation import (
     conversation_rows_for_profile,
     essential_points_for_profile,
     now_points_for_profile,
+    other_visible_points_for_profile,
     search_conversations_for_profile,
 )
 from .services import (
@@ -212,6 +213,11 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
             point for point in essential_points_for_profile(request.user, conversation, limit=limit)
             if point.pk not in active_ids
         ]
+        seen = active_ids | {point.pk for point in essential}
+        elsewhere = other_visible_points_for_profile(
+            request.user, conversation, excluded_ids=seen, limit=limit,
+        )
+        seen.update(point.pk for point in elsewhere)
         focused_point = None
         focused_raw = (request.query_params.get("focus_point") or "").strip()
         if focused_raw:
@@ -223,7 +229,7 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 pk=focused_id, conversation=conversation,
             ).select_related("visibility_audience", "response_audience", "resolution_audience").prefetch_related("options").first()
             if focused and point_visible_to(request.user, focused):
-                if focused.pk not in active_ids and all(p.pk != focused.pk for p in essential):
+                if focused.pk not in seen:
                     focused_point = _serialize_point(focused, profile=request.user, section="focus")
         label = conversation_context_label(conversation, request.user)
         state = conversation.user_states.filter(profile=request.user).first()
@@ -240,6 +246,10 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
             "essential": [
                 _serialize_point(point, profile=request.user, section="essential")
                 for point in essential
+            ],
+            "elsewhere": [
+                _serialize_point(point, profile=request.user, section="elsewhere")
+                for point in elsewhere
             ],
             "focused_point": focused_point,
             "personal_state": {
