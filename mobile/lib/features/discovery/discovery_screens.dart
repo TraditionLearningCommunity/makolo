@@ -1257,7 +1257,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
             const SizedBox(width: 8),
             const Expanded(
               child: Text(
-                'Action explicite · frais fournisseur possibles',
+                'Des frais peuvent s’appliquer selon votre service connecté.',
                 style: TextStyle(fontSize: 11),
               ),
             ),
@@ -1641,8 +1641,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Text(
-                              'La version du serveur ne fournit pas encore '
-                              'le champ cartographique partagé.',
+                              'Impossible d’afficher la carte pour cette recherche.',
                               textAlign: TextAlign.center,
                             ),
                             TextButton.icon(
