@@ -87,12 +87,16 @@ def build_profile_visibility_settings(profile):
             "public", "my_collectives", "selected_space", "selected_team",
             "selected_group", "selected_profile",
         ],
+        "collections": {
+            "interests": setting(Target.FIELD, "interests", default_public=True),
+            "open_to": setting(Target.FIELD, "open_to", default_public=True),
+        },
         "fields": {
             key: {
                 **setting(Target.FIELD, key, default_public=True),
                 "has_value": bool(field_values.get(key)),
             }
-            for key in PROFILE_VISIBILITY_FIELDS
+            for key in PROFILE_VISIBILITY_FIELDS if key not in ("interests", "open_to")
         },
         "interests": [
             {"id": str(row.pk), "label": row.topic.label,
