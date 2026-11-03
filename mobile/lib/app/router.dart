@@ -683,6 +683,9 @@ GoRouter createMakoloRouter(
             spaceActor: actor,
             kind: state.pathParameters['kind']!,
             id: state.pathParameters['id']!,
+            workSection: state.uri.queryParameters['work_section'],
+            fromWorkCollection:
+                state.uri.queryParameters['work_collection'] == '1',
           );
         },
       ),
