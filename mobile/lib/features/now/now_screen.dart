@@ -79,6 +79,34 @@ bool nowContinuationMatchesRoot(
       continuation['continuation'] is Map;
 }
 
+/// A newer transport receipt can reuse already acquired continuation rows
+/// only when the owner returns exactly the same root cursor and first-page
+/// identities. This is not a license to reuse rows on a changed Now field.
+bool nowContinuationCanRebase(
+  StoredProjection root,
+  Map<String, dynamic> saved,
+) {
+  final actor = root.payload['actor'];
+  final actorId = actor is Map ? actor['id']?.toString() : null;
+  final raw = root.payload['items'];
+  final cursor = root.payload['continuation'];
+  if (actorId == null ||
+      saved['actor_id'] != actorId ||
+      raw is! List ||
+      cursor is! Map ||
+      saved['continuation'] is! Map ||
+      saved['items'] is! List ||
+      saved['root_token'] is! String ||
+      saved['first_keys'] is! List ||
+      cursor['token'] != saved['root_token']) return false;
+  final keys = raw.whereType<Map>().map((item) =>
+      (item['continuity_identity'] ?? item['id'])?.toString()).toList();
+  final previous = saved['first_keys'] as List;
+  return keys.length == previous.length &&
+      List.generate(keys.length, (index) =>
+          keys[index] == previous[index]).every((same) => same);
+}
+
 class _NowScreenState extends State<NowScreen> {
   late Stream<StoredProjection?> _projectionStream;
   late Stream<OwnerSourceState> _sourceStream;
@@ -100,7 +128,8 @@ class _NowScreenState extends State<NowScreen> {
       final owner = root.payload['actor'];
       final actorId = owner is Map ? owner['id']?.toString() : null;
       final facts = local.payload;
-      if (!nowContinuationMatchesRoot(root, facts)) {
+      if (!nowContinuationMatchesRoot(root, facts) &&
+          !nowContinuationCanRebase(root, facts)) {
         return;
       }
       final restored = <Map<String, dynamic>>[];
@@ -126,7 +155,7 @@ class _NowScreenState extends State<NowScreen> {
   }
 
   Future<void> _rememberPages(
-    DateTime baseReceivedAt,
+    StoredProjection base,
     String? actorId,
     List<Map<String, dynamic>> items,
     Map<String, dynamic> continuation,
@@ -138,7 +167,16 @@ class _NowScreenState extends State<NowScreen> {
         schemaVersion: 1,
         payload: {
           'actor_id': actorId,
-          'base_received_at': baseReceivedAt.toUtc().toIso8601String(),
+          'base_received_at': base.receivedAt.toUtc().toIso8601String(),
+          'root_token': (base.payload['continuation'] is Map)
+              ? (base.payload['continuation'] as Map)['token']
+              : null,
+          'first_keys': (base.payload['items'] is List)
+              ? (base.payload['items'] as List).whereType<Map>().map(
+                  (item) => (item['continuity_identity'] ?? item['id'])
+                      ?.toString(),
+                ).toList()
+              : const <String>[],
           'items': items,
           'continuation': continuation,
         },
@@ -165,6 +203,9 @@ class _NowScreenState extends State<NowScreen> {
       _resetPages();
       _pagedBaseReceivedAt = projection.receivedAt;
       _pagedActorId = actorId;
+      // The local derivation can be rebound only if the server root has
+      // preserved the same signed cursor and first-page facts.
+      unawaited(_restorePages());
     }
   }
 
@@ -245,7 +286,7 @@ class _NowScreenState extends State<NowScreen> {
         _pageFailed = false;
       });
       await _rememberPages(
-        baseReceivedAt,
+        base,
         actorId,
         List<Map<String, dynamic>>.from(_pagedItems),
         Map<String, dynamic>.from(next),
