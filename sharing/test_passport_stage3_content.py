@@ -138,6 +138,17 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
         public = build_profile_passport(self.amina, variant="public")
         self.assertEqual(public.group_affiliations, ())
 
+    def test_compact_privacy_settings_return_only_collection_controls(self):
+        from accounts.profile_visibility_projection import build_profile_visibility_settings
+
+        compact = build_profile_visibility_settings(self.amina, compact=True)
+        self.assertIn("interests", compact["collections"])
+        self.assertIn("open_to", compact["collections"])
+        self.assertEqual(compact["interests"], [])
+        self.assertEqual(compact["open_to"], [])
+        full = build_profile_visibility_settings(self.amina)
+        self.assertGreater(len(full["interests"]), 0)
+
     def test_collection_privacy_is_one_gate_without_disclosing_private_atoms(self):
         from accounts.profile_visibility import replace_profile_visibility
 
