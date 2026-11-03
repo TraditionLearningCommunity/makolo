@@ -59,6 +59,7 @@ class PassportProjection:
     activities: tuple = ()
     proofs: tuple = ()
     credentials: tuple = ()
+    activity_involvements: tuple = ()
     trust_verifications: tuple = ()
     credential_summary: tuple = ()
     # Owner-only context; membership never implies authority.
@@ -88,6 +89,7 @@ class PassportProjection:
             or self.activities
             or self.proofs
             or self.credentials
+            or self.activity_involvements
             or self.trust_verifications
             or self.credential_summary
             or self.team_affiliations
@@ -233,6 +235,46 @@ def _profile_credential_queryset(profile, *, public_only):
 
 
 
+def _profile_confirmed_involvements(profile, *, public_only=False):
+    """Represent contextual, confirmed roles; never infer participation from a booking."""
+    from activities.involvement_models import (
+        ActivityInvolvement, ActivityInvolvementStatus,
+        ActivityInvolvementVisibility, ActivityInvolvementConfirmationBasis,
+    )
+
+    rows = ActivityInvolvement.objects.filter(
+        profile=profile,
+        status=ActivityInvolvementStatus.ACTIVE,
+        confirmation_basis=ActivityInvolvementConfirmationBasis.PROFILE_CONFIRMED,
+        activity__status__in=PASSPORT_ACTIVITY_STATUSES,
+    )
+    if public_only:
+        rows = rows.filter(
+            visibility=ActivityInvolvementVisibility.PUBLIC,
+            activity__visibility=ActivityVisibility.PUBLIC,
+        )
+    rows = rows.select_related("activity", "occurrence").prefetch_related(
+        "functions", "activity__topic_links__topic",
+    ).order_by("activity__title", "id")
+    return tuple({
+        "id": str(row.pk),
+        "activity_id": str(row.activity_id),
+        "title": row.activity.title,
+        "role": " · ".join(
+            function.label or function.get_kind_display()
+            for function in row.functions.all()
+        ) or row.contextual_title,
+        "date": (
+            row.occurrence.start_date.isoformat()
+            if row.occurrence_id and row.occurrence.start_date else ""
+        ),
+        "topic_codes": [
+            link.topic.code for link in row.activity.topic_links.all()
+        ],
+        "visibility": row.visibility,
+    } for row in rows)
+
+
 def _profile_team_affiliations(profile):
     """Owner-scoped existing memberships, not roles or public endorsements."""
     memberships = (
@@ -324,7 +366,7 @@ def build_profile_passport(
     if variant not in PASSPORT_VARIANTS:
         raise ValueError("Variante Passeport inconnue.")
 
-    public_only = variant == PASSPORT_PUBLIC
+    public_only = variant in (PASSPORT_PUBLIC, PASSPORT_THEMATIC, PASSPORT_CUSTOM)
     thematic = variant == PASSPORT_THEMATIC
     custom = variant == PASSPORT_CUSTOM
     topics = _topics_from_codes(topic_codes) if thematic else ()
@@ -530,6 +572,14 @@ def build_profile_passport(
         activities=tuple(activities_qs),
         proofs=tuple(proofs_qs),
         credentials=tuple(credentials_qs),
+        activity_involvements=tuple(
+            item for item in _profile_confirmed_involvements(
+                profile, public_only=public_only,
+            ) if not thematic or (
+                topics and any(code in {topic.code for topic in topics}
+                               for code in item["topic_codes"])
+            )
+        ) if not custom or "activity_involvements" in sections else (),
         topics=topics,
     )
 
