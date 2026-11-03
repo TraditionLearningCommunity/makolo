@@ -1340,6 +1340,7 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                       api: widget.shareApi,
                       authenticated: widget.shareAuthenticated,
                       onSignIn: widget.onSignIn,
+                      enabled: !widget.detailMode || widget.allowOwnerActions,
                       iconOnly: true,
                       baseUri: widget.baseUri,
                     ),
