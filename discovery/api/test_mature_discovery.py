@@ -956,6 +956,54 @@ class MatureDiscoveryAPITests(TestCase):
         ):
             self.assertNotIn(forbidden, serialized)
 
+    def test_spatial_map_shares_discovery_identity_and_public_geography(self):
+        from geography.models import Place
+        from activities.models import OccurrencePlace, OccurrencePlaceRole
+
+        located = Place.objects.create(
+            name="Z3 localisation", locality="Lubumbashi",
+            latitude="-11.664700", longitude="27.479400",
+        )
+        OccurrencePlace.objects.create(
+            occurrence=self.event_occurrence,
+            place=located,
+            role=OccurrencePlaceRole.PRIMARY,
+        )
+        collection = self._items(q="Z3 concert")["data"]["results"]
+        expected = next(
+            row for row in collection
+            if row["identity"]["resource"]["id"] == str(self.event_activity.pk)
+        )
+
+        response = self.client.get(
+            reverse("discovery_api:map"), {"q": "Z3 concert", "spatial": "1"}
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()
+        selected = next(
+            row for row in data["results"]
+            if row["identity"]["resource"]["id"] == str(self.event_activity.pk)
+        )
+        self.assertEqual(selected["identity"], {
+            "family": expected["identity"]["family"],
+            "candidate_key": expected["identity"]["candidate_key"],
+            "resource": expected["identity"]["resource"],
+            "occurrence": expected["identity"]["occurrence"],
+        })
+        self.assertEqual(selected["place"]["latitude"], -11.6647)
+        self.assertEqual(selected["place"]["longitude"], 27.4794)
+        self.assertEqual(selected["spatial_facts"][0]["role"], "primary")
+        self.assertEqual(
+            selected["links"]["detail"], expected["links"]["detail"]
+        )
+        self.assertNotIn("personal_relation", selected)
+        self.assertNotIn("accesscredential", str(data).lower())
+
+        # Existing non-opt-in endpoint remains backward compatible.
+        legacy = self.client.get(reverse("discovery_api:map"), {"q": "Z3 concert"})
+        self.assertEqual(legacy.status_code, 200)
+        self.assertIn("activity_id", legacy.json()["results"][0])
+
     def test_service_and_funding_admission_reuse_owner_publication_rules(self):
         from organizations.models import SpaceLifecycle
 
