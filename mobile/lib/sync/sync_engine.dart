@@ -46,6 +46,7 @@ class SyncEngine {
     'discovery.items',
     'discovery.map',
     'discovery.presented-window',
+    'discovery.unseen-reserve',
     'discovery.item',
     'discovery.activity-preview',
     'discovery.occurrence-preview',
