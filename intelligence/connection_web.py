@@ -5,6 +5,7 @@ Views authenticate and check scope authority before calling these helpers.
 from __future__ import annotations
 
 from uuid import UUID
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -23,6 +24,15 @@ def connection_form_context():
         "connection_offers": offers,
         "connection_can_connect": any(offer["can_connect"] for offer in offers),
     }
+
+
+def _connections_return_url(request):
+    """Return only to this owner surface; never redirect to a client URL."""
+    params = {"tab": "mine"}
+    responsibility = request.GET.get("responsibility", "").strip()[:80]
+    if responsibility:
+        params["responsibility"] = responsibility
+    return f"{request.path}?{urlencode(params)}"
 
 
 def handle_connection_form(request, *, scope, space=None):
@@ -57,7 +67,7 @@ def handle_connection_form(request, *, scope, space=None):
             messages.success(request, "Connexion enregistrée. Sa disponibilité sera vérifiée lors de son utilisation.")
         except (ValidationError, ImproperlyConfigured, ValueError):
             messages.error(request, "Connexion non créée : vérifiez le fournisseur, le modèle, la clé et la configuration.")
-        return redirect(request.path)
+        return redirect(_connections_return_url(request))
 
     try:
         connection_id = UUID(request.POST.get("connection_id", ""))
@@ -74,7 +84,7 @@ def handle_connection_form(request, *, scope, space=None):
         else:
             disconnect_connection(actor=request.user, connection=connection)
             messages.success(request, "Connexion retirée de Makolo. Révoquez séparément la clé chez le fournisseur si nécessaire.")
-        return redirect(request.path)
+        return redirect(_connections_return_url(request))
 
     update = {"enabled": action == "enable"} if action in {"enable", "disable"} else {
         "api_key": request.POST.get("api_key", ""),
@@ -84,4 +94,4 @@ def handle_connection_form(request, *, scope, space=None):
         messages.success(request, "Connexion mise à jour.")
     except (ValidationError, ImproperlyConfigured, ValueError):
         messages.error(request, "Modification impossible ; vérifiez les informations et la configuration.")
-    return redirect(request.path)
+    return redirect(_connections_return_url(request))
