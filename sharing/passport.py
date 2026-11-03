@@ -407,26 +407,34 @@ def build_profile_passport(
             credentials_qs = credentials_qs.none()
 
     if custom:
-        activities_qs = _validate_selection(
-            activities_qs,
-            selected_activity_ids or (),
-            label="Activities",
+        explicit_choice = bool(
+            selected_sections or selected_activity_ids
+            or selected_proof_ids or selected_credential_ids
         )
-        proofs_qs = _validate_selection(
-            proofs_qs,
-            selected_proof_ids or (),
-            label="Proofs",
-        )
-        credentials_qs = _validate_selection(
-            credentials_qs,
-            selected_credential_ids or (),
-            label="Credentials",
-        )
-        sections = set(selected_sections or ())
-        if "interests" not in sections:
-            interests_qs = interests_qs.none()
-        if "open_to" not in sections:
-            open_to_qs = open_to_qs.none()
+        if explicit_choice:
+            activities_qs = _validate_selection(
+                activities_qs, selected_activity_ids or (), label="Activities",
+            )
+            proofs_qs = _validate_selection(
+                proofs_qs, selected_proof_ids or (), label="Proofs",
+            )
+            credentials_qs = _validate_selection(
+                credentials_qs, selected_credential_ids or (), label="Credentials",
+            )
+            sections = set(selected_sections or ())
+            if "interests" not in sections:
+                interests_qs = interests_qs.none()
+            if "open_to" not in sections:
+                open_to_qs = open_to_qs.none()
+        else:
+            # A new personalized Passport starts from all admissible public
+            # facts. The explicit "identity" sentinel disambiguates an owner
+            # intentionally excluding every optional section.
+            sections = {
+                "identity", "avatar", "bio", "profession", "company_name",
+                "organization_name", "location", "links", "interests",
+                "open_to", "activity_involvements",
+            }
     else:
         sections = {"identity", "bio", "links", "interests", "open_to"}
 
