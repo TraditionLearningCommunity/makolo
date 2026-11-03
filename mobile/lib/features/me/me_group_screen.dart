@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
+import '../continuity/conversation_context_screen.dart';
+import '../continuity/conversation_repository.dart';
 import '../../sync/projection_contract.dart';
 
 /// Private Group owner view; only facts returned after membership and
 /// authority checks are shown. Mutations remain owned by Groups.
 class MeGroupScreen extends StatefulWidget {
-  const MeGroupScreen({super.key, required this.api, required this.groupId});
+  const MeGroupScreen({
+    super.key,
+    required this.api,
+    required this.groupId,
+    this.conversations,
+    this.onOpenConversation,
+  });
   final MakoloApiClient api;
   final String groupId;
+  final ConversationRepository? conversations;
+  final ValueChanged<String>? onOpenConversation;
 
   @override
   State<MeGroupScreen> createState() => _MeGroupScreenState();
@@ -65,6 +75,14 @@ class _MeGroupScreenState extends State<MeGroupScreen> {
             padding: const EdgeInsets.all(24),
             children: [
               Text(name, style: Theme.of(context).textTheme.headlineMedium),
+              if (widget.conversations != null &&
+                  widget.onOpenConversation != null)
+                ConversationContextAction(
+                  repository: widget.conversations!,
+                  kind: 'group',
+                  contextId: widget.groupId,
+                  onOpen: widget.onOpenConversation!,
+                ),
               if (description != null && description.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(description, style: Theme.of(context).textTheme.bodyLarge),
