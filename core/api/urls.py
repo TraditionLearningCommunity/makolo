@@ -24,6 +24,7 @@ from .me_views import (
     PersonalPassportVersionAPIView,
     PersonalPassportVersionPdfAPIView,
     PersonalPassportShareAPIView,
+    PersonalPassportDirectShareAPIView,
     PersonalPassportShareRevokeAPIView,
     PersonalPassportVersionRevokeAPIView,
     PersonalResourcesAPIView,
@@ -92,6 +93,7 @@ urlpatterns = [
     path("passport/history/<uuid:snapshot_id>/", PersonalPassportVersionAPIView.as_view(), name="passport-version"),
     path("passport/history/<uuid:snapshot_id>/pdf/", PersonalPassportVersionPdfAPIView.as_view(), name="passport-version-pdf"),
     path("passport/history/<uuid:snapshot_id>/share/", PersonalPassportShareAPIView.as_view(), name="passport-share"),
+    path("passport/history/<uuid:snapshot_id>/deliver/", PersonalPassportDirectShareAPIView.as_view(), name="passport-direct-delivery"),
     path("passport/history/<uuid:snapshot_id>/revoke/", PersonalPassportVersionRevokeAPIView.as_view(), name="passport-version-revoke"),
     path("passport/shares/<uuid:share_id>/revoke/", PersonalPassportShareRevokeAPIView.as_view(), name="passport-share-revoke"),
     path(
