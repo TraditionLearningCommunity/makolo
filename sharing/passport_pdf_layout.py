@@ -602,7 +602,9 @@ def render_passport_layout(payload, metadata, verify_url, *,
     )
     labels = public_labels + (
         ("company", "Entreprise"), ("organization", "Organisation"),
-        ("phone", "Téléphone"), ("address", "Adresse"),
+        ("phone", "Téléphone"),
+        ("email", "Adresse e-mail"),
+        ("address", "Adresse"),
         ("birth_date", "Date de naissance"),
     ) if is_complete else public_labels
     details = []
