@@ -6,7 +6,7 @@
     <a href="{{ mt5_back_url }}" class="text-sm font-semibold underline underline-offset-4">Retour au départ</a>
   </nav>
   <header>
-    <span class="mk-kicker">Transport · Opérations propriétaires</span>
+    <span class="mk-kicker">Transport · Gestion du départ</span>
     <h2 id="departure-ops-title" class="mt-2 text-3xl font-extrabold tracking-tight">Exploiter ce départ</h2>
     <p class="mt-2 text-sm" style="color:var(--mk-muted)">
       {{ mt5_departure.occurrence.label|default:mt5_departure.occurrence.activity.title }}
@@ -14,7 +14,7 @@
       · {{ mt5_departure.occurrence.start_at|date:"d/m/Y H:i" }}
     </p>
     <p class="mt-2 text-sm" style="color:var(--mk-muted)">
-      Chaque commande est confirmée par Transport. Une affectation ne donne aucun accès voyageur et ne confirme aucun paiement.
+      L’affectation d’un véhicule ne confirme ni réservation ni paiement.
     </p>
   </header>
 
@@ -24,7 +24,7 @@
     <p class="text-sm" style="color:var(--mk-muted)">
       {% if mt5_departure.vehicle %}Actuellement : {{ mt5_departure.vehicle.label }}.
       {% else %}Aucun véhicule affecté.{% endif %}
-      La capacité vendable et les réservations existantes seront vérifiées par le propriétaire.
+      Les réservations et les places disponibles seront vérifiées.
     </p>
     <form method="post" class="flex flex-wrap gap-3 items-end">
       {% csrf_token %}<input type="hidden" name="action" value="assign_vehicle">
@@ -52,7 +52,7 @@
       <label class="block text-sm font-bold">Arrivée estimée (facultative)
         <input type="datetime-local" name="end_at" value="{{ mt5_departure.occurrence.end_at|date:'Y-m-d\TH:i' }}" class="mt-1 block w-full rounded-xl border bg-transparent px-4 py-3">
       </label>
-      <label class="block text-sm font-bold">Fuseau IANA
+      <label class="block text-sm font-bold">Fuseau horaire
         <input name="timezone" required maxlength="100" value="{{ mt5_departure.occurrence.timezone }}" class="mt-1 block w-full rounded-xl border bg-transparent px-4 py-3">
       </label>
       <button class="mk-btn mk-btn-primary" type="submit">Confirmer le nouvel horaire</button>
@@ -64,11 +64,11 @@
   <section class="mk-panel p-5 sm:p-6 space-y-4" aria-labelledby="mt5-cancel-title">
     <h3 id="mt5-cancel-title" class="text-xl font-extrabold">Annuler ce départ</h3>
     <p class="text-sm" style="color:var(--mk-muted)">
-      Cette action change réellement l'Occurrence et peut affecter des engagements existants. Elle ne rembourse aucun paiement automatiquement.
+      L’annulation peut affecter les réservations. Aucun remboursement n’est effectué automatiquement.
     </p>
     <form method="post" class="flex flex-wrap items-center gap-3">
       {% csrf_token %}<input type="hidden" name="action" value="cancel">
-      <label class="text-sm"><input type="checkbox" name="confirmed" value="yes" required> Je confirme l'annulation de ce départ réel.</label>
+      <label class="text-sm"><input type="checkbox" name="confirmed" value="yes" required> Je confirme l’annulation de ce départ.</label>
       <button type="submit" class="mk-btn mk-btn-secondary">Annuler le départ</button>
     </form>
   </section>

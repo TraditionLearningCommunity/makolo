@@ -38,7 +38,7 @@
       <p class="text-sm" style="color:var(--mk-muted)">Reliée à : {{ work_depth.context.activity.title }}</p>
     {% endif %}
     {% if not work_depth.timing.start_date and not work_depth.context.place.name %}
-      <p class="text-sm" style="color:var(--mk-muted)">Aucune date ni aucun lieu confirmé dans cette vue.</p>
+      <p class="text-sm" style="color:var(--mk-muted)">Date et lieu non précisés.</p>
     {% endif %}
   </section>
   {% endif %}
@@ -49,7 +49,6 @@
     {% if work_depth.context.work_label %}<p class="font-semibold">{{ work_depth.context.work_label }}</p>{% endif %}
     {% if work_depth.context.activity.title %}<p class="text-sm" style="color:var(--mk-muted)">Concerne : {{ work_depth.context.activity.title }}</p>{% endif %}
     {% if work_depth.timing.started_at %}<p class="text-sm">Démarrée le {{ work_depth.timing.started_at|date:"SHORT_DATETIME_FORMAT" }}</p>{% endif %}
-    <p class="text-sm" style="color:var(--mk-muted)">Les décisions et justificatifs restent dans leurs espaces propriétaires et sous leurs permissions propres.</p>
   </section>
   {% endif %}
 
@@ -93,10 +92,7 @@
     </nav>
     {% else %}
     <div class="mk-panel p-5 sm:p-6">
-      <p class="font-semibold">{% if work_depth.is_initiative %}Aucune action datée pour le moment.{% else %}Aucune réalisation datée pour le moment.{% endif %}</p>
-      <p class="mt-2 text-sm" style="color:var(--mk-muted)">
-        {% if work_depth.is_initiative %}L’initiative existe indépendamment de ses prochaines actions.{% else %}L’activité existe indépendamment d’une prochaine date.{% endif %}
-      </p>
+      <p class="font-semibold">{% if work_depth.is_initiative %}Aucune action programmée.{% else %}Aucune réalisation programmée.{% endif %}</p>
     </div>
     {% endif %}
   </section>
@@ -106,7 +102,7 @@
   <section class="mk-panel p-5 sm:p-6 space-y-4" aria-labelledby="work-depth-actions">
     <div>
       <span class="mk-kicker">Actions autorisées</span>
-      <h3 id="work-depth-actions" class="mt-1 text-lg font-extrabold">Pour aller plus loin</h3>
+      <h3 id="work-depth-actions" class="mt-1 text-lg font-extrabold">Actions disponibles</h3>
     </div>
     <div class="flex flex-wrap gap-2">
       {% for action in work_depth.actions %}

@@ -32,7 +32,7 @@
   {% if work_g2.is_activity %}
     <section class="space-y-3" aria-labelledby="g2-sessions">
       <div>
-        <span class="mk-kicker">{% if work_g2.is_education %}Déroulement réel{% else %}Rendez-vous et réalisations{% endif %}</span>
+        <span class="mk-kicker">{% if work_g2.is_education %}Sessions{% else %}Rendez-vous et réalisations{% endif %}</span>
         <h3 id="g2-sessions" class="mt-1 text-xl font-extrabold">
           {% if work_g2.is_education %}Sessions de ce programme{% else %}Réalisations de cette prestation{% endif %}
         </h3>
@@ -63,15 +63,14 @@
         </nav>
       {% else %}
         <div class="mk-panel p-5 sm:p-6">
-          <p class="font-semibold">{% if work_g2.is_education %}Aucune session liée pour le moment.{% else %}Aucune réalisation datée liée pour le moment.{% endif %}</p>
-          <p class="mt-2 text-sm" style="color:var(--mk-muted)">La réalité durable existe indépendamment de sa prochaine date.</p>
+          <p class="font-semibold">{% if work_g2.is_education %}Aucune session programmée.{% else %}Aucune réalisation programmée.{% endif %}</p>
         </div>
       {% endif %}
     </section>
 
     <section class="space-y-3" aria-labelledby="g2-journeys">
       <div>
-        <span class="mk-kicker">{% if work_g2.is_education %}Inscriptions{% else %}Engagements réels{% endif %}</span>
+        <span class="mk-kicker">{% if work_g2.is_education %}Inscriptions{% else %}Dossiers{% endif %}</span>
         <h3 id="g2-journeys" class="mt-1 text-xl font-extrabold">{% if work_g2.is_education %}Demandes et inscriptions visibles{% else %}Dossiers liés à cette prestation{% endif %}</h3>
       </div>
       {% if work_g2.linked_work %}
@@ -94,8 +93,7 @@
         </nav>
       {% else %}
         <div class="mk-panel p-5 sm:p-6">
-          <p class="font-semibold">{% if work_g2.is_education %}Aucune inscription visible dans votre périmètre.{% else %}Aucun dossier visible dans votre périmètre.{% endif %}</p>
-          <p class="mt-2 text-sm" style="color:var(--mk-muted)">L’absence dans cette lecture ne présume rien des éléments hors de votre autorité.</p>
+          <p class="font-semibold">{% if work_g2.is_education %}Aucune inscription accessible.{% else %}Aucun dossier accessible.{% endif %}</p>
         </div>
       {% endif %}
     </section>
@@ -117,7 +115,7 @@
       {% if work_g2.context.capacity %}
         <p class="text-sm">
           <strong>Disponibilité établie :</strong>
-          {% if work_g2.context.capacity.unlimited %}Non limitée selon le pool{% else %}{{ work_g2.context.capacity.available }} disponible(s) selon le pool{% endif %}
+          {% if work_g2.context.capacity.unlimited %}Aucune limite renseignée{% else %}{{ work_g2.context.capacity.available }} disponible(s){% endif %}
         </p>
       {% endif %}
       {% if not work_g2.timing.start_date %}<p class="text-sm" style="color:var(--mk-muted)">La date exacte n’est pas établie.</p>{% endif %}
@@ -138,14 +136,13 @@
           {{ work_g2.context.conditions.unsatisfied }} à revoir
         </div>
       {% endif %}
-      <p class="text-sm" style="color:var(--mk-muted)">Les décisions, pièces et preuves restent dans leurs profondeurs propriétaires et sous les permissions correspondantes.</p>
     </section>
   {% endif %}
 
   {% if work_g2.actions %}
   <section class="mk-panel p-5 sm:p-6 space-y-3" aria-labelledby="g2-actions">
     <span class="mk-kicker">Prochaines actions autorisées</span>
-    <h3 id="g2-actions" class="text-lg font-extrabold">Agir sur la réalité</h3>
+    <h3 id="g2-actions" class="text-lg font-extrabold">Actions disponibles</h3>
     <div class="flex flex-wrap gap-2">
       {% for action in work_g2.actions %}<a class="mk-btn {% if forloop.first %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
     </div>

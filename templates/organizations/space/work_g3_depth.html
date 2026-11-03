@@ -36,28 +36,28 @@
       <h3 class="text-lg font-extrabold">Ce que nous proposons</h3>
       <p class="text-2xl font-extrabold">{{ work_g3.facts.unit_price }} {{ work_g3.facts.currency }} <span class="text-sm font-normal">par unité</span></p>
       <p>Quantité par demande : {{ work_g3.facts.min_quantity }}{% if work_g3.facts.max_quantity %} à {{ work_g3.facts.max_quantity }}{% else %} minimum{% endif %}</p>
-      <p class="text-sm">Mode de paiement configuré : {{ work_g3.facts.payment_mode }}</p>
+      <p class="text-sm">Mode de paiement : {{ work_g3.facts.payment_mode }}</p>
       {% if work_g3.facts.payment_modes %}
       <p class="text-sm">Modes acceptés : {% for mode in work_g3.facts.payment_modes %}{{ mode }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
       {% endif %}
       {% if work_g3.facts.available_from or work_g3.facts.available_until %}
-      <p class="text-sm">Fenêtre : {% if work_g3.facts.available_from %}à partir du {{ work_g3.facts.available_from }}{% endif %}
+      <p class="text-sm">Disponibilité : {% if work_g3.facts.available_from %}à partir du {{ work_g3.facts.available_from }}{% endif %}
         {% if work_g3.facts.available_until %} · jusqu’au {{ work_g3.facts.available_until }}{% endif %}</p>
       {% endif %}
       <p class="text-sm font-semibold">
-        {% if work_g3.facts.currently_available %}Actuellement disponible selon les conditions du propriétaire.
-        {% else %}Non disponible actuellement selon les conditions du propriétaire.{% endif %}
+        {% if work_g3.facts.currently_available %}Disponible selon les conditions de l’offre.
+        {% else %}Indisponible actuellement.{% endif %}
       </p>
       {% if work_g3.context.capacity %}
         <div class="rounded-xl p-4" style="background:var(--mk-soft)">
-          {% if work_g3.context.capacity.unlimited %}Capacité déclarée sans limite quantitative.
+          {% if work_g3.context.capacity.unlimited %}Aucune limite de quantité renseignée.
           {% else %}Capacité disponible : {{ work_g3.context.capacity.available }} sur {{ work_g3.context.capacity.total }}.
           {% endif %}
-          {% if not work_g3.context.capacity.pool_active %}<p>Pool actuellement inactif.</p>{% endif %}
+          {% if not work_g3.context.capacity.pool_active %}<p>Disponibilité suspendue.</p>{% endif %}
         </div>
       {% endif %}
       {% if work_g3.facts.capacity_pool_bound and not work_g3.context.capacity %}
-        <p class="text-sm" style="color:var(--mk-muted)">La disponibilité quantitative dépend d'un pool propriétaire non projeté ici.</p>
+        <p class="text-sm" style="color:var(--mk-muted)">Quantité disponible à vérifier.</p>
       {% endif %}
     </section>
   {% elif work_g3.kind == 'commerce_order' %}
@@ -69,7 +69,7 @@
         <dt>Remise historique</dt><dd class="text-right font-semibold">{{ work_g3.facts.discount_total }} {{ work_g3.facts.currency }}</dd>
         <dt>Total commandé</dt><dd class="text-right font-extrabold">{{ work_g3.facts.total }} {{ work_g3.facts.currency }}</dd>
       </dl>
-      <p class="text-sm" style="color:var(--mk-muted)">Commande confirmée ≠ paiement vérifié ≠ remise accomplie. Ces résultats doivent venir de leurs propriétaires respectifs.</p>
+      <p class="text-sm" style="color:var(--mk-muted)">La confirmation de commande ne confirme ni le paiement ni la remise.</p>
     </section>
   {% elif work_g3.kind == 'transport_route' %}
     <section class="mk-panel p-5 sm:p-6 space-y-3" aria-label="Itinéraire">
@@ -90,7 +90,6 @@
       {% else %}
         <p>Aucun arrêt connu pour cette route.</p>
       {% endif %}
-      <p class="text-sm" style="color:var(--mk-muted)">La ligne n'est pas dessinée sur une carte sans géométrie vérifiée.</p>
     </section>
   {% elif work_g3.kind == 'vehicle' %}
     <section class="mk-panel p-5 sm:p-6 space-y-3" aria-label="Véhicule">
@@ -98,7 +97,7 @@
       <p>Type : {{ work_g3.facts.vehicle_type }}</p>
       <p>Places physiques : <strong>{{ work_g3.facts.passenger_capacity }}</strong></p>
       {% if work_g3.facts.registration %}<p>Référence d’immatriculation : {{ work_g3.facts.registration }}</p>{% endif %}
-      <p class="text-sm" style="color:var(--mk-muted)">Les places physiques ne sont pas les places vendables, ni une mesure d'embarquement.</p>
+      <p class="text-sm" style="color:var(--mk-muted)">La capacité physique ne correspond pas nécessairement aux places réservables.</p>
     </section>
   {% elif work_g3.kind == 'occurrence' %}
     {% if work_g3.facts.departure_id %}
@@ -150,7 +149,7 @@
           {% endfor %}
         </ol>
       {% else %}
-        <p class="mk-panel p-5">Aucun élément visible dans ce périmètre. Cela ne présume rien des autres responsabilités.</p>
+        <p class="mk-panel p-5">Aucun élément accessible dans ce contexte.</p>
       {% endif %}
       {% if group.next or group.previous %}
       <nav aria-label="Pagination {{ group.label }}" class="flex flex-wrap justify-between gap-3">
@@ -163,8 +162,8 @@
 
   {% if work_g3.actions %}
   <section class="mk-panel p-5 sm:p-6 space-y-3" aria-labelledby="mt5-actions">
-    <span class="mk-kicker">Actions propriétaires</span>
-    <h3 id="mt5-actions" class="text-lg font-extrabold">Agir lorsque c’est autorisé</h3>
+    <span class="mk-kicker">Actions disponibles</span>
+    <h3 id="mt5-actions" class="text-lg font-extrabold">Agir</h3>
     <div class="flex flex-wrap gap-2">
       {% for action in work_g3.actions %}<a class="mk-btn {% if forloop.first %}mk-btn-primary{% else %}mk-btn-secondary{% endif %}" href="{{ action.url }}">{{ action.label }}</a>{% endfor %}
     </div>

@@ -6,7 +6,6 @@
     <div>
       <p class="mk-eyebrow">Moi</p>
       <h1>Connexions</h1>
-      <p>Les services externes reliés à votre Profil et ce que Makolo peut réellement utiliser maintenant.</p>
     </div>
   </section>
 
@@ -15,7 +14,6 @@
       <div class="mk-section-heading">
         <div>
           <h2 id="connections-personal-title">Mes connexions</h2>
-          <p>Uniquement les services réellement reliés à votre Profil.</p>
         </div>
       </div>
 
@@ -44,7 +42,7 @@
         {% endfor %}
       </div>
       {% else %}
-      <p class="mk-empty-copy">Aucune connexion pour le moment.</p>
+      <p class="mk-empty-copy">Aucune connexion.</p>
       {% endif %}
     </section>
 
@@ -53,7 +51,6 @@
       <div class="mk-section-heading">
         <div>
           <h2 id="connections-providers-title">Services disponibles</h2>
-          <p>Ces services existent réellement dans Makolo. Leur disponibilité ne signifie pas qu’un parcours de connexion est fourni ici.</p>
         </div>
       </div>
       <div class="mk-me-list">
@@ -87,8 +84,7 @@
     <section class="mk-me-section" aria-labelledby="connections-actions-title">
       <div class="mk-section-heading">
         <div>
-          <h2 id="connections-actions-title">Capacités et actions</h2>
-          <p>Seulement les actions que leurs domaines propriétaires autorisent réellement dans ce contexte.</p>
+          <h2 id="connections-actions-title">Actions disponibles</h2>
         </div>
       </div>
       <div class="mk-me-list">
@@ -96,7 +92,6 @@
         <div>
           <strong>{{ action.display_name }}</strong>
           <span>{{ action.status_label }}</span>
-          <p>Action déclarée par son domaine propriétaire. Aucun lancement direct depuis Connexions.</p>
         </div>
         {% endfor %}
       </div>
@@ -108,7 +103,6 @@
       <div class="mk-section-heading">
         <div>
           <h2 id="connections-extensions-title">Extensions</h2>
-          <p>Extensions autorisées et réellement exposées à votre Profil.</p>
         </div>
       </div>
       <div class="mk-me-list">
@@ -116,7 +110,6 @@
         <div>
           <strong>{{ extension.display_name }}</strong>
           <span>Extension déclarée</span>
-          <p>Aucun lancement direct depuis Connexions.</p>
         </div>
         {% endfor %}
       </div>
@@ -127,7 +120,6 @@
       <div class="mk-section-heading">
         <div>
           <h2 id="connections-domain-integrations">Services utilisés dans Makolo</h2>
-          <p>Ces capacités appartiennent à leurs domaines métier. Elles ne représentent pas des comptes externes à connecter.</p>
         </div>
       </div>
       <div class="mk-me-list">
@@ -137,7 +129,7 @@
           <p>{{ integration.description }}</p>
           {% if integration.kind == 'device_registration' %}
             <span>{{ integration.active_count }} appareil{{ integration.active_count|pluralize }} enregistré{{ integration.active_count|pluralize }}</span>
-            {% if not integration.available %}<p>Transport push actuellement indisponible sur le serveur.</p>{% endif %}
+            {% if not integration.available %}<p>Notifications sur appareil indisponibles.</p>{% endif %}
           {% elif integration.status == 'sandbox_only' %}
             <p>Mode démonstration uniquement — aucun paiement réel confirmé.</p>
           {% endif %}
