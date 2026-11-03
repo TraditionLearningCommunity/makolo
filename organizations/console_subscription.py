@@ -11,7 +11,10 @@ from django.views.generic import TemplateView
 
 from subscriptions.authorization import subscriptions_visible_to_actor
 from subscriptions.billing_models import PlanVersionBillingTerms
-from subscriptions.billing_presentation import next_payment_url_for_actor, terms_as_dict, with_billing_terms
+from subscriptions.billing_presentation import (
+    next_payment_url_for_actor, terms_as_dict,
+    transition_payment_action_for_actor, with_billing_terms,
+)
 from subscriptions.space_billing_view import space_billing_for_actor
 from subscriptions.personal_history import subscription_transition_history
 from subscriptions.contracts import SubscriptionTransitionKind, SubscriptionTransitionStatus
@@ -76,6 +79,17 @@ class SpaceConsoleSubscriptionView(SpaceSubscriptionMixin, TemplateView):
         context["space_billing"] = space_billing_for_actor(self.request.user, subscription)
         context["space_history"] = subscription_transition_history(subscription)
         context["subscription_return_url"] = safe_action_return(self.request, space=self.space)
+        product = context["product"]
+        if product.transition and product.transition["open"] and product.can_manage:
+            transition = SubscriptionTransition.objects.get(
+                pk=product.transition["id"], subscription=subscription,
+            )
+            context["transition_financial"] = transition_payment_action_for_actor(
+                transition, actor=self.request.user,
+            )
+            context["transition_payment_url"] = next_payment_url_for_actor(
+                transition, self.request.user,
+            )
         return context
 
 
