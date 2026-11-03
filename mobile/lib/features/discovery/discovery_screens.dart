@@ -228,8 +228,14 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         }
       }
       if (!mounted || !identical(current, _query)) return;
-      // An existing snapshot is readable, but a cold start must request fresh
-      // owner authority before enabling actions, even when it looks recent.
+      // Re-entering N1 is a change of presentation, not a new owner request.
+      // The already authenticated field is reusable until its display TTL.
+      if (await widget.repository.hasReusableItems(current)) {
+        if (mounted && identical(current, _query)) {
+          setState(() => _verifiedFieldKey = current.mapFingerprint);
+        }
+        return;
+      }
       await _refreshItems();
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
@@ -268,7 +274,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           status.lastSuccessAt != null &&
           !status.invalidated) {
         setState(() => _verifiedFieldKey = refreshed.mapFingerprint);
-        unawaited(_prefetchNext(refreshed));
+        // The next signed page is acquired only when requested by scrolling.
       }
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
