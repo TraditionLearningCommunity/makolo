@@ -5,6 +5,7 @@ import '../../navigation/profile_portrait_store.dart';
 import 'package:flutter/material.dart';
 
 import '../../network/makolo_api_client.dart';
+import '../../network/api_error.dart';
 import '../../platform/camera/system_media_picker.dart';
 import '../../repositories/personal_repository.dart';
 import '../../repositories/draft_repository.dart';
@@ -52,7 +53,6 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   final _youtube = TextEditingController();
   final _company = TextEditingController();
   final _organization = TextEditingController();
-  final _language = TextEditingController();
   final _address = TextEditingController();
   bool _publicProfile = true;
   bool _searchable = true;
@@ -67,6 +67,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   bool _loaded = false;
   bool _saving = false;
   String? _error;
+  Map<String, String> _fieldErrors = const {};
   String? _confirmation;
   Map<String, dynamic>? _cachedIdentity;
   bool _edited = false;
@@ -99,7 +100,6 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         'tiktok_url',
         'x_url',
         'youtube_url',
-        'language',
       ])
         key: user[key]?.toString() ?? '',
       for (final key in const [
@@ -140,7 +140,6 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     _youtube.text = value('youtube_url');
     _company.text = value('company_name');
     _organization.text = value('organization_name');
-    _language.text = value('language');
     _address.text = value('address');
     _publicProfile = editor['public_profile'] != false;
     _searchable = editor['searchable'] != false;
@@ -178,7 +177,6 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     'youtube_url': _youtube.text.trim(),
     'company_name': _company.text.trim(),
     'organization_name': _organization.text.trim(),
-    'language': 'fr',
     'address': _address.text.trim(),
     'public_profile': _publicProfile,
     'searchable': _searchable,
@@ -419,6 +417,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     setState(() {
       _saving = true;
       _error = null;
+      _fieldErrors = const {};
       _confirmation = null;
     });
     try {
@@ -443,17 +442,38 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           'youtube_url': _youtube.text.trim(),
           'company_name': _company.text.trim(),
           'organization_name': _organization.text.trim(),
-          'language': 'fr',
           'address': _address.text.trim(),
           'public_profile': _publicProfile,
           'searchable': _searchable,
         },
       );
-    } on Object {
+    } on Object catch (error) {
       if (!mounted) return;
+      final validation = error is MakoloApiError && error.statusCode == 400;
+      final fieldErrors = <String, String>{};
+      if (validation) {
+        for (final entry in error.fields.entries) {
+          String? readable(Object? value) {
+            if (value is String && value.trim().isNotEmpty) return value.trim();
+            if (value is List && value.isNotEmpty) {
+              return value.map((v) => v.toString()).join(' · ');
+            }
+            return null;
+          }
+          final message = readable(entry.value);
+          if (message != null) fieldErrors[entry.key] = message;
+        }
+      }
       setState(() {
         _saving = false;
-        _error = 'Impossible d’enregistrer ces modifications.';
+        _fieldErrors = fieldErrors;
+        _error = validation && fieldErrors.isNotEmpty
+            ? 'Corrigez les champs indiqués.'
+            : error is MakoloTransportError
+                ? 'Connexion indisponible. Les modifications sont conservées.'
+                : error is MakoloApiError && error.statusCode == 401
+                    ? 'Connexion expirée. Reconnectez-vous pour enregistrer.'
+                    : 'Enregistrement impossible. Vos modifications sont conservées.';
       });
       return;
     }
@@ -512,7 +532,6 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       _youtube,
       _company,
       _organization,
-      _language,
       _address,
     ]) {
       controller.dispose();
@@ -565,8 +584,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   const SizedBox(height: 12),
                   if (!_saving && _confirmation == null)
                     TextButton(
-                      onPressed: _read,
-                      child: const Text('Réessayer'),
+                      onPressed: _save,
+                      child: const Text('Réessayer l’enregistrement'),
                     ),
                 ],
                 if (_confirmation != null) ...[
@@ -605,25 +624,6 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 ),
                 _sectionTitle('Contact'),
                 _field('Téléphone', _phone),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: DropdownButtonFormField<String>(
-                    initialValue: 'fr',
-                    decoration: const InputDecoration(
-                      labelText: 'Langue',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'fr', child: Text('Français')),
-                    ],
-                    onChanged: _saving
-                        ? null
-                        : (value) {
-                            _language.text = value ?? 'fr';
-                            _rememberEdits();
-                          },
-                  ),
-                ),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   initiallyExpanded: [
@@ -770,6 +770,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
               labelText: 'Pays',
+              errorText: _fieldErrors['country'],
               hintText: 'Rechercher un pays',
               prefixIcon: Icon(Icons.public_outlined),
               border: OutlineInputBorder(),
@@ -800,6 +801,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         readOnly: true,
         decoration: InputDecoration(
           labelText: 'Date de naissance',
+          errorText: _fieldErrors['birth_date'],
           hintText: 'Facultatif',
           border: const OutlineInputBorder(),
           suffixIcon: Row(
@@ -855,6 +857,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         initialValue: _gender,
         decoration: const InputDecoration(
           labelText: 'Genre',
+          errorText: _fieldErrors['gender'],
           border: OutlineInputBorder(),
         ),
         items: const [
@@ -888,6 +891,24 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       textCapitalization: TextCapitalization.sentences,
       decoration: InputDecoration(
         labelText: label,
+        errorText: _fieldErrors[<String, String>{
+          'Prénom': 'first_name',
+          'Nom': 'last_name',
+          'À propos': 'bio',
+          'Profession': 'profession',
+          'Ville': 'city',
+          'Adresse': 'address',
+          'Téléphone': 'phone',
+          'Site web': 'website',
+          'Entreprise': 'company_name',
+          'Organisation': 'organization_name',
+          'LinkedIn': 'linkedin_url',
+          'Facebook': 'facebook_url',
+          'Instagram': 'instagram_url',
+          'TikTok': 'tiktok_url',
+          'X': 'x_url',
+          'YouTube': 'youtube_url',
+        }[label]],
         border: const OutlineInputBorder(),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
