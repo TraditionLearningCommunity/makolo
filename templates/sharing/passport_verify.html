@@ -50,6 +50,10 @@
     {% endif %}
     {% if dated_payload.interests %}<h3>Centres d’intérêt</h3><ul>{% for name in dated_payload.interests %}<li>{{ name }}</li>{% endfor %}</ul>{% endif %}
     {% if dated_payload.open_to %}<h3>Ouvert à</h3><ul>{% for item in dated_payload.open_to %}<li>{{ item.kind }}{% if item.topic %} · {{ item.topic }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+    {% if dated_payload.activity_involvements %}
+      <h3>Expériences et rôles</h3>
+      <ul>{% for item in dated_payload.activity_involvements %}<li><strong>{{ item.title }}</strong>{% if item.role %} · {{ item.role }}{% endif %}{% if item.date %} · {{ item.date }}{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
     {% if dated_payload.activities %}
       <h3>Activités portées</h3>
       <ul>{% for item in dated_payload.activities %}<li><strong>{{ item.title }}</strong>{% if item.status %} · {{ item.status }}{% endif %}</li>{% endfor %}</ul>
