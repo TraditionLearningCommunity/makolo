@@ -565,22 +565,35 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
-        if (widget.section == 'options' && canManage)
+        if (widget.section == 'options' && addons.isNotEmpty) ...[
+          Text(
+            'Options actives',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
           for (final row in addons)
-            OutlinedButton(
-              onPressed: _busy || hasOpenTransition
-                  ? null
-                  : () => _preview(
-                      subscriptionPath +
-                          'addons/' +
-                          Uri.encodeComponent(_value(row['item_id'])) +
-                          '/remove/',
-                      'Retirer ' + _value(row['name'], 'cette option'),
-                    ),
-              child: Text(
-                'Examiner le retrait de ' + _value(row['name'], 'l’option'),
-              ),
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text(_value(row['name'], 'Option')),
+              subtitle: Text(subscriptionPriceLabel(row['billing_terms'])),
+              trailing: canManage && !hasOpenTransition
+                  ? TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => _preview(
+                              subscriptionPath +
+                                  'addons/' +
+                                  Uri.encodeComponent(_value(row['item_id'])) +
+                                  '/remove/',
+                              'Retirer ' + _value(row['name'], 'cette option'),
+                            ),
+                      child: const Text('Retirer'),
+                    )
+                  : null,
             ),
+          const SizedBox(height: 12),
+        ],
         if ((widget.section == 'overview' || widget.section == 'plans') &&
             canManage && transition != null && transition['open'] == true) ...[
           const SizedBox(height: 8),
@@ -651,86 +664,120 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
           ),
         ],
         if (widget.section == 'plans' || widget.section == 'options') ...[
-        const SizedBox(height: 16),
-        Text(
-          widget.section == 'options' ? 'Options disponibles' : 'Formules disponibles',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        if (hasOpenTransition)
-          Text(
-            transition?['next_action'] == 'pay'
-                ? 'Finalisez d’abord le paiement de votre changement en cours, ou annulez-le.'
-                : 'Un changement est déjà en cours. Terminez-le ou annulez-le avant un nouveau choix.',
-          ),
-
-        if (catalog.isEmpty)
-          const Text('Aucune autre formule proposée actuellement.'),
-        for (final option in catalog)
-          if ((option['plan_type'] == 'addon') == (widget.section == 'options')) ...[
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    option['plan_type'] == 'addon' ? 'Option' : 'Formule',
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    _value(option['name']),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(subscriptionPriceLabel(option['billing_terms'])),
-                  if (_value(option['description']).isNotEmpty)
-                    Text(_value(option['description'])),
-                  _list('Ce que comprend cette formule', option['benefits']),
-                  const SizedBox(height: 6),
-                  Text(
-                    option['current'] == true
-                        ? 'Déjà inclus dans votre abonnement'
-                        : _value(
-                            option['eligibility_label'],
-                            'Disponibilité à confirmer',
-                          ),
-                  ),
-                  if (_value(option['eligibility_explanation']).isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        _value(option['eligibility_explanation']),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  _list('Conditions à satisfaire', option['requirements']),
-                  if ((option['can_request'] == true ||
-                          option['can_preview'] == true) &&
-                      !hasOpenTransition)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: FilledButton(
-                        onPressed: _busy
-                            ? null
-                            : () => _preview(
-                                subscriptionPath +
-                                    'plans/' +
-                                    Uri.encodeComponent(
-                                      _value(option['plan_version_id']),
-                                    ) +
-                                    '/',
-                                'Examiner cette formule',
-                              ),
-                        child: const Text('Examiner le changement'),
-                      ),
-                    ),
-                ],
+          if (widget.section == 'plans' &&
+              _object(subscription['current_base']) case final active?)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                'Formule actuelle : ' + _value(active['name']),
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
+          Text(
+            widget.section == 'options'
+                ? 'Options disponibles'
+                : 'Autres formules',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ],
+          const SizedBox(height: 8),
+          if (hasOpenTransition)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                transition?['next_action'] == 'pay'
+                    ? 'Un changement attend son paiement. Terminez-le avant un nouveau choix.'
+                    : 'Un changement est en cours. Terminez-le ou annulez-le avant un nouveau choix.',
+              ),
+            ),
+          if (catalog.where(
+            (option) =>
+                (option['plan_type'] == 'addon') ==
+                    (widget.section == 'options') &&
+                option['current'] != true,
+          ).isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('Aucune autre offre disponible pour le moment.'),
+            ),
+          for (final option in catalog)
+            if ((option['plan_type'] == 'addon') ==
+                    (widget.section == 'options') &&
+                option['current'] != true)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 1),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _value(option['name']),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            subscriptionPriceLabel(option['billing_terms']),
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          if (_objects(option['benefits']).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Text(
+                                _value(
+                                  _objects(option['benefits']).first['title'],
+                                ),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            )
+                          else if (_value(option['description']).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Text(
+                                _value(option['description']),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          if (option['eligibility_status'] != 'available' &&
+                              _value(option['eligibility_label']).isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Text(
+                                _value(option['eligibility_label']),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ),
+                          if ((option['can_request'] == true ||
+                                  option['can_preview'] == true) &&
+                              !hasOpenTransition)
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _preview(
+                                        subscriptionPath +
+                                            'plans/' +
+                                            Uri.encodeComponent(
+                                              _value(option['plan_version_id']),
+                                            ) +
+                                            '/',
+                                        widget.section == 'options'
+                                            ? 'Examiner cette option'
+                                            : 'Examiner cette formule',
+                                      ),
+                                child: const Text('Voir les détails'),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
         ],
         if (widget.section == 'billing') ...[
         const SizedBox(height: 8),
