@@ -62,6 +62,7 @@ class SpaceUsSurface extends StatelessWidget {
       return link == expected ? link : null;
     }
 
+    final passportTarget = limited ? null : route('passport');
     final settingsTarget = limited ? null : route('settings');
     final connectionsTarget =
         !limited &&
@@ -356,6 +357,15 @@ class SpaceUsSurface extends StatelessWidget {
                         context,
                         'Gérer les connexions de cet Espace',
                         connectionsTarget,
+                        open,
+                      ),
+                    ],
+                    if (passportTarget != null) ...[
+                      const SizedBox(height: MakoloSpacing.lg),
+                      _action(
+                        context,
+                        'Passeport de cet Espace',
+                        passportTarget,
                         open,
                       ),
                     ],
