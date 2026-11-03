@@ -198,6 +198,28 @@ class PassportStage3ThematicContentTests(G6PassportFixtureMixin, TestCase):
             (),
         )
 
+    def test_personalized_exclusions_match_public_minus_explicit_removed_facts(self):
+        from sharing.passport import PassportSelectionError
+
+        public = build_profile_passport(self.amina, variant="public")
+        custom = build_profile_passport(
+            self.amina, variant="custom",
+            excluded_sections=["bio", "interests"],
+            excluded_activity_ids=[str(self.owned_public.pk)],
+        )
+        self.assertEqual(custom.identity["bio"], "")
+        self.assertEqual(custom.interests, ())
+        self.assertNotIn(self.owned_public, custom.activities)
+        self.assertEqual(custom.identity["name"], public.identity["name"])
+        self.assertEqual(custom.identity["links"], public.identity["links"])
+        self.assertEqual(custom.proofs, public.proofs)
+        self.assertEqual(custom.credentials, public.credentials)
+        with self.assertRaises(PassportSelectionError):
+            build_profile_passport(
+                self.amina, variant="custom",
+                excluded_activity_ids=[str(self.owned_private.pk)],
+            )
+
     def test_compact_privacy_settings_return_only_collection_controls(self):
         from accounts.profile_visibility_projection import build_profile_visibility_settings
 
