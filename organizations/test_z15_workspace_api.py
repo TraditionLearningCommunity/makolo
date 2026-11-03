@@ -232,9 +232,26 @@ class Z15WorkspaceContractTests(TestCase):
         self.assertEqual(response.status_code, 201, response.data)
         created = Organization.objects.get(pk=response.data["space"]["id"])
         self.assertEqual(created.lifecycle, SpaceLifecycle.ACTIVE)
+        self.assertTrue(created.public_profile)
         self.assertEqual(created.archetype, SpaceArchetype.COMMERCE)
         self.assertTrue(can(user, PermissionCode.SPACE_OWNERSHIP_MANAGE, created))
 
+
+    def test_workspace_creation_respects_explicit_private_presentation(self):
+        user = User.objects.create_user(
+            username="z15-create-private",
+            email="z15-create-private@test.local",
+            password="x",
+        )
+        self.client.force_authenticate(user)
+        response = self.client.post(
+            "/api/v1/organizations/workspaces/",
+            {"name": "Private Presentation Space", "public_profile": False},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        created = Organization.objects.get(pk=response.data["space"]["id"])
+        self.assertFalse(created.public_profile)
 
     def test_team_api_requires_team_permission_and_updates_canonical_responsibility(self):
         target = User.objects.create_user(
