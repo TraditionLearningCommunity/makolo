@@ -224,7 +224,7 @@ class _RequirementContent extends StatelessWidget {
                         child: MakoloStatusMetadataAction(
                           title: presentation.ways[index].label,
                           subtitle: presentation.ways[index].link == null
-                              ? 'Aucune action personnelle supplémentaire n’est exposée ici.'
+                              ? 'Aucune autre action proposée pour cette condition.'
                               : presentation.ways[index].handoffLabel,
                           status:
                               MakoloHumanization.presentationLabel(
