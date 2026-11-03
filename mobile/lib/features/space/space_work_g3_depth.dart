@@ -13,6 +13,8 @@ class SpaceWorkG3Depth extends StatelessWidget {
     this.ownerId,
     required this.onPageChange,
     required this.onSecondaryPageChange,
+    this.workSection,
+    this.fromWorkCollection = false,
   });
 
   final String slug;
@@ -20,6 +22,8 @@ class SpaceWorkG3Depth extends StatelessWidget {
   final String? ownerId;
   final ValueChanged<int> onPageChange;
   final ValueChanged<int> onSecondaryPageChange;
+  final String? workSection;
+  final bool fromWorkCollection;
 
   @override
   Widget build(BuildContext context) {
@@ -253,10 +257,12 @@ class SpaceWorkG3Depth extends StatelessWidget {
     final source = spaceMap(item['source']);
     final route = collection == 'lines' || item['openable'] == false
         ? null
-        : spaceOwnerRoute(
+        : spaceWorkOwnerRoute(
             slug: slug,
             kind: spaceText(source?['kind']),
             id: spaceText(source?['id']),
+            section: workSection,
+            fromCollection: fromWorkCollection,
           );
     final timing = spaceMap(item['timing']);
     final label = spaceText(item['label']) ??
