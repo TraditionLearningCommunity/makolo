@@ -117,7 +117,7 @@ class SpaceG3TransportCreateAPIView(APIView):
             except (TypeError, ValueError):
                 raise ValidationError({key: "Décalage invalide."})
             if not 0 <= offset <= 10000:
-                raise ValidationError({key: "Décalage hors limites."})
+                raise ValidationError({key: "Pagination invalide."})
             offsets[key] = offset
         routes = TransportRoute.objects.filter(
             space=space, active=True,
@@ -174,7 +174,7 @@ class SpaceG3TransportCreateAPIView(APIView):
             "space", "organization", "owner_profile", "activity_id",
             "occurrence_id", "capacity_pool_id", "offer_id",
         )):
-            raise ValidationError({"owner": "Les propriétaires sont fixés par le serveur."})
+            raise ValidationError({"owner": "Ces informations ne peuvent pas être modifiées."})
         kind = data.get("kind")
         try:
             if kind == "route":

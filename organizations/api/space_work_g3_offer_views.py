@@ -86,7 +86,7 @@ class SpaceWorkG3OfferAPIView(APIView):
             "activity", "activity_id", "space", "organization", "owner_profile",
             "id", "source_key",
         )):
-            raise ValidationError({"owner": "Le propriétaire est fixé par l'URL."})
+            raise ValidationError({"owner": "Ce champ ne peut pas être modifié."})
         form = SpaceOfferOwnerForm(request.data)
         if not form.is_valid():
             raise ValidationError(form.errors.get_json_data())

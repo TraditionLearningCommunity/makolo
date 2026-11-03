@@ -29,7 +29,7 @@ class SpaceWorkG2CreateAPIView(APIView):
             raise ValidationError({"body": "Objet attendu."})
         data = request.data
         if any(k in data for k in ("space", "organization", "owner_profile", "status")):
-            raise ValidationError({"owner": "Le propriétaire et le statut viennent du serveur."})
+            raise ValidationError({"owner": "Ces informations ne peuvent pas être définies ici."})
         form = ActivityCreateForm(
             data={
                 "organization": str(space.pk),

@@ -117,7 +117,7 @@ class SpaceJourneyRequestAPIView(APIView):
             raise ValidationError({"decision": "Décision inconnue."})
         if not self._projection(request, space, responsibility, owner)["capabilities"]["decide"]:
             # No optimistic success, including when a previous command already won.
-            return self._response({"detail": "Décision indisponible dans le contexte actuel."}, status=409)
+            return self._response({"detail": "Impossible de confirmer cette décision. Actualisez la demande."}, status=409)
         try:
             if decision == "approve":
                 approve_request(request=owner, actor=request.user)
