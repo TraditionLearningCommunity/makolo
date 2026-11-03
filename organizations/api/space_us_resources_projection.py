@@ -15,6 +15,12 @@ from sharing.models import PassportSnapshot
 PAGE_SIZE = 20
 PREVIEW_LIMIT = 3
 RESOURCE_KINDS = ("passport", "template", "theme")
+# These are the currently established institutional owners, not a claim
+# that every kind of corporate document has a canonical Makolo owner.
+RESOURCE_COVERAGE = {
+    "state": "partial",
+    "owners": ["sharing.passport", "presentations.library"],
+}
 
 
 def can_view_space_resources(*, profile, space):
@@ -96,7 +102,7 @@ def build_space_us_resources_projection(
             "count": total,
             "counts": counts,
             "has_more": total > len(items),
-            "coverage": "owner_backed",
+            "coverage": RESOURCE_COVERAGE,
         }
 
     if kind is None:
@@ -114,5 +120,5 @@ def build_space_us_resources_projection(
         "total_count": total,
         "has_more": len(rows) > PAGE_SIZE,
         "next_offset": offset + len(page),
-        "coverage": "owner_backed",
+        "coverage": RESOURCE_COVERAGE,
     }
