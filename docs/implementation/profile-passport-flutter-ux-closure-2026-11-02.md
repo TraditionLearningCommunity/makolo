@@ -1,27 +1,64 @@
-# Passeport Flutter — parcours PDF et partage natif
+# Passeport Flutter — parcours documentaire et composition native
 
-**PR :** #522 ; **fusion :** aucune. **Validation :** tests rédigés, non exécutés ici.
+**Branche :** PR #522 · **État :** code poussé, non fusionné, sans validation
+Android complète à ce stade.
 
-## Contrat utilisateur
+## Composition
 
-Le bouton PDF n'exécute plus automatiquement un téléchargement. Il présente :
-- **Prévisualiser** : lecteur PDF dans l'application (pdfrx déjà présent).
-- **Enregistrer dans Téléchargements** : conserve le pont natif Android MediaStore déjà implémenté.
-- **Choisir le dossier** : sélecteur natif FilePicker, avec octets PDF transmis à la destination retenue.
-- **Partager le PDF** : partage de fichier via share_plus (applications installées, selon Android).
+Une projection Complet du titulaire est reçue et conservée dans son contexte
+local-first. Flutter produit les aperçus Public, Thématique et Personnalisé par
+retrait des faits non admissibles ou non pertinents, sans recharger la
+projection pour chaque bascule. Les décisions d'admissibilité viennent du
+serveur ; aucune règle d'autorité n'est déplacée au client.
 
-Le menu Partager conserve **partager/coller le lien public**, **émettre puis partager une version**, **historique des versions et partages expirants** ; il ajoute **partager le PDF**. La distinction lien public / lien de version émise / document transmis en tant que fichier reste visible. Un PDF déjà transmis ne peut pas être rappelé via Sharing. Les fichiers de travail temporaires sont effacés après usage.
+Les champs personnels publics sont fournis sous `presentation_details`,
+distincts de `owner_details`. Prénom, nom, identifiant, ville et pays ne sont
+présentés que selon leurs politiques respectives. Téléphone, adresse, date de
+naissance et autres données sensibles ne sont pas recopiés dans les variantes
+publiques. La section reste visible s'il reste au moins un fait admissible.
 
-## Public et variantes
+## Barre et actions
 
-Public ne signifie pas un « profil réduit à la carte d'identité ». C'est la projection **de toutes les familles de faits de Complet qui sont admissibles publiquement** : identité, présentation, liens, intérêts, Open To, activités, preuves et credentials admissibles. Les informations strictement propriétaires (téléphone, adresse, date de naissance, relations internes, etc.) restent hors Public, sauf évolution canonique des règles de divulgation.
+La barre contient Confidentialité, Versions, PDF, Partager.
 
-Thématique garde l'identité autorisée et filtre les faits thématiques ; Personnalisé compose selon les sélections du titulaire avec les frontières de confidentialité en vigueur. Le filtre d'une variante ne transfère pas de Permission, Mandate ni Access.
+- **PDF :** une émission serveur, téléchargement immédiat dans le dossier
+  Téléchargements Android. Pas de prévisualisation ni de choix de dossier.
+- **Partager :** exactement quatre actions : Partager le PDF, Partager dans
+  Makolo, Partager le lien public, Copier le lien du Passeport.
+- **Versions :** historique daté, chaque version proposant directement
+  Télécharger, Partager et Révoquer. Aucun doublon dans le menu Partager.
 
-## Points de QA restant à réaliser
+Le lien signé de vérification et le droit Sharing sont distincts. Un
+destinataire conserve sa propre session. Les PDF externes déjà transmis ne
+peuvent pas être rappelés.
 
-- Sur Android : vérification prévisualisation, sauvegarde Downloads, choix de dossier, envoi PDF et lien via WhatsApp/SMS/apps installées ; annulation et nettoyage.
-- Comparaison Web/API/Flutter/PDF sur identité publique et chaque famille de faits.
-- Exécution des tests Flutter et Django ciblés ; revue de l'absence de régression de l'historique et de l'émission.
+## Édition
 
-Le test `sharing.test_passport_stage3_content` est enrichi pour contrôler que Public n'efface pas une famille complète de faits publiables.
+`MeProfileScreen` reste l'éditeur Accounts. Groupes : Identité,
+Localisation, Contact (e-mail en lecture seule, téléphone), Activité
+professionnelle (profession, entreprise, organisation), Liens et réseaux
+sociaux (site web, LinkedIn, Facebook, Instagram, TikTok, X, YouTube),
+Visibilité.
+
+L'identifiant Makolo est présenté avec une action distincte exploitant
+l'endpoint Accounts et ses contraintes d'unicité et de délai. Il n'est pas
+ajouté au PATCH général. La modification de l'e-mail n'est pas exposée faute
+d'un parcours de vérification dédié. Les brouillons sont préservés en cas
+d'erreur et les champs invalides signalés.
+
+## Parité documentaire
+
+Le snapshot émis fige les faits admissibles, y compris les données
+personnelles publiables. Le PDF et la lecture d'une version historique ne
+reconstruisent pas la biographie ou le rôle depuis le Profil actuel. Les
+informations absentes n'impriment aucune rubrique vide. La langue du document
+n'est pas un fait personnel.
+
+## Vérifications encore à exécuter
+
+- Tests Django ciblés : projection, frontières d'audience, snapshots, PDF.
+- Tests widgets Flutter : quatre variantes, groupes de champs, menu de
+  partage et historique.
+- Compilation Flutter, formatage, contrôle Android Downloads, partage natif,
+  lecture A vers B et changement d'identifiant.
+- Pas de fusion tant que les garanties pertinentes n'ont pas été vérifiées.
