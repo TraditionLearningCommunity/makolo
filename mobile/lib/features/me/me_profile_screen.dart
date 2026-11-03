@@ -68,6 +68,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   bool _loaded = false;
   bool _saving = false;
   String? _error;
+  bool _saveFailedRemotely = false;
   Map<String, String> _fieldErrors = const {};
   final Set<String> _checkedFields = {};
   String? _confirmation;
@@ -742,6 +743,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         _fieldErrors = localErrors;
         _checkedFields.addAll(localErrors.keys);
         _error = 'Corrigez les champs indiqués.';
+        _saveFailedRemotely = false;
         _confirmation = null;
       });
       return;
@@ -751,6 +753,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     setState(() {
       _saving = true;
       _error = null;
+      _saveFailedRemotely = false;
       _fieldErrors = const {};
       _confirmation = null;
     });
@@ -795,6 +798,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       setState(() {
         _saving = false;
         _fieldErrors = fieldErrors;
+        _saveFailedRemotely = !validation || fieldErrors.isEmpty;
         _error = validation && fieldErrors.isNotEmpty
             ? 'Corrigez les champs indiqués.'
             : error is MakoloTransportError
@@ -922,7 +926,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (!_saving && _confirmation == null)
+                  if (!_saving && _saveFailedRemotely)
                     TextButton(
                       onPressed: _save,
                       child: const Text('Réessayer l’enregistrement'),
