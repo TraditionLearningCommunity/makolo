@@ -32,6 +32,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
   final website = TextEditingController();
   final email = TextEditingController();
   final phone = TextEditingController();
+  final city = TextEditingController();
+  final country = TextEditingController();
   bool publicProfile = false;
   bool loading = true;
   bool saving = false;
@@ -66,6 +68,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
     website.dispose();
     email.dispose();
     phone.dispose();
+    city.dispose();
+    country.dispose();
     super.dispose();
   }
 
@@ -117,6 +121,10 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       website.text = identity['website']?.toString() ?? '';
       email.text = identity['contact_email']?.toString() ?? '';
       phone.text = identity['contact_phone']?.toString() ?? '';
+      final location = identity['location'] is Map
+          ? identity['location'] as Map : const {};
+      city.text = location['city']?.toString() ?? '';
+      country.text = location['country']?.toString() ?? '';
       setState(() {
         publicProfile = identity['public_profile'] == true;
         confirmed = {
@@ -125,6 +133,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
           'website': website.text.trim(),
           'contact_email': email.text.trim(),
           'contact_phone': phone.text.trim(),
+          'city': city.text.trim(),
+          'country': country.text.trim(),
           'public_profile': publicProfile,
         };
         authorized = true;
@@ -166,6 +176,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       'website': website.text.trim(),
       'contact_email': email.text.trim(),
       'contact_phone': phone.text.trim(),
+      'city': city.text.trim(),
+      'country': country.text.trim(),
       'public_profile': publicProfile,
     };
     final changes = <String, dynamic>{
@@ -256,12 +268,14 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(MakoloSpacing.lg),
                 children: [
-                  Text(
-                    'Informations collectives',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  Text('Identité de l’Espace',
+                    style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: MakoloSpacing.sm),
-                  const SizedBox(height: MakoloSpacing.md),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Identifiant Makolo'),
+                    subtitle: Text(widget.slug),
+                  ),
                   TextFormField(
                     controller: name,
                     maxLength: 180,
@@ -280,32 +294,35 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                       labelText: 'Présentation',
                     ),
                   ),
-                  Focus(
-                    onFocusChange: (focused) {
-                      if (!focused && !saving) {
-                        final normalized = PassportEditorFieldRules.normalize(
-                          'website', website.text,
-                        );
-                        if (website.text != normalized) {
-                          setState(() => website.text = normalized);
-                        }
-                      }
-                    },
-                    child: TextFormField(
-                      controller: website,
-                      keyboardType: TextInputType.url,
-                      textCapitalization: TextCapitalization.none,
-                      autocorrect: false,
-                      maxLength: 200,
-                      maxLengthEnforcement: MaxLengthEnforcement.none,
-                      decoration: const InputDecoration(
-                        labelText: 'Site web', counterText: '',
-                      ),
-                      validator: (value) => PassportEditorFieldRules.error(
-                        'website', value ?? '',
-                      ),
+
+                  const SizedBox(height: MakoloSpacing.lg),
+                  Text('Localisation',
+                    style: Theme.of(context).textTheme.titleMedium),
+                  TextFormField(
+                    controller: city,
+                    maxLength: 120,
+                    maxLengthEnforcement: MaxLengthEnforcement.none,
+                    decoration: const InputDecoration(
+                      labelText: 'Ville', counterText: '',
                     ),
+                    validator: (value) =>
+                        (value ?? '').trim().runes.length <= 120
+                            ? null : '120 caractères maximum.',
                   ),
+                  TextFormField(
+                    controller: country,
+                    maxLength: 120,
+                    maxLengthEnforcement: MaxLengthEnforcement.none,
+                    decoration: const InputDecoration(
+                      labelText: 'Pays', counterText: '',
+                    ),
+                    validator: (value) =>
+                        (value ?? '').trim().runes.length <= 120
+                            ? null : '120 caractères maximum.',
+                  ),
+                  const SizedBox(height: MakoloSpacing.lg),
+                  Text('Contact',
+                    style: Theme.of(context).textTheme.titleMedium),
                   TextFormField(
                     controller: email,
                     keyboardType: TextInputType.emailAddress,
@@ -343,6 +360,36 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                           ? null
                           : 'Téléphone invalide.';
                     },
+                  ),
+
+                  const SizedBox(height: MakoloSpacing.lg),
+                  Text('Liens',
+                    style: Theme.of(context).textTheme.titleMedium),
+                  Focus(
+                    onFocusChange: (focused) {
+                      if (!focused && !saving) {
+                        final normalized = PassportEditorFieldRules.normalize(
+                          'website', website.text,
+                        );
+                        if (website.text != normalized) {
+                          setState(() => website.text = normalized);
+                        }
+                      }
+                    },
+                    child: TextFormField(
+                      controller: website,
+                      keyboardType: TextInputType.url,
+                      textCapitalization: TextCapitalization.none,
+                      autocorrect: false,
+                      maxLength: 200,
+                      maxLengthEnforcement: MaxLengthEnforcement.none,
+                      decoration: const InputDecoration(
+                        labelText: 'Site web', counterText: '',
+                      ),
+                      validator: (value) => PassportEditorFieldRules.error(
+                        'website', value ?? '',
+                      ),
+                    ),
                   ),
                   if (error != null) ...[
                     const SizedBox(height: MakoloSpacing.sm),
