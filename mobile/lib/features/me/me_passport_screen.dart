@@ -566,6 +566,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
         'activities': [
           for (final row in rows) {...row, 'status_label': row['status']},
         ],
+        'experiences': _rows(payload['activity_involvements']),
         'established': {
           'proofs': [
             for (final row in proofs)
