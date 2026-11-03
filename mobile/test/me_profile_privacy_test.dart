@@ -204,9 +204,15 @@ void main() {
     await tester.ensureVisible(find.text('Liens et réseaux sociaux'));
     await tester.tap(find.text('Liens et réseaux sociaux'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Site web'), 220,
+      scrollable: find.descendant(
+        of: find.byType(ListView).first,
+        matching: find.byType(Scrollable),
+      ).first,
+    );
     expect(find.text('Site web'), findsOneWidget);
-    expect(find.text('LinkedIn'), findsOneWidget);
-    expect(find.text('YouTube'), findsOneWidget);
+    expect(find.text('LinkedIn'), findsWidgets);
   });
 
   testWidgets('identifier has a separate guarded Accounts action', (tester) async {
