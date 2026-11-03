@@ -417,7 +417,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             title: const Text('Identifiant Makolo'),
             content: Focus(
               onFocusChange: (focused) {
-                if (focused) return;
+                if (focused || !dialog.mounted) return;
                 final normalized = PassportEditorFieldRules.normalize(
                   'username', editor.text,
                 );
@@ -562,10 +562,13 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       } finally {
         await handle.close();
       }
-      bool at(int index, List<int> bytes) =>
-          header.length >= index + bytes.length &&
-          List.generate(bytes.length, (i) => header[index + i])
-              .toString() == bytes.toString();
+      bool at(int index, List<int> bytes) {
+        if (header.length < index + bytes.length) return false;
+        for (var i = 0; i < bytes.length; i++) {
+          if (header[index + i] != bytes[i]) return false;
+        }
+        return true;
+      }
       if (jpeg && !at(0, [0xFF, 0xD8, 0xFF]) ||
           png && !at(0, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) ||
           webp && !(at(0, [0x52, 0x49, 0x46, 0x46]) &&
