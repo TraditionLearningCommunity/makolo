@@ -134,6 +134,25 @@ class SpacePassportNativeContractTests(G6PassportFixtureMixin, TestCase):
         )
         self.assertEqual(self.client.get(self.base + "pdf/").status_code, 404)
 
+    def test_space_privacy_edits_use_existing_managed_visibility(self):
+        workspace = "/api/v1/organizations/workspaces/" + self.space.slug + "/"
+        edited = self.client.patch(
+            workspace,
+            data={"searchable": False},
+            content_type="application/json",
+        )
+        self.assertEqual(edited.status_code, 200)
+        self.space.refresh_from_db()
+        self.assertFalse(self.space.searchable)
+        us = self.client.get(workspace + "us/")
+        self.assertEqual(us.status_code, 200)
+        self.assertFalse(us.json()["identity"]["searchable"])
+        # Searchability affects discovery, not an already public direct URL.
+        public = self.client.get(reverse(
+            "public-passport", kwargs={"identifier": self.space.slug},
+        ))
+        self.assertEqual(public.status_code, 200)
+
     def test_public_issued_document_does_not_include_collective_contacts(self):
         self.client.post(self.base + "issue/?variant=public")
         snapshot = PassportSnapshot.objects.filter(
