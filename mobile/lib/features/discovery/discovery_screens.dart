@@ -173,7 +173,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     if (_unseenReserve != null && _unseenField == query.mapFingerprint) return;
     final running = _unseenLoad;
     if (running != null) {
-      await running;
+      try {
+        await running;
+      } on Object {
+        // Recoverable local corruption must not suppress Discovery.
+      }
       if (_unseenReserve != null && _unseenField == query.mapFingerprint) return;
     }
     final request = _loadUnseenReserve(query);
@@ -192,8 +196,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     final projection = await widget.repository.readItems(query);
     if (projection == null) return;
     final collection = _selector.collection(projection);
+    final root = await widget.repository.readItems(
+      query.copyWith(page: 1, clearContinuation: true),
+    );
+    if (root == null) return;
     final saved = await widget.repository.readUnseenReserve(query);
-    final reserve = saved ?? DiscoveryUnseenReserve();
+    final reserve = saved ??
+        DiscoveryUnseenReserve(rootReceivedAt: root.receivedAt);
     reserve.observe(collection.items.map((item) => item.wire));
     if (saved == null && reserve.shownKeys.isEmpty) {
       reserve.reveal(
