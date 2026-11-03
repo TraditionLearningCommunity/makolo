@@ -195,6 +195,11 @@ class _AccessContent extends StatelessWidget {
           presentation.placeName!,
           icon: Icons.place_outlined,
         ),
+      if (presentation.placeAddress != null)
+        MakoloMetadataItem(
+          presentation.placeAddress!,
+          icon: Icons.map_outlined,
+        ),
       if (presentation.validFrom != null)
         MakoloMetadataItem(
           'Valable à partir du ${_formatDateTime(context, presentation.validFrom!)}',
@@ -226,6 +231,16 @@ class _AccessContent extends StatelessWidget {
           subtitle: relationshipCopy,
           metadata: metadata,
         ),
+        if (presentation.accessInstructions != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+              vertical: MakoloSpacing.sm,
+            ),
+            child: Text(
+              'Consignes connues : ${presentation.accessInstructions}',
+            ),
+          ),
         if (presentation.knownOnly) ...[
           Padding(
             padding: const EdgeInsets.symmetric(
