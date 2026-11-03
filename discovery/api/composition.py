@@ -1640,7 +1640,9 @@ def paginated_projection(
         # One first-page acquisition also supplies the geographic presentation
         # of this same admitted field. No second owner search for Carte.
         **({
-            "spatial_index": spatial_index_from_rows(composition.rows),
+            "spatial_index": spatial_discovery_projection(
+                composition.rows, profile=profile
+            ),
         } if page == 1 and params.get("include_spatial_index") == "1" else {}),
         "continuation": {
             "state": "more" if has_next else "end",
@@ -1667,13 +1669,6 @@ def paginated_projection(
             "message": None,
         },
     }
-    # Explicit opt-in for local-first mobile exploration. One server
-    # composition supplies the N1 window and all admissible spatial details.
-    # Keep the legacy paginated response unchanged for other consumers.
-    if str(params.get("include_spatial", "")) == "1" and page == 1:
-        payload["spatial"] = spatial_discovery_projection(
-            composition.rows, profile=profile
-        )
     if include_internal_rows:
         payload["_page_rows"] = page_rows
         payload["_all_rows"] = composition.rows
