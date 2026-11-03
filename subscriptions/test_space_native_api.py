@@ -221,24 +221,20 @@ class NativeSpaceSubscriptionTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         transition = response.json()["transition"]
-        self.assertEqual(transition["status"], "ready")
+        self.assertEqual(transition["status"], "completed")
+        item.refresh_from_db()
+        self.assertEqual(item.status, "ended")
 
+        # Auto-completed removal must not resurrect an actionable transition
+        # or leak financial details when the viewer lacks finance visibility.
         with patch(
             "subscriptions.space_billing_view.space_ids_with_permission",
             return_value=[],
         ):
             snapshot = self.client.get(self._url("space")).json()
         self.assertEqual(snapshot["billing"]["visibility"], "restricted")
-        self.assertEqual(snapshot["transition"]["next_action"], "complete")
-        self.assertTrue(snapshot["transition"]["can_cancel"])
-        self.assertNotIn("payment_obligation_id", snapshot["transition"])
-
-        completed = self.client.post(
-            self._url("space-transition", transition["id"], "complete")
-        )
-        self.assertEqual(completed.status_code, 200)
-        item.refresh_from_db()
-        self.assertEqual(item.status, "ended")
+        self.assertNotIn("payment_obligation_id", snapshot.get("transition") or {})
+        self.assertFalse((snapshot.get("transition") or {}).get("can_cancel", False))
 
     def test_space_payment_continuation_survives_paginated_billing(self):
         terms = PlanVersionBillingTerms.objects.create(
