@@ -491,7 +491,9 @@ class DiscoveryRepository {
     return SyncSourceDefinition(
       sourceKey: 'discovery:${query.fingerprint}',
       owner: 'Discovery',
-      path: query.path,
+      path: query.page == 1
+          ? '${query.path}${query.path.contains('?') ? '&' : '?'}include_spatial_index=1'
+          : query.path,
       projectionKind: itemsProjectionKind,
       resourceKey: query.fingerprint,
       category: SyncSourceCategory.collection,
@@ -918,6 +920,73 @@ class DiscoveryRepository {
     return _logicalItemsProjection(query, current);
   }
 
+  /// A first-page Discovery snapshot is also the spatial field's source of
+  /// truth. The map never owns an additional search, ranking or persistence.
+  StoredProjection? _spatialFromField(StoredProjection? field) {
+    if (field == null || field.schemaVersion != 1) return null;
+    final raw = field.payload['spatial_index'];
+    if (raw is! Map) return null; // Older servers remain explicitly unsupported.
+    final index = Map<String, dynamic>.from(raw);
+    if (index['count'] is! int ||
+        index['total_results'] is! int ||
+        index['results'] is! List) {
+      return null;
+    }
+    try {
+      DiscoveryWire.validateData(index);
+    } on FormatException {
+      return null;
+    }
+    return StoredProjection(
+      kind: mapProjectionKind,
+      resourceKey: 'spatial:${field.resourceKey}',
+      schemaVersion: field.schemaVersion,
+      payload: index,
+      receivedAt: field.receivedAt,
+      sourceGeneratedAt: field.sourceGeneratedAt,
+      sourceUpdatedAt: field.sourceUpdatedAt,
+      lastVerifiedOnlineAt: field.lastVerifiedOnlineAt,
+      freshUntil: field.freshUntil,
+      expiresAt: field.expiresAt,
+      freshnessPolicyId: field.freshnessPolicyId,
+    );
+  }
+
+  /// Caller-owned freshness for *display*, never a promise of live
+  /// Capacity/Access/Payment. Explicit refresh and mutations still hit owner.
+  bool _freshEnough(StoredProjection? projection, Duration age) {
+    if (projection == null) return false;
+    final observed = projection.lastVerifiedOnlineAt ?? projection.receivedAt;
+    return !DateTime.now().toUtc().difference(observed.toUtc()).isNegative &&
+        DateTime.now().toUtc().difference(observed.toUtc()) <= age;
+  }
+
+  Future<bool> hasReusableItems(
+    DiscoveryQuery query, {
+    bool requireSpatial = false,
+  }) async {
+    final snapshot = await readItems(query);
+    if (!_freshEnough(snapshot, discoveryFreshness.refreshRecommendedAfter)) {
+      return false;
+    }
+    final state = await readSource(itemsSource(query));
+    if (state.invalidated || state.lastErrorCode != null ||
+        state.lastSuccessAt == null) {
+      return false;
+    }
+    return !requireSpatial || _spatialFromField(snapshot) != null;
+  }
+
+  /// N1 and Carte share this acquisition. Do not force another HTTP request
+  /// solely because the user switched to another presentation.
+  Future<void> ensureItems(
+    DiscoveryQuery query, {
+    bool requireSpatial = false,
+  }) async {
+    if (await hasReusableItems(query, requireSpatial: requireSpatial)) return;
+    await refreshItems(query);
+  }
+
   Stream<StoredProjection?> watchMap(DiscoveryQuery query) => store
       .watchProjection(mapProjectionKind, resourceKey: query.mapFingerprint)
       .asyncMap((row) => _readAvailable(mapSource(query), row));
@@ -931,21 +1000,15 @@ class DiscoveryRepository {
         ),
       );
 
-  Stream<StoredProjection?> watchSpatial(DiscoveryQuery query) => store
-      .watchProjection(
-        mapProjectionKind,
-        resourceKey: 'spatial:${query.mapFingerprint}',
-      )
-      .asyncMap((row) => _readAvailable(spatialSource(query), row));
+  Stream<StoredProjection?> watchSpatial(DiscoveryQuery query) {
+    final first = query.copyWith(page: 1, clearContinuation: true);
+    return watchItems(first).map(_spatialFromField);
+  }
 
-  Future<StoredProjection?> readSpatial(DiscoveryQuery query) async =>
-      _readAvailable(
-        spatialSource(query),
-        await store.readProjection(
-          mapProjectionKind,
-          resourceKey: 'spatial:${query.mapFingerprint}',
-        ),
-      );
+  Future<StoredProjection?> readSpatial(DiscoveryQuery query) async {
+    final first = query.copyWith(page: 1, clearContinuation: true);
+    return _spatialFromField(await readItems(first));
+  }
 
   Stream<StoredProjection?> watchItem(String family, String id) => store
       .watchProjection(itemProjectionKind, resourceKey: '$family:$id')
