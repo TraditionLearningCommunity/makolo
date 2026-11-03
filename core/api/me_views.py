@@ -466,7 +466,12 @@ class PersonalPassportVersionPdfAPIView(PersonalProjectionAPIView):
             {
                 "document_id": snapshot.document_id,
                 "issued_at": issued.strftime("%d/%m/%Y · %H:%M UTC"),
-                "variant": snapshot.get_variant_display(),
+                "variant": {
+                    "complete": "Complet",
+                    "public": "Public",
+                    "thematic": "Thématique",
+                    "custom": "Personnalisé",
+                }.get(snapshot.variant, snapshot.variant),
                 "identifier": snapshot.public_identifier,
             },
             verify_url,
