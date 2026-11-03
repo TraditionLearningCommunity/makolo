@@ -21,7 +21,7 @@ from .space_work_g3_offer_views import SpaceWorkG3OfferAPIView
 from .space_work_g3_transport_create import SpaceG3TransportCreateAPIView
 from .space_work_g3_transport_operations import SpaceG3TransportDepartureOperationsAPIView
 from .space_activity_create import SpaceG1ActivityCreateAPIView
-from .space_zs4_views import SpacePilotAPIView, SpaceRelationshipsAPIView, SpaceUsAPIView
+from .space_zs4_views import SpacePilotAPIView, SpaceRelationshipsAPIView, SpaceUsAPIView, SpaceUsAuthorityAPIView
 from .space_passport_views import (
     SpacePassportAPIView, SpacePassportPdfAPIView, SpacePassportIssueAPIView,
     SpacePassportHistoryAPIView, SpacePassportVersionAPIView,
@@ -64,6 +64,7 @@ urlpatterns = [
     path("workspaces/<slug:slug>/payment-obligations/<uuid:obligation_id>/", SpacePayerObligationAPIView.as_view(), name="workspace-payment-obligation-detail"),
     path("workspaces/<slug:slug>/search/", SpaceSearchAPIView.as_view(), name="workspace-search"),
     path("workspaces/<slug:slug>/us/", SpaceUsAPIView.as_view(), name="workspace-us"),
+    path("workspaces/<slug:slug>/us/authority/", SpaceUsAuthorityAPIView.as_view(), name="workspace-us-authority"),
     path("workspaces/<slug:slug>/passport/", SpacePassportAPIView.as_view(), name="workspace-passport"),
     path("workspaces/<slug:slug>/passport/pdf/", SpacePassportPdfAPIView.as_view(), name="workspace-passport-pdf"),
     path("workspaces/<slug:slug>/passport/issue/", SpacePassportIssueAPIView.as_view(), name="workspace-passport-issue"),

@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from .space_pilot_projection import build_space_pilot_projection
 from .space_relationships_projection import build_space_relationships_projection
 from .space_us_projection import build_space_us_projection
+from .space_us_authority import build_space_us_authority
 from .workspace_projection import workspace_spaces
 
 
@@ -27,6 +28,10 @@ class _SpaceProjectionAPIView(APIView):
 
 class SpaceUsAPIView(_SpaceProjectionAPIView):
     builder = staticmethod(build_space_us_projection)
+
+
+class SpaceUsAuthorityAPIView(_SpaceProjectionAPIView):
+    builder = staticmethod(build_space_us_authority)
 
 
 class SpaceRelationshipsAPIView(_SpaceProjectionAPIView):
