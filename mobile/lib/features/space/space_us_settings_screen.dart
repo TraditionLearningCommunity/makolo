@@ -198,8 +198,8 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
       if (!mounted || actor?.space.id != expectedId) return;
       setState(() {
         error =
-            'Enregistrement indisponible. '
-            'Aucun changement local n’a été considéré comme confirmé.';
+            'Impossible de confirmer l’enregistrement. '
+            'Actualisez les informations avant de réessayer.';
       });
     } finally {
       if (mounted) setState(() => saving = false);

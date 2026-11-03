@@ -14,14 +14,12 @@ String pushActivationConfirmation({
   required bool projectionRefreshed,
 }) {
   if (!devicesRefreshed) {
-    return 'Inscription confirmée sur le serveur, mais la liste des '
-        'appareils n’a pas pu être actualisée.';
+    return 'Appareil inscrit. Impossible d’actualiser la liste.';
   }
   if (!projectionRefreshed) {
-    return 'Inscription confirmée, liste des appareils actualisée, '
-        'mais les connexions restent à vérifier.';
+    return 'Appareil inscrit. Connexions à actualiser.';
   }
-  return 'Cet appareil est inscrit et les connexions sont actualisées.';
+  return 'Appareil inscrit pour les notifications.';
 }
 
 /// Online-only, owner-scoped Notifications management.
@@ -154,8 +152,7 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
           content: Text(
             refreshed
                 ? 'Appareil retiré des notifications Makolo.'
-                : 'Appareil retiré sur le serveur, '
-                      'mais la liste n’a pas pu être entièrement actualisée.',
+                : 'Appareil retiré. Impossible d’actualiser la liste.',
           ),
         ),
       );
@@ -167,9 +164,8 @@ class _PushDeviceControlsState extends State<PushDeviceControls> {
           SnackBar(
             content: Text(
               committed
-                  ? 'Retrait confirmé par le serveur, '
-                        'mais la liste n’a pas pu être actualisée.'
-                  : 'Retrait non confirmé. Aucun succès local supposé.',
+                  ? 'Appareil retiré. La liste n’a pas pu être actualisée.'
+                  : 'Impossible de confirmer le retrait. Actualisez avant de réessayer.',
             ),
           ),
         );

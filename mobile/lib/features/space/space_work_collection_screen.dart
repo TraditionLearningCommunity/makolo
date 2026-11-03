@@ -187,7 +187,7 @@ class _SpaceWorkCollectionScreenState extends State<SpaceWorkCollectionScreen> {
                     ? loading
                           ? const Center(child: CircularProgressIndicator())
                           : MakoloErrorState(
-                              message: 'Collection indisponible.',
+                              message: 'Impossible d’afficher la liste.',
                               onRetry: loadPage,
                             )
                     : SpaceWorkSurface(

@@ -613,7 +613,6 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                     if (detail.essential.isNotEmpty)
                       MakoloSection(
                         title: 'Essentiel',
-                        description: 'Les décisions et résultats actuels restent lisibles sans relire tout le passé.',
                         child: Column(
                           children: [
                             for (

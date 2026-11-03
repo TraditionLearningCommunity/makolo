@@ -467,7 +467,7 @@ class PermissionExplainer extends StatelessWidget {
           if (denied) ...[
             const SizedBox(height: MakoloSpacing.md),
             Text(
-              deniedMessage ?? 'Cette autorisation est refusée. Vous pouvez continuer sans cette fonction et la réactiver plus tard si nécessaire.',
+              deniedMessage ?? 'Autorisation refusée. Vérifiez les réglages si vous souhaitez l’activer.',
             ),
           ],
           const SizedBox(height: MakoloSpacing.lg),

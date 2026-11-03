@@ -78,7 +78,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'La lecture n’a pas été confirmée. L’état serveur connu est conservé.',
+            'Impossible de confirmer la lecture. Actualisez avant de réessayer.',
           ),
         ),
       );
@@ -412,15 +412,15 @@ class _NotificationPreferencesScreenState
         children: [
           Text('Canaux', style: Theme.of(context).textTheme.titleMedium),
           SwitchListTile(
-            title: const Text('Push'),
+            title: const Text('Notifications sur les appareils'),
             subtitle: const Text(
-              'Les alertes système restent un transport ; l’inbox Makolo conserve les signaux.',
+              'Recevoir des alertes sur les appareils enregistrés.',
             ),
             value: _bool('push_notifications', fallback: true),
             onChanged: (value) => _setBool('push_notifications', value),
           ),
           SwitchListTile(
-            title: const Text('Email'),
+            title: const Text('E-mail'),
             value: _bool('email_notifications', fallback: true),
             onChanged: (value) => _setBool('email_notifications', value),
           ),
