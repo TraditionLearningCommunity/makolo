@@ -606,6 +606,18 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                           style: Theme.of(context).textTheme.bodyLarge),
                       ),
                     section('Informations de l’Espace', [
+                      if (variant == 'complete')
+                        for (final entry in <String, String>{
+                          'email': 'Adresse e-mail',
+                          'phone': 'Téléphone',
+                        }.entries)
+                          if (value(map(identity['owner_details'])[entry.key])
+                              case final detail?)
+                            ListTile(
+                              leading: const Icon(Icons.contact_mail_outlined),
+                              title: Text(entry.value),
+                              subtitle: Text(detail),
+                            ),
                       if (value(identity['location']) case final location?)
                         ListTile(
                           leading: const Icon(Icons.place_outlined),
