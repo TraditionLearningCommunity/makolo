@@ -51,9 +51,13 @@ void main() {
       ),
       schemaVersion: 1, payload: _knownAccess(),
     );
+    String? openedCredential;
     await tester.pumpWidget(MaterialApp(
       home: AccessDetailScreen(
-        accessId: 'access-1', repository: repo, onOpenDayOf: (_) {},
+        accessId: 'access-1',
+        repository: repo,
+        onOpenDayOf: (_) {},
+        onOpenCredential: (path) => openedCredential = path,
       ),
     ));
     await tester.pumpAndSettle();
@@ -63,6 +67,9 @@ void main() {
     expect(find.textContaining('Dernières informations reçues'), findsOneWidget);
     expect(find.textContaining('État lors de la dernière réception'), findsOneWidget);
     expect(await repo.readKnownCredentialPath('access-1'), _path);
+    await tester.tap(find.text('Préparer ou afficher mon QR'));
+    await tester.pump();
+    expect(openedCredential, _path);
     final other = AccessRepository(
       database: db, store: ProfileStore(db, 'profile-b'),
       profileId: 'profile-b',
