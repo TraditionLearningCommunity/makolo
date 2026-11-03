@@ -35,6 +35,8 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
   bool _downloading = false;
   double? _downloadProgress;
   _ResourceDetail? _cachedSummary;
+  String? _localCopyKey;
+  Future<bool>? _localCopy;
   late Stream<StoredProjection?> _detail;
   late Stream<ResourceSourceState> _source;
 
@@ -90,6 +92,24 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
     }
   }
 
+  Future<bool> _knownLocalCopy(_ResourceDetail detail) {
+    final version = detail.currentVersion;
+    if (version == null || detail.sensitivity != 'normal') {
+      return Future<bool>.value(false);
+    }
+    final key = '${widget.repository.profileId}:${widget.assetId}:'
+        '${detail.title}:${version.number}';
+    if (key != _localCopyKey) {
+      _localCopyKey = key;
+      _localCopy = widget.repository.localVersionExists(
+        assetId: widget.assetId,
+        title: detail.title,
+        versionNumber: version.number,
+      );
+    }
+    return _localCopy!;
+  }
+
   Future<void> _download(_ResourceDetail detail) async {
     final path = detail.downloadPath;
     final version = detail.currentVersion;
@@ -138,6 +158,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
         mimeType: 'application/octet-stream',
       );
       if (!mounted) return;
+      setState(() => _localCopy = Future<bool>.value(true));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Enregistré dans Téléchargements : $exportedName'),
@@ -231,14 +252,7 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
             initialData: ResourceSourceState.unknown,
             builder: (context, sourceSnapshot) {
               final source = sourceSnapshot.data ?? ResourceSourceState.unknown;
-              if (source.invalidated &&
-                  const {
-                    'permission_denied',
-                    'not_found',
-                    'api_error',
-                    'http_403',
-                    'http_404',
-                  }.contains(source.lastErrorCode)) {
+              if (source.invalidated) {
                 return const Center(
                   child: Text('Cette ressource n’est plus accessible.'),
                 );
@@ -278,6 +292,19 @@ class _ResourceDetailScreenState extends State<ResourceDetailScreen> {
                     const SizedBox(height: MakoloSpacing.lg),
                     if (detail.currentVersion != null)
                       _VersionSummary(version: detail.currentVersion!),
+                    if (detail.currentVersion != null &&
+                        detail.sensitivity == 'normal')
+                      FutureBuilder<bool>(
+                        future: _knownLocalCopy(detail),
+                        builder: (context, snapshot) => snapshot.data == true
+                            ? const Padding(
+                                padding: EdgeInsets.only(top: MakoloSpacing.sm),
+                                child: Text(
+                                  'Copie déjà reçue : réexportable sans connexion.',
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
                     const SizedBox(height: MakoloSpacing.lg),
                     if (!detail.archived) ...[
                       Wrap(
