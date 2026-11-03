@@ -2032,3 +2032,106 @@ class _PassportBody extends StatelessWidget {
     );
   }
 }
+
+
+class _PassportRecipientPicker extends StatefulWidget {
+  const _PassportRecipientPicker({
+    required this.api,
+    required this.query,
+    required this.onSelected,
+  });
+
+  final MakoloApiClient api;
+  final TextEditingController query;
+  final ValueChanged<Map<String, dynamic>> onSelected;
+
+  @override
+  State<_PassportRecipientPicker> createState() =>
+      _PassportRecipientPickerState();
+}
+
+class _PassportRecipientPickerState extends State<_PassportRecipientPicker> {
+  bool _searching = false;
+  List<Map<String, dynamic>> _results = const [];
+
+  Future<void> _search() async {
+    final query = widget.query.text.trim();
+    if (query.length < 2 || _searching) return;
+    setState(() => _searching = true);
+    try {
+      final url = Uri(
+        path: 'api/v1/sharing/recipients/',
+        queryParameters: {'q': query},
+      ).toString();
+      final response = await widget.api.get(url);
+      final values = response.jsonObject()['results'];
+      if (!mounted) return;
+      setState(() {
+        _results = values is List
+            ? values.whereType<Map>().map((value) =>
+                value.map((key, value) => MapEntry(key.toString(), value))).toList()
+            : const [];
+      });
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recherche indisponible.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(
+        16, 8, 16, MediaQuery.viewInsetsOf(context).bottom + 16,
+      ),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.55,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Partager dans Makolo',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            TextField(
+              controller: widget.query,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+              decoration: InputDecoration(
+                hintText: 'Nom ou identifiant',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  tooltip: 'Rechercher',
+                  icon: const Icon(Icons.arrow_forward),
+                  onPressed: _searching ? null : _search,
+                ),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            if (_searching) const LinearProgressIndicator(),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _results.length,
+                itemBuilder: (context, index) {
+                  final row = _results[index];
+                  return ListTile(
+                    leading: const Icon(Icons.person_outline),
+                    title: Text(row['name']?.toString() ?? ''),
+                    subtitle: Text('@${row['username'] ?? ''}'),
+                    onTap: () => widget.onSelected(row),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
