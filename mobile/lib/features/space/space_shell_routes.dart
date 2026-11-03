@@ -1174,11 +1174,13 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
                         ? 'Actualisez vos autorisations avant de les consulter.'
                         : _authorityError ?? 'Autorisations indisponibles.',
                   ),
-                  TextButton.icon(
-                    onPressed: _retryDepth,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Réessayer'),
-                  ),
+                  if (widget.runtime.api != null &&
+                      widget.runtime.space?.sync != null)
+                    TextButton.icon(
+                      onPressed: _retryDepth,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Réessayer'),
+                    ),
                 ],
               )
             : ListView(
