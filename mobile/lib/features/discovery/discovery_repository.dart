@@ -1015,17 +1015,35 @@ class DiscoveryRepository {
   }
 
   Future<bool> hasReusableOccurrenceForReading(String id) async {
-    final projection = await readOccurrence(id);
-    if (!_freshEnough(projection, detailFreshness.refreshRecommendedAfter!)) {
-      return false;
-    }
     final state = await readSource(occurrenceSource(id));
     if (state.invalidated || state.lastErrorCode != null) return false;
+    final projection = await readOccurrence(id);
     final identity = projection?.payload['identity'];
     final caps = projection?.payload['capabilities'];
-    // Live Day-of privileges must be checked by the owner on entry.
-    return identity is Map && identity['id'] == id &&
-        !(caps is List && caps.contains('open_day_of'));
+    // Any known live Day-of privilege requires an owner recheck on entry.
+    if (caps is List && caps.contains('open_day_of')) return false;
+    if (_freshEnough(projection, detailFreshness.refreshRecommendedAfter!) &&
+        identity is Map && identity['kind'] == 'occurrence' &&
+        identity['id'] == id) {
+      return true;
+    }
+
+    // Reading an admitted Occurrence's time and place is a presentation,
+    // not a Day-of/Access decision. N1/N2 may already contain enough facts.
+    final preview = await readOccurrencePreview(id);
+    if (!_freshEnough(preview, detailFreshness.refreshRecommendedAfter!)) {
+      return false;
+    }
+    final raw = preview?.payload['item'];
+    final candidate = raw is Map ? raw['identity'] : null;
+    final occurrence = candidate is Map ? candidate['occurrence'] : null;
+    if (occurrence is Map &&
+        occurrence['kind'] == 'occurrence' &&
+        occurrence['id'] == id) {
+      return true;
+    }
+    final summary = preview?.payload['occurrence'];
+    return summary is Map && summary['id'] == id;
   }
 
   Stream<StoredProjection?> watchMap(DiscoveryQuery query) => store
