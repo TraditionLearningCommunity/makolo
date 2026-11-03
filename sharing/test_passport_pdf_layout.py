@@ -58,10 +58,9 @@ class PassportPdfLayoutTests(TestCase):
         self.assertAlmostEqual(float(page.mediabox.height), 841.9, delta=1)
         content = page.extract_text()
         self.assertIn("PASSEPORT MAKOLO", content)
-        # Name, country, optional language and gender belong in the identity
-        # block, rather than repeated fields or an empty detail table.
+        # Language is a document-rendering preference, never a personal fact.
         self.assertNotIn("INFORMATIONS PERSONNELLES", content)
-        self.assertIn("Français", content)
+        self.assertNotIn("Français", content)
         self.assertIn("Profil Exemple", content)
         self.assertIn("@example", content)
         self.assertIn("PRIVATE-PHONE-NOT-FOR-PUBLIC", content)
@@ -79,8 +78,25 @@ class PassportPdfLayoutTests(TestCase):
                 links.append(annotation)
         # The QR is clickable in the upper identity card, while the domain
         # printed in the final issuance block is a second accessible link.
-        self.assertTrue(any(float(item["/Rect"][1]) > 420 for item in links))
-        self.assertTrue(any(float(item["/Rect"][1]) < 300 for item in links))
+        positions = sorted(float(item["/Rect"][1]) for item in links)
+        self.assertGreaterEqual(len(positions), 2)
+        self.assertGreater(positions[-1] - positions[0], 30)
+
+    def test_confirmed_experience_prints_title_role_and_real_date(self):
+        payload = _payload()
+        payload["activity_involvements"] = [{
+            "id": "involvement-1",
+            "title": "Forum Makolo",
+            "role": "Intervenant",
+            "date": "2026-10-18",
+        }]
+        text = "\\n".join(
+            page.extract_text() for page in self._reader(payload).pages
+        )
+        self.assertIn("Forum Makolo", text)
+        self.assertIn("Intervenant", text)
+        self.assertIn("2026-10-18", text)
+        self.assertNotIn("Français", text)
 
     def test_public_variant_never_prints_owner_only_information(self):
         payload = _payload("public")
