@@ -2129,6 +2129,8 @@ class OccurrenceDetailScreen extends StatefulWidget {
 class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
   static const _selector = DiscoveryDetailSelector();
   bool _refreshing = false;
+  bool _verifiedOwner = false;
+  int _generation = 0;
 
   @override
   void initState() {
@@ -2139,40 +2141,94 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
   @override
   void didUpdateWidget(covariant OccurrenceDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.occurrenceId != widget.occurrenceId) {
+    if (oldWidget.occurrenceId != widget.occurrenceId ||
+        oldWidget.repository != widget.repository) {
+      _verifiedOwner = false;
+      ++_generation;
       unawaited(_acquire());
     }
   }
 
   Future<void> _acquire() => _refresh();
 
+  @override
+  void dispose() {
+    ++_generation;
+    super.dispose();
+  }
+
   Future<void> _refresh() async {
     if (_refreshing) return;
     final requestedId = widget.occurrenceId;
-    setState(() => _refreshing = true);
+    final generation = ++_generation;
+    final startedAt = DateTime.now().toUtc();
+    setState(() {
+      _refreshing = true;
+      _verifiedOwner = false;
+    });
     try {
       await widget.repository.refreshOccurrence(requestedId);
+      final source = await widget.repository.readSource(
+        widget.repository.occurrenceSource(requestedId),
+      );
+      if (!mounted || generation != _generation ||
+          widget.occurrenceId != requestedId) return;
+      if (source.lastErrorCode == null &&
+          source.lastSuccessAt != null &&
+          !source.lastSuccessAt!.isBefore(startedAt) &&
+          !source.invalidated) {
+        final snapshot = await widget.repository.readOccurrence(requestedId);
+        final identity = snapshot?.payload['identity'];
+        if (mounted && generation == _generation &&
+            widget.occurrenceId == requestedId &&
+            identity is Map &&
+            identity['kind'] == 'occurrence' &&
+            identity['id'] == requestedId) {
+          setState(() => _verifiedOwner = true);
+        }
+      }
     } on Object {
-      // Owner checks access and current state on each N3 entry.
+      // Keep known facts readable, never reuse an old live/Day-Of right.
     } finally {
-      if (mounted) {
+      if (mounted && generation == _generation) {
         setState(() => _refreshing = false);
-        if (widget.occurrenceId != requestedId) unawaited(_refresh());
+      }
+      if (mounted && !_refreshing && widget.occurrenceId != requestedId) {
+        unawaited(_refresh());
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchOccurrencePreview(widget.occurrenceId),
+    return StreamBuilder<DiscoverySourceState>(
+      stream: widget.repository.watchSource(
+        widget.repository.occurrenceSource(widget.occurrenceId),
+      ),
+      initialData: DiscoverySourceState.unknown,
+      builder: (context, ownerSnapshot) {
+        final owner = ownerSnapshot.data ?? DiscoverySourceState.unknown;
+        return StreamBuilder<StoredProjection?>(
+          stream: widget.repository.watchOccurrencePreview(widget.occurrenceId),
       builder: (context, previewSnapshot) {
         return StreamBuilder<StoredProjection?>(
           stream: widget.repository.watchOccurrence(widget.occurrenceId),
           builder: (context, snapshot) {
-            final occurrence =
-                _selector.occurrence(snapshot.data) ??
-                _selector.occurrencePreview(previewSnapshot.data);
+            final identity = snapshot.data?.payload['identity'];
+            final ownerIdentityValid = identity is Map &&
+                identity['kind'] == 'occurrence' &&
+                identity['id'] == widget.occurrenceId;
+            final occurrence = owner.ownerUnavailable
+                ? null
+                : (ownerIdentityValid
+                      ? _selector.occurrence(snapshot.data)
+                      : null) ??
+                  _selector.occurrencePreview(previewSnapshot.data);
+            final dayOfVerified =
+                _verifiedOwner &&
+                !_refreshing &&
+                owner.lastErrorCode == null &&
+                !owner.invalidated;
             return Scaffold(
               appBar: AppBar(
                 title: const Text('Occurrence'),
@@ -2189,7 +2245,9 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                     ? _refreshing
                           ? const MakoloLoadingState(label: 'Mise à jour…')
                           : MakoloErrorState(
-                              message: 'Ce contenu n’est pas disponible.',
+                              message: owner.ownerUnavailable
+                                  ? 'Cette réalisation n’est plus accessible.'
+                                  : 'Cette réalisation n’est pas disponible.',
                               onRetry: _refresh,
                             )
                     : ListView(
@@ -2232,7 +2290,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                               label: const Text('Voir l’activité'),
                             ),
                           ),
-                          if (occurrence.canOpenDayOf)
+                          if (dayOfVerified && occurrence.canOpenDayOf)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(
                                 MakoloSpacing.inner,
@@ -2260,6 +2318,8 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                       ),
               ),
             );
+          },
+        );
           },
         );
       },
