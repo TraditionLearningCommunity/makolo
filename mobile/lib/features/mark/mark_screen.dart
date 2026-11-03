@@ -332,7 +332,7 @@ class _MarkScreenState extends State<MarkScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
-                            'Contexte sélectionné : ${_selectedContext!['kind'] ?? 'réalité'}',
+                            'Élément sélectionné pour cette demande',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
