@@ -1627,6 +1627,37 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
             builder: (context, sourceSnapshot) {
               final source =
                   sourceSnapshot.data ?? DiscoverySourceState.unknown;
+              if (!_refreshing &&
+                  snapshot.data == null &&
+                  source.lastSuccessAt != null &&
+                  source.lastErrorCode == null) {
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(MakoloSpacing.md),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'La version du serveur ne fournit pas encore '
+                              'le champ cartographique partagé.',
+                              textAlign: TextAlign.center,
+                            ),
+                            TextButton.icon(
+                              onPressed: () =>
+                                  unawaited(_refresh(force: true)),
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Réessayer'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
               final selection = _selector.spatialSelection(
                 projection: snapshot.data,
                 refreshing: _refreshing,
