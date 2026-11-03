@@ -260,6 +260,7 @@ class SpaceUsView(SpaceWebMixin):
             owner_links["trust"] = self._space_url("organizations:console-trust")
         if capabilities.get("update_space"):
             owner_links["settings"] = self._space_url("organizations:console-settings")
+            owner_links["passport"] = self._space_url("sharing:passport-space")
         if any(
             module.get("key") == "analytics"
             for module in self.workspace.get("modules", ())
