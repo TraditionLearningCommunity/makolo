@@ -72,6 +72,7 @@ class AccessRepository {
   final SyncEngine? sync;
   final MakoloApiClient? api;
   final AccessCredentialVault credentialVault;
+  final Map<String, int> _credentialGenerations = {};
 
   String collectionResourceKey({
     required String relationship,
@@ -351,11 +352,43 @@ class AccessRepository {
         '/api/v1/me/accesses/$accessId/credential/';
   }
 
+  /// Credential retention is an independent owner decision from Access
+  /// itself. A refusal must not erase a legitimate Access detail.
+  Future<bool> _credentialRetentionDenied(String accessId) async {
+    final row = await (database.select(database.syncSources)
+          ..where((item) =>
+              item.profileId.equals(profileId) &
+              item.sourceKey.equals('access-credential:$accessId')))
+        .getSingleOrNull();
+    return row?.invalidated == true;
+  }
+
+  Future<void> _markCredentialRetention(
+    String accessId, {
+    required bool denied,
+  }) async {
+    await database.into(database.syncSources).insertOnConflictUpdate(
+      SyncSourcesCompanion.insert(
+        profileId: profileId,
+        sourceKey: 'access-credential:$accessId',
+        route: 'api/v1/me/accesses/$accessId/credential/',
+        invalidated: Value(denied),
+        lastErrorCode: Value(denied ? 'retention_denied' : null),
+      ),
+    );
+  }
+
   Future<AccessCredentialData?> readRetainedCredential(
       String accessId) async {
     final detail = await readSource(accessId);
-    if (detail.invalidated || await _hasRevokedBeneficiaryCollection()) {
-      await credentialVault.delete(profileId, accessId);
+    if (detail.invalidated ||
+        await _hasRevokedBeneficiaryCollection() ||
+        await _credentialRetentionDenied(accessId)) {
+      try {
+        await credentialVault.delete(profileId, accessId);
+      } on Object {
+        // A durable nonsecret tombstone still blocks local presentation.
+      }
       return null;
     }
     final value = await credentialVault.read(profileId, accessId);
@@ -385,6 +418,9 @@ class AccessRepository {
     if (!_isCredentialPath(path, accessId)) {
       throw const FormatException('Unexpected Access credential owner path');
     }
+    final generation = (_credentialGenerations[accessId] ?? 0) + 1;
+    _credentialGenerations[accessId] = generation;
+    bool isCurrent() => _credentialGenerations[accessId] == generation;
 
     late final Map<String, dynamic> data;
     try {
@@ -397,10 +433,19 @@ class AccessRepository {
       }
       data = envelope.data;
     } on MakoloApiError catch (error) {
-      if (error.statusCode == 403 || error.statusCode == 404) {
-        await credentialVault.delete(profileId, accessId);
+      if (isCurrent() &&
+          (error.statusCode == 403 || error.statusCode == 404)) {
+        await _markCredentialRetention(accessId, denied: true);
+        try {
+          await credentialVault.delete(profileId, accessId);
+        } on Object {
+          // The profile-scoped tombstone still prevents a stale QR reopening.
+        }
       }
       rethrow;
+    }
+    if (!isCurrent()) {
+      throw StateError('Superseded AccessCredential response');
     }
 
     final access = _map(data['access']);
@@ -445,7 +490,19 @@ class AccessRepository {
         // Secure-store failure never copies a secret into an unprotected DB.
       }
     } else {
-      await credentialVault.delete(profileId, accessId);
+      // The owner has not approved a finite offline presentation. Revoke
+      // any older device copy before attempting secure-store deletion.
+      if (isCurrent()) {
+        await _markCredentialRetention(accessId, denied: true);
+        try {
+          await credentialVault.delete(profileId, accessId);
+        } on Object {
+          // The nonsecret tombstone is authoritative for local rendering.
+        }
+      }
+    }
+    if (isCurrent() && canRetain) {
+      await _markCredentialRetention(accessId, denied: false);
     }
 
     return AccessCredentialData(
