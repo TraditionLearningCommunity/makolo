@@ -24,6 +24,7 @@ from .passport_documents import (
     resolve_passport_verification_token,
     snapshot_payload_is_intact,
     profile_public_snapshot_still_disclosable,
+    space_public_snapshot_still_disclosable,
 )
 
 from .passport import (
@@ -427,7 +428,7 @@ def _snapshot_content_allowed(snapshot, viewer, *, currently_public):
             and snapshot.public_at_issue and currently_public):
         if snapshot.subject_kind == PublicSubjectKind.PROFILE:
             return profile_public_snapshot_still_disclosable(snapshot)
-        return True
+        return space_public_snapshot_still_disclosable(snapshot)
     if not viewer.is_authenticated:
         return False
     if snapshot.subject_kind == PublicSubjectKind.PROFILE:
