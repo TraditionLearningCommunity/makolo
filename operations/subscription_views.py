@@ -15,6 +15,7 @@ from authorization.services import can
 from requirements.contracts import RequirementAssessmentState, RequirementMode
 from subscriptions.authorization import get_subscription_for_actor, subscriptions_visible_to_actor
 from subscriptions.contracts import PlanVersionStatus
+from subscriptions.billing_models import PlanVersionBillingTerms
 from subscriptions.eligibility_models import EntitlementRequirement, PlanRequirement
 from subscriptions.models import PlanBenefit, PlanEntitlement, PlanVersion, SubscriptionPlan
 from subscriptions.product_read import build_subscription_product_view
@@ -39,6 +40,7 @@ from .subscription_forms import (
     PlanVersionForm,
     SubscriptionPlanForm,
     SubscriptionReviewForm,
+    CoverageBillingTermsForm,
 )
 
 
@@ -198,8 +200,14 @@ class OperationsPlanVersionView(SubscriptionCatalogViewMixin, TemplateView):
         version = self.get_version()
         can_manage = can(self.request.user, PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE)
         editable = can_manage and version.status == PlanVersionStatus.DRAFT
+        try:
+            billing_terms = version.billing_terms
+        except PlanVersionBillingTerms.DoesNotExist:
+            billing_terms = PlanVersionBillingTerms(plan_version=version)
         context.update(
             {
+                "billing_terms": billing_terms if billing_terms.pk else None,
+                "billing_terms_form": CoverageBillingTermsForm(instance=billing_terms),
                 "version": version,
                 "plan": version.plan,
                 "can_manage": can_manage,
@@ -226,6 +234,30 @@ class OperationsPlanVersionUpdateView(SubscriptionCatalogManageMixin, View):
                 messages.success(request, "Draft mis à jour.")
         else:
             messages.error(request, "Le draft contient des erreurs.")
+        return redirect("operations:subscription-version", version_id=version.pk)
+
+
+class OperationsCoverageBillingTermsUpdateView(SubscriptionCatalogManageMixin, View):
+    """Only Platform catalogue managers can configure terms on unpublished drafts."""
+
+    def post(self, request, version_id):
+        version = get_object_or_404(PlanVersion, pk=version_id, status=PlanVersionStatus.DRAFT)
+        try:
+            terms = version.billing_terms
+        except PlanVersionBillingTerms.DoesNotExist:
+            terms = PlanVersionBillingTerms(plan_version=version)
+        form = CoverageBillingTermsForm(request.POST, instance=terms)
+        if form.is_valid():
+            instance = form.save(commit=False)
+            instance.plan_version = version
+            try:
+                instance.save()
+            except ValidationError as exc:
+                messages.error(request, "; ".join(exc.messages))
+            else:
+                messages.success(request, "Conditions de facturation enregistrées sur le draft.")
+        else:
+            messages.error(request, "Les conditions de facturation contiennent des erreurs.")
         return redirect("operations:subscription-version", version_id=version.pk)
 
 
