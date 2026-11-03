@@ -397,24 +397,24 @@ void main() {
   });
 
   testWidgets(
-    'Agir comme distinguishes unverified inventory from verified absence',
+    'Agir en tant que distinguishes unverified inventory from verified absence',
     (tester) async {
       final harness = await _harness(emptyInventory: true);
       addTearDown(harness.close);
       await _pump(tester, harness);
       await tester.tap(find.byTooltip('Avatar'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Agir comme'));
+      await tester.tap(find.text('Agir en tant que'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Aucun inventaire vérifié'), findsOneWidget);
-      expect(find.text('Vous n’avez aucun Espace autorisé.'), findsNothing);
+      expect(find.textContaining('Impossible de vérifier vos Espaces'), findsOneWidget);
+      expect(find.text('Aucun Espace accessible.'), findsNothing);
       expect(harness.actorContext.value, const PersonalActorContext());
       await _disposeUi(tester);
     },
   );
 
-  testWidgets('Agir comme cannot select a Space from unverified offline data', (
+  testWidgets('Agir en tant que cannot select a Space from unverified offline data', (
     tester,
   ) async {
     final harness = await _harness();
@@ -422,7 +422,7 @@ void main() {
     await _pump(tester, harness);
     await tester.tap(find.byTooltip('Avatar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Agir comme'));
+    await tester.tap(find.text('Agir en tant que'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Space X'));
     await tester.pumpAndSettle();
