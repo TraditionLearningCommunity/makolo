@@ -52,12 +52,26 @@ Map<String, dynamic> _projection({bool limited = false}) => {
           },
   },
   'trust': {'verified': false},
+  'resources': {
+    'visibility': limited ? 'restricted' : 'visible',
+    'count': limited ? null : 1,
+    'items': limited
+        ? []
+        : [
+            {
+              'kind': 'passport',
+              'title': 'Passeport Makolo · PM-S-20261103-A1B2C3D4',
+              'detail': 'Document institutionnel émis',
+            },
+          ],
+  },
   'handoffs': {
     'responsibilities': '/space/atelier/us/responsibilities',
     if (!limited) ...{
       'team': '/space/atelier/us/team',
       'relationships': '/space/atelier/us/relationships',
       'ownership': '/space/atelier/us/ownership',
+      'resources': '/space/atelier/us/resources',
     },
     'settings': '/space/atelier/us/settings',
     if (!limited) 'passport': '/space/atelier/us/passport',
@@ -104,6 +118,14 @@ void main() {
       await tester.ensureVisible(find.text('Explorer les relations'));
       await tester.tap(find.text('Explorer les relations'));
       expect(routes.last, '/space/atelier/us/relationships');
+      await tester.scrollUntilVisible(
+        find.text('Consulter les ressources'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Consulter les ressources'));
+      expect(routes.last, '/space/atelier/us/resources');
       await tester.scrollUntilVisible(
         find.text('Consulter les faits de confiance'),
         250,
@@ -155,6 +177,7 @@ void main() {
     expect(find.text('Explorer les relations'), findsNothing);
     expect(find.text('Modifier les informations collectives'), findsNothing);
     expect(find.text('Passeport de cet Espace'), findsNothing);
+    expect(find.text('Consulter les ressources'), findsNothing);
     expect(find.text('Comprendre notre activité'), findsNothing);
     expect(find.textContaining('Contexte limité'), findsOneWidget);
   });
@@ -232,6 +255,28 @@ void main() {
     expect(find.text('Amina'), findsOneWidget);
     expect(find.text('Partenaires'), findsNothing);
     expect(find.text('Explorer les relations'), findsOneWidget);
+  });
+
+  testWidgets('Resources never open a forged cross-Space destination', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['handoffs'] as Map<String, dynamic>)['resources'] =
+        '/space/other/us/resources';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) => fail('Foreign Resources link cannot open'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Consulter les ressources'), findsNothing);
   });
 
   testWidgets('forged cross-Space link is not presented', (tester) async {
