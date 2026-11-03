@@ -24,6 +24,7 @@ class SpaceWorkspaceUpdateSerializer(serializers.Serializer):
     contact_email = serializers.EmailField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=50)
     public_profile = serializers.BooleanField(required=False)
+    searchable = serializers.BooleanField(required=False)
 
 
 class SpaceOwnershipTransferSerializer(serializers.Serializer):
