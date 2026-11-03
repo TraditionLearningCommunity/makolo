@@ -170,6 +170,16 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
     }
   }
 
+  String? _resourceTarget(Map<String, dynamic> item) {
+    final expected = '/space/${widget.slug}/us/passport';
+    // A route must come from the current Space owner projection and match
+    // this Space; item kind or an old local URL never grants navigation.
+    if (item['kind'] == 'passport' && item['handoff'] == expected) {
+      return expected;
+    }
+    return null;
+  }
+
   void _select(String family) {
     if (family == _family) return;
     setState(() {
@@ -238,10 +248,10 @@ class _SpaceUsResourcesScreenState extends State<SpaceUsResourcesScreen> {
                   ),
                   title: Text(item['title']?.toString() ?? 'Ressource'),
                   subtitle: Text(item['detail']?.toString() ?? ''),
-                  trailing: item['kind'] == 'passport'
+                  trailing: _resourceTarget(item) != null
                       ? const Icon(Icons.chevron_right_rounded) : null,
-                  onTap: item['kind'] == 'passport'
-                      ? () => context.push('/space/${widget.slug}/us/passport')
+                  onTap: _resourceTarget(item) != null
+                      ? () => context.push(_resourceTarget(item)!)
                       : null,
                 ),
               ),
