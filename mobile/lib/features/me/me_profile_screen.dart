@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../navigation/profile_portrait_store.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../network/makolo_api_client.dart';
 import '../../network/api_error.dart';
@@ -441,6 +442,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 controller: editor,
                 autofocus: true,
                 maxLength: 30,
+                maxLengthEnforcement: MaxLengthEnforcement.none,
                 autocorrect: false,
                 enableSuggestions: false,
                 textCapitalization: TextCapitalization.none,
@@ -1341,6 +1343,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           onChanged: (_) => _onTextChanged(key, controller),
           maxLines: multiLine ? (lines > 1 ? lines : 2) : 1,
           maxLength: PassportEditorFieldRules.maxLengths[key],
+          maxLengthEnforcement: MaxLengthEnforcement.none,
           keyboardType: phone
               ? TextInputType.phone
               : link
