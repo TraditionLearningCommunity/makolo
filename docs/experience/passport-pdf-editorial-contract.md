@@ -79,3 +79,38 @@ Le Passeport complet peut contenir des coordonnées privées, exclusivement lors
     python manage.py test sharing.test_passport_pdf_layout sharing.test_g6_passport core.test_z4_me_capital_api
 
 Inspecter visuellement tous les feuillets des cas : identité sans photo, portrait EXIF 6, profil succinct, biographie longue, nombreux intérêts, preuves/attestations, Passeport public et Passeport d'Espace. Vérifier l'extraction du texte français, la lisibilité N&B et le QR sur le fichier final. Ne pas fusionner avec CI rouge ; aucune fusion automatique de #522.
+
+
+## Addendum de fermeture Flutter — 3 novembre 2026
+
+Pour le Passeport personnel Flutter, la présentation de la variante est
+dorénavant dérivée localement d'une projection privée du titulaire. Les anciens
+paragraphes de l'étape 4 prescrivant un Personnalisé minimal sans sélection
+décrivent le comportement historique Web et ne sont plus la cible Flutter.
+L'émission reste une revalidation serveur de la composition, puis un seul
+`PassportSnapshot` immuable par action réussie.
+
+La barre supérieure possède quatre commandes directes : Confidentialité,
+Versions, PDF et Partager. PDF émet et enregistre dans les Téléchargements
+Android, sans prévisualisation ni choix de destination. Partager propose :
+PDF dans l'OS ; destinataire Profil dans Makolo (Sharing direct) ; ancienne
+version ; lien public vivant avec copie au presse-papiers ; lien de version
+datée avec un droit Sharing approprié. L'historique propose Télécharger,
+Partager et Révoquer, sans émission supplémentaire.
+
+Une implication confirmée est imprimée comme titre, fonction et date connue ;
+une appartenance ou une propriété ne vaut pas participation. Les faits absents
+et rubriques vides sont omis. La langue française commande les libellés du
+document ; elle n'est pas une donnée de la personne. Le PDF n'infère aucune
+preuve, réalisation ou relation depuis une simple association.
+
+La version datée garde ses faits textuels. La question de la conservation
+**visuelle exacte** de portraits historiques reste distincte de l'intégrité
+du payload : aucun nouveau stockage documentaire de médias n'a été introduit.
+Les versions Complet restent non partageables par lien privé dans le
+contrat Sharing existant ; un partage interne de Complet doit utiliser une
+sélection admissible.
+
+**Statut : implémenté sur la branche de PR #522, non validé sur appareil,
+non fusionné.** Le formatter, les tests et la vérification Android restent
+à faire avant intégration.
