@@ -12,6 +12,7 @@ Future<void> showMakoloAvatarSheet(
   BuildContext context, {
   required AppRuntime runtime,
   VoidCallback? onConnections,
+  VoidCallback? onEditProfile,
   VoidCallback? onBilling,
   VoidCallback? onSettings,
   VoidCallback? onSwitchAccount,
@@ -22,6 +23,7 @@ Future<void> showMakoloAvatarSheet(
     builder: (_) => MakoloAvatarSheet(
       runtime: runtime,
       onConnections: onConnections,
+      onEditProfile: onEditProfile,
       onBilling: onBilling,
       onSettings: onSettings,
       onSwitchAccount: onSwitchAccount,
@@ -36,6 +38,7 @@ class MakoloAvatarSheet extends StatelessWidget {
     super.key,
     required this.runtime,
     this.onConnections,
+    this.onEditProfile,
     this.onBilling,
     this.onSettings,
     this.onSwitchAccount,
@@ -45,6 +48,7 @@ class MakoloAvatarSheet extends StatelessWidget {
 
   final AppRuntime runtime;
   final VoidCallback? onConnections;
+  final VoidCallback? onEditProfile;
   final VoidCallback? onBilling;
   final VoidCallback? onSettings;
   final VoidCallback? onSwitchAccount;
@@ -172,10 +176,38 @@ class MakoloAvatarSheet extends StatelessWidget {
                               padding: const EdgeInsets.only(
                                 top: MakoloSpacing.xs,
                               ),
-                              child: Text(
-                                completionPercentage.toString() +
-                                    ' % renseigné',
-                                style: Theme.of(context).textTheme.bodySmall,
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '$completionPercentage % renseigné',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  if (onEditProfile != null) ...[
+                                    const SizedBox(width: MakoloSpacing.xs),
+                                    Flexible(
+                                      child: TextButton(
+                                        key: const Key('avatar-complete-profile'),
+                                        onPressed: () => _closeThen(
+                                          context,
+                                          onEditProfile!,
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: MakoloSpacing.xs,
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                          alignment: Alignment.centerLeft,
+                                        ),
+                                        child: const Text(
+                                          'Compléter les informations',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                         ],
