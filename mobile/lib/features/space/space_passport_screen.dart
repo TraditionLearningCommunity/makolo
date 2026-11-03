@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
+import '../../network/api_error.dart';
 import '../../network/makolo_api_client.dart';
 import '../../platform/files/passport_pdf_saver.dart';
 import '../../platform/sharing/share_gateway.dart';
@@ -193,6 +194,18 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     setState(() => busy = true);
     try {
       await body();
+    } on MakoloApiError catch (failure) {
+      if (failure.statusCode == 401 ||
+          failure.statusCode == 403 ||
+          failure.statusCode == 404) {
+        ++epoch;
+        if (mounted) setState(() {
+          source = null;
+          error = 'Autorité Espace indisponible.';
+        });
+      } else {
+        message('Action indisponible.');
+      }
     } on Object {
       message('Action indisponible.');
     } finally {
@@ -211,7 +224,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     final data = ProjectionEnvelope.parse(
       response.jsonObject(), expectedProjection: 'space.passport.issuance',
     ).data;
-    return value(data['id']);
+    return authorized ? value(data['id']) : null;
   }
 
   Future<void> withPdf({
