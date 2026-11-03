@@ -61,6 +61,9 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
       unawaited(_load());
       return;
     }
+    // A pending request must not redraw a secret after the app backgrounds.
+    _generation++;
+    _loading = false;
     if (mounted && (_credential != null || _error != null)) {
       setState(() {
         _credential = null;
@@ -72,6 +75,7 @@ class _AccessCredentialScreenState extends State<AccessCredentialScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _generation++;
     _credential = null;
     super.dispose();
   }
