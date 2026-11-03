@@ -207,9 +207,7 @@ void main() {
         find.text('Présentation actuellement mise à jour.'),
         findsOneWidget,
       );
-      await tester.tap(find.byTooltip('Autres actions du Passeport'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Versions datées'));
+      await tester.tap(find.byTooltip('Versions datées'));
       await tester.pumpAndSettle();
       expect(find.text('PM-P-20261030-11111111'), findsOneWidget);
       await tester.tap(find.text('PM-P-20261030-11111111'));
@@ -223,13 +221,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Autres actions du Passeport'));
+    await tester.tap(find.byTooltip('Versions datées'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Versions datées'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Gérer cette version'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Révoquer cette version'));
+    await tester.tap(find.byTooltip('Révoquer cette version'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Révoquer la version'));
     await tester.pumpAndSettle();
@@ -244,13 +238,11 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Autres actions du Passeport'));
+    await tester.tap(find.byTooltip('Versions datées'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Versions datées'));
+    await tester.tap(find.text('PM-P-20261030-11111111'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Gérer cette version'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Révoquer le lien ·'));
+    await tester.tap(find.text('Révoquer un lien de partage'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Révoquer le lien'));
     await tester.pumpAndSettle();
@@ -297,18 +289,18 @@ void main() {
     expect(find.text('Présentation actuellement mise à jour.'), findsNothing);
   });
 
-  testWidgets('owner can issue an immutable version without downloading a PDF', (tester) async {
-    final api = _DatedPassportApi();
+  testWidgets('version issuance remains available when sharing a selection', (tester) async {
+    final api = _VariantPassportApi();
     await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
     await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('Autres actions du Passeport'));
+    await tester.tap(find.text('Public'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Émettre une version sans PDF'));
+    await tester.tap(find.byTooltip('Partager le Passeport'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Émettre et partager cette sélection'));
     await tester.pumpAndSettle();
     expect(api.lastPostPath, contains('api/v1/me/passport/issue/'));
-    expect(api.lastPostPath, contains('variant=complete'));
-    expect(find.textContaining('Version PM-P-20261030'), findsOneWidget);
+    expect(api.lastPostPath, contains('variant=public'));
   });
 
   testWidgets('public and empty thematic variants retain the identity baseline', (tester) async {
