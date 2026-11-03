@@ -50,6 +50,29 @@ class Z15WorkspaceContractTests(TestCase):
         )
         self.client = APIClient()
 
+    def test_created_space_is_public_and_searchable_by_default(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            "/api/v1/organizations/workspaces/",
+            {"name": "Espace public par défaut"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        space = Organization.objects.get(name="Espace public par défaut")
+        self.assertTrue(space.public_profile)
+        self.assertTrue(space.searchable)
+
+    def test_space_creation_can_explicitly_keep_presentation_private(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.post(
+            "/api/v1/organizations/workspaces/",
+            {"name": "Espace privé", "public_profile": False},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.data)
+        space = Organization.objects.get(name="Espace privé")
+        self.assertFalse(space.public_profile)
+
     def test_space_workspace_is_mandate_scoped_and_excludes_platform(self):
         self.client.force_authenticate(self.owner)
         response = self.client.get("/api/v1/organizations/workspaces/z15-space/")
