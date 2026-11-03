@@ -1,0 +1,218 @@
+"""Targeted contract coverage for Space Resources composed in Nous."""
+from django.test import TestCase
+from django.urls import reverse
+from rest_framework.test import APIClient
+
+from accounts.models import User
+from authorization.constants import SystemRoleCode
+from authorization.services import grant_space_role, revoke_mandate
+from organizations.models import Organization
+from personal_assets.models import PersonalAsset
+from presentations.enums import Provenance, VersionStatus, Visibility
+from presentations.essential import ESSENTIAL_MANIFEST, ESSENTIAL_THEME
+from presentations.models import (
+    PresentationTemplate,
+    PresentationTemplateVersion,
+    PresentationTheme,
+    PresentationThemeVersion,
+)
+from sharing.models import PassportSnapshot, PublicSubjectKind
+
+
+class SpaceUsResourcesTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username="us-res-owner", password="x")
+        self.other_owner = User.objects.create_user(
+            username="us-res-other-owner", password="x"
+        )
+        self.member = User.objects.create_user(username="us-res-member", password="x")
+        self.outsider = User.objects.create_user(
+            username="us-res-outsider", password="x"
+        )
+        self.space = Organization.objects.create(
+            name="Ressources Space", slug="ressources-space", created_by=self.owner,
+        )
+        self.other_space = Organization.objects.create(
+            name="Autre Space", slug="autre-ressources", created_by=self.outsider,
+        )
+        self.owner_mandate = grant_space_role(
+            profile=self.owner, space=self.space,
+            role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner,
+        )
+        grant_space_role(
+            profile=self.other_owner, space=self.space,
+            role=SystemRoleCode.SPACE_OWNER, granted_by=self.owner,
+        )
+        self.client = APIClient()
+        self.url = (
+            f"/api/v1/organizations/workspaces/{self.space.slug}/us/resources/"
+        )
+
+    def _snapshot(self, space, *, variant="complete"):
+        return PassportSnapshot.objects.create(
+            subject_kind=PublicSubjectKind.SPACE,
+            space=space,
+            public_identifier=space.slug,
+            variant=variant,
+            payload={},
+            payload_hash="0" * 64,
+        )
+
+    def _template(self, space):
+        template = PresentationTemplate.objects.create(
+            slug="collectif",
+            name="Modèle institutionnel",
+            provenance=Provenance.SPACE,
+            visibility=Visibility.SPACE,
+            owner_space=space,
+            created_by=self.owner,
+        )
+        return PresentationTemplateVersion.objects.create(
+            template=template,
+            version_number=1,
+            status=VersionStatus.PUBLISHED,
+            schema_version=1,
+            manifest=ESSENTIAL_MANIFEST,
+            created_by=self.owner,
+        )
+
+    def _theme(self, space):
+        theme = PresentationTheme.objects.create(
+            slug="identite",
+            name="Thème institutionnel",
+            provenance=Provenance.SPACE,
+            visibility=Visibility.SPACE,
+            owner_space=space,
+            created_by=self.owner,
+        )
+        return PresentationThemeVersion.objects.create(
+            theme=theme,
+            version_number=1,
+            status=VersionStatus.PUBLISHED,
+            schema_version=1,
+            tokens=ESSENTIAL_THEME,
+            created_by=self.owner,
+        )
+
+    def test_n1_and_n2_compose_only_genuine_space_owners(self):
+        issued = self._snapshot(self.space)
+        self._template(self.space)
+        self._theme(self.space)
+        self._snapshot(self.other_space, variant="public")
+        PersonalAsset.objects.create(
+            controller=self.owner,
+            subject_profile=self.owner,
+            title="Document personnel secret",
+        )
+        self.client.force_authenticate(self.owner)
+        root = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
+        )
+        self.assertEqual(root.status_code, 200, root.data)
+        self.assertEqual(root.data["resources"]["visibility"], "visible")
+        self.assertEqual(root.data["resources"]["count"], 3)
+        self.assertEqual(
+            root.data["handoffs"]["resources"],
+            f"/space/{self.space.slug}/us/resources",
+        )
+        self.assertEqual(
+            {row["owner"] for row in root.data["resources"]["items"]},
+            {"sharing", "presentations"},
+        )
+        self.assertNotIn("Document personnel secret", str(root.data))
+        self.assertNotIn(self.other_space.slug, str(root.data))
+        self.assertNotIn("payload", str(root.data["resources"]))
+
+        docs = self.client.get(self.url)
+        self.assertEqual(docs.status_code, 200, docs.data)
+        self.assertEqual(docs["Cache-Control"], "private, no-store")
+        self.assertEqual(docs.data["items"][0]["id"], str(issued.pk))
+        self.assertEqual(docs.data["counts"], {
+            "passport": 1, "template": 1, "theme": 1,
+        })
+        self.assertEqual(
+            self.client.get(self.url + "?kind=template").data["items"][0]["title"],
+            "Modèle institutionnel",
+        )
+        self.assertEqual(
+            self.client.get(self.url + "?kind=theme").data["items"][0]["title"],
+            "Thème institutionnel",
+        )
+        self.assertNotIn("payload", str(docs.data))
+
+    def test_foreign_member_and_viewer_without_authority_are_refused(self):
+        self._snapshot(self.space)
+        for viewer in (self.member, self.outsider):
+            self.client.force_authenticate(viewer)
+            self.assertEqual(self.client.get(self.url).status_code, 404)
+            self.assertNotIn(
+                "resources",
+                self.client.get(
+                    f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
+                ).data.get("handoffs", {}),
+            )
+
+    def test_owner_revocation_invalidates_n2_and_preview(self):
+        self._snapshot(self.space)
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        revoke_mandate(mandate=self.owner_mandate, actor=self.other_owner)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_resource_listing_pages_and_validates_query(self):
+        for _ in range(23):
+            self._snapshot(self.space)
+        self.client.force_authenticate(self.owner)
+        first = self.client.get(self.url + "?kind=passport")
+        self.assertEqual(first.status_code, 200, first.data)
+        self.assertEqual(len(first.data["items"]), 20)
+        self.assertTrue(first.data["has_more"])
+        self.assertEqual(first.data["next_offset"], 20)
+        second = self.client.get(self.url + "?kind=passport&offset=20")
+        self.assertEqual(second.status_code, 200, second.data)
+        self.assertEqual(len(second.data["items"]), 3)
+        self.assertFalse(second.data["has_more"])
+        self.assertEqual(len({
+            row["id"] for row in first.data["items"] + second.data["items"]
+        }), 23)
+        for query in ("?kind=private", "?offset=-1", "?offset=oops"):
+            self.assertEqual(self.client.get(self.url + query).status_code, 400)
+
+    def test_empty_institutional_library_is_not_unknown_or_personal(self):
+        self.client.force_authenticate(self.owner)
+        root = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
+        )
+        self.assertEqual(root.data["resources"]["visibility"], "visible")
+        self.assertEqual(root.data["resources"]["count"], 0)
+        self.assertEqual(root.data["resources"]["items"], [])
+        empty = self.client.get(self.url)
+        self.assertEqual(empty.status_code, 200)
+        self.assertEqual(empty.data["items"], [])
+        self.assertEqual(empty.data["total_count"], 0)
+
+    def test_web_n2_resource_categories_and_authority(self):
+        self._snapshot(self.space)
+        self._template(self.space)
+        self.client.force_login(self.owner)
+        url = reverse("organizations:space-us", kwargs={"slug": self.space.slug})
+        n1 = self.client.get(url)
+        self.assertContains(n1, "Nos ressources")
+        self.assertContains(n1, "Consulter les ressources")
+        n2 = self.client.get(url + "?detail=resources")
+        self.assertEqual(n2.status_code, 200)
+        self.assertEqual(n2["Cache-Control"], "private, no-store")
+        self.assertContains(n2, "Passeports émis")
+        self.assertContains(n2, "Modèles de présentation")
+        self.assertContains(n2, reverse(
+            "sharing:passport-space-history", kwargs={"slug": self.space.slug}
+        ))
+        template_n2 = self.client.get(url + "?detail=resources&kind=template")
+        self.assertContains(template_n2, "Modèle institutionnel")
+        self.assertContains(template_n2, reverse(
+            "presentations:space-library", kwargs={"slug": self.space.slug}
+        ))
+        for query in ("?detail=resources&kind=forged", "?detail=resources&offset=-3"):
+            self.assertEqual(self.client.get(url + query).status_code, 404)
+        self.client.force_login(self.member)
+        self.assertEqual(self.client.get(url + "?detail=resources").status_code, 404)
