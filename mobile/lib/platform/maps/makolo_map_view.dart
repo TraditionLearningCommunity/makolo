@@ -71,6 +71,9 @@ class MakoloMapView extends StatelessWidget {
               if (!target.latitude.isFinite ||
                   !target.longitude.isFinite ||
                   !camera.zoom.isFinite ||
+                  !camera.bearing.isFinite ||
+                  !camera.tilt.isFinite ||
+                  camera.zoom < 0 ||
                   target.latitude < -90 ||
                   target.latitude > 90 ||
                   target.longitude < -180 ||
