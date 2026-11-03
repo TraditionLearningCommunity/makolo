@@ -35,3 +35,21 @@ urlpatterns += [
     path("spaces/<slug:slug>/addons/<uuid:item_id>/remove/", SpaceSubscriptionAddonRemoveAPIView.as_view(), name="space-addon-remove"),
     path("spaces/<slug:slug>/transitions/<uuid:transition_id>/<str:operation>/", SpaceSubscriptionTransitionAPIView.as_view(), name="space-transition"),
 ]
+
+from .coverage_native_api import (
+    AllocationBeneficiaryAPIView, CoverageAllocationCreateAPIView,
+    CoverageCollectionAPIView, CoverageStateAPIView, UsePersonalBaseAPIView,
+)
+
+urlpatterns += [
+    path("me/coverages/", CoverageCollectionAPIView.as_view(), name="personal-coverages"),
+    path("me/coverages/<uuid:coverage_id>/allocations/", CoverageAllocationCreateAPIView.as_view(), name="personal-coverage-allocate"),
+    path("me/coverages/<uuid:coverage_id>/state/", CoverageStateAPIView.as_view(), name="personal-coverage-state"),
+    path("me/allocations/<uuid:allocation_id>/<str:operation>/", AllocationBeneficiaryAPIView.as_view(), name="personal-benefit-decision"),
+    path("me/base/personal/", UsePersonalBaseAPIView.as_view(), name="personal-base"),
+    path("spaces/<slug:slug>/coverages/", CoverageCollectionAPIView.as_view(), name="space-coverages"),
+    path("spaces/<slug:slug>/coverages/<uuid:coverage_id>/allocations/", CoverageAllocationCreateAPIView.as_view(), name="space-coverage-allocate"),
+    path("spaces/<slug:slug>/coverages/<uuid:coverage_id>/state/", CoverageStateAPIView.as_view(), name="space-coverage-state"),
+    path("spaces/<slug:slug>/allocations/<uuid:allocation_id>/<str:operation>/", AllocationBeneficiaryAPIView.as_view(), name="space-benefit-decision"),
+    path("spaces/<slug:slug>/base/personal/", UsePersonalBaseAPIView.as_view(), name="space-own-base"),
+]
