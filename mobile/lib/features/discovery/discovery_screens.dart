@@ -532,13 +532,13 @@ class DiscoverySearchScreen extends StatefulWidget {
 
 String _providerFailureMessage(String reason) => switch (reason) {
   'connection_unavailable' =>
-    'Aucune connexion Intelligence utilisable pour cette recherche.',
+    'Aucun service externe disponible pour cette recherche.',
   'invalid_credentials' =>
-    'La clé du fournisseur a été refusée. Vérifiez-la dans Connexions.',
+    'Connexion refusée par le service. Vérifiez-la dans Connexions.',
   'rate_limited' =>
-    'La limite du fournisseur est atteinte. Réessayez plus tard.',
+    'Limite de recherche atteinte. Réessayez plus tard.',
   'network_unavailable' =>
-    'Le fournisseur est momentanément injoignable. Réessayez plus tard.',
+    'Service de recherche indisponible. Réessayez plus tard.',
   _ => 'Ce service n’est pas disponible actuellement.',
 };
 
@@ -754,7 +754,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (location == null) {
       setState(
         () => _locationMessage =
-            'Position indisponible. La recherche par mots-clés reste possible.',
+            'Impossible d’obtenir votre position.',
       );
       return;
     }
@@ -763,7 +763,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     if (!result.available || result.fix == null) {
       setState(
         () => _locationMessage =
-            'Position indisponible. La recherche par mots-clés reste possible.',
+            'Impossible d’obtenir votre position.',
       );
       return;
     }
@@ -853,13 +853,13 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Pistes externes non vérifiées comme possibilités Makolo. '
-                  'Consultez la source avant toute démarche.',
+                  'Sources externes non vérifiées par Makolo. '
+                  'Consultez-les avant toute démarche.',
                 ),
                 if (result.leads.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Text('Aucune piste externe suffisamment sourcée.'),
+                    child: Text('Aucune source à afficher.'),
                   ),
                 for (final lead in result.leads)
                   Card(
@@ -889,8 +889,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Recherche de sources impossible. '
-              'Votre exploration Makolo est conservée.',
+              'Impossible de rechercher des sources.',
             ),
           ),
         );
@@ -923,16 +922,14 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Critères clarifiés. Vérifiez la recherche proposée.',
+              'Recherche affinée. Vérifiez les critères.',
             ),
           ),
         );
       } else {
         final message = result.status == 'unavailable'
-            ? '${_providerFailureMessage(result.reason)} '
-                  'Vous pouvez poursuivre la recherche normale.'
-            : 'Aucun critère nouveau confirmé. '
-                  'Votre recherche reste disponible.';
+            ? _providerFailureMessage(result.reason)
+            : 'Aucun nouveau critère trouvé.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -951,8 +948,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Clarification indisponible. '
-              'Votre recherche actuelle est conservée.',
+              'Impossible d’affiner la recherche.',
             ),
           ),
         );
@@ -1801,7 +1797,7 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Le changement n’a pas été confirmé. L’état serveur a été relu.',
+              'Modification non confirmée. Actualisez avant de réessayer.',
             ),
           ),
         );
@@ -2232,8 +2228,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                               child: MakoloAttentionBlock(
                                 title: 'Jour J disponible',
                                 body:
-                                    'Les informations utiles pour le moment venu '
-                                    'sont disponibles.',
+                                    'Consultez les informations pratiques pour le Jour J.',
                                 icon: Icons.directions_walk_rounded,
                                 action: widget.onOpenDayOf == null
                                     ? null

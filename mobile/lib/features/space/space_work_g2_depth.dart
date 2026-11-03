@@ -36,8 +36,8 @@ class SpaceWorkG2Depth extends StatelessWidget {
               ? 'Sessions de ce programme'
               : 'Réalisations liées',
           empty: isEducation
-              ? 'Aucune session liée pour le moment.'
-              : 'Aucune réalisation liée pour le moment.',
+              ? 'Aucune session programmée.'
+              : 'Aucune réalisation programmée.',
           data: occurrences,
           onPageChange: onOccurrencesPageChange,
           isOccurrence: true,
@@ -46,11 +46,11 @@ class SpaceWorkG2Depth extends StatelessWidget {
         _collection(
           context,
           title: isEducation
-              ? 'Inscriptions visibles'
+              ? 'Inscriptions'
               : 'Dossiers de cette prestation',
           empty: isEducation
-              ? 'Aucune inscription visible dans votre périmètre.'
-              : 'Aucun dossier visible dans votre périmètre.',
+              ? 'Aucune inscription accessible.'
+              : 'Aucun dossier accessible.',
           data: work,
           onPageChange: onWorkPageChange,
           isOccurrence: false,
@@ -77,7 +77,7 @@ class SpaceWorkG2Depth extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (items.isEmpty)
-          Text(offset == 0 ? empty : 'Aucun autre élément sur cette page.'),
+          Text(offset == 0 ? empty : 'Fin des résultats.'),
         for (final raw in items)
           if (spaceMap(raw) case final Map<String, dynamic> item)
             _row(context, item, isOccurrence),

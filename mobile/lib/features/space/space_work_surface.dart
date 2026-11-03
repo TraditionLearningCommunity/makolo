@@ -24,7 +24,7 @@ class SpaceWorkSurface extends StatelessWidget {
     final presentation = _map(payload['presentation']);
     final emptyMessage =
         _string(presentation?['empty_message']) ??
-        'Aucune activité visible pour le moment.';
+        'Aucune activité à afficher.';
     final sections = _map(payload['sections']);
     final archetype = _string(payload['archetype']);
     final spaceSlug = _string(_map(payload['space'])?['slug']);
