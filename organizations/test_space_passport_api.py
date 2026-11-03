@@ -143,6 +143,34 @@ class SpacePassportNativeContractTests(G6PassportFixtureMixin, TestCase):
         self.assertNotIn(self.space.contact_email, str(snapshot.payload))
         self.assertNotIn(self.space.contact_phone, str(snapshot.payload))
 
+    def test_direct_share_delivers_to_recipient_without_switching_identity(self):
+        from accounts.models import UserProfile
+        recipient = UserProfile.objects.get(user=self.outsider)
+        recipient.searchable = True
+        recipient.save(update_fields=["searchable", "updated_at"])
+        issued = self.client.post(self.base + "issue/?variant=public")
+        self.assertEqual(issued.status_code, 200)
+        snapshot_id = issued.json()["data"]["id"]
+        delivered = self.client.post(
+            self.base + "history/" + snapshot_id + "/deliver/",
+            {"recipient_id": str(recipient.pk)},
+        )
+        self.assertEqual(delivered.status_code, 200)
+        delivery_id = delivered.json()["data"]["delivery_id"]
+        self.client.force_login(self.outsider)
+        from sharing.models import ShareDelivery
+        self.assertTrue(
+            ShareDelivery.objects.filter(
+                pk=delivery_id, recipient=recipient,
+            ).exists()
+        )
+        reader = self.client.get(reverse(
+            "sharing_api:passport-direct-reader",
+            kwargs={"delivery_id": delivery_id},
+        ))
+        self.assertEqual(reader.status_code, 200)
+        self.assertTrue(reader.json()["data"]["can_view_content"])
+
     def test_complete_issued_version_is_not_shareable_by_link(self):
         issued = self.client.post(self.base + "issue/?variant=complete")
         self.assertEqual(issued.status_code, 200)
