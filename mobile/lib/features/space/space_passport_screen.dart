@@ -122,15 +122,18 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     }
   }
 
-  List<Map<String, dynamic>> visibleActivities(Map<String, dynamic> full) {
+  List<Map<String, dynamic>> visibleActivities(
+    Map<String, dynamic> full, {bool showExcluded = false},
+  ) {
     final list = rows(full['activities']);
     if (variant == 'complete') return list;
     final ids = (map(map(full['composition'])['public_ids'])['activities'] as List?)
         ?.map((id) => id.toString()).toSet() ?? <String>{};
     return list.where((row) {
       final id = row['id']?.toString() ?? '';
-      if (!ids.contains(id) || excludedActivities.contains(id) &&
-          variant == 'custom') return false;
+      if (!ids.contains(id) ||
+          (!showExcluded && excludedActivities.contains(id) &&
+              variant == 'custom')) return false;
       if (variant == 'thematic') {
         if (topic == null) return false;
         final codes = row['topic_codes'];
@@ -461,7 +464,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     final current = full == null ? <String, dynamic>{} : presented(full);
     final identity = map(current['identity']);
     final interests = variant == 'custom' && full != null
-        ? visibleActivities({...full, 'variant': 'public'})
+        ? visibleActivities(full, showExcluded: true)
         : rows(current['activities']);
     final topics = rows(full?['topic_options']);
     final trust = rows(map(current['established'])['trust_verifications']);
