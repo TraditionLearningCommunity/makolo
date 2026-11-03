@@ -662,6 +662,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(home: SpaceCreateScreen(runtime: runtime)),
       );
+      expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value, isTrue);
       await tester.enterText(find.byType(TextFormField), 'Espace Associatif');
       await tester.tap(find.text('Créer cet Espace'));
       await tester.pumpAndSettle();
