@@ -217,6 +217,8 @@ class MakoloPrimaryHeader extends StatelessWidget
                 child: avatarVisual ?? ProfileAvatarImage(
                   profileId: avatarProfileId,
                   url: avatarUrl,
+                  api: avatarApi,
+                  revision: avatarRevision,
                   size: 36,
                   fallback: _avatarFallback(context),
                 ),
