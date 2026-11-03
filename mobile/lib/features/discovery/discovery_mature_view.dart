@@ -363,7 +363,7 @@ class _DiscoveryCoLocatedPickerState extends State<DiscoveryCoLocatedPicker> {
                   ),
                   if (commonPlace)
                     Text(
-                      place,
+                      place!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium,
@@ -496,7 +496,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
                         : 'Enregistrer',
                     onPressed: saving ? null : onSave,
                     icon: Icon(
-                      resolved.savedState == 'saved'
+                      resolved!.savedState == 'saved'
                           ? Icons.bookmark_rounded
                           : Icons.bookmark_outline_rounded,
                     ),
