@@ -154,6 +154,9 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         );
       }
       return DiscoveryItemDetailScreen(
+        key: ValueKey(
+          'discover-n2-${state.pathParameters['family']}-${state.pathParameters['id']}',
+        ),
         family: state.pathParameters['family']!,
         id: state.pathParameters['id']!,
         repository: discovery,
