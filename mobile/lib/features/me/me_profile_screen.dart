@@ -614,9 +614,14 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
 
   Future<void> _save() async {
     if (_saving || _loading) return;
-    if (_countryHasUnselectedInput ||
-        (_country.text.trim().isNotEmpty && _selectedCountry == null)) {
-      setState(() => _error = 'Choisissez un pays dans les suggestions.');
+    final localErrors = _validateBeforeSave();
+    if (localErrors.isNotEmpty) {
+      setState(() {
+        _fieldErrors = localErrors;
+        _checkedFields.addAll(localErrors.keys);
+        _error = 'Corrigez les champs indiqués.';
+        _confirmation = null;
+      });
       return;
     }
     final submittedRevision = _editRevision;
@@ -1133,40 +1138,58 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     String label,
     TextEditingController controller, {
     int lines = 1,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: TextField(
-      controller: controller,
-      onChanged: (_) => _rememberEdits(),
-      maxLines: lines,
-      textCapitalization: TextCapitalization.sentences,
-      decoration: InputDecoration(
-        labelText: label,
-        errorText: _fieldErrors[<String, String>{
-          'Prénom': 'first_name',
-          'Nom': 'last_name',
-          'À propos': 'bio',
-          'Profession': 'profession',
-          'Ville': 'city',
-          'Adresse': 'address',
-          'Téléphone': 'phone',
-          'Site web': 'website',
-          'Entreprise': 'company_name',
-          'Organisation': 'organization_name',
-          'LinkedIn': 'linkedin_url',
-          'Facebook': 'facebook_url',
-          'Instagram': 'instagram_url',
-          'TikTok': 'tiktok_url',
-          'X': 'x_url',
-          'YouTube': 'youtube_url',
-        }[label]],
-        border: const OutlineInputBorder(),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 15,
+  }) {
+    final key = _fieldKeys[label]!;
+    final link = PassportEditorFieldRules.isLink(key);
+    final phone = key == 'phone';
+    final name = key == 'first_name' || key == 'last_name';
+    final multiLine = lines > 1 || key == 'address';
+    final checked = _checkedFields.contains(key);
+    final error = _fieldErrors[key];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Focus(
+        onFocusChange: (focused) {
+          if (!focused) _normalizeOnBlur(key, controller);
+        },
+        child: TextField(
+          controller: controller,
+          onChanged: (_) => _onTextChanged(key, controller),
+          maxLines: multiLine ? (lines > 1 ? lines : 2) : 1,
+          maxLength: PassportEditorFieldRules.maxLengths[key],
+          keyboardType: phone
+              ? TextInputType.phone
+              : link
+                  ? TextInputType.url
+                  : name
+                      ? TextInputType.name
+                      : multiLine
+                          ? TextInputType.multiline
+                          : TextInputType.text,
+          textCapitalization: phone || link
+              ? TextCapitalization.none
+              : name || key == 'city'
+                  ? TextCapitalization.words
+                  : TextCapitalization.sentences,
+          autocorrect: !phone && !link,
+          enableSuggestions: !phone && !link,
+          decoration: InputDecoration(
+            labelText: label,
+            errorText: error,
+            counterText: '',
+            suffixIcon: checked && error == null &&
+                    controller.text.trim().isNotEmpty
+                ? const Icon(Icons.check_circle_outline, color: Colors.green)
+                : null,
+            border: const OutlineInputBorder(),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 15,
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
