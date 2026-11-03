@@ -30,7 +30,7 @@ class MePassportScreen extends StatefulWidget {
   });
   final MakoloApiClient api;
   final PersonalRepository? personal;
-  final VoidCallback? onEdit;
+  final Future<void> Function()? onEdit;
   @override
   State<MePassportScreen> createState() => _MePassportScreenState();
 }
@@ -1287,6 +1287,21 @@ class _MePassportScreenState extends State<MePassportScreen> {
     }
   }
 
+  Future<void> _editAndRefresh() async {
+    final openEditor = widget.onEdit;
+    if (openEditor == null) return;
+    await openEditor();
+    if (!mounted) return;
+    ++_loadEpoch;
+    setState(() {
+      _full = null;
+      _cachedPassport = null;
+      _cachedVariantKey = null;
+      _onlineReady = false;
+      _future = _load(preferLocal: false);
+    });
+  }
+
   Future<void> _configureVisibility() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -1549,7 +1564,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: OutlinedButton.icon(
-                  onPressed: widget.onEdit,
+                  onPressed: _editAndRefresh,
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Modifier le Passeport'),
                 ),
