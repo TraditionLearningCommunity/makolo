@@ -361,6 +361,10 @@ def build_profile_passport(
     selected_proof_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    excluded_activity_ids=(),
+    excluded_proof_ids=(),
+    excluded_credential_ids=(),
+    excluded_sections=(),
     viewer=None,
 ):
     if variant not in PASSPORT_VARIANTS:
@@ -407,11 +411,36 @@ def build_profile_passport(
             credentials_qs = credentials_qs.none()
 
     if custom:
-        explicit_choice = bool(
-            selected_sections or selected_activity_ids
-            or selected_proof_ids or selected_credential_ids
+        public_sections = {
+            "identity", "avatar", "bio", "profession", "company_name",
+            "organization_name", "location", "links", "interests",
+            "open_to", "activity_involvements",
+        }
+        using_exclusions = bool(
+            excluded_activity_ids or excluded_proof_ids
+            or excluded_credential_ids or excluded_sections
         )
-        if explicit_choice:
+        if using_exclusions:
+            excluded = set(excluded_sections or ())
+            if not excluded.issubset(public_sections - {"identity"}):
+                raise PassportSelectionError("Rubrique de Passeport inconnue.")
+            for queryset, ids, label in (
+                (activities_qs, excluded_activity_ids, "Activities"),
+                (proofs_qs, excluded_proof_ids, "Proofs"),
+                (credentials_qs, excluded_credential_ids, "Credentials"),
+            ):
+                if ids:
+                    _validate_selection(queryset, ids, label=label)
+            activities_qs = activities_qs.exclude(
+                pk__in=excluded_activity_ids or (),
+            )
+            proofs_qs = proofs_qs.exclude(pk__in=excluded_proof_ids or ())
+            credentials_qs = credentials_qs.exclude(
+                pk__in=excluded_credential_ids or (),
+            )
+            sections = public_sections - excluded
+        elif selected_sections or selected_activity_ids or selected_proof_ids or selected_credential_ids:
+            # Compatibility with older Web clients sending inclusion lists.
             activities_qs = _validate_selection(
                 activities_qs, selected_activity_ids or (), label="Activities",
             )
@@ -422,19 +451,12 @@ def build_profile_passport(
                 credentials_qs, selected_credential_ids or (), label="Credentials",
             )
             sections = set(selected_sections or ())
-            if "interests" not in sections:
-                interests_qs = interests_qs.none()
-            if "open_to" not in sections:
-                open_to_qs = open_to_qs.none()
         else:
-            # A new personalized Passport starts from all admissible public
-            # facts. The explicit "identity" sentinel disambiguates an owner
-            # intentionally excluding every optional section.
-            sections = {
-                "identity", "avatar", "bio", "profession", "company_name",
-                "organization_name", "location", "links", "interests",
-                "open_to", "activity_involvements",
-            }
+            sections = public_sections
+        if "interests" not in sections:
+            interests_qs = interests_qs.none()
+        if "open_to" not in sections:
+            open_to_qs = open_to_qs.none()
     else:
         sections = {"identity", "bio", "links", "interests", "open_to"}
 
