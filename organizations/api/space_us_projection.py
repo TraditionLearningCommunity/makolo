@@ -162,6 +162,7 @@ def build_space_us_projection(*, profile, space):
 
     handoffs = {
         "responsibilities": f"/space/{space.slug}/us/responsibilities",
+        "authority": f"/space/{space.slug}/us/authority",
     }
     if relation_sections:
         handoffs["relationships"] = f"/space/{space.slug}/us/relationships"

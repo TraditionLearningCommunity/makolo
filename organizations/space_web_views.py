@@ -26,6 +26,7 @@ from .api.space_attention_projection import (
 from .api.space_pilot_projection import build_space_pilot_projection
 from .api.space_relationships_projection import build_space_relationships_projection
 from .api.space_us_projection import build_space_us_projection
+from .api.space_us_authority import build_space_us_authority
 from .api.workspace_projection import build_space_workspace, workspace_spaces
 
 
@@ -209,8 +210,27 @@ class SpaceUsView(SpaceWebMixin):
     space_nav_key = "us"
     space_page_title = "Nous"
 
+    def get_template_names(self):
+        if self.request.GET.get("detail") == "authority":
+            return ["organizations/space/us_authority.html"]
+        return [self.template_name]
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.request.GET.get("detail") == "authority":
+            authority = build_space_us_authority(
+                profile=self.request.user, space=self.space
+            )
+            if authority is None:
+                raise Http404
+            requested_key = (self.request.GET.get("mandate") or "").strip()
+            mandates = authority["mandates"]
+            if requested_key:
+                mandates = [row for row in mandates if row["key"] == requested_key]
+                if not mandates:
+                    raise Http404
+            context["authority_mandates"] = mandates
+            return context
         try:
             projection = build_space_us_projection(
                 profile=self.request.user,
@@ -226,6 +246,7 @@ class SpaceUsView(SpaceWebMixin):
             context["us_owner_links"] = {}
             return context
         owner_links = {
+            "authority": f'{self._space_url("organizations:space-us")}?detail=authority',
             "relationships": context["space_relationships_url"]
             if projection.get("handoffs", {}).get("relationships")
             else None,

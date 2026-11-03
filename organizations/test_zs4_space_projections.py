@@ -98,6 +98,73 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertNotIn("permissions", response.data)
         self.assertNotIn("subscription_id", response.data)
 
+    def test_n3_authority_is_current_private_and_root_remains_minimal(self):
+        url = f"/api/v1/organizations/workspaces/{self.space.slug}/us/authority/"
+        self.client.force_authenticate(self.owner)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertEqual(response.data["space_id"], str(self.space.pk))
+        rows = response.data["mandates"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["key"], f"mandate:{self.owner_mandate.pk}")
+        self.assertEqual(rows[0]["role"]["code"], SystemRoleCode.SPACE_OWNER)
+        self.assertEqual(rows[0]["scope"]["kind"], "space")
+        self.assertEqual(rows[0]["scope"]["target"], self.space.name)
+        self.assertTrue(rows[0]["permissions"])
+        self.assertTrue(all(item["label"] for item in rows[0]["permissions"]))
+        self.assertNotIn("team", response.data)
+        self.assertNotIn("profile", response.data)
+
+        root = self.client.get(f"/api/v1/organizations/workspaces/{self.space.slug}/us/")
+        self.assertNotIn("mandates", root.data)
+        self.assertNotIn("permissions", root.data)
+        self.assertEqual(
+            root.data["handoffs"]["authority"],
+            f"/space/{self.space.slug}/us/authority",
+        )
+
+    def test_n3_authority_rejects_membership_only_platform_and_outsider(self):
+        url = f"/api/v1/organizations/workspaces/{self.space.slug}/us/authority/"
+        self.assertIn(self.client.get(url).status_code, {401, 403})
+        self.client.force_authenticate(self.member)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        grant_platform_role(
+            profile=self.outsider,
+            role=SystemRoleCode.PLATFORM_ADMIN,
+            granted_by=self.owner,
+        )
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_n3_authority_activity_limited_scope_and_revocation(self):
+        activity = Activity.objects.create(
+            title="Départ local",
+            slug="n3-authority-local",
+            created_by=self.owner,
+            space=self.space,
+        )
+        scoped = User.objects.create_user(
+            username="zs4-authority-local", email="zs4-authority@test.local", password="x"
+        )
+        mandate = grant_activity_role(
+            profile=scoped,
+            activity=activity,
+            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER,
+            granted_by=self.owner,
+        )
+        url = f"/api/v1/organizations/workspaces/{self.space.slug}/us/authority/"
+        self.client.force_authenticate(scoped)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(len(response.data["mandates"]), 1)
+        self.assertEqual(response.data["mandates"][0]["scope"]["kind"], "activity")
+        self.assertEqual(response.data["mandates"][0]["scope"]["target"], activity.title)
+        self.assertNotIn("contact_email", str(response.data))
+        revoke_mandate(mandate=mandate, actor=self.owner)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
     def test_space_mandate_without_team_management_cannot_read_team_size(self):
         viewer = User.objects.create_user(
             username="zs4-marketing", email="zs4-marketing@test.local", password="x"

@@ -67,6 +67,7 @@
           <li><p class="mk-ws4-empty">Aucune responsabilité à afficher.</p></li>
         {% endfor %}
       </ul>
+      {% if us_owner_links.authority %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.authority }}">Voir mes autorisations <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
 
     {% if projection.relationships.sections %}

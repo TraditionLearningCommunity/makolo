@@ -115,6 +115,39 @@ class WS4SpaceWebTests(TestCase):
         self.assertNotIn("health score", html)
         self.assertNotIn("performance score", html)
 
+    def test_n3_authority_web_revalidates_selection_without_disclosing_n1(self):
+        self.client.force_login(self.owner)
+        root = self.client.get(self.url("organizations:space-us"))
+        self.assertContains(root, "Voir mes autorisations")
+        self.assertNotContains(root, "Droits associés à ce rôle")
+        depth = self.client.get(self.url("organizations:space-us", detail="authority"))
+        self.assertEqual(depth.status_code, 200)
+        self.assertEqual(depth["Cache-Control"], "private, no-store")
+        self.assertContains(depth, "Mes autorisations")
+        self.assertContains(depth, "Droits associés à ce rôle")
+
+        mandate = next(
+            row for row in root.context["projection"]["responsibilities"]["items"]
+            if not row.get("combined")
+        )
+        self.assertEqual(
+            self.client.get(
+                self.url("organizations:space-us", detail="authority", mandate=mandate["key"])
+            ).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.get(
+                self.url("organizations:space-us", detail="authority", mandate="mandate:foreign")
+            ).status_code,
+            404,
+        )
+        self.client.force_login(self.member)
+        self.assertEqual(
+            self.client.get(self.url("organizations:space-us", detail="authority")).status_code,
+            404,
+        )
+
     def test_us_hides_restricted_team_aggregate_and_shows_lifecycle(self):
         viewer = User.objects.create_user(
             username="ws4-marketing", email="ws4-marketing@test.local", password="x"
