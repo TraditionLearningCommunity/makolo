@@ -3,7 +3,7 @@ from django import template
 from conversations.attention import attention_points_for_profile, conversation_attention_badge_count, has_conversation_attention
 from conversations.form_services import form_request_for_profile
 from conversations.point_models import ConversationPoint
-from conversations.presentation import conversation_context_label
+from conversations.presentation import conversation_context_label, conversations_for_context
 from core.web.request_context import get_request_context
 
 
@@ -81,3 +81,14 @@ def conversation_attention_preview(profile, limit=5):
 @register.simple_tag
 def conversation_point_form_request(point, profile):
     return form_request_for_profile(point, profile)
+
+
+@register.simple_tag
+def conversation_context_entry(profile, kind, context_pk):
+    """Whether an existing, visible Conversation can be entered from context."""
+    if not getattr(profile, "is_authenticated", False) or not context_pk:
+        return False
+    try:
+        return bool(conversations_for_context(profile, kind, str(context_pk)))
+    except (ValueError, TypeError):
+        return False
