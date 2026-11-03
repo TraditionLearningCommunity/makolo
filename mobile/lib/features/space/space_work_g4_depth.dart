@@ -20,6 +20,8 @@ class SpaceWorkG4Depth extends StatelessWidget {
     required this.onPageChange,
     this.nextOccurrence,
     this.mediaBaseUri,
+    this.workSection,
+    this.fromWorkCollection = false,
   });
 
   final String slug;
@@ -32,6 +34,8 @@ class SpaceWorkG4Depth extends StatelessWidget {
   final List<dynamic> mediaBindings;
   final Map<String, dynamic>? nextOccurrence;
   final Uri? mediaBaseUri;
+  final String? workSection;
+  final bool fromWorkCollection;
   final ValueChanged<int> onPageChange;
 
   bool get _creative => archetype == 'creative';
@@ -125,7 +129,12 @@ class SpaceWorkG4Depth extends StatelessWidget {
             const Text('Fin des résultats.'),
           for (final raw in rows)
             if (spaceMap(raw) case final Map<String, dynamic> row)
-              _G4OccurrenceRow(slug: slug, row: row),
+              _G4OccurrenceRow(
+                slug: slug,
+                row: row,
+                workSection: workSection,
+                fromWorkCollection: fromWorkCollection,
+              ),
           if (offset > 0 || hasMore)
             Padding(
               padding: const EdgeInsets.only(top: 12),
@@ -153,20 +162,29 @@ class SpaceWorkG4Depth extends StatelessWidget {
 }
 
 class _G4OccurrenceRow extends StatelessWidget {
-  const _G4OccurrenceRow({required this.slug, required this.row});
+  const _G4OccurrenceRow({
+    required this.slug,
+    required this.row,
+    this.workSection,
+    this.fromWorkCollection = false,
+  });
 
   final String slug;
   final Map<String, dynamic> row;
+  final String? workSection;
+  final bool fromWorkCollection;
 
   @override
   Widget build(BuildContext context) {
     final source = spaceMap(row['source']);
     final timing = spaceMap(row['timing']);
     final route = row['openable'] == true
-        ? spaceOwnerRoute(
+        ? spaceWorkOwnerRoute(
             slug: slug,
             kind: spaceText(source?['kind']),
             id: spaceText(source?['id']),
+            section: workSection,
+            fromCollection: fromWorkCollection,
           )
         : null;
     return ListTile(

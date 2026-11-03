@@ -12,12 +12,16 @@ class SpaceWorkG1Realizations extends StatelessWidget {
     required this.slug,
     required this.onPageChange,
     this.isCommunity = false,
+    this.workSection,
+    this.fromWorkCollection = false,
   });
 
   final Map<String, dynamic> payload;
   final String slug;
   final ValueChanged<int> onPageChange;
   final bool isCommunity;
+  final String? workSection;
+  final bool fromWorkCollection;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +50,12 @@ class SpaceWorkG1Realizations extends StatelessWidget {
             ),
           for (final raw in rows)
             if (spaceMap(raw) case final Map<String, dynamic> row)
-              _RealizationRow(row: row, slug: slug),
+              _RealizationRow(
+                row: row,
+                slug: slug,
+                workSection: workSection,
+                fromWorkCollection: fromWorkCollection,
+              ),
           if (offset > 0 || hasMore)
             Padding(
               padding: const EdgeInsets.only(top: 12),
@@ -75,10 +84,17 @@ class SpaceWorkG1Realizations extends StatelessWidget {
 }
 
 class _RealizationRow extends StatelessWidget {
-  const _RealizationRow({required this.row, required this.slug});
+  const _RealizationRow({
+    required this.row,
+    required this.slug,
+    this.workSection,
+    this.fromWorkCollection = false,
+  });
 
   final Map<String, dynamic> row;
   final String slug;
+  final String? workSection;
+  final bool fromWorkCollection;
 
   @override
   Widget build(BuildContext context) {
@@ -89,10 +105,12 @@ class _RealizationRow extends StatelessWidget {
     final date = spaceText(timing?['start_date']);
     final clock = spaceText(timing?['start_time']);
     final route = row['openable'] == true
-        ? spaceOwnerRoute(
+        ? spaceWorkOwnerRoute(
             slug: slug,
             kind: spaceText(source?['kind']),
             id: spaceText(source?['id']),
+            section: workSection,
+            fromCollection: fromWorkCollection,
           )
         : null;
     return ListTile(

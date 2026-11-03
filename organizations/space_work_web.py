@@ -8,7 +8,10 @@ from authorization.constants import PermissionCode
 from authorization.selectors import has_direct_space_permission
 from organizations.models import SpaceArchetype
 
-from .api.space_work_projection import build_space_work_projection
+from .api.space_work_projection import PREVIEW_LIMIT, build_space_work_projection
+from .space_work_navigation import (
+    WORK_SECTIONS, work_back_url, work_page_number,
+)
 from .space_web_views import SpaceWebMixin
 
 
@@ -153,7 +156,7 @@ def _activity_owner_url(space, item, *, profile=None, responsibility="all", sect
     )
 
 
-def _compose_sections(space, projection, *, profile=None):
+def _compose_sections(space, projection, *, profile=None, origin_page=None):
     sections = projection.get("sections") or {}
     section_order = (
         (projection.get("presentation") or {}).get("section_order")
@@ -169,7 +172,7 @@ def _compose_sections(space, projection, *, profile=None):
     for key in section_order:
         section = sections.get(key) or {}
         raw_items = section.get("items") or ()
-        if not raw_items:
+        if not raw_items and not section.get("has_more"):
             continue
         label = section.get("representation") or key.replace("_", " ").title()
         items = []
@@ -180,6 +183,29 @@ def _compose_sections(space, projection, *, profile=None):
                 responsibility=projection.get("responsibility", "all"),
                 section_key=key,
             )
+            if (
+                origin_page is not None
+                and item["owner_url"]
+                and "/work/" in item["owner_url"]
+            ):
+                item["owner_url"] += (
+                    ("&" if "?" in item["owner_url"] else "?")
+                    + urlencode({"work_origin_page": origin_page})
+                )
+            # Owner-supplied Web handoffs only. API/space_work handoffs do
+            # not become browser mutations or unverified destinations.
+            item["web_handoffs"] = [
+                {"label": handoff["label"], "url": handoff["url"]}
+                for handoff in item.get("owner_handoffs", ())
+                if (
+                    handoff.get("intent") == "open_service_case"
+                    and handoff.get("channel") == "web"
+                    and handoff.get("owner") == item.get("source")
+                    and handoff.get("url") == (item.get("links") or {}).get("detail")
+                    and "open_service_case" in item.get("capabilities", ())
+                    and handoff.get("label")
+                )
+            ]
             item["owner_label"] = (
                 "Voir l’offre"
                 if item["owner_url"] and space.archetype == SpaceArchetype.COMMERCE
@@ -263,6 +289,15 @@ def _compose_sections(space, projection, *, profile=None):
                 "items": items,
                 "has_more": bool(section.get("has_more")),
                 "links": section.get("links") or {},
+                "continuation_url": (
+                    reverse(
+                        "organizations:space-work-collection",
+                        kwargs={"slug": space.slug, "section": key},
+                    ) + "?" + urlencode({
+                        "responsibility": projection.get("responsibility", "all"),
+                        "page": (origin_page + 1) if origin_page is not None else 2,
+                    })
+                ) if section.get("has_more") else None,
             }
         )
     return tuple(composed)
@@ -299,7 +334,16 @@ class SpaceWorkView(SpaceWebMixin):
             {
                 "projection": projection,
                 "work_sections": sections,
-                "work_has_items": any(section["items"] for section in sections),
+                "work_has_items": any(
+                    section["items"] or section["has_more"] for section in sections
+                ),
+                "work_is_collection": False,
+                "work_search_url": self._space_nav_url(
+                    "organizations:space-search"
+                ),
+                "work_history_url": self._space_nav_url(
+                    "organizations:space-history"
+                ),
                 "work_g3_transport_url": reverse(
                     "organizations:console-transport",
                     kwargs={"slug": self.space.slug},
@@ -351,4 +395,76 @@ class SpaceWorkView(SpaceWebMixin):
                 ) else None,
             }
         )
+        return context
+
+
+class SpaceWorkCollectionView(SpaceWebMixin):
+    """MT7: one explicit bounded Work collection, same owner projections.
+
+    No infinite scroll or client-side reconstruction of hidden items. The
+    authorization is recomputed on every page, including direct deep links.
+    """
+
+    template_name = "organizations/space/work.html"
+    space_nav_key = "work"
+    space_page_title = "Métier"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        section_key = self.kwargs["section"]
+        if section_key not in WORK_SECTIONS:
+            raise Http404
+        page = work_page_number(self.request.GET.get("page"), required=True)
+        responsibility = self.selected_responsibility["key"]
+        projection = build_space_work_projection(
+            profile=self.request.user,
+            space=self.space,
+            responsibility_key=responsibility,
+            section_key=section_key,
+            offset=(page - 1) * PREVIEW_LIMIT,
+        )
+        if projection is None:
+            raise Http404
+        sections = _compose_sections(
+            self.space, projection, profile=self.request.user, origin_page=page,
+        )
+        section = (projection.get("sections") or {}).get(section_key) or {}
+        section_label = section.get("representation") or "Métier"
+        base = reverse(
+            "organizations:space-work-collection",
+            kwargs={"slug": self.space.slug, "section": section_key},
+        )
+
+        def page_url(number):
+            return base + "?" + urlencode({
+                "responsibility": responsibility, "page": number,
+            })
+
+        context.update({
+            "projection": projection,
+            "work_sections": sections,
+            "work_has_items": any(
+                s["items"] or s["has_more"] for s in sections
+            ),
+            "work_is_collection": True,
+            "work_search_url": self._space_nav_url(
+                "organizations:space-search"
+            ),
+            "work_history_url": self._space_nav_url(
+                "organizations:space-history"
+            ),
+            "work_collection_title": section_label,
+            "work_collection_page": page,
+            "work_collection_empty": (
+                "Aucun autre élément dans cette page."
+                if page > 1 else section.get("empty_message")
+            ),
+            "work_root_url": work_back_url(
+                space=self.space, responsibility=responsibility,
+                section=section_key,
+            ),
+            "work_previous_url": page_url(page - 1) if page > 1 else None,
+            "work_next_url": page_url(page + 1)
+            if section.get("has_more") and page < 834 else None,
+        })
         return context

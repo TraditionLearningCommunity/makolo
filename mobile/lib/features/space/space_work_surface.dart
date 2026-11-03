@@ -50,26 +50,23 @@ class SpaceWorkSurface extends StatelessWidget {
       return _message('Impossible d’afficher ces informations.');
     }
 
-    final visible = <_WorkSection>[];
-    for (final entry in sections.entries) {
-      final section = _map(entry.value);
-      final items = section?['items'];
-      if (section == null || items is! List || items.isEmpty) continue;
-      visible.add(
-        _WorkSection(
-          key: entry.key,
-          label: _string(section['representation']) ?? entry.key,
-          items: items.whereType<Map>().map(_copyMap).toList(growable: false),
-          hasMore: section['has_more'] == true,
-        ),
-      );
-    }
+    // Server composition owns the reading order and eight métier chapters.
+    // Never rank/reorder by local timestamps, amounts or UI popularity.
+    final visible = _composeSections(sections, presentation);
 
     return ListView(
       key: const Key('space-work-projection'),
       padding: const EdgeInsets.all(MakoloSpacing.lg),
       children: [
-        Text(label, style: Theme.of(context).textTheme.headlineSmall),
+        Semantics(
+          header: true,
+          child: Text(label, style: Theme.of(context).textTheme.headlineSmall),
+        ),
+        if (_string(presentation?['question']) case final String question)
+          Padding(
+            padding: const EdgeInsets.only(top: MakoloSpacing.sm),
+            child: Text(question),
+          ),
         Wrap(
           spacing: MakoloSpacing.sm,
           runSpacing: MakoloSpacing.sm,
@@ -125,16 +122,45 @@ class SpaceWorkSurface extends StatelessWidget {
           ],
         ),
         const SizedBox(height: MakoloSpacing.md),
-        if (visible.isEmpty) Text(emptyMessage),
+        if (visible.isEmpty)
+          Text(
+            payload['coverage_state'] == 'partial' ||
+                    payload['composition_state'] == 'partial'
+                ? 'Cette sélection ne couvre pas tout le travail de cet Espace. '
+                      'Aucun élément connu ici.'
+                : emptyMessage,
+          ),
+        if (visible.isNotEmpty)
+          if (_string(presentation?['calm_message']) case final String calm)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.md),
+              child: Text(calm),
+            ),
         const SizedBox(height: MakoloSpacing.lg),
         for (final section in visible) ...[
-          Text(
-            section.label,
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700),
+          if (section.chapterTitle != null) ...[
+            Semantics(
+              header: true,
+              child: Text(
+                section.chapterTitle!,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            const SizedBox(height: MakoloSpacing.md),
+          ],
+          Semantics(
+            header: true,
+            child: Text(
+              section.label,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
           ),
           const SizedBox(height: MakoloSpacing.sm),
-          for (final item in section.items) _item(context, item),
+          if (section.items.isEmpty)
+            const Text('D’autres éléments sont disponibles dans cette section.'),
+          for (final item in section.items)
+            _item(context, item, section.key),
           if (section.hasMore) ...[
             const Text('Aperçu partiel : d’autres éléments existent.'),
             if (onLoadMore != null ||
@@ -159,7 +185,11 @@ class SpaceWorkSurface extends StatelessWidget {
     );
   }
 
-  Widget _item(BuildContext context, Map<String, dynamic> item) {
+  Widget _item(
+    BuildContext context,
+    Map<String, dynamic> item,
+    String sectionKey,
+  ) {
     final title = _string(item['title']) ?? 'Élément';
     final summary = _string(item['summary']);
     final source = _map(item['source']);
@@ -245,10 +275,12 @@ class SpaceWorkSurface extends StatelessWidget {
       );
     }
     final route = capabilities is List && capabilities.contains('view')
-        ? spaceOwnerRoute(
+        ? spaceWorkOwnerRoute(
             slug: _string(_map(payload['space'])?['slug']),
             kind: _string(source?['kind']),
             id: _string(source?['id']),
+            section: sectionKey,
+            fromCollection: onLoadMore != null,
           )
         : null;
 
@@ -269,7 +301,7 @@ class SpaceWorkSurface extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2, right: MakoloSpacing.md),
               child: mediaUri == null
                   ? Icon(
-                      _archetypeIcon(kind),
+                      _archetypeIcon(kind, _string(payload['archetype'])),
                       color: Theme.of(context).colorScheme.primary,
                       size: 22,
                     )
@@ -298,6 +330,16 @@ class SpaceWorkSurface extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),
+                  if (_string(itemContext?['work_label'])
+                      case final String workLabel)
+                    if (workLabel != title)
+                      Padding(
+                        padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                        child: Text(
+                          workLabel,
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ),
                   if (summary != null) ...[
                     const SizedBox(height: MakoloSpacing.xs),
                     Text(
@@ -317,6 +359,16 @@ class SpaceWorkSurface extends StatelessWidget {
                   ],
                   if (activityTitle != null && activityTitle != title)
                     Text(activityTitle),
+                  if (_map(itemContext?['next_occurrence'])
+                      case final Map<String, dynamic> nextDate)
+                    if (_string(nextDate['label']) case final String nextLabel)
+                      Padding(
+                        padding: const EdgeInsets.only(top: MakoloSpacing.xs),
+                        child: Text(
+                          '${_string(_map(payload['presentation'])?['next_occurrence_label']) ?? 'Prochaine date'} : $nextLabel'
+                          '${_string(nextDate['start_date']) == null ? '' : ' · ${nextDate['start_date']}'}',
+                        ),
+                      ),
                   if (canOpenDayOf)
                     TextButton.icon(
                       onPressed: () => context.push(
@@ -342,7 +394,19 @@ class SpaceWorkSurface extends StatelessWidget {
     );
   }
 
-  IconData _archetypeIcon(String? kind) {
+  IconData _archetypeIcon(String? kind, String? archetype) {
+    if (kind == 'activity') {
+      return switch (archetype) {
+        'creative' => Icons.palette_outlined,
+        'media' => Icons.newspaper_outlined,
+        'education' => Icons.school_outlined,
+        'community' => Icons.volunteer_activism_outlined,
+        'service_provider' => Icons.handshake_outlined,
+        'transport_operator' => Icons.directions_bus_outlined,
+        'commerce' => Icons.storefront_outlined,
+        _ => Icons.local_activity_outlined,
+      };
+    }
     return switch (kind) {
       'departure' || 'transport_route' => Icons.directions_bus_outlined,
       'occurrence' => Icons.schedule_outlined,
@@ -357,6 +421,64 @@ class SpaceWorkSurface extends StatelessWidget {
     padding: const EdgeInsets.all(MakoloSpacing.lg),
     children: [MakoloEmptyState(title: message)],
   );
+
+  List<_WorkSection> _composeSections(
+    Map<String, dynamic> sections,
+    Map<String, dynamic>? presentation,
+  ) {
+    final keys = <String>[];
+    final order = presentation?['section_order'];
+    if (order is List) {
+      for (final raw in order) {
+        final key = _string(raw);
+        if (key != null && sections.containsKey(key) && !keys.contains(key)) {
+          keys.add(key);
+        }
+      }
+    }
+    for (final key in sections.keys) {
+      if (!keys.contains(key)) keys.add(key);
+    }
+    final chapters = <String, String>{};
+    final groups = presentation?['reading_groups'];
+    if (groups is List) {
+      for (final raw in groups) {
+        final group = _map(raw);
+        final title = _string(group?['representation']);
+        final groupKeys = group?['section_keys'];
+        if (title == null || groupKeys is! List) continue;
+        for (final candidate in groupKeys) {
+          final key = _string(candidate);
+          if (key == null || chapters.containsKey(key)) continue;
+          final section = _map(sections[key]);
+          if (section == null) continue;
+          final rows = section['items'];
+          if ((rows is List && rows.isNotEmpty) || section['has_more'] == true) {
+            chapters[key] = title;
+            break;
+          }
+        }
+      }
+    }
+    final result = <_WorkSection>[];
+    for (final key in keys) {
+      final section = _map(sections[key]);
+      if (section == null) continue;
+      final items = section['items'];
+      if (items is! List) continue;
+      if (items.isEmpty && section['has_more'] != true) continue;
+      result.add(
+        _WorkSection(
+          key: key,
+          label: _string(section['representation']) ?? key,
+          chapterTitle: chapters[key],
+          items: items.whereType<Map>().map(_copyMap).toList(growable: false),
+          hasMore: section['has_more'] == true,
+        ),
+      );
+    }
+    return result;
+  }
 }
 
 class _WorkSection {
@@ -365,9 +487,12 @@ class _WorkSection {
     required this.label,
     required this.items,
     required this.hasMore,
+    this.chapterTitle,
   });
+
   final String label;
   final String key;
+  final String? chapterTitle;
   final List<Map<String, dynamic>> items;
   final bool hasMore;
 }

@@ -24,6 +24,7 @@ from .api.space_work_projection import (
     build_space_work_projection, g1_occurrence_is_selectable,
 )
 from .space_web_views import SpaceWebMixin
+from .space_work_navigation import restore_work_origin
 
 
 _G1_ARCHETYPES = {SpaceArchetype.GENERIC, SpaceArchetype.COMMUNITY}
@@ -277,4 +278,9 @@ class SpaceWorkG1DepthView(SpaceWebMixin):
                 "back_label": root_back_label,
             },
         })
+        restore_work_origin(
+            request=self.request, context=context, context_key="work_depth",
+            space=self.space, responsibility=responsibility,
+            section=origin_section,
+        )
         return context

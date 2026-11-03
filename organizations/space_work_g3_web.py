@@ -12,6 +12,7 @@ from organizations.models import SpaceArchetype
 
 from .api.space_work_projection import build_space_work_projection
 from .space_web_views import SpaceWebMixin
+from .space_work_navigation import restore_work_origin
 
 
 G3_KINDS = {
@@ -283,4 +284,9 @@ class SpaceWorkG3DepthView(SpaceWebMixin):
             "back_url": back_url,
             "back_label": back_label,
         }
+        restore_work_origin(
+            request=self.request, context=context, context_key="work_g3",
+            space=self.space, responsibility=responsibility,
+            section=origin_section,
+        )
         return context
