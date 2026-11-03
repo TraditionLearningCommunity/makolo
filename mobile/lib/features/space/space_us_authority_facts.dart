@@ -104,8 +104,9 @@ class _AuthorityCard extends StatelessWidget {
   }
 }
 
-Map<String, dynamic> _map(Map<dynamic, dynamic> raw) =>
-    raw.map((key, value) => MapEntry(key.toString(), value));
+Map<String, dynamic> _map(Object? raw) => raw is Map
+    ? raw.map((key, value) => MapEntry(key.toString(), value))
+    : <String, dynamic>{};
 
 String _label(Object? value, String fallback) =>
     value is String && value.trim().isNotEmpty ? value.trim() : fallback;
