@@ -258,7 +258,10 @@ class _MePassportScreenState extends State<MePassportScreen> {
           'organization_name', 'location', 'links', 'interests', 'open_to',
           'activity_involvements',
         ];
-        params['include'] = choices.where((key) => !_sections.contains(key)).toList();
+        params['include'] = [
+          'identity',
+          ...choices.where((key) => !_sections.contains(key)),
+        ];
         final public = _composePassport(_full!, variant: 'public');
         for (final family in ['activities', 'proofs', 'credentials']) {
           final rows = family == 'activities'
