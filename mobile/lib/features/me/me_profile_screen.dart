@@ -225,8 +225,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           if (editor != null) {
             _applyEditor(editor.payload);
           }
-          if (draft != null && editor != null) {
-            // Device-owned draft is not a confirmed Accounts fact.
+          if (draft != null) {
+            // Recover a pending local edit even when the previously confirmed
+            // editor cache was unavailable or evicted.
             _applyEditor(draft.payload);
             _edited = true;
           } else if (editor == null && local?.identity != null) {
@@ -498,6 +499,17 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       // An already-confirmed owner mutation remains confirmed.
     }
     if (submittedRevision == _editRevision) _edited = false;
+    // The Passport's one-shot local source is now stale. Invalidate it only
+    // after Accounts has confirmed the mutation; do not wipe offline facts
+    // on a failed save.
+    try {
+      await widget.personal.store.deleteProjection(
+        'personal.me.passport',
+        resourceKey: 'variant=complete',
+      );
+    } on Object {
+      // A later authenticated owner read still reconciles the cache.
+    }
     final refreshed = await _refreshPersonal();
     if (!mounted) return;
     setState(() {
