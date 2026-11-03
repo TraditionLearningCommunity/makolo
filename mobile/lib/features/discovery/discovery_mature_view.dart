@@ -499,7 +499,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
                     icon: Icon(
                       resolved!.savedState == 'saved'
                           ? Icons.bookmark_rounded
-                          : Icons.bookmark_outline_rounded,
+                          : Icons.bookmark_border_rounded,
                     ),
                   ),
                 if (canShare)
