@@ -189,6 +189,68 @@ class _VariantPassportApi extends _DatedPassportApi {
   }
 }
 
+class _OneShotPassportApi extends _DatedPassportApi {
+  int ownerFetches = 0;
+
+  @override
+  Future<ApiResponse> get(
+    String path, {
+    Map<String, String>? headers,
+    MakoloCancelHandle? cancel,
+  }) async {
+    if (path.contains('api/v1/me/passport/?variant=complete')) {
+      ownerFetches++;
+      return _envelope('personal.me.passport', {
+        'variant': 'complete',
+        'identity': {
+          'name': 'Profil composé',
+          'bio': 'Présentation privée',
+          'links': const [],
+        },
+        'private_details': {'phone': 'Numéro réservé'},
+        'declared': {
+          'interests': [
+            {
+              'id': 'public-interest',
+              'topic': {'code': 'recherche', 'label': 'Recherche'},
+            },
+            {
+              'id': 'private-interest',
+              'topic': {'code': 'sante', 'label': 'Santé privée'},
+            },
+          ],
+          'open_to': const [],
+        },
+        'activities': const [],
+        'experiences': const [],
+        'established': {'proofs': const []},
+        'issued': {'credentials': const []},
+        'collectives': const {},
+        'topic_options': [
+          {'code': 'recherche', 'label': 'Recherche'},
+        ],
+        'composition': {
+          'schema_version': 1,
+          'public_identity': {
+            'name': 'Profil composé',
+            'bio': 'Présentation publique',
+            'links': const [],
+          },
+          'public_ids': {
+            'interests': ['public-interest'],
+            'open_to': const [],
+            'activities': const [],
+            'experiences': const [],
+            'proofs': const [],
+            'credentials': const [],
+          },
+        },
+      });
+    }
+    return super.get(path, headers: headers, cancel: cancel);
+  }
+}
+
 class _UnavailablePassportApi implements MakoloApiClient {
   @override
   Uri get baseUri => Uri.parse('https://example.test/');
@@ -273,6 +335,27 @@ void main() {
     await tester.tap(find.text('Réessayer'));
     await tester.pumpAndSettle();
     expect(find.text('Réessayer'), findsOneWidget);
+  });
+
+  testWidgets('four Passport tabs compose locally from one owner response', (tester) async {
+    final api = _OneShotPassportApi();
+    await tester.pumpWidget(MaterialApp(home: MePassportScreen(api: api)));
+    await tester.pumpAndSettle();
+    expect(find.text('Présentation privée'), findsOneWidget);
+    await tester.tap(find.text('Public'));
+    await tester.pumpAndSettle();
+    expect(find.text('Présentation publique'), findsOneWidget);
+    expect(find.text('Présentation privée'), findsNothing);
+    expect(find.text('Numéro réservé'), findsNothing);
+    expect(find.text('Recherche'), findsWidgets);
+    expect(find.text('Santé privée'), findsNothing);
+    await tester.tap(find.text('Thématique'));
+    await tester.pumpAndSettle();
+    expect(find.text('Présentation publique'), findsOneWidget);
+    await tester.tap(find.text('Personnalisé'));
+    await tester.pumpAndSettle();
+    expect(find.text('Présentation publique'), findsOneWidget);
+    expect(api.ownerFetches, 1);
   });
 
   testWidgets('switching Passport variant never paints previous private data', (tester) async {
