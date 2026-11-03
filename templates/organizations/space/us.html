@@ -36,7 +36,7 @@
     <section class="mk-ws4-card" aria-labelledby="space-us-team">
       <div class="mk-ws4-card-head">
         <div><span class="mk-ws4-eyebrow">Collectif</span><h3 id="space-us-team">Équipe</h3></div>
-        {% if projection.team.visibility == "visible" and projection.team.active_members != None %}<strong class="mk-ws4-count">{{ projection.team.active_members }}</strong>{% endif %}
+        {% if projection.team.visibility == "visible" %}<strong class="mk-ws4-count">{{ projection.team.active_members }}</strong>{% endif %}
       </div>
       {% if projection.team.items %}
         <ul class="mk-ws4-list">
