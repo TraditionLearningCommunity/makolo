@@ -535,9 +535,10 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     final full = source;
     final current = full == null ? <String, dynamic>{} : presented(full);
     final identity = map(current['identity']);
-    final interests = variant == 'custom' && full != null
+    final activities = rows(current['activities']);
+    final selectableActivities = variant == 'custom' && full != null
         ? visibleActivities(full, showExcluded: true)
-        : rows(current['activities']);
+        : <Map<String, dynamic>>[];
     final topics = rows(full?['topic_options']);
     final trust = rows(map(current['established'])['trust_verifications']);
     final credentials = rows(map(current['issued'])['credential_summary']);
@@ -549,7 +550,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
       if (rows(identity['links']).isEmpty) 'Site web',
       if (value(owner['email']) == null) 'Adresse e-mail',
       if (value(owner['phone']) == null) 'Téléphone',
-      if (interests.isEmpty) 'Activités',
+      if (activities.isEmpty) 'Activités',
       if (trust.isEmpty) 'Confiance',
       if (credentials.isEmpty) 'Attestations délivrées',
     ];
@@ -651,6 +652,28 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                               }),
                             ),
                         ]),
+                        if (selectableActivities.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Text('Activités'),
+                          for (final activity in selectableActivities)
+                            if (value(activity['title']) case final title?)
+                              CheckboxListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(title),
+                                value: !excludedActivities.contains(
+                                  activity['id']?.toString() ?? '',
+                                ),
+                                onChanged: (selected) => setState(() {
+                                  final id = activity['id']?.toString() ?? '';
+                                  if (selected == true) {
+                                    excludedActivities.remove(id);
+                                  } else {
+                                    excludedActivities.add(id);
+                                  }
+                                }),
+                              ),
+                        ],
                       ]),
                     const SizedBox(height: 24),
                     Container(
@@ -717,27 +740,12 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
                           ),
                     ]),
                     section('Activités', [
-                      for (final activity in interests)
+                      for (final activity in activities)
                         if (value(activity['title']) case final title?)
-                          variant == 'custom'
-                            ? CheckboxListTile(
-                                title: Text(title),
-                                value: !excludedActivities.contains(
-                                  activity['id']?.toString() ?? '',
-                                ),
-                                onChanged: (yes) => setState(() {
-                                  final id = activity['id']?.toString() ?? '';
-                                  if (yes == true) {
-                                    excludedActivities.remove(id);
-                                  } else {
-                                    excludedActivities.add(id);
-                                  }
-                                }),
-                              )
-                            : ListTile(
-                                leading: const Icon(Icons.event_outlined),
-                                title: Text(title),
-                              ),
+                          ListTile(
+                            leading: const Icon(Icons.event_outlined),
+                            title: Text(title),
+                          ),
                     ]),
                     section('Confiance', [
                       for (final row in trust)
