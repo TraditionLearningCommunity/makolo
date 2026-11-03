@@ -2232,7 +2232,11 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                 !owner.invalidated;
             return Scaffold(
               appBar: AppBar(
-                title: const Text('Occurrence'),
+                title: Text(
+                  occurrence?.noun ?? 'Réalisation',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 actions: [
                   IconButton(
                     tooltip: 'Actualiser',
@@ -2257,7 +2261,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                         ),
                         children: [
                           MakoloDetailHeader(
-                            eyebrow: 'Occurrence',
+                            eyebrow: occurrence.noun ?? 'Réalisation',
                             title: occurrence.activityTitle,
                             status: occurrence.state == null
                                 ? null
@@ -2265,8 +2269,13 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
                             metadata: [
                               if (occurrence.timing != null)
                                 MakoloMetadataItem(
-                                  occurrence.timing!,
+                                  'Début : ${occurrence.timing!}',
                                   icon: Icons.schedule_outlined,
+                                ),
+                              if (occurrence.endTiming != null)
+                                MakoloMetadataItem(
+                                  'Fin : ${occurrence.endTiming!}',
+                                  icon: Icons.event_outlined,
                                 ),
                               if (occurrence.place != null)
                                 MakoloMetadataItem(
