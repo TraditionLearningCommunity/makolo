@@ -889,16 +889,16 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                             !detail.essential.any((p) => p.id == focused.id)
                         ? unique([focused])
                         : <_ConversationPoint>[];
-                    final essential = unique(detail.essential);
                     final mine = unique(detail.points.where(
                       (point) => point.section == 'pour_moi' ||
                           point.attentionReason == 'resolve',
                     ));
-                    final elsewhere = unique(detail.elsewhere);
                     final information = unique(detail.points.where(
                       (point) => point.section != 'pour_moi' &&
                           point.attentionReason != 'resolve',
                     ));
+                    final elsewhere = unique(detail.elsewhere);
+                    final essential = unique(detail.essential);
                     _focusAfterLayout();
 
                     return ListView(
