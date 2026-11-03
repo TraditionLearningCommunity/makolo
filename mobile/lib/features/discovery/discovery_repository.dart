@@ -11,6 +11,7 @@ import '../../sync/projection_contract.dart';
 import '../../sync/sync_engine.dart';
 import '../../sync/sync_source.dart';
 import 'discovery_selector.dart';
+import 'discovery_unseen_reserve.dart';
 import 'discovery_wire.dart';
 
 class DiscoveryQuery {
@@ -341,6 +342,7 @@ class DiscoveryRepository {
 
   static const itemsProjectionKind = 'discovery.items';
   static const presentedWindowKind = 'discovery.presented-window';
+  static const unseenReserveKind = 'discovery.unseen-reserve';
   static const int maxPresentedWindowItems = 50;
   static const int maxCachedTransportPages = 48;
   static const int maxCachedDiscoveryDetails = 80;
@@ -646,6 +648,56 @@ class DiscoveryRepository {
       category: SyncSourceCategory.collection,
       freshnessPolicy: detailFreshness,
     );
+  }
+
+  Future<DiscoveryUnseenReserve?> readUnseenReserve(
+    DiscoveryQuery query,
+  ) async {
+    final rootQuery = query.copyWith(page: 1, clearContinuation: true);
+    if ((await readSource(itemsSource(rootQuery))).ownerUnavailable) return null;
+    final root = await _readStoredItems(rootQuery);
+    if (root == null) return null;
+    final saved = await store.readProjection(
+      unseenReserveKind,
+      resourceKey: query.mapFingerprint,
+    );
+    if (saved == null || saved.schemaVersion != 1) return null;
+    return DiscoveryUnseenReserve.fromPayload(
+      saved.payload,
+      profileId: profileId,
+      fieldKey: query.mapFingerprint,
+      rootReceivedAt: root.receivedAt,
+    );
+  }
+
+  Future<void> _unseenWrite = Future<void>.value();
+
+  Future<void> saveUnseenReserve(
+    DiscoveryQuery query,
+    DiscoveryUnseenReserve reserve,
+  ) async {
+    final rootQuery = query.copyWith(page: 1, clearContinuation: true);
+    if ((await readSource(itemsSource(rootQuery))).ownerUnavailable) return;
+    final root = await _readStoredItems(rootQuery);
+    if (root == null) return;
+    final payload = reserve.toPayload(
+      profileId: profileId,
+      fieldKey: query.mapFingerprint,
+      rootReceivedAt: root.receivedAt,
+    );
+    // User reveals and invisible prefetch may both update the ledger.
+    // Serialize their durable writes in presentation order.
+    final write = _unseenWrite.catchError((Object _) {}).then((_) =>
+        store.putProjection(
+          kind: unseenReserveKind,
+          resourceKey: query.mapFingerprint,
+          schemaVersion: 1,
+          payload: payload,
+          receivedAt: root.receivedAt,
+          sourceGeneratedAt: root.sourceGeneratedAt,
+        ));
+    _unseenWrite = write;
+    await write;
   }
 
   /// Bounded, derived presentation window. Each item is an unchanged server
@@ -1302,6 +1354,10 @@ class DiscoveryRepository {
       // continuation window; old cursors are never replayed as current.
       await store.deleteProjection(
         presentedWindowKind,
+        resourceKey: query.mapFingerprint,
+      );
+      await store.deleteProjection(
+        unseenReserveKind,
         resourceKey: query.mapFingerprint,
       );
     }
