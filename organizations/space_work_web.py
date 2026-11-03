@@ -338,6 +338,12 @@ class SpaceWorkView(SpaceWebMixin):
                     section["items"] or section["has_more"] for section in sections
                 ),
                 "work_is_collection": False,
+                "work_search_url": self._space_nav_url(
+                    "organizations:space-search"
+                ),
+                "work_history_url": self._space_nav_url(
+                    "organizations:space-history"
+                ),
                 "work_g3_transport_url": reverse(
                     "organizations:console-transport",
                     kwargs={"slug": self.space.slug},
@@ -441,6 +447,12 @@ class SpaceWorkCollectionView(SpaceWebMixin):
                 s["items"] or s["has_more"] for s in sections
             ),
             "work_is_collection": True,
+            "work_search_url": self._space_nav_url(
+                "organizations:space-search"
+            ),
+            "work_history_url": self._space_nav_url(
+                "organizations:space-history"
+            ),
             "work_collection_title": section_label,
             "work_collection_page": page,
             "work_collection_empty": (
