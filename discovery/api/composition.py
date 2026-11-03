@@ -1447,6 +1447,64 @@ def project_rows(rows, *, profile=None) -> list[dict]:
     return projections
 
 
+def spatial_index_from_rows(rows) -> dict:
+    """Minimal public geographic presentation of already-admitted candidates.
+
+    The owners decide admission and public occurrence places. Coordinates
+    are facts, not authority or a client-generated ranking. Keep every
+    mappable candidate without imposing the old Map endpoint's 100-point cap.
+    """
+    located_rows = [
+        (family, key, candidate)
+        for family, key, candidate in rows
+        if family == "activity"
+    ]
+    facts_by_activity, _ = _public_occurrence_facts_for_rows(located_rows)
+    possibilities = []
+    for family, key, candidate in located_rows:
+        primary = candidate.to_map_dict()
+        facts = facts_by_activity.get(str(candidate.activity_id), [])
+        located_facts = [
+            fact for fact in facts
+            if fact.get("place", {}).get("latitude") is not None
+            and fact.get("place", {}).get("longitude") is not None
+        ]
+        if primary is None and not located_facts:
+            continue
+        place = primary["place"] if primary is not None else located_facts[0]["place"]
+        if not located_facts:
+            located_facts = [{"role": "primary", "place": place}]
+        possibilities.append({
+            "identity": {
+                "family": family,
+                "candidate_key": key,
+                "resource": {
+                    "kind": "activity",
+                    "id": str(candidate.activity_id),
+                },
+                "occurrence": {
+                    "kind": "occurrence",
+                    "id": str(candidate.occurrence_id),
+                } if candidate.occurrence_id is not None else None,
+            },
+            "representation": {"title": candidate.title},
+            "place": place,
+            "spatial_facts": located_facts,
+            "capabilities": ["view"],
+            "links": {
+                "detail": reverse(
+                    "discovery_api:item-detail",
+                    kwargs={"family": family, "item_id": candidate.activity_id},
+                ),
+            },
+        })
+    return {
+        "count": len(possibilities),
+        "total_results": len(rows),
+        "results": possibilities,
+    }
+
+
 def paginated_projection(
     params,
     *,
@@ -1525,6 +1583,11 @@ def paginated_projection(
         # `items` is the common C0 collection alias.
         "results": results,
         "items": results,
+        # One first-page acquisition also supplies the geographic presentation
+        # of this same admitted field. No second owner search for Carte.
+        **({
+            "spatial_index": spatial_index_from_rows(composition.rows),
+        } if page == 1 and params.get("include_spatial_index") == "1" else {}),
         "continuation": {
             "state": "more" if has_next else "end",
             "token": (
