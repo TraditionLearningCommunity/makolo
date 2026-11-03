@@ -14,6 +14,8 @@ import '../../presentation/humanization.dart';
 import '../../presentation/projection_surface_adapter.dart';
 import '../../selectors/projection_selector.dart';
 import '../../sync/freshness.dart';
+import '../continuity/conversation_context_screen.dart';
+import '../continuity/conversation_repository.dart';
 import 'journey_repository.dart';
 import 'journey_selector.dart';
 
@@ -31,8 +33,12 @@ class JourneyDetailScreen extends StatefulWidget {
     required this.onOpenAccess,
     required this.onOpenDayOf,
     required this.onOpenLive,
+    this.conversations,
+    this.onOpenConversation,
   });
 
+  final ConversationRepository? conversations;
+  final ValueChanged<String>? onOpenConversation;
   final String journeyId;
   final JourneyRepository repository;
   final MakoloApiClient? api;
@@ -261,6 +267,15 @@ class _JourneyDetailScreenState extends State<JourneyDetailScreen> {
                     onOpenAccess: widget.onOpenAccess,
                     onOpenDayOf: widget.onOpenDayOf,
                     onOpenLive: widget.onOpenLive,
+                    conversationEntry: widget.conversations != null &&
+                            widget.onOpenConversation != null
+                        ? ConversationContextAction(
+                            repository: widget.conversations!,
+                            kind: 'journey',
+                            contextId: widget.journeyId,
+                            onOpen: widget.onOpenConversation!,
+                          )
+                        : null,
                   ),
                 ),
               ),
@@ -286,8 +301,10 @@ class _JourneyContent extends StatelessWidget {
     required this.onOpenAccess,
     required this.onOpenDayOf,
     required this.onOpenLive,
+    this.conversationEntry,
   });
 
+  final Widget? conversationEntry;
   final JourneyDetailPresentation presentation;
   final bool invitationEnabled;
   final String? invitationNotice;
@@ -321,6 +338,7 @@ class _JourneyContent extends StatelessWidget {
                   )!,
                 ),
         ),
+        if (conversationEntry != null) conversationEntry!,
         if (presentation.canRespondInvitation) ...[
           Padding(
             padding: const EdgeInsets.symmetric(
