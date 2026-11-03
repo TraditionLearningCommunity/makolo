@@ -1312,6 +1312,66 @@ class DiscoveryRepository {
     }
   }
 
+  /// Reconcile a *confirmed* Discovery owner mutation into cached personal
+  /// collection windows. Their contents, ordering, filters and freshness do
+  /// not change; this updates only the exact resource's saved capability.
+  Future<void> _reconcileConfirmedSaved(
+    String family,
+    String id,
+    Map<String, dynamic> confirmed,
+  ) async {
+    final saved = confirmed['saved'];
+    final capabilities = confirmed['capabilities'];
+    if (saved is! Map || capabilities is! List) return;
+    final cached = await store.readProjections(itemsProjectionKind);
+    for (final projection in cached) {
+      if (projection.schemaVersion != 1) continue;
+      final key = projection.payload['results'] is List
+          ? 'results'
+          : projection.payload['items'] is List
+              ? 'items'
+              : null;
+      if (key == null) continue;
+      final existing = projection.payload[key] as List;
+      var changed = false;
+      final rows = <dynamic>[];
+      for (final raw in existing) {
+        if (raw is! Map) {
+          rows.add(raw);
+          continue;
+        }
+        final identity = raw['identity'];
+        final resource = identity is Map ? identity['resource'] : null;
+        if (identity is! Map ||
+            resource is! Map ||
+            identity['family'] != family ||
+            resource['id'] != id) {
+          rows.add(raw);
+          continue;
+        }
+        final updated = Map<String, dynamic>.from(raw);
+        updated['saved'] = Map<String, dynamic>.from(saved);
+        updated['capabilities'] = List<dynamic>.from(capabilities);
+        rows.add(updated);
+        changed = true;
+      }
+      if (!changed) continue;
+      await store.putProjection(
+        kind: itemsProjectionKind,
+        resourceKey: projection.resourceKey,
+        schemaVersion: projection.schemaVersion,
+        payload: {...projection.payload, key: rows},
+        receivedAt: projection.receivedAt,
+        sourceGeneratedAt: projection.sourceGeneratedAt,
+        sourceUpdatedAt: projection.sourceUpdatedAt,
+        lastVerifiedOnlineAt: projection.lastVerifiedOnlineAt,
+        freshUntil: projection.freshUntil,
+        expiresAt: projection.expiresAt,
+        freshnessPolicyId: projection.freshnessPolicyId,
+      );
+    }
+  }
+
   Future<void> setSaved({
     required String family,
     required String id,
@@ -1352,6 +1412,16 @@ class DiscoveryRepository {
       sourceGeneratedAt: envelope.generatedAt,
       freshnessPolicyId: detailFreshness.id,
     );
+    try {
+      await _reconcileConfirmedSaved(
+        family,
+        id,
+        Map<String, dynamic>.from(item),
+      );
+    } on Object {
+      // The server mutation and its canonical item snapshot succeeded.
+      // A stale secondary list must not turn that confirmation into a failure.
+    }
   }
 
   Future<void> _indexDiscoveryItemPreviews(StoredProjection projection) async {
