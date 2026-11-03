@@ -2038,10 +2038,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   }
 
   Future<void> _acquire() async {
-    // An Activity already saved in Moi has an owner-known title even when
-    // its deeper Activity projection has not yet been downloaded.
-    unawaited(_readKnownSavedTitle(widget.activityId));
-    await _refresh();
+    // Reuse an already acquired full Activity projection for reading.
+    // A private owner decision or a live action still checks its own API.
+    final id = widget.activityId;
+    final repository = widget.repository;
+    unawaited(_readKnownSavedTitle(id));
+    if (await repository.hasReusableActivity(id)) return;
+    if (mounted && widget.activityId == id &&
+        identical(repository, widget.repository)) {
+      await _refresh();
+    }
   }
 
   Future<void> _readKnownSavedTitle(String requestedId) async {
@@ -2319,7 +2325,15 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
     }
   }
 
-  Future<void> _acquire() => _refresh();
+  Future<void> _acquire() async {
+    final id = widget.occurrenceId;
+    final repository = widget.repository;
+    if (await repository.hasReusableOccurrenceForReading(id)) return;
+    if (mounted && widget.occurrenceId == id &&
+        identical(repository, widget.repository)) {
+      await _refresh();
+    }
+  }
 
   @override
   void dispose() {
