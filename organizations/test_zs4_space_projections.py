@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -163,6 +166,20 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertEqual(response.data["mandates"][0]["scope"]["target"], activity.title)
         self.assertNotIn("contact_email", str(response.data))
         revoke_mandate(mandate=mandate, actor=self.owner)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_n3_authority_respects_mandate_effective_dates(self):
+        url = f"/api/v1/organizations/workspaces/{self.space.slug}/us/authority/"
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+        self.owner_mandate.valid_from = timezone.now() + timedelta(days=1)
+        self.owner_mandate.save(update_fields=["valid_from"])
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+        self.owner_mandate.valid_from = None
+        self.owner_mandate.valid_until = timezone.now() - timedelta(minutes=1)
+        self.owner_mandate.save(update_fields=["valid_from", "valid_until"])
         self.assertEqual(self.client.get(url).status_code, 404)
 
     def test_space_mandate_without_team_management_cannot_read_team_size(self):
