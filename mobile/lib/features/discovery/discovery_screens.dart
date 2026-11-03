@@ -1814,6 +1814,20 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
     }
   }
 
+  Future<void> _openOwnerDepth(String path) async {
+    final key = _itemKey;
+    try {
+      await context.push<void>(path);
+    } finally {
+      // A purchase, contribution, registration or read-only depth can change
+      // the owner's capabilities. Reconcile N2 only when returning to the
+      // same possibility; keep the surrounding navigation stack intact.
+      if (mounted && key == _itemKey) {
+        await _refresh();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DiscoverySourceState>(
@@ -1884,7 +1898,10 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               allowOwnerActions: verified,
                               detailMode: true,
                               onOpen: () {},
-                              onOwnerDepth: (path) => context.push(path),
+                              onNativeAction: (path) =>
+                                  unawaited(_openOwnerDepth(path)),
+                              onOwnerDepth: (path) =>
+                                  unawaited(_openOwnerDepth(path)),
                               onSave: widget.authenticated && verified && !_saving &&
                                       (item.savedState == 'saved'
                                           ? item.canUnsave
