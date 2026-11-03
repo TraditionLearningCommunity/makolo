@@ -115,6 +115,29 @@ class WS4SpaceWebTests(TestCase):
         self.assertNotIn("health score", html)
         self.assertNotIn("performance score", html)
 
+    def test_us_hides_restricted_team_aggregate_and_shows_lifecycle(self):
+        viewer = User.objects.create_user(
+            username="ws4-marketing", email="ws4-marketing@test.local", password="x"
+        )
+        grant_space_role(
+            profile=viewer,
+            space=self.space,
+            role=SystemRoleCode.MARKETING,
+            granted_by=self.owner,
+        )
+        self.space.lifecycle = "suspended"
+        self.space.save(update_fields=["lifecycle"])
+        self.client.force_login(viewer)
+
+        response = self.client.get(self.url("organizations:space-us"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["projection"]["team"]["visibility"], "restricted")
+        self.assertIsNone(response.context["projection"]["team"]["active_members"])
+        self.assertNotIn("mk-ws4-count", response.content.decode())
+        self.assertNotContains(response, self.member.full_name or self.member.username)
+        self.assertContains(response, "Cet Espace est suspendu.")
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
     def test_membership_platform_and_cross_space_access_do_not_open_ws4(self):
         platform = User.objects.create_user(
             username="ws4-platform", email="ws4-platform@test.local", password="x"
