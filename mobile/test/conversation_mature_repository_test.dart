@@ -304,7 +304,7 @@ void main() {
 
     expect(find.text('Départ pour Kolwezi'), findsOneWidget);
     expect(find.text('Départ confirmé'), findsOneWidget);
-    expect(find.textContaining('Invitations non actualisées'), findsOneWidget);
+    expect(find.textContaining('Impossible d’actualiser les invitations'), findsOneWidget);
     expect(find.byType(MakoloErrorState), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
