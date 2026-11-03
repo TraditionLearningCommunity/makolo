@@ -1615,6 +1615,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('late owner detail cannot restore a dismissed map preview', (
+    tester,
+  ) async {
+    final pending = Completer<DiscoveryItemPresentation?>();
+    await PresentationHarness.pump(
+      tester,
+      viewport: const Size(320, 580),
+      textScale: 1.6,
+      child: DiscoverySpatialView(
+        selection: selection(),
+        mapConfig: const MakoloMapsConfig(enabled: false, style: null),
+        showMapOnCompact: true,
+        initialSelectedCandidateKey: 'activity:route',
+        resolveItem: (_) => pending.future,
+        onSave: (_) async {},
+        onOpen: (_) {},
+      ),
+    );
+    expect(find.byKey(const Key('discover-map-selected-preview')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byTooltip('Fermer l’aperçu'));
+    await tester.pump();
+    pending.complete(
+      DiscoveryItemPresentation(
+        family: 'activity',
+        id: 'route',
+        candidateKey: 'activity:route',
+        title: 'Voyage vers Kolwezi',
+        summary: 'Détail',
+        savedState: 'not_saved',
+        capabilities: const {'save'},
+        links: const {'web': '/discover/items/activity/route/'},
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('discover-map-selected-preview')), findsNothing);
+    expect(find.byKey(const Key('discover-map-save')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Carte stays immersive and opens the same possibility detail', (
     tester,
   ) async {
