@@ -147,6 +147,7 @@ Future<_Harness> _harness({
       'handoffs': {
         'team': '/space/space-x/us/team',
         'responsibilities': '/space/space-x/us/responsibilities',
+        'authority': '/space/space-x/us/authority',
         'trust': '/space/space-x/us/trust',
       },
       'links': {'workspace': '/api/v1/organizations/workspaces/space-x/'},
@@ -321,6 +322,31 @@ void main() {
       (harness.actorContext.value as SpaceActorContext).space.slug,
       'space-x',
     );
+    await _disposeUi(tester);
+  });
+
+  testWidgets('Nous N3 cannot render cached rights without live confirmation', (
+    tester,
+  ) async {
+    final harness = await _harness(startInSpace: true);
+    addTearDown(harness.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: SpaceNousDepthScreen(
+          runtime: harness.runtime,
+          slug: 'space-x',
+          depth: 'authority',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Droits associés à ce rôle'), findsNothing);
+    expect(find.textContaining('autorisations'), findsWidgets);
+    await harness.actorContext.selectPersonal();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('n’est plus le contexte actif'), findsOneWidget);
+    expect(find.text('Droits associés à ce rôle'), findsNothing);
     await _disposeUi(tester);
   });
 
