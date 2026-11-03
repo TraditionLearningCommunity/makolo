@@ -116,7 +116,7 @@ def library_reuse(request, asset_id):
             messages.success(
                 request,
                 "Document ajouté à la démarche. "
-                "La satisfaction des exigences reste décidée par son owner.",
+                "Cet ajout ne confirme pas que ses conditions sont remplies.",
             )
             return redirect("core:participant-journey-detail", pk=journey.pk)
 
