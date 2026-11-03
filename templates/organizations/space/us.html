@@ -95,6 +95,31 @@
     </section>
     {% endif %}
 
+  {% if projection.resources.visibility == 'visible' and us_owner_links.resources %}
+  <section class="mk-ws4-card" aria-labelledby="space-us-resources">
+    <div class="mk-ws4-card-head">
+      <div><span class="mk-ws4-eyebrow">Ressources collectives</span><h3 id="space-us-resources">Nos ressources</h3></div>
+      <strong class="mk-ws4-count">{{ projection.resources.count }}</strong>
+    </div>
+    <p>Documents émis et outils de présentation appartenant à cet Espace.</p>
+    {% if projection.resources.items %}
+      <ul class="mk-ws4-list">
+      {% for resource in projection.resources.items %}
+        {% if forloop.counter <= 3 %}
+        <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="files"></i></span><div><strong>{{ resource.title }}</strong><small>{{ resource.detail }}</small></div></li>
+        {% endif %}
+      {% endfor %}
+      </ul>
+      {% if projection.resources.has_more or projection.resources.items|length > 3 %}
+        <p class="mk-ws4-note">D’autres ressources sont disponibles dans la profondeur.</p>
+      {% endif %}
+    {% else %}
+      <p class="mk-ws4-empty">Aucun document ou modèle institutionnel disponible pour le moment.</p>
+    {% endif %}
+    <a class="mk-ws4-deep-link" href="{{ us_owner_links.resources }}">Consulter les ressources <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+  </section>
+  {% endif %}
+
     {% if projection.ownership.items %}
     <section class="mk-ws4-card" aria-labelledby="space-us-ownership">
       <div class="mk-ws4-card-head">
@@ -121,31 +146,6 @@
       {% if us_owner_links.trust %}<a class="mk-ws4-deep-link" href="{{ us_owner_links.trust }}">Ouvrir Confiance <i data-lucide="arrow-right" aria-hidden="true"></i></a>{% endif %}
     </section>
   </div>
-
-  {% if projection.resources.visibility == 'visible' and us_owner_links.resources %}
-  <section class="mk-ws4-card" aria-labelledby="space-us-resources">
-    <div class="mk-ws4-card-head">
-      <div><span class="mk-ws4-eyebrow">Ressources collectives</span><h3 id="space-us-resources">Nos ressources</h3></div>
-      <strong class="mk-ws4-count">{{ projection.resources.count }}</strong>
-    </div>
-    <p>Documents émis et outils de présentation appartenant à cet Espace.</p>
-    {% if projection.resources.items %}
-      <ul class="mk-ws4-list">
-      {% for resource in projection.resources.items %}
-        {% if forloop.counter <= 3 %}
-        <li><span class="mk-ws4-icon" aria-hidden="true"><i data-lucide="files"></i></span><div><strong>{{ resource.title }}</strong><small>{{ resource.detail }}</small></div></li>
-        {% endif %}
-      {% endfor %}
-      </ul>
-      {% if projection.resources.has_more or projection.resources.items|length > 3 %}
-        <p class="mk-ws4-note">D’autres ressources sont disponibles dans la profondeur.</p>
-      {% endif %}
-    {% else %}
-      <p class="mk-ws4-empty">Aucun document ou modèle institutionnel disponible pour le moment.</p>
-    {% endif %}
-    <a class="mk-ws4-deep-link" href="{{ us_owner_links.resources }}">Consulter les ressources <i data-lucide="arrow-right" aria-hidden="true"></i></a>
-  </section>
-  {% endif %}
 
   <nav class="mk-ws4-actions" aria-label="Informations et gestion de l’Espace">
     <h3>Informations et gestion</h3>
