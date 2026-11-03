@@ -171,6 +171,10 @@ class DomainEventType:
     SUBSCRIPTION_SUSPENDED = "subscription.suspended"
     SUBSCRIPTION_REACTIVATED = "subscription.reactivated"
     SUBSCRIPTION_ELIGIBILITY_AVAILABLE = "subscription.eligibility.available"
+    SUBSCRIPTION_COVERAGE_CREATED = "subscription.coverage.created"
+    SUBSCRIPTION_COVERAGE_STATUS_CHANGED = "subscription.coverage.status.changed"
+    SUBSCRIPTION_COVERAGE_ALLOCATION_CREATED = "subscription.coverage.allocation.created"
+    SUBSCRIPTION_COVERAGE_ALLOCATION_CHANGED = "subscription.coverage.allocation.changed"
 
     values = frozenset(value for name, value in vars().items() if name.isupper() and isinstance(value, str))
 
