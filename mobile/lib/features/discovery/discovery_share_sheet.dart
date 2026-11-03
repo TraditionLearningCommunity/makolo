@@ -200,6 +200,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     // The owner Web share reference is the current contract for shareability.
     // Presence of a public card alone never grants sharing authority.
     if (!widget.enabled ||
+        (widget.authenticated && widget.api == null) ||
         (!widget.authenticated && _publicItemUrl == null) ||
         (widget.authenticated &&
             widget.item.links['web'] == null &&
@@ -235,14 +236,15 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
         }
       },
       itemBuilder: (_) => [
-        PopupMenuItem(
-          value: 'makolo',
-          child: Text(
-            widget.authenticated
-                ? 'Dans Makolo'
-                : 'Dans Makolo · connexion requise',
+        if (widget.authenticated || widget.onSignIn != null)
+          PopupMenuItem(
+            value: 'makolo',
+            child: Text(
+              widget.authenticated
+                  ? 'Dans Makolo'
+                  : 'Dans Makolo · connexion requise',
+            ),
           ),
-        ),
         PopupMenuItem(value: 'external', child: Text('Partager avec…')),
         PopupMenuItem(value: 'copy', child: Text('Copier le lien')),
         PopupMenuItem(value: 'qr', child: Text('Afficher le QR')),
