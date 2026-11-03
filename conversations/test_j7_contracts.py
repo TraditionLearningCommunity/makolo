@@ -12,7 +12,7 @@ from organizations.models import Organization
 
 from .audience_models import ConversationAudienceRuleKind, ConversationAudienceRuleOperation
 from .audience_services import add_audience_rule, create_audience_set
-from .core_models import ConversationContextKind, ConversationInvitationStatus
+from .core_models import Conversation, ConversationContextKind, ConversationInvitationStatus
 from .point_models import ConversationPointKind, ConversationPointResponseMode
 from .point_services import create_point
 from .services import (
@@ -159,6 +159,99 @@ class ConversationJ7ContractsTests(TestCase):
         aware = self.client.get(url, {"updated_after": "2026-11-04T09:00:00Z"})
         self.assertEqual(aware.status_code, 200)
         self.assertIn("results", aware.json())
+
+    def test_c2_context_entry_uses_existing_authorized_conversation(self):
+        before = Conversation.objects.count()
+        self.client.force_login(self.member)
+        kwargs = {"kind": "activity", "context_pk": str(self.activity.pk)}
+        web = self.client.get(reverse("conversations:by-context", kwargs=kwargs))
+        self.assertRedirects(
+            web, reverse("conversations:detail", kwargs={"pk": self.conversation.pk}),
+        )
+        api = self.client.get(reverse("conversations-api:by-context", kwargs=kwargs))
+        self.assertEqual(api.status_code, 200)
+        self.assertEqual(api["Cache-Control"], "private, no-store")
+        self.assertEqual(api.json()["count"], 1)
+        self.assertEqual(api.json()["results"][0]["id"], str(self.conversation.pk))
+        self.assertEqual(Conversation.objects.count(), before)
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(
+            self.client.get(reverse("conversations:by-context", kwargs=kwargs)).status_code,
+            404,
+        )
+        response = self.client.get(reverse("conversations-api:by-context", kwargs=kwargs))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"count": 0, "results": []})
+        self.assertEqual(Conversation.objects.count(), before)
+
+    def test_c2_groups_visible_points_once_with_essential_and_elsewhere(self):
+        information = create_point(
+            actor=self.owner, conversation=self.conversation,
+            kind=ConversationPointKind.INFORMATION,
+            title="Entrée porte B", importance="important",
+        )
+        elsewhere = create_point(
+            actor=self.owner, conversation=self.conversation,
+            kind=ConversationPointKind.QUESTION,
+            response_mode=ConversationPointResponseMode.FREE_TEXT,
+            title="Une question ouverte", response_audience=self.audience,
+        )
+        expected = self._question(client_reference="c2-member-expected")
+        self.client.force_login(self.member)
+        url = reverse("conversations-api:detail", kwargs={"pk": self.conversation.pk})
+        payload = self.client.get(url).json()
+        groups = (
+            payload["points"], payload["essential"], payload["elsewhere"],
+        )
+        ids = [point["id"] for group in groups for point in group]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertIn(str(information.pk), ids)
+        self.assertIn(str(elsewhere.pk), ids)
+        self.assertIn(str(expected.pk), ids)
+        self.assertIn(str(elsewhere.pk), [point["id"] for point in payload["elsewhere"]])
+
+        page = self.client.get(reverse("conversations:detail", kwargs={"pk": self.conversation.pk}))
+        for pk in (information.pk, elsewhere.pk, expected.pk):
+            self.assertContains(page, f'id="point-{pk}"', count=1)
+        self.assertContains(page, "En cours ailleurs")
+        self.assertContains(page, "À vous")
+
+    def test_c2_search_focus_never_reveals_point_outside_audience(self):
+        restricted = create_audience_set(
+            actor=self.owner, conversation=self.conversation, label="Auteur seul",
+        )
+        add_audience_rule(
+            actor=self.owner, audience_set=restricted,
+            operation=ConversationAudienceRuleOperation.INCLUDE,
+            kind=ConversationAudienceRuleKind.EXPLICIT_PROFILE,
+            profile=self.owner,
+        )
+        hidden = create_point(
+            actor=self.owner, conversation=self.conversation,
+            kind=ConversationPointKind.INFORMATION,
+            title="Information réservée strictement", visibility_audience=restricted,
+        )
+        self.client.force_login(self.member)
+        url = reverse("conversations-api:detail", kwargs={"pk": self.conversation.pk})
+        detail = self.client.get(url, {"focus_point": str(hidden.pk)})
+        self.assertEqual(detail.status_code, 200)
+        payload = detail.json()
+        self.assertIsNone(payload["focused_point"])
+        self.assertNotIn(
+            str(hidden.pk),
+            [point["id"] for field in ("points", "essential", "elsewhere") for point in payload[field]],
+        )
+        page = self.client.get(
+            reverse("conversations:detail", kwargs={"pk": self.conversation.pk}),
+            {"focus": str(hidden.pk)},
+        )
+        self.assertNotContains(page, "Information réservée strictement")
+        results = self.client.get(
+            reverse("conversations-api:list"), {"q": "réservée strictement"},
+        )
+        self.assertEqual(results.status_code, 200)
+        self.assertEqual(results.json()["results"], [])
 
     def test_api_response_is_idempotent_by_client_reference(self):
         point = self._question(client_reference="j7-api-question")
