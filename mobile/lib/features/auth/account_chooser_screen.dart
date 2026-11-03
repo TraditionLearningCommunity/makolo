@@ -82,7 +82,21 @@ class _DeviceAccountsScreenState extends ConsumerState<DeviceAccountsScreen> {
     // Removing a device account must also revoke its locally retained
     // presentation secrets. Removing a session alone need not erase the
     // Profile's durable nonsecret local-first history.
-    await SecureAccessCredentialVault().clearProfile(account.profileId);
+    try {
+      await SecureAccessCredentialVault().clearProfile(account.profileId);
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Impossible de retirer les justificatifs protégés '
+              'de cet appareil. Réessayez.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     await widget.runtime.tokens.removeAccount(account.profileId);
     final actorContextStore = widget.runtime.launchPreferences;
     if (actorContextStore is ActorContextStore) {
