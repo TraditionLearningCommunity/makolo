@@ -19,6 +19,7 @@ import '../../sync/freshness.dart';
 import 'space_repository.dart';
 import 'space_work_surface.dart';
 import 'space_us_surface.dart';
+import 'space_us_authority_facts.dart';
 import '../now/now_screen.dart';
 import '../now/now_selector.dart';
 
@@ -416,6 +417,10 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   List<Map<String, dynamic>>? _fullTeam;
   bool _teamUnavailable = false;
   bool _teamMutating = false;
+  Map<String, dynamic>? _authorityFacts;
+  bool _authorityLoading = false;
+  String? _authorityError;
+  int _authorityRequestVersion = 0;
 
   @override
   void initState() {
@@ -426,11 +431,14 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
 
   void _onActorChanged() {
     if (!mounted) return;
-    // Private team details never survive a context transition. Returning
-    // to this Space must acquire them again under the current Mandate.
+    // N3 authority is never retained across actor or perspective transitions.
+    _authorityRequestVersion++;
     setState(() {
       _fullTeam = null;
       _teamUnavailable = false;
+      _authorityFacts = null;
+      _authorityLoading = false;
+      _authorityError = null;
     });
     final current = widget.runtime.actorContext?.value;
     if (current is SpaceActorContext &&
@@ -442,6 +450,9 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
       }
       if (widget.depth == 'team' && widget.runtime.api != null) {
         unawaited(_loadTeam(_space!));
+      }
+      if (widget.depth == 'authority') {
+        unawaited(_loadAuthority(_space!));
       }
     }
   }
@@ -506,6 +517,85 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     }
     if (widget.depth == 'team') {
       await _loadTeam(summary.identity);
+    }
+    if (widget.depth == 'authority') {
+      await _loadAuthority(summary.identity);
+    }
+  }
+
+  Future<void> _loadAuthority(SpaceActorIdentity space) async {
+    final version = ++_authorityRequestVersion;
+    final current = widget.runtime.actorContext?.value;
+    final api = widget.runtime.api;
+    if (current is! SpaceActorContext ||
+        current.space.id != space.id ||
+        api == null) {
+      if (mounted) {
+        setState(() {
+          _authorityFacts = null;
+          _authorityLoading = false;
+          _authorityError = 'Connexion nécessaire pour consulter vos droits.';
+        });
+      }
+      return;
+    }
+    setState(() {
+      _authorityFacts = null;
+      _authorityLoading = true;
+      _authorityError = null;
+    });
+    try {
+      final response = await api.get(
+        'api/v1/organizations/workspaces/${Uri.encodeComponent(space.slug)}/us/authority/',
+      );
+      final payload = response.jsonObject();
+      if (payload['space_id']?.toString() != space.id ||
+          payload['mandates'] is! List) {
+        throw const FormatException('Invalid N3 authority');
+      }
+      final active = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          version != _authorityRequestVersion ||
+          active is! SpaceActorContext ||
+          active.space.id != space.id) {
+        return;
+      }
+      setState(() {
+        _authorityFacts = payload;
+        _authorityLoading = false;
+      });
+    } on MakoloApiError catch (error) {
+      final active = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          version != _authorityRequestVersion ||
+          active is! SpaceActorContext ||
+          active.space.id != space.id) {
+        return;
+      }
+      setState(() {
+        _authorityFacts = null;
+        _authorityLoading = false;
+        if (error.statusCode == 401 ||
+            error.statusCode == 403 ||
+            error.statusCode == 404) {
+          _denied = true;
+        } else {
+          _authorityError = 'Impossible de consulter vos autorisations.';
+        }
+      });
+    } on Object {
+      final active = widget.runtime.actorContext?.value;
+      if (!mounted ||
+          version != _authorityRequestVersion ||
+          active is! SpaceActorContext ||
+          active.space.id != space.id) {
+        return;
+      }
+      setState(() {
+        _authorityFacts = null;
+        _authorityLoading = false;
+        _authorityError = 'Impossible de consulter vos autorisations.';
+      });
     }
   }
 
@@ -1021,6 +1111,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     try {
       await repository.refreshUs(_space!);
       if (widget.depth == 'team') await _loadTeam(_space!);
+      if (widget.depth == 'authority') await _loadAuthority(_space!);
     } on MakoloApiError catch (error) {
       if (!mounted) return;
       if (error.statusCode == 401 ||
@@ -1069,6 +1160,45 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
     Map<String, dynamic> payload, {
     bool observationOnly = false,
   }) {
+    if (widget.depth == 'authority') {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Mes autorisations')),
+        body: _authorityLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _authorityFacts == null || observationOnly
+            ? ListView(
+                padding: const EdgeInsets.all(MakoloSpacing.lg),
+                children: [
+                  Text(
+                    observationOnly
+                        ? 'Actualisez vos autorisations avant de les consulter.'
+                        : _authorityError ?? 'Autorisations indisponibles.',
+                  ),
+                  TextButton.icon(
+                    onPressed: _retryDepth,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Réessayer'),
+                  ),
+                ],
+              )
+            : ListView(
+                padding: const EdgeInsets.all(MakoloSpacing.lg),
+                children: [
+                  Text(
+                    'Mes autorisations',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: MakoloSpacing.sm),
+                  const Text(
+                    'Vos rôles actifs dans cet Espace et leurs droits. '
+                    'Chaque action est vérifiée au moment de son exécution.',
+                  ),
+                  const SizedBox(height: MakoloSpacing.lg),
+                  SpaceUsAuthorityFacts(payload: _authorityFacts!),
+                ],
+              ),
+      );
+    }
     final title = _depthTitle(widget.depth);
     final section = widget.depth == 'team'
         ? _map(payload['team'])
@@ -1115,6 +1245,18 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
           Text(title, style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: MakoloSpacing.sm),
           Text(intro, style: Theme.of(context).textTheme.bodyMedium),
+          if (widget.depth == 'responsibilities' &&
+              _map(payload['handoffs'])?['authority'] ==
+                  '/space/${widget.slug}/us/authority') ...[
+            const SizedBox(height: MakoloSpacing.md),
+            OutlinedButton.icon(
+              onPressed: observationOnly
+                  ? null
+                  : () => context.push('/space/${widget.slug}/us/authority'),
+              icon: const Icon(Icons.shield_outlined),
+              label: const Text('Voir mes autorisations'),
+            ),
+          ],
           if (observationOnly) ...[
             const SizedBox(height: MakoloSpacing.md),
             const MakoloStatus(
@@ -1307,6 +1449,7 @@ class _SpaceNousDepthScreenState extends State<SpaceNousDepthScreen> {
   String _depthTitle(String depth) => switch (depth) {
     'team' => 'Équipe',
     'responsibilities' => 'Responsabilités',
+    'authority' => 'Mes autorisations',
     'relationships' => 'Personnes & relations',
     'ownership' => 'Gouvernance',
     'trust' => 'Confiance',
