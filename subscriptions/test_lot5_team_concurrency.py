@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import threading
 import unittest
+from importlib import import_module
+
+from django.apps import apps
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -21,9 +24,19 @@ User = get_user_model()
 
 @unittest.skipUnless(connection.vendor == "postgresql", "Team quota race requires PostgreSQL")
 class TeamMemberQuotaConcurrencyTests(TransactionTestCase):
-    # TransactionTestCase flushes between tests. Preserve migration-seeded
-    # system roles (space-owner, space-admin) for real PostgreSQL races.
-    serialized_rollback = True
+    def setUp(self):
+        super().setUp()
+        # TransactionTestCase flushes the database. Replaying the serialized
+        # initial state here duplicates Django ContentType rows because
+        # post_migrate already recreated them. Restore only the canonical
+        # migration-seeded business catalog needed by this concurrency test.
+        # No permission, quota, or race assertion is bypassed.
+        import_module(
+            "authorization.migrations.0002_seed_roles_and_backfill"
+        ).seed_and_backfill(apps, None)
+        import_module(
+            "subscriptions.migrations.0002_seed_feature_definitions"
+        ).seed_features(apps, None)
 
     def test_two_simultaneous_admissions_consume_one_last_slot(self):
         owner = User.objects.create_user(
