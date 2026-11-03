@@ -42,6 +42,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   int _searchGeneration = 0;
   bool _loadingMore = false;
   bool _requestedInitialRefresh = false;
+  bool _preparingOffline = false;
+  int _preparedPages = 0;
+  String? _preparationMessage;
 
   @override
   void initState() {
@@ -115,6 +118,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
     'journey' => 'journeys',
     _ => 'all',
   };
+
+  Future<void> _prepareOffline() async {
+    if (_preparingOffline) return;
+    setState(() {
+      _preparingOffline = true;
+      _preparedPages = 0;
+      _preparationMessage = null;
+    });
+    try {
+      final complete = await widget.repository.prepareHistoryOffline(
+        shouldContinue: () => mounted,
+        onProgress: (known) {
+          if (mounted) setState(() => _preparedPages = known);
+        },
+      );
+      if (!mounted) return;
+      setState(() => _preparationMessage = complete
+          ? 'Les pages d’historique disponibles auprès du serveur '
+              'ont été conservées sur cet appareil.'
+          : 'Les pages déjà reçues restent disponibles hors connexion. '
+              'Reprenez la préparation avec Internet pour compléter.');
+    } on Object {
+      if (mounted) {
+        setState(() => _preparationMessage =
+            'Les événements déjà reçus restent disponibles. '
+            'La préparation complète n’a pas abouti.');
+      }
+    } finally {
+      if (mounted) setState(() => _preparingOffline = false);
+    }
+  }
 
   Future<void> _remoteSearch({bool more = false}) async {
     final generation = ++_searchGeneration;
@@ -383,6 +417,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 ),
                             ],
                           ),
+                          const SizedBox(height: MakoloSpacing.sm),
+                          OutlinedButton.icon(
+                            onPressed: _preparingOffline
+                                ? null
+                                : () => unawaited(_prepareOffline()),
+                            icon: const Icon(Icons.download_for_offline_outlined),
+                            label: const Text(
+                              'Préparer mon historique hors connexion',
+                            ),
+                          ),
+                          if (_preparingOffline) ...[
+                            const LinearProgressIndicator(),
+                            Text('Pages d’historique reconnues : '
+                                '$_preparedPages'),
+                          ],
+                          if (_preparationMessage != null)
+                            Text(_preparationMessage!),
                           const SizedBox(height: 8),
                           Align(
                             alignment: Alignment.centerRight,
