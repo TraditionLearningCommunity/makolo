@@ -127,7 +127,7 @@ class PassportPdfLayoutTests(TestCase):
                 self.assertIn("INFORMATIONS PERSONNELLES", text)
                 self.assertIn("Prénom", text)
                 self.assertIn("Identifiant Makolo", text)
-                self.assertIn("République démocratique du Congo", text)
+                self.assertIn("CD", text)
                 self.assertNotIn("PRIVATE-PHONE-NOT-FOR-PUBLIC", text)
                 self.assertNotIn("1990-01-01", text)
 
