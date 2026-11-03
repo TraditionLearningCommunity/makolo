@@ -98,7 +98,51 @@ class PassportEditorFieldRules {
     }
 
     if (key == 'phone') {
-      if (!RegExp(r'^\+?[0-9() .-]+$').hasMatch(value)) {
+      if (!RegExp(r'^(?:\+?[0-9][0-9() .-]*|\(\+[0-9]{1,4}\)[0-9() .-]*).hasMatch(value)) {
+        return 'Numéro invalide.';
+      }
+      final digits = RegExp(r'[0-9]').allMatches(value).length;
+      if (digits < 7 || digits > 15) return '7 à 15 chiffres.';
+    }
+
+    if (isLink(key)) {
+      if (RegExp(r'\s').hasMatch(value)) return 'Lien invalide.';
+      final uri = Uri.tryParse(value);
+      if (uri == null || uri.scheme != 'https' ||
+          uri.host.isEmpty || uri.userInfo.isNotEmpty) {
+        return 'Lien invalide.';
+      }
+      final host = uri.host.toLowerCase();
+      if (!RegExp(
+        r'^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9-]{2,63}$',
+      ).hasMatch(host)) {
+        return 'Lien invalide.';
+      }
+      final requiredHosts = socialHosts[key];
+      if (requiredHosts != null &&
+          !requiredHosts.any((domain) =>
+              host == domain || host.endsWith('.$domain'))) {
+        return 'Lien invalide.';
+      }
+    }
+
+    if (key == 'birth_date') {
+      if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
+        return 'Date invalide.';
+      }
+      final parsed = DateTime.tryParse(value);
+      if (parsed == null ||
+          parsed.year.toString().padLeft(4, '0') + '-' +
+              parsed.month.toString().padLeft(2, '0') + '-' +
+              parsed.day.toString().padLeft(2, '0') != value ||
+          parsed.isAfter(DateTime.now())) {
+        return 'Date invalide.';
+      }
+    }
+    return null;
+  }
+}
+).hasMatch(value)) {
         return 'Numéro invalide.';
       }
       final digits = RegExp(r'[0-9]').allMatches(value).length;
