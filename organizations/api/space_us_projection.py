@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from authorization.constants import PermissionCode, STANDARD_SPACE_ROLE_CODES, SystemRoleCode
 from authorization.models import AuthorityScope, Role
 from authorization.selectors import current_mandates, has_direct_space_permission
@@ -12,6 +14,8 @@ from .space_us_resources_projection import (
 )
 from .workspace_projection import build_space_workspace
 
+
+logger = logging.getLogger(__name__)
 
 PREVIEW_LIMIT = 8
 
@@ -185,10 +189,20 @@ def build_space_us_projection(*, profile, space):
         handoffs["passport"] = f"/space/{space.slug}/us/passport"
     resources = {"visibility": "restricted", "items": [], "count": None, "counts": {}}
     if can_view_space_resources(profile=profile, space=space):
-        resources = build_space_us_resources_projection(
-            profile=profile, space=space, preview=True,
-        )
-        handoffs["resources"] = f"/space/{space.slug}/us/resources"
+        try:
+            resources = build_space_us_resources_projection(
+                profile=profile, space=space, preview=True,
+            )
+        except Exception:
+            # The optional owner read model may fail independently. Never
+            # erase Space identity or pretend that an unavailable list is empty.
+            logger.exception("Space Nous Resources owner projection failed")
+            resources = {
+                "visibility": "unavailable", "items": [],
+                "count": None, "counts": {},
+            }
+        else:
+            handoffs["resources"] = f"/space/{space.slug}/us/resources"
     if has_direct_space_permission(profile, space, PermissionCode.SPACE_MANAGE):
         handoffs["connections"] = f"/space/{space.slug}/connections"
     can_view_subscription = direct_space and (
