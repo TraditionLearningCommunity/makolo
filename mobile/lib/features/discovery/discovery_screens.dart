@@ -1407,13 +1407,15 @@ class DiscoveryMapScreen extends StatefulWidget {
     this.onOpenItem,
     this.query = const DiscoveryQuery(),
     this.initialSelectedCandidateKey,
+    this.authenticated = false,
   });
 
   final DiscoveryRepository repository;
   final MakoloMapsConfig mapConfig;
   final LocationCapability? location;
   final ValueChanged<String> onOpenOccurrence;
-  final void Function(String family, String id)? onOpenItem;
+  final Future<void> Function(String family, String id)? onOpenItem;
+  final bool authenticated;
   final DiscoveryQuery query;
   final String? initialSelectedCandidateKey;
 
@@ -1551,13 +1553,16 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
                 onSelectionChanged: (key) => _selectedCandidateKey = key,
                 resolveItem: _verifiedMapDetail,
-                onSave: (item) => widget.repository.setSaved(
-                  family: item.family,
-                  id: item.id,
-                  saved: item.savedState != 'saved',
-                ),
+                onSave: widget.authenticated
+                    ? (item) => widget.repository.setSaved(
+                        family: item.family,
+                        id: item.id,
+                        saved: item.savedState != 'saved',
+                      )
+                    : null,
                 baseUri: widget.repository.api.baseUri,
                 shareApi: widget.repository.api,
+                shareAuthenticated: widget.authenticated,
                 onRetry: () => unawaited(_refresh()),
                 onOpen: (item) {
                   if (widget.onOpenItem != null) {
@@ -1631,10 +1636,12 @@ class DiscoveryItemDetailScreen extends StatefulWidget {
     required this.family,
     required this.id,
     required this.repository,
+    this.authenticated = false,
   });
 
   final String family;
   final String id;
+  final bool authenticated;
   final DiscoveryRepository repository;
 
   @override
@@ -1737,7 +1744,8 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
 
   Future<void> _setSaved(bool saved) async {
     final key = _itemKey;
-    if (_saving || _refreshing || _verifiedItemKey != key) return;
+    if (!widget.authenticated || _saving || _refreshing ||
+        _verifiedItemKey != key) return;
     final family = widget.family;
     final id = widget.id;
     setState(() => _saving = true);
@@ -1833,14 +1841,14 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
                               detailMode: true,
                               onOpen: () {},
                               onOwnerDepth: (path) => context.push(path),
-                              onSave: verified && !_saving &&
+                              onSave: widget.authenticated && verified && !_saving &&
                                       (item.savedState == 'saved'
                                           ? item.canUnsave
                                           : item.canSave)
                                   ? () => _setSaved(item!.savedState != 'saved')
                                   : null,
                               shareApi: widget.repository.api,
-                              shareAuthenticated: true,
+                              shareAuthenticated: widget.authenticated,
                               baseUri: widget.repository.api.baseUri,
                             ),
                           ),
