@@ -130,12 +130,12 @@ class SpaceWorkSurface extends StatelessWidget {
                       'Aucun élément connu dans cette sélection.'
                 : emptyMessage,
           ),
-        if (visible.isNotEmpty &&
-            _string(presentation?['calm_message']) case final String calm)
-          Padding(
-            padding: const EdgeInsets.only(top: MakoloSpacing.md),
-            child: Text(calm),
-          ),
+        if (visible.isNotEmpty)
+          if (_string(presentation?['calm_message']) case final String calm)
+            Padding(
+              padding: const EdgeInsets.only(top: MakoloSpacing.md),
+              child: Text(calm),
+            ),
         const SizedBox(height: MakoloSpacing.lg),
         for (final section in visible) ...[
           if (section.chapterTitle != null) ...[
@@ -421,7 +421,6 @@ class SpaceWorkSurface extends StatelessWidget {
     padding: const EdgeInsets.all(MakoloSpacing.lg),
     children: [MakoloEmptyState(title: message)],
   );
-}
 
   List<_WorkSection> _composeSections(
     Map<String, dynamic> sections,
