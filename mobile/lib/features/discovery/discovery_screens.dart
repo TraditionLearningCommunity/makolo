@@ -1429,6 +1429,8 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   late DiscoveryQuery _query;
   late DiscoveryMapVisitState _visit;
   bool _refreshing = false;
+  DiscoveryQuery? _refreshingQuery;
+  int _spatialGeneration = 0;
   String? _selectedCandidateKey;
   String? _restoredSelectedCandidateKey;
   int _detailReturnRevision = 0;
@@ -1454,6 +1456,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.query.fingerprint != widget.query.fingerprint ||
         oldWidget.repository != widget.repository) {
+      ++_spatialGeneration;
+      _refreshing = false;
+      _refreshingQuery = null;
       _query = widget.query.copyWith(page: 1, clearContinuation: true);
       _visit = discoveryMapVisitState(
         widget.repository,
@@ -1485,16 +1490,28 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   }
 
   Future<void> _refresh() async {
-    if (_refreshing || !mounted) return;
+    if (!mounted || (_refreshing && identical(_refreshingQuery, _query))) {
+      return;
+    }
     final current = _query;
-    setState(() => _refreshing = true);
+    final repository = widget.repository;
+    final generation = ++_spatialGeneration;
+    setState(() {
+      _refreshing = true;
+      _refreshingQuery = current;
+    });
     try {
-      await widget.repository.refreshSpatial(current);
+      await repository.refreshSpatial(current);
       // Acquisition state and authorization are tracked by the owner source.
     } on Object {
       // The same field and any acquired items remain visible on failure.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && generation == _spatialGeneration) {
+        setState(() {
+          _refreshing = false;
+          _refreshingQuery = null;
+        });
+      }
     }
   }
 
