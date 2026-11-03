@@ -218,7 +218,10 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.widgetWithText(TextField, 'Téléphone'));
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'Téléphone'), 220,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.enterText(
       find.widgetWithText(TextField, 'Téléphone'), '123456',
     );
@@ -226,6 +229,10 @@ void main() {
     await tester.tap(find.text('Enregistrer'));
     await tester.pumpAndSettle();
     expect(patches, 0);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'Téléphone'), -250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('7 à 15 chiffres.'), findsOneWidget);
     expect(find.text('Vérifier'), findsNothing);
 
@@ -233,10 +240,16 @@ void main() {
     await tester.enterText(
       find.widgetWithText(TextField, 'Téléphone'), '+243 810 000 000',
     );
-    await tester.ensureVisible(find.text('Liens et réseaux sociaux'));
+    await tester.scrollUntilVisible(
+      find.text('Liens et réseaux sociaux'), 240,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Liens et réseaux sociaux'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(TextField, 'Site web'));
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'Site web'), 220,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.enterText(
       find.widgetWithText(TextField, 'Site web'),
       'https://https://exemple.com',
@@ -245,6 +258,10 @@ void main() {
     await tester.tap(find.text('Enregistrer'));
     await tester.pumpAndSettle();
     expect(patches, 1);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextField, 'Site web'), -220,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(
       tester.widget<TextField>(
         find.widgetWithText(TextField, 'Site web'),
