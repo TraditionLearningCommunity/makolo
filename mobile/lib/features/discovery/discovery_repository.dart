@@ -1052,14 +1052,116 @@ class DiscoveryRepository {
       .watchProjection(itemProjectionKind, resourceKey: '$family:$id')
       .asyncMap((row) => _readAvailable(itemSource(family, id), row));
 
-  Future<StoredProjection?> readItem(String family, String id) async =>
-      _readAvailable(
-        itemSource(family, id),
-        await store.readProjection(
-          itemProjectionKind,
-          resourceKey: '$family:$id',
-        ),
-      );
+  /// Materialize a previously acquired owner projection only on N2 demand.
+  /// The server has already admitted it for this viewer: changing N1, Carte
+  /// or N2 is not another admission request. Source revocations and TTLs win.
+  Future<StoredProjection?> _itemFromAcquiredField(
+    String family,
+    String id,
+  ) async {
+    final owner = itemSource(family, id);
+    if ((await readSource(owner)).ownerUnavailable) return null;
+    final pages = await store.readProjections(itemsProjectionKind);
+    pages.sort((a, b) => b.receivedAt.compareTo(a.receivedAt));
+    final now = DateTime.now().toUtc();
+
+    for (final page in pages) {
+      if (page.schemaVersion != 1 ||
+          (page.expiresAt != null &&
+              !now.isBefore(page.expiresAt!.toUtc()))) {
+        continue;
+      }
+      final viewer = page.payload['viewer'];
+      if (viewer is! Map || viewer['id'] != profileId) continue;
+      final sourceQuery = database.select(database.syncSources)
+        ..where(
+          (row) =>
+              row.profileId.equals(profileId) &
+              row.sourceKey.equals('discovery:${page.resourceKey}'),
+        );
+      final sourceRow = await sourceQuery.getSingleOrNull();
+      if (sourceRow?.invalidated == true) continue;
+
+      final collections = <Object?>[
+        page.payload['results'],
+        if (page.payload['spatial_index'] is Map &&
+            (page.payload['spatial_index'] as Map)['detail_available'] == true &&
+            (page.payload['spatial_index'] as Map)['viewer'] is Map &&
+            ((page.payload['spatial_index'] as Map)['viewer'] as Map)['id'] ==
+                profileId)
+          (page.payload['spatial_index'] as Map)['results'],
+      ];
+      for (final collection in collections) {
+        if (collection is! List) continue;
+        for (final raw in collection) {
+          if (raw is! Map) continue;
+          final identity = raw['identity'];
+          final resource = identity is Map ? identity['resource'] : null;
+          if (identity is! Map ||
+              resource is! Map ||
+              identity['family'] != family ||
+              resource['id'] != id) {
+            continue;
+          }
+          final item = Map<String, dynamic>.from(raw);
+          try {
+            DiscoveryWire.validateData({'results': [item]});
+          } on FormatException {
+            continue;
+          }
+          // Preserve the original acquisition's time and provenance. This
+          // does not invent a successful item-detail owner HTTP response.
+          await store.putProjection(
+            kind: itemProjectionKind,
+            resourceKey: '$family:$id',
+            schemaVersion: page.schemaVersion,
+            payload: {'item': item},
+            receivedAt: page.receivedAt,
+            sourceGeneratedAt: page.sourceGeneratedAt,
+            sourceUpdatedAt: page.sourceUpdatedAt,
+            lastVerifiedOnlineAt: page.lastVerifiedOnlineAt,
+            freshUntil: page.freshUntil,
+            expiresAt: page.expiresAt,
+            freshnessPolicyId: page.freshnessPolicyId,
+          );
+          return _readAvailable(
+            owner,
+            await store.readProjection(
+              itemProjectionKind,
+              resourceKey: '$family:$id',
+            ),
+          );
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<StoredProjection?> readItem(String family, String id) async {
+    final source = itemSource(family, id);
+    final local = await _readAvailable(
+      source,
+      await store.readProjection(
+        itemProjectionKind,
+        resourceKey: '$family:$id',
+      ),
+    );
+    return local ?? _itemFromAcquiredField(family, id);
+  }
+
+  /// Query the owner only for absent/stale information. A server-projected
+  /// N1/Carte detail is enough for presentation; real actions still use the
+  /// owning authenticated endpoint, not the client-side capability alone.
+  Future<bool> hasReusableItem(String family, String id) async {
+    final item = await readItem(family, id);
+    if (item == null || item.schemaVersion != 1) return false;
+    final source = await readSource(itemSource(family, id));
+    if (source.invalidated || source.lastErrorCode != null) return false;
+    final observed = item.lastVerifiedOnlineAt ?? item.receivedAt;
+    final elapsed = DateTime.now().toUtc().difference(observed.toUtc());
+    return !elapsed.isNegative &&
+        elapsed <= detailFreshness.refreshRecommendedAfter!;
+  }
 
   Stream<StoredProjection?> watchActivity(String id) =>
       store.watchProjection(activityProjectionKind, resourceKey: id);
