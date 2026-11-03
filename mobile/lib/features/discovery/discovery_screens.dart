@@ -26,6 +26,7 @@ import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
 import 'discovery_map_visit_state.dart';
 import 'discovery_selector.dart';
+import 'discovery_unseen_reserve.dart';
 import 'discovery_wire.dart';
 import 'discovery_watch_create.dart';
 
@@ -133,6 +134,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   bool _loadingMore = false;
   bool _loadMoreFailed = false;
   final Map<String, Future<void>> _pageRequests = {};
+  DiscoveryUnseenReserve? _unseenReserve;
+  String? _unseenField;
+  Future<void>? _unseenLoad;
+
   final ScrollController _fieldScroll = ScrollController();
   Timer? _positionDebounce;
   double? _pendingScrollRestore;
@@ -159,6 +164,46 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     unawaited(_rememberPosition(_query));
     _fieldScroll.dispose();
     super.dispose();
+  }
+
+  static int _initialReveal(int count) =>
+      count <= 1 ? count : ((count * 2) ~/ 3).clamp(1, count);
+
+  Future<void> _ensureUnseenReserve(DiscoveryQuery query) async {
+    if (_unseenReserve != null && _unseenField == query.mapFingerprint) return;
+    final running = _unseenLoad;
+    if (running != null) {
+      await running;
+      if (_unseenReserve != null && _unseenField == query.mapFingerprint) return;
+    }
+    final request = _loadUnseenReserve(query);
+    _unseenLoad = request;
+    try {
+      await request;
+    } finally {
+      if (identical(_unseenLoad, request)) _unseenLoad = null;
+    }
+  }
+
+  Future<void> _loadUnseenReserve(DiscoveryQuery query) async {
+    final projection = await widget.repository.readItems(query);
+    if (projection == null) return;
+    final collection = _selector.collection(projection);
+    final saved = await widget.repository.readUnseenReserve(query);
+    final reserve = saved ?? DiscoveryUnseenReserve();
+    reserve.observe(collection.items.map((item) => item.wire));
+    if (saved == null && reserve.shownKeys.isEmpty) {
+      reserve.reveal(
+        collection.items.map((item) => item.candidateKey),
+        count: _initialReveal(collection.items.length),
+      );
+    }
+    if (!mounted || query.mapFingerprint != _query.mapFingerprint) return;
+    setState(() {
+      _unseenReserve = reserve;
+      _unseenField = query.mapFingerprint;
+    });
+    await widget.repository.saveUnseenReserve(query, reserve);
   }
 
   Future<void> _restorePositionThenAcquire() async {
@@ -190,6 +235,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     }
     if (mounted) {
       setState(() {});
+      await _ensureUnseenReserve(_query);
       await _acquire();
     }
   }
@@ -220,6 +266,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       final local = await widget.repository.readItems(current);
       if (!mounted || !identical(current, _query)) return;
       if (local != null) {
+        await _ensureUnseenReserve(current);
         try {
           DiscoveryWire.validateData(local.payload);
           await widget.repository.indexItemPreviews(current);
@@ -233,6 +280,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       if (await widget.repository.hasReusableItems(current)) {
         if (mounted && identical(current, _query)) {
           setState(() => _verifiedFieldKey = current.mapFingerprint);
+          unawaited(_prefetchNext(current));
         }
         return;
       }
@@ -273,8 +321,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           status.lastErrorCode == null &&
           status.lastSuccessAt != null &&
           !status.invalidated) {
-        setState(() => _verifiedFieldKey = refreshed.mapFingerprint);
-        // The next signed page is acquired only when requested by scrolling.
+        setState(() {
+          _verifiedFieldKey = refreshed.mapFingerprint;
+          if (refreshed.page == 1) {
+            _unseenReserve = null;
+            _unseenField = null;
+          }
+        });
+        await _ensureUnseenReserve(refreshed);
+        if (mounted && identical(refreshed, _query)) {
+          unawaited(_prefetchNext(refreshed));
+        }
       }
     } on Object {
       if (mounted) setState(() => _acquisitionFailed = true);
@@ -317,6 +374,16 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         continuation: token,
       );
       await _acquirePage(next);
+      final retained = await widget.repository.readItems(next);
+      if (retained == null || !mounted ||
+          !identical(current, _query)) return;
+      await _ensureUnseenReserve(current);
+      final reserve = _unseenReserve;
+      if (reserve == null || _unseenField != current.mapFingerprint) return;
+      reserve.observe(
+        _selector.collection(retained).items.map((item) => item.wire),
+      );
+      await widget.repository.saveUnseenReserve(current, reserve);
     } on Object {
       // The existing field remains readable on network failure.
     }
