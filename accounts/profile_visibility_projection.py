@@ -13,10 +13,11 @@ from organizations.models import Organization, Team
 from topics.models import ProfileInterest, ProfileOpenTo
 
 
-def build_profile_visibility_settings(profile):
-    policies = ProfileVisibilityPolicy.objects.filter(
-        owner=profile
-    ).prefetch_related("audiences")
+def build_profile_visibility_settings(profile, *, compact=False):
+    policies = ProfileVisibilityPolicy.objects.filter(owner=profile)
+    if compact:
+        policies = policies.filter(target_kind=Target.FIELD)
+    policies = policies.prefetch_related("audiences")
     by_key = {
         (p.target_kind, p.field_key if p.target_kind == Target.FIELD
          else str(p.interest_id if p.target_kind == Target.INTEREST else p.open_to_id)): p
@@ -98,14 +99,14 @@ def build_profile_visibility_settings(profile):
             }
             for key in PROFILE_VISIBILITY_FIELDS if key not in ("interests", "open_to")
         },
-        "interests": [
+        "interests": [] if compact else [
             {"id": str(row.pk), "label": row.topic.label,
              **setting(Target.INTEREST, row.pk, default_public=row.is_public)}
             for row in ProfileInterest.objects.filter(
                 profile=profile, topic__is_active=True
             ).select_related("topic").order_by("topic__label")
         ],
-        "open_to": [
+        "open_to": [] if compact else [
             {"id": str(row.pk), "label": row.get_kind_display(),
              **setting(Target.OPEN_TO, row.pk, default_public=row.is_public)}
             for row in ProfileOpenTo.objects.filter(
