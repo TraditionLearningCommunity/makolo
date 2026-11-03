@@ -70,6 +70,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Map<String, String> _fieldErrors = const {};
   String? _confirmation;
   Map<String, dynamic>? _cachedIdentity;
+  Map<String, dynamic>? _confirmedEditor;
   bool _edited = false;
   Future<void> _draftWrites = Future<void>.value();
   int _editRevision = 0;
@@ -223,6 +224,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         setState(() {
           _cachedIdentity = local?.identity;
           if (editor != null) {
+            _confirmedEditor = editor.payload;
             _applyEditor(editor.payload);
           }
           if (draft != null) {
@@ -254,6 +256,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       setState(() {
         // Never overwrite text entered while the background check was
         // pending. Those edits are not yet confirmed by the owner.
+        _confirmedEditor = editor;
         if (!_edited) _applyEditor(editor);
         _loading = false;
         _error = null;
@@ -421,32 +424,26 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       _fieldErrors = const {};
       _confirmation = null;
     });
+    // Send only changed fields. An unrelated legacy URL or phone number must
+    // not cause a user-requested biography or birth-date change to fail.
+    final baseline = _confirmedEditor;
+    final changes = <String, dynamic>{
+      for (final entry in confirmedEditor.entries)
+        if (baseline == null || baseline[entry.key] != entry.value)
+          entry.key: entry.value,
+    };
+    if (changes.isEmpty) {
+      setState(() {
+        _saving = false;
+        _edited = false;
+        _confirmation = 'Aucune modification à enregistrer.';
+      });
+      return;
+    }
     try {
       await widget.api.patch(
         'api/v1/accounts/auth/profile/update/',
-        body: {
-          'first_name': _firstName.text.trim(),
-          'last_name': _lastName.text.trim(),
-          'birth_date': _birthDate.text.trim().isEmpty ? null : _birthDate.text.trim(),
-          'gender': _gender,
-          'profession': _profession.text.trim(),
-          'city': _city.text.trim(),
-          'country': _selectedCountry?.code ?? '',
-          'bio': _bio.text.trim(),
-          'phone': _phone.text.trim(),
-          'website': _website.text.trim(),
-          'linkedin_url': _linkedin.text.trim(),
-          'facebook_url': _facebook.text.trim(),
-          'instagram_url': _instagram.text.trim(),
-          'tiktok_url': _tiktok.text.trim(),
-          'x_url': _x.text.trim(),
-          'youtube_url': _youtube.text.trim(),
-          'company_name': _company.text.trim(),
-          'organization_name': _organization.text.trim(),
-          'address': _address.text.trim(),
-          'public_profile': _publicProfile,
-          'searchable': _searchable,
-        },
+        body: changes,
       );
     } on Object catch (error) {
       if (!mounted) return;
@@ -479,6 +476,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       return;
     }
 
+    _confirmedEditor = confirmedEditor;
     // Accounts confirmed these fields. Clear the device-owned draft only
     // after the last local write has completed.
     try {
