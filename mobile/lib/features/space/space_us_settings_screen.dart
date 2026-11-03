@@ -318,151 +318,31 @@ class _SpaceUsSettingsScreenState extends State<SpaceUsSettingsScreen> {
                     validator: (value) {
                       final text = (value ?? '').trim();
                       if (text.isEmpty) return null;
-                      return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+
+                      return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                          .hasMatch(text)
+                          ? null
+                          : 'E-mail invalide.';
+                    },
+                  ),
                   TextFormField(
                     controller: phone,
                     keyboardType: TextInputType.phone,
                     maxLength: 50,
                     maxLengthEnforcement: MaxLengthEnforcement.none,
                     decoration: const InputDecoration(
-                      labelText: 'Téléphone', counterText: '',
+                      labelText: 'Téléphone',
+                      counterText: '',
                     ),
                     validator: (value) {
                       final text = (value ?? '').trim();
                       if (text.isEmpty) return null;
                       final digits = RegExp(r'[0-9]').allMatches(text).length;
-                      return RegExp(r'^\+?[0-9().\s-]+
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Profil public'),
-                    value: publicProfile,
-                    onChanged: saving
-                        ? null
-                        : (value) => setState(() => publicProfile = value),
-                  ),
-                  if (error != null) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(
-                      error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: MakoloSpacing.md),
-                  FilledButton.icon(
-                    onPressed: saving ? null : save,
-                    icon: saving
-                        ? const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
-                    label: const Text('Enregistrer les modifications'),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-}
-)
-                          .hasMatch(text) ? null : 'E-mail invalide.';
+                      return RegExp(r'^\+?[0-9().\s-]+$').hasMatch(text) &&
+                              digits >= 7 &&
+                              digits <= 15
+                          ? null
+                          : 'Téléphone invalide.';
                     },
-                  ),
-                  TextFormField(
-                    controller: phone,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Téléphone général',
-                    ),
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Profil public'),
-                    value: publicProfile,
-                    onChanged: saving
-                        ? null
-                        : (value) => setState(() => publicProfile = value),
-                  ),
-                  if (error != null) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(
-                      error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: MakoloSpacing.md),
-                  FilledButton.icon(
-                    onPressed: saving ? null : save,
-                    icon: saving
-                        ? const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
-                    label: const Text('Enregistrer les modifications'),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-}
-).hasMatch(text) &&
-                              digits >= 7 && digits <= 15
-                          ? null : 'Téléphone invalide.';
-                    },
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Profil public'),
-                    value: publicProfile,
-                    onChanged: saving
-                        ? null
-                        : (value) => setState(() => publicProfile = value),
-                  ),
-                  if (error != null) ...[
-                    const SizedBox(height: MakoloSpacing.sm),
-                    Text(
-                      error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: MakoloSpacing.md),
-                  FilledButton.icon(
-                    onPressed: saving ? null : save,
-                    icon: saving
-                        ? const SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
-                    label: const Text('Enregistrer les modifications'),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-}
-)
-                          .hasMatch(text) ? null : 'E-mail invalide.';
-                    },
-                  ),
-                  TextFormField(
-                    controller: phone,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Téléphone général',
-                    ),
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
