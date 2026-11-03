@@ -232,10 +232,11 @@ class SpaceUsView(SpaceWebMixin):
                 raise Http404 from exc
             if resources is None:
                 raise Http404
-            root_url = self._space_url("organizations:space-us")
+            root_url = self._space_nav_url("organizations:space-us")
+            separator = "&" if "?" in root_url else "?"
             context["resources_depth"] = resources
             context["resources_back_url"] = root_url
-            context["resources_base_url"] = f"{root_url}?detail=resources"
+            context["resources_base_url"] = f"{root_url}{separator}detail=resources"
             context["resources_passport_url"] = self._space_url(
                 "sharing:passport-space-history"
             )
@@ -285,9 +286,9 @@ class SpaceUsView(SpaceWebMixin):
         if projection.get("links", {}).get("trust"):
             owner_links["trust"] = self._space_url("organizations:console-trust")
         if projection.get("resources", {}).get("visibility") == "visible":
-            owner_links["resources"] = (
-                f'{self._space_url("organizations:space-us")}?detail=resources'
-            )
+            us_url = self._space_nav_url("organizations:space-us")
+            separator = "&" if "?" in us_url else "?"
+            owner_links["resources"] = f"{us_url}{separator}detail=resources"
         if capabilities.get("update_space"):
             owner_links["settings"] = self._space_url("organizations:console-settings")
             owner_links["passport"] = self._space_url("sharing:passport-space")
