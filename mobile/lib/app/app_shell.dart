@@ -190,6 +190,7 @@ class _AppShellState extends State<AppShell> with WidgetsBindingObserver {
       context,
       runtime: widget.runtime,
       onConnections: () => context.push(connectionsRouteForActor(_actor)),
+      onEditProfile: () => context.push('/me/profile'),
       onBilling: () => context.push(subscriptionRouteForActor(_actor)),
       onSettings: () => context.push('/settings'),
       onSwitchAccount: widget.onSwitchAccount,
