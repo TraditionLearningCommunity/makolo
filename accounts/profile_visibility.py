@@ -137,13 +137,13 @@ class ProfileVisibilityResolver:
         return self.allows(target_kind=Target.FIELD, key=key)
 
     def interest(self, row):
-        return self.allows(
+        return self.field("interests") and self.allows(
             target_kind=Target.INTEREST, key=row.pk,
             legacy_public=row.is_public,
         )
 
     def open_to(self, row):
-        return self.allows(
+        return self.field("open_to") and self.allows(
             target_kind=Target.OPEN_TO, key=row.pk,
             legacy_public=row.is_public and row.is_active,
         )
