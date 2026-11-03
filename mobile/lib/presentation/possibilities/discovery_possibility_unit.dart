@@ -1122,6 +1122,65 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
         _confirmedSaved == null && (saved ? item.canUnsave : item.canSave);
 
     final resources = _resourceEntries;
+    final actionBar = <Widget>[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.xs,
+                vertical: MakoloSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: IconButton(
+                      key: Key(
+                        widget.detailMode
+                            ? 'discover-save-n2'
+                            : 'discover-save-n1',
+                      ),
+                      onPressed:
+                          !_saving &&
+                              widget.allowOwnerActions &&
+                              ((widget.onSave != null && canToggle) ||
+                                  (widget.allowSavePrompt &&
+                                      widget.onSignIn != null))
+                          ? _save
+                          : null,
+                      tooltip: _saving
+                          ? 'Enregistrement…'
+                          : saved
+                          ? 'Enregistré'
+                          : 'Enregistrer',
+                      icon: DiscoveryOrbitIcon(
+                        saved: saved,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  if (!widget.detailMode)
+                    Expanded(
+                      child: IconButton(
+                        key: const Key('discover-primary-n1'),
+                        onPressed: () => _centralAction(context),
+                        tooltip: _centralActionLabel,
+                        icon: Icon(_centralActionIcon),
+                      ),
+                    ),
+                  Expanded(
+                    child: DiscoveryShareControl(
+                      item: item,
+                      api: widget.shareApi,
+                      authenticated: widget.shareAuthenticated,
+                      onSignIn: widget.onSignIn,
+                      enabled: !widget.detailMode || widget.allowOwnerActions,
+                      iconOnly: true,
+                      baseUri: widget.baseUri,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    ];
     return DecoratedBox(
       decoration: widget.detailMode
           ? const BoxDecoration()
@@ -1250,17 +1309,6 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
               ],
             ),
           ),
-          if (widget.detailMode)
-            DiscoveryN2DepthSection(
-              item: item,
-              onOpenOccurrence: widget.onOwnerDepth == null
-                  ? null
-                  : (id) => widget.onOwnerDepth!(
-                      '/occurrences/${Uri.encodeComponent(id)}',
-                    ),
-            ),
-          _media(context),
-          if (resources.isNotEmpty) _resourceSection(context, resources),
           if (widget.detailMode && !widget.allowOwnerActions)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -1290,65 +1338,19 @@ class _DiscoveryPossibilityUnitState extends State<DiscoveryPossibilityUnit> {
                 label: const Text('Voir l’activité'),
               ),
             ),
-          ...[
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: MakoloSpacing.xs,
-                vertical: MakoloSpacing.xs,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: IconButton(
-                      key: Key(
-                        widget.detailMode
-                            ? 'discover-save-n2'
-                            : 'discover-save-n1',
-                      ),
-                      onPressed:
-                          !_saving &&
-                              widget.allowOwnerActions &&
-                              ((widget.onSave != null && canToggle) ||
-                                  (widget.allowSavePrompt &&
-                                      widget.onSignIn != null))
-                          ? _save
-                          : null,
-                      tooltip: _saving
-                          ? 'Enregistrement…'
-                          : saved
-                          ? 'Enregistré'
-                          : 'Enregistrer',
-                      icon: DiscoveryOrbitIcon(
-                        saved: saved,
-                        color: theme.colorScheme.primary,
-                      ),
+          if (widget.detailMode) ...actionBar,
+          if (widget.detailMode)
+            DiscoveryN2DepthSection(
+              item: item,
+              onOpenOccurrence: widget.onOwnerDepth == null
+                  ? null
+                  : (id) => widget.onOwnerDepth!(
+                      '/occurrences/${Uri.encodeComponent(id)}',
                     ),
-                  ),
-                  if (!widget.detailMode)
-                    Expanded(
-                      child: IconButton(
-                        key: const Key('discover-primary-n1'),
-                        onPressed: () => _centralAction(context),
-                        tooltip: _centralActionLabel,
-                        icon: Icon(_centralActionIcon),
-                      ),
-                    ),
-                  Expanded(
-                    child: DiscoveryShareControl(
-                      item: item,
-                      api: widget.shareApi,
-                      authenticated: widget.shareAuthenticated,
-                      onSignIn: widget.onSignIn,
-                      enabled: !widget.detailMode || widget.allowOwnerActions,
-                      iconOnly: true,
-                      baseUri: widget.baseUri,
-                    ),
-                  ),
-                ],
-              ),
             ),
-          ],
+          _media(context),
+          if (resources.isNotEmpty) _resourceSection(context, resources),
+          if (!widget.detailMode) ...actionBar,
           if (widget.onSelect != null)
             TextButton.icon(
               key: ValueKey('discover-map-action-${widget.item.candidateKey}'),
