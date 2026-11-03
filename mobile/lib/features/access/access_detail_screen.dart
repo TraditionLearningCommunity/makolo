@@ -69,6 +69,8 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
+      stream: widget.repository.watchCollectionPages(),
+      builder: (context, knownPagesSnapshot) => StreamBuilder(
       stream: widget.repository.watchDetail(widget.accessId),
       builder: (context, projectionSnapshot) {
         return StreamBuilder<AccessSourceState>(
@@ -77,11 +79,19 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
           builder: (context, sourceSnapshot) {
             final projection = projectionSnapshot.data;
             final source = sourceSnapshot.data ?? AccessSourceState.unknown;
-            final presentation = _selector.select(
+            final detail = _selector.select(
               projection: projection,
               source: source,
               now: DateTime.now(),
             );
+            final known = source.invalidated
+                ? null
+                : _selector.knownFromCollection(
+                    pages: knownPagesSnapshot.data ?? const [],
+                    accessId: widget.accessId,
+                    now: DateTime.now(),
+                  );
+            final presentation = detail.available ? detail : (known ?? detail);
             final available = presentation.available;
             final unavailableWithoutContent =
                 !available && source.invalidated && !_refreshing;
@@ -139,6 +149,7 @@ class _AccessDetailScreenState extends State<AccessDetailScreen> {
           },
         );
       },
+    ),
     );
   }
 }
@@ -159,6 +170,21 @@ class _AccessContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metadata = <MakoloMetadataItem>[
+      if (presentation.occurrenceStartsAt != null)
+        MakoloMetadataItem(
+          'Prévu le ${_formatDateTime(context, presentation.occurrenceStartsAt!)}',
+          icon: Icons.event_outlined,
+        )
+      else if (presentation.occurrenceStartDate != null)
+        MakoloMetadataItem(
+          'Date prévue : ${presentation.occurrenceStartDate}',
+          icon: Icons.event_outlined,
+        ),
+      if (presentation.placeName != null)
+        MakoloMetadataItem(
+          presentation.placeName!,
+          icon: Icons.place_outlined,
+        ),
       if (presentation.validFrom != null)
         MakoloMetadataItem(
           'Valable à partir du ${_formatDateTime(context, presentation.validFrom!)}',
@@ -190,7 +216,34 @@ class _AccessContent extends StatelessWidget {
           subtitle: relationshipCopy,
           metadata: metadata,
         ),
-        if (onOpenPresentation != null) ...[
+        if (presentation.knownOnly) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MakoloSpacing.inner,
+            ),
+            child: Text(
+              'Dernières informations reçues sur cet appareil. '
+              'Le statut et le contrôle réel restent soumis à Access.',
+            ),
+          ),
+          if (presentation.state != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+                vertical: MakoloSpacing.sm,
+              ),
+              child: Text('État lors de la dernière réception : '
+                  '${presentation.state}'),
+            ),
+          if (presentation.holderName != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MakoloSpacing.inner,
+              ),
+              child: Text('Bénéficiaire : ${presentation.holderName}'),
+            ),
+        ],
+        if (onOpenPresentation != null && !presentation.knownOnly) ...[
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: MakoloSpacing.inner,
