@@ -71,6 +71,9 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   String? _confirmation;
   Map<String, dynamic>? _cachedIdentity;
   Map<String, dynamic>? _confirmedEditor;
+  // Owner account details are read-only here; never stored in the draft/PATCH.
+  String? _accountEmail;
+  String? _accountIdentifier;
   bool _edited = false;
   Future<void> _draftWrites = Future<void>.value();
   int _editRevision = 0;
@@ -251,7 +254,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   Future<void> _read() async {
     try {
       final response = await widget.api.get('api/v1/accounts/auth/me/');
-      final editor = _editorProjection(response.jsonObject());
+      final account = response.jsonObject();
+      final editor = _editorProjection(account);
       try {
         await _persistEditor(editor);
       } on Object {
@@ -262,6 +266,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         // Never overwrite text entered while the background check was
         // pending. Those edits are not yet confirmed by the owner.
         _confirmedEditor = editor;
+        _accountEmail = account['email']?.toString();
+        _accountIdentifier = account['username']?.toString();
         if (!_edited) _applyEditor(editor);
         _loading = false;
         _error = null;
@@ -577,7 +583,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         title: Text(
           widget.focusVisibility
               ? 'Confidentialité du Profil'
-              : 'Modifier mon passeport',
+              : 'Modifier le Passeport',
         ),
       ),
       body: _loading && _cachedIdentity == null
@@ -587,7 +593,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           : ListView(
               controller: _scrollController,
               cacheExtent: widget.focusVisibility ? 4000 : null,
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 44),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
                 if (_error != null) ...[
                   Text(
@@ -615,6 +621,11 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 _sectionTitle('Identité'),
                 _field('Prénom', _firstName),
                 _field('Nom', _lastName),
+                _readOnlyAccountDetail(
+                  'Identifiant Makolo',
+                  _accountIdentifier ??
+                      _cachedIdentity?['username']?.toString(),
+                ),
                 _birthDatePicker(),
                 _genderSelector(),
                 _field('À propos', _bio, lines: 3),
@@ -626,11 +637,10 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                 const SizedBox(height: 12),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
-                  initiallyExpanded:
-                      _city.text.isNotEmpty || _country.text.isNotEmpty ||
-                      _address.text.isNotEmpty,
+                  initiallyExpanded: [
+                    _city.text, _country.text, _address.text,
+                  ].any((value) => value.trim().isNotEmpty),
                   title: const Text('Localisation'),
-                  subtitle: const Text('Pays, ville et adresse (facultatifs)'),
                   children: [
                     _countryAutocomplete(),
                     _field('Ville', _city),
@@ -638,33 +648,35 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
                   ],
                 ),
                 _sectionTitle('Contact'),
+                _readOnlyAccountDetail('Adresse e-mail', _accountEmail),
                 _field('Téléphone', _phone),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   initiallyExpanded: [
-                    _profession.text, _website.text, _company.text,
-                    _organization.text,
+                    _profession.text, _company.text, _organization.text,
                   ].any((value) => value.trim().isNotEmpty),
-                  title: const Text('Activité et liens'),
-                  subtitle: const Text('Profession, organisation, site et réseaux'),
+                  title: const Text('Activité professionnelle'),
                   children: [
                     _field('Profession', _profession),
-                    _field('Site web', _website),
                     _field('Entreprise', _company),
                     _field('Organisation', _organization),
-                    ExpansionTile(
-                      tilePadding: EdgeInsets.zero,
-                      title: const Text('Réseaux sociaux'),
-                      subtitle: const Text('Liens facultatifs'),
-                      children: [
-                        _field('LinkedIn', _linkedin),
-                        _field('Facebook', _facebook),
-                        _field('Instagram', _instagram),
-                        _field('TikTok', _tiktok),
-                        _field('X', _x),
-                        _field('YouTube', _youtube),
-                      ],
-                    ),
+                  ],
+                ),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  initiallyExpanded: [
+                    _website.text, _linkedin.text, _facebook.text,
+                    _instagram.text, _tiktok.text, _x.text, _youtube.text,
+                  ].any((value) => value.trim().isNotEmpty),
+                  title: const Text('Liens et réseaux sociaux'),
+                  children: [
+                    _field('Site web', _website),
+                    _field('LinkedIn', _linkedin),
+                    _field('Facebook', _facebook),
+                    _field('Instagram', _instagram),
+                    _field('TikTok', _tiktok),
+                    _field('X', _x),
+                    _field('YouTube', _youtube),
                   ],
                 ),
                 KeyedSubtree(
@@ -741,8 +753,28 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     );
   }
 
+  Widget _readOnlyAccountDetail(String label, String? value) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14, vertical: 14,
+        ),
+      ),
+      child: Text(
+        value == null || value.trim().isEmpty
+            ? 'Non disponible'
+            : value.trim(),
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
+    ),
+  );
+
   Widget _sectionTitle(String title) => Padding(
-    padding: const EdgeInsets.only(top: 24, bottom: 16),
+    padding: const EdgeInsets.only(top: 18, bottom: 12),
     child: Text(
       title,
       style: Theme.of(context).textTheme.titleMedium
@@ -896,7 +928,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     TextEditingController controller, {
     int lines = 1,
   }) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
+    padding: const EdgeInsets.only(bottom: 12),
     child: TextField(
       controller: controller,
       onChanged: (_) => _rememberEdits(),
