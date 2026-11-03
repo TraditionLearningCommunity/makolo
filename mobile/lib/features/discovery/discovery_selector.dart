@@ -408,6 +408,53 @@ class DiscoverySelector {
     return _item(item, now: now ?? DateTime.now());
   }
 
+  /// A spatial presentation of the same server-admitted candidates.
+  /// A compact map wire never authorizes actions beyond the canonical N2.
+  DiscoveryFieldSelection spatialSelection({
+    required StoredProjection? projection,
+    MakoloReachabilityCue reachability = MakoloReachabilityCue.unknown,
+    MakoloFailureCue failure = MakoloFailureCue.none,
+    bool refreshing = false,
+  }) {
+    final rows = projection?.payload['results'];
+    final compatible = projection == null ||
+        (projection.kind == 'discovery.map' &&
+            projection.schemaVersion == 1 &&
+            rows is List);
+    final items = <DiscoveryItemPresentation>[];
+    if (compatible && rows is List) {
+      for (final raw in rows.whereType<Map>()) {
+        final wire = Map<String, dynamic>.from(raw);
+        final item = _item(wire, now: DateTime.now());
+        if (item != null && item.isMappable) items.add(item);
+      }
+    }
+    return DiscoveryFieldSelection(
+      collection: DiscoveryCollectionPresentation(
+        items: List.unmodifiable(items),
+        count: items.length,
+        page: 1,
+        pageSize: items.length,
+        hasNext: false,
+      ),
+      surface: MakoloSurfacePresentation(
+        availability: projection == null
+            ? MakoloAvailabilityCue.initial
+            : !compatible
+                ? MakoloAvailabilityCue.empty
+                : items.isEmpty
+                    ? MakoloAvailabilityCue.empty
+                    : MakoloAvailabilityCue.content,
+        reachability: reachability,
+        failure: compatible ? failure : MakoloFailureCue.blocking,
+        refreshing: refreshing,
+      ),
+      states: !compatible
+          ? const {DiscoveryFieldState.contractError}
+          : const {},
+    );
+  }
+
   DiscoveryCollectionPresentation collection(
     StoredProjection? projection, {
     DateTime? now,
