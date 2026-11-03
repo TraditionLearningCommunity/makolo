@@ -498,6 +498,11 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
     if (mounted) await reload();
   }
 
+  Future<void> privacy() async {
+    await context.push('/space/' + widget.slug + '/us/passport/privacy');
+    if (mounted) await reload();
+  }
+
   Widget section(String title, List<Widget> items) {
     if (items.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -532,7 +537,7 @@ class _SpacePassportScreenState extends State<SpacePassportScreen> {
           IconButton(
             tooltip: 'Confidentialité',
             icon: const Icon(Icons.shield_outlined),
-            onPressed: full == null || busy ? null : edit,
+            onPressed: full == null || busy ? null : privacy,
           ),
           IconButton(
             tooltip: 'Versions datées',
