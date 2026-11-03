@@ -98,6 +98,27 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertNotIn("permissions", response.data)
         self.assertNotIn("subscription_id", response.data)
 
+    def test_space_mandate_without_team_management_cannot_read_team_size(self):
+        viewer = User.objects.create_user(
+            username="zs4-marketing", email="zs4-marketing@test.local", password="x"
+        )
+        grant_space_role(
+            profile=viewer,
+            space=self.space,
+            role=SystemRoleCode.MARKETING,
+            granted_by=self.owner,
+        )
+        self.client.force_authenticate(viewer)
+        response = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data["authority"]["scope"], "space")
+        self.assertEqual(response.data["team"]["visibility"], "restricted")
+        self.assertIsNone(response.data["team"]["active_members"])
+        self.assertEqual(response.data["team"]["items"], [])
+        self.assertNotIn("team", response.data["handoffs"])
+
     def test_team_membership_alone_never_opens_zs4(self):
         self.client.force_authenticate(self.member)
         for suffix in ("us", "relationships", "pilot"):
@@ -131,6 +152,7 @@ class ZS4SpaceProjectionTests(TestCase):
         self.assertEqual(us.data["authority"]["scope"], "activity_limited")
         self.assertEqual(us.data["team"]["items"], [])
         self.assertEqual(us.data["team"]["visibility"], "restricted")
+        self.assertIsNone(us.data["team"]["active_members"])
         self.assertEqual(us.data["team"]["role_options"], [])
         self.assertEqual(us.data["relationships"]["sections"], {})
         self.assertNotIn("relationships", us.data["handoffs"])
