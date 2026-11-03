@@ -61,9 +61,16 @@ class PassportVariantIdentityTests(TestCase):
         self.assertEqual(custom.identity["location"], "CD")
         self.assertNotIn("Ville confidentielle", str(custom.identity))
 
-    def test_unselected_custom_bio_stays_excluded_but_identity_stays(self):
-        custom = build_profile_passport(self.owner, variant="custom")
-        self.assertEqual(custom.identity["name"], self.owner.full_name)
-        self.assertEqual(custom.identity["avatar_url"],
+    def test_personalized_starts_with_public_facts_and_explicitly_excludes(self):
+        default = build_profile_passport(self.owner, variant="custom")
+        self.assertEqual(default.identity["name"], self.owner.full_name)
+        self.assertEqual(default.identity["avatar_url"],
                          "/media/variant-public-photo.jpg")
-        self.assertEqual(custom.identity["bio"], "")
+        self.assertEqual(default.identity["bio"], "Présentation facultative")
+
+        excluded = build_profile_passport(
+            self.owner, variant="custom", selected_sections=["identity"],
+        )
+        self.assertEqual(excluded.identity["name"], self.owner.full_name)
+        self.assertEqual(excluded.identity["avatar_url"], "")
+        self.assertEqual(excluded.identity["bio"], "")
