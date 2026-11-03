@@ -184,6 +184,8 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         key: ValueKey('discover-activity-${state.pathParameters['id']}'),
         activityId: state.pathParameters['id']!,
         repository: discovery,
+        conversations: runtime.conversations,
+        onOpenConversation: (id) => context.push('/conversations/$id'),
         onOpenOccurrence: (id) => context.push(
           '/occurrences/${Uri.encodeComponent(id)}',
         ),
@@ -206,6 +208,8 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         key: ValueKey('discover-occurrence-$occurrenceId'),
         occurrenceId: occurrenceId,
         repository: discovery,
+        conversations: runtime.conversations,
+        onOpenConversation: (id) => context.push('/conversations/$id'),
         onOpenActivity: (id) => context.push(
           '/activities/${Uri.encodeComponent(id)}',
         ),
