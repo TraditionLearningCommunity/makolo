@@ -214,7 +214,8 @@ class _MePassportScreenState extends State<MePassportScreen> {
       ...complete,
       'variant': requested,
       'identity': identity,
-      'private_details': _map(identity['presentation_details']),
+      'personal_details': _map(identity['presentation_details']),
+      'private_details': <String, dynamic>{},
       'collectives': <String, dynamic>{},
       'declared': {
         ...declared,
@@ -517,9 +518,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
                 {'label': link[0], 'url': link[1]},
           ],
         },
+        'personal_details': version['variant'] == 'complete'
+            ? <String, dynamic>{}
+            : _map(identity['presentation_details']),
         'private_details': version['variant'] == 'complete'
             ? _map(identity['owner_details'])
-            : _map(identity['presentation_details']),
+            : <String, dynamic>{},
         'declared': {
           'interests': [
             for (final item
@@ -1601,7 +1605,13 @@ class _PassportBody extends StatelessWidget {
     final organizationName = _text(identity['organization_name']);
     final location = _text(identity['location']);
     final links = _rows(identity['links']);
-    final privateDetails = _map(data['private_details']);
+    // Owner-only data and publicly admissible personal facts never share
+    // a disclosure container. The same section renders the admitted subset.
+    final personalDetails = data['variant'] == 'complete'
+        ? _map(data['private_details'])
+        : data['personal_details'] != null
+            ? _map(data['personal_details'])
+            : _map(identity['presentation_details']);
     final missing = <String>[
       if (bio == null) 'À propos',
       if (profession == null) 'Profession',
@@ -1715,8 +1725,8 @@ class _PassportBody extends StatelessWidget {
               ],
             ),
           ),
-        if (privateDetails.isNotEmpty)
-          _personalDetails(context, privateDetails),
+        if (personalDetails.isNotEmpty)
+          _personalDetails(context, personalDetails),
         if (bio != null)
           Padding(
             padding: const EdgeInsets.only(top: 18),
