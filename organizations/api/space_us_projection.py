@@ -175,6 +175,8 @@ def build_space_us_projection(*, profile, space):
         handoffs["pilot"] = f"/space/{space.slug}/us/pilot"
     if workspace["capabilities"].get("update_space"):
         handoffs["settings"] = f"/space/{space.slug}/us/settings"
+        # Only an actual SPACE_MANAGE authorization opens collective issuance.
+        handoffs["passport"] = f"/space/{space.slug}/us/passport"
     if has_direct_space_permission(profile, space, PermissionCode.SPACE_MANAGE):
         handoffs["connections"] = f"/space/{space.slug}/connections"
     can_view_subscription = direct_space and (
