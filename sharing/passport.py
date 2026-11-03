@@ -719,6 +719,15 @@ def build_space_passport(
             sections = set(selected_sections or ()) & sections
 
     identity = _space_identity(space)
+    if variant == PASSPORT_COMPLETE:
+        # Only an authorized operator may receive institutional contacts;
+        # these are never copied into a public, thematic or shared selection.
+        identity["owner_details"] = {
+            "city": space.city or "",
+            "country": space.country or "",
+            "phone": space.contact_phone or "",
+            "email": space.contact_email or "",
+        }
     if custom:
         for key in ("bio", "links", "location"):
             if key not in sections:
