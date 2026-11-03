@@ -900,6 +900,8 @@ GoRouter createMakoloRouter(
           return MeGroupScreen(
             api: runtime.api!,
             groupId: state.pathParameters['id']!,
+            conversations: runtime.conversations,
+            onOpenConversation: (id) => context.push('/conversations/$id'),
           );
         },
       ),
