@@ -1016,35 +1016,83 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
           _selectedCountry = country;
           _country.text = country.code;
           _countryHasUnselectedInput = false;
+          _checkedFields.add('country');
+          final errors = Map<String, String>.from(_fieldErrors);
+          errors.remove('country');
+          _fieldErrors = errors;
         });
         _rememberEdits();
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) =>
-          TextFormField(
-            controller: controller,
-            focusNode: focusNode,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(
-              labelText: 'Pays',
-              errorText: _fieldErrors['country'],
-              hintText: 'Rechercher un pays',
-              prefixIcon: Icon(Icons.public_outlined),
-              border: OutlineInputBorder(),
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 15,
-              ),
-            ),
-            onChanged: (value) {
-              if (value != _selectedCountry?.label) {
-                _selectedCountry = null;
+          Focus(
+            onFocusChange: (focused) {
+              if (focused) return;
+              final match = countryForValue(controller.text);
+              if (match != null) {
+                if (_selectedCountry?.code != match.code) {
+                  _country.text = match.code;
+                  _rememberEdits();
+                }
+                controller.value = TextEditingValue(
+                  text: match.label,
+                  selection: TextSelection.collapsed(offset: match.label.length),
+                );
+              } else if (controller.text.trim().isEmpty) {
                 _country.clear();
-                _countryHasUnselectedInput = value.trim().isNotEmpty;
-                _rememberEdits();
               }
+              if (!mounted) return;
+              setState(() {
+                _selectedCountry = match;
+                _countryHasUnselectedInput =
+                    match == null && controller.text.trim().isNotEmpty;
+                _checkedFields.add('country');
+                final errors = Map<String, String>.from(_fieldErrors);
+                if (_countryHasUnselectedInput) {
+                  errors['country'] = 'Pays invalide.';
+                } else {
+                  errors.remove('country');
+                }
+                _fieldErrors = errors;
+              });
             },
-            onFieldSubmitted: (value) => onFieldSubmitted(),
+            child: TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: 'Pays',
+                errorText: _fieldErrors['country'],
+                hintText: 'Rechercher un pays',
+                prefixIcon: const Icon(Icons.public_outlined),
+                suffixIcon: _checkedFields.contains('country') &&
+                        _fieldErrors['country'] == null &&
+                        _selectedCountry != null
+                    ? const Icon(Icons.check_circle_outline, color: Colors.green)
+                    : null,
+                border: const OutlineInputBorder(),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 15,
+                ),
+              ),
+              onChanged: (value) {
+                final match = countryForValue(value);
+                _selectedCountry = match;
+                _country.text = match?.code ?? '';
+                _countryHasUnselectedInput =
+                    match == null && value.trim().isNotEmpty;
+                _rememberEdits();
+                if (_checkedFields.contains('country') ||
+                    _fieldErrors.containsKey('country')) {
+                  _setLocalError(
+                    'country',
+                    _countryHasUnselectedInput ? 'Pays invalide.' : null,
+                  );
+                }
+              },
+              onFieldSubmitted: (_) => onFieldSubmitted(),
+            ),
           ),
     ),
   );
