@@ -607,6 +607,18 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
 
   Future<void> _refreshSavedWatches() async {
     try {
+      final source = widget.repository.watchesSource();
+      final previous = await widget.repository.readSource(source);
+      final stored = await widget.repository.store.readProjection(
+        DiscoveryRepository.watchesProjectionKind,
+      );
+      final recentlyConfirmed = previous.lastSuccessAt != null &&
+          !previous.invalidated &&
+          previous.lastErrorCode == null &&
+          DateTime.now().toUtc().difference(
+            previous.lastSuccessAt!.toUtc(),
+          ) < const Duration(minutes: 15);
+      if (recentlyConfirmed && stored != null) return;
       await widget.repository.refreshWatches();
     } on Object {
       // Visitors have no private watches; keep public search available.
@@ -966,7 +978,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     final query = _query;
     if (!query.hasCriteria) return;
     try {
-      await widget.repository.refreshItems(query);
+      await widget.repository.ensureItems(query);
       final status = await widget.repository.readSource(
         widget.repository.itemsSource(query),
       );
@@ -1028,10 +1040,17 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
     unawaited(_refreshPage(query));
   }
 
-  Future<void> _refreshPage(DiscoveryQuery query) async {
+  Future<void> _refreshPage(
+    DiscoveryQuery query, {
+    bool force = false,
+  }) async {
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshItems(query);
+      if (force) {
+        await widget.repository.refreshItems(query);
+      } else {
+        await widget.repository.ensureItems(query);
+      }
       final status = await widget.repository.readSource(
         widget.repository.itemsSource(query),
       );
@@ -1340,7 +1359,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
                           sourceErrorCode: sourceState.lastErrorCode,
                         );
                         return RefreshIndicator(
-                          onRefresh: () => _refreshPage(_query),
+                          onRefresh: () => _refreshPage(_query, force: true),
                           child: DiscoveryExplorationView(
                             selection: selection,
                             onOpen: _open,
