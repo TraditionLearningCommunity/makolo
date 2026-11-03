@@ -139,7 +139,7 @@ def _require_coverage_plan_eligibility(subject, version, *, at=None):
 @transaction.atomic
 def create_coverage(
     *, actor, plan_version, payer_profile=None, payer_space=None,
-    purchased_quantity, starts_at, ends_at, request_key, renewal_of=None,
+    purchased_quantity, starts_at=None, ends_at=None, request_key, renewal_of=None,
 ):
     """Purchase a version-pinned pool; payer may differ from all beneficiaries."""
     _require_payer_manager(actor, payer_profile=payer_profile, payer_space=payer_space)
@@ -149,7 +149,8 @@ def create_coverage(
     if previous:
         if (previous.plan_version_id != plan_version.pk
             or previous.purchased_quantity != purchased_quantity
-            or previous.starts_at != starts_at or previous.ends_at != ends_at
+            or (starts_at is not None and previous.starts_at != starts_at)
+            or (ends_at is not None and previous.ends_at != ends_at)
             or previous.payer_profile_id != (payer_profile.pk if payer_profile else None)
             or previous.payer_space_id != (payer_space.pk if payer_space else None)):
             raise CoverageError("La même clé de demande a déjà été utilisée pour un autre contrat.")
@@ -174,6 +175,11 @@ def create_coverage(
         raise CoverageError("Quantité hors du plafond contractuel.")
     if terms.coverage_pricing_mode == "flat" and purchased_quantity != terms.coverage_max_quantity:
         raise CoverageError("Le forfait réserve exactement le nombre de places publié.")
+    from .coverage_models import coverage_period_end
+    starts_at = starts_at or timezone.now()
+    ends_at = ends_at or coverage_period_end(
+        starts_at, terms.billing_period_unit, terms.billing_period_count,
+    )
     if starts_at >= ends_at:
         raise CoverageError("La période de couverture est invalide.")
     coverage = SubscriptionCoverage(
