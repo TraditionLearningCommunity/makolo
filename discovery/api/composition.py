@@ -1506,50 +1506,38 @@ def spatial_index_from_rows(rows) -> dict:
 
 
 def spatial_discovery_projection(rows, *, profile=None) -> dict:
-    """One viewer-authorized field, usable as both map facts and N2 presentation.
+    """Compose canonical public location facts with viewer-authorized N2 facts.
 
-    Geography describes admitted candidate facts; presentation is sourced from
-    the exact same project_rows owner composition as Discovery N1/N2. No
-    separate map-only permissions, pricing, ranking or fabricated locations.
+    The spatial index owns place publication and roles, while project_rows
+    owns presentation, relevance, prices, permissions and actions. Neither
+    responsibility is reimplemented in a Map-specific contract.
     """
+    spatial = spatial_index_from_rows(rows)
+    by_key = {
+        item["identity"]["candidate_key"]: item
+        for item in spatial["results"]
+    }
     admitted = [
         (family, key, candidate)
         for family, key, candidate in rows
-        if family == "activity"
+        if key in by_key
     ]
-    public_facts, _ = _public_occurrence_facts_for_rows(admitted)
-    located = []
-    for family, key, candidate in admitted:
-        primary = candidate.to_map_dict()
-        facts = public_facts.get(str(candidate.activity_id), [])
-        located_facts = [
-            fact for fact in facts
-            if fact.get("place", {}).get("latitude") is not None
-            and fact.get("place", {}).get("longitude") is not None
-        ]
-        if primary is None and not located_facts:
-            continue
-        place = primary["place"] if primary is not None else located_facts[0]["place"]
-        if not located_facts:
-            located_facts = [{"role": "primary", "place": place}]
-        located.append(((family, key, candidate), place, located_facts))
-
-    projections = project_rows([entry[0] for entry in located], profile=profile)
+    projected = project_rows(admitted, profile=profile)
     results = []
-    for projection, (_, place, facts) in zip(projections, located):
-        # Preserve the owner projection's detail fields; only attach the
-        # already-public spatial positions when missing from the primary card.
-        item = dict(projection)
+    for owner_item in projected:
+        key = owner_item["identity"]["candidate_key"]
+        location = by_key[key]
+        item = dict(owner_item)
         current = item.get("place")
         if not isinstance(current, dict) or (
             current.get("latitude") is None or current.get("longitude") is None
         ):
-            item["place"] = place
-        item["spatial_facts"] = facts
+            item["place"] = location["place"]
+        item["spatial_facts"] = location["spatial_facts"]
         results.append(item)
     return {
         "count": len(results),
-        "total_results": len(rows),
+        "total_results": spatial["total_results"],
         "detail_available": True,
         "viewer": (
             {"type": "profile", "id": str(profile.pk)}
@@ -1557,7 +1545,6 @@ def spatial_discovery_projection(rows, *, profile=None) -> dict:
         ),
         "results": results,
     }
-
 
 def paginated_projection(
     params,
