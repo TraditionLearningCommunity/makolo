@@ -131,7 +131,10 @@ void main() {
       expect(find.text('BASE de l’Espace A'), findsOneWidget);
       expect(find.text('Abonnement de l’Espace'), findsWidgets);
       expect(find.text('Formule collective'), findsOneWidget);
-      expect(find.text('Examiner le changement'), findsOneWidget);
+      await tester.ensureVisible(find.text('Changer de formule'));
+      await tester.tap(find.text('Changer de formule'));
+      await tester.pumpAndSettle();
+      expect(find.text('Voir les détails'), findsOneWidget);
       expect(find.text('Facturation de mon abonnement'), findsNothing);
       expect(find.text('Confirmer'), findsNothing);
 
