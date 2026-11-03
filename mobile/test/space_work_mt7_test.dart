@@ -212,6 +212,13 @@ void main() {
                   'url': 'https://foreign.test/api/v1/requests/foreign/',
                 },
                 {
+                  // Same owner id as a substring, wrong canonical path.
+                  'intent': 'open_request',
+                  'channel': 'api',
+                  'owner': {'kind': 'journey_request', 'id': 'request-1'},
+                  'url': '/api/v1/organizations/workspaces/atelier/requests/request-1-forged/',
+                },
+                {
                   'intent': 'open_day_of',
                   'channel': 'api',
                   'owner': {'kind': 'occurrence', 'id': 'wrong'},
