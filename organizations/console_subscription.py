@@ -27,6 +27,11 @@ from subscriptions.security_services import (
     request_subscription_transition_for_actor,
 )
 from subscriptions.transition_models import SubscriptionTransition
+from subscriptions.coverage_models import SubscriptionCoverage, SubscriptionCoverageAllocation
+from subscriptions.coverage_services import (
+    accept_coverage_allocation, decide_coverage_allocation,
+    select_coverage_base, use_personal_base,
+)
 from subscriptions.ux_continuation import safe_action_return, subscription_return_home
 
 from .console_views import SpaceConsoleMixin
@@ -78,6 +83,19 @@ class SpaceConsoleSubscriptionView(SpaceSubscriptionMixin, TemplateView):
         ))
         context["space_billing"] = space_billing_for_actor(self.request.user, subscription)
         context["space_history"] = subscription_transition_history(subscription)
+        context["coverage_received"] = (
+            SubscriptionCoverageAllocation.objects.filter(space=self.space)
+            .select_related("coverage__plan_version__plan")
+            .order_by("-created_at")[:30]
+        )
+        if self.space_console.can_manage_subscription:
+            context["coverage_financed"] = (
+                SubscriptionCoverage.objects.filter(payer_space=self.space)
+                .select_related("plan_version").order_by("-created_at")[:30]
+            )
+        else:
+            context["coverage_financed"] = ()
+
         context["subscription_return_url"] = safe_action_return(self.request, space=self.space)
         product = context["product"]
         if product.transition and product.transition["open"] and product.can_manage:
@@ -260,3 +278,35 @@ class SpaceTransitionCompleteView(SpaceSubscriptionMixin, View):
         else:
             messages.success(request, "Le changement de formule de l’Espace est terminé.")
         return redirect(subscription_return_home(request, space=self.space))
+
+
+class SpaceCoverageDecisionView(SpaceSubscriptionMixin, View):
+    def post(self, request, *args, **kwargs):
+        self.require_manage()
+        allocation = get_object_or_404(
+            SubscriptionCoverageAllocation.objects.select_related("coverage__plan_version__plan"),
+            pk=self.kwargs["allocation_id"], space=self.space,
+        )
+        action = (request.POST.get("action") or "").strip()
+        try:
+            if action == "accept":
+                accept_coverage_allocation(
+                    actor=request.user, allocation=allocation,
+                    select_base=allocation.coverage.plan_version.plan.plan_type == "base",
+                )
+            elif action == "decline":
+                decide_coverage_allocation(
+                    actor=request.user, allocation=allocation,
+                    reason="Refus par l'Espace bénéficiaire.",
+                )
+            elif action == "select_base":
+                select_coverage_base(actor=request.user, allocation=allocation)
+            elif action == "use_personal_base":
+                use_personal_base(actor=request.user, space=self.space)
+            else:
+                raise ValidationError("Action de couverture inconnue.")
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        else:
+            messages.success(request, "Le choix de couverture de l'Espace a été enregistré.")
+        return redirect("organizations:console-subscription", slug=self.space.slug)
