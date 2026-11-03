@@ -152,6 +152,52 @@ void main() {
     expect(find.textContaining('Contexte limité'), findsOneWidget);
   });
 
+  testWidgets('archived Space identity is explained without hiding the portrait', (
+    tester,
+  ) async {
+    final projection = _projection();
+    (projection['identity'] as Map<String, dynamic>)['lifecycle'] = 'archived';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Atelier collectif'), findsOneWidget);
+    expect(find.text('Cet Espace est archivé.'), findsOneWidget);
+  });
+
+  testWidgets('restricted Team section never exposes cached member rows', (
+    tester,
+  ) async {
+    final projection = _projection();
+    final team = projection['team'] as Map<String, dynamic>;
+    team['visibility'] = 'restricted';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildMakoloTheme(),
+        home: Scaffold(
+          body: SpaceUsSurface(
+            payload: projection,
+            fallbackSpaceName: 'Fallback',
+            onOpen: (_) => fail('Restricted Team link cannot open'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Atelier collectif'), findsOneWidget);
+    expect(find.text('Amina'), findsNothing);
+    expect(find.text('Ouvrir l’équipe'), findsNothing);
+  });
+
   testWidgets('forged cross-Space link is not presented', (tester) async {
     final projection = _projection();
     (projection['handoffs'] as Map<String, dynamic>)['relationships'] =
