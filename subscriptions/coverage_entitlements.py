@@ -90,10 +90,18 @@ def funded_feature_contributions(subject, features, allocations):
         for allocation in allocations:
             if allocation.coverage.plan_version_id != entitlement.plan_version_id:
                 continue
-            if any(
-                _evaluate_requirement(req, subject).state not in _OK
-                for req in requirements_by_entitlement.get(entitlement.pk, ())
-            ):
+            # A broken or unavailable evaluator must fail closed for this
+            # financed source, without granting access or hiding other sources.
+            eligible = True
+            for requirement in requirements_by_entitlement.get(entitlement.pk, ()):
+                try:
+                    if _evaluate_requirement(requirement, subject).state not in _OK:
+                        eligible = False
+                        break
+                except Exception:
+                    eligible = False
+                    break
+            if not eligible:
                 continue
             version = allocation.coverage.plan_version
             is_base = version.plan.plan_type == SubscriptionPlanType.BASE
