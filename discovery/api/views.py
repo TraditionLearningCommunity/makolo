@@ -29,6 +29,7 @@ from .composition import (
     paginated_projection,
     parse_page_params,
     project_rows,
+    spatial_index_from_rows,
     _public_occurrence_facts_for_rows,
     set_saved_state,
     detail_projection,
@@ -223,59 +224,8 @@ class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
         # Spatial presentation of the *same admitted candidates* as Discovery.
         # Opt-in keeps the legacy 100-point API stable for existing consumers.
         if request.query_params.get("spatial") == "1":
-            rows = [
-                (family, key, candidate)
-                for family, key, candidate in composition.rows
-                if family == "activity"
-            ]
-            public_facts, _ = _public_occurrence_facts_for_rows(rows)
-            possibilities = []
-            for family, key, candidate in rows:
-                primary = candidate.to_map_dict()
-                facts = public_facts.get(str(candidate.activity_id), [])
-                located_facts = [
-                    fact for fact in facts
-                    if fact.get("place", {}).get("latitude") is not None
-                    and fact.get("place", {}).get("longitude") is not None
-                ]
-                if primary is None and not located_facts:
-                    continue
-                place = primary["place"] if primary is not None else None
-                if place is None:
-                    place = located_facts[0]["place"]
-                if not located_facts:
-                    located_facts = [{"role": "primary", "place": place}]
-                possibilities.append({
-                    "identity": {
-                        "family": family,
-                        "candidate_key": key,
-                        "resource": {
-                            "kind": "activity",
-                            "id": str(candidate.activity_id),
-                        },
-                        "occurrence": {
-                            "kind": "occurrence",
-                            "id": str(candidate.occurrence_id),
-                        } if candidate.occurrence_id is not None else None,
-                    },
-                    "representation": {
-                        "title": candidate.title,
-                    },
-                    "place": place,
-                    "spatial_facts": located_facts,
-                    "capabilities": ["view"],
-                    "links": {
-                        "detail": reverse(
-                            "discovery_api:item-detail",
-                            kwargs={"family": family, "item_id": candidate.activity_id},
-                        ),
-                    },
-                })
-            return Response({
-                "count": len(possibilities),
-                "total_results": len(composition.rows),
-                "results": possibilities,
-            })
+            # Compatibility path: same helper as the enriched Discovery field.
+            return Response(spatial_index_from_rows(composition.rows))
 
         points = []
         for family, _, candidate in composition.rows:
