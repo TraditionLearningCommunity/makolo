@@ -1037,9 +1037,11 @@ class _MePassportScreenState extends State<MePassportScreen> {
           ),
         );
       }
+      if (mounted) setState(() => _exporting = false);
       return null;
     } finally {
-      if (mounted) setState(() => _exporting = false);
+      // The caller owns the downloaded file until it is saved or shared.
+      // Keep the busy guard active; it prevents duplicate dated emissions.
     }
   }
 
@@ -1075,6 +1077,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
       }
     } finally {
       await _discardTemporaryPdf(file);
+      if (mounted) setState(() => _exporting = false);
     }
   }
 
@@ -1240,6 +1243,7 @@ class _MePassportScreenState extends State<MePassportScreen> {
         await const SystemShareGateway().shareFiles(paths: [file]);
       } finally {
         await _discardTemporaryPdf(file);
+        if (mounted) setState(() => _exporting = false);
       }
       return;
     }
