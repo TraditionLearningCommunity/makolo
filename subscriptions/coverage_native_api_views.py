@@ -60,15 +60,37 @@ def _plan(request):
     )
 
 
-def _coverage_payload(coverage):
+def _coverage_payload(coverage, *, actor):
     """Financial owner projection, without the recipient's private activity."""
     allocations = coverage.allocations.select_related("group").order_by("created_at")
+    from django.urls import reverse
+    from payments.selectors import obligations_visible_to
+    payment_links = list(coverage.billing_obligation_links.select_related("obligation"))
+    visible_ids = set(
+        obligations_visible_to(actor).filter(
+            pk__in=[link.obligation_id for link in payment_links]
+        ).values_list("pk", flat=True)
+    )
+    payments = [
+        {
+            "obligation_id": str(link.obligation_id),
+            "amount": str(link.obligation.amount),
+            "currency": link.obligation.currency,
+            "status": link.obligation.status,
+            "payment_url": (
+                reverse("payments:obligation-start", kwargs={"obligation_pk": link.obligation_id})
+                if link.obligation.status in {"pending", "processing"} else None
+            ),
+        }
+        for link in payment_links if link.obligation_id in visible_ids
+    ]
     return {
         "id": str(coverage.pk),
         "plan_version_id": str(coverage.plan_version_id),
         "plan_name": coverage.plan_version.name,
         "status": coverage.status,
         "purchased_quantity": coverage.purchased_quantity,
+        "payments": payments,
         "starts_at": coverage.starts_at,
         "ends_at": coverage.ends_at,
         "allocations": [
@@ -120,7 +142,7 @@ def _buy(request, *, payer_profile=None, payer_space=None):
             plan_version=version, purchased_quantity=_quantity(request),
             request_key=_key(request),
         )
-        return _private(_coverage_payload(coverage))
+        return _private(_coverage_payload(coverage, actor=request.user))
     except (DjangoPermissionDenied, DjangoValidationError) as exc:
         _error(exc)
 
@@ -168,7 +190,7 @@ class PersonalCoverageAPIView(APIView):
             .order_by("-created_at")[:50]
         )
         return _private({
-            "funded": [_coverage_payload(row) for row in funded],
+            "funded": [_coverage_payload(row, actor=request.user) for row in funded],
             "received": [_recipient_payload(row) for row in invitations],
         })
 
@@ -197,7 +219,7 @@ class SpaceCoverageAPIView(APIView):
         except DjangoPermissionDenied:
             can_manage = False
         return _private({
-            "funded": [_coverage_payload(row) for row in funded] if can_manage else [],
+            "funded": [_coverage_payload(row, actor=request.user) for row in funded] if can_manage else [],
             "received": [_recipient_payload(row) for row in received],
             "can_manage": can_manage,
         })
@@ -211,7 +233,7 @@ class CoverageManageAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, coverage_id):
-        return _private(_coverage_payload(_private_coverage(request.user, coverage_id)))
+        return _private(_coverage_payload(_private_coverage(request.user, coverage_id), actor=request.user))
 
 
 class CoverageAllocationAPIView(APIView):
@@ -254,7 +276,7 @@ class CoverageStatusAPIView(APIView):
                 status=request.data.get("status"),
                 reason=request.data.get("reason") or "",
             )
-            return _private(_coverage_payload(updated))
+            return _private(_coverage_payload(updated, actor=request.user))
         except (DjangoPermissionDenied, DjangoValidationError) as exc:
             _error(exc)
 
