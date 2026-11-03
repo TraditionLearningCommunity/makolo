@@ -1505,6 +1505,60 @@ def spatial_index_from_rows(rows) -> dict:
     }
 
 
+def spatial_discovery_projection(rows, *, profile=None) -> dict:
+    """One viewer-authorized field, usable as both map facts and N2 presentation.
+
+    Geography describes admitted candidate facts; presentation is sourced from
+    the exact same project_rows owner composition as Discovery N1/N2. No
+    separate map-only permissions, pricing, ranking or fabricated locations.
+    """
+    admitted = [
+        (family, key, candidate)
+        for family, key, candidate in rows
+        if family == "activity"
+    ]
+    public_facts, _ = _public_occurrence_facts_for_rows(admitted)
+    located = []
+    for family, key, candidate in admitted:
+        primary = candidate.to_map_dict()
+        facts = public_facts.get(str(candidate.activity_id), [])
+        located_facts = [
+            fact for fact in facts
+            if fact.get("place", {}).get("latitude") is not None
+            and fact.get("place", {}).get("longitude") is not None
+        ]
+        if primary is None and not located_facts:
+            continue
+        place = primary["place"] if primary is not None else located_facts[0]["place"]
+        if not located_facts:
+            located_facts = [{"role": "primary", "place": place}]
+        located.append(((family, key, candidate), place, located_facts))
+
+    projections = project_rows([entry[0] for entry in located], profile=profile)
+    results = []
+    for projection, (_, place, facts) in zip(projections, located):
+        # Preserve the owner projection's detail fields; only attach the
+        # already-public spatial positions when missing from the primary card.
+        item = dict(projection)
+        current = item.get("place")
+        if not isinstance(current, dict) or (
+            current.get("latitude") is None or current.get("longitude") is None
+        ):
+            item["place"] = place
+        item["spatial_facts"] = facts
+        results.append(item)
+    return {
+        "count": len(results),
+        "total_results": len(rows),
+        "detail_available": True,
+        "viewer": (
+            {"type": "profile", "id": str(profile.pk)}
+            if _authenticated(profile) else None
+        ),
+        "results": results,
+    }
+
+
 def paginated_projection(
     params,
     *,
@@ -1613,6 +1667,13 @@ def paginated_projection(
             "message": None,
         },
     }
+    # Explicit opt-in for local-first mobile exploration. One server
+    # composition supplies the N1 window and all admissible spatial details.
+    # Keep the legacy paginated response unchanged for other consumers.
+    if str(params.get("include_spatial", "")) == "1" and page == 1:
+        payload["spatial"] = spatial_discovery_projection(
+            composition.rows, profile=profile
+        )
     if include_internal_rows:
         payload["_page_rows"] = page_rows
         payload["_all_rows"] = composition.rows
