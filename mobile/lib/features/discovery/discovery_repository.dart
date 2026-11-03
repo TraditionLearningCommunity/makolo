@@ -373,6 +373,9 @@ class DiscoveryRepository {
   final MakoloApiClient api;
   final SyncEngine? sync;
 
+  /// Coalesce the same owner request across N1, Carte and N2.
+  final Map<String, Future<void>> _inflightOwnerRefreshes = {};
+
   /// No offline queue or persistence: research is billed only by an explicit
   /// owner call and its results stay contextual to this search.
   Future<DiscoverySourceResearch> researchSources(String text) async {
@@ -1761,6 +1764,20 @@ class DiscoveryRepository {
     if (engine == null) {
       throw StateError('Remote Discovery owner is not configured.');
     }
-    await engine.refreshSource(source);
+    final key = source.sourceKey;
+    final inflight = _inflightOwnerRefreshes[key];
+    if (inflight != null) {
+      await inflight;
+      return;
+    }
+    final request = engine.refreshSource(source);
+    _inflightOwnerRefreshes[key] = request;
+    try {
+      await request;
+    } finally {
+      if (identical(_inflightOwnerRefreshes[key], request)) {
+        _inflightOwnerRefreshes.remove(key);
+      }
+    }
   }
 }
