@@ -38,13 +38,25 @@ class SpaceWorkOwnerActions extends StatelessWidget {
       final url = spaceText(item?['url']);
       if (intent == null || id == null || url == null) continue;
       final ownerUrl = Uri.tryParse(url);
-      // An opaque Web/external URL or an unrelated API owner is not a
-      // native permission. The server must have supplied a first-party
-      // owner-specific API handoff in this selected Work item.
+      // An API URL is not itself authority. Match the *exact* server owner
+      // destination instead of accepting an arbitrary path containing an id.
+      // Each native screen still revalidates the active actor and permissions.
+      final spacePart = Uri.encodeComponent(slug);
+      final idPart = Uri.encodeComponent(id);
+      final expectedPath = switch (intent) {
+        'open_request' =>
+          '/api/v1/organizations/workspaces/$spacePart/requests/$idPart/',
+        'open_service_case_native' =>
+          '/api/v1/organizations/workspaces/$spacePart/work/service-cases/$idPart/',
+        'open_day_of' =>
+          '/api/v1/operations/occurrences/$idPart/day-of/',
+        _ => null,
+      };
       if (ownerUrl == null ||
+          ownerUrl.hasScheme ||
           ownerUrl.hasAuthority ||
-          !ownerUrl.path.startsWith('/api/v1/') ||
-          !ownerUrl.path.contains(id)) {
+          expectedPath == null ||
+          ownerUrl.path != expectedPath) {
         continue;
       }
       String? route;
