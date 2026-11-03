@@ -1430,6 +1430,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   late DiscoveryMapVisitState _visit;
   bool _refreshing = false;
   String? _selectedCandidateKey;
+  String? _restoredSelectedCandidateKey;
   int _detailReturnRevision = 0;
 
   @override
@@ -1441,8 +1442,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
       _query.mapFingerprint,
     );
     widget.repository.rememberExploration(_query);
-    _selectedCandidateKey =
+    _restoredSelectedCandidateKey =
         widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
+    _selectedCandidateKey = _restoredSelectedCandidateKey;
     _visit.selectedCandidateKey = _selectedCandidateKey;
     unawaited(_acquire());
   }
@@ -1458,8 +1460,9 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
         _query.mapFingerprint,
       );
       widget.repository.rememberExploration(_query);
-      _selectedCandidateKey =
+      _restoredSelectedCandidateKey =
           widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
+      _selectedCandidateKey = _restoredSelectedCandidateKey;
       _visit.selectedCandidateKey = _selectedCandidateKey;
       unawaited(_acquire());
     }
@@ -1588,7 +1591,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 location: widget.location,
                 showMapOnCompact: true,
                 fieldKey: _query.mapFingerprint,
-                initialSelectedCandidateKey: _selectedCandidateKey,
+                initialSelectedCandidateKey: _restoredSelectedCandidateKey,
                 detailRefreshRevision: _detailReturnRevision,
                 restoredViewport: _visit.viewport,
                 onViewportChanged: (viewport) {
