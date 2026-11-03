@@ -84,7 +84,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.textContaining('Contexte sélectionné : journey'),
+      find.textContaining('Élément sélectionné pour cette demande'),
       findsOneWidget,
     );
   });
