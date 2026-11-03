@@ -209,6 +209,20 @@ class _MePassportScreenState extends State<MePassportScreen> {
         if (_sections.contains(entry.key)) identity[entry.value] = '';
       }
       if (_sections.contains('links')) identity['links'] = const [];
+      if (_sections.contains('profession')) {
+        // The hero headline is the same professional fact as profession.
+        identity['headline'] = '';
+      }
+      if (_sections.contains('location')) {
+        // Coordinates admitted to Public may also appear in the personal
+        // details grid, independently of the hero location label.
+        final details = Map<String, dynamic>.from(
+          _map(identity['presentation_details']),
+        );
+        details.remove('city');
+        details.remove('country');
+        identity['presentation_details'] = details;
+      }
     }
     return {
       ...complete,
