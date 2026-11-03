@@ -61,7 +61,7 @@ from .space_web_views import (
     SpaceRelationshipsView,
     SpaceUsView,
 )
-from .space_work_web import SpaceWorkView
+from .space_work_web import SpaceWorkCollectionView, SpaceWorkView
 from .space_work_g1_web import SpaceWorkG1DepthView
 from .space_work_g2_web import SpaceWorkG2DepthView
 from .space_work_g3_web import SpaceWorkG3DepthView
@@ -109,6 +109,10 @@ urlpatterns = [
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/", SpaceOccurrenceScannerView.as_view(), name="space-occurrence-scanner"),
     path("<slug:slug>/occurrences/<uuid:occurrence_id>/scanner/scan/", SpaceOccurrenceScannerActionView.as_view(), name="space-occurrence-scanner-action"),
     path("<slug:slug>/work/", SpaceWorkView.as_view(), name="space-work"),
+    path(
+        "<slug:slug>/work/collection/<str:section>/",
+        SpaceWorkCollectionView.as_view(), name="space-work-collection",
+    ),
     path(
         "<slug:slug>/work/<str:kind>/<uuid:owner_id>/",
         SpaceWorkG1DepthView.as_view(), name="space-work-depth",
