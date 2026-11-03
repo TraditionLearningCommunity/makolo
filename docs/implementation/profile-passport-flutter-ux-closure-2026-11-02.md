@@ -62,3 +62,40 @@ n'est pas un fait personnel.
 - Compilation Flutter, formatage, contrôle Android Downloads, partage natif,
   lecture A vers B et changement d'identifiant.
 - Pas de fusion tant que les garanties pertinentes n'ont pas été vérifiées.
+
+## Éditeur intelligent — 3 novembre 2026
+
+L'éditeur Accounts conserve un bouton global **Enregistrer**, mais **aucun
+bouton de vérification par champ**. Flutter valide silencieusement au fil de
+la saisie lorsqu'un champ a déjà été vérifié, et à la perte du focus pour un
+nouveau champ. Il corrige automatiquement les espaces périphériques et
+normalise les liens vers HTTPS sans ajouter un second protocole, de manière
+idempotente. Les URL sont validées par structure, longueur et domaine du
+réseau social déclaré ; l'application ne prétend pas tester leur disponibilité.
+
+Les règles locales sont isolées dans
+`mobile/lib/features/me/passport_editor_field_rules.dart` :
+- Prénom/Nom : 150 caractères ; Profession, Entreprise, Organisation :
+  255 ; Ville : 100 ; Téléphone : 30 caractères de saisie, dont 7 à 15
+  chiffres ; URL : 200. À propos et Adresse n'ont pas de limite
+  arbitraire additionnelle.
+- Téléphone : clavier et ponctuation adaptés, indicatif non inventé.
+  Date de naissance : sélection locale, sans date future. Pays :
+  sélection ISO existante, avec reconnaissance des noms/codes exacts.
+- Identifiant Makolo : casse et préfixe `@` normalisés localement,
+  3 à 30 caractères et noms réservés contrôlés avant l'appel à
+  `auth/identifier/`. L'unicité et les délais demeurent sous Accounts.
+- Photo : extension et signature JPEG/PNG/WebP et taille maximale
+  de 5 Mo contrôlées avant l'envoi ; Accounts valide intégralement
+  l'image et son autorisation.
+
+Les erreurs détectables localement ne provoquent aucun PATCH. Le feedback
+est limité à une icône et à un message court sous le champ concerné.
+L'éditeur n'ajoute ni tutoriel ni appel réseau par frappe. Lors de
+l'enregistrement, seuls les champs effectivement modifiés sont transmis ;
+une ancienne valeur non modifiée et invalide n'empêche pas de sauvegarder
+un autre champ. Les brouillons et erreurs restent récupérables.
+
+**État :** modifications et tests de régression poussés sur #522.
+Les tests Flutter n'ont pas été exécutés dans cette session (SDK non présent
+dans l'environnement disponible). Le serveur reste l'autorité finale.
