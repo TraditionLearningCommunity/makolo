@@ -308,6 +308,18 @@ def _ongoing_rows(subscription):
     return tuple(rows)
 
 
+def _effective_funded_base(subscription):
+    """Present the same effective BASE as Entitlements, retaining the personal fallback."""
+    from .contracts import SubscriptionPlanType
+    from .coverage_entitlements import resolved_funded_allocations
+
+    for allocation in resolved_funded_allocations(subscription.subject):
+        version = allocation.coverage.plan_version
+        if allocation.selected_base and version.plan.plan_type == SubscriptionPlanType.BASE:
+            return allocation
+    return None
+
+
 def build_subscription_product_view(subscription, *, can_manage, include_catalog=True):
     active_items = list(
         SubscriptionItem.objects.filter(
@@ -325,6 +337,23 @@ def build_subscription_product_view(subscription, *, can_manage, include_catalog
     addon_items = tuple(
         item for item in active_items if item.item_type == SubscriptionPlanType.ADDON
     )
+    funded_base = _effective_funded_base(subscription)
+    personal_base_card = _item_card(base_item) if base_item else None
+    if funded_base is not None:
+        version = funded_base.coverage.plan_version
+        current_base_card = {
+            "item_id": None,
+            "plan_version_id": str(version.pk),
+            "name": version.name,
+            "description": version.short_description,
+            "benefits": _benefits(version),
+            "kind": SubscriptionPlanType.BASE,
+            "funded": True,
+            "allocation_id": str(funded_base.pk),
+            "personal_fallback": personal_base_card,
+        }
+    else:
+        current_base_card = personal_base_card
     label, explanation, tone = _SUBSCRIPTION_STATUS[subscription.status]
     return SubscriptionProductView(
         subscription=subscription,
@@ -337,7 +366,7 @@ def build_subscription_product_view(subscription, *, can_manage, include_catalog
             "tone": tone,
             "grace_until": subscription.grace_until,
         },
-        current_base=_item_card(base_item) if base_item else None,
+        current_base=current_base_card,
         active_addons=tuple(_item_card(item) for item in addon_items),
         capabilities=_capability_rows(subscription),
         catalog=_catalog_rows(subscription, active_items) if include_catalog else (),
