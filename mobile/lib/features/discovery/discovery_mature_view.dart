@@ -892,6 +892,11 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
       _focusedAnchor = null;
       _confirmedDetail = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selectedCandidateKey != null) {
+          unawaited(_resolveSelected());
+        }
+      });
     }
     final keys = widget.selection.collection.items
         .map((item) => item.candidateKey)
@@ -977,16 +982,18 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     DiscoverySpatialAnchor? selectedPoint;
     if (selected != null) {
       final focused = _focusedAnchor;
-      if (focused != null &&
-          focused.candidateKey == selected.candidateKey &&
-          points.any(
-            (point) =>
-                point.candidateKey == focused.candidateKey &&
-                point.latitude == focused.latitude &&
-                point.longitude == focused.longitude,
-          )) {
-        selectedPoint = focused;
-      } else {
+      if (focused != null && focused.candidateKey == selected.candidateKey) {
+        for (final point in points) {
+          if (point.candidateKey == focused.candidateKey &&
+              point.latitude == focused.latitude &&
+              point.longitude == focused.longitude &&
+              point.fact['role'] == focused.fact['role']) {
+            selectedPoint = point;
+            break;
+          }
+        }
+      }
+      if (selectedPoint == null) {
         for (final point in points) {
           if (point.candidateKey == selected.candidateKey) {
             selectedPoint = point;
