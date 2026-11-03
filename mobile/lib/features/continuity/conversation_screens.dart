@@ -33,6 +33,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
+  bool _attemptedRefresh = false;
 
   @override
   void initState() {
@@ -40,47 +41,83 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     unawaited(_acquireOrRefresh());
   }
 
+  @override
+  void didUpdateWidget(covariant ConversationListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      _requestedInitialRefresh = false;
+      _attemptedRefresh = false;
+      _refreshing = false;
+      unawaited(_acquireOrRefresh());
+    }
+  }
+
   Future<void> _acquireOrRefresh() async {
     if (_requestedInitialRefresh) return;
     _requestedInitialRefresh = true;
-    final local = await widget.repository.readList();
-    final source = await widget.repository.readListSource();
-    final invitations = await widget.repository.readInvitations();
-    final invitationSource = await widget.repository.readInvitationsSource();
-    if (!mounted) return;
-    if (invitations == null ||
-        ConversationRepository.invitationsFreshness.evaluate(
-              invitations,
-              now: DateTime.now(),
-              invalidated: invitationSource.invalidated,
-            ) !=
-            FreshnessState.fresh) {
-      unawaited(widget.repository.refreshInvitations());
+    final repository = widget.repository;
+    try {
+      final local = await repository.readList();
+      final source = await repository.readListSource();
+      if (!mounted || repository != widget.repository) return;
+      unawaited(_refreshInvitationsIfNeeded());
+      if (local == null) {
+        await _refreshList();
+        return;
+      }
+      final freshness = ConversationRepository.listFreshness.evaluate(
+        local,
+        now: DateTime.now(),
+        invalidated: source.invalidated,
+      );
+      if (freshness != FreshnessState.fresh) await _refreshList();
+    } on Object {
+      // Even a failed local read must end the initial loading state.
+      if (mounted && repository == widget.repository) {
+        setState(() => _attemptedRefresh = true);
+      }
     }
-    if (local == null) {
-      await _refresh();
-      return;
+  }
+
+  Future<void> _refreshInvitationsIfNeeded({bool force = false}) async {
+    final repository = widget.repository;
+    try {
+      final invitations = await repository.readInvitations();
+      final source = await repository.readInvitationsSource();
+      if (force ||
+          invitations == null ||
+          ConversationRepository.invitationsFreshness.evaluate(
+                invitations,
+                now: DateTime.now(),
+                invalidated: source.invalidated,
+              ) != FreshnessState.fresh) {
+        await repository.refreshInvitations();
+      }
+    } on Object {
+      // Invitation errors are independent from the conversation list.
     }
-    final freshness = ConversationRepository.listFreshness.evaluate(
-      local,
-      now: DateTime.now(),
-      invalidated: source.invalidated,
-    );
-    if (freshness != FreshnessState.fresh) await _refresh();
   }
 
   Future<void> _refresh() async {
+    unawaited(_refreshInvitationsIfNeeded(force: true));
+    await _refreshList();
+  }
+
+  Future<void> _refreshList() async {
     if (_refreshing) return;
+    final repository = widget.repository;
     setState(() => _refreshing = true);
     try {
-      await Future.wait([
-        widget.repository.refreshList(),
-        widget.repository.refreshInvitations(),
-      ]);
+      await repository.refreshList();
     } on Object {
-      // Preserve the local collection.
+      // Retain the local owner snapshot during transport failures.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && repository == widget.repository) {
+        setState(() {
+          _refreshing = false;
+          _attemptedRefresh = true;
+        });
+      }
     }
   }
 
@@ -113,16 +150,19 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                 drafts: const [],
                 pendingOperations: const [],
               ),
+              // An empty list can still contain pending invitations.
               availability: available
-                  ? items.isEmpty
-                        ? MakoloAvailabilityCue.empty
-                        : MakoloAvailabilityCue.content
+                  ? MakoloAvailabilityCue.content
                   : _refreshing
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+              failure: source.lastErrorCode == 'permission_denied'
+                  ? MakoloFailureCue.permissionDenied
+                  : source.lastErrorCode == 'not_found'
+                  ? MakoloFailureCue.blocking
+                  : source.lastErrorCode != null || (!available && _attemptedRefresh)
+                  ? available ? MakoloFailureCue.recoverable : MakoloFailureCue.blocking
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -139,10 +179,14 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
               ),
               body: MakoloSurfaceStateView(
                 state: surface,
-                empty: const MakoloEmptyState(title: 'Aucune conversation'),
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement des conversations…',
                 ),
+                blockingErrorMessage: 'Impossible de charger vos conversations.',
+                recoverableErrorMessage: 'Mise à jour impossible pour le moment.',
+                preservedMessage: available
+                    ? 'Les conversations déjà disponibles restent consultables.'
+                    : null,
                 onRetry: _refresh,
                 content: _ConversationListBody(
                   repository: widget.repository,
@@ -377,6 +421,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
+  bool _attemptedRefresh = false;
 
   @override
   void initState() {
@@ -384,33 +429,59 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     unawaited(_acquireOrRefresh());
   }
 
+  @override
+  void didUpdateWidget(covariant ConversationDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id || oldWidget.repository != widget.repository) {
+      _requestedInitialRefresh = false;
+      _attemptedRefresh = false;
+      _refreshing = false;
+      unawaited(_acquireOrRefresh());
+    }
+  }
+
   Future<void> _acquireOrRefresh() async {
     if (_requestedInitialRefresh) return;
     _requestedInitialRefresh = true;
-    final local = await widget.repository.readDetail(widget.id);
-    final source = await widget.repository.readDetailSource(widget.id);
-    if (!mounted) return;
-    if (local == null) {
-      await _refresh();
-      return;
+    final repository = widget.repository;
+    final id = widget.id;
+    try {
+      final local = await repository.readDetail(id);
+      final source = await repository.readDetailSource(id);
+      if (!mounted || repository != widget.repository || id != widget.id) return;
+      if (local == null) {
+        await _refresh();
+        return;
+      }
+      final freshness = ConversationRepository.detailFreshness.evaluate(
+        local,
+        now: DateTime.now(),
+        invalidated: source.invalidated,
+      );
+      if (freshness != FreshnessState.fresh) await _refresh();
+    } on Object {
+      if (mounted && repository == widget.repository && id == widget.id) {
+        setState(() => _attemptedRefresh = true);
+      }
     }
-    final freshness = ConversationRepository.detailFreshness.evaluate(
-      local,
-      now: DateTime.now(),
-      invalidated: source.invalidated,
-    );
-    if (freshness != FreshnessState.fresh) await _refresh();
   }
 
   Future<void> _refresh() async {
     if (_refreshing) return;
+    final repository = widget.repository;
+    final id = widget.id;
     setState(() => _refreshing = true);
     try {
-      await widget.repository.refreshDetail(widget.id);
+      await repository.refreshDetail(id);
     } on Object {
-      // Preserve the local detail.
+      // Retain the authorized local detail during transport failures.
     } finally {
-      if (mounted) setState(() => _refreshing = false);
+      if (mounted && repository == widget.repository && id == widget.id) {
+        setState(() {
+          _refreshing = false;
+          _attemptedRefresh = true;
+        });
+      }
     }
   }
 
@@ -498,10 +569,13 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                   ? MakoloAvailabilityCue.loading
                   : MakoloAvailabilityCue.initial,
               reachability: source.reachability,
-              failure: !available && source.invalidated && !_refreshing
+              failure: source.lastErrorCode == 'permission_denied'
+                  ? MakoloFailureCue.permissionDenied
+                  : source.lastErrorCode == 'not_found' ||
+                        (!available && source.invalidated)
                   ? MakoloFailureCue.blocking
-                  : source.lastErrorCode != null && available
-                  ? MakoloFailureCue.recoverable
+                  : source.lastErrorCode != null || (!available && _attemptedRefresh)
+                  ? available ? MakoloFailureCue.recoverable : MakoloFailureCue.blocking
                   : MakoloFailureCue.none,
               refreshing: _refreshing && available,
             );
@@ -568,7 +642,11 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
                 initialLoading: const MakoloLoadingState(
                   label: 'Chargement de la conversation…',
                 ),
-                blockingErrorMessage: 'Cette conversation n’est pas disponible dans votre contexte actuel.',
+                blockingErrorMessage: 'Cette conversation est indisponible ou n’a pas pu être chargée.',
+                recoverableErrorMessage: 'Mise à jour impossible pour le moment.',
+                preservedMessage: available
+                    ? 'La dernière version disponible reste consultable.'
+                    : null,
                 onRetry: _refresh,
                 content: ListView(
                   key: const Key('conversation-detail-content'),
