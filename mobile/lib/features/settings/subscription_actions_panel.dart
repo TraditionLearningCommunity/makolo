@@ -713,11 +713,12 @@ class _SubscriptionActionsPanelState extends State<SubscriptionActionsPanel> {
         ],
         if (widget.section == 'plans' || widget.section == 'options') ...[
           if (widget.section == 'plans' &&
-              _object(subscription['current_base']) case final active?)
+              _object(subscription['current_base']) != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Text(
-                'Formule actuelle : ' + _value(active['name']),
+                'Formule actuelle : ' +
+                    _value(_object(subscription['current_base'])?['name']),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
