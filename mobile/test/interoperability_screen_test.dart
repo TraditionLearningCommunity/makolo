@@ -162,7 +162,7 @@ void main() {
       await tester.tap(find.text('Mon service'));
       await tester.pump();
       expect(
-        find.text('Cette connexion possède une capacité active.'),
+        find.text('Ce service est prêt à être utilisé.'),
         findsOneWidget,
       );
       expect(find.textContaining('Connecté et disponible'), findsOneWidget);
