@@ -978,68 +978,22 @@ class _MePassportScreenState extends State<MePassportScreen> {
 
   Future<void> _exportPdf() async {
     if (_exporting || !_onlineReady) return;
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.visibility_outlined),
-              title: const Text('Prévisualiser le PDF'),
-              subtitle: const Text('Consulter le document avant de l’enregistrer.'),
-              onTap: () => Navigator.pop(sheetContext, 'preview'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.download_outlined),
-              title: const Text('Enregistrer dans Téléchargements'),
-              onTap: () => Navigator.pop(sheetContext, 'downloads'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.folder_open_outlined),
-              title: const Text('Choisir le dossier'),
-              subtitle: const Text('Utiliser le sélecteur de fichiers Android.'),
-              onTap: () => Navigator.pop(sheetContext, 'choose'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.share_outlined),
-              title: const Text('Partager le fichier PDF'),
-              subtitle: const Text('WhatsApp, messages ou autre application installée.'),
-              onTap: () => Navigator.pop(sheetContext, 'share'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (action == null || !mounted) return;
     final file = await _downloadPassport();
-    if (file == null || !mounted) {
-      if (file != null) await _discardTemporaryPdf(file);
-      return;
-    }
+    if (file == null) return;
     try {
-      if (action == 'preview') {
-        await _previewPdf(file);
-      } else if (action == 'share') {
-        await const SystemShareGateway().shareFiles(paths: [file]);
-      } else {
-        final saved = await savePassportPdf(
-          file,
-          'passeport-makolo-$_variant.pdf',
-          chooseDestination: action == 'choose',
-        );
-        if (!mounted || saved == null) return;
+      final saved = await savePassportPdf(
+        file,
+        'passeport-makolo-$_variant.pdf',
+      );
+      if (mounted && saved != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(action == 'downloads'
-              ? 'Passeport enregistré dans Téléchargements.'
-              : 'Passeport enregistré à l’emplacement choisi.')),
+          const SnackBar(content: Text('Passeport PDF enregistré.')),
         );
       }
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cette opération PDF a échoué.')),
+          const SnackBar(content: Text('Enregistrement impossible.')),
         );
       }
     } finally {
@@ -1400,42 +1354,24 @@ class _MePassportScreenState extends State<MePassportScreen> {
       title: const Text('Passeport'),
       actions: [
         IconButton(
-          tooltip: 'Télécharger le PDF',
+          tooltip: 'Confidentialité',
+          onPressed: _configureVisibility,
+          icon: const Icon(Icons.shield_outlined),
+        ),
+        IconButton(
+          tooltip: 'Versions datées',
+          onPressed: _onlineReady ? _showDatedHistory : null,
+          icon: const Icon(Icons.history_outlined),
+        ),
+        IconButton(
+          tooltip: 'PDF',
           onPressed: _exporting || !_onlineReady ? null : _exportPdf,
-          icon: const Icon(Icons.file_download_outlined),
+          icon: const Icon(Icons.picture_as_pdf_outlined),
         ),
         IconButton(
           tooltip: 'Partager le Passeport',
           onPressed: _exporting || !_onlineReady ? null : _shareCurrentPassport,
           icon: const Icon(Icons.share_outlined),
-        ),
-        PopupMenuButton<String>(
-          tooltip: 'Autres actions du Passeport',
-          onSelected: (action) {
-            if (action == 'visibility') {
-              _configureVisibility();
-            } else if (action == 'history') {
-              _showDatedHistory();
-            } else if (action == 'issue') {
-              _issueCurrentVersion();
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'visibility',
-              child: Text('Confidentialité'),
-            ),
-            PopupMenuItem(
-              value: 'history',
-              enabled: _onlineReady,
-              child: const Text('Versions datées'),
-            ),
-            PopupMenuItem(
-              value: 'issue',
-              enabled: _onlineReady && !_exporting,
-              child: const Text('Émettre une version sans PDF'),
-            ),
-          ],
         ),
       ],
     ),
