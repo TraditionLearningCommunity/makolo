@@ -116,6 +116,32 @@ class PassportIssuanceAndSharingTests(TestCase):
         self.assertTrue(visible_again.context["can_view_dated_passport"])
         self.assertFalse(self.profile.searchable)
 
+    def test_historical_pdf_download_never_issues_again_or_changes_owner(self):
+        from io import BytesIO
+        from pypdf import PdfReader
+
+        snapshot = self._issue("complete")
+        original_hash = snapshot.payload_hash
+        self.client.force_login(self.owner)
+        url = reverse(
+            "personal-projections:passport-version-pdf",
+            kwargs={"snapshot_id": snapshot.pk},
+        )
+        before = PassportSnapshot.objects.count()
+        pdf = self.client.get(url)
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf["Content-Type"], "application/pdf")
+        self.assertEqual(PassportSnapshot.objects.count(), before)
+        self.assertIn(
+            snapshot.document_id,
+            "\\n".join(page.extract_text() for page in PdfReader(BytesIO(pdf.content)).pages),
+        )
+        snapshot.refresh_from_db()
+        self.assertEqual(snapshot.payload_hash, original_hash)
+
+        self.client.force_login(self.visitor)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
     def test_owner_reads_revoked_historical_version_but_visitor_cannot(self):
         snapshot = self._issue()
         self.profile.public_profile = True
