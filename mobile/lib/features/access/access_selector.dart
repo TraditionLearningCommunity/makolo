@@ -23,6 +23,8 @@ class AccessDetailPresentation {
     this.occurrenceStartsAt,
     this.occurrenceStartDate,
     this.placeName,
+    this.placeAddress,
+    this.accessInstructions,
     this.holderName,
     this.state,
     this.validFrom,
@@ -47,6 +49,8 @@ class AccessDetailPresentation {
   final DateTime? occurrenceStartsAt;
   final String? occurrenceStartDate;
   final String? placeName;
+  final String? placeAddress;
+  final String? accessInstructions;
   final String? holderName;
 
   bool get isBeneficiary => relationship == 'beneficiary';
@@ -102,6 +106,8 @@ class AccessDetailSelector {
           occurrenceStartsAt: _dateTime(timing['start_at']),
           occurrenceStartDate: _string(timing['start_date']),
           placeName: _string(place['name']) ?? _string(place['locality']),
+          placeAddress: _string(place['address_line']),
+          accessInstructions: _string(place['access_instructions']),
           holderName: _string(holder['display_name']),
         );
       }
@@ -137,6 +143,8 @@ class AccessDetailSelector {
     final holder = _map(payload['holder']);
     final activity = _map(payload['activity']);
     final occurrence = _map(payload['occurrence']);
+    final timing = _map(occurrence['timing']);
+    final place = _map(occurrence['place']);
     final journey = _map(payload['journey']);
     final links = _map(payload['links']);
     final capabilities = _strings(payload['capabilities']).toSet();
@@ -159,6 +167,11 @@ class AccessDetailSelector {
       validFrom: _dateTime(right['valid_from']),
       validUntil: _dateTime(right['valid_until']),
       journeyId: _string(journey['id']),
+      occurrenceStartsAt: _dateTime(timing['start_at']),
+      occurrenceStartDate: _string(timing['start_date']),
+      placeName: _string(place['name']) ?? _string(place['locality']),
+      placeAddress: _string(place['address_line']),
+      accessInstructions: _string(place['access_instructions']),
       dayOf: dayOf,
       capabilities: capabilities,
       freshness: base.freshness,
