@@ -24,6 +24,7 @@ import '../../sync/sync_status.dart';
 import 'detail_selector.dart';
 import 'discovery_mature_view.dart';
 import 'discovery_repository.dart';
+import 'discovery_map_visit_state.dart';
 import 'discovery_selector.dart';
 import 'discovery_wire.dart';
 import 'discovery_watch_create.dart';
@@ -1426,6 +1427,7 @@ class DiscoveryMapScreen extends StatefulWidget {
 class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   static const _selector = DiscoverySelector();
   late DiscoveryQuery _query;
+  late DiscoveryMapVisitState _visit;
   bool _refreshing = false;
   String? _selectedCandidateKey;
   int _detailReturnRevision = 0;
@@ -1434,18 +1436,31 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   void initState() {
     super.initState();
     _query = widget.query.copyWith(page: 1, clearContinuation: true);
+    _visit = discoveryMapVisitState(
+      widget.repository,
+      _query.mapFingerprint,
+    );
     widget.repository.rememberExploration(_query);
-    _selectedCandidateKey = widget.initialSelectedCandidateKey;
+    _selectedCandidateKey =
+        widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
+    _visit.selectedCandidateKey = _selectedCandidateKey;
     unawaited(_acquire());
   }
 
   @override
   void didUpdateWidget(covariant DiscoveryMapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.query.fingerprint != widget.query.fingerprint) {
+    if (oldWidget.query.fingerprint != widget.query.fingerprint ||
+        oldWidget.repository != widget.repository) {
       _query = widget.query.copyWith(page: 1, clearContinuation: true);
+      _visit = discoveryMapVisitState(
+        widget.repository,
+        _query.mapFingerprint,
+      );
       widget.repository.rememberExploration(_query);
-      _selectedCandidateKey = widget.initialSelectedCandidateKey;
+      _selectedCandidateKey =
+          widget.initialSelectedCandidateKey ?? _visit.selectedCandidateKey;
+      _visit.selectedCandidateKey = _selectedCandidateKey;
       unawaited(_acquire());
     }
   }
@@ -1573,10 +1588,17 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 location: widget.location,
                 showMapOnCompact: true,
                 fieldKey: _query.mapFingerprint,
-                initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
+                initialSelectedCandidateKey: _selectedCandidateKey,
                 detailRefreshRevision: _detailReturnRevision,
+                restoredViewport: _visit.viewport,
+                onViewportChanged: (viewport) {
+                  _visit.viewport = viewport;
+                },
                 spatialRevision: snapshot.data?.receivedAt,
-                onSelectionChanged: (key) => _selectedCandidateKey = key,
+                onSelectionChanged: (key) {
+                  _selectedCandidateKey = key;
+                  _visit.selectedCandidateKey = key;
+                },
                 resolveItem: _verifiedMapDetail,
                 onSave: widget.authenticated
                     ? (item) => widget.repository.setSaved(
