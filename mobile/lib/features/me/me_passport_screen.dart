@@ -255,38 +255,12 @@ class _MePassportScreenState extends State<MePassportScreen> {
     final params = <String, dynamic>{'variant': _variant};
     if (_variant == 'thematic' && _topic != null) params['topic'] = _topic;
     if (_variant == 'custom') {
-      if (_hasLocalComposition) {
-        const choices = [
-          'avatar', 'bio', 'profession', 'company_name',
-          'organization_name', 'location', 'links', 'interests', 'open_to',
-          'activity_involvements',
-        ];
-        params['include'] = [
-          'identity',
-          ...choices.where((key) => !_sections.contains(key)),
-        ];
-        final public = _composePassport(_full!, variant: 'public');
-        for (final family in ['activities', 'proofs', 'credentials']) {
-          final rows = family == 'activities'
-              ? _rows(public['activities'])
-              : family == 'proofs'
-                  ? _rows(_map(public['established'])['proofs'])
-                  : _rows(_map(public['issued'])['credentials']);
-          final excluded = family == 'activities'
-              ? _activities : family == 'proofs' ? _proofs : _credentials;
-          params[family == 'activities' ? 'activity' :
-              family == 'proofs' ? 'proof' : 'credential'] = [
-            for (final row in rows)
-              if (row['id'] != null && !excluded.contains(row['id'].toString()))
-                row['id'].toString(),
-          ];
-        }
-      } else {
-        params['include'] = _sections.toList();
-        params['activity'] = _activities.toList();
-        params['proof'] = _proofs.toList();
-        params['credential'] = _credentials.toList();
-      }
+      // Send only what was removed from the public baseline. The server
+      // validates every requested exclusion against owned, admitted facts.
+      params['exclude'] = _sections.toList();
+      params['exclude_activity'] = _activities.toList();
+      params['exclude_proof'] = _proofs.toList();
+      params['exclude_credential'] = _credentials.toList();
     }
     return params;
   }
