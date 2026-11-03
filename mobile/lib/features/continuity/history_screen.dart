@@ -91,6 +91,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  /// Reopen the exact owner search previously received on this Profile.
+  /// The unfiltered pages remain independently searchable at all times.
+  Future<void> _restoreCachedSearch() async {
+    final generation = ++_searchGeneration;
+    final query = _query;
+    final filter = _filter;
+    if (query.isEmpty && filter == 'all') return;
+    final rows = await widget.repository.readCachedSearchPages(
+      query: query,
+      type: _serverFilter(filter),
+    );
+    if (!mounted || generation != _searchGeneration ||
+        query != _query || filter != _filter) return;
+    setState(() {
+      _remotePages = rows;
+      _remoteHistory = rows.isEmpty ? null : _HistoryView.fromPages(rows);
+    });
+  }
+
+  static String _serverFilter(String filter) => switch (filter) {
+    'access' => 'accesses',
+    'journey' => 'journeys',
+    _ => 'all',
+  };
+
   Future<void> _remoteSearch({bool more = false}) async {
     final generation = ++_searchGeneration;
     final query = _query;
@@ -105,11 +130,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final payload = await widget.repository.searchPage(
         query: query,
         offset: nextOffset,
-        type: filter == 'access'
-            ? 'accesses'
-            : filter == 'journey'
-            ? 'journeys'
-            : 'all',
+        type: _serverFilter(filter),
       );
       if (!mounted ||
           generation != _searchGeneration ||
@@ -118,8 +139,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return;
       }
       final snapshot = StoredProjection(
-        kind: HistoryRepository.projectionKind,
-        resourceKey: 'offset:$nextOffset:limit:24',
+        kind: HistoryRepository.searchProjectionKind,
+        resourceKey: HistoryRepository.searchResourceKey(
+          query: query,
+          type: _serverFilter(filter),
+          offset: nextOffset,
+        ),
         schemaVersion: 1,
         payload: payload,
         receivedAt: DateTime.now(),
@@ -171,11 +196,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
             final view = source.invalidated
                 ? _HistoryView.fromPages(const [])
                 : _HistoryView.fromPages(pages);
-            final visible = (_remoteHistory ?? view).items.where((item) {
-              if (_filter != 'all' && item.kind != _filter) return false;
-              return _query.isEmpty ||
-                  item.title.toLowerCase().contains(_query.toLowerCase());
-            }).toList();
+            // Merge local title matches with previously received owner search
+            // results. A server match can come from fields other than title,
+            // so it must not be discarded by a second client text filter.
+            final visible = <_HistoryItem>[];
+            final seen = <String>{};
+            void collect(_HistoryItem item) {
+              if (_filter != 'all' && item.kind != _filter) return;
+              final key = '${item.kind}:${item.id ?? item.title}:'
+                  '${item.occurredAt ?? ''}';
+              if (seen.add(key)) visible.add(item);
+            }
+            for (final item in view.items) {
+              if (_query.isEmpty ||
+                  item.title.toLowerCase().contains(_query.toLowerCase())) {
+                collect(item);
+              }
+            }
+            for (final item in _remoteHistory?.items ?? const <_HistoryItem>[]) {
+              collect(item);
+            }
             final effectiveView = _remoteHistory ?? view;
             final first = effectiveView.firstPage ?? view.firstPage;
             final wide =
@@ -257,14 +297,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   'Rechercher dans mon historique',
                               prefixIcon: Icon(Icons.search),
                             ),
-                            onChanged: (value) => setState(() {
-                              _searchGeneration++;
-                              _searching = false;
-                              _query = value.trim();
-                              _remoteHistory = null;
-                              _remotePages = [];
-                              _selectedHistoryKey = null;
-                            }),
+                            onChanged: (value) {
+                              setState(() {
+                                _searchGeneration++;
+                                _searching = false;
+                                _query = value.trim();
+                                _remoteHistory = null;
+                                _remotePages = [];
+                                _selectedHistoryKey = null;
+                              });
+                              unawaited(_restoreCachedSearch());
+                            },
                             onSubmitted: (_) => _remoteSearch(),
                           ),
                           const SizedBox(height: 12),
@@ -294,7 +337,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       _remotePages = [];
                                       _selectedHistoryKey = null;
                                     });
-                                    unawaited(_remoteSearch());
+                                    unawaited(_restoreCachedSearch());
                                   },
                                 ),
                             ],
@@ -505,6 +548,8 @@ class _HistoryView {
   }
 
   static int _offset(StoredProjection page) {
+    final stored = _map(page.payload['page']);
+    if (stored['offset'] is num) return (stored['offset'] as num).toInt();
     final parts = page.resourceKey.split(':');
     if (parts.length >= 2 && parts.first == 'offset') {
       return int.tryParse(parts[1]) ?? 0;
