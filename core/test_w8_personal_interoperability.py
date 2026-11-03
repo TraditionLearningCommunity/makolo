@@ -94,6 +94,8 @@ class W8PersonalConnectionsWebTests(TestCase):
         self.assertContains(response, "Mes connexions")
         self.assertContains(response, "Tavily")
         self.assertNotContains(response, "Marketplace")
+        self.assertNotContains(response, "dans cet environnement")
+        self.assertNotContains(response, "Explorez les services disponibles pour commencer")
         self.assertNotContains(response, "Notifications sur mes appareils")
         self.assertNotContains(response, "Paiement de démonstration")
         self.assertNotContains(response, "Connecter")

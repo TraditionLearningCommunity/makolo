@@ -3,8 +3,8 @@
 <section class="mk-me-section" aria-labelledby="intelligence-offers-heading">
   <div class="mk-section-heading">
     <div>
-      <h2 id="intelligence-offers-heading">Relier un service Intelligence</h2>
-      <p>Utilisez votre propre clé API pour autoriser Makolo à appeler un fournisseur dans ce contexte. Ce n'est pas une connexion à votre compte social.</p>
+      <h2 id="intelligence-offers-heading">Relier un service externe</h2>
+      <p>Une clé API du fournisseur est nécessaire pour relier ce service.</p>
     </div>
   </div>
   {% if connection_can_connect %}
@@ -18,7 +18,7 @@
     {% endfor %}
     </select>
     <label for="intelligence-name">Nom de la connexion</label>
-    <input id="intelligence-name" name="name" maxlength="120" required placeholder="Mon service Intelligence">
+    <input id="intelligence-name" name="name" maxlength="120" required placeholder="Mon service">
     <label for="intelligence-model">Modèle (obligatoire pour OpenAI, vide pour Tavily/Exa)</label>
     <input id="intelligence-model" name="model" maxlength="160" autocomplete="off">
     <label for="intelligence-key">Clé API personnelle</label>
@@ -30,7 +30,7 @@
     <button type="submit">Relier ce service</button>
   </form>
   {% else %}
-  <p class="mk-empty-copy">La configuration sécurisée des clés Intelligence n'est pas disponible sur ce serveur.</p>
+  <p class="mk-empty-copy">L’ajout de connexion est indisponible pour le moment.</p>
   {% endif %}
 </section>
 {% endif %}
