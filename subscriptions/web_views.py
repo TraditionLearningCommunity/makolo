@@ -12,7 +12,8 @@ from django.views.generic import TemplateView
 
 from .billing_models import PlanVersionBillingTerms
 from .billing_presentation import (
-    next_payment_url_for_actor, personal_billing_obligations, terms_as_dict, with_billing_terms,
+    next_payment_url_for_actor, personal_billing_obligations, terms_as_dict,
+    transition_payment_action_for_actor, with_billing_terms,
 )
 from .contracts import SubscriptionTransitionKind, SubscriptionTransitionStatus
 from .product_actions import get_active_addon, get_self_service_target, transition_kind_for_target
@@ -55,6 +56,17 @@ class ProfileSubscriptionView(LoginRequiredMixin, TemplateView):
         context["personal_billing"] = personal_billing_obligations(subscription)
         context["personal_history"] = personal_transition_history(subscription)
         context["subscription_return_url"] = safe_action_return(self.request)
+        product = context["product"]
+        if product.transition and product.transition["open"]:
+            transition = SubscriptionTransition.objects.get(
+                pk=product.transition["id"], subscription=subscription,
+            )
+            context["transition_financial"] = transition_payment_action_for_actor(
+                transition, actor=self.request.user,
+            )
+            context["transition_payment_url"] = next_payment_url_for_actor(
+                transition, self.request.user,
+            )
         return context
 
 
