@@ -214,9 +214,22 @@ class _BillingScreenState extends State<BillingScreen> {
             ),
           ),
         if (compact && rows.length > 2)
-          Text(
-            'Et ' + (rows.length - 2).toString() + ' autre(s) avantage(s)',
-            style: Theme.of(context).textTheme.bodySmall,
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(
+              'Autres avantages (' + (rows.length - 2).toString() + ')',
+            ),
+            children: [
+              for (final item in rows.skip(2))
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_text(item['title'], fallback: 'Avantage inclus')),
+                  subtitle: item['description'] == null
+                      ? null
+                      : Text(item['description'].toString()),
+                ),
+            ],
           ),
       ],
     );
