@@ -35,7 +35,6 @@ class DiscoveryExplorationView extends StatefulWidget {
     this.onSave,
     this.baseUri,
     this.shareApi,
-    this.shareAuthenticated = false,
     this.profileId,
     this.allowOwnerActions = true,
     this.onPage,
@@ -57,7 +56,6 @@ class DiscoveryExplorationView extends StatefulWidget {
   final DiscoverySaveItem? onSave;
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
-  final bool shareAuthenticated;
   final String? profileId;
   final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
@@ -557,6 +555,7 @@ class DiscoverySpatialView extends StatefulWidget {
     this.resolveItem,
     this.baseUri,
     this.shareApi,
+    this.shareAuthenticated = false,
     this.profileId,
     this.allowOwnerActions = true,
     this.onPage,
@@ -582,6 +581,7 @@ class DiscoverySpatialView extends StatefulWidget {
   final DiscoveryResolveItem? resolveItem;
   final Uri? baseUri;
   final MakoloApiClient? shareApi;
+  final bool shareAuthenticated;
   final String? profileId;
   final bool allowOwnerActions;
   final ValueChanged<int>? onPage;
