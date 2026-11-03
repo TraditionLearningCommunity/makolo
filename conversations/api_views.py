@@ -66,7 +66,13 @@ def _serialize_point(point, *, profile, reason=None, section=None):
         "opens_at": point.opens_at,
         "deadline_at": point.deadline_at,
         "valid_until": point.valid_until,
-        "can_respond": point_response_allowed(profile, point),
+        "can_respond": (
+            point.lifecycle == "open"
+            and (point.opens_at is None or point.opens_at <= timezone.now())
+            and (point.deadline_at is None or point.deadline_at > timezone.now())
+            and (point.valid_until is None or point.valid_until > timezone.now())
+            and point_response_allowed(profile, point)
+        ),
         "options": [
             {"id": str(option.pk), "label": option.label}
             for option in point.options.all()
