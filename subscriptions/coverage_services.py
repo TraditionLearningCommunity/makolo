@@ -12,7 +12,7 @@ from authorization.services import can
 from groups.models import GroupMembership, GroupSnapshotMember
 from payments.models import PaymentObligationStatus
 
-from .contracts import AcquisitionMode, CatalogVisibility, PlanEligibilityStatus, PlanVersionStatus, SubscriptionPlanType, SubscriptionSubjectType
+from .contracts import AcquisitionMode, CatalogVisibility, PlanVersionStatus, RequirementPhase, SubscriptionPlanType, SubscriptionSubjectType
 from .coverage_models import (
     AllocationStatus,
     CoverageStatus,
