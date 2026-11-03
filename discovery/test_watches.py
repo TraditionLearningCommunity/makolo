@@ -59,6 +59,15 @@ class DiscoveryWatchTests(TestCase):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("discovery:watch-list")).status_code, 302)
 
+    def test_empty_watch_list_uses_product_language(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse("discovery:watch-list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Aucune veille enregistrée.")
+        self.assertContains(response, "Découvrir")
+        self.assertNotContains(response, "rejouables")
+        self.assertNotContains(response, ">Discovery<")
+
     def test_pause_reactivate_and_modify(self):
         watch = DiscoveryWatch.objects.create(owner=self.owner, name="Canada", criteria={"q": "Canada"})
         self.client.force_login(self.owner)
