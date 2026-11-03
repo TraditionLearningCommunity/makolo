@@ -11,6 +11,7 @@
     </section>
     {% include 'subscriptions/_return_to_action.html' %}
     {% include 'subscriptions/_product_content.html' with space_slug=space.slug %}
+    {% include 'subscriptions/_funded_coverages.html' with space_slug=space.slug %}
     {% include 'organizations/console/_subscription_history.html' with compact=True %}
     {% include 'organizations/console/_subscription_billing.html' with compact=True %}
 </div>
