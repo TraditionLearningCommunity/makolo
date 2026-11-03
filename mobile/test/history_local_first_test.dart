@@ -177,7 +177,7 @@ void main() {
         findsOneWidget);
     await tester.tap(find.text('Accès retrouvé du serveur'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Événement déjà reçu sur cet appareil'),
+    expect(find.textContaining('Cet événement est conservé sur votre appareil'),
         findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
