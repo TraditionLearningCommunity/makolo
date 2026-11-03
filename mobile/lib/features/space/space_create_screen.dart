@@ -19,7 +19,7 @@ class SpaceCreateScreen extends StatefulWidget {
 class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
-  bool _publicProfile = false;
+  bool _publicProfile = true;
   bool _saving = false;
   bool _created = false;
   bool _creationAttempted = false;
@@ -152,7 +152,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
             padding: const EdgeInsets.all(MakoloSpacing.inner),
             children: [
               Text(
-                'Pour une entreprise, association, école ou autre collectif.',
+                'Créez l’Espace de votre entreprise, association, école ou collectif.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: MakoloSpacing.lg),
@@ -173,7 +173,7 @@ class _SpaceCreateScreenState extends State<SpaceCreateScreen> {
                     : (value) => setState(() => _publicProfile = value),
                 title: const Text('Présentation publique'),
                 subtitle: const Text(
-                  'Désactivée par défaut. Les données des membres restent privées.',
+                  'Visible par tous si activée. Les informations privées des membres restent protégées.',
                 ),
               ),
               if (_error != null)
