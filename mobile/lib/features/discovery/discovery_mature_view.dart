@@ -567,6 +567,7 @@ class DiscoverySpatialView extends StatefulWidget {
     this.showMapOnCompact = false,
     this.fieldKey,
     this.onSelectionChanged,
+    this.detailRefreshRevision = 0,
   });
 
   final DiscoveryFieldSelection selection;
@@ -588,6 +589,8 @@ class DiscoverySpatialView extends StatefulWidget {
   final bool showMapOnCompact;
   final String? fieldKey;
   final ValueChanged<String?>? onSelectionChanged;
+  /// N2 returned; refresh owner-confirmed actions, never the map's camera.
+  final int detailRefreshRevision;
 
   @override
   State<DiscoverySpatialView> createState() => _DiscoverySpatialViewState();
@@ -898,6 +901,16 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   @override
   void didUpdateWidget(covariant DiscoverySpatialView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.detailRefreshRevision != widget.detailRefreshRevision &&
+        _selectedCandidateKey != null) {
+      ++_detailGeneration;
+      _confirmedDetail = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _selectedCandidateKey != null) {
+          unawaited(_resolveSelected());
+        }
+      });
+    }
     if (oldWidget.initialSelectedCandidateKey !=
         widget.initialSelectedCandidateKey) {
       ++_detailGeneration;
