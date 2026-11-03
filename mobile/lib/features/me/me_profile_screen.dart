@@ -781,7 +781,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
             controller: controller,
             focusNode: focusNode,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Pays',
               errorText: _fieldErrors['country'],
               hintText: 'Rechercher un pays',
@@ -868,7 +868,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
       child: DropdownButtonFormField<String>(
         key: ValueKey('gender-$_gender'),
         initialValue: _gender,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           labelText: 'Genre',
           errorText: _fieldErrors['gender'],
           border: OutlineInputBorder(),
