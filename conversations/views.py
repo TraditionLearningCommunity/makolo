@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
+from rest_framework.exceptions import NotFound
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
@@ -66,10 +67,20 @@ class ConversationListView(LoginRequiredMixin, TemplateView):
                     archived=tab == "archived",
                     only_attention=tab == "for-me",
                 ) if not q else [],
-                "search_results": search_conversations_for_profile(self.request.user, q) if q else [],
+                "search_results": self._deduplicated_search(q) if q else [],
             }
         )
         return context
+
+    def _deduplicated_search(self, query):
+        seen = set()
+        results = []
+        for result in search_conversations_for_profile(self.request.user, query):
+            if result.conversation.pk in seen:
+                continue
+            seen.add(result.conversation.pk)
+            results.append(result)
+        return results
 
 
 class ConversationDetailView(ConversationAccessMixin, TemplateView):
@@ -133,11 +144,7 @@ class ConversationContextOpenView(LoginRequiredMixin, View):
     def get(self, request, kind, context_pk):
         try:
             candidates = conversations_for_context(request.user, kind, context_pk)
-        except Exception as exc:
-            # Invalid or unauthorized context types cannot reveal owner data.
-            from rest_framework.exceptions import NotFound
-            if not isinstance(exc, NotFound):
-                raise
+        except NotFound as exc:
             raise Http404("Conversation introuvable.") from exc
         if not candidates:
             raise Http404("Aucune Conversation accessible.")
