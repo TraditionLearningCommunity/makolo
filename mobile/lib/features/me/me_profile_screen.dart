@@ -12,6 +12,7 @@ import '../../repositories/draft_repository.dart';
 import '../../sync/projection_contract.dart';
 import 'me_local_preview.dart';
 import 'me_country_choices.dart';
+import 'passport_editor_field_rules.dart';
 
 /// Passport editing mode backed by the existing Accounts owner API.
 class MeProfileScreen extends StatefulWidget {
@@ -68,6 +69,7 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   bool _saving = false;
   String? _error;
   Map<String, String> _fieldErrors = const {};
+  final Set<String> _checkedFields = {};
   String? _confirmation;
   Map<String, dynamic>? _cachedIdentity;
   Map<String, dynamic>? _confirmedEditor;
@@ -152,6 +154,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     _address.text = value('address');
     _publicProfile = editor['public_profile'] != false;
     _searchable = editor['searchable'] != false;
+    _checkedFields.clear();
+    _fieldErrors = const {};
     _loading = false;
     _loaded = true;
   }
@@ -190,6 +194,115 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
     'public_profile': _publicProfile,
     'searchable': _searchable,
   };
+
+  static const Map<String, String> _fieldKeys = {
+    'Prénom': 'first_name',
+    'Nom': 'last_name',
+    'À propos': 'bio',
+    'Profession': 'profession',
+    'Ville': 'city',
+    'Adresse': 'address',
+    'Téléphone': 'phone',
+    'Site web': 'website',
+    'Entreprise': 'company_name',
+    'Organisation': 'organization_name',
+    'LinkedIn': 'linkedin_url',
+    'Facebook': 'facebook_url',
+    'Instagram': 'instagram_url',
+    'TikTok': 'tiktok_url',
+    'X': 'x_url',
+    'YouTube': 'youtube_url',
+  };
+
+  Map<String, TextEditingController> get _textEditors => {
+    'first_name': _firstName,
+    'last_name': _lastName,
+    'bio': _bio,
+    'profession': _profession,
+    'city': _city,
+    'address': _address,
+    'phone': _phone,
+    'website': _website,
+    'company_name': _company,
+    'organization_name': _organization,
+    'linkedin_url': _linkedin,
+    'facebook_url': _facebook,
+    'instagram_url': _instagram,
+    'tiktok_url': _tiktok,
+    'x_url': _x,
+    'youtube_url': _youtube,
+  };
+
+  void _setLocalError(String key, String? message) {
+    if (!mounted) return;
+    final updated = Map<String, String>.from(_fieldErrors);
+    if (message == null) {
+      updated.remove(key);
+    } else {
+      updated[key] = message;
+    }
+    setState(() {
+      _checkedFields.add(key);
+      _fieldErrors = updated;
+      if (_error == 'Corrigez les champs indiqués.' && updated.isEmpty) {
+        _error = null;
+      }
+    });
+  }
+
+  void _onTextChanged(String key, TextEditingController controller) {
+    _rememberEdits();
+    if (_checkedFields.contains(key) || _fieldErrors.containsKey(key)) {
+      _setLocalError(key, PassportEditorFieldRules.error(key, controller.text));
+    }
+  }
+
+  void _normalizeOnBlur(String key, TextEditingController controller) {
+    if (!_loaded || _saving) return;
+    final formatted = PassportEditorFieldRules.normalize(key, controller.text);
+    if (formatted != controller.text) {
+      controller.value = TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+      _rememberEdits();
+    }
+    _setLocalError(key, PassportEditorFieldRules.error(key, formatted));
+  }
+
+  Map<String, String> _validateBeforeSave() {
+    final errors = <String, String>{};
+    final baseline = _confirmedEditor;
+    for (final entry in _textEditors.entries) {
+      final key = entry.key;
+      final controller = entry.value;
+      final before = controller.text;
+      // Don't change unrelated legacy values when saving one field.
+      if (baseline != null && before == (baseline[key]?.toString() ?? '')) {
+        continue;
+      }
+      final formatted = PassportEditorFieldRules.normalize(key, before);
+      if (formatted != before) {
+        controller.value = TextEditingValue(
+          text: formatted,
+          selection: TextSelection.collapsed(offset: formatted.length),
+        );
+        _rememberEdits();
+      }
+      final error = PassportEditorFieldRules.error(key, formatted);
+      if (error != null) errors[key] = error;
+    }
+    final date = _birthDate.text.trim();
+    if (date != (baseline?['birth_date']?.toString() ?? '')) {
+      final error = PassportEditorFieldRules.error('birth_date', date);
+      if (error != null) errors['birth_date'] = error;
+    }
+    if (_countryHasUnselectedInput ||
+        (_country.text.trim().isNotEmpty && _selectedCountry == null)) {
+      errors['country'] = 'Pays invalide.';
+    }
+    return errors;
+  }
 
   void _rememberEdits() {
     _editRevision++;
