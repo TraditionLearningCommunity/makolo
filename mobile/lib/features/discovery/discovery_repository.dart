@@ -1133,6 +1133,27 @@ class DiscoveryRepository {
             expiresAt: page.expiresAt,
             freshnessPolicyId: page.freshnessPolicyId,
           );
+          // The same already-admitted wire can present the read-only N3
+          // preview. Actual owner operations are not authorized by it.
+          if (_isActivityFamily(family)) {
+            await _putPreview(
+              kind: activityPreviewProjectionKind,
+              resourceKey: id,
+              payload: {'item': item},
+              source: page,
+            );
+          }
+          final occurrence = identity['occurrence'];
+          if (occurrence is Map &&
+              occurrence['id'] is String &&
+              (occurrence['id'] as String).isNotEmpty) {
+            await _putPreview(
+              kind: occurrencePreviewProjectionKind,
+              resourceKey: occurrence['id'] as String,
+              payload: {'item': item},
+              source: page,
+            );
+          }
           return _readAvailable(
             owner,
             await store.readProjection(
@@ -1730,8 +1751,16 @@ class DiscoveryRepository {
     required String resourceKey,
     required Map<String, dynamic> payload,
     required StoredProjection source,
-  }) {
-    return store.putProjection(
+  }) async {
+    final existing = await store.readProjection(
+      kind,
+      resourceKey: resourceKey,
+    );
+    if (existing != null &&
+        existing.receivedAt.isAfter(source.receivedAt)) {
+      return;
+    }
+    await store.putProjection(
       kind: kind,
       resourceKey: resourceKey,
       schemaVersion: source.schemaVersion,
