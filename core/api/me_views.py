@@ -286,6 +286,10 @@ class PersonalPassportAPIView(PersonalProjectionAPIView):
                 selected_proof_ids=request.query_params.getlist("proof"),
                 selected_credential_ids=request.query_params.getlist("credential"),
                 selected_sections=request.query_params.getlist("include"),
+                excluded_activity_ids=request.query_params.getlist("exclude_activity"),
+                excluded_proof_ids=request.query_params.getlist("exclude_proof"),
+                excluded_credential_ids=request.query_params.getlist("exclude_credential"),
+                excluded_sections=request.query_params.getlist("exclude"),
             )
         except ValueError as exc:
             raise ValidationError({"variant": str(exc)}) from exc
@@ -315,6 +319,18 @@ def _selected_personal_passport(request):
             ),
             selected_sections=(
                 request.query_params.getlist("include") if variant == "custom" else None
+            ),
+            excluded_activity_ids=(
+                request.query_params.getlist("exclude_activity") if variant == "custom" else ()
+            ),
+            excluded_proof_ids=(
+                request.query_params.getlist("exclude_proof") if variant == "custom" else ()
+            ),
+            excluded_credential_ids=(
+                request.query_params.getlist("exclude_credential") if variant == "custom" else ()
+            ),
+            excluded_sections=(
+                request.query_params.getlist("exclude") if variant == "custom" else ()
             ),
         )
     except ValueError as exc:
