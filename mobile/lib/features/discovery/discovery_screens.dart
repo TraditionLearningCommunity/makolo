@@ -1875,6 +1875,7 @@ class ActivityDetailScreen extends StatefulWidget {
 class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   static const _selector = DiscoveryDetailSelector();
   bool _refreshing = false;
+  int _generation = 0;
   String? _knownSavedTitle;
   late Stream<DiscoverySourceState> _ownerStream;
   late Stream<StoredProjection?> _previewStream;
@@ -1901,9 +1902,17 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     if (oldWidget.activityId != widget.activityId ||
         oldWidget.repository != widget.repository) {
       _knownSavedTitle = null;
+      _refreshing = false;
+      ++_generation;
       _bindStreams();
       unawaited(_acquire());
     }
+  }
+
+  @override
+  void dispose() {
+    ++_generation;
+    super.dispose();
   }
 
   Future<void> _acquire() async {
@@ -1914,12 +1923,13 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   }
 
   Future<void> _readKnownSavedTitle(String requestedId) async {
+    final repository = widget.repository;
     try {
-      final root = await widget.repository.store.readProjection('personal.me');
+      final root = await repository.store.readProjection('personal.me');
       final actor = root?.payload['actor'];
       if (actor is! Map ||
           actor['type'] != 'profile' ||
-          actor['id']?.toString() != widget.repository.store.profileId) {
+          actor['id']?.toString() != repository.store.profileId) {
         return;
       }
       final considerations = root?.payload['considerations'];
@@ -1934,7 +1944,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
         if (label is String &&
             label.trim().isNotEmpty &&
             mounted &&
-            widget.activityId == requestedId) {
+            widget.activityId == requestedId &&
+            identical(widget.repository, repository)) {
           setState(() => _knownSavedTitle = label.trim());
         }
         break;
@@ -1947,24 +1958,27 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   Future<void> _refresh() async {
     if (_refreshing) return;
     final requestedId = widget.activityId;
+    final repository = widget.repository;
+    final generation = ++_generation;
     setState(() => _refreshing = true);
     try {
       // Always revalidate N3 on entry even when an N1 preview exists.
-      await widget.repository.refreshActivity(requestedId);
-      final source = await widget.repository.readSource(
-        widget.repository.activitySource(requestedId),
+      await repository.refreshActivity(requestedId);
+      final source = await repository.readSource(
+        repository.activitySource(requestedId),
       );
       if (source.ownerUnavailable &&
           mounted &&
+          generation == _generation &&
+          identical(widget.repository, repository) &&
           widget.activityId == requestedId) {
         setState(() => _knownSavedTitle = null);
       }
     } on Object {
       // The owner source records errors and discards revoked keyed details.
     } finally {
-      if (mounted) {
+      if (mounted && generation == _generation) {
         setState(() => _refreshing = false);
-        if (widget.activityId != requestedId) unawaited(_refresh());
       }
     }
   }
