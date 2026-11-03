@@ -103,7 +103,9 @@ class PersonalAccessDetailAPIView(PersonalProjectionAPIView):
         self._guard_personal_scope(request)
         observed_at = timezone.now()
         access = get_object_or_404(
-            participant_accesses_visible_to_buyer(request.user),
+            participant_accesses_visible_to_buyer(request.user)
+            .select_related("activity", "occurrence")
+            .prefetch_related("occurrence__place_links__place"),
             pk=pk,
         )
         return self._response(
