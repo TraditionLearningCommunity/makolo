@@ -562,11 +562,13 @@ class ConversationDetailScreen extends StatefulWidget {
     required this.id,
     required this.repository,
     this.representedSpaceId,
+    this.focusPointId,
   });
 
   final String id;
   final ConversationRepository repository;
   final String? representedSpaceId;
+  final String? focusPointId;
 
   @override
   State<ConversationDetailScreen> createState() =>
@@ -575,9 +577,11 @@ class ConversationDetailScreen extends StatefulWidget {
 
 class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   static const _surfaceAdapter = ProjectionSurfaceAdapter();
+  final GlobalKey _pointFocusKey = GlobalKey();
   bool _refreshing = false;
   bool _requestedInitialRefresh = false;
   bool _attemptedRefresh = false;
+  String? _handledFocus;
 
   @override
   void initState() {
@@ -588,7 +592,10 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
   @override
   void didUpdateWidget(covariant ConversationDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.id != widget.id || oldWidget.repository != widget.repository) {
+    if (oldWidget.id != widget.id ||
+        oldWidget.repository != widget.repository ||
+        oldWidget.focusPointId != widget.focusPointId) {
+      _handledFocus = null;
       _requestedInitialRefresh = false;
       _attemptedRefresh = false;
       _refreshing = false;
@@ -614,7 +621,9 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
         now: DateTime.now(),
         invalidated: source.invalidated,
       );
-      if (freshness != FreshnessState.fresh) await _refresh();
+      if (freshness != FreshnessState.fresh || widget.focusPointId != null) {
+        await _refresh();
+      }
     } on Object {
       if (mounted && repository == widget.repository && id == widget.id) {
         setState(() => _attemptedRefresh = true);
@@ -628,7 +637,7 @@ class _ConversationDetailScreenState extends State<ConversationDetailScreen> {
     final id = widget.id;
     setState(() => _refreshing = true);
     try {
-      await repository.refreshDetail(id);
+      await repository.refreshDetail(id, focusPointId: widget.focusPointId);
     } on Object {
       // Retain the authorized local detail during transport failures.
     } finally {
@@ -1252,6 +1261,8 @@ class _ConversationDetail {
     required this.points,
     required this.essential,
     required this.personalState,
+    this.elsewhere = const [],
+    this.focusedPoint,
     this.purpose,
     this.lifecycle,
     this.contextLabel,
@@ -1263,6 +1274,8 @@ class _ConversationDetail {
   final String? contextLabel;
   final List<_ConversationPoint> points;
   final List<_ConversationPoint> essential;
+  final List<_ConversationPoint> elsewhere;
+  final _ConversationPoint? focusedPoint;
   final _ConversationPersonalState personalState;
 
   factory _ConversationDetail.fromProjection(StoredProjection? projection) {
@@ -1289,6 +1302,12 @@ class _ConversationDetail {
       essential: _maps(payload['essential'])
           .map(_ConversationPoint.fromMap)
           .toList(growable: false),
+      elsewhere: _maps(payload['elsewhere'])
+          .map(_ConversationPoint.fromMap)
+          .toList(growable: false),
+      focusedPoint: _map(payload['focused_point']).isEmpty
+          ? null
+          : _ConversationPoint.fromMap(_map(payload['focused_point'])),
       personalState: _ConversationPersonalState.fromMap(
         _map(payload['personal_state']),
       ),
