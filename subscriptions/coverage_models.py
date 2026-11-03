@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import uuid
+import calendar
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -29,6 +31,24 @@ class AllocationStatus(models.TextChoices):
 class GroupCoveragePolicy(models.TextChoices):
     CURRENT_MEMBERS = "current_members", "Membres actuels"
     SNAPSHOT = "snapshot", "Population figée"
+
+
+def coverage_period_end(starts_at, unit, count):
+    """Calendar-accurate contractual period pinned to the published Billing Terms."""
+    if count is None or count < 1:
+        raise ValidationError("La période tarifaire est invalide.")
+    if unit == "day":
+        return starts_at + timedelta(days=count)
+    if unit == "week":
+        return starts_at + timedelta(weeks=count)
+    if unit in {"month", "year"}:
+        months = count if unit == "month" else 12 * count
+        zero_based = starts_at.month - 1 + months
+        year = starts_at.year + zero_based // 12
+        month = zero_based % 12 + 1
+        day = min(starts_at.day, calendar.monthrange(year, month)[1])
+        return starts_at.replace(year=year, month=month, day=day)
+    raise ValidationError("Unité de période tarifaire inconnue.")
 
 
 class SubscriptionCoverage(models.Model):
@@ -122,6 +142,14 @@ class SubscriptionCoverage(models.Model):
                 errors["plan_version"] = "Une formule inactive ne peut être achetée."
             if not self.billing_terms.coverage_enabled:
                 errors["billing_terms"] = "Cette offre ne permet pas de couverture financée."
+            if self.starts_at and self.ends_at:
+                expected_end = coverage_period_end(
+                    self.starts_at,
+                    self.billing_terms.billing_period_unit,
+                    self.billing_terms.billing_period_count,
+                )
+                if self.ends_at != expected_end:
+                    errors["ends_at"] = "La période financée doit correspondre à un cycle tarifaire complet."
             if self.purchased_quantity is not None and self.purchased_quantity > self.billing_terms.coverage_max_quantity:
                 errors["purchased_quantity"] = "La quantité dépasse le plafond de l'offre."
             if self.billing_terms.coverage_pricing_mode == "flat" and self.purchased_quantity != self.billing_terms.coverage_max_quantity:
