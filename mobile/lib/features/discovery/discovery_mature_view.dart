@@ -578,7 +578,8 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   static const _selector = DiscoverySelector();
   String? _selectedCandidateKey;
   DiscoveryMapController? _mapController;
-  final Map<Object, String> _circleKeys = {};
+  final Map<Object, DiscoverySpatialAnchor> _circleAnchors = {};
+  DiscoverySpatialAnchor? _focusedAnchor;
   int _pinGeneration = 0;
   bool _initialCameraPositioned = false;
   double? _deviceLatitude;
@@ -591,15 +592,20 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   void dispose() {
     ++_pinGeneration;
     ++_detailGeneration;
-    _circleKeys.clear();
+    _circleAnchors.clear();
     _mapController = null;
     super.dispose();
   }
 
-  void _select(String key, {bool moveCamera = true}) {
+  void _select(
+    String key, {
+    bool moveCamera = true,
+    DiscoverySpatialAnchor? anchor,
+  }) {
     final changed = _selectedCandidateKey != key;
     setState(() {
       _selectedCandidateKey = key;
+      _focusedAnchor = anchor;
       if (changed) _confirmedDetail = null;
     });
     widget.onSelectionChanged?.call(key);
@@ -622,6 +628,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     ++_detailGeneration;
     setState(() {
       _selectedCandidateKey = null;
+      _focusedAnchor = null;
       _confirmedDetail = null;
     });
     widget.onSelectionChanged?.call(null);
@@ -694,16 +701,13 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
   void _mapCreated(DiscoveryMapController controller) {
     _mapController = controller;
     _initialCameraPositioned = false;
-    _circleKeys.clear();
+    _circleAnchors.clear();
     controller.onPinTapped((circle) {
-      final key = _circleKeys[circle];
-      if (!mounted || key == null) return;
+      final point = _circleAnchors[circle];
+      if (!mounted || point == null) return;
       final anchors = _selector.spatialAnchorsFromCollection(
         widget.selection.collection,
       );
-      final matching = anchors.where((anchor) => anchor.candidateKey == key);
-      if (matching.isEmpty) return;
-      final point = matching.first;
       final keys = anchors
           .where(
             (anchor) =>
@@ -712,15 +716,25 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           )
           .map((anchor) => anchor.candidateKey)
           .toSet();
+      if (keys.isEmpty) return;
       if (keys.length == 1) {
-        _select(key, moveCamera: false);
+        final actual = anchors.firstWhere(
+          (anchor) =>
+              anchor.candidateKey == keys.first &&
+              anchor.latitude == point.latitude &&
+              anchor.longitude == point.longitude,
+        );
+        _select(keys.first, anchor: actual, moveCamera: false);
       } else {
-        unawaited(_chooseCoLocated(keys));
+        unawaited(_chooseCoLocated(keys, at: point));
       }
     });
   }
 
-  Future<void> _chooseCoLocated(Set<String> candidateKeys) async {
+  Future<void> _chooseCoLocated(
+    Set<String> candidateKeys, {
+    required DiscoverySpatialAnchor at,
+  }) async {
     final items = widget.selection.collection.items
         .where((item) => candidateKeys.contains(item.candidateKey))
         .toList();
@@ -734,7 +748,20 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         items: items,
         onChoose: (item) {
           Navigator.of(sheetContext).pop();
-          if (mounted) _select(item.candidateKey, moveCamera: false);
+          if (!mounted) return;
+          final matches = _selector
+              .spatialAnchorsFromCollection(widget.selection.collection)
+              .where(
+                (anchor) =>
+                    anchor.candidateKey == item.candidateKey &&
+                    anchor.latitude == at.latitude &&
+                    anchor.longitude == at.longitude,
+              );
+          _select(
+            item.candidateKey,
+            anchor: matches.isEmpty ? null : matches.first,
+            moveCamera: false,
+          );
         },
       ),
     );
@@ -765,9 +792,9 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
           _mapController != controller ||
           generation != _pinGeneration)
         return;
-      _circleKeys.clear();
+      _circleAnchors.clear();
       for (var i = 0; i < pins.length && i < selected.length; i++) {
-        _circleKeys[pins[i]] = selected[i].candidateKey;
+        _circleAnchors[pins[i]] = selected[i];
       }
       final latitude = _deviceLatitude;
       final longitude = _deviceLongitude;
@@ -856,6 +883,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         widget.initialSelectedCandidateKey) {
       ++_detailGeneration;
       _selectedCandidateKey = widget.initialSelectedCandidateKey;
+      _focusedAnchor = null;
       _confirmedDetail = null;
     }
     final keys = widget.selection.collection.items
@@ -886,9 +914,35 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
         !keys.contains(_selectedCandidateKey)) {
       ++_detailGeneration;
       _selectedCandidateKey = null;
+      _focusedAnchor = null;
       _confirmedDetail = null;
       widget.onSelectionChanged?.call(null);
     }
+  }
+
+  String? _placeForSelection(
+    DiscoveryItemPresentation item,
+    DiscoverySpatialAnchor? anchor,
+  ) {
+    final place = anchor?.fact['place'];
+    if (place is! Map) return item.place;
+    final name = place['name'];
+    final locality = place['locality'];
+    final label = name is String && name.trim().isNotEmpty
+        ? name.trim()
+        : locality is String && locality.trim().isNotEmpty
+        ? locality.trim()
+        : item.place;
+    if (label == null) return null;
+    const roles = {
+      'departure': 'Départ',
+      'arrival': 'Arrivée',
+      'stopover': 'Escale',
+      'boarding': 'Embarquement',
+      'dropoff': 'Débarquement',
+    };
+    final role = roles[anchor?.fact['role']];
+    return role == null ? label : '$role · $label';
   }
 
   DiscoveryItemPresentation? get _selectedItem {
@@ -913,10 +967,22 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
     final selected = _selectedItem;
     DiscoverySpatialAnchor? selectedPoint;
     if (selected != null) {
-      for (final point in points) {
-        if (point.candidateKey == selected.candidateKey) {
-          selectedPoint = point;
-          break;
+      final focused = _focusedAnchor;
+      if (focused != null &&
+          focused.candidateKey == selected.candidateKey &&
+          points.any(
+            (point) =>
+                point.candidateKey == focused.candidateKey &&
+                point.latitude == focused.latitude &&
+                point.longitude == focused.longitude,
+          )) {
+        selectedPoint = focused;
+      } else {
+        for (final point in points) {
+          if (point.candidateKey == selected.candidateKey) {
+            selectedPoint = point;
+            break;
+          }
         }
       }
     }
@@ -1046,7 +1112,7 @@ class _DiscoverySpatialViewState extends State<DiscoverySpatialView> {
                       ),
                       child: _DiscoveryMapPreview(
                         item: selected,
-                        place: selected.place,
+                        place: _placeForSelection(selected, selectedPoint),
                         detail: _confirmedDetail,
                         saving: _savingSelected,
                         onClose: _clearSelection,
