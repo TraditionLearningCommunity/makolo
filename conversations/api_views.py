@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
+from uuid import UUID
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -12,7 +14,7 @@ from core.api.privacy import PrivateNoStoreMixin
 from organizations.models import Organization
 
 from .attention import has_conversation_attention
-from .core_models import Conversation, ConversationInvitation, ConversationInvitationStatus
+from .core_models import Conversation, ConversationContextKind, ConversationInvitation, ConversationInvitationStatus
 from .point_models import ConversationPoint, ConversationPointResponseMode
 from .point_services import acknowledge_point, point_response_allowed, point_visible_to, submit_point_response
 from .presentation import (
@@ -89,6 +91,60 @@ def _serialize_conversation_row(row):
         "all_clear": row.all_clear,
         "updated_at": conversation.updated_at,
     }
+
+
+def _context_candidates(profile, kind, context_pk):
+    """Read-only contextual entry; never creates a Conversation or grants entry."""
+    if kind == ConversationContextKind.DIRECT:
+        filters = Q(context__direct_profile_a=profile, context__direct_profile_b_id=context_pk) | Q(
+            context__direct_profile_b=profile, context__direct_profile_a_id=context_pk
+        )
+    else:
+        field = {
+            ConversationContextKind.SPACE: "space",
+            ConversationContextKind.GROUP: "group",
+            ConversationContextKind.ACTIVITY: "activity",
+            ConversationContextKind.OCCURRENCE: "occurrence",
+            ConversationContextKind.DOSSIER: "dossier",
+            ConversationContextKind.PROJECT: "project",
+            ConversationContextKind.JOURNEY: "journey",
+            ConversationContextKind.ACTION_PROPOSAL: "action_proposal",
+        }.get(kind)
+        if field is None:
+            raise NotFound("Contexte introuvable.")
+        filters = Q(**{f"context__{field}_id": context_pk})
+    try:
+        candidates = list(
+            Conversation.objects.select_related("context").filter(
+                filters, context__kind=kind,
+            ).order_by("-updated_at", "pk")[:50]
+        )
+    except (ValidationError, ValueError, TypeError):
+        return []
+    return [conversation for conversation in candidates if can_view_conversation(profile, conversation)]
+
+
+class ConversationContextLookupAPIView(PrivateNoStoreMixin, views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, kind, context_pk):
+        conversations = _context_candidates(request.user, kind, context_pk)
+        return Response({
+            "count": len(conversations),
+            "results": [
+                {
+                    "id": str(item.pk),
+                    "title": item.title_override or conversation_context_label(item, request.user),
+                    "purpose": item.purpose,
+                    "context": {
+                        "kind": item.context.kind,
+                        "label": conversation_context_label(item, request.user),
+                    },
+                    "updated_at": item.updated_at,
+                }
+                for item in conversations
+            ],
+        })
 
 
 def _visible_conversation_or_404(profile, pk):
@@ -182,7 +238,24 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
         conversation = _visible_conversation_or_404(request.user, pk)
         limit = _bounded_limit(request)
         rows = now_points_for_profile(request.user, conversation, limit=limit)
-        essential = essential_points_for_profile(request.user, conversation, limit=limit)
+        active_ids = {item["point"].pk for item in rows}
+        essential = [
+            point for point in essential_points_for_profile(request.user, conversation, limit=limit)
+            if point.pk not in active_ids
+        ]
+        focused_point = None
+        focused_raw = (request.query_params.get("focus_point") or "").strip()
+        if focused_raw:
+            try:
+                focused_id = UUID(focused_raw)
+            except (ValueError, AttributeError):
+                raise DRFValidationError({"focus_point": "Point invalide."})
+            focused = ConversationPoint.objects.filter(
+                pk=focused_id, conversation=conversation,
+            ).select_related("visibility_audience", "response_audience", "resolution_audience").prefetch_related("options").first()
+            if focused and point_visible_to(request.user, focused):
+                if focused.pk not in active_ids and all(p.pk != focused.pk for p in essential):
+                    focused_point = _serialize_point(focused, profile=request.user, section="focus")
         label = conversation_context_label(conversation, request.user)
         state = conversation.user_states.filter(profile=request.user).first()
         return Response({
@@ -199,6 +272,7 @@ class ConversationDetailAPIView(PrivateNoStoreMixin, views.APIView):
                 _serialize_point(point, profile=request.user, section="essential")
                 for point in essential
             ],
+            "focused_point": focused_point,
             "personal_state": {
                 "muted": bool(state and state.muted_at),
                 "hidden": bool(state and state.hidden_at),
