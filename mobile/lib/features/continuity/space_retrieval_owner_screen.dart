@@ -5,6 +5,7 @@ import '../../app/runtime/actor_context.dart';
 import '../../app/runtime/app_runtime.dart';
 import '../../design/makolo_components.dart';
 import '../../design/makolo_patterns.dart';
+import '../../network/api_error.dart';
 import '../../presentation/contracts/space_presentation.dart';
 import '../../presentation/mps/mps_models.dart';
 import '../../presentation/mps/mps_native_renderer.dart';
@@ -56,17 +57,15 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
 
   void _returnToWork() {
     if (!_actorValid) return;
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(
-        spaceWorkReturnRoute(
-          slug: widget.spaceActor.space.slug,
-          section: _workSection,
-          fromCollection: widget.fromWorkCollection,
-        ),
-      );
-    }
+    // This is an explicit Métier destination, not a generic Navigator back:
+    // the previous route may be Search, History or a nested N3.
+    context.go(
+      spaceWorkReturnRoute(
+        slug: widget.spaceActor.space.slug,
+        section: _workSection,
+        fromCollection: widget.fromWorkCollection,
+      ),
+    );
   }
 
   @override
@@ -339,13 +338,19 @@ class _SpaceRetrievalOwnerScreenState extends State<SpaceRetrievalOwnerScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData) {
+                  final error = snapshot.error;
+                  final denied = error is MakoloApiError &&
+                      const {401, 403, 404}.contains(error.statusCode);
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'Ce détail n’est pas accessible. '
-                          'Vérifiez vos droits ou actualisez.',
+                        Text(
+                          denied
+                              ? 'Ce détail n’est plus autorisé dans ce contexte.'
+                              : 'Impossible de vérifier ce détail pour le moment. '
+                                  'Aucune ancienne copie ne sera présentée.',
+                          textAlign: TextAlign.center,
                         ),
                         TextButton(
                           onPressed: () =>
