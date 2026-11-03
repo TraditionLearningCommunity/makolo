@@ -172,6 +172,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'trajet');
     await tester.pumpAndSettle();
+    expect(find.byTooltip('Rechercher dans Makolo'), findsOneWidget);
     expect(find.text('Accès retrouvé du serveur'), findsOneWidget);
     expect(find.textContaining('Recherche parmi les événements déjà reçus'),
         findsOneWidget);
