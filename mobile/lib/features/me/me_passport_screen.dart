@@ -637,12 +637,6 @@ class _MePassportScreenState extends State<MePassportScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Seul le document sélectionné sera accessible via ce lien. '
-                'Cela ne rend pas votre Profil public. Vous pourrez révoquer '
-                'le lien ici, dans les versions datées.',
-              ),
-              const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: selectedDays,
                 decoration: const InputDecoration(
