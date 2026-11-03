@@ -66,7 +66,7 @@ class SpaceUsSurface extends StatelessWidget {
     }
 
     final passportTarget = limited ? null : route('passport');
-    final resourcesTarget = limited ? null : route('resources');
+
     final settingsTarget = limited ? null : route('settings');
     final connectionsTarget =
         !limited &&
@@ -356,20 +356,6 @@ class SpaceUsSurface extends StatelessWidget {
                         context,
                         'Consulter les faits de confiance',
                         target,
-                        open,
-                      ),
-                    ],
-                    if (resourcesTarget != null) ...[
-                      const SizedBox(height: MakoloSpacing.xl),
-                      _sectionTitle(
-                        context,
-                        'Nos ressources',
-                        'Les ressources institutionnelles accessibles dans cet Espace.',
-                      ),
-                      _action(
-                        context,
-                        'Consulter les ressources',
-                        resourcesTarget,
                         open,
                       ),
                     ],
