@@ -80,6 +80,8 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   String? _accountIdentifier;
   bool _edited = false;
   Future<void> _draftWrites = Future<void>.value();
+  Map<String, dynamic>? _nextDraftSnapshot;
+  bool _draftWorkerActive = false;
   int _editRevision = 0;
 
   @override
@@ -309,21 +311,40 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
   void _rememberEdits() {
     _editRevision++;
     _edited = true;
+    if (widget.drafts == null || !_loaded) return;
+    // Only the newest editor snapshot is awaiting persistence. Per-keystroke
+    // chains accumulate stale writes and delay the final draft at shutdown.
+    _nextDraftSnapshot = Map<String, dynamic>.from(_currentEditor());
+    if (_draftWorkerActive) return;
+    _draftWorkerActive = true;
+    _draftWrites = _flushLatestDraft();
+  }
+
+  Future<void> _flushLatestDraft() async {
     final drafts = widget.drafts;
-    if (drafts == null || !_loaded) return;
-    final payload = _currentEditor();
     final profileId = widget.personal.store.profileId;
-    _draftWrites = _draftWrites
-        .catchError((Object _) {})
-        .then(
-          (_) => drafts.saveLocal(
-            draftId: 'accounts-profile-editor-$profileId',
-            owner: _draftOwner,
-            resourceKind: _draftKind,
-            resourceId: profileId,
-            payload: payload,
-          ),
+    try {
+      while (_nextDraftSnapshot != null && drafts != null) {
+        final snapshot = _nextDraftSnapshot!;
+        _nextDraftSnapshot = null;
+        await drafts.saveLocal(
+          draftId: 'accounts-profile-editor-$profileId',
+          owner: _draftOwner,
+          resourceKind: _draftKind,
+          resourceId: profileId,
+          payload: snapshot,
         );
+      }
+    } on Object {
+      // Keep the last unsaved snapshot available to a later edit/flush.
+      _nextDraftSnapshot ??= Map<String, dynamic>.from(_currentEditor());
+      if (mounted) {
+        setState(() => _error =
+            'Le brouillon local n’a pas pu être conservé sur cet appareil.');
+      }
+    } finally {
+      _draftWorkerActive = false;
+    }
   }
 
   Future<void> _bootstrap() async {
