@@ -5,7 +5,7 @@
   <section>
     <span class="mk-kicker">{% if create_space_context %}Métier · {{ create_space_context.name }}{% else %}Contexte personnel{% endif %}</span>
     <h1 class="mk-page-title mt-2">{% if create_space_label %}{{ create_space_label }}{% else %}Créer une activité{% endif %}</h1>
-    <p class="mk-page-copy mt-3">{% if create_space_context %}L’activité sera créée en brouillon pour l’Espace sélectionné, si votre autorité le permet toujours au moment de l’envoi. Vous pouvez changer d’identité seulement parmi celles qui vous sont autorisées.{% else %}Organisez en votre nom ou au nom d’un Espace que vous êtes autorisé à représenter. L’identité qui crée l’objet reste toujours votre Profil.{% endif %}</p>
+    <p class="mk-page-copy mt-3">{% if create_space_context %}Cette activité sera enregistrée en brouillon pour {{ create_space_context.name }}. Vous devez toujours être autorisé à agir pour cet Espace lors de l’enregistrement.{% else %}Créez une activité en votre nom ou au nom d’un Espace que vous êtes autorisé à représenter.{% endif %}</p>
   </section>
   <form method="post" class="mk-panel space-y-5 p-5 sm:p-7">
     {% csrf_token %}
