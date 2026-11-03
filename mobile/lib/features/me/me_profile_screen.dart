@@ -112,6 +112,13 @@ class _MeProfileScreenState extends State<MeProfileScreen> {
         'address',
       ])
         key: fields[key]?.toString() ?? '',
+      'birth_date': user['birth_date']?.toString().trim().isNotEmpty == true
+          ? user['birth_date'].toString()
+          : null,
+      'gender': const {'male', 'female', 'unspecified'}
+              .contains(user['gender']?.toString())
+          ? user['gender'].toString()
+          : 'unspecified',
       'public_profile': fields['public_profile'] != false,
       'searchable': fields['searchable'] != false,
     };
