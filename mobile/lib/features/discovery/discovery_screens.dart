@@ -1428,6 +1428,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
   late DiscoveryQuery _query;
   bool _refreshing = false;
   String? _selectedCandidateKey;
+  int _detailReturnRevision = 0;
 
   @override
   void initState() {
@@ -1510,6 +1511,28 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
     }
   }
 
+  Future<void> _openDetail(DiscoveryItemPresentation item) async {
+    final open = widget.onOpenItem;
+    if (open == null) {
+      if (item.occurrenceId != null) {
+        widget.onOpenOccurrence(item.occurrenceId!);
+      }
+      return;
+    }
+    final query = _query;
+    try {
+      await open(item.family, item.id);
+    } finally {
+      // Returning from any owner depth leaves the map's viewport and spatial
+      // collection intact. Reconcile only the selected item's owner actions.
+      if (mounted &&
+          identical(_query, query) &&
+          _selectedCandidateKey == item.candidateKey) {
+        setState(() => ++_detailReturnRevision);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1551,6 +1574,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 showMapOnCompact: true,
                 fieldKey: _query.mapFingerprint,
                 initialSelectedCandidateKey: widget.initialSelectedCandidateKey,
+                detailRefreshRevision: _detailReturnRevision,
                 onSelectionChanged: (key) => _selectedCandidateKey = key,
                 resolveItem: _verifiedMapDetail,
                 onSave: widget.authenticated
@@ -1564,13 +1588,7 @@ class _DiscoveryMapScreenState extends State<DiscoveryMapScreen> {
                 shareApi: widget.repository.api,
                 shareAuthenticated: widget.authenticated,
                 onRetry: () => unawaited(_refresh()),
-                onOpen: (item) {
-                  if (widget.onOpenItem != null) {
-                    widget.onOpenItem!(item.family, item.id);
-                  } else if (item.occurrenceId != null) {
-                    widget.onOpenOccurrence(item.occurrenceId!);
-                  }
-                },
+                onOpen: (item) => unawaited(_openDetail(item)),
               );
             },
           );
