@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils.cache import patch_vary_headers
 
 from rest_framework.exceptions import NotFound, ValidationError
@@ -264,7 +265,10 @@ class DiscoveryMapAPIView(PrivateDiscoveryResponseBoundary, APIView):
                     "spatial_facts": located_facts,
                     "capabilities": ["view"],
                     "links": {
-                        "detail": f"/api/v1/discovery/items/{family}/{candidate.activity_id}/",
+                        "detail": reverse(
+                            "discovery_api:item-detail",
+                            kwargs={"family": family, "item_id": candidate.activity_id},
+                        ),
                     },
                 })
             return Response({
