@@ -679,7 +679,9 @@ class DiscoveryRepository {
     final rootQuery = query.copyWith(page: 1, clearContinuation: true);
     if ((await readSource(itemsSource(rootQuery))).ownerUnavailable) return;
     final root = await _readStoredItems(rootQuery);
-    if (root == null) return;
+    if (root == null ||
+        reserve.rootReceivedAt == null ||
+        reserve.rootReceivedAt != root.receivedAt) return;
     final payload = reserve.toPayload(
       profileId: profileId,
       fieldKey: query.mapFingerprint,
