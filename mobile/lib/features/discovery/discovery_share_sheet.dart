@@ -17,6 +17,7 @@ class DiscoveryShareControl extends StatefulWidget {
     required this.authenticated,
     this.onSignIn,
     this.iconOnly = false,
+    this.enabled = true,
     this.baseUri,
   });
 
@@ -25,6 +26,9 @@ class DiscoveryShareControl extends StatefulWidget {
   final bool authenticated;
   final VoidCallback? onSignIn;
   final bool iconOnly;
+  /// The owner has been revalidated for this N2; cached facts alone never
+  /// authorize fresh sharing. N1 keeps its established behavior.
+  final bool enabled;
   final Uri? baseUri;
 
   @override
@@ -193,8 +197,9 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
   Widget build(BuildContext context) {
     // The owner Web share reference is the current contract for shareability.
     // Presence of a public card alone never grants sharing authority.
-    if (widget.item.links['web'] == null &&
-        widget.item.links['web_share'] == null) {
+    if (!widget.enabled ||
+        (widget.item.links['web'] == null &&
+            widget.item.links['web_share'] == null)) {
       return widget.iconOnly
           ? const IconButton(
               onPressed: null,
@@ -209,7 +214,7 @@ class _DiscoveryShareControlState extends State<DiscoveryShareControl> {
     }
     return PopupMenuButton<String>(
       tooltip: 'Partager cette possibilité',
-      enabled: !_busy,
+      enabled: widget.enabled && !_busy,
       onSelected: (value) {
         if (value == 'makolo') {
           if (widget.authenticated) {
