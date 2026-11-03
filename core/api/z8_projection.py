@@ -332,6 +332,10 @@ def build_personal_passport_depth_data(
     selected_proof_ids=None,
     selected_credential_ids=None,
     selected_sections=None,
+    excluded_activity_ids=(),
+    excluded_proof_ids=(),
+    excluded_credential_ids=(),
+    excluded_sections=(),
 ):
     data = build_personal_passport_data(
         profile,
@@ -341,6 +345,10 @@ def build_personal_passport_depth_data(
         selected_proof_ids=selected_proof_ids,
         selected_credential_ids=selected_credential_ids,
         selected_sections=selected_sections,
+        excluded_activity_ids=excluded_activity_ids,
+        excluded_proof_ids=excluded_proof_ids,
+        excluded_credential_ids=excluded_credential_ids,
+        excluded_sections=excluded_sections,
     )
     public_enabled = profile_has_public_passport(profile)
     variant_visibility = {
