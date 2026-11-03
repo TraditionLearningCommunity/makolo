@@ -5,6 +5,7 @@
 /// It never creates an owner action, Saved relation, or local ranking.
 class DiscoveryUnseenReserve {
   DiscoveryUnseenReserve({
+    this.rootReceivedAt,
     Iterable<String> shownKeys = const [],
     Iterable<String> evictedKeys = const [],
     Iterable<Map<String, dynamic>> unseen = const [],
@@ -13,6 +14,7 @@ class DiscoveryUnseenReserve {
     observe(unseen);
   }
 
+  final DateTime? rootReceivedAt;
   static const int maxUnseen = 50;
   final Set<String> _shown;
   final Set<String> _evicted;
@@ -100,6 +102,7 @@ class DiscoveryUnseenReserve {
       rows.add(Map<String, dynamic>.from(raw));
     }
     return DiscoveryUnseenReserve(
+      rootReceivedAt: rootReceivedAt,
       shownKeys: shown.cast<String>(),
       evictedKeys: evicted.cast<String>(),
       unseen: rows,
