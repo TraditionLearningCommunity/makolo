@@ -2144,6 +2144,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
     if (oldWidget.occurrenceId != widget.occurrenceId ||
         oldWidget.repository != widget.repository) {
       _verifiedOwner = false;
+      _refreshing = false;
       ++_generation;
       unawaited(_acquire());
     }
