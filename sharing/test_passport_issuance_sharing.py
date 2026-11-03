@@ -116,6 +116,36 @@ class PassportIssuanceAndSharingTests(TestCase):
         self.assertTrue(visible_again.context["can_view_dated_passport"])
         self.assertFalse(self.profile.searchable)
 
+    def test_dated_public_personal_details_are_revoked_with_their_audience(self):
+        from accounts.profile_visibility import replace_profile_visibility
+        from sharing.passport_documents import profile_public_snapshot_still_disclosable
+
+        self.owner.first_name = "Maya"
+        self.owner.last_name = "Exemple"
+        self.owner.phone = "+243811000000"
+        self.owner.save(update_fields=["first_name", "last_name", "phone", "updated_at"])
+        self.profile.country = "CD"
+        self.profile.city = "Lubumbashi"
+        self.profile.public_profile = True
+        self.profile.save(
+            update_fields=["country", "city", "public_profile", "updated_at"],
+        )
+        snapshot = self._issue("public")
+        personal = snapshot.payload["identity"]["presentation_details"]
+        self.assertEqual(personal["first_name"], "Maya")
+        self.assertEqual(personal["country"], "CD")
+        self.assertNotIn("phone", personal)
+        self.assertTrue(profile_public_snapshot_still_disclosable(snapshot))
+
+        replace_profile_visibility(
+            owner=self.owner, target_kind="field",
+            field_key="city", audiences=[],
+        )
+        self.assertFalse(profile_public_snapshot_still_disclosable(snapshot))
+        browser = self.client.get(self._verify_url(snapshot))
+        self.assertEqual(browser.status_code, 200)
+        self.assertFalse(browser.context["can_view_dated_passport"])
+
     def test_historical_pdf_download_never_issues_again_or_changes_owner(self):
         from io import BytesIO
         from pypdf import PdfReader
