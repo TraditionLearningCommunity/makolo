@@ -70,6 +70,88 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets('validation shows field error and retries save without losing edits', (tester) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-validation');
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        profileId: 'profile-validation',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+      ),
+    );
+    int attempts = 0;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: MockClient((request) async {
+        if (request.url.path == '/api/v1/accounts/auth/me/') {
+          return MockResponse(jsonEncode({
+            'first_name': 'Alex',
+            'last_name': 'Exemple',
+            'gender': 'unspecified',
+            'bio': '',
+            'language': 'en',
+            'profile': {'public_profile': false, 'searchable': false},
+          }), 200);
+        }
+        if (request.url.path == '/api/v1/accounts/auth/profile/update/') {
+          final submitted = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(submitted['bio'], 'Ma présentation');
+          expect(submitted.containsKey('language'), isFalse);
+          attempts++;
+          if (attempts == 1) {
+            return const MockResponse('{"bio":["Présentation à vérifier."]}', 400);
+          }
+          return MockResponse(jsonEncode({
+            'message': 'Profil mis à jour.',
+            'user': {
+              'first_name': 'Alex',
+              'last_name': 'Exemple',
+              'bio': 'Ma présentation',
+              'profile': {'public_profile': false, 'searchable': false},
+            },
+          }), 200);
+        }
+        if (request.url.path == '/api/v1/me/') {
+          return MockResponse(jsonEncode({
+            'meta': {
+              'projection': 'personal.me',
+              'schema_version': 1,
+              'scope': 'personal',
+              'generated_at': '2026-11-03T06:00:00Z',
+            },
+            'data': {
+              'actor': {'id': 'profile-validation'},
+              'identity': {'display_name': 'Alex Exemple'},
+            },
+          }), 200);
+        }
+        throw StateError('Unexpected request: ${request.url}');
+      }).dio,
+    );
+    addTearDown(api.close);
+    await tester.pumpWidget(MaterialApp(
+      home: MeProfileScreen(api: api, personal: PersonalRepository(store)),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Langue'), findsNothing);
+    await tester.enterText(find.widgetWithText(TextField, 'À propos'), 'Ma présentation');
+    await tester.ensureVisible(find.text('Enregistrer'));
+    await tester.tap(find.text('Enregistrer'));
+    await tester.pumpAndSettle();
+    expect(attempts, 1);
+    expect(find.text('Présentation à vérifier.'), findsOneWidget);
+    expect(find.text('Ma présentation'), findsOneWidget);
+    await tester.ensureVisible(find.text('Réessayer l’enregistrement'));
+    await tester.tap(find.text('Réessayer l’enregistrement'));
+    await tester.pumpAndSettle();
+    expect(attempts, 2);
+    expect(find.text('Modifications enregistrées.'), findsOneWidget);
+    expect(find.text('Ma présentation'), findsOneWidget);
+  });
+
   testWidgets('Accounts gender and birth date are editable from Passport', (tester) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
