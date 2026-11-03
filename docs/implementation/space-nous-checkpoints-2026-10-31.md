@@ -180,3 +180,42 @@ Le runtime inspecté distingue :
 3. Fixtures propriétaire Space, viewer Activity-only, membre sans Mandate, mandat sans Team manage, accès révoqué, hors réseau et changement de Space/Profile.
 4. Résolution de la propriété des Ressources institutionnelles avant ajout d'une API/modèle, puis N2/N3 owner-backed.
 5. Les CI ne bloquent pas le développement demandé, mais **aucune fusion sur CI rouge** ; aucun résultat vert n'est revendiqué sans exécution réelle.
+
+
+## Nous — livraison N1/N2 Ressources réelles et frontières N3 (4 novembre 2026)
+
+**Cette section actualise l'état de la section "Limite métier explicitement ouverte" ci-dessus, sans effacer l'historique.** Tout est réalisé sur **PR #522**, sans création de modèle ni migration.
+
+### Sources propriétaires réellement intégrées
+
+| Famille N2 | Owner effectif | Critère d'admission | Profondeur N3 actuelle |
+|---|---|---|---|
+| Passeport institutionnel émis | Sharing/`PassportSnapshot` | `space=Space courant`, document non révoqué | Passeport Space et historique des versions ; Sharing vérifie l'intégrité lors de l'ouverture |
+| Modèle de présentation | Presentation/`PresentationTemplateVersion` | `template.owner_space=Space courant`, `status=published` | Bibliothèque Presentation Web propriétaire |
+| Thème de présentation | Presentation/`PresentationThemeVersion` | `theme.owner_space=Space courant`, `status=published` | Bibliothèque Presentation Web propriétaire |
+
+**Important :** il s'agit de l'inventaire *des ressources institutionnelles déjà portées par des modèles propriétaires existants*, pas d'une promesse de bibliothèque générique de pièces, d'attestations, de justificatifs ou de Proofs de tout type. Ces autres natures ne sont pas créées artificiellement dans ce checkpoint. Le Passeport émis est un **document de représentation** ; il n'est ni un Credential Trust ni une preuve globale. Les objets PersonalAsset, ActivityResource, PresentationMediaUse et données des membres ne sont pas absorbés.
+
+### Backend
+
+- `organizations/api/space_us_resources_projection.py` compose ces trois familles, avec compteurs et aperçu N1 limité ; pagination N2 par famille (20 ressources/page) sans curseur métier transversal inventé.
+- `organizations/api/space_zs4_views.py` et `organizations/api/urls.py` exposent `GET /api/v1/organizations/workspaces/<slug>/us/resources/?kind=passport|template|theme&offset=N` sous `SPACE_MANAGE` direct et `Cache-Control: private, no-store`. L'accès Activity-limited, membership seul et rôle Space sans permission de gestion ne divulgue ni la liste ni ses compteurs.
+- `organizations/api/space_us_projection.py` publie la preview `resources` et le handoff `/space/<slug>/us/resources` uniquement si autorisé ; échec partiel d'un owner rendu `visibility=unavailable` sans masquer le portrait collectif.
+- Aucune donnée brute Passport, hash, QR, fichier, secret, URL de stockage ou PII supplémentaire n'est présentée.
+
+### Présentation
+
+- N1 Web et Flutter : **Nos ressources**, aperçu borné + état vide autorisé et lien seulement validé par la projection. Placement avant Gouvernance/Confiance.
+- N2 Web : `?detail=resources`, catégories / pagination / liens owner vers `sharing:passport-space-history` et `presentations:space-library`.
+- N2 Flutter : `SpaceUsResourcesScreen` via route dynamique Nous existante, lecture API autorisée sans stockage local de documents sensibles ; partition par Space actif, rejet des réponses tardives ou incohérentes et refus explicite après changement de droits.
+- N3 : Passport natif déjà existant ; présentation des templates/thèmes consultable en lecture Flutter, gestion/édition chez Presentation sur le Web (ne pas inventer de gestion native inexistante).
+
+### Tests ajoutés/actualisés (non exécutés localement ici)
+
+- `organizations/test_space_us_resources.py` : inventaire issu uniquement des propriétaires, cloisonnement Space, exclu PersonalAsset, Mandate insuffisant, Activity-only, révocation, publication/retrait, pagination, validation de filtres, vide autorisé, panne partielle, Web N2.
+- `mobile/test/space_us_surface_test.dart` : preview Resources sur N1, destination N2, restriction Activity-only et protection contre lien cross-Space forgé.
+- `organizations/test_ws4_space_web.py` : intitulés d'autorité distincts des Assignments.
+
+### Limite à préserver
+
+Il n'existe pas encore, dans le runtime audité, de **bibliothèque documentaire institutionnelle générale** comparable à la bibliothèque `PersonalAsset` d'un Profile. Son ajout nécessiterait une décision de propriétaire canonique, un contrat de confidentialité/partage, la gestion des versions, l'audit des permissions et un parcours N3 dédié ; **ne pas prétendre qu'elle est livrée sous prétexte que Nous présente déjà les véritables documents émis et ressources Presentation**. Ce besoin ne doit ni bloquer la racine Nous ni provoquer l'invention d'une table/d'un CRUD de circonstance. Aucun test ni CI n'est annoncé vert sans exécution ; pas de merge sur CI rouge.
