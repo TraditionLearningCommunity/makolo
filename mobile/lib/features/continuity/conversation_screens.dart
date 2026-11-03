@@ -1217,6 +1217,14 @@ class _ConversationPoint {
     this.attentionReason,
     this.section,
     this.resolutionSummary,
+    this.kind,
+    this.importance,
+    this.conversationId,
+    this.opensAt,
+    this.deadlineAt,
+    this.validUntil,
+    this.publishedAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -1230,6 +1238,14 @@ class _ConversationPoint {
   final String? attentionReason;
   final String? section;
   final String? resolutionSummary;
+  final String? kind;
+  final String? importance;
+  final String? conversationId;
+  final DateTime? opensAt;
+  final DateTime? deadlineAt;
+  final DateTime? validUntil;
+  final DateTime? publishedAt;
+  final DateTime? updatedAt;
 
   bool get supportsInteractiveResponse => switch (responseMode) {
     'free_text' ||
@@ -1267,6 +1283,14 @@ class _ConversationPoint {
       attentionReason: _string(row['attention_reason']),
       section: _string(row['section']),
       resolutionSummary: _string(row['resolution_summary']),
+      kind: _string(row['kind']),
+      importance: _string(row['importance']),
+      conversationId: _string(row['conversation_id']),
+      opensAt: DateTime.tryParse(_string(row['opens_at']) ?? ''),
+      deadlineAt: DateTime.tryParse(_string(row['deadline_at']) ?? ''),
+      validUntil: DateTime.tryParse(_string(row['valid_until']) ?? ''),
+      publishedAt: DateTime.tryParse(_string(row['published_at']) ?? ''),
+      updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
     );
   }
 }
@@ -1277,12 +1301,14 @@ class _ConversationInvitation {
     required this.conversationId,
     required this.status,
     this.expiresAt,
+    this.createdAt,
   });
 
   final String id;
   final String conversationId;
   final String status;
   final DateTime? expiresAt;
+  final DateTime? createdAt;
 
   bool get expired {
     final value = expiresAt;
@@ -1299,6 +1325,7 @@ class _ConversationInvitation {
           conversationId: _string(row['conversation_id']) ?? '',
           status: _string(row['status']) ?? '',
           expiresAt: DateTime.tryParse(_string(row['expires_at']) ?? ''),
+          createdAt: DateTime.tryParse(_string(row['created_at']) ?? ''),
         ),
       )
       .where((item) => item.id.isNotEmpty)
