@@ -236,6 +236,21 @@ class SpaceMetierMT7Tests(TestCase):
                     row["owner_reference"], {"kind": "activity", "id": str(work.pk)},
                 )
 
+    def test_mt8_root_preview_with_continuation_is_not_complete(self):
+        for index in range(14):
+            self.activity(f"Programme réel {index:02d}")
+        response = self.api.get(reverse(
+            "organizations_api:workspace-work",
+            kwargs={"slug": self.space.slug},
+        ))
+        self.assertEqual(response.status_code, 200)
+        activities = response.data["sections"]["activities"]
+        self.assertEqual(len(activities["items"]), 12)
+        self.assertTrue(activities["has_more"])
+        self.assertEqual(activities["coverage_state"], "partial")
+        self.assertEqual(response.data["coverage_state"], "partial")
+        self.assertEqual(response.data["composition_state"], "partial")
+
     def test_navigation_helper_preserves_scope_but_never_creates_authority(self):
         self.assertIsNone(work_page_number(None))
         self.assertEqual(work_page_number(None, required=True), 1)
