@@ -452,7 +452,7 @@ class _DiscoveryWatchResultsScreenState
                     padding: EdgeInsets.all(MakoloSpacing.inner),
                     child: Center(
                       child: Text(
-                        'Cette veille ne retourne aucune possibilité actuellement.',
+                        'Aucune possibilité trouvée pour cette veille.',
                         textAlign: TextAlign.center,
                       ),
                     ),
