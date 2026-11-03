@@ -38,6 +38,9 @@ class SpaceUsSurface extends StatelessWidget {
     final ownership = _map(payload['ownership']);
     final relations = _map(payload['relationships']);
     final relationSections = _map(relations?['sections']) ?? {};
+    final displayedRelations = relationSections.entries.where((entry) =>
+        entry.key != 'team' &&
+        _rows(_map(entry.value)?['items']).isNotEmpty).toList();
     final responsibilities = _rows(_map(payload['responsibilities'])?['items'])
         .where((item) => item['combined'] != true)
         .toList(growable: false);
@@ -206,14 +209,18 @@ class SpaceUsSurface extends StatelessWidget {
                     ],
                     if (passportTarget != null) ...[
                       const SizedBox(height: MakoloSpacing.lg),
-                      _sectionTitle(context, 'Passeport Makolo', ''),
+                      _sectionTitle(
+                        context,
+                        'Passeport Makolo',
+                        'Notre identité à présenter selon les faits disponibles.',
+                      ),
                       _passportCard(context, passportTarget, open),
                     ],
                     const SizedBox(height: MakoloSpacing.xl),
                     _sectionTitle(
                       context,
                       'Ma place dans cet Espace',
-                      'Les perspectives et autorisations liées à votre rôle.',
+                      'Vos rôles dans le collectif, distincts des tâches confiées.',
                     ),
                     if (responsibilities.isEmpty)
                       _quiet(
@@ -247,7 +254,7 @@ class SpaceUsSurface extends StatelessWidget {
                       _sectionTitle(
                         context,
                         'L’équipe',
-                        'Les personnes visibles, sans confondre appartenance et autorité.',
+                        'Les personnes avec qui nous travaillons.',
                       ),
                       if (teamVisible) ...[
                         _panel(
@@ -265,7 +272,10 @@ class SpaceUsSurface extends StatelessWidget {
                                   'Équipe principale',
                                 ),
                             if (team?['has_more'] == true || teamRows.length > 3)
-                              _quiet(context, 'D’autres personnes sont à retrouver dans l’équipe.'),
+                              _quiet(
+                                context,
+                                'D’autres personnes sont à retrouver dans l’équipe.',
+                              ),
                           ],
                         ),
                         if (route('team') case final target?)
@@ -282,22 +292,21 @@ class SpaceUsSurface extends StatelessWidget {
                       _sectionTitle(
                         context,
                         _value(relations?['label']) ?? 'Personnes & relations',
-                        'Les liens connus, selon la visibilité de leurs propriétaires.',
+                        'Les contacts, groupes et partenaires visibles.',
                       ),
-                      _panel(
-                        context,
-                        children: [
-                          for (final entry in relationSections.entries)
-                            if (entry.key != 'team' &&
-                                _rows(_map(entry.value)?['items']).isNotEmpty)
+                      if (displayedRelations.isNotEmpty)
+                        _panel(
+                          context,
+                          children: [
+                            for (final entry in displayedRelations)
                               _fact(
-                              context,
-                              _relationIcon(entry.key),
-                              _relationLabel(entry.key),
-                              _relationSummary(_map(entry.value)),
-                            ),
-                        ],
-                      ),
+                                context,
+                                _relationIcon(entry.key),
+                                _relationLabel(entry.key),
+                                _relationSummary(_map(entry.value)),
+                              ),
+                          ],
+                        ),
                       if (route('relationships') case final target?)
                         _action(
                           context,
@@ -357,7 +366,12 @@ class SpaceUsSurface extends StatelessWidget {
                         'Nos ressources',
                         'Les ressources institutionnelles accessibles dans cet Espace.',
                       ),
-                      _action(context, 'Consulter les ressources', resourcesTarget, open),
+                      _action(
+                        context,
+                        'Consulter les ressources',
+                        resourcesTarget,
+                        open,
+                      ),
                     ],
                     if (subscriptionTarget != null ||
                         connectionsTarget != null ||
@@ -507,7 +521,7 @@ class SpaceUsSurface extends StatelessWidget {
     }
     final count = items.length;
     return section?['has_more'] == true
-        ? 'Au moins $count relations dans cet aperçu'
+        ? '$count éléments visibles dans cet aperçu · d’autres sont disponibles'
         : '$count relation${count == 1 ? '' : 's'} visible${count == 1 ? '' : 's'}';
   }
 
