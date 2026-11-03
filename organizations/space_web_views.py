@@ -14,6 +14,7 @@ from intelligence.interoperability import project_provider_connection, provider_
 from intelligence.connection_web import connection_form_context, handle_connection_form
 from intelligence.models import ProviderScope
 
+from interoperability.catalog_presentation import connection_experience_context
 from interoperability.presentation import present_connection
 from interoperability.projections import build_interoperability_payload
 from interoperability.domain_integrations import space_domain_integrations
@@ -292,6 +293,16 @@ class SpaceInteroperabilityView(SpaceWebMixin):
         context["domain_integrations"] = context["interoperability"]["domain_integrations"]
         context.update(connection_form_context())
         context["connections"] = [present_connection(row) for row in connections]
+        context.update(
+            connection_experience_context(
+                self.request,
+                offers=context["connection_offers"],
+                connections=context["connections"],
+            )
+        )
+        context["connections_context_label"] = "Nous"
+        context["connections_return_url"] = context["space_us_url"]
+        context["connections_return_label"] = "Retour à Nous"
         return context
     def post(self, request, *args, **kwargs):
         if not has_direct_space_permission(
