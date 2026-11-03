@@ -990,19 +990,6 @@ class DiscoveryRepository {
     await refreshItems(query);
   }
 
-  /// Reuse complete owner-projected facts from a fetched collection or N2.
-  /// This is only a presentation guarantee. Actions must still be accepted
-  /// by their server owner at the moment the user invokes them.
-  Future<bool> hasReusableItem(String family, String id) async {
-    final projection = await readItem(family, id);
-    if (!_freshEnough(projection, detailFreshness.refreshRecommendedAfter!)) {
-      return false;
-    }
-    final source = await readSource(itemSource(family, id));
-    if (source.invalidated || source.lastErrorCode != null) return false;
-    return projection?.payload['item'] is Map;
-  }
-
   Future<bool> hasReusableActivity(String id) async {
     final projection = await readActivity(id);
     if (!_freshEnough(projection, detailFreshness.refreshRecommendedAfter!)) {
@@ -1694,26 +1681,6 @@ class DiscoveryRepository {
       final family = _text(identity?['family']);
       final resourceId = _text(resource?['id']);
       if (family == null || resourceId == null) continue;
-
-      // The collection already carries the authorized detailed item wire.
-      // Reuse it in N2 rather than fetching that same representation again.
-      // Never revive a keyed owner detail after an explicit owner refusal.
-      final ownerSource = itemSource(family, resourceId);
-      final denied = (await readSource(ownerSource)).ownerUnavailable;
-      final existing = await store.readProjection(
-        itemProjectionKind,
-        resourceKey: '$family:$resourceId',
-      );
-      if (!denied &&
-          (existing == null ||
-              existing.receivedAt.isBefore(projection.receivedAt))) {
-        await _putPreview(
-          kind: itemProjectionKind,
-          resourceKey: '$family:$resourceId',
-          payload: {'item': item},
-          source: projection,
-        );
-      }
 
       if (_isActivityFamily(family)) {
         await _putPreview(
