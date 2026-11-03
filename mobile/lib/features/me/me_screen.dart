@@ -353,7 +353,7 @@ class _MeLoadingSection extends StatelessWidget {
       child: loading
           ? const MakoloSkeleton(lines: 2)
           : Text(
-              'Pas encore disponible ici.',
+              'Informations indisponibles.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),

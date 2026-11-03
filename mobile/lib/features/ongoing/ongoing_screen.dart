@@ -825,7 +825,7 @@ class _OngoingN1ActionsState extends State<_OngoingN1Actions> {
       'payment' => 'Suivre le paiement',
       'transfer' => 'Voir le transfert',
       'funding' => 'Gérer',
-      _ => 'Continuer',
+      _ => 'Voir le détail',
     };
     final canShare = possibility?.canShare == true && widget.api != null;
     final sharedItem = canShare

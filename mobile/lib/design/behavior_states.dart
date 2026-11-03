@@ -100,11 +100,7 @@ class MakoloErrorState extends StatelessWidget {
 }
 
 class OfflineBanner extends StatelessWidget {
-  const OfflineBanner({
-    super.key,
-    this.message =
-        'Hors connexion · Ce qui est déjà disponible reste utilisable.',
-  });
+  const OfflineBanner({super.key, this.message = 'Hors connexion'});
 
   final String message;
 

@@ -532,14 +532,14 @@ class DiscoverySearchScreen extends StatefulWidget {
 
 String _providerFailureMessage(String reason) => switch (reason) {
   'connection_unavailable' =>
-    'Aucun service externe disponible pour cette recherche.',
+    'Recherche de sources indisponible.',
   'invalid_credentials' =>
-    'Connexion refusée par le service. Vérifiez-la dans Connexions.',
+    'Connexion à vérifier pour rechercher des sources.',
   'rate_limited' =>
     'Limite de recherche atteinte. Réessayez plus tard.',
   'network_unavailable' =>
-    'Service de recherche indisponible. Réessayez plus tard.',
-  _ => 'Ce service n’est pas disponible actuellement.',
+    'Impossible de rechercher des sources pour le moment.',
+  _ => 'Recherche de sources indisponible.',
 };
 
 bool _canRepairDiscoveryConnection(String reason) =>
@@ -823,10 +823,7 @@ class _DiscoverySearchScreenState extends State<DiscoverySearchScreen> {
       if (result.status == 'unavailable') {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '${_providerFailureMessage(result.reason)} '
-              'Vous pouvez continuer dans Découvrir.',
-            ),
+            content: Text(_providerFailureMessage(result.reason)),
             action: _canRepairDiscoveryConnection(result.reason)
                 ? SnackBarAction(
                     label: 'Connexions',

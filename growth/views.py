@@ -186,6 +186,8 @@ class CRMPresetActivateView(LoginRequiredMixin, View):
         else:
             messages.success(
                 request,
-                f"Preset activé : {workflow.name}." if created else f"Preset déjà présent et actif : {workflow.name}.",
+                "Message automatique activé."
+                if created
+                else "Message automatique déjà actif.",
             )
         return redirect("growth:organization", slug=organization.slug)
