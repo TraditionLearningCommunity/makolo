@@ -530,7 +530,7 @@ class BottomVerification(Flowable):
         _, self.panel_height = self.panel.wrap(self.width, avail_height)
         _, self.note_height = self.note.wrap(self.width, avail_height)
         required = self.panel_height + self.note_height + 15
-        self.height = max(required, avail_height)
+        self.height = required
         return self.width, self.height
 
     def split(self, avail_width, avail_height):
