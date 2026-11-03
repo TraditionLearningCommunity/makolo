@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makolo_mobile/app/runtime/app_runtime.dart';
 import 'package:makolo_mobile/app/session_recovery.dart';
 import 'package:makolo_mobile/features/settings/subscription_actions_panel.dart';
+import 'package:makolo_mobile/features/settings/subscription_billing_format.dart';
 
 import 'dio_testing.dart';
 import 'fakes.dart';
@@ -26,8 +27,13 @@ void main() {
           home: Scaffold(
             body: SubscriptionActionsPanel(
               runtime: runtime,
+              section: 'plans',
               snapshot: {
-                'subscription': {'id': 'owned', 'active_addons': <Object>[]},
+                'subscription': {
+                  'id': 'owned',
+                  'current_base': {'name': 'Formule gratuite'},
+                  'active_addons': <Object>[],
+                },
                 'catalog': [
                   {
                     'name': 'Formule gratuite',
@@ -58,11 +64,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Gratuit'), findsOneWidget);
+      expect(subscriptionPriceLabel({'amount': '0.00', 'currency': 'USD'}), 'Gratuit');
+      expect(find.text('Formule actuelle : Formule gratuite'), findsOneWidget);
       expect(find.text('Tarif non communiqué'), findsOneWidget);
-      expect(find.text('Examiner le changement'), findsOneWidget);
+      expect(find.text('Voir les détails'), findsOneWidget);
 
-      await tester.tap(find.text('Examiner le changement'));
+      await tester.tap(find.text('Voir les détails'));
       await tester.pump();
       expect(
         find.text('Cette action nécessite une connexion active.'),
@@ -84,6 +91,7 @@ void main() {
         home: Scaffold(
           body: SubscriptionActionsPanel(
             runtime: runtime,
+            section: 'plans',
             snapshot: const {
               'subscription': {'id': 'owned', 'active_addons': <Object>[]},
               'catalog': <Object>[],
@@ -97,10 +105,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Aucune autre formule proposée actuellement.'),
+      find.text('Aucune autre offre disponible pour le moment.'),
       findsOneWidget,
     );
-    expect(find.text('Examiner le changement'), findsNothing);
+    expect(find.text('Voir les détails'), findsNothing);
   });
 
   testWidgets('paid offer opens the exact server-provided payment obligation', (tester) async {
@@ -166,10 +174,14 @@ void main() {
     addTearDown(router.dispose);
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Examiner le changement'));
+    await tester.tap(find.text('Voir les détails'));
     await tester.pumpAndSettle();
     expect(find.text('Continuer vers le paiement'), findsOneWidget);
     await tester.tap(find.text('Continuer vers le paiement'));
+    await tester.pumpAndSettle();
+    expect(posts, 0);
+    expect(find.text('Confirmer le changement ?'), findsOneWidget);
+    await tester.tap(find.text('Confirmer').last);
     await tester.pumpAndSettle();
     expect(find.text('Paiement obligation-from-server'), findsOneWidget);
     expect(posts, 1);
