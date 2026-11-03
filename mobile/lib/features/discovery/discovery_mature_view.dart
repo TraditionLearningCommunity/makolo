@@ -468,7 +468,7 @@ class _DiscoveryMapPreview extends StatelessWidget {
             if (resolved?.eyebrow != null &&
                 resolved!.eyebrow!.trim().isNotEmpty)
               Text(
-                resolved.eyebrow!,
+                resolved!.eyebrow!,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelMedium,
