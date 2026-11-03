@@ -223,6 +223,30 @@ class Z6PersonalDayOfAPIContractTests(TestCase):
         self.assertFalse(policy["allowed"])
         self.assertIsNone(policy["expires_at"])
 
+    def test_access_summary_and_detail_retain_practical_day_j_instructions(self):
+        self.client.force_authenticate(self.participant)
+        listing = self.client.get("/api/v1/me/accesses/")
+        self.assertEqual(listing.status_code, 200)
+        row = listing.json()["data"]["items"][0]
+        self.assertEqual(
+            row["occurrence"]["place"]["access_instructions"],
+            "Présentez-vous à l’accueil.",
+        )
+        self.assertEqual(
+            row["occurrence"]["place"]["address_line"],
+            "Avenue du Départ",
+        )
+        self.assertNotIn("payload", str(row))
+        detail = self.client.get(
+            f"/api/v1/me/accesses/{self.access.pk}/"
+        )
+        self.assertEqual(detail.status_code, 200)
+        place = detail.json()["data"]["occurrence"]["place"]
+        self.assertEqual(
+            place["access_instructions"], "Présentez-vous à l’accueil."
+        )
+        self.assertEqual(place["address_line"], "Avenue du Départ")
+
     def test_active_occurrence_hands_off_to_existing_operations_live(self):
         self.occurrence.start_at = self.now - timedelta(minutes=5)
         self.occurrence.end_at = self.now + timedelta(hours=2)
