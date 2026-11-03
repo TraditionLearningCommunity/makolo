@@ -1646,51 +1646,72 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   bool _saving = false;
   String? _verifiedItemKey;
   String? _refreshingItemKey;
+  int _generation = 0;
+
+  String get _itemKey => '${widget.family}:${widget.id}';
 
   @override
   void initState() {
     super.initState();
-    unawaited(_acquire());
+    unawaited(_refresh());
   }
 
   @override
   void didUpdateWidget(covariant DiscoveryItemDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.family != widget.family || oldWidget.id != widget.id) {
-      unawaited(_acquire());
+    if (oldWidget.family != widget.family || oldWidget.id != widget.id ||
+        oldWidget.repository != widget.repository) {
+      // A detail for another family/resource may never inherit N2 authority.
+      ++_generation;
+      _refreshing = false;
+      _saving = false;
+      _verifiedItemKey = null;
+      _refreshingItemKey = null;
+      unawaited(_refresh());
     }
   }
 
-  Future<void> _acquire() async {
-    // Stale-while-revalidate: cached facts can render immediately, but the
-    // server must re-evaluate actions and private visibility on N2 entry.
-    await _refresh();
+  @override
+  void dispose() {
+    ++_generation;
+    super.dispose();
   }
 
   Future<void> _refresh() async {
-    final key = '${widget.family}:${widget.id}';
+    final key = _itemKey;
     if (_refreshing && _refreshingItemKey == key) return;
+    final generation = ++_generation;
+    final family = widget.family;
+    final id = widget.id;
     setState(() {
       _refreshing = true;
       _refreshingItemKey = key;
       _verifiedItemKey = null;
     });
     try {
-      await widget.repository.refreshItem(widget.family, widget.id);
-      final status = await widget.repository.readSource(
-        widget.repository.itemSource(widget.family, widget.id),
+      await widget.repository.refreshItem(family, id);
+      final state = await widget.repository.readSource(
+        widget.repository.itemSource(family, id),
       );
-      if (mounted &&
-          key == '${widget.family}:${widget.id}' &&
-          status.lastErrorCode == null &&
-          status.lastSuccessAt != null &&
-          !status.invalidated) {
-        setState(() => _verifiedItemKey = key);
+      if (!mounted || generation != _generation || key != _itemKey) return;
+      if (state.lastErrorCode == null &&
+          state.lastSuccessAt != null &&
+          !state.invalidated) {
+        // The owner confirmed the current item, not merely a success stamp.
+        final projection = await widget.repository.readItem(family, id);
+        final detail = _selector.detail(projection);
+        if (mounted &&
+            generation == _generation &&
+            key == _itemKey &&
+            detail?.family == family &&
+            detail?.id == id) {
+          setState(() => _verifiedItemKey = key);
+        }
       }
     } on Object {
-      // Cached detail remains readable, never newly actionable.
+      // Preserve valid cached facts without granting owner actions.
     } finally {
-      if (mounted && _refreshingItemKey == key) {
+      if (mounted && generation == _generation && key == _itemKey) {
         setState(() {
           _refreshing = false;
           _refreshingItemKey = null;
@@ -1700,98 +1721,125 @@ class _DiscoveryItemDetailScreenState extends State<DiscoveryItemDetailScreen> {
   }
 
   Future<void> _setSaved(bool saved) async {
-    if (_saving) return;
+    final key = _itemKey;
+    if (_saving || _refreshing || _verifiedItemKey != key) return;
+    final family = widget.family;
+    final id = widget.id;
     setState(() => _saving = true);
     try {
-      await widget.repository.setSaved(
-        family: widget.family,
-        id: widget.id,
-        saved: saved,
-      );
+      // No optimistic mutation: the Discovery owner returns a confirmed item.
+      await widget.repository.setSaved(family: family, id: id, saved: saved);
     } on Object {
-      await _refresh();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Modification non confirmée. Actualisez avant de réessayer.',
+      if (mounted && key == _itemKey) {
+        await _refresh();
+        if (mounted && key == _itemKey) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Modification non confirmée. Actualisez avant de réessayer.',
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted && key == _itemKey) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<StoredProjection?>(
-      stream: widget.repository.watchItem(widget.family, widget.id),
-      builder: (context, snapshot) {
-        DiscoveryItemPresentation? item;
-        var invalidDetail = false;
-        try {
-          item = _selector.detail(snapshot.data);
-        } on FormatException {
-          invalidDetail = true;
-        }
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Possibilité'),
-            actions: [
-              IconButton(
-                tooltip: 'Actualiser',
-                onPressed: _refreshing ? null : _refresh,
-                icon: const Icon(Icons.refresh_rounded),
+    final source = widget.repository.itemSource(widget.family, widget.id);
+    return StreamBuilder<DiscoverySourceState>(
+      key: ValueKey('discover-n2-owner-$_itemKey'),
+      stream: widget.repository.watchSource(source),
+      initialData: DiscoverySourceState.unknown,
+      builder: (context, ownerSnapshot) {
+        final owner = ownerSnapshot.data ?? DiscoverySourceState.unknown;
+        return StreamBuilder<StoredProjection?>(
+          stream: widget.repository.watchItem(widget.family, widget.id),
+          builder: (context, snapshot) {
+            DiscoveryItemPresentation? item;
+            var incompatible = false;
+            try {
+              item = _selector.detail(snapshot.data);
+            } on FormatException {
+              incompatible = true;
+            }
+            final verified =
+                !_refreshing &&
+                _verifiedItemKey == _itemKey &&
+                owner.lastSuccessAt != null &&
+                owner.lastErrorCode == null &&
+                !owner.invalidated;
+            final vertical = item?.representation?['vertical_label'];
+            final title = vertical is String && vertical.trim().isNotEmpty
+                ? vertical.trim()
+                : 'Possibilité';
+
+            return Scaffold(
+              appBar: AppBar(
+                title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                actions: [
+                  IconButton(
+                    tooltip: 'Actualiser',
+                    onPressed: _refreshing ? null : _refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
               ),
-            ],
-          ),
-          body: item == null
-              ? _refreshing
-                    ? const MakoloLoadingState(label: 'Mise à jour…')
-                    : MakoloErrorState(
-                        message: invalidDetail
-                            ? 'La réponse de cette possibilité est incompatible.'
-                            : 'Ce contenu n’est pas disponible.',
-                        onRetry: _refresh,
-                      )
-              : ListView(
-                  key: const Key('discover-personal-n2'),
-                  padding: const EdgeInsets.only(bottom: MakoloSpacing.xl),
-                  children: [
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1040),
-                        child: DiscoveryPossibilityUnit(
-                          item: item,
-                          profileId: widget.repository.profileId,
-                          allowOwnerActions:
-                              !_refreshing &&
-                              _verifiedItemKey ==
-                                  '${widget.family}:${widget.id}',
-                          detailMode: true,
-                          onOpen: () {},
-                          onOwnerDepth: (path) => context.push(path),
-                          onSave:
-                              (item.savedState == 'saved'
-                                  ? item.canUnsave
-                                  : item.canSave)
-                              ? () => _setSaved(item!.savedState != 'saved')
-                              : null,
-                          shareApi: widget.repository.api,
-                          shareAuthenticated: true,
-                          baseUri: widget.repository.api.baseUri,
-                        ),
+              body: item == null
+                  ? _refreshing
+                        ? const MakoloLoadingState(label: 'Mise à jour…')
+                        : MakoloErrorState(
+                            message: owner.ownerUnavailable
+                                ? 'Cette possibilité n’est plus accessible.'
+                                : incompatible
+                                ? 'La réponse de cette possibilité est incompatible.'
+                                : owner.lastErrorCode != null
+                                ? 'Impossible de charger cette possibilité. Réessayez.'
+                                : 'Ce contenu n’est pas disponible.',
+                            onRetry: _refresh,
+                          )
+                  : ListView(
+                      key: const Key('discover-personal-n2'),
+                      padding: const EdgeInsets.only(
+                        bottom: MakoloSpacing.xl,
                       ),
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1040),
+                            child: DiscoveryPossibilityUnit(
+                              key: ValueKey('discover-n2-unit-$_itemKey'),
+                              item: item,
+                              profileId: widget.repository.profileId,
+                              allowOwnerActions: verified,
+                              detailMode: true,
+                              onOpen: () {},
+                              onOwnerDepth: (path) => context.push(path),
+                              onSave: verified && !_saving &&
+                                      (item.savedState == 'saved'
+                                          ? item.canUnsave
+                                          : item.canSave)
+                                  ? () => _setSaved(item!.savedState != 'saved')
+                                  : null,
+                              shareApi: widget.repository.api,
+                              shareAuthenticated: true,
+                              baseUri: widget.repository.api.baseUri,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+            );
+          },
         );
       },
     );
   }
 }
+
 
 class ActivityDetailScreen extends StatefulWidget {
   const ActivityDetailScreen({
