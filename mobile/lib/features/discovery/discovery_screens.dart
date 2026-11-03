@@ -1876,18 +1876,32 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   static const _selector = DiscoveryDetailSelector();
   bool _refreshing = false;
   String? _knownSavedTitle;
+  late Stream<DiscoverySourceState> _ownerStream;
+  late Stream<StoredProjection?> _previewStream;
+  late Stream<StoredProjection?> _detailStream;
+
+  void _bindStreams() {
+    _ownerStream = widget.repository.watchSource(
+      widget.repository.activitySource(widget.activityId),
+    );
+    _previewStream = widget.repository.watchActivityPreview(widget.activityId);
+    _detailStream = widget.repository.watchActivity(widget.activityId);
+  }
 
   @override
   void initState() {
     super.initState();
+    _bindStreams();
     unawaited(_acquire());
   }
 
   @override
   void didUpdateWidget(covariant ActivityDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.activityId != widget.activityId) {
+    if (oldWidget.activityId != widget.activityId ||
+        oldWidget.repository != widget.repository) {
       _knownSavedTitle = null;
+      _bindStreams();
       unawaited(_acquire());
     }
   }
@@ -1958,17 +1972,15 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DiscoverySourceState>(
-      stream: widget.repository.watchSource(
-        widget.repository.activitySource(widget.activityId),
-      ),
+      stream: _ownerStream,
       initialData: DiscoverySourceState.unknown,
       builder: (context, ownerSnapshot) {
         final owner = ownerSnapshot.data ?? DiscoverySourceState.unknown;
         return StreamBuilder<StoredProjection?>(
-          stream: widget.repository.watchActivityPreview(widget.activityId),
+          stream: _previewStream,
       builder: (context, previewSnapshot) {
         return StreamBuilder<StoredProjection?>(
-          stream: widget.repository.watchActivity(widget.activityId),
+          stream: _detailStream,
           builder: (context, snapshot) {
             final id = snapshot.data?.payload['identity'];
             final valid = id is Map &&
@@ -2131,10 +2143,22 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
   bool _refreshing = false;
   bool _verifiedOwner = false;
   int _generation = 0;
+  late Stream<DiscoverySourceState> _ownerStream;
+  late Stream<StoredProjection?> _previewStream;
+  late Stream<StoredProjection?> _detailStream;
+
+  void _bindStreams() {
+    _ownerStream = widget.repository.watchSource(
+      widget.repository.occurrenceSource(widget.occurrenceId),
+    );
+    _previewStream = widget.repository.watchOccurrencePreview(widget.occurrenceId);
+    _detailStream = widget.repository.watchOccurrence(widget.occurrenceId);
+  }
 
   @override
   void initState() {
     super.initState();
+    _bindStreams();
     unawaited(_acquire());
   }
 
@@ -2146,6 +2170,7 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
       _verifiedOwner = false;
       _refreshing = false;
       ++_generation;
+      _bindStreams();
       unawaited(_acquire());
     }
   }
@@ -2203,17 +2228,15 @@ class _OccurrenceDetailScreenState extends State<OccurrenceDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DiscoverySourceState>(
-      stream: widget.repository.watchSource(
-        widget.repository.occurrenceSource(widget.occurrenceId),
-      ),
+      stream: _ownerStream,
       initialData: DiscoverySourceState.unknown,
       builder: (context, ownerSnapshot) {
         final owner = ownerSnapshot.data ?? DiscoverySourceState.unknown;
         return StreamBuilder<StoredProjection?>(
-          stream: widget.repository.watchOccurrencePreview(widget.occurrenceId),
+          stream: _previewStream,
       builder: (context, previewSnapshot) {
         return StreamBuilder<StoredProjection?>(
-          stream: widget.repository.watchOccurrence(widget.occurrenceId),
+          stream: _detailStream,
           builder: (context, snapshot) {
             final identity = snapshot.data?.payload['identity'];
             final ownerIdentityValid = identity is Map &&
