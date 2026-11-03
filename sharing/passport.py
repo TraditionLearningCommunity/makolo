@@ -6,7 +6,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from accounts.models import UserProfile
+from accounts.models import GenderCode, UserProfile
 from accounts.profile_visibility import ProfileVisibilityResolver
 from activities.models import Activity, ActivityStatus, ActivityVisibility
 from authorization.models import AuthorityScope, Mandate, MandateStatus
@@ -522,9 +522,8 @@ def build_profile_passport(
             "country": profile_row.country or "" if profile_row else "",
             "phone": profile.phone or "",
             "address": profile_row.address or "" if profile_row else "",
-            "language": profile.get_language_display(),
             "birth_date": profile.birth_date.isoformat() if profile.birth_date else "",
-            "gender": profile.get_gender_display() if profile.gender else "",
+            "gender": profile.get_gender_display() if profile.gender and profile.gender != GenderCode.UNSPECIFIED else "",
         }
     if custom:
         # Custom begins with the admissible public baseline. Include choices
