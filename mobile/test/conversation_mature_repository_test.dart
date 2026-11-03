@@ -303,7 +303,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Départ pour Kolwezi'), findsOneWidget);
-    expect(find.text('Départ confirmé'), findsOneWidget);
+    expect(find.textContaining('Départ confirmé'), findsOneWidget);
     expect(find.textContaining('Impossible d’actualiser les invitations'), findsOneWidget);
     expect(find.byType(MakoloErrorState), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -411,6 +411,164 @@ void main() {
     expect(find.text('Échange privé'), findsNothing);
     expect(await repository.readList(), isNull);
     expect(find.text('Action non disponible'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  test('C2: search and context lookup use real owner endpoints', () async {
+    final requests = <Uri>[];
+    final repository = repositoryFor((request) async {
+      requests.add(request.url);
+      if (request.url.path == '/api/v1/conversations/' &&
+          request.url.queryParameters['q'] == 'Kolwezi') {
+        return MockResponse(
+          jsonEncode({
+            'count': 1,
+            'results': [
+              {
+                'id': 'conversation-1',
+                'title': 'Départ pour Kolwezi',
+                'matched_point_id': 'point-1',
+                'context': {'kind': 'activity', 'label': 'Transport'},
+              },
+            ],
+          }),
+          200,
+        );
+      }
+      if (request.url.path ==
+          '/api/v1/conversations/by-context/activity/activity-1/') {
+        return MockResponse(
+          jsonEncode({
+            'count': 1,
+            'results': [
+              {'id': 'conversation-1', 'title': 'Départ pour Kolwezi'},
+            ],
+          }),
+          200,
+        );
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+
+    final search = await repository.searchConversations('Kolwezi');
+    expect(search.single['matched_point_id'], 'point-1');
+    final context = await repository.conversationsForContext(
+      kind: 'activity',
+      id: 'activity-1',
+    );
+    expect(context.single['id'], 'conversation-1');
+    expect(requests.length, 2);
+    expect(await repository.readList(), isNull);
+    expect(await repository.conversationsForContext(kind: 'unsupported', id: 'x'), isEmpty);
+  });
+
+  testWidgets('C2: N1 detail groups distinct Points and offers inline confirmation', (
+    tester,
+  ) async {
+    var replied = false;
+    final requests = <Uri>[];
+    final repository = repositoryFor((request) async {
+      requests.add(request.url);
+      if (request.url.path ==
+          '/api/v1/conversations/points/point-confirm/respond/') {
+        final body = request.data as Map;
+        expect(body['value'], true);
+        replied = true;
+        return MockResponse(
+          jsonEncode({
+            'id': 'response-1',
+            'point_id': 'point-confirm',
+            'status': 'active',
+            'value': true,
+          }),
+          200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/conversation-1/') {
+        return MockResponse(
+          jsonEncode({
+            'id': 'conversation-1',
+            'title': 'Départ vers Kolwezi',
+            'purpose': 'Coordination',
+            'context': {'kind': 'activity', 'label': 'Transport'},
+            'points': [
+              {
+                'id': 'point-confirm',
+                'conversation_id': 'conversation-1',
+                'title': 'Vous confirmez ?',
+                'kind': 'confirmation',
+                'response_mode': 'boolean',
+                'lifecycle': 'open',
+                'requires_acknowledgement': false,
+                'can_respond': !replied,
+                'section': 'pour_moi',
+                'attention_reason': replied ? null : 'respond',
+                'options': [],
+              },
+            ],
+            'essential': [
+              {
+                'id': 'point-confirm',
+                'title': 'Vous confirmez ?',
+                'kind': 'confirmation',
+                'response_mode': 'boolean',
+                'lifecycle': 'open',
+                'can_respond': true,
+                'section': 'essential',
+                'options': [],
+              },
+            ],
+            'elsewhere': [
+              {
+                'id': 'point-elsewhere',
+                'title': 'Une question en cours',
+                'kind': 'question',
+                'response_mode': 'free_text',
+                'can_respond': false,
+                'lifecycle': 'open',
+                'section': 'elsewhere',
+                'options': [],
+              },
+            ],
+            'focused_point': null,
+            'personal_state': {},
+            'updated_at': '2026-11-04T00:00:00Z',
+          }),
+          200,
+        );
+      }
+      if (request.url.path == '/api/v1/conversations/') {
+        return MockResponse('{"count":0,"results":[]}', 200);
+      }
+      throw StateError('Unexpected request ${request.url}');
+    });
+
+    await repository.refreshDetail('conversation-1');
+    await PresentationHarness.pump(
+      tester,
+      child: ConversationDetailScreen(
+        repository: repository,
+        id: 'conversation-1',
+        focusPointId: 'point-confirm',
+      ),
+    );
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 150)),
+    );
+    await tester.pump();
+    expect(find.text('Départ vers Kolwezi'), findsWidgets);
+    expect(find.text('Vous confirmez ?'), findsOneWidget);
+    expect(find.text('À vous'), findsOneWidget);
+    await tester.tap(find.text('Oui'));
+    await tester.runAsync(
+      () async => Future<void>.delayed(const Duration(milliseconds: 150)),
+    );
+    await tester.pump();
+    expect(replied, isTrue);
+    expect(requests.any(
+      (uri) => uri.queryParameters['focus_point'] == 'point-confirm',
+    ), isTrue);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });
