@@ -227,7 +227,7 @@ class SpaceUsSurface extends StatelessWidget {
                     _sectionTitle(
                       context,
                       'Ma place dans cet Espace',
-                      'Vos rôles dans le collectif, distincts des tâches confiées.',
+                      'Vos rôles autorisés, distincts des tâches confiées.',
                     ),
                     if (responsibilities.isEmpty)
                       _quiet(
@@ -251,7 +251,7 @@ class SpaceUsSurface extends StatelessWidget {
                     if (route('responsibilities') case final target?) ...[
                       _action(
                         context,
-                        'Comprendre les responsabilités',
+                        'Comprendre mes rôles',
                         target,
                         open,
                       ),
