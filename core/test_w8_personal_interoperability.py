@@ -327,6 +327,10 @@ class C2InteroperabilityPresentationContractTests(SimpleTestCase):
             **base, "usable": True, "capabilities": ["text_generate"],
         })
         self.assertEqual(usable["experience_state"], "usable")
+        self.assertEqual(
+            usable["experience_message"], "Ce service est prêt à être utilisé."
+        )
+        self.assertNotIn("execute_url", usable)
 
     def test_action_metadata_does_not_promise_an_execution_link(self):
         from interoperability.presentation import present_action
