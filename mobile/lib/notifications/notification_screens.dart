@@ -162,7 +162,6 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => NotificationPreferencesScreen(
-                          runtime: widget.runtime,
                           repository: widget.repository,
                         ),
                       ),
