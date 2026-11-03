@@ -99,10 +99,15 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         query: query,
         initialSelectedCandidateKey: state.uri.queryParameters['selected'],
         repository: discovery,
+        authenticated: runtime.isAuthenticated,
         mapConfig: runtime.mapConfig,
         location: runtime.location,
         onOpenOccurrence: (id) => context.push('/occurrences/$id'),
-        onOpenItem: (family, id) => context.push('/discover/items/$family/$id'),
+        onOpenItem: (family, id) async {
+          await context.push<void>(
+            '/discover/items/${Uri.encodeComponent(family)}/${Uri.encodeComponent(id)}',
+          );
+        },
       );
     },
   ),
@@ -160,6 +165,7 @@ List<RouteBase> discoveryRoutes(AppRuntime runtime) => [
         family: state.pathParameters['family']!,
         id: state.pathParameters['id']!,
         repository: discovery,
+        authenticated: runtime.isAuthenticated,
       );
     },
   ),
