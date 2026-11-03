@@ -318,14 +318,12 @@ class _MeSavedScreenState extends State<MeSavedScreen> {
                 onTap: () =>
                     widget.onOpen((row['activity'] as Map)['id'].toString()),
               ),
-          if (!_loading && !_failed && !_hasMore)
+          if (!_loading && !_failed && !_hasMore && _rows.isEmpty && _hasKnownCollection)
             Center(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 child: Text(
-                  _rows.isEmpty && _hasKnownCollection
-                      ? 'Aucun enregistrement pour le moment.'
-                      : 'Vous avez tout exploré',
+                  'Aucun enregistrement pour le moment.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
