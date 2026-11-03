@@ -81,3 +81,40 @@ Une section sans valeur est omise ou remplacée par une aide d'édition contextu
 Les audiences fines, le défaut de consentement des nouveaux Interests / Open to, la sémantique exacte de « Mes collectifs », les vues « Voir comme » et la révocation des partages/historiques restent régis par leurs propriétaires et par le chantier de confidentialité. **Sur #522, les nouveaux Interests/Open to passent de privé par défaut (`main`) à public par défaut : ne pas traiter ce changement comme implicitement validé.** Toute correction doit être évaluée avec les tests et migrations concernés.
 
 **Promesse :** « Makolo marche pour vous. » Le Passeport présente ce qui est déjà utile pour avancer.
+
+
+## Addendum de mise en œuvre — 3 novembre 2026 / Flutter, PR #522
+
+Cet addendum remplace **pour le client personnel Flutter** les anciennes décisions
+d'aperçu personnalisé minimal et de recalcul serveur de chaque variante.
+
+- La lecture privée du titulaire `/api/v1/me/passport/?variant=complete`
+  renvoie une projection source avec une enveloppe `composition.schema_version=1`,
+  une identité publique admise et les identifiants publics admis pour chaque
+  famille de faits. Le cache reste personnel, remplaçable et purgé sur refus.
+- Flutter compose Complet, Public, Thématique et Personnalisé depuis ce seul
+  chargement. Les thèmes des déclarations et les classifications Activity sont
+  transmis dans la projection personnelle ; aucun client ne réinterprète les
+  droits des domaines.
+- Public = faits admis publiquement ; Thématique = même socle général autorisé,
+  filtrage des faits thématisables ; Personnalisé = socle public dont la
+  personne retire explicitement des éléments. Le protocole natif envoie
+  `exclude`, `exclude_activity`, `exclude_proof`, `exclude_credential`
+  à l'émission. L'API conserve la compatibilité des sélections `include`
+  historiques sur Web.
+- L'émission, l'intégrité du snapshot, l'empreinte et les droits sont de la
+  responsabilité du serveur. Un lecteur tiers ne reçoit jamais la projection
+  complète du titulaire.
+- Les implications confirmées `ActivityInvolvement` sont représentées comme
+  expériences avec titre, fonctions et date d'Occurrence si connue.
+  Ni un Journey ni une réservation n'infère une participation.
+- Les données personnelles manquantes peuvent être indiquées sobrement à
+  leur titulaire dans Flutter ; aucune section vide n'est imprimée.
+- Les relations internes Membership/Mandate/Access restent owner-only sans
+  autorisation explicite de divulgation propre à leur domaine. Une projection
+  ne fait pas naître un droit collectif.
+- L'édition du Profil n'appartient pas à ce chantier.
+
+**Qualité non attestée :** les modifications ont été poussées sur #522, mais
+la suite Django, le formatage et les tests Flutter/Android sont à exécuter avant
+une éventuelle fusion. La PR reste non fusionnée.
