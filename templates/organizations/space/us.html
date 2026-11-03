@@ -24,6 +24,10 @@
     </div>
   </article>
 
+  {% if projection.identity.lifecycle == "suspended" or projection.identity.lifecycle == "archived" %}
+  <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="info" aria-hidden="true"></i><div><strong>{% if projection.identity.lifecycle == "archived" %}Cet Espace est archivé.{% else %}Cet Espace est suspendu.{% endif %}</strong></div></div>
+  {% endif %}
+
   <div class="mk-ws4-grid mk-ws4-grid--us">
     {% if projection.authority.scope == 'activity_limited' %}
     <div class="mk-ws4-state mk-ws4-state--wide" role="status"><i data-lucide="lock-keyhole" aria-hidden="true"></i><div><strong>Contexte limité à certaines activités</strong><p>Vous avez accès uniquement aux informations liées à vos activités.</p></div></div>
@@ -32,7 +36,7 @@
     <section class="mk-ws4-card" aria-labelledby="space-us-team">
       <div class="mk-ws4-card-head">
         <div><span class="mk-ws4-eyebrow">Collectif</span><h3 id="space-us-team">Équipe</h3></div>
-        <strong class="mk-ws4-count">{{ projection.team.active_members }}</strong>
+        {% if projection.team.visibility == "visible" and projection.team.active_members != None %}<strong class="mk-ws4-count">{{ projection.team.active_members }}</strong>{% endif %}
       </div>
       {% if projection.team.items %}
         <ul class="mk-ws4-list">
