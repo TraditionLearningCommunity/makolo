@@ -262,7 +262,7 @@ class NetworkStateIndicator extends StatelessWidget {
       status.pendingCount > 1
           ? '${status.pendingCount} actions en attente de confirmation'
           : 'Confirmation en attente',
-    SyncVisualState.offline => 'Informations disponibles',
+    SyncVisualState.offline => 'Hors connexion',
     SyncVisualState.conflict => 'Une modification demande votre attention.',
     SyncVisualState.failed => 'Vérification indisponible.',
     SyncVisualState.stale => 'Vérification nécessaire.',
