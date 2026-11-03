@@ -65,17 +65,24 @@ existant ; pas d'étape d'émission manuelle affichée.
 
 Une unique projection propriétaire nourrit les quatre variantes locales.
 Le client n'infère jamais une autorité ni l'admissibilité d'une Activity.
-L'éditeur institutionnel existant réutilise l'API Organizations, avec
-normalisation HTTPS, contrôles locaux d'email/téléphone et PATCH des seuls
-champs modifiés. Aucun modèle « éditeur de Passeport » n'a été créé.
+L'éditeur institutionnel réutilise l'API Organizations. Il regroupe
+l'identité (nom, identifiant en lecture seule, présentation), la localisation
+(ville et pays), le contact (e-mail, téléphone) et les liens (site web).
+La normalisation HTTPS et la validation locale précèdent le PATCH, qui ne
+transmet que les champs modifiés. Aucune nouvelle vérité métier n'a été créée.
 
 ## Frontières et limites assumées
 
-- Le Space ne possède pas actuellement l'équivalent du modèle
-  `ProfileVisibilityPolicy` par champ. Le contrôle de publication
-  institutionnel réel est `Organization.public_profile`. L'écran ne
-  doit pas simuler une confidentialité granulaire inexistante ; toute
-  extension doit avoir une décision explicite de domaine et de migration.
+- Le Space ne possède pas l'équivalent du modèle `ProfileVisibilityPolicy`
+  par champ. Son écran natif **Confidentialité du Passeport** gère les deux
+  réglages réels `Organization.public_profile` (lecteur public) et
+  `Organization.searchable` (découverte/recherche), sans créer de
+  fausses audiences par champ. Une granularité supplémentaire exigerait
+  une décision de domaine et un contrat de données explicites.
+- La consultation anonyme d'une ancienne version **publique** est
+  revalidée après retrait de la visibilité publique d'une Activity ou d'un
+  fait Trust/credential, ou désactivation du Passeport public. Le snapshot
+  émis n'est pas réécrit ; son contenu n'est plus divulgué publiquement.
 - Il n'existe pas de logo de Passport Space canonique dans `Organization`.
   Un média de Presentation ne peut pas être réutilisé comme portrait
   institutionnel sans lien de propriété, consentement et délivrance admise.
