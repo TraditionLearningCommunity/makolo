@@ -44,6 +44,10 @@ List<RouteBase> accessRoutes(AppRuntime runtime) => [
         onOpenDayOf: (handoff) =>
             context.push('/occurrences/${handoff.occurrenceId}/day-of'),
         onOpenJourney: (journeyId) => context.push('/journeys/$journeyId'),
+        onOpenCredential: (credentialPath) => context.push(
+          '/accesses/$accessId/credential',
+          extra: credentialPath,
+        ),
         onOpenPresentation: runtime.mps == null
             ? null
             : () => context.push('/accesses/$accessId/presentation'),
