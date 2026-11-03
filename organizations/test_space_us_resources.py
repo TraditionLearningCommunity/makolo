@@ -3,11 +3,13 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from activities.models import Activity
 from authorization.constants import SystemRoleCode
-from authorization.services import grant_space_role, revoke_mandate
+from authorization.services import grant_activity_role, grant_space_role, revoke_mandate
 from organizations.models import Organization
 from personal_assets.models import PersonalAsset
 from presentations.enums import Provenance, VersionStatus, Visibility
@@ -154,12 +156,70 @@ class SpaceUsResourcesTests(TestCase):
                 ).data.get("handoffs", {}),
             )
 
+    def test_space_reader_without_management_and_activity_limited_are_restricted(self):
+        self._snapshot(self.space)
+        marketing = User.objects.create_user(
+            username="us-res-marketing", password="x",
+        )
+        grant_space_role(
+            profile=marketing, space=self.space,
+            role=SystemRoleCode.MARKETING, granted_by=self.owner,
+        )
+        self.client.force_authenticate(marketing)
+        root = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
+        )
+        self.assertEqual(root.status_code, 200, root.data)
+        self.assertEqual(root.data["resources"]["visibility"], "restricted")
+        self.assertNotIn("resources", root.data["handoffs"])
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+        activity = Activity.objects.create(
+            title="Activité locale", slug="us-res-local",
+            created_by=self.owner, space=self.space,
+        )
+        scoped = User.objects.create_user(username="us-res-scoped", password="x")
+        grant_activity_role(
+            profile=scoped, activity=activity,
+            role=SystemRoleCode.ACTIVITY_LOCAL_MANAGER, granted_by=self.owner,
+        )
+        self.client.force_authenticate(scoped)
+        root = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
+        )
+        self.assertEqual(root.status_code, 200, root.data)
+        self.assertEqual(root.data["resources"]["visibility"], "restricted")
+        self.assertNotIn("resources", root.data["handoffs"])
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
     def test_owner_revocation_invalidates_n2_and_preview(self):
         self._snapshot(self.space)
         self.client.force_authenticate(self.owner)
         self.assertEqual(self.client.get(self.url).status_code, 200)
         revoke_mandate(mandate=self.owner_mandate, actor=self.other_owner)
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_revoked_passports_and_unpublished_templates_are_not_presented(self):
+        snapshot = self._snapshot(self.space)
+        snapshot.revoked_at = timezone.now()
+        snapshot.save(update_fields=["revoked_at"])
+        template = PresentationTemplate.objects.create(
+            slug="brouillon", name="Modèle brouillon",
+            provenance=Provenance.SPACE, visibility=Visibility.SPACE,
+            owner_space=self.space, created_by=self.owner,
+        )
+        PresentationTemplateVersion.objects.create(
+            template=template, version_number=1,
+            status=VersionStatus.DRAFT, manifest=ESSENTIAL_MANIFEST,
+            created_by=self.owner,
+        )
+        self.client.force_authenticate(self.owner)
+        root = self.client.get(
+            f"/api/v1/organizations/workspaces/{self.space.slug}/us/"
+        )
+        self.assertEqual(root.data["resources"]["count"], 0)
+        self.assertNotIn("Modèle brouillon", str(root.data))
+        self.assertNotIn(str(snapshot.pk), str(root.data))
 
     def test_resource_listing_pages_and_validates_query(self):
         for _ in range(23):
