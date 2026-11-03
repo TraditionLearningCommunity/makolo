@@ -64,7 +64,7 @@ void main() {
     expect(find.text('Départ du 15 novembre'), findsOneWidget);
     expect(find.text('Avenue du Départ'), findsOneWidget);
     expect(find.textContaining('Présentez-vous au guichet A.'), findsOneWidget);
-    expect(find.textContaining('Dernières informations reçues'), findsOneWidget);
+    expect(find.textContaining('Ces informations ont été enregistrées'), findsOneWidget);
     expect(find.textContaining('État lors de la dernière réception'), findsOneWidget);
     expect(await repo.readKnownCredentialPath('access-1'), _path);
     await tester.tap(find.text('Préparer ou afficher mon QR'));
