@@ -263,8 +263,8 @@ class _AccessContent extends StatelessWidget {
               horizontal: MakoloSpacing.inner,
             ),
             child: Text(
-              'Dernières informations reçues sur cet appareil. '
-              'Le statut et le contrôle réel restent soumis à Access.',
+              'Ces informations ont été enregistrées sur cet appareil. '
+              'La validité de cet accès sera vérifiée lors du contrôle.',
             ),
           ),
           if (presentation.state != null)
