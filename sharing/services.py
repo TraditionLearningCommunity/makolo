@@ -213,6 +213,8 @@ def _create_delivery(*, envelope, recipient):
     delivery = ShareDelivery.objects.create(envelope=envelope, recipient=recipient)
     if envelope.subject_type == ShareSubjectType.JOURNEY:
         message = f"{_sender_name(envelope.created_by)} vous permet de repartir de son parcours."
+    elif envelope.subject_type == ShareSubjectType.PASSPORT:
+        message = f"{_sender_name(envelope.created_by)} vous a partagé son Passeport Makolo."
     else:
         message = f"{_sender_name(envelope.created_by)} vous a partagé une {_delivery_message(envelope)}."
     create_notification(
@@ -363,6 +365,15 @@ def resolve_delivery_for_recipient(*, delivery_id, user, mark_opened=False):
     elif delivery.envelope.subject_type == ShareSubjectType.JOURNEY:
         from .journey_reuse import resolve_journey_share_subject
         resolve_journey_share_subject(delivery.envelope)
+    elif delivery.envelope.subject_type == ShareSubjectType.PASSPORT:
+        from .models import PassportShareSubject
+        from .passport_documents import snapshot_payload_is_intact
+        try:
+            snapshot = delivery.envelope.passport_subject.snapshot
+        except PassportShareSubject.DoesNotExist as exc:
+            raise ShareUnavailable from exc
+        if snapshot.is_revoked or snapshot.variant == "complete" or not snapshot_payload_is_intact(snapshot):
+            raise ShareUnavailable
     else:
         raise ShareUnavailable
     if mark_opened and delivery.opened_at is None:
