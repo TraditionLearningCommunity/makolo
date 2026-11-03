@@ -12,7 +12,7 @@ from authorization.services import can
 from groups.models import GroupMembership, GroupSnapshotMember
 from payments.models import PaymentObligationStatus
 
-from .contracts import PlanEligibilityStatus, SubscriptionPlanType, SubscriptionSubjectType
+from .contracts import AcquisitionMode, CatalogVisibility, PlanEligibilityStatus, PlanVersionStatus, SubscriptionPlanType, SubscriptionSubjectType
 from .coverage_models import (
     AllocationStatus,
     CoverageStatus,
@@ -134,6 +134,12 @@ def create_coverage(
         if not isinstance(exc, PlanVersionBillingTerms.DoesNotExist):
             raise
         raise CoverageError("Cette formule n'a pas de termes commerciaux publiés.") from exc
+    if version.status != PlanVersionStatus.PUBLISHED or not version.plan.is_active:
+        raise CoverageError("Seule une version publiée d'un plan actif peut être achetée.")
+    if (version.catalog_visibility != CatalogVisibility.PUBLIC
+        or version.acquisition_mode != AcquisitionMode.SELF_SERVICE):
+        if not can(actor, PermissionCode.PLATFORM_SUBSCRIPTIONS_CATALOG_MANAGE):
+            raise PermissionDenied("Cette offre ne permet pas l'acquisition libre-service.")
     if not terms.coverage_enabled:
         raise CoverageError("Cette offre ne permet pas l'achat de couvertures.")
     if purchased_quantity < 1 or purchased_quantity > terms.coverage_max_quantity:
