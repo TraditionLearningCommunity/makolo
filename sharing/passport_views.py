@@ -213,23 +213,37 @@ class PassportViewMixin(TemplateView):
                 "passport_qr_data_uri": qr_data_uri,
             }
         )
-        # Display owner-only coordinates on both /passport/me/ and the canonical
-        # /<identifier>/ route when the authenticated person is the subject.
-        if (projection.subject_kind == "profile" and self.variant == PASSPORT_COMPLETE
-                and self.private_authorized and not is_document
-                and self.request.user.is_authenticated
-                and self.request.user.pk == self.subject.pk):
-            details = projection.identity.get("owner_details", {})
-            labels = (
-                ("Prénom", "first_name"), ("Nom", "last_name"),
-                ("Identifiant Makolo", "username"), ("Ville", "city"),
-                ("Pays", "country"), ("Langue", "language"),
-                ("Téléphone", "phone"), ("Adresse", "address"),
-                ("Date de naissance", "birth_date"), ("Genre", "gender"),
-            )
-            context["owner_details"] = [
-                (label, details[key]) for label, key in labels if details.get(key)
-            ]
+        # The same admitted personal section is present across all variants.
+        # Never infer public facts from private owner-only coordinates.
+        if projection.subject_kind == "profile":
+            if (self.variant == PASSPORT_COMPLETE):
+                if (self.private_authorized and not is_document and
+                        self.request.user.is_authenticated and
+                        self.request.user.pk == self.subject.pk):
+                    details = projection.identity.get("owner_details", {})
+                    labels = (
+                        ("Prénom", "first_name"), ("Nom", "last_name"),
+                        ("Identifiant Makolo", "username"),
+                        ("Ville", "city"), ("Pays", "country"),
+                        ("Téléphone", "phone"), ("Adresse", "address"),
+                        ("Date de naissance", "birth_date"), ("Genre", "gender"),
+                    )
+                    context["personal_details"] = [
+                        (label, details[key])
+                        for label, key in labels if details.get(key)
+                    ]
+                    context["owner_details"] = context["personal_details"]
+            else:
+                details = projection.identity.get("presentation_details", {})
+                labels = (
+                    ("Prénom", "first_name"), ("Nom", "last_name"),
+                    ("Identifiant Makolo", "username"),
+                    ("Ville", "city"), ("Pays", "country"),
+                )
+                context["personal_details"] = [
+                    (label, details[key])
+                    for label, key in labels if details.get(key)
+                ]
         return context
 
     def render_to_response(self, context, **response_kwargs):
