@@ -209,6 +209,77 @@ void main() {
     expect(find.text('YouTube'), findsOneWidget);
   });
 
+  testWidgets('identifier has a separate guarded Accounts action', (tester) async {
+    final database = MakoloDatabase.memory();
+    addTearDown(database.close);
+    final store = ProfileStore(database, 'profile-identifier');
+    final tokens = MemoryTokenStore(
+      session: const AuthSession(
+        profileId: 'profile-identifier',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+      ),
+    );
+    int identifierPatches = 0;
+    final api = MakoloApiClient(
+      baseUri: Uri.parse('https://makolo.invalid/'),
+      tokenStore: tokens,
+      dio: MockClient((request) async {
+        if (request.url.path == '/api/v1/accounts/auth/me/') {
+          return MockResponse(jsonEncode({
+            'first_name': 'Amina',
+            'username': 'amina-actuelle',
+            'email': 'amina@example.test',
+            'profile': {'public_profile': false, 'searchable': false},
+          }), 200);
+        }
+        if (request.url.path == '/api/v1/accounts/auth/identifier/') {
+          final data = jsonDecode(request.data as String) as Map<String, dynamic>;
+          expect(data, {'username': 'amina-nouvelle'});
+          identifierPatches++;
+          return MockResponse(jsonEncode({
+            'message': 'Identifiant Makolo mis à jour.',
+            'user': {'username': 'amina-nouvelle'},
+          }), 200);
+        }
+        if (request.url.path == '/api/v1/me/') {
+          return MockResponse(jsonEncode({
+            'meta': {
+              'projection': 'personal.me',
+              'schema_version': 1,
+              'scope': 'personal',
+              'generated_at': '2026-11-03T06:00:00Z',
+            },
+            'data': {
+              'actor': {'id': 'profile-identifier'},
+              'identity': {'display_name': 'Amina'},
+            },
+          }), 200);
+        }
+        throw StateError('Unexpected request: ${request.url}');
+      }).dio,
+    );
+    addTearDown(api.close);
+    await tester.pumpWidget(MaterialApp(
+      home: MeProfileScreen(api: api, personal: PersonalRepository(store)),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Modifier Identifiant Makolo'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      'amina-nouvelle',
+    );
+    await tester.tap(find.text('Modifier').last);
+    await tester.pumpAndSettle();
+    expect(identifierPatches, 1);
+    expect(find.text('amina-nouvelle'), findsOneWidget);
+    expect(find.text('amina@example.test'), findsOneWidget);
+  });
+
   testWidgets('Accounts gender and birth date are editable from Passport', (tester) async {
     final database = MakoloDatabase.memory();
     addTearDown(database.close);
