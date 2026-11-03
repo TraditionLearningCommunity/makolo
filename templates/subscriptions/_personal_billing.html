@@ -1,7 +1,9 @@
 <section class="mk-panel px-4 py-4 sm:px-6" aria-labelledby="personal-billing-title">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 id="personal-billing-title" class="text-lg font-bold">Facturation</h2>
+    {% if compact %}
     <a class="inline-flex min-h-11 items-center text-sm font-semibold" style="color:var(--mk-brand)" href="{% url 'subscriptions:billing' %}">Tout voir</a>
+    {% endif %}
   </div>
   {% if personal_billing.items %}
   <ul class="mt-2 divide-y">
