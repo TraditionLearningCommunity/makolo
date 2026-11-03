@@ -192,6 +192,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                   repository: widget.repository,
                   items: items,
                   onOpen: widget.onOpen,
+                  onRetryInvitations: () => _refreshInvitationsIfNeeded(force: true),
                 ),
               ),
             );
@@ -207,11 +208,13 @@ class _ConversationListBody extends StatefulWidget {
     required this.repository,
     required this.items,
     required this.onOpen,
+    required this.onRetryInvitations,
   });
 
   final ConversationRepository repository;
   final List<_ConversationSummary> items;
   final void Function(String id) onOpen;
+  final Future<void> Function() onRetryInvitations;
 
   @override
   State<_ConversationListBody> createState() => _ConversationListBodyState();
@@ -241,7 +244,13 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
         final invitations = _ConversationInvitation.fromProjection(
           invitationsSnapshot.data,
         );
-        return ListView(
+        return StreamBuilder<OwnerSourceState>(
+          stream: widget.repository.watchInvitationsSource(),
+          initialData: OwnerSourceState.unknown,
+          builder: (context, invitationSourceSnapshot) {
+            final invitationFailure =
+                invitationSourceSnapshot.data?.lastErrorCode != null;
+            return ListView(
           key: const Key('conversation-list-content'),
           padding: const EdgeInsets.all(MakoloSpacing.inner),
           children: [
@@ -253,6 +262,16 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                 prefixIcon: Icon(Icons.search_rounded),
               ),
             ),
+            if (invitationFailure) ...[
+              const SizedBox(height: MakoloSpacing.sm),
+              const InlineMessage(
+                message: 'Invitations non actualisées. Les données déjà disponibles restent consultables.',
+              ),
+              TextButton(
+                onPressed: () => unawaited(widget.onRetryInvitations()),
+                child: const Text('Réessayer les invitations'),
+              ),
+            ],
             if (invitations.isNotEmpty) ...[
               const SizedBox(height: MakoloSpacing.md),
               Text(
@@ -273,7 +292,7 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
             if (filtered.isEmpty)
               const MakoloCard(
                 child: Text(
-                  'Aucune coordination ne correspond à cette recherche.',
+                  'Aucune conversation à afficher.',
                 ),
               )
             else
@@ -287,6 +306,11 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                         ? null
                         : MakoloStatus(label: filtered[index].lifecycle!),
                     metadata: [
+                      if (filtered[index].latestResult != null)
+                        MakoloMetadataItem(
+                          filtered[index].latestResult!,
+                          icon: Icons.check_circle_outline_rounded,
+                        ),
                       if (filtered[index].attentionCount > 0)
                         MakoloMetadataItem(
                           '${filtered[index].attentionCount} élément(s) à voir',
@@ -305,6 +329,8 @@ class _ConversationListBodyState extends State<_ConversationListBody> {
                   const SizedBox(height: MakoloSpacing.sm),
               ],
           ],
+            );
+          },
         );
       },
     );
@@ -1045,6 +1071,9 @@ class _ConversationSummary {
     required this.attentionCount,
     required this.allClear,
     this.contextLabel,
+    this.purpose,
+    this.latestResult,
+    this.updatedAt,
   });
 
   final String id;
@@ -1053,6 +1082,9 @@ class _ConversationSummary {
   final int attentionCount;
   final bool allClear;
   final String? contextLabel;
+  final String? purpose;
+  final String? latestResult;
+  final DateTime? updatedAt;
 
   static List<_ConversationSummary> fromProjection(
     StoredProjection? projection,
@@ -1074,6 +1106,9 @@ class _ConversationSummary {
                 : 0,
             allClear: row['all_clear'] == true,
             contextLabel: _string(context['label']),
+            purpose: _string(row['purpose']),
+            latestResult: _string(row['latest_result']),
+            updatedAt: DateTime.tryParse(_string(row['updated_at']) ?? ''),
           );
         })
         .where((item) => item.id.isNotEmpty)
