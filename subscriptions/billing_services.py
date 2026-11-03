@@ -184,7 +184,7 @@ def ensure_transition_billing_obligation(*, transition, actor=None):
 @transaction.atomic
 def sync_subscription_billing_obligation(*, obligation):
     link = (
-        SubscriptionBillingObligation.objects.select_for_update()
+        SubscriptionBillingObligation.objects.select_for_update(of=("self",))
         .filter(obligation=obligation)
         .select_related("transition")
         .first()
