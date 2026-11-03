@@ -144,6 +144,59 @@ class AccessRepository {
     );
   }
 
+  Future<AccessSourceState> readCollectionSource({
+    required String relationship,
+    int offset = 0,
+    int limit = defaultCollectionLimit,
+  }) async {
+    final key = collectionSourceKey(
+      relationship: relationship,
+      offset: offset,
+      limit: limit,
+    );
+    final row = await (database.select(database.syncSources)
+          ..where((item) =>
+              item.profileId.equals(profileId) &
+              item.sourceKey.equals(key)))
+        .getSingleOrNull();
+    return row == null
+        ? AccessSourceState.unknown
+        : AccessSourceState(
+            lastSuccessAt: row.lastSuccessAt,
+            invalidated: row.invalidated,
+            lastErrorCode: row.lastErrorCode,
+          );
+  }
+
+  /// A bounded set of owner-authorized details is warmed after an online
+  /// collection refresh. No credential payload or AccessUse is ever cached.
+  Future<void> warmKnownDetails(
+    Iterable<String> ids, {
+    int limit = 6,
+  }) async {
+    if (sync == null) return;
+    final unique = <String>{};
+    var attempted = 0;
+    for (final id in ids) {
+      if (id.isEmpty || !unique.add(id)) continue;
+      if (attempted >= limit) break;
+      if (await readDetail(id) != null) continue;
+      final before = await readSource(id);
+      if (before.invalidated) continue;
+      attempted++;
+      try {
+        await refreshDetail(id);
+        final after = await readSource(id);
+        if (after.reachability == ReachabilityState.unreachable &&
+            !after.invalidated) {
+          break;
+        }
+      } on Object {
+        break;
+      }
+    }
+  }
+
   Future<void> refreshCollectionPage({
     required String relationship,
     required int offset,
